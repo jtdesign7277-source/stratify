@@ -1,0 +1,4 @@
+# Procfile for Railway/Heroku
+web: uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+worker_arbitrage: python -m workers.arbitrage_consumer
+worker_lines: python -m workers.line_movement_consumer

@@ -1,0 +1,123 @@
+# Stratify Development Environment
+# Run: docker-compose up -d
+
+services:
+  # FastAPI Backend
+  api:
+    build: .
+    container_name: stratify-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/stratify
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - DEBUG=true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_started
+    volumes:
+      - .:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: stratify-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stratify
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: stratify-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Kafka + Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: stratify-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: stratify-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # Kafka UI (optional, for debugging)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: stratify-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  # Arbitrage Alert Worker
+  worker-arbitrage:
+    build: .
+    container_name: stratify-worker-arbitrage
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/stratify
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - db
+      - redis
+      - kafka
+    command: python -m workers.arbitrage_consumer
+
+  # Line Movement Worker
+  worker-lines:
+    build: .
+    container_name: stratify-worker-lines
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/stratify
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - db
+      - redis
+      - kafka
+    command: python -m workers.line_movement_consumer
+
+volumes:
+  postgres_data:
+  redis_data:
