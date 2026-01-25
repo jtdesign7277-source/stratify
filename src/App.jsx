@@ -198,8 +198,18 @@ const LandingPage = ({ onEnter }) => {
           {/* Feature Preview Cards */}
           <div className="grid grid-cols-3 gap-6 mb-20" id="features">
             <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">🎯</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl flex items-center justify-center mb-4 relative">
+                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
+                  {/* Target circles */}
+                  <circle cx="32" cy="32" r="28" stroke="#ef4444" strokeWidth="2" opacity="0.3"/>
+                  <circle cx="32" cy="32" r="20" stroke="#ef4444" strokeWidth="2" opacity="0.5"/>
+                  <circle cx="32" cy="32" r="12" stroke="#ef4444" strokeWidth="2" opacity="0.7"/>
+                  <circle cx="32" cy="32" r="6" fill="#ef4444"/>
+                  {/* Dart */}
+                  <path d="M44 20L32 32" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="44" cy="20" r="3" fill="#3b82f6"/>
+                  <path d="M46 18L48 16M46 22L48 24" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">AI Strategy Builder</h3>
               <p className="text-gray-400 mb-4">Create sophisticated trading strategies with natural language. No coding required.</p>
@@ -207,8 +217,16 @@ const LandingPage = ({ onEnter }) => {
             </div>
 
             <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">⚡</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
+                  <path d="M32 8L28 28H20L32 56L36 36H44L32 8Z" fill="url(#lightning-gradient)" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round"/>
+                  <defs>
+                    <linearGradient id="lightning-gradient" x1="32" y1="8" x2="32" y2="56" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#fbbf24"/>
+                      <stop offset="1" stopColor="#f59e0b"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Real-time Execution</h3>
               <p className="text-gray-400 mb-4">Sub-millisecond order routing with direct market access and smart order routing.</p>
@@ -216,8 +234,19 @@ const LandingPage = ({ onEnter }) => {
             </div>
 
             <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl">📊</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
+                  {/* Bar chart */}
+                  <rect x="12" y="36" width="8" height="20" rx="2" fill="#10b981"/>
+                  <rect x="24" y="24" width="8" height="32" rx="2" fill="#3b82f6"/>
+                  <rect x="36" y="28" width="8" height="28" rx="2" fill="#8b5cf6"/>
+                  <rect x="48" y="16" width="8" height="40" rx="2" fill="#ec4899"/>
+                  {/* Grid lines */}
+                  <line x1="8" y1="56" x2="60" y2="56" stroke="#374151" strokeWidth="1"/>
+                  <line x1="8" y1="44" x2="60" y2="44" stroke="#374151" strokeWidth="1" opacity="0.5"/>
+                  <line x1="8" y1="32" x2="60" y2="32" stroke="#374151" strokeWidth="1" opacity="0.5"/>
+                  <line x1="8" y1="20" x2="60" y2="20" stroke="#374151" strokeWidth="1" opacity="0.5"/>
+                </svg>
               </div>
               <h3 className="text-xl font-bold mb-3">Advanced Analytics</h3>
               <p className="text-gray-400 mb-4">Deep insights with Sharpe ratio, max drawdown, and custom performance metrics.</p>
@@ -700,7 +729,7 @@ export class TeslaEMAStrategy extends Strategy {
     if (!isDragging) return;
     const containerHeight = window.innerHeight - 60;
     const newHeight = containerHeight - e.clientY;
-    if (newHeight >= 40 && newHeight <= containerHeight - 200) {
+    if (newHeight >= 150 && newHeight <= containerHeight - 200) {
       setStrategiesHeight(newHeight);
     }
   };
@@ -793,7 +822,7 @@ export class TeslaEMAStrategy extends Strategy {
       </div>
 
       {/* Left Sidebar - Strategy Tree */}
-      <div className="relative z-10 w-72 border-r border-white/10 bg-[#0a0a0f] flex flex-col">
+      <div className="relative z-10 w-72 border-r border-white/5 bg-[#1a1a1f] flex flex-col">
         <div className="p-4 border-b border-white/10">
           <button
             onClick={() => setCurrentPage('landing')}
@@ -984,7 +1013,13 @@ export class TeslaEMAStrategy extends Strategy {
           <div className="border-t border-white/10 bg-[#1e1e1e] px-3 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setStrategiesCollapsed(false)}
+                onClick={() => {
+                  setStrategiesCollapsed(false);
+                  // Reset height to a reasonable size if it's too small
+                  if (strategiesHeight < 150) {
+                    setStrategiesHeight(250);
+                  }
+                }}
                 className="p-1 hover:bg-white/10 rounded transition-colors"
                 title="Expand panel"
               >
