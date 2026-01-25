@@ -2,31 +2,115 @@ import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 
 // Animated grid background component with subtle light effect
-const GridBackground = () => (
-  <div className="fixed inset-0 overflow-hidden pointer-events-none">
-    {/* Grid lines */}
-    <div
-      className="absolute inset-0"
-      style={{
-        backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
-        `,
-        backgroundSize: '50px 50px',
-      }}
-    />
-    {/* Subtle radial light effect */}
-    <div
-      className="absolute inset-0"
-      style={{
-        background: `
-          radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%)
-        `,
-      }}
-    />
-  </div>
-);
+const GridBackground = () => {
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <style>{`
+        @keyframes gridMove {
+          0% {
+            transform: translate(0, 0);
+          }
+          100% {
+            transform: translate(50px, 50px);
+          }
+        }
+
+        @keyframes gradientShift {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.6;
+          }
+        }
+
+        @keyframes lightPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.08;
+          }
+          50% {
+            transform: scale(1.2);
+            opacity: 0.12;
+          }
+        }
+
+        .animated-grid {
+          animation: gridMove 20s linear infinite;
+        }
+
+        .gradient-shift {
+          animation: gradientShift 8s ease-in-out infinite;
+        }
+
+        .light-pulse {
+          animation: lightPulse 6s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Animated Grid lines */}
+      <div
+        className="absolute inset-0 animated-grid"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px',
+          transform: `translateY(${scrollY * 0.3}px)`,
+        }}
+      />
+
+      {/* Secondary grid layer for depth */}
+      <div
+        className="absolute inset-0 gradient-shift"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: '100px 100px',
+          transform: `translateY(${scrollY * 0.15}px)`,
+        }}
+      />
+
+      {/* Animated radial light effects */}
+      <div className="absolute inset-0 light-pulse" style={{
+        background: `radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%)`,
+        transformOrigin: '50% 20%',
+      }} />
+
+      <div className="absolute inset-0" style={{
+        background: `radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%)`,
+        animation: 'lightPulse 8s ease-in-out infinite 2s',
+        transformOrigin: '80% 80%',
+      }} />
+
+      {/* Moving gradient overlay */}
+      <div
+        className="absolute inset-0 gradient-shift"
+        style={{
+          background: `
+            linear-gradient(180deg,
+              transparent 0%,
+              rgba(59, 130, 246, 0.02) 50%,
+              transparent 100%
+            )
+          `,
+          transform: `translateY(${scrollY * 0.5}px)`,
+        }}
+      />
+    </div>
+  );
+};
 
 // Animated counter component
 const AnimatedCounter = ({ end, duration = 2000, prefix = '', suffix = '' }) => {
@@ -94,22 +178,54 @@ const LandingPage = ({ onEnter }) => {
               <br />
               to trade
             </h1>
-            <p className="text-2xl text-gray-400 mb-8 max-w-3xl mx-auto">
+            <p className="text-2xl text-gray-400 mb-12 max-w-3xl mx-auto">
               Unify strategies across technical analysis, sentiment, and fundamentals.
               Let AI surface the signals that matter.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex items-center justify-center gap-4 mb-12">
-              <button
-                onClick={onEnter}
-                className="px-8 py-4 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all shadow-2xl shadow-white/20"
-              >
-                Try Stratify Free
-              </button>
-              <button className="px-8 py-4 border border-white/20 rounded-lg hover:bg-white/5 transition-colors">
-                Watch Demo
-              </button>
+            {/* Waitlist Section */}
+            <div className="max-w-2xl mx-auto mb-8">
+              {/* Email Input and Join Waitlist Button */}
+              <div className="flex items-center gap-4 mb-6">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="flex-1 px-6 py-4 bg-[#1a1a2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
+                />
+                <button
+                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                  Join Waitlist
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Waitlist Count */}
+              <div className="text-center mb-8">
+                <p className="text-gray-400 text-base flex items-center justify-center gap-2">
+                  <span className="text-xl">✨</span>
+                  <span>Join 501+ traders already on the waitlist</span>
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-white/10 mb-8" />
+
+              {/* Continue as Guest */}
+              <div className="text-center">
+                <button
+                  onClick={onEnter}
+                  className="w-full py-4 bg-transparent border border-white/20 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-center gap-2 mb-3"
+                >
+                  Continue as Guest
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </button>
+                <p className="text-gray-500 text-sm">Explore the full app without signing up</p>
+              </div>
             </div>
 
             {/* Social Proof Stats */}
@@ -177,165 +293,415 @@ const LandingPage = ({ onEnter }) => {
 
           {/* Feature Preview Cards */}
           <div className="grid grid-cols-3 gap-6 mb-20" id="features">
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl rounded-2xl p-6 transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl flex items-center justify-center mb-4 relative">
-                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
-                  {/* Target circles */}
-                  <circle cx="32" cy="32" r="28" stroke="#ef4444" strokeWidth="2" opacity="0.3"/>
-                  <circle cx="32" cy="32" r="20" stroke="#ef4444" strokeWidth="2" opacity="0.5"/>
-                  <circle cx="32" cy="32" r="12" stroke="#ef4444" strokeWidth="2" opacity="0.7"/>
-                  <circle cx="32" cy="32" r="6" fill="#ef4444"/>
-                  {/* Dart */}
-                  <path d="M44 20L32 32" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/>
-                  <circle cx="44" cy="20" r="3" fill="#3b82f6"/>
-                  <path d="M46 18L48 16M46 22L48 24" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
+            {/* AI Strategy Builder Card */}
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
+              {/* Visual Element */}
+              <div className="flex-1 flex items-center justify-center mb-6">
+                <div className="relative w-full h-64">
+                  {/* Comparison Table */}
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center justify-between py-3 px-4 bg-[#0f3d3d]/30 rounded-lg border border-cyan-500/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-cyan-500/20 rounded flex items-center justify-center">
+                          <span className="text-cyan-400 font-bold text-xs">S</span>
+                        </div>
+                        <span className="font-medium">Stratify</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-cyan-400 font-medium">AI-Powered</span>
+                        <span className="text-white font-medium">$0.00</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between py-3 px-4 rounded-lg">
+                      <span className="text-gray-500">TradingView</span>
+                      <span className="text-gray-500">$14.95</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 px-4 rounded-lg">
+                      <span className="text-gray-500">MetaTrader</span>
+                      <span className="text-gray-500">$19.99</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 px-4 rounded-lg">
+                      <span className="text-gray-500">NinjaTrader</span>
+                      <span className="text-gray-500">$60+</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">AI Strategy Builder</h3>
-              <p className="text-gray-400 mb-4">Create sophisticated trading strategies with natural language. No coding required.</p>
-              <div className="text-sm text-blue-400">Learn more →</div>
+
+              {/* Disclosure */}
+              <button className="flex items-center justify-center gap-1 text-xs text-gray-500 mb-4 hover:text-gray-400 transition-colors">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" fill="none" strokeWidth="1"/>
+                  <path d="M8 4v4M8 10h.01"/>
+                </svg>
+                Disclosure
+              </button>
+
+              {/* Content */}
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold mb-3">AI strategy builder. Zero fees.</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Stratify is the only platform with AI-powered strategy building and no monthly fees. Build sophisticated algorithms with natural language.
+                </p>
+              </div>
+
+              {/* CTA */}
+              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
+                Learn more →
+              </button>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl rounded-2xl p-6 transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
-                  <path d="M32 8L28 28H20L32 56L36 36H44L32 8Z" fill="url(#lightning-gradient)" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="lightning-gradient" x1="32" y1="8" x2="32" y2="56" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#fbbf24"/>
-                      <stop offset="1" stopColor="#f59e0b"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
+            {/* Real-time Execution Card */}
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
+              {/* Visual Element */}
+              <div className="flex-1 flex items-center justify-center mb-6">
+                <div className="relative w-full h-64 flex flex-col items-center justify-center">
+                  {/* Speed Metrics */}
+                  <div className="text-center mb-8">
+                    <div className="text-sm text-gray-400 mb-2">Execution latency</div>
+                    <div className="text-6xl font-bold text-emerald-400 mb-1">0.8<span className="text-3xl">ms</span></div>
+                  </div>
+
+                  {/* Comparison bars */}
+                  <div className="w-full space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-24">Stratify</span>
+                      <div className="flex-1 h-2 bg-emerald-500/20 rounded-full overflow-hidden">
+                        <div className="h-full w-[8%] bg-emerald-500 rounded-full"></div>
+                      </div>
+                      <span className="text-xs text-emerald-400 w-12">0.8ms</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-24">Industry Avg</span>
+                      <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full w-[45%] bg-gray-500 rounded-full"></div>
+                      </div>
+                      <span className="text-xs text-gray-500 w-12">4.5ms</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">Real-time Execution</h3>
-              <p className="text-gray-400 mb-4">Sub-millisecond order routing with direct market access and smart order routing.</p>
-              <div className="text-sm text-emerald-400">Learn more →</div>
+
+              {/* Disclosure */}
+              <button className="flex items-center justify-center gap-1 text-xs text-gray-500 mb-4 hover:text-gray-400 transition-colors">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" fill="none" strokeWidth="1"/>
+                  <path d="M8 4v4M8 10h.01"/>
+                </svg>
+                Disclosure
+              </button>
+
+              {/* Content */}
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold mb-3">Sub-millisecond execution. Maximum edge.</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Our infrastructure delivers the fastest order execution with direct market access, ensuring you never miss an opportunity.
+                </p>
+              </div>
+
+              {/* CTA */}
+              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
+                Learn more →
+              </button>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl rounded-2xl p-6 transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
-                  {/* Bar chart */}
-                  <rect x="12" y="36" width="8" height="20" rx="2" fill="#10b981"/>
-                  <rect x="24" y="24" width="8" height="32" rx="2" fill="#3b82f6"/>
-                  <rect x="36" y="28" width="8" height="28" rx="2" fill="#8b5cf6"/>
-                  <rect x="48" y="16" width="8" height="40" rx="2" fill="#ec4899"/>
-                  {/* Grid lines */}
-                  <line x1="8" y1="56" x2="60" y2="56" stroke="#374151" strokeWidth="1"/>
-                  <line x1="8" y1="44" x2="60" y2="44" stroke="#374151" strokeWidth="1" opacity="0.5"/>
-                  <line x1="8" y1="32" x2="60" y2="32" stroke="#374151" strokeWidth="1" opacity="0.5"/>
-                  <line x1="8" y1="20" x2="60" y2="20" stroke="#374151" strokeWidth="1" opacity="0.5"/>
-                </svg>
+            {/* Advanced Analytics Card */}
+            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
+              {/* Visual Element */}
+              <div className="flex-1 flex items-center justify-center mb-6">
+                <div className="relative w-full h-64">
+                  {/* Code-style data display */}
+                  <div className="font-mono text-sm bg-gradient-to-br from-cyan-500/5 to-purple-500/5 rounded-lg p-6 border border-cyan-500/10">
+                    <div className="text-gray-500 mb-4">--data &#123;</div>
+                    <div className="pl-6 space-y-2">
+                      <div>
+                        <span className="text-cyan-400">'sharpe-ratio'</span>
+                        <span className="text-gray-500">:</span>
+                        <span className="text-emerald-400"> 2.84</span>
+                      </div>
+                      <div>
+                        <span className="text-cyan-400">'max-drawdown'</span>
+                        <span className="text-gray-500">:</span>
+                        <span className="text-yellow-400"> -8.2%</span>
+                      </div>
+                      <div>
+                        <span className="text-cyan-400">'win-rate'</span>
+                        <span className="text-gray-500">:</span>
+                        <span className="text-emerald-400"> 67.3%</span>
+                      </div>
+                      <div>
+                        <span className="text-cyan-400">'profit-factor'</span>
+                        <span className="text-gray-500">:</span>
+                        <span className="text-purple-400"> 1.92</span>
+                      </div>
+                      <div>
+                        <span className="text-cyan-400">'total-trades'</span>
+                        <span className="text-gray-500">:</span>
+                        <span className="text-blue-400"> 1,247</span>
+                      </div>
+                      <div>
+                        <span className="text-cyan-400">'avg-hold-time'</span>
+                        <span className="text-gray-500">:</span>
+                        <span className="text-pink-400"> '4.2h'</span>
+                      </div>
+                    </div>
+                    <div className="text-gray-500 mt-4">&#125;</div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">Advanced Analytics</h3>
-              <p className="text-gray-400 mb-4">Deep insights with Sharpe ratio, max drawdown, and custom performance metrics.</p>
-              <div className="text-sm text-purple-400">Learn more →</div>
+
+              {/* Disclosure */}
+              <button className="flex items-center justify-center gap-1 text-xs text-gray-500 mb-4 hover:text-gray-400 transition-colors">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" fill="none" strokeWidth="1"/>
+                  <path d="M8 4v4M8 10h.01"/>
+                </svg>
+                Disclosure
+              </button>
+
+              {/* Content */}
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold mb-3">Access our API for algorithmic trading</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Deep performance analytics with institutional-grade metrics. Track Sharpe ratio, drawdown, and custom KPIs in real-time.
+                </p>
+              </div>
+
+              {/* CTA */}
+              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
+                Learn more →
+              </button>
             </div>
           </div>
 
           {/* Pricing Section */}
           <div className="mb-20" id="pricing">
-            <h2 className="text-4xl font-bold text-center mb-4">Simple, transparent pricing</h2>
-            <p className="text-gray-400 text-center mb-12">Choose the plan that fits your trading style</p>
+            <h2 className="text-5xl font-bold text-center mb-4 leading-tight">
+              Transparent pricing with<br />
+              features tailored to your business
+            </h2>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
               {/* Free Tier */}
-              <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/30 border border-white/10 rounded-2xl p-8">
-                <div className="text-lg font-semibold mb-2">Free</div>
-                <div className="text-4xl font-bold mb-4">$0<span className="text-lg text-gray-400">/mo</span></div>
-                <div className="text-gray-400 mb-6">Perfect for getting started</div>
-                <button className="w-full py-3 border border-white/20 rounded-lg hover:bg-white/5 transition-colors mb-6">
-                  Start Free
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
+                <div className="text-base text-gray-400 mb-2">Free</div>
+                <div className="text-5xl font-bold mb-1">
+                  $0<span className="text-lg text-gray-400">/month</span>
+                </div>
+                <div className="text-gray-400 text-sm mb-8 leading-relaxed">
+                  Full-featured banking essentials with<br />
+                  no strings attached.
+                </div>
+                <button className="w-full py-3 border border-white/30 rounded-full hover:bg-white/5 transition-colors mb-8">
+                  Start for Free
                 </button>
                 <ul className="space-y-3 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Paper trading</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Hundreds of millions in FDIC insurance</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>3 active strategies</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Same-day ACH transfers — $1</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Basic analytics</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Domestic wire transfers — $6</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-gray-600">✓</span>
-                    <span className="text-gray-600">Real-time data</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Outgoing Fednow/RTP — $5</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Unlimited virtual cards</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">International wire transfers — $25</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Foreign transaction fee (card) — 1% (min $0.4)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">USDC on/off ramp — volume based</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">USDT on/off ramp — volume based</span>
                   </li>
                 </ul>
               </div>
 
               {/* Pro Tier */}
-              <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border-2 border-blue-500/50 rounded-2xl p-8 relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-500 rounded-full text-xs font-semibold">
-                  MOST POPULAR
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
+                <div className="text-base text-gray-400 mb-2">Pro</div>
+                <div className="text-5xl font-bold mb-1">
+                  $25<span className="text-lg text-gray-400">/month</span>
                 </div>
-                <div className="text-lg font-semibold mb-2">Pro</div>
-                <div className="text-4xl font-bold mb-4">$49<span className="text-lg text-gray-400">/mo</span></div>
-                <div className="text-gray-400 mb-6">For serious traders</div>
+                <div className="text-gray-400 text-sm mb-8 leading-relaxed">
+                  Scale your business with advanced<br />
+                  industry-specific capabilities.
+                </div>
                 <button
                   onClick={onEnter}
-                  className="w-full py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors mb-6"
+                  className="w-full py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-100 transition-colors mb-8"
                 >
-                  Start Pro Trial
+                  Get Started
                 </button>
                 <ul className="space-y-3 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Everything in Free</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Hundreds of millions in FDIC insurance</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Unlimited strategies</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Same-day ACH transfers — $0</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Real-time execution</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Domestic wire transfers — $0</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Advanced analytics</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Outgoing Fednow/RTP — $0</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Priority support</span>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Unlimited virtual cards</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">International wire transfers — $25</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Foreign transaction fee (card) — 1% (min $0.4)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">USDC on/off ramp — volume based</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">USDT on/off ramp — volume based</span>
                   </li>
                 </ul>
               </div>
+            </div>
+          </div>
 
-              {/* Enterprise Tier */}
-              <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/30 border border-white/10 rounded-2xl p-8">
-                <div className="text-lg font-semibold mb-2">Enterprise</div>
-                <div className="text-4xl font-bold mb-4">Custom</div>
-                <div className="text-gray-400 mb-6">For institutions & teams</div>
-                <button className="w-full py-3 border border-white/20 rounded-lg hover:bg-white/5 transition-colors mb-6">
-                  Contact Sales
-                </button>
-                <ul className="space-y-3 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Everything in Pro</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Dedicated infrastructure</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Custom integrations</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>SLA & compliance</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>White-glove onboarding</span>
-                  </li>
-                </ul>
+          {/* Crypto Strategy Section */}
+          <div className="mb-20 py-24 border-t border-white/10">
+            <div className="max-w-6xl mx-auto">
+              <div className="grid grid-cols-2 gap-16 items-center">
+                {/* Left Content */}
+                <div>
+                  <div className="inline-block px-4 py-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-full mb-6">
+                    <span className="text-sm font-semibold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                      CRYPTO TRADING
+                    </span>
+                  </div>
+                  <h2 className="text-5xl font-bold mb-6 leading-tight">
+                    Master Crypto Markets with
+                    <br />
+                    <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                      AI-Powered Strategies
+                    </span>
+                  </h2>
+                  <p className="text-xl text-gray-400 mb-8 leading-relaxed">
+                    Deploy sophisticated trading algorithms across Bitcoin, Ethereum, and altcoins.
+                    Automate your crypto portfolio with real-time execution, risk management,
+                    and advanced technical indicators.
+                  </p>
+
+                  {/* Feature List */}
+                  <div className="space-y-4 mb-8">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                        <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-1">Lightning-Fast Execution</h3>
+                        <p className="text-gray-400 text-sm">Execute trades in milliseconds across multiple exchanges with direct API integration</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                        <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-1">Multi-Chain Support</h3>
+                        <p className="text-gray-400 text-sm">Trade on Ethereum, Solana, BSC, and major CEXs from a unified interface</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                        <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-1">Advanced Risk Controls</h3>
+                        <p className="text-gray-400 text-sm">Automated stop-loss, take-profit, and position sizing to protect your capital</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={onEnter}
+                    className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2"
+                  >
+                    Start Trading Crypto
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Right Content - Visual/Stats */}
+                <div className="relative">
+                  {/* Glowing background effect */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-3xl blur-3xl" />
+
+                  {/* Stats Card */}
+                  <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0f] border border-white/10 rounded-3xl p-8">
+                    <div className="grid grid-cols-2 gap-6 mb-8">
+                      <div className="bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 rounded-2xl p-6">
+                        <div className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-2">
+                          $2.4B+
+                        </div>
+                        <div className="text-sm text-gray-400">Crypto Volume Traded</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 rounded-2xl p-6">
+                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">
+                          15+
+                        </div>
+                        <div className="text-sm text-gray-400">Exchanges Integrated</div>
+                      </div>
+                    </div>
+
+                    {/* Supported Coins */}
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-500 uppercase tracking-wide">Supported Assets</div>
+                      <div className="flex flex-wrap gap-3">
+                        {['BTC', 'ETH', 'SOL', 'BNB', 'MATIC', 'AVAX', 'DOT', 'LINK'].map((coin) => (
+                          <div key={coin} className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:border-purple-500/50 transition-colors">
+                            <span className="text-sm font-semibold text-gray-300">{coin}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
