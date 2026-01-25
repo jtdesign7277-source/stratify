@@ -1,168 +1,183 @@
 import React, { useState, useEffect } from 'react';
 
-const API_BASE_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
-
-// Fetch real stock data from Railway backend
-const fetchStockData = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/stocks`);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching stock data:', error);
-    return null;
-  }
+// Mock portfolio data (will connect to real API later)
+const portfolioData = {
+  totalValue: 2847392.45,
+  todayChange: 12847.32,
+  todayChangePercent: 0.45,
+  recentTrades: [
+    { symbol: 'TSLA', type: 'Long', pnl: 2847.32, pnlPercent: 1.2, color: 'emerald' },
+    { symbol: 'SPY', type: 'Short', pnl: -432.10, pnlPercent: -0.3, color: 'red' },
+    { symbol: 'NVDA', type: 'Long', pnl: 1203.45, pnlPercent: 0.8, color: 'emerald' },
+    { symbol: 'AAPL', type: 'Long', pnl: 567.89, pnlPercent: 0.4, color: 'emerald' },
+  ],
+  chartData: [
+    2650000, 2680000, 2720000, 2695000, 2740000, 2760000, 2785000, 2810000, 2847392.45
+  ]
 };
-
-// Mock data for features not yet connected to backend
-const mockPositions = [
-  { symbol: 'NVDA', shares: 50, avgCost: 725.00, currentPrice: 875.42, totalValue: 43771, totalGain: 7521, gainPercent: 20.75 },
-  { symbol: 'AAPL', shares: 100, avgCost: 175.50, currentPrice: 189.84, totalValue: 18984, totalGain: 1434, gainPercent: 8.17 },
-  { symbol: 'TSLA', shares: 25, avgCost: 220.00, currentPrice: 248.50, totalValue: 6212.50, totalGain: 712.50, gainPercent: 12.95 },
-  { symbol: 'AMD', shares: 75, avgCost: 155.00, currentPrice: 178.92, totalValue: 13419, totalGain: 1794, gainPercent: 15.44 },
-];
-
-const mockLeaderboard = [
-  { rank: 1, username: 'AlphaTrader', avatar: '🏆', returns: 342.5, winRate: 78, followers: 12453, badge: 'LEGEND' },
-  { rank: 2, username: 'QuantKing', avatar: '👑', returns: 289.2, winRate: 74, followers: 8921, badge: 'ELITE' },
-  { rank: 3, username: 'MarketMaven', avatar: '🔥', returns: 245.8, winRate: 71, followers: 7234, badge: 'ELITE' },
-  { rank: 4, username: 'TechBull', avatar: '🚀', returns: 198.4, winRate: 68, followers: 5678, badge: 'PRO' },
-  { rank: 5, username: 'SwingMaster', avatar: '📈', returns: 175.2, winRate: 65, followers: 4521, badge: 'PRO' },
-  { rank: 6, username: 'ValueHunter', avatar: '💎', returns: 156.7, winRate: 63, followers: 3892, badge: 'PRO' },
-  { rank: 7, username: 'MomentumX', avatar: '⚡', returns: 143.2, winRate: 61, followers: 3245, badge: 'RISING' },
-  { rank: 8, username: 'DayTraderPro', avatar: '🎯', returns: 128.9, winRate: 59, followers: 2876, badge: 'RISING' },
-];
-
-const mockAlerts = [
-  { id: 1, type: 'ai', message: 'NVDA showing strong momentum breakout pattern', time: '2m ago', priority: 'high' },
-  { id: 2, type: 'price', message: 'TSLA up 5% - approaching resistance at $255', time: '5m ago', priority: 'medium' },
-  { id: 3, type: 'ai', message: 'AMD AI score upgraded to 91 - institutional buying detected', time: '12m ago', priority: 'high' },
-  { id: 4, type: 'news', message: 'Fed minutes released - markets react positively', time: '18m ago', priority: 'low' },
-];
-
-// Animated background component
-const AnimatedBackground = () => (
-  <div className="fixed inset-0 overflow-hidden pointer-events-none">
-    <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
-    <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-    <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-  </div>
-);
 
 // Landing Page Component
 const LandingPage = ({ onEnter }) => {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  
   return (
-    <div 
-      className="min-h-screen bg-[#0a0a0f] text-white overflow-hidden relative"
-      onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
-    >
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
-      
-      <div 
-        className="absolute w-96 h-96 rounded-full pointer-events-none transition-all duration-300 ease-out"
-        style={{
-          left: mousePos.x - 192,
-          top: mousePos.y - 192,
-          background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)',
-        }}
-      />
-      
-      <nav className="relative z-10 flex items-center justify-between px-8 py-6">
+    <div className="min-h-screen bg-[#0a0a0f] text-white">
+      {/* Top Navigation */}
+      <nav className="flex items-center justify-between px-8 py-6">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-lg flex items-center justify-center">
-            <span className="text-xl font-black text-black">S</span>
-          </div>
-          <span className="text-2xl font-bold tracking-tight">Stratify</span>
+          <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg" />
+          <span className="text-xl font-bold">Stratify</span>
         </div>
-        <div className="flex items-center gap-8">
-          <a href="#" className="text-gray-400 hover:text-white transition-colors">Features</a>
-          <a href="#" className="text-gray-400 hover:text-white transition-colors">Pricing</a>
-          <a href="#" className="text-gray-400 hover:text-white transition-colors">About</a>
+        <div className="flex items-center gap-6">
+          <button className="text-gray-400 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </button>
+          <button className="px-4 py-2 hover:bg-white/5 rounded-lg transition-colors">Log In</button>
           <button 
             onClick={onEnter}
-            className="px-5 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 transition-all"
+            className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-medium transition-colors"
           >
-            Sign In
+            Get Started
           </button>
         </div>
       </nav>
-      
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] px-8 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full mb-8">
-          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-          <span className="text-emerald-400 text-sm font-medium">AI-Powered Market Intelligence</span>
-        </div>
-        
-        <h1 className="text-6xl md:text-8xl font-black tracking-tight mb-6 leading-none">
-          <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-            See The Market
-          </span>
-          <br />
-          <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
-            Before It Moves
-          </span>
-        </h1>
-        
-        <p className="text-xl text-gray-400 max-w-2xl mb-12 leading-relaxed">
-          The world's most advanced stock scanner powered by artificial intelligence. 
-          Predict market movements, find opportunities, and trade with confidence.
-        </p>
-        
-        <div className="flex gap-4">
-          <button 
-            onClick={onEnter}
-            className="group px-8 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl font-bold text-lg text-black hover:shadow-lg hover:shadow-emerald-500/25 transition-all hover:scale-105"
-          >
-            Start Trading Free
-            <span className="inline-block ml-2 group-hover:translate-x-1 transition-transform">→</span>
-          </button>
-          <button className="px-8 py-4 border border-white/20 rounded-xl font-medium text-lg hover:bg-white/5 transition-all">
-            Watch Demo
-          </button>
-        </div>
-        
-        <div className="flex gap-16 mt-20">
-          {[
-            { value: '$2.4B+', label: 'Trading Volume' },
-            { value: '94.7%', label: 'AI Accuracy' },
-            { value: '50K+', label: 'Active Traders' },
-          ].map((stat, i) => (
-            <div key={i} className="text-center">
-              <div className="text-4xl font-black bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                {stat.value}
-              </div>
-              <div className="text-gray-500 mt-1">{stat.label}</div>
+
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto px-8 py-20">
+        <div className="grid grid-cols-2 gap-12 items-center">
+          {/* Left Column */}
+          <div>
+            <h1 className="text-6xl font-bold mb-6 leading-tight">
+              A <span className="italic font-light">smarter way</span>
+              <br />to trade
+            </h1>
+            <p className="text-xl text-gray-400 mb-8">
+              AI-powered strategies, real-time backtesting, and automated execution. All on one platform.
+            </p>
+            
+            {/* Email Signup */}
+            <div className="flex gap-3 mb-4">
+              <input 
+                type="email"
+                placeholder="What's your email?"
+                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-emerald-500/50 transition-colors"
+              />
+              <button 
+                onClick={onEnter}
+                className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Get Started
+              </button>
             </div>
-          ))}
-        </div>
-      </div>
-      
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl px-8">
-        <div className="bg-gradient-to-b from-gray-900/80 to-transparent backdrop-blur-sm rounded-t-2xl border border-white/10 border-b-0 p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <div className="w-3 h-3 rounded-full bg-yellow-500" />
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-            </div>
-            <div className="flex-1 h-8 bg-white/5 rounded-lg" />
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            {['NVDA', 'AAPL', 'TSLA', 'AMD'].map((symbol, i) => (
-              <div key={symbol} className="bg-white/5 rounded-lg p-3 border border-white/10">
-                <div className="text-sm font-bold">{symbol}</div>
-                <div className={`text-lg font-mono ${i % 2 === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {i % 2 === 0 ? '+' : '-'}{(Math.random() * 5).toFixed(2)}%
-                </div>
+
+          {/* Right Column - Portfolio Card */}
+          <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-gray-400">Portfolio Value</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-xs text-emerald-400">Live</span>
               </div>
-            ))}
+            </div>
+            
+            <div className="text-5xl font-bold mb-2">
+              ${portfolioData.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-emerald-400 font-mono">+${portfolioData.todayChange.toLocaleString()}</span>
+              <span className="text-emerald-400">({portfolioData.todayChangePercent}%)</span>
+            </div>
+
+            {/* Mini Chart */}
+            <div className="h-32 mb-6 relative">
+              <svg className="w-full h-full" viewBox="0 0 400 128" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="rgb(251, 146, 60)" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="rgb(251, 146, 60)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d={`M 0,${128 - (portfolioData.chartData[0] - 2600000) / 5000} ${portfolioData.chartData.map((val, i) => `L ${(i / (portfolioData.chartData.length - 1)) * 400},${128 - (val - 2600000) / 5000}`).join(' ')} L 400,128 L 0,128 Z`}
+                  fill="url(#chartGradient)"
+                />
+                <path
+                  d={`M 0,${128 - (portfolioData.chartData[0] - 2600000) / 5000} ${portfolioData.chartData.map((val, i) => `L ${(i / (portfolioData.chartData.length - 1)) * 400},${128 - (val - 2600000) / 5000}`).join(' ')}`}
+                  fill="none"
+                  stroke="rgb(251, 146, 60)"
+                  strokeWidth="2"
+                />
+              </svg>
+              
+              {/* Time labels */}
+              <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500 pt-2">
+                <span>MON</span>
+                <span>TUE</span>
+                <span>WED</span>
+                <span>THU</span>
+                <span>FRI</span>
+                <span>SAT</span>
+                <span>SUN</span>
+              </div>
+            </div>
+
+            {/* Recent Trades */}
+            <div className="space-y-2 mb-4">
+              <div className="text-sm font-semibold text-gray-400 mb-3">Recent Trades</div>
+              {portfolioData.recentTrades.map((trade, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-1.5 h-1.5 rounded-full ${trade.color === 'emerald' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                    <span className="font-semibold">{trade.symbol}</span>
+                    <span className="text-sm text-gray-500">{trade.type}</span>
+                  </div>
+                  <span className={`font-mono font-medium ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {trade.pnl >= 0 ? '+' : ''}${Math.abs(trade.pnl).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Strategy Alert */}
+            <div className="flex items-start gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              <div className="w-5 h-5 flex items-center justify-center">
+                <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-emerald-400">Strategy Deployed!</div>
+                <div className="text-xs text-gray-400">TSLA EMA Crossover running</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div className="mt-32">
+          <h2 className="text-4xl font-bold text-center mb-16">Everything you need to trade smarter</h2>
+          <div className="text-lg text-gray-400 text-center mb-16">Professional-grade tools, zero complexity.</div>
+          
+          <div className="grid grid-cols-3 gap-8">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-8">
+              <div className="text-4xl mb-4">🤖</div>
+              <h3 className="text-xl font-bold mb-3">AI-Powered Strategies</h3>
+              <p className="text-gray-400">Machine learning models that adapt to market conditions in real-time.</p>
+            </div>
+            
+            <div className="bg-white/5 border border-white/10 rounded-xl p-8">
+              <div className="text-4xl mb-4">📊</div>
+              <h3 className="text-xl font-bold mb-3">Advanced Analytics</h3>
+              <p className="text-gray-400">Deep insights into your portfolio performance and risk metrics.</p>
+            </div>
+            
+            <div className="bg-white/5 border border-white/10 rounded-xl p-8">
+              <div className="text-4xl mb-4">🔗</div>
+              <h3 className="text-xl font-bold mb-3">Seamless Integration</h3>
+              <p className="text-gray-400">Connect your favorite brokers and execute trades automatically.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -170,696 +185,133 @@ const LandingPage = ({ onEnter }) => {
   );
 };
 
-// Dashboard Component with Live Data
+// Dashboard Component
 const Dashboard = ({ setCurrentPage }) => {
-  const [stocks, setStocks] = useState([]);
-  const [selectedStock, setSelectedStock] = useState(null);
-  const [scannerFilter, setScannerFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  const TRACKED_SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD', 'MSFT', 'META', 'GOOGL', 'AMZN'];
-  
-  // Fetch stock data on component mount and every 30 seconds
-  useEffect(() => {
-    const loadStockData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      const data = await fetchStockData();
-      
-      if (data && Array.isArray(data) && data.length > 0) {
-        setStocks(data);
-        if (!selectedStock) {
-          setSelectedStock(data[0]);
-        }
-        setLoading(false);
-      } else {
-        setError('Failed to load stock data');
-        setLoading(false);
-      }
-    };
-    
-    loadStockData();
-    const interval = setInterval(loadStockData, 30000); // Refresh every 30 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
-  
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <AnimatedBackground />
-      
-      {/* Top Bar */}
-      <div className="relative z-10 border-b border-white/10 bg-black/40 backdrop-blur-xl">
+      {/* Top Navigation with Back Button */}
+      <nav className="border-b border-white/10 bg-black/40 backdrop-blur-xl">
         <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             {/* Back Button */}
             <button 
               onClick={() => setCurrentPage('landing')}
               className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 rounded-lg transition-colors group"
-              title="Back to landing page"
+              title="Back to home"
             >
               <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               <span className="text-gray-400 group-hover:text-white transition-colors text-sm font-medium">Back</span>
             </button>
-            
+
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-lg flex items-center justify-center">
-                <span className="text-sm font-black text-black">S</span>
-              </div>
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg" />
               <span className="text-xl font-bold">Stratify</span>
             </div>
-            
+
             <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
               <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-emerald-400 text-sm font-medium">
-                {loading ? 'Loading...' : 'Live Data'}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-6 text-sm">
-              <div>
-                <span className="text-gray-500">S&P 500</span>
-                <span className="ml-2 text-emerald-400 font-mono">5,234.18 +0.45%</span>
-              </div>
-              <div>
-                <span className="text-gray-500">NASDAQ</span>
-                <span className="ml-2 text-emerald-400 font-mono">16,428.82 +0.62%</span>
-              </div>
-              <div>
-                <span className="text-gray-500">DOW</span>
-                <span className="ml-2 text-red-400 font-mono">39,127.14 -0.12%</span>
-              </div>
+              <span className="text-emerald-400 text-sm font-medium">Live Trading</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Search stocks..."
-                className="w-64 px-4 py-2 pl-10 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-emerald-500/50 transition-colors"
-              />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            
-            <button className="relative p-2 hover:bg-white/5 rounded-lg transition-colors">
+            <button className="relative p-2 hover:bg-white/5 rounded-lg">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 rounded-full" />
             </button>
-            
-            <button 
-              onClick={() => setCurrentPage('profile')}
-              className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-sm"
-            >
-              JD
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex gap-1 px-6">
-          {[
-            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-            { id: 'positions', label: 'My Positions', icon: '💼' },
-            { id: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
-            { id: 'profile', label: 'Profile', icon: '👤' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setCurrentPage(tab.id)}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                tab.id === 'dashboard' 
-                  ? 'text-white border-emerald-400' 
-                  : 'text-gray-500 border-transparent hover:text-gray-300'
-              }`}
-            >
-              <span className="mr-2">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Main Content */}
-      <div className="relative z-10 p-6">
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400">
-            {error}
-          </div>
-        )}
-        
-        <div className="grid grid-cols-12 gap-6">
-          
-          {/* Left Column - Scanner */}
-          <div className="col-span-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold">AI Stock Scanner</h2>
-                <p className="text-gray-500">Real-time data from Railway backend</p>
-              </div>
-              <div className="flex gap-2">
-                {['all', 'momentum', 'value', 'breakout'].map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setScannerFilter(filter)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      scannerFilter === filter
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-white/5 text-gray-400 border border-transparent hover:border-white/10'
-                    }`}
-                  >
-                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Scanner Table */}
-            <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Symbol</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Change</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">AI Score</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Signal</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Volume</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mkt Cap</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                        Loading stock data...
-                      </td>
-                    </tr>
-                  ) : stocks.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                        No stock data available
-                      </td>
-                    </tr>
-                  ) : (
-                    stocks.map((stock, i) => (
-                      <tr 
-                        key={stock.symbol}
-                        onClick={() => setSelectedStock(stock)}
-                        className={`border-b border-white/5 cursor-pointer transition-colors ${
-                          selectedStock?.symbol === stock.symbol ? 'bg-emerald-500/10' : 'hover:bg-white/5'
-                        }`}
-                      >
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-sm">
-                              {stock.symbol.slice(0, 2)}
-                            </div>
-                            <div>
-                              <div className="font-semibold">{stock.symbol}</div>
-                              <div className="text-xs text-gray-500">{stock.name || stock.symbol}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-right font-mono font-medium">${stock.price?.toFixed(2) || 'N/A'}</td>
-                        <td className={`px-4 py-4 text-right font-mono ${stock.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2) || '0.00'}%
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center justify-center">
-                            <div className={`px-3 py-1 rounded-full text-sm font-bold ${
-                              stock.aiScore >= 90 ? 'bg-emerald-500/20 text-emerald-400' :
-                              stock.aiScore >= 80 ? 'bg-cyan-500/20 text-cyan-400' :
-                              stock.aiScore >= 70 ? 'bg-yellow-500/20 text-yellow-400' :
-                              'bg-gray-500/20 text-gray-400'
-                            }`}>
-                              {stock.aiScore || 'N/A'}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex justify-center">
-                            <span className={`px-3 py-1 rounded text-xs font-bold ${
-                              stock.signal === 'STRONG BUY' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                              stock.signal === 'BUY' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
-                              stock.signal === 'HOLD' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                              'bg-red-500/20 text-red-400 border border-red-500/30'
-                            }`}>
-                              {stock.signal || 'HOLD'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-right text-gray-400 font-mono text-sm">{stock.volume || 'N/A'}</td>
-                        <td className="px-4 py-4 text-right text-gray-400 font-mono text-sm">{stock.marketCap || 'N/A'}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          {/* Right Column - Details and Alerts */}
-          <div className="col-span-4 space-y-6">
-            {/* Selected Stock Detail */}
-            {selectedStock && (
-              <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl p-5">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold">{selectedStock.symbol}</h3>
-                    <p className="text-gray-500">{selectedStock.name || selectedStock.symbol}</p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                    selectedStock.signal === 'STRONG BUY' ? 'bg-emerald-500/20 text-emerald-400' :
-                    selectedStock.signal === 'BUY' ? 'bg-cyan-500/20 text-cyan-400' :
-                    'bg-yellow-500/20 text-yellow-400'
-                  }`}>
-                    {selectedStock.signal || 'HOLD'}
-                  </div>
-                </div>
-                
-                <div className="flex items-baseline gap-3 mb-6">
-                  <span className="text-4xl font-bold font-mono">${selectedStock.price?.toFixed(2) || 'N/A'}</span>
-                  <span className={`text-lg font-mono ${selectedStock.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {selectedStock.change >= 0 ? '+' : ''}{selectedStock.change?.toFixed(2) || '0.00'} ({selectedStock.changePercent?.toFixed(2) || '0.00'}%)
-                  </span>
-                </div>
-                
-                {/* AI Analysis */}
-                <div className="bg-black/30 rounded-lg p-4 mb-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">🤖</span>
-                    <span className="font-semibold">AI Analysis</span>
-                    <span className="ml-auto text-emerald-400 font-bold">{selectedStock.aiScore || 'N/A'}/100</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden mb-3">
-                    <div 
-                      className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-500"
-                      style={{ width: `${selectedStock.aiScore || 0}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-400">
-                    Live data from Alpaca API. Momentum indicators showing {selectedStock.changePercent >= 0 ? 'bullish' : 'bearish'} signals.
-                  </p>
-                </div>
-                
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3">
-                  <button className="py-3 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-bold transition-colors">
-                    Buy
-                  </button>
-                  <button className="py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg font-bold transition-colors">
-                    Watchlist
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Live Alerts */}
-            <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">Live Alerts</h3>
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              </div>
-              <div className="space-y-3">
-                {mockAlerts.map((alert) => (
-                  <div 
-                    key={alert.id}
-                    className={`p-3 rounded-lg border ${
-                      alert.priority === 'high' ? 'bg-emerald-500/10 border-emerald-500/30' :
-                      alert.priority === 'medium' ? 'bg-cyan-500/10 border-cyan-500/30' :
-                      'bg-white/5 border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg">
-                        {alert.type === 'ai' ? '🤖' : alert.type === 'price' ? '📈' : '📰'}
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm">{alert.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">{alert.time}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Portfolio Summary Mini */}
-            <div className="bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-sm border border-emerald-500/30 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400">Portfolio Value</span>
-                <span className="text-emerald-400 text-sm">+12.45% today</span>
-              </div>
-              <div className="text-3xl font-bold font-mono">$82,386.50</div>
-              <div className="text-emerald-400 text-sm mt-1">+$9,461.00 all time</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Positions Page
-const PositionsPage = ({ setCurrentPage }) => {
-  const totalValue = mockPositions.reduce((sum, p) => sum + p.totalValue, 0);
-  const totalGain = mockPositions.reduce((sum, p) => sum + p.totalGain, 0);
-  
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <AnimatedBackground />
-      <NavBar currentPage="positions" setCurrentPage={setCurrentPage} />
-      
-      <div className="relative z-10 p-6">
-        <div className="grid grid-cols-4 gap-6 mb-8">
-          <div className="col-span-2 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 backdrop-blur-sm border border-emerald-500/30 rounded-xl p-6">
-            <div className="text-gray-400 mb-1">Total Portfolio Value</div>
-            <div className="text-5xl font-bold font-mono">${totalValue.toLocaleString()}</div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-emerald-400 font-mono">+${totalGain.toLocaleString()}</span>
-              <span className="text-emerald-400">(+{((totalGain / (totalValue - totalGain)) * 100).toFixed(2)}%)</span>
-              <span className="text-gray-500">all time</span>
-            </div>
-          </div>
-          
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-            <div className="text-gray-400 mb-1">Today's P&L</div>
-            <div className="text-3xl font-bold font-mono text-emerald-400">+$1,234.56</div>
-            <div className="text-emerald-400 text-sm mt-1">+1.52%</div>
-          </div>
-          
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-            <div className="text-gray-400 mb-1">Buying Power</div>
-            <div className="text-3xl font-bold font-mono">$24,500.00</div>
-            <div className="text-gray-500 text-sm mt-1">Available to trade</div>
-          </div>
-        </div>
-        
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-xl font-bold">Open Positions</h2>
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Symbol</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Shares</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Avg Cost</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Current Price</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total Value</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total Gain/Loss</th>
-                <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockPositions.map((position) => (
-                <tr key={position.symbol} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold">
-                        {position.symbol.slice(0, 2)}
-                      </div>
-                      <span className="font-semibold">{position.symbol}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono">{position.shares}</td>
-                  <td className="px-6 py-4 text-right font-mono text-gray-400">${position.avgCost.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-right font-mono">${position.currentPrice.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-right font-mono font-medium">${position.totalValue.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className={position.totalGain >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                      <div className="font-mono font-medium">
-                        {position.totalGain >= 0 ? '+' : ''}${position.totalGain.toLocaleString()}
-                      </div>
-                      <div className="text-sm">
-                        ({position.totalGain >= 0 ? '+' : ''}{position.gainPercent.toFixed(2)}%)
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
-                      <button className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded text-sm font-medium hover:bg-emerald-500/30 transition-colors">
-                        Buy More
-                      </button>
-                      <button className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded text-sm font-medium hover:bg-red-500/30 transition-colors">
-                        Sell
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Leaderboard Page
-const LeaderboardPage = ({ setCurrentPage }) => {
-  const [timeframe, setTimeframe] = useState('month');
-  
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <AnimatedBackground />
-      <NavBar currentPage="leaderboard" setCurrentPage={setCurrentPage} />
-      
-      <div className="relative z-10 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Leaderboard</h1>
-            <p className="text-gray-500">Top performing traders on Stratify</p>
-          </div>
-          <div className="flex gap-2">
-            {['week', 'month', 'year', 'all'].map((tf) => (
-              <button
-                key={tf}
-                onClick={() => setTimeframe(tf)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  timeframe === tf
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                }`}
-              >
-                {tf.charAt(0).toUpperCase() + tf.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-6 mb-8">
-          {[mockLeaderboard[1], mockLeaderboard[0], mockLeaderboard[2]].map((trader, i) => (
-            <div 
-              key={trader.username}
-              className={`relative ${i === 1 ? 'transform -translate-y-4' : ''}`}
-            >
-              <div className={`bg-gradient-to-br ${
-                i === 1 ? 'from-yellow-500/20 to-amber-500/20 border-yellow-500/30' :
-                i === 0 ? 'from-gray-400/20 to-gray-500/20 border-gray-400/30' :
-                'from-orange-600/20 to-orange-700/20 border-orange-600/30'
-              } backdrop-blur-sm border rounded-xl p-6 text-center`}>
-                <div className="text-4xl mb-2">{trader.avatar}</div>
-                <div className="text-2xl font-bold mb-1">#{trader.rank}</div>
-                <div className="font-semibold text-lg">{trader.username}</div>
-                <div className={`inline-block px-2 py-0.5 rounded text-xs font-bold mt-2 ${
-                  trader.badge === 'LEGEND' ? 'bg-yellow-500/20 text-yellow-400' :
-                  trader.badge === 'ELITE' ? 'bg-purple-500/20 text-purple-400' :
-                  'bg-cyan-500/20 text-cyan-400'
-                }`}>
-                  {trader.badge}
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="text-2xl font-bold text-emerald-400">+{trader.returns}%</div>
-                  <div className="text-gray-500 text-sm">returns</div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-                  <div>
-                    <div className="font-bold">{trader.winRate}%</div>
-                    <div className="text-gray-500">Win Rate</div>
-                  </div>
-                  <div>
-                    <div className="font-bold">{trader.followers.toLocaleString()}</div>
-                    <div className="text-gray-500">Followers</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Rank</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Trader</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Returns</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Win Rate</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Followers</th>
-                <th className="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockLeaderboard.map((trader) => (
-                <tr key={trader.username} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className={`text-xl font-bold ${
-                      trader.rank === 1 ? 'text-yellow-400' :
-                      trader.rank === 2 ? 'text-gray-400' :
-                      trader.rank === 3 ? 'text-orange-400' :
-                      'text-gray-500'
-                    }`}>
-                      #{trader.rank}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{trader.avatar}</div>
-                      <div>
-                        <div className="font-semibold">{trader.username}</div>
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          trader.badge === 'LEGEND' ? 'bg-yellow-500/20 text-yellow-400' :
-                          trader.badge === 'ELITE' ? 'bg-purple-500/20 text-purple-400' :
-                          trader.badge === 'PRO' ? 'bg-cyan-500/20 text-cyan-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {trader.badge}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="text-emerald-400 font-bold font-mono">+{trader.returns}%</span>
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono">{trader.winRate}%</td>
-                  <td className="px-6 py-4 text-right text-gray-400">{trader.followers.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-center">
-                    <button className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors">
-                      Follow
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Profile Page
-const ProfilePage = ({ setCurrentPage, onSignOut }) => {
-  const [darkMode, setDarkMode] = useState(true);
-  
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <AnimatedBackground />
-      <NavBar currentPage="profile" setCurrentPage={setCurrentPage} />
-      
-      <div className="relative z-10 p-6 max-w-4xl mx-auto">
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl p-6 mb-6">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-3xl font-bold">
+            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-sm cursor-pointer">
               JD
             </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">John Doe</h1>
-              <p className="text-gray-400">@johndoe_trades</p>
-              <div className="flex items-center gap-4 mt-3">
-                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-sm font-medium">PRO Member</span>
-                <span className="text-gray-500">Member since Jan 2024</span>
-              </div>
-            </div>
-            <button className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 transition-colors">
-              Edit Profile
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-4 gap-6 mt-6 pt-6 border-t border-white/10">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-400">+156.4%</div>
-              <div className="text-gray-500 text-sm">All-Time Returns</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">68%</div>
-              <div className="text-gray-500 text-sm">Win Rate</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">1,247</div>
-              <div className="text-gray-500 text-sm">Followers</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">#127</div>
-              <div className="text-gray-500 text-sm">Leaderboard Rank</div>
-            </div>
           </div>
         </div>
-        
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-xl font-bold">Settings</h2>
+      </nav>
+
+      {/* Dashboard Content */}
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Portfolio Overview */}
+          <div className="grid grid-cols-3 gap-6 mb-8">
+            <div className="col-span-2 bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+              <div className="text-sm text-gray-400 mb-2">Total Portfolio Value</div>
+              <div className="text-5xl font-bold mb-4">
+                ${portfolioData.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div className="flex items-center gap-3 mb-6">
+                <span className="text-emerald-400 font-mono text-xl">+${portfolioData.todayChange.toLocaleString()}</span>
+                <span className="text-emerald-400">({portfolioData.todayChangePercent}%) today</span>
+              </div>
+
+              {/* Chart */}
+              <div className="h-48 mb-4">
+                <svg className="w-full h-full" viewBox="0 0 600 192" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="dashGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="rgb(251, 146, 60)" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="rgb(251, 146, 60)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d={`M 0,${192 - (portfolioData.chartData[0] - 2600000) / 3000} ${portfolioData.chartData.map((val, i) => `L ${(i / (portfolioData.chartData.length - 1)) * 600},${192 - (val - 2600000) / 3000}`).join(' ')} L 600,192 L 0,192 Z`}
+                    fill="url(#dashGradient)"
+                  />
+                  <path
+                    d={`M 0,${192 - (portfolioData.chartData[0] - 2600000) / 3000} ${portfolioData.chartData.map((val, i) => `L ${(i / (portfolioData.chartData.length - 1)) * 600},${192 - (val - 2600000) / 3000}`).join(' ')}`}
+                    fill="none"
+                    stroke="rgb(251, 146, 60)"
+                    strokeWidth="3"
+                  />
+                </svg>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>9:30 AM</span>
+                <span>11:00 AM</span>
+                <span>1:00 PM</span>
+                <span>3:00 PM</span>
+                <span>4:00 PM</span>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-gray-900/50 border border-white/10 rounded-xl p-6">
+                <div className="text-sm text-gray-400 mb-2">Win Rate</div>
+                <div className="text-3xl font-bold">73.4%</div>
+                <div className="text-sm text-emerald-400 mt-1">↑ 2.1% this week</div>
+              </div>
+
+              <div className="bg-gray-900/50 border border-white/10 rounded-xl p-6">
+                <div className="text-sm text-gray-400 mb-2">Active Strategies</div>
+                <div className="text-3xl font-bold">8</div>
+                <div className="text-sm text-gray-400 mt-1">2 pending approval</div>
+              </div>
+            </div>
           </div>
-          
-          <div className="divide-y divide-white/10">
-            <div className="px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
-                  {darkMode ? '🌙' : '☀️'}
+
+          {/* Recent Activity */}
+          <div className="bg-gray-900/50 border border-white/10 rounded-xl p-6">
+            <h2 className="text-xl font-bold mb-6">Recent Trades</h2>
+            <div className="space-y-3">
+              {portfolioData.recentTrades.map((trade, i) => (
+                <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full ${trade.color === 'emerald' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                    <div>
+                      <div className="font-semibold">{trade.symbol}</div>
+                      <div className="text-sm text-gray-400">{trade.type} Position</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-mono font-semibold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {trade.pnl >= 0 ? '+' : ''}${Math.abs(trade.pnl).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-400">{trade.pnl >= 0 ? '+' : ''}{trade.pnlPercent}%</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-medium">Dark Mode</div>
-                  <div className="text-sm text-gray-500">Toggle between dark and light theme</div>
-                </div>
-              </div>
-              <button 
-                onClick={() => setDarkMode(!darkMode)}
-                className={`w-14 h-8 rounded-full transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-gray-600'}`}
-              >
-                <div className={`w-6 h-6 bg-white rounded-full transform transition-transform ${darkMode ? 'translate-x-7' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            
-            <div className="px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">🔔</div>
-                <div>
-                  <div className="font-medium">Push Notifications</div>
-                  <div className="text-sm text-gray-500">Get alerts for AI signals and price movements</div>
-                </div>
-              </div>
-              <button className="w-14 h-8 rounded-full bg-emerald-500">
-                <div className="w-6 h-6 bg-white rounded-full transform translate-x-7" />
-              </button>
-            </div>
-            
-            <div className="px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">🔗</div>
-                <div>
-                  <div className="font-medium">Connected Accounts</div>
-                  <div className="text-sm text-gray-500">Alpaca Trading Account</div>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-sm">Connected</span>
-            </div>
-            
-            <div className="px-6 py-4">
-              <button 
-                onClick={onSignOut}
-                className="w-full py-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg font-medium hover:bg-red-500/30 transition-colors"
-              >
-                Sign Out
-              </button>
+              ))}
             </div>
           </div>
         </div>
@@ -868,92 +320,13 @@ const ProfilePage = ({ setCurrentPage, onSignOut }) => {
   );
 };
 
-// Reusable NavBar component
-const NavBar = ({ currentPage, setCurrentPage }) => (
-  <div className="relative z-10 border-b border-white/10 bg-black/40 backdrop-blur-xl">
-    <div className="flex items-center justify-between px-6 py-4">
-      <div className="flex items-center gap-8">
-        {/* Back Button */}
-        <button 
-          onClick={() => setCurrentPage('landing')}
-          className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 rounded-lg transition-colors group"
-          title="Back to landing page"
-        >
-          <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span className="text-gray-400 group-hover:text-white transition-colors text-sm font-medium">Back</span>
-        </button>
-        
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-lg flex items-center justify-center">
-            <span className="text-sm font-black text-black">S</span>
-          </div>
-          <span className="text-xl font-bold">Stratify</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
-          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-          <span className="text-emerald-400 text-sm font-medium">Live Data</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <button className="relative p-2 hover:bg-white/5 rounded-lg">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 rounded-full" />
-        </button>
-        <button 
-          onClick={() => setCurrentPage('profile')}
-          className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-sm"
-        >
-          JD
-        </button>
-      </div>
-    </div>
-    <div className="flex gap-1 px-6">
-      {[
-        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-        { id: 'positions', label: 'My Positions', icon: '💼' },
-        { id: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
-        { id: 'profile', label: 'Profile', icon: '👤' },
-      ].map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => setCurrentPage(tab.id)}
-          className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-            currentPage === tab.id 
-              ? 'text-white border-emerald-400' 
-              : 'text-gray-500 border-transparent hover:text-gray-300'
-          }`}
-        >
-          <span className="mr-2">{tab.icon}</span>
-          {tab.label}
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
-// Main App
+// Main App Component
 export default function StratifyApp() {
   const [currentPage, setCurrentPage] = useState('landing');
-  
-  const handleEnter = () => setCurrentPage('dashboard');
-  const handleSignOut = () => setCurrentPage('landing');
-  
-  switch (currentPage) {
-    case 'landing':
-      return <LandingPage onEnter={handleEnter} />;
-    case 'dashboard':
-      return <Dashboard setCurrentPage={setCurrentPage} />;
-    case 'positions':
-      return <PositionsPage setCurrentPage={setCurrentPage} />;
-    case 'leaderboard':
-      return <LeaderboardPage setCurrentPage={setCurrentPage} />;
-    case 'profile':
-      return <ProfilePage setCurrentPage={setCurrentPage} onSignOut={handleSignOut} />;
-    default:
-      return <Dashboard setCurrentPage={setCurrentPage} />;
+
+  if (currentPage === 'landing') {
+    return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
   }
+
+  return <Dashboard setCurrentPage={setCurrentPage} />;
 }
