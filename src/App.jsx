@@ -141,50 +141,19 @@ const LandingPage = ({ onEnter }) => {
               <p className="text-sm text-gray-500 mb-6">INTEGRATED WITH</p>
               <div className="flex items-center justify-center gap-12 flex-wrap">
                 {/* Polymarket */}
-                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">P</span>
-                  </div>
-                  <span className="text-xl font-bold tracking-tight text-gray-300">Polymarket</span>
-                </div>
+                <span className="text-xl font-bold tracking-tight text-gray-300 opacity-60 hover:opacity-100 transition-opacity">Polymarket</span>
 
                 {/* Webull */}
-                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xl font-bold text-gray-300">Webull</span>
-                </div>
+                <span className="text-xl font-bold text-gray-300 opacity-60 hover:opacity-100 transition-opacity">Webull</span>
 
                 {/* TradingView */}
-                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                    </svg>
-                  </div>
-                  <span className="text-xl font-semibold text-gray-300">TradingView</span>
-                </div>
+                <span className="text-xl font-semibold text-gray-300 opacity-60 hover:opacity-100 transition-opacity">TradingView</span>
 
                 {/* Kalshi */}
-                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">K</span>
-                  </div>
-                  <span className="text-xl font-bold tracking-wide text-gray-300">Kalshi</span>
-                </div>
+                <span className="text-xl font-bold tracking-wide text-gray-300 opacity-60 hover:opacity-100 transition-opacity">Kalshi</span>
 
                 {/* Alpaca */}
-                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xl font-bold text-gray-300 tracking-wider">ALPACA</span>
-                </div>
+                <span className="text-xl font-bold text-gray-300 tracking-wider opacity-60 hover:opacity-100 transition-opacity">ALPACA</span>
               </div>
             </div>
           </div>
