@@ -208,7 +208,7 @@ const LandingPage = ({ onEnter }) => {
 
           {/* Feature Preview Cards */}
           <div className="grid grid-cols-3 gap-6 mb-20" id="features">
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all">
+            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl rounded-2xl p-6 transition-all">
               <div className="w-16 h-16 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl flex items-center justify-center mb-4 relative">
                 <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
                   {/* Target circles */}
@@ -227,7 +227,7 @@ const LandingPage = ({ onEnter }) => {
               <div className="text-sm text-blue-400">Learn more →</div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all">
+            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl rounded-2xl p-6 transition-all">
               <div className="w-16 h-16 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl flex items-center justify-center mb-4">
                 <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
                   <path d="M32 8L28 28H20L32 56L36 36H44L32 8Z" fill="url(#lightning-gradient)" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round"/>
@@ -244,7 +244,7 @@ const LandingPage = ({ onEnter }) => {
               <div className="text-sm text-emerald-400">Learn more →</div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all">
+            <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-xl rounded-2xl p-6 transition-all">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center mb-4">
                 <svg className="w-10 h-10" viewBox="0 0 64 64" fill="none">
                   {/* Bar chart */}
@@ -634,6 +634,8 @@ const Dashboard = ({ setCurrentPage }) => {
   const [activeNav, setActiveNav] = useState('search'); // active navigation item
   const [navExpanded, setNavExpanded] = useState(false); // navigation sidebar hover state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // left sidebar collapse state
+  const [sidebarWidth, setSidebarWidth] = useState(288); // left sidebar width (default 72 * 4 = 288px)
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false); // sidebar resize state
   const [code, setCode] = useState(`import { Strategy, Indicator } from '@stratify/core';
 
 /**
@@ -751,6 +753,24 @@ export class TeslaEMAStrategy extends Strategy {
     setIsDragging(false);
   };
 
+  // Sidebar resize handlers
+  const handleSidebarMouseDown = (e) => {
+    setIsResizingSidebar(true);
+    e.preventDefault();
+  };
+
+  const handleSidebarMouseMove = (e) => {
+    if (!isResizingSidebar) return;
+    const newWidth = e.clientX - 64; // Subtract nav sidebar width (64px)
+    if (newWidth >= 200 && newWidth <= 500) {
+      setSidebarWidth(newWidth);
+    }
+  };
+
+  const handleSidebarMouseUp = () => {
+    setIsResizingSidebar(false);
+  };
+
   useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
@@ -761,6 +781,21 @@ export class TeslaEMAStrategy extends Strategy {
       };
     }
   }, [isDragging]);
+
+  useEffect(() => {
+    if (isResizingSidebar) {
+      document.addEventListener('mousemove', handleSidebarMouseMove);
+      document.addEventListener('mouseup', handleSidebarMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+      return () => {
+        document.removeEventListener('mousemove', handleSidebarMouseMove);
+        document.removeEventListener('mouseup', handleSidebarMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizingSidebar, sidebarWidth]);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: (
@@ -847,7 +882,7 @@ export class TeslaEMAStrategy extends Strategy {
 
       {/* Left Sidebar - Strategy Tree */}
       {!sidebarCollapsed ? (
-        <div className="relative z-10 w-72 border-r border-white/5 bg-[#1a1a1f] flex flex-col">
+        <div className="relative z-10 border-r border-white/5 bg-[#1a1a1f] flex flex-col" style={{ width: `${sidebarWidth}px` }}>
           <div className="p-4 border-b border-white/10">
             <div className="flex items-center justify-between mb-4">
               <button
@@ -918,6 +953,15 @@ export class TeslaEMAStrategy extends Strategy {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Resize Handle */}
+        <div
+          onMouseDown={handleSidebarMouseDown}
+          className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-blue-500/50 transition-colors group"
+          style={{ zIndex: 50 }}
+        >
+          <div className="absolute top-0 right-0 w-1 h-full group-hover:w-1 bg-transparent group-hover:bg-blue-500/30" />
         </div>
       </div>
       ) : (
