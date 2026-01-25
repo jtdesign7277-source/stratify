@@ -484,8 +484,8 @@ const LandingPage = ({ onEnter }) => {
           {/* Pricing Section */}
           <div className="mb-20" id="pricing">
             <h2 className="text-5xl font-bold text-center mb-4 leading-tight">
-              Transparent pricing with<br />
-              features tailored to your business
+              Start trading smarter with<br />
+              AI-powered strategies
             </h2>
 
             <div className="grid grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
@@ -496,8 +496,8 @@ const LandingPage = ({ onEnter }) => {
                   $0<span className="text-lg text-gray-400">/month</span>
                 </div>
                 <div className="text-gray-400 text-sm mb-8 leading-relaxed">
-                  Full-featured banking essentials with<br />
-                  no strings attached.
+                  Perfect for learning and testing<br />
+                  strategies risk-free.
                 </div>
                 <button className="w-full py-3 border border-white/30 rounded-full hover:bg-white/5 transition-colors mb-8">
                   Start for Free
@@ -505,97 +505,100 @@ const LandingPage = ({ onEnter }) => {
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Hundreds of millions in FDIC insurance</span>
+                    <span className="text-gray-300">Paper trading account ($10K virtual)</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Same-day ACH transfers — $1</span>
+                    <span className="text-gray-300">Up to 3 active strategies</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Domestic wire transfers — $6</span>
+                    <span className="text-gray-300">Basic technical indicators</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Outgoing Fednow/RTP — $5</span>
+                    <span className="text-gray-300">50+ community strategy templates</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Unlimited virtual cards</span>
+                    <span className="text-gray-300">15-minute delayed market data</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">International wire transfers — $25</span>
+                    <span className="text-gray-300">Manual trade execution</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Foreign transaction fee (card) — 1% (min $0.4)</span>
+                    <span className="text-gray-300">Email support</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">USDC on/off ramp — volume based</span>
+                    <span className="text-gray-300">Basic backtesting (1 year history)</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">USDT on/off ramp — volume based</span>
+                    <span className="text-gray-300">Strategy sharing & learning</span>
                   </li>
                 </ul>
               </div>
 
               {/* Pro Tier */}
-              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
-                <div className="text-base text-gray-400 mb-2">Pro</div>
-                <div className="text-5xl font-bold mb-1">
-                  $25<span className="text-lg text-gray-400">/month</span>
+              <div className="relative bg-[#0a0a0f] border border-purple-500/30 rounded-2xl p-10 shadow-2xl shadow-purple-500/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl pointer-events-none" />
+                <div className="relative z-10">
+                  <div className="text-base text-purple-400 mb-2">Pro</div>
+                  <div className="text-5xl font-bold mb-1">
+                    $25<span className="text-lg text-gray-400">/month</span>
+                  </div>
+                  <div className="text-gray-400 text-sm mb-8 leading-relaxed">
+                    Unlock advanced automation and<br />
+                    real-time execution capabilities.
+                  </div>
+                  <button
+                    onClick={onEnter}
+                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-blue-600 transition-all mb-8"
+                  >
+                    Get Started
+                  </button>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Live trading account (connect broker)</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Unlimited active strategies</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Advanced technical indicators & AI signals</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Custom AI strategy builder</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Real-time market data feeds</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Automated execution engine</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Priority support & strategy consultations</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Advanced backtesting (10+ years history)</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Full API access & webhooks</span>
+                    </li>
+                  </ul>
                 </div>
-                <div className="text-gray-400 text-sm mb-8 leading-relaxed">
-                  Scale your business with advanced<br />
-                  industry-specific capabilities.
-                </div>
-                <button
-                  onClick={onEnter}
-                  className="w-full py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-100 transition-colors mb-8"
-                >
-                  Get Started
-                </button>
-                <ul className="space-y-3 text-sm">
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Hundreds of millions in FDIC insurance</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Same-day ACH transfers — $0</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Domestic wire transfers — $0</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Outgoing Fednow/RTP — $0</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Unlimited virtual cards</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">International wire transfers — $25</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Foreign transaction fee (card) — 1% (min $0.4)</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">USDC on/off ramp — volume based</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">USDT on/off ramp — volume based</span>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
