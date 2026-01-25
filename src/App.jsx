@@ -1,17 +1,28 @@
 import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 
-// Animated grid background component
+// Animated grid background component with subtle light effect
 const GridBackground = () => (
   <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    {/* Grid lines */}
     <div
       className="absolute inset-0"
       style={{
         backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
+          linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
         `,
         backgroundSize: '50px 50px',
+      }}
+    />
+    {/* Subtle radial light effect */}
+    <div
+      className="absolute inset-0"
+      style={{
+        background: `
+          radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%)
+        `,
       }}
     />
   </div>
@@ -621,6 +632,8 @@ const Dashboard = ({ setCurrentPage }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [bottomTab, setBottomTab] = useState('strategies'); // 'strategies' or 'terminal'
   const [activeNav, setActiveNav] = useState('search'); // active navigation item
+  const [navExpanded, setNavExpanded] = useState(false); // navigation sidebar hover state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // left sidebar collapse state
   const [code, setCode] = useState(`import { Strategy, Indicator } from '@stratify/core';
 
 /**
@@ -802,39 +815,62 @@ export class TeslaEMAStrategy extends Strategy {
       <GridBackground />
 
       {/* Edge Navigation Sidebar */}
-      <div className="relative z-10 w-64 border-r border-white/5 bg-[#1a1a1f] flex flex-col py-6">
+      <div
+        className={`relative z-10 border-r border-white/5 bg-[#1a1a1f] flex flex-col py-6 transition-all duration-200 ${
+          navExpanded ? 'w-64' : 'w-16'
+        }`}
+        onMouseEnter={() => setNavExpanded(true)}
+        onMouseLeave={() => setNavExpanded(false)}
+      >
         <div className="flex-1 px-3">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all mb-1 ${
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all mb-1 ${
                 activeNav === item.id
                   ? 'bg-blue-500/10 text-blue-400'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
+              } ${!navExpanded ? 'justify-center' : ''}`}
+              title={!navExpanded ? item.label : ''}
             >
               {item.icon}
-              <span className="text-base font-medium">{item.label}</span>
+              <span className={`text-base font-medium whitespace-nowrap transition-all duration-200 ${
+                navExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'
+              }`}>
+                {item.label}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Left Sidebar - Strategy Tree */}
-      <div className="relative z-10 w-72 border-r border-white/5 bg-[#1a1a1f] flex flex-col">
-        <div className="p-4 border-b border-white/10">
-          <button
-            onClick={() => setCurrentPage('landing')}
-            className="mb-4 text-xl font-bold hover:text-gray-300 transition-colors"
-          >
-            Stratify
-          </button>
-          <div>
-            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">My Strategies</div>
-            <div className="text-sm text-gray-400">3/5 running</div>
+      {!sidebarCollapsed ? (
+        <div className="relative z-10 w-72 border-r border-white/5 bg-[#1a1a1f] flex flex-col">
+          <div className="p-4 border-b border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setCurrentPage('landing')}
+                className="text-xl font-bold hover:text-gray-300 transition-colors"
+              >
+                Stratify
+              </button>
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                title="Collapse sidebar"
+              >
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">My Strategies</div>
+              <div className="text-sm text-gray-400">3/5 running</div>
+            </div>
           </div>
-        </div>
 
         <div className="flex-1 overflow-y-auto p-3">
           {Object.entries(strategyFolders).map(([key, folder]) => (
@@ -884,6 +920,20 @@ export class TeslaEMAStrategy extends Strategy {
           ))}
         </div>
       </div>
+      ) : (
+        /* Collapsed Sidebar */
+        <div className="relative z-10 w-12 border-r border-white/5 bg-[#1a1a1f] flex flex-col items-center py-4">
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            className="p-2 hover:bg-white/10 rounded transition-colors mb-4"
+            title="Expand sidebar"
+          >
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="relative z-10 flex-1 flex flex-col">
