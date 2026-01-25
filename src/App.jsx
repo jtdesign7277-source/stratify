@@ -115,21 +115,21 @@ const LandingPage = ({ onEnter }) => {
             {/* Social Proof Stats */}
             <div className="flex items-center justify-center gap-12 mb-16">
               <div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-5xl font-bold bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
                   $<AnimatedCounter end={2847} />M
                 </div>
                 <div className="text-sm text-gray-400">Assets Under Management</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
                   <AnimatedCounter end={150000} suffix="+" />
                 </div>
                 <div className="text-sm text-gray-400">Active Traders</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-5xl font-bold bg-gradient-to-r from-pink-400 to-rose-500 bg-clip-text text-transparent">
                   <AnimatedCounter end={98} suffix="%" />
                 </div>
                 <div className="text-sm text-gray-400">Uptime</div>
