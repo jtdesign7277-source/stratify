@@ -4,6 +4,7 @@ import TopMetricsBar from './TopMetricsBar';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
+import Watchlist from './Watchlist';
 
 const loadDashboardState = () => {
   try {
@@ -28,6 +29,12 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [watchlist, setWatchlist] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-watchlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
 
   useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
@@ -44,6 +51,16 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     if (!isDragging) return;
     const newWidth = window.innerWidth - e.clientX;
     setRightPanelWidth(Math.min(500, Math.max(280, newWidth)));
+  };
+
+  const addToWatchlist = (stock) => {
+    if (!watchlist.find(s => s.symbol === stock.symbol)) {
+      setWatchlist(prev => [...prev, stock]);
+    }
+  };
+
+  const removeFromWatchlist = (symbol) => {
+    setWatchlist(prev => prev.filter(s => s.symbol !== symbol));
   };
 
   const handleMouseUp = () => {
@@ -83,8 +100,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
-      <TopMetricsBar alpacaData={alpacaData} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} />
+      <TopMetricsBar alpacaData={alpacaData} onAddToWatchlist={addToWatchlist} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} />
       <div className="flex flex-1 overflow-hidden">
+        <Watchlist stocks={watchlist} onRemove={removeFromWatchlist} themeClasses={themeClasses} />
         <Sidebar expanded={sidebarExpanded} onToggle={(val) => setSidebarExpanded(val)} activeSection={activeSection} onSectionChange={setActiveSection} theme={theme} themeClasses={themeClasses} />
         <div className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>

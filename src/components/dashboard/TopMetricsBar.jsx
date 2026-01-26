@@ -5,7 +5,7 @@ const formatCurrency = (value) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout }) {
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist }) {
   const account = alpacaData?.account || {};
   
   const metrics = [
@@ -35,7 +35,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         ))}
       </div>
       <div className="flex items-center gap-4 ml-4">
-        <SearchBar onSelectStock={(stock) => console.log("Selected:", stock)} />
+        <SearchBar onSelectStock={onAddToWatchlist} />
         <div className="flex items-center gap-4 pl-4 border-l border-[#2A2A2A]">
           <div className="text-right">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
