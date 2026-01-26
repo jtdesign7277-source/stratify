@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Watchlist from './Watchlist';
 
 const navItems = [
   { id: 'portfolio', label: 'Portfolio', icon: 'chart-pie' },
@@ -28,11 +29,25 @@ const IconComponent = ({ name, className }) => {
   return icons[name] || null;
 };
 
-export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses }) {
+export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist }) {
   const [hoveredItem, setHoveredItem] = useState(null);
+  
+  // Auto-expand sidebar when watchlist section is active
+  useEffect(() => {
+    if (activeSection === 'watchlist') {
+      onToggle(true);
+    }
+  }, [activeSection]);
+
+  // Don't collapse when watchlist is active
+  const handleMouseLeave = () => {
+    if (activeSection !== 'watchlist') {
+      onToggle(false);
+    }
+  };
 
   return (
-    <div className={`${expanded ? 'w-60' : 'w-16'} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`} onMouseEnter={() => onToggle(true)} onMouseLeave={() => onToggle(false)}>
+    <div className={`${expanded ? (activeSection === 'watchlist' ? 'w-72' : 'w-60') : 'w-16'} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`} onMouseEnter={() => onToggle(true)} onMouseLeave={handleMouseLeave}>
       <div className="h-14 flex items-center justify-center border-b border-[#2A2A2A]">
         {!expanded && (
           <span className="text-2xl font-semibold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">S</span>
@@ -41,16 +56,29 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
           <span className="font-semibold text-xl bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Stratify</span>
         )}
       </div>
-      <nav className="flex-1 py-2">
-        {navItems.map((item) => (
-          <button key={item.id} onClick={() => onSectionChange(item.id)} onMouseEnter={() => setHoveredItem(item.id)} onMouseLeave={() => setHoveredItem(null)}
-            className={`w-full flex items-center px-4 py-3 transition-all relative ${activeSection === item.id ? 'text-[#F5F5F5] bg-[#2A2A2A]' : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'}`}>
-            {activeSection === item.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />}
-            <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-            {expanded && <span className="ml-3 text-sm font-medium">{item.label}</span>}
-            {!expanded && hoveredItem === item.id && <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">{item.label}</div>}
-          </button>
-        ))}
+      <nav className="flex-1 py-2 flex flex-col overflow-hidden">
+        <div className="flex-shrink-0">
+          {navItems.map((item) => (
+            <button key={item.id} onClick={() => onSectionChange(item.id)} onMouseEnter={() => setHoveredItem(item.id)} onMouseLeave={() => setHoveredItem(null)}
+              className={`w-full flex items-center px-4 py-3 transition-all relative ${activeSection === item.id ? 'text-[#F5F5F5] bg-[#2A2A2A]' : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'}`}>
+              {activeSection === item.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />}
+              <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
+              {expanded && <span className="ml-3 text-sm font-medium">{item.label}</span>}
+              {!expanded && hoveredItem === item.id && <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">{item.label}</div>}
+            </button>
+          ))}
+        </div>
+        
+        {/* Watchlist content - shows when watchlist section is active */}
+        {activeSection === 'watchlist' && expanded && (
+          <div className="flex-1 overflow-y-auto border-t border-[#2A2A2A] mt-2">
+            <Watchlist 
+              stocks={watchlist} 
+              onRemove={onRemoveFromWatchlist} 
+              themeClasses={themeClasses} 
+            />
+          </div>
+        )}
       </nav>
       <div className="border-t border-[#2A2A2A] py-2">
         {bottomItems.map((item) => (

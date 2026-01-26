@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+import { API_URL } from '../../config';
 
 export default function Watchlist({ stocks, onRemove, themeClasses }) {
   const [quotes, setQuotes] = useState({});

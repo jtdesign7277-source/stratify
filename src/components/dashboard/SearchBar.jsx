@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-
-const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+import { API_URL } from '../../config';
 
 export default function SearchBar({ onSelectStock }) {
   const [query, setQuery] = useState('');

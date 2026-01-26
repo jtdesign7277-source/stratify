@@ -57,6 +57,11 @@ app.get('/api/public/quote/:symbol', async (req, res) => {
 app.get('/api/public/search', async (req, res) => {
   try {
     const { q } = req.query;
+    if (!q || q.length < 1) {
+      return res.json([]);
+    }
+    
+    const query = q.toUpperCase();
     const response = await fetch(`https://api.alpaca.markets/v2/assets?status=active&asset_class=us_equity`, {
       headers: {
         'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
@@ -64,7 +69,48 @@ app.get('/api/public/search', async (req, res) => {
       }
     });
     const assets = await response.json();
-    const results = assets.filter(a => a.symbol.includes(q.toUpperCase()) || (a.name && a.name.toUpperCase().includes(q.toUpperCase()))).slice(0, 20);
+    
+    // Filter matching assets
+    const matches = assets.filter(a => 
+      a.tradable && (
+        a.symbol.includes(query) || 
+        (a.name && a.name.toUpperCase().includes(query))
+      )
+    );
+    
+    // Sort by relevance: exact symbol > symbol starts with > symbol contains > name contains
+    matches.sort((a, b) => {
+      const aSymbol = a.symbol;
+      const bSymbol = b.symbol;
+      const aName = (a.name || '').toUpperCase();
+      const bName = (b.name || '').toUpperCase();
+      
+      // Exact symbol match gets highest priority
+      if (aSymbol === query && bSymbol !== query) return -1;
+      if (bSymbol === query && aSymbol !== query) return 1;
+      
+      // Symbol starts with query
+      const aStartsWith = aSymbol.startsWith(query);
+      const bStartsWith = bSymbol.startsWith(query);
+      if (aStartsWith && !bStartsWith) return -1;
+      if (bStartsWith && !aStartsWith) return 1;
+      
+      // Symbol contains query (shorter symbols first)
+      const aSymbolContains = aSymbol.includes(query);
+      const bSymbolContains = bSymbol.includes(query);
+      if (aSymbolContains && !bSymbolContains) return -1;
+      if (bSymbolContains && !aSymbolContains) return 1;
+      if (aSymbolContains && bSymbolContains) return aSymbol.length - bSymbol.length;
+      
+      // Name starts with query
+      if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+      if (bName.startsWith(query) && !aName.startsWith(query)) return 1;
+      
+      // Alphabetical by symbol
+      return aSymbol.localeCompare(bSymbol);
+    });
+    
+    const results = matches.slice(0, 15);
     res.json(results.map(a => ({ symbol: a.symbol, name: a.name, exchange: a.exchange, tradable: a.tradable })));
   } catch (error) {
     res.status(500).json({ error: error.message });

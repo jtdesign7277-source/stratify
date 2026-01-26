@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://stratify-backend-production-3ebd.up.railway.app/api';
+import { API_BASE_URL } from './config';
 
 export const fetchStocks = async () => {
   try {

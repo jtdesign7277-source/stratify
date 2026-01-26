@@ -1,4 +1,4 @@
-# Stratify Backend API
+th# Stratify Backend API
 
 Finance/stock scanning API backend for the Stratify mobile apps (iOS/Android).
 
