@@ -142,14 +142,38 @@ const AnimatedCounter = ({ end, duration = 2000, prefix = '', suffix = '' }) => 
 // Landing Page Component
 const LandingPage = ({ onEnter }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white relative">
+    <div className="min-h-screen bg-[#0a0a0f] text-white relative overflow-hidden">
       <GridBackground />
+
+      {/* Mouse-following glow effect */}
+      <div
+        className="fixed pointer-events-none z-30 transition-opacity duration-300"
+        style={{
+          left: `${mousePosition.x}px`,
+          top: `${mousePosition.y}px`,
+          width: '600px',
+          height: '600px',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 25%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+      />
 
       {/* Top Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-white/5">
@@ -492,8 +516,8 @@ const LandingPage = ({ onEnter }) => {
               {/* Free Tier */}
               <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
                 <div className="text-base text-gray-400 mb-2">Free</div>
-                <div className="text-5xl font-bold mb-1">
-                  $0<span className="text-lg text-gray-400">/month</span>
+                <div className="text-4xl font-bold mb-1">
+                  Paper trade for free
                 </div>
                 <div className="text-gray-400 text-sm mb-8 leading-relaxed">
                   Perfect for learning and testing<br />
@@ -548,7 +572,7 @@ const LandingPage = ({ onEnter }) => {
                 <div className="relative z-10">
                   <div className="text-base text-purple-400 mb-2">Pro</div>
                   <div className="text-5xl font-bold mb-1">
-                    $25<span className="text-lg text-gray-400">/month</span>
+                    $9.99<span className="text-lg text-gray-400">/month</span>
                   </div>
                   <div className="text-gray-400 text-sm mb-8 leading-relaxed">
                     Unlock advanced automation and<br />
