@@ -37,3 +37,36 @@ startAlpacaStream((data) => {
     }
   });
 });
+// Public API endpoints for Alpaca
+app.get('/api/public/quote/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const response = await fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/quotes/latest`, {
+      headers: {
+        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY
+      }
+    });
+    const data = await response.json();
+    res.json({ symbol: symbol.toUpperCase(), bid: data.quote?.bp, ask: data.quote?.ap, price: (data.quote?.bp + data.quote?.ap) / 2 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/public/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const response = await fetch(`https://api.alpaca.markets/v2/assets?status=active&asset_class=us_equity`, {
+      headers: {
+        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY
+      }
+    });
+    const assets = await response.json();
+    const results = assets.filter(a => a.symbol.includes(q.toUpperCase()) || (a.name && a.name.toUpperCase().includes(q.toUpperCase()))).slice(0, 20);
+    res.json(results.map(a => ({ symbol: a.symbol, name: a.name, exchange: a.exchange, tradable: a.tradable })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
