@@ -48,11 +48,39 @@ async def search_stocks(q: str = Query(..., min_length=1)):
     try:
         assets = trading_client.get_all_assets(GetAssetsRequest(asset_class=AssetClass.US_EQUITY))
         query = q.upper()
+        
+        # Filter matching assets (only tradable)
+        matches = [
+            a for a in assets
+            if a.tradable and (query in a.symbol.upper() or (a.name and query in a.name.upper()))
+        ]
+        
+        # Sort by relevance: exact symbol > symbol starts with > symbol contains > name contains
+        def sort_key(a):
+            symbol = a.symbol.upper()
+            name = (a.name or "").upper()
+            
+            # Exact symbol match = highest priority (0)
+            if symbol == query:
+                return (0, len(symbol), symbol)
+            # Symbol starts with query
+            if symbol.startswith(query):
+                return (1, len(symbol), symbol)
+            # Symbol contains query
+            if query in symbol:
+                return (2, len(symbol), symbol)
+            # Name starts with query
+            if name.startswith(query):
+                return (3, len(name), symbol)
+            # Name contains query
+            return (4, len(name), symbol)
+        
+        matches.sort(key=sort_key)
+        
         results = [
             {"symbol": a.symbol, "name": a.name, "exchange": a.exchange, "tradable": a.tradable}
-            for a in assets
-            if query in a.symbol.upper() or (a.name and query in a.name.upper())
-        ][:20]
+            for a in matches[:15]
+        ]
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
