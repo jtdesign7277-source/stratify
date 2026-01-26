@@ -49,12 +49,14 @@ app.add_middleware(
 )
 
 # Include routers
+from backend.api import public
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(market.router, prefix="/api/v1/market", tags=["Market Data"])
 app.include_router(social.router, prefix="/api/v1/social", tags=["Social Feed"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 app.include_router(websocket.router, prefix="/api/v1/ws", tags=["WebSocket"])
+app.include_router(public.router, prefix="/api/public", tags=["Public"])
 
 
 @app.get("/")
