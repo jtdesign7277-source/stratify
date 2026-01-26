@@ -208,47 +208,47 @@ const LandingPage = ({ onEnter }) => {
             </p>
 
             {/* Waitlist Section */}
-            <div className="max-w-2xl mx-auto mb-8">
+            <div className="max-w-xl mx-auto mb-6">
               {/* Email Input and Join Waitlist Button */}
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-3 mb-3">
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="flex-1 px-6 py-4 bg-[#1a1a2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-[#1a1a2e] border border-white/10 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
                 />
                 <button
-                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-1.5 whitespace-nowrap"
                 >
                   Join Waitlist
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
                 </button>
               </div>
 
               {/* Waitlist Count */}
-              <div className="text-center mb-8">
-                <p className="text-gray-400 text-base flex items-center justify-center gap-2">
-                  <span className="text-xl">✨</span>
+              <div className="text-center mb-4">
+                <p className="text-gray-400 text-xs flex items-center justify-center gap-1.5">
+                  <span className="text-sm">✨</span>
                   <span>Join 501+ traders already on the waitlist</span>
                 </p>
               </div>
 
               {/* Divider */}
-              <div className="border-t border-white/10 mb-8" />
+              <div className="border-t border-white/10 mb-4" />
 
               {/* Continue as Guest */}
               <div className="text-center">
                 <button
                   onClick={onEnter}
-                  className="w-full py-4 bg-transparent border border-white/20 rounded-xl text-white font-semibold hover:bg-white/5 transition-all flex items-center justify-center gap-2 mb-3"
+                  className="w-full py-2.5 bg-transparent border border-white/20 rounded-lg text-white text-sm font-semibold hover:bg-white/5 transition-all flex items-center justify-center gap-2 mb-2"
                 >
                   Continue as Guest
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
                 </button>
-                <p className="text-gray-500 text-sm">Explore the full app without signing up</p>
+                <p className="text-gray-500 text-xs">Explore the full app without signing up</p>
               </div>
             </div>
 
