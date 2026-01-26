@@ -21,10 +21,10 @@ const saveDashboardState = (state) => {
 export default function Dashboard({ setCurrentPage, alpacaData }) {
   const savedState = loadDashboardState();
   
-  const [sidebarExpanded, setSidebarExpanded] = useState(savedState?.sidebarExpanded ?? false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false); // Always start collapsed (VS Code style)
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState(savedState?.activeTab ?? 'positions');
-  const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'portfolio');
+  const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
   const [connectionStatus, setConnectionStatus] = useState('connecting');

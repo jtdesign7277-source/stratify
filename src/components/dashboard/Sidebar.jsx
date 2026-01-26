@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import Watchlist from './Watchlist';
 
 const navItems = [
-  { id: 'portfolio', label: 'Portfolio', icon: 'chart-pie' },
   { id: 'watchlist', label: 'Watchlist', icon: 'eye' },
   { id: 'strategies', label: 'Strategies', icon: 'trending-up' },
   { id: 'backtest', label: 'Backtest', icon: 'flask' },
@@ -31,63 +30,158 @@ const IconComponent = ({ name, className }) => {
 
 export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist }) {
   const [hoveredItem, setHoveredItem] = useState(null);
-  
-  // Auto-expand sidebar when watchlist section is active
-  useEffect(() => {
-    if (activeSection === 'watchlist') {
-      onToggle(true);
-    }
-  }, [activeSection]);
+  const [watchlistHeight, setWatchlistHeight] = useState(() => {
+    const saved = localStorage.getItem('stratify-watchlist-height');
+    return saved ? parseInt(saved, 10) : 300;
+  });
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Don't collapse when watchlist is active
+  // Save watchlist height to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-watchlist-height', watchlistHeight.toString());
+  }, [watchlistHeight]);
+
+  // Handle resize drag
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const sidebar = document.getElementById('sidebar-container');
+      if (!sidebar) return;
+      const sidebarRect = sidebar.getBoundingClientRect();
+      const newHeight = sidebarRect.bottom - e.clientY - 60; // 60px for bottom items
+      setWatchlistHeight(Math.max(100, Math.min(500, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // VS Code style: expand on hover, collapse on leave (always)
+  const handleMouseEnter = () => onToggle(true);
   const handleMouseLeave = () => {
-    if (activeSection !== 'watchlist') {
-      onToggle(false);
-    }
+    if (!isDragging) onToggle(false);
+  };
+
+  // Determine width based on expanded state and active section
+  const getWidth = () => {
+    if (!expanded) return 'w-16';
+    if (activeSection === 'watchlist') return 'w-72';
+    return 'w-60';
   };
 
   return (
-    <div className={`${expanded ? (activeSection === 'watchlist' ? 'w-72' : 'w-60') : 'w-16'} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`} onMouseEnter={() => onToggle(true)} onMouseLeave={handleMouseLeave}>
+    <div 
+      id="sidebar-container"
+      className={`${getWidth()} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`} 
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Logo */}
       <div className="h-14 flex items-center justify-center border-b border-[#2A2A2A]">
-        {!expanded && (
+        {!expanded ? (
           <span className="text-2xl font-semibold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">S</span>
-        )}
-        {expanded && (
+        ) : (
           <span className="font-semibold text-xl bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Stratify</span>
         )}
       </div>
+
+      {/* Navigation */}
       <nav className="flex-1 py-2 flex flex-col overflow-hidden">
         <div className="flex-shrink-0">
           {navItems.map((item) => (
-            <button key={item.id} onClick={() => onSectionChange(item.id)} onMouseEnter={() => setHoveredItem(item.id)} onMouseLeave={() => setHoveredItem(null)}
-              className={`w-full flex items-center px-4 py-3 transition-all relative ${activeSection === item.id ? 'text-[#F5F5F5] bg-[#2A2A2A]' : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'}`}>
-              {activeSection === item.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />}
+            <button 
+              key={item.id} 
+              onClick={() => onSectionChange(item.id)} 
+              onMouseEnter={() => setHoveredItem(item.id)} 
+              onMouseLeave={() => setHoveredItem(null)}
+              className={`w-full flex items-center px-4 py-3 transition-all relative ${
+                activeSection === item.id 
+                  ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
+                  : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
+              }`}
+            >
+              {/* Active indicator */}
+              {activeSection === item.id && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />
+              )}
+              
+              {/* Icon */}
               <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-              {expanded && <span className="ml-3 text-sm font-medium">{item.label}</span>}
-              {!expanded && hoveredItem === item.id && <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">{item.label}</div>}
+              
+              {/* Label (shown when expanded) */}
+              {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
+              
+              {/* Tooltip (shown when collapsed and hovered) */}
+              {!expanded && hoveredItem === item.id && (
+                <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                  {item.label}
+                </div>
+              )}
             </button>
           ))}
         </div>
         
-        {/* Watchlist content - shows when watchlist section is active */}
+        {/* Watchlist content - shows when watchlist section is active AND expanded */}
         {activeSection === 'watchlist' && expanded && (
-          <div className="flex-1 overflow-y-auto border-t border-[#2A2A2A] mt-2">
-            <Watchlist 
-              stocks={watchlist} 
-              onRemove={onRemoveFromWatchlist} 
-              themeClasses={themeClasses} 
+          <div className="flex flex-col border-t border-[#2A2A2A] mt-2">
+            {/* Resize handle */}
+            <div 
+              className={`h-1 cursor-row-resize hover:bg-emerald-500/50 transition-colors ${isDragging ? 'bg-emerald-500' : 'bg-transparent'}`}
+              onMouseDown={() => setIsDragging(true)}
             />
+            {/* Scrollable watchlist */}
+            <div 
+              className="overflow-y-auto"
+              style={{ height: `${watchlistHeight}px` }}
+            >
+              <Watchlist 
+                stocks={watchlist} 
+                onRemove={onRemoveFromWatchlist} 
+                themeClasses={themeClasses} 
+              />
+            </div>
           </div>
         )}
       </nav>
+
+      {/* Bottom items (Settings, Help) */}
       <div className="border-t border-[#2A2A2A] py-2">
         {bottomItems.map((item) => (
-          <button key={item.id} onClick={() => onSectionChange(item.id)} onMouseEnter={() => setHoveredItem(item.id)} onMouseLeave={() => setHoveredItem(null)}
-            className={`w-full flex items-center px-4 py-3 transition-all relative ${activeSection === item.id ? 'text-[#F5F5F5] bg-[#2A2A2A]' : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'}`}>
-            {activeSection === item.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />}
+          <button 
+            key={item.id} 
+            onClick={() => onSectionChange(item.id)} 
+            onMouseEnter={() => setHoveredItem(item.id)} 
+            onMouseLeave={() => setHoveredItem(null)}
+            className={`w-full flex items-center px-4 py-3 transition-all relative ${
+              activeSection === item.id 
+                ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
+                : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
+            }`}
+          >
+            {activeSection === item.id && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />
+            )}
             <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-            {expanded && <span className="ml-3 text-sm font-medium">{item.label}</span>}
-            {!expanded && hoveredItem === item.id && <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">{item.label}</div>}
+            {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
+            {!expanded && hoveredItem === item.id && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                {item.label}
+              </div>
+            )}
           </button>
         ))}
       </div>

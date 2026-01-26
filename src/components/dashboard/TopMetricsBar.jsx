@@ -9,7 +9,6 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
   const account = alpacaData?.account || {};
   
   const metrics = [
-    { label: 'Account', value: account.account_number || 'N/A', isId: true },
     { label: 'Daily P&L', value: formatCurrency(account.daily_pnl), change: account.daily_pnl },
     { label: 'Unrealized P&L', value: formatCurrency(account.unrealized_pl), change: account.unrealized_pl },
     { label: 'Realized P&L', value: formatCurrency(account.realized_pl), change: account.realized_pl },
@@ -30,7 +29,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         {metrics.map((metric, index) => (
           <div key={index} className="flex flex-col min-w-0">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
-            <span className={`text-sm font-medium ${metric.isId ? 'text-cyan-400' : metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
+            <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
           </div>
         ))}
       </div>
