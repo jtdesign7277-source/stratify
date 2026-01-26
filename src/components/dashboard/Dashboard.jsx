@@ -85,7 +85,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <TopMetricsBar alpacaData={alpacaData} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded(!sidebarExpanded)} activeSection={activeSection} onSectionChange={setActiveSection} theme={theme} themeClasses={themeClasses} />
+        <Sidebar expanded={sidebarExpanded} onToggle={(val) => setSidebarExpanded(val)} activeSection={activeSection} onSectionChange={setActiveSection} theme={theme} themeClasses={themeClasses} />
         <div className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
             <div className="flex gap-1">

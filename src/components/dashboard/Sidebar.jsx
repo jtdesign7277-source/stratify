@@ -32,12 +32,14 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
   const [hoveredItem, setHoveredItem] = useState(null);
 
   return (
-    <div className={`${expanded ? 'w-60' : 'w-16'} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`}>
-      <div className="h-14 flex items-center justify-center border-b border-[#2A2A2A] cursor-pointer" onDoubleClick={onToggle}>
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">S</span>
-        </div>
-        {expanded && <span className="ml-3 font-semibold text-lg bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Stratify</span>}
+    <div className={`${expanded ? 'w-60' : 'w-16'} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`} onMouseEnter={() => onToggle(true)} onMouseLeave={() => onToggle(false)}>
+      <div className="h-14 flex items-center justify-center border-b border-[#2A2A2A]">
+        {!expanded && (
+          <span className="text-2xl font-semibold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">S</span>
+        )}
+        {expanded && (
+          <span className="font-semibold text-xl bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Stratify</span>
+        )}
       </div>
       <nav className="flex-1 py-2">
         {navItems.map((item) => (
