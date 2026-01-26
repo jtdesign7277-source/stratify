@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { Dashboard } from './components/dashboard';
-import { useAlpacaData } from './useAlpacaData';
 
 // Animated grid background component with subtle light effect
 const GridBackground = () => {
@@ -996,7 +994,7 @@ const ClaudeCodeChat = () => {
 };
 
 // Dashboard Component - Strategy Builder UI
-const OldDashboard = ({ setCurrentPage }) => {
+const Dashboard = ({ setCurrentPage }) => {
   const [expandedFolders, setExpandedFolders] = useState({ momentum: true });
   const [strategiesHeight, setStrategiesHeight] = useState(250);
   const [strategiesCollapsed, setStrategiesCollapsed] = useState(false);
@@ -1518,11 +1516,10 @@ export class TeslaEMAStrategy extends Strategy {
 // Main App Component
 export default function StratifyApp() {
   const [currentPage, setCurrentPage] = useState('landing');
-  const { stocks, loading, error } = useAlpacaData();
 
   if (currentPage === 'landing') {
     return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
   }
 
-  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: stocks, account: { equity: 0, cash: 0, buying_power: 0 } }} />;
+  return <Dashboard setCurrentPage={setCurrentPage} />;
 }
