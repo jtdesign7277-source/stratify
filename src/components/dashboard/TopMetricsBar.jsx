@@ -1,3 +1,5 @@
+import SearchBar from "./SearchBar";
+
 const formatCurrency = (value) => {
   if (value === null || value === undefined || isNaN(value)) return '--';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
@@ -33,6 +35,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         ))}
       </div>
       <div className="flex items-center gap-4 ml-4">
+        <SearchBar onSelectStock={(stock) => console.log("Selected:", stock)} />
         <div className="flex items-center gap-4 pl-4 border-l border-[#2A2A2A]">
           <div className="text-right">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
