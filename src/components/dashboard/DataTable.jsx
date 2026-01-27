@@ -100,7 +100,7 @@ const QuantumBrainAnimation = ({ isThinking }) => {
   );
 };
 
-export default function DataTable({ activeTab, alpacaData, strategies = [], demoState = 'idle', theme, themeClasses, onDeleteStrategy, onDeployStrategy, autoBacktestStrategy }) {
+export default function DataTable({ activeTab, alpacaData, strategies = [], demoState = 'idle', theme, themeClasses, onDeleteStrategy, onDeployStrategy, onEditStrategy, autoBacktestStrategy }) {
   const [sortColumn, setSortColumn] = useState('symbol');
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedRow, setSelectedRow] = useState(null);
@@ -272,7 +272,21 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
               <div key={strategy.id} className={`bg-[#1A1A1A] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#2A2A2A] hover:border-purple-500/30'}`}>
                 {/* Strategy Row */}
                 <div className="flex items-center justify-between gap-4 px-3 py-2">
+                  {/* Left: Dropdown toggle + Name + Status */}
                   <div className="flex items-center gap-2 min-w-0">
+                    <button
+                      onClick={() => setExpandedStrategy(isExpanded ? null : strategy.id)}
+                      className="text-gray-400 hover:text-white transition-colors p-0.5"
+                    >
+                      <svg 
+                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                     <h3 className="text-sm font-medium text-white truncate">{strategy.name}</h3>
                     <span className={`px-1.5 py-0.5 text-[10px] rounded-full flex-shrink-0 ${
                       strategy.status === 'deployed' 
@@ -283,7 +297,14 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                     </span>
                   </div>
 
+                  {/* Right: Action buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0 relative">
+                    <button 
+                      onClick={() => onEditStrategy?.(strategy)}
+                      className="text-gray-400 text-xs font-medium transition-colors px-2 py-1 rounded hover:text-white hover:bg-white/10"
+                    >
+                      Edit
+                    </button>
                     <button 
                       className={`text-purple-400 text-xs font-medium transition-colors px-2 py-1 rounded ${
                         isClickingBacktest && strategy.id === autoBacktestStrategy?.id
@@ -313,9 +334,10 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                   </div>
                 </div>
 
-                {/* Expanded Backtest Results */}
+                {/* Expanded Section - Stats & Code */}
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t border-[#2A2A2A] mt-1 pt-3">
+                    {/* Backtest Progress (during auto-demo) */}
                     {isBacktesting && !backtestComplete && (
                       <div className="flex items-center justify-center gap-3 py-4">
                         <svg className="w-5 h-5 animate-spin text-purple-400" fill="none" viewBox="0 0 24 24">
@@ -326,6 +348,67 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                       </div>
                     )}
 
+                    {/* Always show stats if available (not just during backtest) */}
+                    {strategy.metrics && !isBacktesting && (
+                      <>
+                        <div className="text-xs text-gray-500 mb-2">Backtest Results</div>
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                            <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
+                            <div className="text-sm font-semibold text-emerald-400">{strategy.metrics.winRate}%</div>
+                          </div>
+                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                            <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
+                            <div className="text-sm font-semibold text-blue-400">{strategy.metrics.profitFactor}</div>
+                          </div>
+                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                            <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
+                            <div className="text-sm font-semibold text-purple-400">{strategy.metrics.sharpeRatio}</div>
+                          </div>
+                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                            <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
+                            <div className="text-sm font-semibold text-orange-400">-{strategy.metrics.maxDrawdown}%</div>
+                          </div>
+                        </div>
+
+                        {/* Strategy Code Preview */}
+                        {strategy.code && (
+                          <div className="mb-3">
+                            <div className="text-xs text-gray-500 mb-2">Strategy Code</div>
+                            <pre className="bg-[#0D0D0D] rounded p-3 border border-[#2A2A2A] text-xs text-gray-400 font-mono overflow-x-auto max-h-32 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+                              {strategy.code}
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* Deploy button if not deployed */}
+                        {strategy.status !== 'deployed' && (
+                          <div className="flex justify-center relative">
+                            <button 
+                              onClick={() => onDeployStrategy?.(strategy)}
+                              className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all ${
+                                cursorPhase === 'clicking-deploy'
+                                  ? 'bg-emerald-500 text-white scale-95'
+                                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30'
+                              }`}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              Deploy Strategy
+                            </button>
+                            {showDeployCursor && (
+                              <AnimatedCursor 
+                                visible={true} 
+                                clicking={cursorPhase === 'clicking-deploy'}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* During backtest completion - show complete message then stats */}
                     {backtestComplete && (
                       <>
                         <div className="flex items-center gap-2 mb-3">

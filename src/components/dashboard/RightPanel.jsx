@@ -199,7 +199,7 @@ class MeanReversion(Strategy):
   }
 ];
 
-export default function RightPanel({ width, alpacaData, theme, themeClasses, onStrategyGenerated, onDemoStateChange, onStrategyAdded }) {
+export default function RightPanel({ width, alpacaData, theme, themeClasses, onStrategyGenerated, onDemoStateChange, onStrategyAdded, editingStrategy, onClearEdit }) {
   const [expanded, setExpanded] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [demoPhase, setDemoPhase] = useState('idle');
@@ -229,6 +229,17 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   useEffect(() => {
     scrollToBottom();
   }, [displayedClaudeText, displayedCode, showClaudeResponse, showUserMessage, demoPhase]);
+
+  // Handle editing an existing strategy
+  useEffect(() => {
+    if (editingStrategy) {
+      setInputValue(editingStrategy.description || '');
+      setDemoPhase('idle'); // Stop any demo
+      setShowUserMessage(false);
+      setShowClaudeResponse(false);
+      setShowAddButton(false);
+    }
+  }, [editingStrategy]);
 
   // Start demo
   useEffect(() => {

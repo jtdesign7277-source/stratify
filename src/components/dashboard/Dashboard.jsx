@@ -51,6 +51,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   });
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
+  const [editingStrategy, setEditingStrategy] = useState(null);
 
   const handleStrategyGenerated = (strategy) => {
     setStrategies(prev => {
@@ -72,6 +73,10 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   const handleDeleteStrategy = (strategyId) => {
     setStrategies(prev => prev.filter(s => s.id !== strategyId));
+  };
+
+  const handleEditStrategy = (strategy) => {
+    setEditingStrategy(strategy);
   };
 
   const handleDeployStrategy = (strategy) => {
@@ -206,6 +211,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             themeClasses={themeClasses} 
             onDeleteStrategy={handleDeleteStrategy}
             onDeployStrategy={handleDeployStrategy}
+            onEditStrategy={handleEditStrategy}
             autoBacktestStrategy={autoBacktestStrategy}
           />
           <TerminalPanel themeClasses={themeClasses} deployedStrategies={deployedStrategies} />
@@ -218,6 +224,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           onStrategyGenerated={handleStrategyGenerated} 
           onDemoStateChange={handleDemoStateChange}
           onStrategyAdded={handleStrategyAdded}
+          editingStrategy={editingStrategy}
+          onClearEdit={() => setEditingStrategy(null)}
         />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} />
