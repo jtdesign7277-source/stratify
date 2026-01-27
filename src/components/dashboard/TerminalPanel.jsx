@@ -232,8 +232,8 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                       </div>
                       <div className="flex items-center gap-1">
                         <button className="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6" />
                           </svg>
                         </button>
                         <button className="px-2 py-1 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Kill Strategy">
