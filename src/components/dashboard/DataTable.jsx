@@ -430,77 +430,63 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                     
                     {/* Edit Mode Panel */}
                     {editingStrategyId === strategy.id && (
-                      <div className="mb-4">
-                        <div className="text-xs text-cyan-400 font-medium mb-3 flex items-center gap-2">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Risk Parameters
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          {/* Stop Loss */}
-                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
-                            <label className="text-[10px] text-gray-500 block mb-1">Stop Loss</label>
-                            <div className="flex items-center gap-2">
+                      <div className="mb-3">
+                        <div className="flex items-center gap-4 mb-3">
+                          <span className="text-[10px] text-cyan-400 font-medium">Risk Parameters</span>
+                          
+                          {/* Compact inline inputs */}
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-500">SL</span>
                               <input
                                 type="number"
                                 value={editParams.stopLoss}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, stopLoss: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
+                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 max="0"
                               />
-                              <span className="text-white text-sm">%</span>
+                              <span className="text-[10px] text-gray-500">%</span>
                             </div>
-                          </div>
-                          
-                          {/* Take Profit */}
-                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
-                            <label className="text-[10px] text-gray-500 block mb-1">Take Profit</label>
-                            <div className="flex items-center gap-2">
+                            
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-500">TP</span>
                               <input
                                 type="number"
                                 value={editParams.takeProfit}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, takeProfit: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
+                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0"
                               />
-                              <span className="text-white text-sm">%</span>
+                              <span className="text-[10px] text-gray-500">%</span>
                             </div>
-                          </div>
-                          
-                          {/* Position Size */}
-                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
-                            <label className="text-[10px] text-gray-500 block mb-1">Position Size</label>
-                            <div className="flex items-center gap-2">
+                            
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-500">Size</span>
                               <input
                                 type="number"
                                 value={editParams.positionSize}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, positionSize: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
+                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0.5"
                                 max="100"
                               />
-                              <span className="text-white text-sm">%</span>
+                              <span className="text-[10px] text-gray-500">%</span>
                             </div>
-                          </div>
-                          
-                          {/* Trailing Stop */}
-                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
-                            <label className="text-[10px] text-gray-500 block mb-1">Trailing Stop</label>
-                            <div className="flex items-center gap-2">
+                            
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-500">Trail</span>
                               <input
                                 type="number"
                                 value={editParams.trailingStop}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, trailingStop: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
+                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0"
                               />
-                              <span className="text-white text-sm">%</span>
+                              <span className="text-[10px] text-gray-500">%</span>
                             </div>
                           </div>
                         </div>
