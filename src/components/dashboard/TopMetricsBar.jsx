@@ -48,8 +48,6 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
   
   const metrics = [
     { label: 'Daily P&L', value: formatCurrency(dailyPnL), change: dailyPnL },
-    { label: 'Unrealized P&L', value: formatCurrency(unrealizedPnL), change: unrealizedPnL },
-    { label: 'Realized P&L', value: formatCurrency(realizedPnL), change: realizedPnL },
     { label: 'Net Liquidity', value: formatCurrencyNeutral(netLiquidity) },
     { label: 'Buying Power', value: formatCurrencyNeutral(buyingPower) },
   ];
