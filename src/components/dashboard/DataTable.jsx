@@ -361,10 +361,10 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                       </svg>
                     </button>
                     <h3 className="text-sm font-medium text-white truncate">{strategy.name}</h3>
-                    <span className={`px-1.5 py-0.5 text-[10px] rounded-full flex-shrink-0 ${
+                    <span className={`text-[10px] flex-shrink-0 ${
                       strategy.status === 'deployed' 
-                        ? 'bg-emerald-500/20 text-emerald-400' 
-                        : 'bg-gray-500/20 text-gray-400'
+                        ? 'text-emerald-400' 
+                        : 'text-gray-500'
                     }`}>
                       {strategy.status}
                     </span>
