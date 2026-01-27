@@ -109,9 +109,68 @@ const navItems = [
 ];
 
 const bottomItems = [
-  { id: 'settings', label: 'Settings', icon: 'cog' },
+  { id: 'settings', label: 'Settings', icon: 'cog', hasContent: true },
   { id: 'help', label: 'Help', icon: 'question' },
 ];
+
+// Settings Panel Component
+const SettingsPanel = () => {
+  const [userInfo, setUserInfo] = useState(() => {
+    const saved = localStorage.getItem('stratify-user-info');
+    return saved ? JSON.parse(saved) : { firstName: '', lastName: '', email: '' };
+  });
+
+  const handleChange = (field, value) => {
+    setUserInfo(prev => {
+      const updated = { ...prev, [field]: value };
+      localStorage.setItem('stratify-user-info', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  return (
+    <div className="px-3 py-3 space-y-3">
+      <div className="text-xs text-gray-400 font-medium mb-2">User Information</div>
+      
+      <div>
+        <label className="text-[10px] text-gray-500 block mb-1">First Name</label>
+        <input
+          type="text"
+          value={userInfo.firstName}
+          onChange={(e) => handleChange('firstName', e.target.value)}
+          placeholder="Enter first name"
+          className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2.5 py-1.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
+        />
+      </div>
+      
+      <div>
+        <label className="text-[10px] text-gray-500 block mb-1">Last Name</label>
+        <input
+          type="text"
+          value={userInfo.lastName}
+          onChange={(e) => handleChange('lastName', e.target.value)}
+          placeholder="Enter last name"
+          className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2.5 py-1.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
+        />
+      </div>
+      
+      <div>
+        <label className="text-[10px] text-gray-500 block mb-1">Email</label>
+        <input
+          type="email"
+          value={userInfo.email}
+          onChange={(e) => handleChange('email', e.target.value)}
+          placeholder="Enter email address"
+          className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2.5 py-1.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
+        />
+      </div>
+
+      <div className="pt-2 border-t border-[#2A2A2A] mt-3">
+        <div className="text-[10px] text-gray-600">Changes are saved automatically</div>
+      </div>
+    </div>
+  );
+};
 
 const IconComponent = ({ name, className }) => {
   const icons = {
@@ -263,30 +322,61 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
 
       {/* Bottom items (Settings, Help) */}
       <div className="border-t border-[#2A2A2A] py-2">
-        {bottomItems.map((item) => (
-          <button 
-            key={item.id} 
-            onClick={() => onSectionChange(item.id)} 
-            onMouseEnter={() => setHoveredItem(item.id)} 
-            onMouseLeave={() => setHoveredItem(null)}
-            className={`w-full flex items-center px-4 py-2.5 transition-all relative ${
-              activeSection === item.id 
-                ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
-                : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
-            }`}
-          >
-            {activeSection === item.id && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r" />
-            )}
-            <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-            {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
-            {!expanded && hoveredItem === item.id && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
-                {item.label}
-              </div>
-            )}
-          </button>
-        ))}
+        {bottomItems.map((item) => {
+          const isSettingsExpanded = expandedSections[item.id];
+          
+          return (
+            <div key={item.id}>
+              <button 
+                onClick={() => {
+                  onSectionChange(item.id);
+                  if (item.hasContent && expanded) {
+                    toggleSection(item.id);
+                  }
+                }} 
+                onMouseEnter={() => setHoveredItem(item.id)} 
+                onMouseLeave={() => setHoveredItem(null)}
+                className={`w-full flex items-center justify-between px-4 py-2.5 transition-all relative ${
+                  activeSection === item.id 
+                    ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
+                    : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
+                }`}
+              >
+                <div className="flex items-center">
+                  {activeSection === item.id && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r" />
+                  )}
+                  <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
+                  {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
+                </div>
+                
+                {expanded && item.hasContent && (
+                  <svg 
+                    className={`w-3.5 h-3.5 text-gray-500 transition-transform ${isSettingsExpanded ? 'rotate-90' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+                
+                {!expanded && hoveredItem === item.id && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                    {item.label}
+                  </div>
+                )}
+              </button>
+              
+              {/* Settings Content */}
+              {expanded && item.id === 'settings' && isSettingsExpanded && (
+                <div className="border-t border-b border-[#2A2A2A] bg-[#161616]">
+                  <SettingsPanel />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
