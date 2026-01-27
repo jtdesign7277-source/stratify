@@ -4,6 +4,8 @@ import TopMetricsBar from './TopMetricsBar';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
+import TerminalPanel from './TerminalPanel';
+import StockDetailView from './StockDetailView';
 
 const loadDashboardState = () => {
   try {
@@ -34,6 +36,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [selectedStock, setSelectedStock] = useState(null);
 
   useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
@@ -115,8 +118,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           themeClasses={themeClasses}
           watchlist={watchlist}
           onRemoveFromWatchlist={removeFromWatchlist}
+          onViewChart={(stock) => setSelectedStock(stock)}
         />
-        <div className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
+        <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
             <div className="flex gap-1">
               {['positions', 'orders', 'trades', 'balances'].map((tab) => (
@@ -128,11 +132,21 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             </div>
           </div>
           <DataTable activeTab={activeTab} alpacaData={alpacaData} theme={theme} themeClasses={themeClasses} />
+          <TerminalPanel themeClasses={themeClasses} />
         </div>
-        <div className={`w-1 cursor-col-resize hover:bg-emerald-500/50 ${isDragging ? 'bg-emerald-500' : themeClasses.border}`} onMouseDown={() => setIsDragging(true)} />
         <RightPanel width={rightPanelWidth} alpacaData={alpacaData} theme={theme} themeClasses={themeClasses} />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} />
+
+      {/* Stock Detail View - Full Screen Overlay */}
+      {selectedStock && (
+        <StockDetailView 
+          symbol={selectedStock.symbol}
+          stockName={selectedStock.name}
+          onClose={() => setSelectedStock(null)}
+          themeClasses={themeClasses}
+        />
+      )}
     </div>
   );
 }

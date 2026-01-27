@@ -6,6 +6,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
 @keyframes scroll {
   0% {
     transform: translateX(0);

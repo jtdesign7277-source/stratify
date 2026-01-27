@@ -28,18 +28,56 @@ const IconComponent = ({ name, className }) => {
   return icons[name] || null;
 };
 
-export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist }) {
+export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist, onViewChart }) {
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [navHeight, setNavHeight] = useState(() => {
+    const saved = localStorage.getItem('stratify-nav-height');
+    return saved ? parseInt(saved, 10) : 250;
+  });
   const [watchlistHeight, setWatchlistHeight] = useState(() => {
     const saved = localStorage.getItem('stratify-watchlist-height');
-    return saved ? parseInt(saved, 10) : 300;
+    return saved ? parseInt(saved, 10) : 200;
   });
+  const [isDraggingNav, setIsDraggingNav] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Save watchlist height to localStorage
+  // Save heights to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-nav-height', navHeight.toString());
+  }, [navHeight]);
+
   useEffect(() => {
     localStorage.setItem('stratify-watchlist-height', watchlistHeight.toString());
   }, [watchlistHeight]);
+
+  // Handle nav section resize drag
+  useEffect(() => {
+    if (!isDraggingNav) return;
+
+    const handleMouseMove = (e) => {
+      const sidebar = document.getElementById('sidebar-container');
+      if (!sidebar) return;
+      const sidebarRect = sidebar.getBoundingClientRect();
+      const newHeight = e.clientY - sidebarRect.top - 56; // 56px for header
+      setNavHeight(Math.max(50, Math.min(500, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingNav(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingNav]);
 
   // Handle resize drag
   useEffect(() => {
@@ -47,10 +85,12 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
 
     const handleMouseMove = (e) => {
       const sidebar = document.getElementById('sidebar-container');
-      if (!sidebar) return;
-      const sidebarRect = sidebar.getBoundingClientRect();
-      const newHeight = sidebarRect.bottom - e.clientY - 60; // 60px for bottom items
-      setWatchlistHeight(Math.max(100, Math.min(500, newHeight)));
+      const watchlistTop = document.getElementById('watchlist-container');
+      if (!sidebar || !watchlistTop) return;
+      
+      const watchlistRect = watchlistTop.getBoundingClientRect();
+      const newHeight = e.clientY - watchlistRect.top;
+      setWatchlistHeight(Math.max(50, Math.min(500, newHeight)));
     };
 
     const handleMouseUp = () => {
@@ -73,7 +113,7 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
   // VS Code style: expand on hover, collapse on leave (always)
   const handleMouseEnter = () => onToggle(true);
   const handleMouseLeave = () => {
-    if (!isDragging) onToggle(false);
+    if (!isDragging && !isDraggingNav) onToggle(false);
   };
 
   // Determine width based on expanded state and active section
@@ -101,7 +141,11 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
 
       {/* Navigation */}
       <nav className="flex-1 py-2 flex flex-col overflow-hidden">
-        <div className="flex-shrink-0">
+        {/* Nav items - resizable when expanded */}
+        <div 
+          className="flex-shrink-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
+          style={expanded ? { height: `${navHeight}px` } : {}}
+        >
           {navItems.map((item) => (
             <button 
               key={item.id} 
@@ -134,25 +178,44 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
             </button>
           ))}
         </div>
+
+        {/* Nav section resize handle - shows when expanded */}
+        {expanded && (
+          <div 
+            className={`h-2 cursor-row-resize flex items-center justify-center group ${isDraggingNav ? 'bg-emerald-500/30' : 'hover:bg-[#2A2A2A]'}`}
+            onMouseDown={() => setIsDraggingNav(true)}
+          >
+            <div className={`w-8 h-1 rounded-full transition-colors ${isDraggingNav ? 'bg-emerald-500' : 'bg-[#3A3A3A] group-hover:bg-emerald-500/50'}`} />
+          </div>
+        )}
         
         {/* Watchlist content - shows when watchlist section is active AND expanded */}
         {activeSection === 'watchlist' && expanded && (
-          <div className="flex flex-col border-t border-[#2A2A2A] mt-2">
-            {/* Resize handle */}
+          <div className="flex flex-col mt-2 flex-1 min-h-0">
+            {/* Scrollable watchlist - hidden scrollbar */}
             <div 
-              className={`h-1 cursor-row-resize hover:bg-emerald-500/50 transition-colors ${isDragging ? 'bg-emerald-500' : 'bg-transparent'}`}
-              onMouseDown={() => setIsDragging(true)}
-            />
-            {/* Scrollable watchlist */}
-            <div 
-              className="overflow-y-auto"
-              style={{ height: `${watchlistHeight}px` }}
+              id="watchlist-container"
+              className="overflow-y-auto overflow-x-hidden border-t border-[#2A2A2A] scrollbar-hide"
+              style={{ 
+                height: `${watchlistHeight}px`, 
+                maxHeight: '500px',
+                scrollbarWidth: 'none', /* Firefox */
+                msOverflowStyle: 'none', /* IE/Edge */
+              }}
             >
               <Watchlist 
                 stocks={watchlist} 
-                onRemove={onRemoveFromWatchlist} 
+                onRemove={onRemoveFromWatchlist}
+                onViewChart={onViewChart}
                 themeClasses={themeClasses} 
               />
+            </div>
+            {/* Resize handle - at bottom of watchlist */}
+            <div 
+              className={`h-2 cursor-row-resize flex items-center justify-center group ${isDragging ? 'bg-emerald-500/30' : 'hover:bg-[#2A2A2A]'}`}
+              onMouseDown={() => setIsDragging(true)}
+            >
+              <div className={`w-8 h-1 rounded-full transition-colors ${isDragging ? 'bg-emerald-500' : 'bg-[#3A3A3A] group-hover:bg-emerald-500/50'}`} />
             </div>
           </div>
         )}
