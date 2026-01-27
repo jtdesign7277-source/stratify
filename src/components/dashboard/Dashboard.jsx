@@ -37,8 +37,18 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     } catch { return []; }
   });
   const [selectedStock, setSelectedStock] = useState(null);
-  const [strategies, setStrategies] = useState([]);
-  const [deployedStrategies, setDeployedStrategies] = useState([]);
+  const [strategies, setStrategies] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-strategies');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [deployedStrategies, setDeployedStrategies] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-deployed-strategies');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
 
@@ -92,6 +102,16 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   useEffect(() => {
     localStorage.setItem('stratify-watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
+
+  // Persist strategies to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-strategies', JSON.stringify(strategies));
+  }, [strategies]);
+
+  // Persist deployed strategies to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-deployed-strategies', JSON.stringify(deployedStrategies));
+  }, [deployedStrategies]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
