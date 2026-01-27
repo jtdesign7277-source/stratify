@@ -374,10 +374,10 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                   <div className="flex items-center gap-2 flex-shrink-0 relative">
                     <button 
                       onClick={() => startEditing(strategy)}
-                      className={`text-xs font-medium transition-colors px-2 py-1 rounded ${
+                      className={`text-xs font-medium transition-colors ${
                         editingStrategyId === strategy.id 
-                          ? 'text-cyan-400 bg-cyan-500/20' 
-                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                          ? 'text-cyan-400' 
+                          : 'text-gray-400 hover:text-white'
                       }`}
                     >
                       Edit
@@ -533,22 +533,22 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                         )}
 
                         {/* Edit Action Buttons */}
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-3">
                           {!editBacktestResults ? (
                             <>
                               <button
                                 onClick={() => runEditBacktest(strategy.id)}
                                 disabled={editBacktestRunning}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
+                                className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1.5 disabled:opacity-50"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                                 Backtest
                               </button>
                               <button
                                 onClick={cancelEdit}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30 transition-all"
+                                className="text-sm font-medium text-gray-500 hover:text-gray-400 transition-colors"
                               >
                                 Cancel
                               </button>
@@ -557,22 +557,22 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                             <>
                               <button
                                 onClick={() => confirmEdit(strategy)}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all flex items-center gap-2"
+                                className="text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                                 OK
                               </button>
                               <button
                                 onClick={() => { setEditBacktestResults(null); }}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 transition-all"
+                                className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors"
                               >
                                 Re-test
                               </button>
                               <button
                                 onClick={cancelEdit}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30 transition-all"
+                                className="text-sm font-medium text-gray-500 hover:text-gray-400 transition-colors"
                               >
                                 Cancel
                               </button>
