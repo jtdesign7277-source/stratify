@@ -6,6 +6,7 @@ import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
 import StockDetailView from './StockDetailView';
+import NewsletterModal from './NewsletterModal';
 
 const loadDashboardState = () => {
   try {
@@ -58,6 +59,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
+  const [showNewsletter, setShowNewsletter] = useState(false);
 
   const handleStrategyGenerated = (strategy) => {
     setStrategies(prev => {
@@ -268,7 +270,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           onClearEdit={() => setEditingStrategy(null)}
         />
       </div>
-      <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} />
+      <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
 
       {selectedStock && (
         <StockDetailView 
@@ -278,6 +280,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           themeClasses={themeClasses}
         />
       )}
+
+      <NewsletterModal 
+        isOpen={showNewsletter} 
+        onClose={() => setShowNewsletter(false)} 
+      />
     </div>
   );
 }
