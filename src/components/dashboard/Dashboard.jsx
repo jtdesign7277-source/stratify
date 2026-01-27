@@ -49,6 +49,12 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [savedStrategies, setSavedStrategies] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-saved-strategies');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
@@ -77,6 +83,30 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   const handleEditStrategy = (strategy) => {
     setEditingStrategy(strategy);
+  };
+
+  const handleUpdateStrategy = (strategyId, updates) => {
+    setStrategies(prev => prev.map(s => 
+      s.id === strategyId 
+        ? { ...s, ...updates, metrics: updates.metrics || s.metrics }
+        : s
+    ));
+  };
+
+  const handleSaveToSidebar = (strategy) => {
+    setSavedStrategies(prev => {
+      if (prev.some(s => s.id === strategy.id)) return prev;
+      // Determine risk level based on max drawdown
+      const maxDrawdown = parseFloat(strategy.metrics?.maxDrawdown) || 15;
+      let riskLevel = 'medium';
+      if (maxDrawdown <= 10) riskLevel = 'low';
+      else if (maxDrawdown >= 18) riskLevel = 'high';
+      return [...prev, { ...strategy, savedAt: Date.now(), riskLevel }];
+    });
+  };
+
+  const handleRemoveSavedStrategy = (strategyId) => {
+    setSavedStrategies(prev => prev.filter(s => s.id !== strategyId));
   };
 
   const handleDeployStrategy = (strategy) => {
@@ -117,6 +147,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   useEffect(() => {
     localStorage.setItem('stratify-deployed-strategies', JSON.stringify(deployedStrategies));
   }, [deployedStrategies]);
+
+  // Persist saved strategies to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-saved-strategies', JSON.stringify(savedStrategies));
+  }, [savedStrategies]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -192,6 +227,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           watchlist={watchlist}
           onRemoveFromWatchlist={removeFromWatchlist}
           onViewChart={(stock) => setSelectedStock(stock)}
+          savedStrategies={savedStrategies}
+          onRemoveSavedStrategy={handleRemoveSavedStrategy}
         />
         <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
@@ -212,6 +249,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             onDeleteStrategy={handleDeleteStrategy}
             onDeployStrategy={handleDeployStrategy}
             onEditStrategy={handleEditStrategy}
+            onSaveToSidebar={handleSaveToSidebar}
+            onUpdateStrategy={handleUpdateStrategy}
+            savedStrategies={savedStrategies}
             autoBacktestStrategy={autoBacktestStrategy}
           />
           <TerminalPanel themeClasses={themeClasses} deployedStrategies={deployedStrategies} />

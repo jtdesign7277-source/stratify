@@ -86,21 +86,16 @@ const QuantumBrainAnimation = ({ isThinking }) => {
           <div key={i} className={`absolute w-1 h-1 bg-white rounded-full ${isThinking ? '' : 'opacity-30'}`} style={isThinking ? { left: pos.left, top: pos.top, animation: `particleFloat ${2 + (i % 3)}s ease-in-out infinite`, animationDelay: `${i * 0.3}s` } : { left: pos.left, top: pos.top }} />
         ))}
       </div>
-      <div className="flex items-center gap-2 mt-6">
-        {[...Array(12)].map((_, i) => (
-          <div key={i} className={`w-0.5 bg-gradient-to-t from-transparent via-purple-500/60 to-transparent rounded-full ${isThinking ? '' : 'opacity-40'}`} style={isThinking ? { height: `${15 + Math.sin(i * 0.8) * 10}px`, animation: 'neuralPulse 1.5s ease-in-out infinite', animationDelay: `${i * 0.1}s` } : { height: `${15 + Math.sin(i * 0.8) * 10}px` }} />
+      <div className="flex items-center gap-3 mt-8">
+        {[...Array(16)].map((_, i) => (
+          <div key={i} className={`w-1 bg-gradient-to-t from-transparent via-purple-500/60 to-transparent rounded-full ${isThinking ? '' : 'opacity-40'}`} style={isThinking ? { height: `${30 + Math.sin(i * 0.8) * 20}px`, animation: 'neuralPulse 1.5s ease-in-out infinite', animationDelay: `${i * 0.1}s` } : { height: `${30 + Math.sin(i * 0.8) * 20}px` }} />
         ))}
-      </div>
-      <div className="text-center mt-4">
-        <p className={`text-xs font-medium tracking-wider uppercase ${isThinking ? 'text-purple-400/80' : 'text-purple-400/50'}`}>
-          {isThinking ? 'Neural Processing Active' : 'Neural Processing Idle'}
-        </p>
       </div>
     </div>
   );
 };
 
-export default function DataTable({ activeTab, alpacaData, strategies = [], demoState = 'idle', theme, themeClasses, onDeleteStrategy, onDeployStrategy, onEditStrategy, autoBacktestStrategy }) {
+export default function DataTable({ activeTab, alpacaData, strategies = [], demoState = 'idle', theme, themeClasses, onDeleteStrategy, onDeployStrategy, onEditStrategy, onSaveToSidebar, savedStrategies = [], autoBacktestStrategy, onUpdateStrategy }) {
   const [sortColumn, setSortColumn] = useState('symbol');
   const [sortDirection, setSortDirection] = useState('asc');
   const [selectedRow, setSelectedRow] = useState(null);
@@ -109,6 +104,84 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
   const [backtestProgress, setBacktestProgress] = useState(0);
   const [cursorPhase, setCursorPhase] = useState('idle'); // idle, moving-backtest, clicking-backtest, moving-deploy, clicking-deploy
   const [showDeployCursor, setShowDeployCursor] = useState(false);
+  
+  // Edit mode state
+  const [editingStrategyId, setEditingStrategyId] = useState(null);
+  const [editParams, setEditParams] = useState({
+    stopLoss: -5,
+    takeProfit: 10,
+    positionSize: 2,
+    trailingStop: 3
+  });
+  const [editBacktestRunning, setEditBacktestRunning] = useState(false);
+  const [editBacktestProgress, setEditBacktestProgress] = useState(0);
+  const [editBacktestResults, setEditBacktestResults] = useState(null);
+
+  // Start editing a strategy
+  const startEditing = (strategy) => {
+    setEditingStrategyId(strategy.id);
+    setExpandedStrategy(strategy.id);
+    // Initialize params from strategy or defaults
+    setEditParams({
+      stopLoss: strategy.riskParams?.stopLoss ?? -5,
+      takeProfit: strategy.riskParams?.takeProfit ?? 10,
+      positionSize: strategy.riskParams?.positionSize ?? 2,
+      trailingStop: strategy.riskParams?.trailingStop ?? 3
+    });
+    setEditBacktestResults(null);
+  };
+
+  // Run backtest with edited params
+  const runEditBacktest = (strategyId) => {
+    setEditBacktestRunning(true);
+    setEditBacktestProgress(0);
+  };
+
+  // Backtest progress for edit mode
+  useEffect(() => {
+    if (!editBacktestRunning) return;
+    
+    const interval = setInterval(() => {
+      setEditBacktestProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setEditBacktestRunning(false);
+          // Generate new mock results based on params
+          const baseWinRate = 60 + Math.random() * 15;
+          const stopLossImpact = Math.abs(editParams.stopLoss) < 3 ? -5 : Math.abs(editParams.stopLoss) > 8 ? 3 : 0;
+          const takeProfitImpact = editParams.takeProfit > 15 ? -3 : editParams.takeProfit < 5 ? 2 : 0;
+          setEditBacktestResults({
+            winRate: (baseWinRate + stopLossImpact + takeProfitImpact).toFixed(1),
+            profitFactor: (1.5 + Math.random() * 0.8).toFixed(2),
+            sharpeRatio: (1.2 + Math.random() * 0.9).toFixed(2),
+            maxDrawdown: (8 + Math.random() * 10).toFixed(1)
+          });
+          return 100;
+        }
+        return prev + 4;
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [editBacktestRunning, editParams]);
+
+  // Confirm edit and save
+  const confirmEdit = (strategy) => {
+    if (onUpdateStrategy && editBacktestResults) {
+      onUpdateStrategy(strategy.id, {
+        riskParams: { ...editParams },
+        metrics: editBacktestResults
+      });
+    }
+    setEditingStrategyId(null);
+    setEditBacktestResults(null);
+  };
+
+  // Cancel edit
+  const cancelEdit = () => {
+    setEditingStrategyId(null);
+    setEditBacktestResults(null);
+  };
 
   // Handle auto backtest trigger from parent
   useEffect(() => {
@@ -300,8 +373,12 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                   {/* Right: Action buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0 relative">
                     <button 
-                      onClick={() => onEditStrategy?.(strategy)}
-                      className="text-gray-400 text-xs font-medium transition-colors px-2 py-1 rounded hover:text-white hover:bg-white/10"
+                      onClick={() => startEditing(strategy)}
+                      className={`text-xs font-medium transition-colors px-2 py-1 rounded ${
+                        editingStrategyId === strategy.id 
+                          ? 'text-cyan-400 bg-cyan-500/20' 
+                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
                     >
                       Edit
                     </button>
@@ -323,6 +400,19 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
+                        onSaveToSidebar?.(strategy);
+                        onDeleteStrategy?.(strategy.id);
+                      }}
+                      className="text-yellow-400 hover:text-yellow-300 transition-colors p-0.5 rounded hover:bg-yellow-500/10"
+                      title="Save to sidebar"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
                         onDeleteStrategy?.(strategy.id);
                       }}
                       className="text-gray-500 hover:text-red-400 transition-colors p-0.5 hover:bg-red-500/10 rounded"
@@ -337,8 +427,177 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                 {/* Expanded Section - Stats & Code */}
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t border-[#2A2A2A] mt-1 pt-3">
+                    
+                    {/* Edit Mode Panel */}
+                    {editingStrategyId === strategy.id && (
+                      <div className="mb-4">
+                        <div className="text-xs text-cyan-400 font-medium mb-3 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Risk Parameters
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          {/* Stop Loss */}
+                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
+                            <label className="text-[10px] text-gray-500 block mb-1">Stop Loss</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={editParams.stopLoss}
+                                onChange={(e) => setEditParams(prev => ({ ...prev, stopLoss: parseFloat(e.target.value) || 0 }))}
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-red-400 font-mono focus:border-red-500 focus:outline-none"
+                                step="0.5"
+                                max="0"
+                              />
+                              <span className="text-red-400 text-sm">%</span>
+                            </div>
+                          </div>
+                          
+                          {/* Take Profit */}
+                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
+                            <label className="text-[10px] text-gray-500 block mb-1">Take Profit</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={editParams.takeProfit}
+                                onChange={(e) => setEditParams(prev => ({ ...prev, takeProfit: parseFloat(e.target.value) || 0 }))}
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-emerald-400 font-mono focus:border-emerald-500 focus:outline-none"
+                                step="0.5"
+                                min="0"
+                              />
+                              <span className="text-emerald-400 text-sm">%</span>
+                            </div>
+                          </div>
+                          
+                          {/* Position Size */}
+                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
+                            <label className="text-[10px] text-gray-500 block mb-1">Position Size</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={editParams.positionSize}
+                                onChange={(e) => setEditParams(prev => ({ ...prev, positionSize: parseFloat(e.target.value) || 0 }))}
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-blue-400 font-mono focus:border-blue-500 focus:outline-none"
+                                step="0.5"
+                                min="0.5"
+                                max="100"
+                              />
+                              <span className="text-blue-400 text-sm">%</span>
+                            </div>
+                          </div>
+                          
+                          {/* Trailing Stop */}
+                          <div className="bg-[#0D0D0D] rounded-lg p-3 border border-[#2A2A2A]">
+                            <label className="text-[10px] text-gray-500 block mb-1">Trailing Stop</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={editParams.trailingStop}
+                                onChange={(e) => setEditParams(prev => ({ ...prev, trailingStop: parseFloat(e.target.value) || 0 }))}
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-amber-400 font-mono focus:border-amber-500 focus:outline-none"
+                                step="0.5"
+                                min="0"
+                              />
+                              <span className="text-amber-400 text-sm">%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Edit Backtest Progress */}
+                        {editBacktestRunning && (
+                          <div className="flex items-center justify-center gap-3 py-3 mb-3 bg-[#0D0D0D] rounded-lg border border-purple-500/30">
+                            <svg className="w-4 h-4 animate-spin text-purple-400" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                            </svg>
+                            <span className="text-sm text-purple-400">Running Backtest... {editBacktestProgress}%</span>
+                          </div>
+                        )}
+
+                        {/* Edit Backtest Results */}
+                        {editBacktestResults && !editBacktestRunning && (
+                          <div className="mb-3">
+                            <div className="text-xs text-emerald-400 font-medium mb-2 flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              New Backtest Results
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                                <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
+                                <div className="text-sm font-semibold text-emerald-400">{editBacktestResults.winRate}%</div>
+                              </div>
+                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                                <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
+                                <div className="text-sm font-semibold text-blue-400">{editBacktestResults.profitFactor}</div>
+                              </div>
+                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                                <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
+                                <div className="text-sm font-semibold text-purple-400">{editBacktestResults.sharpeRatio}</div>
+                              </div>
+                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                                <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
+                                <div className="text-sm font-semibold text-orange-400">-{editBacktestResults.maxDrawdown}%</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Edit Action Buttons */}
+                        <div className="flex items-center justify-center gap-2">
+                          {!editBacktestResults ? (
+                            <>
+                              <button
+                                onClick={() => runEditBacktest(strategy.id)}
+                                disabled={editBacktestRunning}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                Backtest
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => confirmEdit(strategy)}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                OK
+                              </button>
+                              <button
+                                onClick={() => { setEditBacktestResults(null); }}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 transition-all"
+                              >
+                                Re-test
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 border border-gray-500/30 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Backtest Progress (during auto-demo) */}
-                    {isBacktesting && !backtestComplete && (
+                    {isBacktesting && !backtestComplete && editingStrategyId !== strategy.id && (
                       <div className="flex items-center justify-center gap-3 py-4">
                         <svg className="w-5 h-5 animate-spin text-purple-400" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -349,7 +608,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                     )}
 
                     {/* Always show stats if available (not just during backtest) */}
-                    {strategy.metrics && !isBacktesting && (
+                    {strategy.metrics && !isBacktesting && editingStrategyId !== strategy.id && (
                       <>
                         <div className="text-xs text-gray-500 mb-2">Backtest Results</div>
                         <div className="grid grid-cols-4 gap-2 mb-3">

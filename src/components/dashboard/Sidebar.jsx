@@ -1,6 +1,105 @@
 import { useState, useEffect } from 'react';
 import Watchlist from './Watchlist';
 
+// Risk Level Folders Component
+const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy }) => {
+  const [expandedFolders, setExpandedFolders] = useState({
+    low: true,
+    medium: true,
+    high: true
+  });
+
+  const toggleFolder = (folder) => {
+    setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
+  };
+
+  const riskFolders = [
+    { id: 'low', label: 'Low Risk', color: 'emerald', icon: '🛡️' },
+    { id: 'medium', label: 'Medium Risk', color: 'amber', icon: '⚖️' },
+    { id: 'high', label: 'High Risk', color: 'red', icon: '🔥' }
+  ];
+
+  const getStrategiesByRisk = (riskLevel) => {
+    return savedStrategies.filter(s => s.riskLevel === riskLevel);
+  };
+
+  const colorClasses = {
+    low: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', hover: 'hover:border-emerald-500/50' },
+    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', hover: 'hover:border-amber-500/50' },
+    high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', hover: 'hover:border-red-500/50' }
+  };
+
+  if (savedStrategies.length === 0) {
+    return (
+      <div className="text-center py-4 text-gray-500 text-xs px-2">
+        <svg className="w-6 h-6 mx-auto mb-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+        <p className="text-[10px]">No saved strategies</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 px-2 py-1">
+      {riskFolders.map(folder => {
+        const strategies = getStrategiesByRisk(folder.id);
+        const colors = colorClasses[folder.id];
+        const isExpanded = expandedFolders[folder.id];
+        
+        return (
+          <div key={folder.id} className="rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleFolder(folder.id)}
+              className={`w-full flex items-center justify-between p-1.5 ${colors.bg} border ${colors.border} ${colors.hover} rounded transition-colors`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs">{folder.icon}</span>
+                <span className={`text-[10px] font-medium ${colors.text}`}>{folder.label}</span>
+                <span className="text-[9px] text-gray-500">({strategies.length})</span>
+              </div>
+              <svg 
+                className={`w-2.5 h-2.5 ${colors.text} transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            
+            {isExpanded && strategies.length > 0 && (
+              <div className="mt-0.5 ml-1.5 space-y-0.5">
+                {strategies.map(strategy => (
+                  <div 
+                    key={strategy.id}
+                    className="group flex items-center justify-between p-1.5 rounded bg-[#1A1A1A] border border-[#2A2A2A] hover:border-purple-500/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <svg className={`w-2.5 h-2.5 ${colors.text} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      <span className="text-[10px] text-[#F5F5F5] truncate">{strategy.name}</span>
+                    </div>
+                    <button
+                      onClick={() => onRemoveSavedStrategy?.(strategy.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-0.5 rounded hover:bg-red-500/10"
+                    >
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const navItems = [
   { id: 'watchlist', label: 'Watchlist', icon: 'eye' },
   { id: 'strategies', label: 'Strategies', icon: 'trending-up' },
@@ -16,7 +115,6 @@ const bottomItems = [
 
 const IconComponent = ({ name, className }) => {
   const icons = {
-    'chart-pie': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>,
     'eye': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
     'trending-up': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
     'flask': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>,
@@ -28,99 +126,35 @@ const IconComponent = ({ name, className }) => {
   return icons[name] || null;
 };
 
-export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist, onViewChart }) {
+export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist, onViewChart, savedStrategies = [], onRemoveSavedStrategy }) {
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [navHeight, setNavHeight] = useState(() => {
-    const saved = localStorage.getItem('stratify-nav-height');
-    return saved ? parseInt(saved, 10) : 250;
+  
+  // Track which sections are expanded (multiple can be open)
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const saved = localStorage.getItem('stratify-expanded-sections');
+    return saved ? JSON.parse(saved) : { watchlist: true, strategies: false };
   });
-  const [watchlistHeight, setWatchlistHeight] = useState(() => {
-    const saved = localStorage.getItem('stratify-watchlist-height');
-    return saved ? parseInt(saved, 10) : 200;
-  });
-  const [isDraggingNav, setIsDraggingNav] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
-  // Save heights to localStorage
+  // Save expanded sections to localStorage
   useEffect(() => {
-    localStorage.setItem('stratify-nav-height', navHeight.toString());
-  }, [navHeight]);
+    localStorage.setItem('stratify-expanded-sections', JSON.stringify(expandedSections));
+  }, [expandedSections]);
 
-  useEffect(() => {
-    localStorage.setItem('stratify-watchlist-height', watchlistHeight.toString());
-  }, [watchlistHeight]);
-
-  // Handle nav section resize drag
-  useEffect(() => {
-    if (!isDraggingNav) return;
-
-    const handleMouseMove = (e) => {
-      const sidebar = document.getElementById('sidebar-container');
-      if (!sidebar) return;
-      const sidebarRect = sidebar.getBoundingClientRect();
-      const newHeight = e.clientY - sidebarRect.top - 56; // 56px for header
-      setNavHeight(Math.max(50, Math.min(500, newHeight)));
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingNav(false);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    };
-
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDraggingNav]);
-
-  // Handle resize drag
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e) => {
-      const sidebar = document.getElementById('sidebar-container');
-      const watchlistTop = document.getElementById('watchlist-container');
-      if (!sidebar || !watchlistTop) return;
-      
-      const watchlistRect = watchlistTop.getBoundingClientRect();
-      const newHeight = e.clientY - watchlistRect.top;
-      setWatchlistHeight(Math.max(50, Math.min(500, newHeight)));
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    };
-
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
+  const toggleSection = (sectionId) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  };
 
   // Expand on hover, collapse on leave
   const handleMouseEnter = () => onToggle(true);
-  const handleMouseLeave = () => {
-    if (!isDragging && !isDraggingNav) onToggle(false);
-  };
+  const handleMouseLeave = () => onToggle(false);
 
-  // Determine width based on expanded state and active section
+  // Count open sections for width calculation
+  const openSectionsCount = Object.values(expandedSections).filter(Boolean).length;
+
+  // Determine width based on expanded state
   const getWidth = () => {
     if (!expanded) return 'w-16';
-    if (activeSection === 'watchlist') return 'w-72';
-    return 'w-60';
+    return 'w-72';
   };
 
   return (
@@ -139,87 +173,92 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-2 flex flex-col overflow-hidden">
-        {/* Nav items - resizable when expanded */}
-        <div 
-          className="flex-shrink-0 overflow-y-auto overflow-x-hidden scrollbar-hide"
-          style={expanded ? { height: `${navHeight}px` } : {}}
-        >
-          {navItems.map((item) => (
-            <button 
-              key={item.id} 
-              onClick={() => onSectionChange(item.id)} 
-              onMouseEnter={() => setHoveredItem(item.id)} 
-              onMouseLeave={() => setHoveredItem(null)}
-              className={`w-full flex items-center px-4 py-3 transition-all relative ${
-                activeSection === item.id 
-                  ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
-                  : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
-              }`}
-            >
-              {/* Active indicator */}
-              {activeSection === item.id && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />
-              )}
-              
-              {/* Icon */}
-              <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-              
-              {/* Label (shown when expanded) */}
-              {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
-              
-              {/* Tooltip (shown when collapsed and hovered) */}
-              {!expanded && hoveredItem === item.id && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
-                  {item.label}
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 py-2 flex flex-col overflow-y-auto overflow-x-hidden scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {navItems.map((item) => {
+          const isExpanded = expandedSections[item.id];
+          const hasContent = item.id === 'watchlist' || item.id === 'strategies';
+          
+          return (
+            <div key={item.id}>
+              {/* Section Header */}
+              <button 
+                onClick={() => {
+                  onSectionChange(item.id);
+                  if (hasContent && expanded) {
+                    toggleSection(item.id);
+                  }
+                }}
+                onMouseEnter={() => setHoveredItem(item.id)} 
+                onMouseLeave={() => setHoveredItem(null)}
+                className={`w-full flex items-center justify-between px-4 py-2.5 transition-all relative ${
+                  activeSection === item.id 
+                    ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
+                    : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
+                }`}
+              >
+                <div className="flex items-center">
+                  {/* Active indicator */}
+                  {activeSection === item.id && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r" />
+                  )}
+                  
+                  {/* Icon */}
+                  <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
+                  
+                  {/* Label (shown when expanded) */}
+                  {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
+                </div>
+
+                {/* Expand/Collapse Arrow for sections with content */}
+                {expanded && hasContent && (
+                  <svg 
+                    className={`w-3.5 h-3.5 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+                
+                {/* Tooltip (shown when collapsed and hovered) */}
+                {!expanded && hoveredItem === item.id && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                    {item.label}
+                  </div>
+                )}
+              </button>
+
+              {/* Section Content - Watchlist */}
+              {expanded && item.id === 'watchlist' && isExpanded && (
+                <div className="border-t border-b border-[#2A2A2A] bg-[#161616]">
+                  <div 
+                    className="overflow-y-auto scrollbar-hide max-h-48"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
+                    <Watchlist 
+                      stocks={watchlist} 
+                      onRemove={onRemoveFromWatchlist}
+                      onViewChart={onViewChart}
+                      themeClasses={themeClasses} 
+                    />
+                  </div>
                 </div>
               )}
-            </button>
-          ))}
-        </div>
 
-        {/* Nav section resize handle - shows when expanded */}
-        {expanded && (
-          <div 
-            className={`h-2 cursor-row-resize flex items-center justify-center group ${isDraggingNav ? 'bg-emerald-500/30' : 'hover:bg-[#2A2A2A]'}`}
-            onMouseDown={() => setIsDraggingNav(true)}
-          >
-            <div className={`w-8 h-1 rounded-full transition-colors ${isDraggingNav ? 'bg-emerald-500' : 'bg-[#3A3A3A] group-hover:bg-emerald-500/50'}`} />
-          </div>
-        )}
-        
-        {/* Watchlist content - shows when watchlist section is active AND expanded */}
-        {activeSection === 'watchlist' && expanded && (
-          <div className="flex flex-col mt-2 flex-1 min-h-0">
-            {/* Scrollable watchlist - hidden scrollbar */}
-            <div 
-              id="watchlist-container"
-              className="overflow-y-auto overflow-x-hidden border-t border-[#2A2A2A] scrollbar-hide"
-              style={{ 
-                height: `${watchlistHeight}px`, 
-                maxHeight: '500px',
-                scrollbarWidth: 'none', /* Firefox */
-                msOverflowStyle: 'none', /* IE/Edge */
-              }}
-            >
-              <Watchlist 
-                stocks={watchlist} 
-                onRemove={onRemoveFromWatchlist}
-                onViewChart={onViewChart}
-                themeClasses={themeClasses} 
-              />
+              {/* Section Content - Strategies */}
+              {expanded && item.id === 'strategies' && isExpanded && (
+                <div className="border-t border-b border-[#2A2A2A] bg-[#161616] max-h-64 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  <StrategiesFolders 
+                    savedStrategies={savedStrategies} 
+                    onRemoveSavedStrategy={onRemoveSavedStrategy}
+                  />
+                </div>
+              )}
             </div>
-            {/* Resize handle - at bottom of watchlist */}
-            <div 
-              className={`h-2 cursor-row-resize flex items-center justify-center group ${isDragging ? 'bg-emerald-500/30' : 'hover:bg-[#2A2A2A]'}`}
-              onMouseDown={() => setIsDragging(true)}
-            >
-              <div className={`w-8 h-1 rounded-full transition-colors ${isDragging ? 'bg-emerald-500' : 'bg-[#3A3A3A] group-hover:bg-emerald-500/50'}`} />
-            </div>
-          </div>
-        )}
-
+          );
+        })}
       </nav>
 
       {/* Bottom items (Settings, Help) */}
@@ -230,14 +269,14 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
             onClick={() => onSectionChange(item.id)} 
             onMouseEnter={() => setHoveredItem(item.id)} 
             onMouseLeave={() => setHoveredItem(null)}
-            className={`w-full flex items-center px-4 py-3 transition-all relative ${
+            className={`w-full flex items-center px-4 py-2.5 transition-all relative ${
               activeSection === item.id 
                 ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
                 : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
             }`}
           >
             {activeSection === item.id && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-emerald-500 rounded-r" />
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r" />
             )}
             <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
             {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}

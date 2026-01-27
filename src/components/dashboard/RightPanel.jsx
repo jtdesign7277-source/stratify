@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 
-// Claude spark icon
+// Claude spark icon (outlined)
 const ClaudeIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" fill="#f97316"/>
+    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" stroke="#f97316" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
   </svg>
 );
 
