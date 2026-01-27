@@ -173,14 +173,48 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
           <span className="text-sm font-medium text-white">Deployed Strategies</span>
           <span className="text-xs text-emerald-400 ml-2">{deployedStrategies.length} active</span>
         </div>
-        <button 
-          onClick={() => setExpanded(false)}
-          className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-6">
+          {/* Totals in header */}
+          {deployedStrategies.length > 0 && (() => {
+            const totals = deployedStrategies.reduce((acc, strategy) => {
+              const live = liveData[strategy.id] || { pnl: 0, trades: 0, winRate: parseFloat(strategy.metrics.winRate) };
+              return {
+                pnl: acc.pnl + live.pnl,
+                trades: acc.trades + live.trades,
+                winRateSum: acc.winRateSum + live.winRate,
+              };
+            }, { pnl: 0, trades: 0, winRateSum: 0 });
+            const avgWinRate = totals.winRateSum / deployedStrategies.length;
+            const isPositive = totals.pnl >= 0;
+
+            return (
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">P&L:</span>
+                  <span className={`font-medium tabular-nums ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isPositive ? '+' : '-'}${Math.abs(totals.pnl).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">Trades:</span>
+                  <span className="text-white font-medium tabular-nums">{totals.trades}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">Win:</span>
+                  <span className="text-emerald-400 font-medium tabular-nums">{avgWinRate.toFixed(1)}%</span>
+                </div>
+              </div>
+            );
+          })()}
+          <button 
+            onClick={() => setExpanded(false)}
+            className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Panel content */}
@@ -231,10 +265,8 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                         <div className="text-emerald-400 tabular-nums">{live.winRate.toFixed(1)}%</div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button className="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6" />
-                          </svg>
+                        <button className="px-2 py-1 text-xs font-bold text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
+                          PAUSE
                         </button>
                         <button className="px-2 py-1 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Kill Strategy">
                           KILL
@@ -244,6 +276,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                   </div>
                 );
               })}
+
             </div>
           )}
         </div>

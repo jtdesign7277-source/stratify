@@ -45,56 +45,6 @@ const AnimatedCursor = ({ visible, clicking }) => {
   );
 };
 
-// Quantum Brain Animation Component
-const QuantumBrainAnimation = ({ isThinking }) => {
-  const particlePositions = [
-    { left: '25%', top: '30%' }, { left: '70%', top: '25%' },
-    { left: '35%', top: '65%' }, { left: '60%', top: '70%' },
-    { left: '45%', top: '40%' }, { left: '55%', top: '55%' },
-    { left: '30%', top: '50%' }, { left: '65%', top: '45%' },
-  ];
-
-  return (
-    <div className="flex flex-col items-center justify-center py-8 mt-4 border-t border-white/5">
-      <style>{`
-        @keyframes quantumPulse { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.15); opacity: 1; } }
-        @keyframes quantumRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes quantumOrbit { 0% { transform: rotate(0deg) translateX(40px) rotate(0deg); } 100% { transform: rotate(360deg) translateX(40px) rotate(-360deg); } }
-        @keyframes quantumOrbit2 { 0% { transform: rotate(120deg) translateX(50px) rotate(-120deg); } 100% { transform: rotate(480deg) translateX(50px) rotate(-480deg); } }
-        @keyframes quantumOrbit3 { 0% { transform: rotate(240deg) translateX(35px) rotate(-240deg); } 100% { transform: rotate(600deg) translateX(35px) rotate(-600deg); } }
-        @keyframes neuralPulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.8; } }
-        @keyframes particleFloat { 0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; } 25% { transform: translateY(-10px) translateX(5px); opacity: 0.8; } 50% { transform: translateY(-5px) translateX(-5px); opacity: 0.5; } 75% { transform: translateY(-15px) translateX(3px); opacity: 0.9; } }
-      `}</style>
-      <div className="relative w-32 h-32">
-        <div className={`absolute inset-0 bg-gradient-to-r from-purple-500/30 via-blue-500/30 to-cyan-500/30 rounded-full blur-2xl ${isThinking ? '' : 'opacity-40'}`} style={isThinking ? { animation: 'quantumPulse 3s ease-in-out infinite' } : {}} />
-        <div className="absolute inset-2 border border-purple-500/30 rounded-full" style={isThinking ? { animation: 'quantumRotate 8s linear infinite' } : {}} />
-        <div className="absolute inset-4 border border-blue-500/20 rounded-full" style={isThinking ? { animation: 'quantumRotate 12s linear infinite reverse' } : {}} />
-        <div className="absolute inset-6 border border-cyan-500/20 rounded-full" style={isThinking ? { animation: 'quantumRotate 6s linear infinite' } : {}} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="absolute w-2 h-2 bg-purple-400 rounded-full shadow-lg shadow-purple-500/50" style={isThinking ? { animation: 'quantumOrbit 3s linear infinite' } : { transform: 'translateX(40px)' }} />
-          <div className="absolute w-1.5 h-1.5 bg-blue-400 rounded-full shadow-lg shadow-blue-500/50" style={isThinking ? { animation: 'quantumOrbit2 4s linear infinite' } : { transform: 'rotate(120deg) translateX(50px)' }} />
-          <div className="absolute w-2 h-2 bg-cyan-400 rounded-full shadow-lg shadow-cyan-500/50" style={isThinking ? { animation: 'quantumOrbit3 2.5s linear infinite' } : { transform: 'rotate(240deg) translateX(35px)' }} />
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-purple-600/40 to-blue-600/40 border border-purple-400/50 flex items-center justify-center backdrop-blur-sm ${isThinking ? '' : 'opacity-70'}`} style={isThinking ? { animation: 'quantumPulse 2s ease-in-out infinite' } : {}}>
-            <svg className="w-6 h-6 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          </div>
-        </div>
-        {particlePositions.map((pos, i) => (
-          <div key={i} className={`absolute w-1 h-1 bg-white rounded-full ${isThinking ? '' : 'opacity-30'}`} style={isThinking ? { left: pos.left, top: pos.top, animation: `particleFloat ${2 + (i % 3)}s ease-in-out infinite`, animationDelay: `${i * 0.3}s` } : { left: pos.left, top: pos.top }} />
-        ))}
-      </div>
-      <div className="flex items-center gap-3 mt-8">
-        {[...Array(16)].map((_, i) => (
-          <div key={i} className={`w-1 bg-gradient-to-t from-transparent via-purple-500/60 to-transparent rounded-full ${isThinking ? '' : 'opacity-40'}`} style={isThinking ? { height: `${30 + Math.sin(i * 0.8) * 20}px`, animation: 'neuralPulse 1.5s ease-in-out infinite', animationDelay: `${i * 0.1}s` } : { height: `${30 + Math.sin(i * 0.8) * 20}px` }} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export default function DataTable({ activeTab, alpacaData, strategies = [], demoState = 'idle', theme, themeClasses, onDeleteStrategy, onDeployStrategy, onEditStrategy, onSaveToSidebar, savedStrategies = [], autoBacktestStrategy, onUpdateStrategy }) {
   const [sortColumn, setSortColumn] = useState('symbol');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -710,7 +660,6 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             );
           })}
 
-          <QuantumBrainAnimation isThinking={demoState === 'thinking'} />
         </div>
       </div>
     );

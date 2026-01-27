@@ -21,7 +21,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
     unrealized: 3892.45,
     realized: 856.22,
     netLiq: 125840.00,
-    buyingPower: 98420.00
+    buyingPower: 251680.00
   });
 
   // Animate P&L values
@@ -48,7 +48,6 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
   
   const metrics = [
     { label: 'Daily P&L', value: formatCurrency(dailyPnL), change: dailyPnL },
-    { label: 'Net Liquidity', value: formatCurrencyNeutral(netLiquidity) },
     { label: 'Buying Power', value: formatCurrencyNeutral(buyingPower) },
   ];
 

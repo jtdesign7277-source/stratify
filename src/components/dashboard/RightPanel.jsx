@@ -511,10 +511,14 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-          <span>Enter to send</span>
-          <span>•</span>
-          <span>Shift+Enter for new line</span>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs text-gray-500">Strategy Name</span>
+          <input
+            type="text"
+            placeholder="e.g. RSI Momentum"
+            className={`flex-1 px-2 py-1 ${themeClasses.surface} border ${themeClasses.border} focus:border-[#f97316] rounded text-xs ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors`}
+            readOnly={demoPhase === 'typing-user' || demoPhase === 'cursor-submit'}
+          />
         </div>
       </div>
 
