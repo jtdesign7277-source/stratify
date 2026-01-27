@@ -130,7 +130,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
     }
   }, [autoBacktestStrategy]);
 
-  // Backtest progress animation
+  // Backtest progress animation - slower for better visibility
   useEffect(() => {
     if (!backtestingId) return;
     
@@ -163,15 +163,15 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                   if (window.resetRightPanelDemo) {
                     window.resetRightPanelDemo();
                   }
-                }, 2000);
+                }, 3000);
               }, 400);
-            }, 1500);
-          }, 1000);
+            }, 2000);
+          }, 1500);
           return 100;
         }
-        return prev + 5;
+        return prev + 2; // Slower increment
       });
-    }, 50);
+    }, 120); // Slower interval
 
     return () => clearInterval(interval);
   }, [backtestingId, strategies, onDeployStrategy]);
@@ -255,12 +255,13 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
 
   // Strategies Tab View
   if (activeTab === 'strategies') {
-    const draftStrategies = strategies.filter(s => s.status !== 'deployed');
+    // Show all strategies (both draft and deployed can be modified)
+    const allStrategies = strategies;
     
     return (
       <div className="flex-1 overflow-auto p-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="grid gap-2">
-          {draftStrategies.map((strategy) => {
+          {allStrategies.map((strategy) => {
             const isExpanded = expandedStrategy === strategy.id;
             const isBacktesting = backtestingId === strategy.id;
             const backtestComplete = isBacktesting && backtestProgress >= 100;
@@ -273,7 +274,11 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                 <div className="flex items-center justify-between gap-4 px-3 py-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <h3 className="text-sm font-medium text-white truncate">{strategy.name}</h3>
-                    <span className="px-1.5 py-0.5 text-[10px] rounded-full flex-shrink-0 bg-gray-500/20 text-gray-400">
+                    <span className={`px-1.5 py-0.5 text-[10px] rounded-full flex-shrink-0 ${
+                      strategy.status === 'deployed' 
+                        ? 'bg-emerald-500/20 text-emerald-400' 
+                        : 'bg-gray-500/20 text-gray-400'
+                    }`}>
                       {strategy.status}
                     </span>
                   </div>

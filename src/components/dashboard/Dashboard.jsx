@@ -65,9 +65,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   };
 
   const handleDeployStrategy = (strategy) => {
-    // Remove from draft strategies
-    setStrategies(prev => prev.filter(s => s.id !== strategy.id));
-    // Add to deployed strategies
+    // Update strategy status to deployed (keep in list for modification)
+    setStrategies(prev => prev.map(s => 
+      s.id === strategy.id ? { ...s, status: 'deployed' } : s
+    ));
+    // Add to deployed strategies list
     setDeployedStrategies(prev => {
       if (prev.some(s => s.name === strategy.name)) return prev;
       return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];

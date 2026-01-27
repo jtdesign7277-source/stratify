@@ -478,14 +478,14 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
           <div className="relative">
             <button
               disabled={!inputValue.trim()}
-              className={`absolute right-2 bottom-2 p-1.5 rounded transition-all ${
+              className={`absolute right-2 bottom-2 p-1.5 rounded-full transition-all ${
                 demoPhase === 'clicking-submit'
                   ? 'bg-orange-500 text-white scale-90'
-                  : 'text-[#f97316] hover:text-[#ea580c] hover:bg-orange-500/10 disabled:text-gray-600 disabled:cursor-not-allowed'
+                  : 'bg-[#f97316] text-white hover:bg-[#ea580c] disabled:bg-gray-600 disabled:cursor-not-allowed'
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14m-7-7l7 7-7 7" />
               </svg>
             </button>
             {(demoPhase === 'cursor-submit' || demoPhase === 'clicking-submit') && (
