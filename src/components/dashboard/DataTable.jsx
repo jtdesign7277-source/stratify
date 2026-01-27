@@ -447,11 +447,11 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.stopLoss}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, stopLoss: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-red-400 font-mono focus:border-red-500 focus:outline-none"
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
                                 step="0.5"
                                 max="0"
                               />
-                              <span className="text-red-400 text-sm">%</span>
+                              <span className="text-white text-sm">%</span>
                             </div>
                           </div>
                           
@@ -463,11 +463,11 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.takeProfit}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, takeProfit: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-emerald-400 font-mono focus:border-emerald-500 focus:outline-none"
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
                                 step="0.5"
                                 min="0"
                               />
-                              <span className="text-emerald-400 text-sm">%</span>
+                              <span className="text-white text-sm">%</span>
                             </div>
                           </div>
                           
@@ -479,12 +479,12 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.positionSize}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, positionSize: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-blue-400 font-mono focus:border-blue-500 focus:outline-none"
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
                                 step="0.5"
                                 min="0.5"
                                 max="100"
                               />
-                              <span className="text-blue-400 text-sm">%</span>
+                              <span className="text-white text-sm">%</span>
                             </div>
                           </div>
                           
@@ -496,11 +496,11 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.trailingStop}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, trailingStop: parseFloat(e.target.value) || 0 }))}
-                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-amber-400 font-mono focus:border-amber-500 focus:outline-none"
+                                className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2 py-1.5 text-sm text-white font-mono focus:border-white/50 focus:outline-none"
                                 step="0.5"
                                 min="0"
                               />
-                              <span className="text-amber-400 text-sm">%</span>
+                              <span className="text-white text-sm">%</span>
                             </div>
                           </div>
                         </div>

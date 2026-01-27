@@ -236,10 +236,8 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                             <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
                           </svg>
                         </button>
-                        <button className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Stop">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M6 6h12v12H6z" />
-                          </svg>
+                        <button className="px-2 py-1 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Kill Strategy">
+                          KILL
                         </button>
                       </div>
                     </div>
