@@ -25,7 +25,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
-  const [activeTab, setActiveTab] = useState(savedState?.activeTab ?? 'positions');
+  const [activeTab, setActiveTab] = useState('strategies');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
@@ -190,16 +190,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         />
         <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
-            <div className="flex gap-1">
-              {['positions', 'orders', 'trades', 'balances', 'strategies'].map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium capitalize relative ${activeTab === tab ? themeClasses.text : themeClasses.textMuted}`}>
-                  {tab}
-                  {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />}
-                  {tab === 'strategies' && draftStrategiesCount > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
-                  )}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-semibold ${themeClasses.text}`}>Strategy Builder</span>
+              {draftStrategiesCount > 0 && (
+                <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
+              )}
             </div>
           </div>
           <DataTable 
