@@ -3,7 +3,7 @@ import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import { useAlpacaData } from './useAlpacaData';
 
-// Animated grid background component with subtle light effect
+// Animated grid background component with Dovetail-style design
 const GridBackground = () => {
   const [scrollY, setScrollY] = useState(0);
 
@@ -17,97 +17,130 @@ const GridBackground = () => {
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       <style>{`
         @keyframes gridMove {
-          0% {
-            transform: translate(0, 0);
-          }
-          100% {
-            transform: translate(50px, 50px);
-          }
+          0% { transform: translate(0, 0); }
+          100% { transform: translate(80px, 80px); }
         }
 
-        @keyframes gradientShift {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.6;
-          }
+        @keyframes float1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -20px) scale(1.05); }
+          66% { transform: translate(-20px, 20px) scale(0.95); }
         }
 
-        @keyframes lightPulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 0.08;
-          }
-          50% {
-            transform: scale(1.2);
-            opacity: 0.12;
-          }
+        @keyframes float2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-40px, 30px) scale(1.1); }
+          66% { transform: translate(20px, -30px) scale(0.9); }
+        }
+
+        @keyframes float3 {
+          0%, 100% { transform: translate(0, 0); opacity: 0.4; }
+          50% { transform: translate(15px, -25px); opacity: 0.6; }
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.25; }
         }
 
         .animated-grid {
-          animation: gridMove 20s linear infinite;
+          animation: gridMove 30s linear infinite;
         }
 
-        .gradient-shift {
-          animation: gradientShift 8s ease-in-out infinite;
-        }
-
-        .light-pulse {
-          animation: lightPulse 6s ease-in-out infinite;
-        }
+        .floating-orb-1 { animation: float1 20s ease-in-out infinite; }
+        .floating-orb-2 { animation: float2 25s ease-in-out infinite; }
+        .floating-orb-3 { animation: float3 15s ease-in-out infinite; }
+        .pulse-glow { animation: pulse 4s ease-in-out infinite; }
       `}</style>
 
-      {/* Animated Grid lines */}
+      {/* Main Grid - larger cells, more visible */}
       <div
         className="absolute inset-0 animated-grid"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
+            linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)
           `,
-          backgroundSize: '50px 50px',
-          transform: `translateY(${scrollY * 0.3}px)`,
+          backgroundSize: '80px 80px',
+          transform: `translateY(${scrollY * 0.2}px)`,
         }}
       />
 
-      {/* Secondary grid layer for depth */}
+      {/* Secondary larger grid for depth */}
       <div
-        className="absolute inset-0 gradient-shift"
+        className="absolute inset-0"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px)
+            linear-gradient(rgba(139, 92, 246, 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(139, 92, 246, 0.06) 1px, transparent 1px)
           `,
-          backgroundSize: '100px 100px',
-          transform: `translateY(${scrollY * 0.15}px)`,
+          backgroundSize: '240px 240px',
+          transform: `translateY(${scrollY * 0.1}px)`,
         }}
       />
 
-      {/* Animated radial light effects */}
-      <div className="absolute inset-0 light-pulse" style={{
-        background: `radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%)`,
-        transformOrigin: '50% 20%',
-      }} />
-
-      <div className="absolute inset-0" style={{
-        background: `radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%)`,
-        animation: 'lightPulse 8s ease-in-out infinite 2s',
-        transformOrigin: '80% 80%',
-      }} />
-
-      {/* Moving gradient overlay */}
+      {/* Floating Orb 1 - Top right, purple */}
       <div
-        className="absolute inset-0 gradient-shift"
+        className="absolute floating-orb-1"
         style={{
-          background: `
-            linear-gradient(180deg,
-              transparent 0%,
-              rgba(59, 130, 246, 0.02) 50%,
-              transparent 100%
-            )
-          `,
-          transform: `translateY(${scrollY * 0.5}px)`,
+          top: '10%',
+          right: '15%',
+          width: '500px',
+          height: '500px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.05) 40%, transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+        }}
+      />
+
+      {/* Floating Orb 2 - Bottom left, blue */}
+      <div
+        className="absolute floating-orb-2"
+        style={{
+          bottom: '20%',
+          left: '10%',
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 40%, transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(80px)',
+        }}
+      />
+
+      {/* Floating Orb 3 - Center, cyan accent */}
+      <div
+        className="absolute floating-orb-3"
+        style={{
+          top: '40%',
+          left: '50%',
+          width: '400px',
+          height: '400px',
+          background: 'radial-gradient(circle, rgba(34, 211, 238, 0.12) 0%, transparent 60%)',
+          borderRadius: '50%',
+          filter: 'blur(50px)',
+          transform: 'translateX(-50%)',
+        }}
+      />
+
+      {/* Subtle top glow */}
+      <div
+        className="absolute pulse-glow"
+        style={{
+          top: '-200px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '800px',
+          height: '400px',
+          background: 'radial-gradient(ellipse, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+      />
+
+      {/* Gradient fade at bottom */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-64"
+        style={{
+          background: 'linear-gradient(to top, rgba(10, 10, 15, 0.9) 0%, transparent 100%)',
         }}
       />
     </div>
@@ -264,21 +297,21 @@ const LandingPage = ({ onEnter }) => {
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div>
-                <div className="text-5xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">
+                <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                   $<AnimatedCounter end={2} />M+
                 </div>
                 <div className="text-sm text-gray-400">Paper Traded Volume</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div>
-                <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
+                <div className="text-5xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   <AnimatedCounter end={50} suffix="+" />
                 </div>
                 <div className="text-sm text-gray-400">Strategy Templates</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
               <div>
-                <div className="text-5xl font-bold bg-gradient-to-r from-pink-400 to-rose-500 bg-clip-text text-transparent">
+                <div className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
                   <AnimatedCounter end={67} suffix="%" />
                 </div>
                 <div className="text-sm text-gray-400">Avg. User Win Rate</div>
@@ -333,15 +366,15 @@ const LandingPage = ({ onEnter }) => {
                 <div className="relative w-full h-64">
                   {/* Comparison Table */}
                   <div className="space-y-1 text-sm">
-                    <div className="flex items-center justify-between py-3 px-4 bg-[#0f3d3d]/30 rounded-lg border border-cyan-500/20">
+                    <div className="flex items-center justify-between py-3 px-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-cyan-500/20 rounded flex items-center justify-center">
-                          <span className="text-cyan-400 font-bold text-xs">S</span>
+                        <div className="w-8 h-8 bg-purple-500/20 rounded flex items-center justify-center">
+                          <span className="text-purple-400 font-bold text-xs">S</span>
                         </div>
                         <span className="font-medium">Stratify</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-cyan-400 font-medium">AI-Powered</span>
+                        <span className="text-purple-400 font-medium">AI-Powered</span>
                         <span className="text-white font-medium">$0.00</span>
                       </div>
                     </div>
@@ -371,17 +404,12 @@ const LandingPage = ({ onEnter }) => {
               </button>
 
               {/* Content */}
-              <div className="text-center mb-6">
+              <div className="text-center">
                 <h3 className="text-xl font-semibold mb-3">AI strategy builder. Zero fees.</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
                   Stratify is the only platform with AI-powered strategy building and no monthly fees. Build sophisticated algorithms with natural language.
                 </p>
               </div>
-
-              {/* CTA */}
-              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
-                Learn more →
-              </button>
             </div>
 
             {/* Real-time Execution Card */}
@@ -392,17 +420,17 @@ const LandingPage = ({ onEnter }) => {
                   {/* Speed Metrics */}
                   <div className="text-center mb-8">
                     <div className="text-sm text-gray-400 mb-2">Execution latency</div>
-                    <div className="text-6xl font-bold text-emerald-400 mb-1">0.8<span className="text-3xl">ms</span></div>
+                    <div className="text-6xl font-bold text-blue-400 mb-1">0.8<span className="text-3xl">ms</span></div>
                   </div>
 
                   {/* Comparison bars */}
                   <div className="w-full space-y-3">
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-gray-500 w-24">Stratify</span>
-                      <div className="flex-1 h-2 bg-emerald-500/20 rounded-full overflow-hidden">
-                        <div className="h-full w-[8%] bg-emerald-500 rounded-full"></div>
+                      <div className="flex-1 h-2 bg-blue-500/20 rounded-full overflow-hidden">
+                        <div className="h-full w-[8%] bg-blue-500 rounded-full"></div>
                       </div>
-                      <span className="text-xs text-emerald-400 w-12">0.8ms</span>
+                      <span className="text-xs text-blue-400 w-12">0.8ms</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-gray-500 w-24">Industry Avg</span>
@@ -425,17 +453,12 @@ const LandingPage = ({ onEnter }) => {
               </button>
 
               {/* Content */}
-              <div className="text-center mb-6">
+              <div className="text-center">
                 <h3 className="text-xl font-semibold mb-3">Sub-millisecond execution. Maximum edge.</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
                   Our infrastructure delivers the fastest order execution with direct market access, ensuring you never miss an opportunity.
                 </p>
               </div>
-
-              {/* CTA */}
-              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
-                Learn more →
-              </button>
             </div>
 
             {/* Advanced Analytics Card */}
@@ -444,38 +467,38 @@ const LandingPage = ({ onEnter }) => {
               <div className="flex-1 flex items-center justify-center mb-6">
                 <div className="relative w-full h-64">
                   {/* Code-style data display */}
-                  <div className="font-mono text-sm bg-gradient-to-br from-cyan-500/5 to-purple-500/5 rounded-lg p-6 border border-cyan-500/10">
+                  <div className="font-mono text-sm bg-gradient-to-br from-purple-500/5 to-blue-500/5 rounded-lg p-6 border border-purple-500/10">
                     <div className="text-gray-500 mb-4">--data &#123;</div>
                     <div className="pl-6 space-y-2">
                       <div>
-                        <span className="text-cyan-400">'sharpe-ratio'</span>
+                        <span className="text-purple-400">'sharpe-ratio'</span>
                         <span className="text-gray-500">:</span>
-                        <span className="text-emerald-400"> 2.84</span>
+                        <span className="text-blue-400"> 2.84</span>
                       </div>
                       <div>
-                        <span className="text-cyan-400">'max-drawdown'</span>
+                        <span className="text-purple-400">'max-drawdown'</span>
                         <span className="text-gray-500">:</span>
-                        <span className="text-yellow-400"> -8.2%</span>
+                        <span className="text-purple-300"> -8.2%</span>
                       </div>
                       <div>
-                        <span className="text-cyan-400">'win-rate'</span>
+                        <span className="text-purple-400">'win-rate'</span>
                         <span className="text-gray-500">:</span>
-                        <span className="text-emerald-400"> 67.3%</span>
+                        <span className="text-blue-400"> 67.3%</span>
                       </div>
                       <div>
-                        <span className="text-cyan-400">'profit-factor'</span>
+                        <span className="text-purple-400">'profit-factor'</span>
                         <span className="text-gray-500">:</span>
-                        <span className="text-purple-400"> 1.92</span>
+                        <span className="text-indigo-400"> 1.92</span>
                       </div>
                       <div>
-                        <span className="text-cyan-400">'total-trades'</span>
+                        <span className="text-purple-400">'total-trades'</span>
                         <span className="text-gray-500">:</span>
                         <span className="text-blue-400"> 1,247</span>
                       </div>
                       <div>
-                        <span className="text-cyan-400">'avg-hold-time'</span>
+                        <span className="text-purple-400">'avg-hold-time'</span>
                         <span className="text-gray-500">:</span>
-                        <span className="text-pink-400"> '4.2h'</span>
+                        <span className="text-violet-400"> '4.2h'</span>
                       </div>
                     </div>
                     <div className="text-gray-500 mt-4">&#125;</div>
@@ -493,139 +516,133 @@ const LandingPage = ({ onEnter }) => {
               </button>
 
               {/* Content */}
-              <div className="text-center mb-6">
+              <div className="text-center">
                 <h3 className="text-xl font-semibold mb-3">Access our API for algorithmic trading</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
                   Deep performance analytics with institutional-grade metrics. Track Sharpe ratio, drawdown, and custom KPIs in real-time.
                 </p>
               </div>
-
-              {/* CTA */}
-              <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1">
-                Learn more →
-              </button>
             </div>
           </div>
 
-          {/* Pricing Section */}
-          <div className="mb-20" id="pricing">
-            <h2 className="text-5xl font-bold text-center mb-4 leading-tight">
-              Start trading smarter with<br />
-              AI-powered strategies
-            </h2>
+          {/* Strategy Templates Section */}
+          <div className="mb-20 py-16">
+            <div className="text-center mb-12">
+              <div className="inline-block px-4 py-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-full mb-6">
+                <span className="text-sm font-semibold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  READY-MADE STRATEGIES
+                </span>
+              </div>
+              <h2 className="text-5xl font-bold mb-4">
+                Jumpstart with<br />
+                <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  Proven Templates
+                </span>
+              </h2>
+              <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                Skip the guesswork. Start with battle-tested strategies built by experienced traders and customize them to fit your style.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
-              {/* Free Tier */}
-              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
-                <div className="text-base text-gray-400 mb-2">Free</div>
-                <div className="text-4xl font-bold mb-1">
-                  Paper trade for free
+            {/* Strategy Cards */}
+            <div className="grid grid-cols-3 gap-6">
+              {/* EMA Crossover */}
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
+                <div className="h-40 bg-gradient-to-br from-purple-500/10 to-blue-500/10 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-50">
+                    <svg viewBox="0 0 200 80" className="w-full h-full">
+                      <path d="M0,60 Q30,55 50,40 T100,35 T150,50 T200,30" stroke="rgba(139,92,246,0.5)" strokeWidth="2" fill="none"/>
+                      <path d="M0,50 Q30,60 50,55 T100,40 T150,35 T200,45" stroke="rgba(59,130,246,0.5)" strokeWidth="2" fill="none"/>
+                    </svg>
+                  </div>
+                  <div className="relative z-10 text-center">
+                    <div className="text-2xl font-bold text-white/80">8/21 EMA</div>
+                    <div className="text-sm text-purple-400">Crossover</div>
+                  </div>
                 </div>
-                <div className="text-gray-400 text-sm mb-8 leading-relaxed">
-                  Perfect for learning and testing<br />
-                  strategies risk-free.
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">Stocks</span>
+                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">Crypto</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">EMA Crossover Strategy</h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Classic momentum strategy using 8 and 21 period EMAs. Buy when fast crosses above slow, sell on reversal.
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>67% win rate</span>
+                    <span>1.8 profit factor</span>
+                  </div>
                 </div>
-                <button className="w-full py-3 border border-white/30 rounded-full hover:bg-white/5 transition-colors mb-8">
-                  Start for Free
-                </button>
-                <ul className="space-y-3 text-sm">
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Paper trading account ($10K virtual)</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Up to 3 active strategies</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Basic technical indicators</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">50+ community strategy templates</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">15-minute delayed market data</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Manual trade execution</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Email support</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Basic backtesting (1 year history)</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Strategy sharing & learning</span>
-                  </li>
-                </ul>
               </div>
 
-              {/* Pro Tier */}
-              <div className="relative bg-[#0a0a0f] border border-purple-500/30 rounded-2xl p-10 shadow-2xl shadow-purple-500/20">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl pointer-events-none" />
-                <div className="relative z-10">
-                  <div className="text-base text-purple-400 mb-2">Pro</div>
-                  <div className="text-5xl font-bold mb-1">
-                    $9.99<span className="text-lg text-gray-400">/month</span>
+              {/* RSI Reversal */}
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
+                <div className="h-40 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-50">
+                    <svg viewBox="0 0 200 80" className="w-full h-full">
+                      <line x1="0" y1="20" x2="200" y2="20" stroke="rgba(239,68,68,0.3)" strokeWidth="1" strokeDasharray="4"/>
+                      <line x1="0" y1="60" x2="200" y2="60" stroke="rgba(34,197,94,0.3)" strokeWidth="1" strokeDasharray="4"/>
+                      <path d="M0,40 Q25,15 50,25 T100,65 T150,20 T200,40" stroke="rgba(99,102,241,0.6)" strokeWidth="2" fill="none"/>
+                    </svg>
                   </div>
-                  <div className="text-gray-400 text-sm mb-8 leading-relaxed">
-                    Unlock advanced automation and<br />
-                    real-time execution capabilities.
+                  <div className="relative z-10 text-center">
+                    <div className="text-2xl font-bold text-white/80">RSI</div>
+                    <div className="text-sm text-blue-400">30/70 Levels</div>
                   </div>
-                  <button
-                    onClick={onEnter}
-                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-blue-600 transition-all mb-8"
-                  >
-                    Get Started
-                  </button>
-                  <ul className="space-y-3 text-sm">
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Live trading account (connect broker)</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Unlimited active strategies</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Advanced technical indicators & AI signals</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Custom AI strategy builder</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Real-time market data feeds</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Automated execution engine</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Priority support & strategy consultations</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Advanced backtesting (10+ years history)</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Full API access & webhooks</span>
-                    </li>
-                  </ul>
+                </div>
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">Forex</span>
+                    <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded-full">Futures</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">RSI Reversal Strategy</h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Mean reversion strategy targeting oversold and overbought conditions with RSI confirmation signals.
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>62% win rate</span>
+                    <span>2.1 profit factor</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Breakout */}
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
+                <div className="h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-50">
+                    <svg viewBox="0 0 200 80" className="w-full h-full">
+                      <line x1="0" y1="45" x2="120" y2="45" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+                      <path d="M0,50 L40,48 L80,52 L120,45 L140,20 L160,15 L200,10" stroke="rgba(139,92,246,0.6)" strokeWidth="2" fill="none"/>
+                    </svg>
+                  </div>
+                  <div className="relative z-10 text-center">
+                    <div className="text-2xl font-bold text-white/80">Break</div>
+                    <div className="text-sm text-indigo-400">& Retest</div>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 text-xs rounded-full">Stocks</span>
+                    <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">Options</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Breakout Strategy</h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Captures explosive moves when price breaks key resistance levels with volume confirmation.
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>58% win rate</span>
+                    <span>2.4 profit factor</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* View All Button */}
+            <div className="text-center mt-10">
+              <button className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors">
+                View All 50+ Templates →
+              </button>
             </div>
           </div>
 
@@ -763,6 +780,128 @@ const LandingPage = ({ onEnter }) => {
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z" clipRule="evenodd" />
                 </svg>
                 <span className="text-sm">99.9% uptime SLA</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing Section */}
+          <div className="py-24 border-t border-white/10" id="pricing">
+            <h2 className="text-5xl font-bold text-center mb-4 leading-tight">
+              Start trading smarter with<br />
+              AI-powered strategies
+            </h2>
+
+            <div className="grid grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
+              {/* Free Tier */}
+              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
+                <div className="text-base text-gray-400 mb-2">Free</div>
+                <div className="text-4xl font-bold mb-1">
+                  Paper trade for free
+                </div>
+                <div className="text-gray-400 text-sm mb-8 leading-relaxed">
+                  Perfect for learning and testing<br />
+                  strategies risk-free.
+                </div>
+                <button className="w-full py-3 border border-white/30 rounded-full hover:bg-white/5 transition-colors mb-8">
+                  Start for Free
+                </button>
+                <ul className="space-y-3 text-sm">
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Paper trading account ($10K virtual)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Up to 3 active strategies</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Basic technical indicators</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">50+ community strategy templates</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">15-minute delayed market data</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Manual trade execution</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Email support</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Basic backtesting (1 year history)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Strategy sharing & learning</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Pro Tier */}
+              <div className="relative bg-[#0a0a0f] border border-purple-500/30 rounded-2xl p-10 shadow-2xl shadow-purple-500/20">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl pointer-events-none" />
+                <div className="relative z-10">
+                  <div className="text-base text-purple-400 mb-2">Pro</div>
+                  <div className="text-5xl font-bold mb-1">
+                    $9.99<span className="text-lg text-gray-400">/month</span>
+                  </div>
+                  <div className="text-gray-400 text-sm mb-8 leading-relaxed">
+                    Unlock advanced automation and<br />
+                    real-time execution capabilities.
+                  </div>
+                  <button
+                    onClick={onEnter}
+                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-blue-600 transition-all mb-8"
+                  >
+                    Get Started
+                  </button>
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Live trading account (connect broker)</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Unlimited active strategies</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Advanced technical indicators & AI signals</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Custom AI strategy builder</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Real-time market data feeds</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Automated execution engine</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Priority support & strategy consultations</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Advanced backtesting (10+ years history)</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Full API access & webhooks</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

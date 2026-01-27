@@ -23,7 +23,7 @@ const saveDashboardState = (state) => {
 export default function Dashboard({ setCurrentPage, alpacaData }) {
   const savedState = loadDashboardState();
   
-  const [sidebarExpanded, setSidebarExpanded] = useState(false); // Always start collapsed (VS Code style)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState(savedState?.activeTab ?? 'positions');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
@@ -37,12 +37,56 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     } catch { return []; }
   });
   const [selectedStock, setSelectedStock] = useState(null);
+  const [strategies, setStrategies] = useState([]);
+  const [deployedStrategies, setDeployedStrategies] = useState([]);
+  const [demoState, setDemoState] = useState('idle');
+  const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
+
+  const handleStrategyGenerated = (strategy) => {
+    setStrategies(prev => {
+      if (prev.some(s => s.name === strategy.name)) return prev;
+      return [...prev, { ...strategy, status: 'draft' }];
+    });
+  };
+
+  // Called when strategy is added to center - trigger auto backtest
+  const handleStrategyAdded = (strategy) => {
+    // Make sure we're on the strategies tab
+    setActiveTab('strategies');
+    
+    // Trigger auto backtest animation after a short delay
+    setTimeout(() => {
+      setAutoBacktestStrategy(strategy);
+    }, 800);
+  };
+
+  const handleDeleteStrategy = (strategyId) => {
+    setStrategies(prev => prev.filter(s => s.id !== strategyId));
+  };
+
+  const handleDeployStrategy = (strategy) => {
+    // Remove from draft strategies
+    setStrategies(prev => prev.filter(s => s.id !== strategy.id));
+    // Add to deployed strategies
+    setDeployedStrategies(prev => {
+      if (prev.some(s => s.name === strategy.name)) return prev;
+      return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];
+    });
+    // Clear auto backtest
+    setAutoBacktestStrategy(null);
+  };
+
+  const handleDemoStateChange = (state) => {
+    setDemoState(state);
+    if (state === 'thinking') {
+      setActiveTab('strategies');
+    }
+  };
 
   useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
   }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme]);
 
-  // Persist watchlist to localStorage
   useEffect(() => {
     localStorage.setItem('stratify-watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
@@ -105,6 +149,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     textMuted: 'text-[#A3A3A3]'
   };
 
+  const draftStrategiesCount = strategies.filter(s => s.status !== 'deployed').length;
+
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <TopMetricsBar alpacaData={alpacaData} onAddToWatchlist={addToWatchlist} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} />
@@ -123,22 +169,42 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
             <div className="flex gap-1">
-              {['positions', 'orders', 'trades', 'balances'].map((tab) => (
+              {['positions', 'orders', 'trades', 'balances', 'strategies'].map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-sm font-medium capitalize relative ${activeTab === tab ? themeClasses.text : themeClasses.textMuted}`}>
                   {tab}
                   {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />}
+                  {tab === 'strategies' && draftStrategiesCount > 0 && (
+                    <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
+                  )}
                 </button>
               ))}
             </div>
           </div>
-          <DataTable activeTab={activeTab} alpacaData={alpacaData} theme={theme} themeClasses={themeClasses} />
-          <TerminalPanel themeClasses={themeClasses} />
+          <DataTable 
+            activeTab={activeTab} 
+            alpacaData={alpacaData} 
+            strategies={strategies} 
+            demoState={demoState} 
+            theme={theme} 
+            themeClasses={themeClasses} 
+            onDeleteStrategy={handleDeleteStrategy}
+            onDeployStrategy={handleDeployStrategy}
+            autoBacktestStrategy={autoBacktestStrategy}
+          />
+          <TerminalPanel themeClasses={themeClasses} deployedStrategies={deployedStrategies} />
         </div>
-        <RightPanel width={rightPanelWidth} alpacaData={alpacaData} theme={theme} themeClasses={themeClasses} />
+        <RightPanel 
+          width={rightPanelWidth} 
+          alpacaData={alpacaData} 
+          theme={theme} 
+          themeClasses={themeClasses} 
+          onStrategyGenerated={handleStrategyGenerated} 
+          onDemoStateChange={handleDemoStateChange}
+          onStrategyAdded={handleStrategyAdded}
+        />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} />
 
-      {/* Stock Detail View - Full Screen Overlay */}
       {selectedStock && (
         <StockDetailView 
           symbol={selectedStock.symbol}

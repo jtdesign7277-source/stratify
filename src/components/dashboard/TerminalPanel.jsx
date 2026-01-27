@@ -1,35 +1,112 @@
 import { useState, useEffect } from 'react';
 
-export default function TerminalPanel({ themeClasses }) {
-  const [expanded, setExpanded] = useState(false);
+// Live updating number component
+const LiveNumber = ({ baseValue, prefix = '', suffix = '', color = 'text-white', fluctuation = 0.5 }) => {
+  const [value, setValue] = useState(parseFloat(baseValue));
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const change = (Math.random() - 0.5) * fluctuation;
+      setValue(prev => {
+        const newVal = prev + change;
+        return Math.max(0, newVal);
+      });
+    }, 1000 + Math.random() * 2000);
+    
+    return () => clearInterval(interval);
+  }, [baseValue, fluctuation]);
+
+  return (
+    <span className={`${color} font-medium tabular-nums transition-all duration-300`}>
+      {prefix}{value.toFixed(2)}{suffix}
+    </span>
+  );
+};
+
+// Live P&L that can go up or down
+const LivePnL = ({ baseValue = 1000 }) => {
+  const [value, setValue] = useState(baseValue);
+  const [trades, setTrades] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const change = (Math.random() - 0.4) * 50; // Slightly biased positive
+      setValue(prev => prev + change);
+      if (Math.random() > 0.7) {
+        setTrades(prev => prev + 1);
+      }
+    }, 2000 + Math.random() * 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const isPositive = value >= 0;
+  
+  return {
+    pnl: (
+      <span className={`font-medium tabular-nums ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+        {isPositive ? '+' : ''}{value < 0 ? '-' : ''}${Math.abs(value).toFixed(2)}
+      </span>
+    ),
+    trades
+  };
+};
+
+export default function TerminalPanel({ themeClasses, deployedStrategies = [] }) {
+  const [expanded, setExpanded] = useState(true);
   const [panelHeight, setPanelHeight] = useState(() => {
     const saved = localStorage.getItem('stratify-terminal-height');
     return saved ? parseInt(saved, 10) : 200;
   });
   const [isDragging, setIsDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState('strategies');
+  const [liveData, setLiveData] = useState({});
 
-  // Sample strategy data - will be replaced with real data
-  const [strategies, setStrategies] = useState([
-    { id: 1, name: 'RSI Breakout', status: 'running', profit: '+$1,245.50', trades: 12, winRate: '67%' },
-    { id: 2, name: 'MACD Crossover', status: 'running', profit: '+$892.30', trades: 8, winRate: '75%' },
-    { id: 3, name: 'Bollinger Bounce', status: 'paused', profit: '+$456.00', trades: 5, winRate: '60%' },
-  ]);
+  // Initialize live data for each strategy
+  useEffect(() => {
+    const newLiveData = {};
+    deployedStrategies.forEach(s => {
+      if (!liveData[s.id]) {
+        newLiveData[s.id] = {
+          pnl: Math.random() * 2000 - 500,
+          trades: Math.floor(Math.random() * 20),
+          winRate: parseFloat(s.metrics.winRate),
+        };
+      } else {
+        newLiveData[s.id] = liveData[s.id];
+      }
+    });
+    setLiveData(newLiveData);
+  }, [deployedStrategies.length]);
 
-  const [logs, setLogs] = useState([
-    { time: '18:45:32', type: 'info', message: 'Strategy "RSI Breakout" executed BUY order for TSLA @ $436.29' },
-    { time: '18:44:15', type: 'success', message: 'Strategy "MACD Crossover" closed position NVDA with +$125.50 profit' },
-    { time: '18:42:08', type: 'info', message: 'Scanning 500 symbols for pattern matches...' },
-    { time: '18:40:00', type: 'warning', message: 'Strategy "Bollinger Bounce" paused - market volatility high' },
-    { time: '18:38:22', type: 'info', message: 'Strategy "RSI Breakout" detected entry signal for META' },
-  ]);
+  // Live update effect
+  useEffect(() => {
+    if (deployedStrategies.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setLiveData(prev => {
+        const updated = { ...prev };
+        deployedStrategies.forEach(s => {
+          if (updated[s.id]) {
+            const pnlChange = (Math.random() - 0.4) * 30;
+            updated[s.id] = {
+              ...updated[s.id],
+              pnl: updated[s.id].pnl + pnlChange,
+              trades: Math.random() > 0.8 ? updated[s.id].trades + 1 : updated[s.id].trades,
+              winRate: updated[s.id].winRate + (Math.random() - 0.5) * 0.3,
+            };
+          }
+        });
+        return updated;
+      });
+    }, 1500);
 
-  // Save panel height to localStorage
+    return () => clearInterval(interval);
+  }, [deployedStrategies]);
+
   useEffect(() => {
     localStorage.setItem('stratify-terminal-height', panelHeight.toString());
   }, [panelHeight]);
 
-  // Handle resize drag
   useEffect(() => {
     if (!isDragging) return;
 
@@ -58,39 +135,6 @@ export default function TerminalPanel({ themeClasses }) {
     };
   }, [isDragging]);
 
-  const tabs = [
-    { id: 'strategies', label: 'Strategies', icon: '📊' },
-    { id: 'output', label: 'Output', icon: '📋' },
-    { id: 'logs', label: 'Logs', icon: '📝' },
-  ];
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'running': return 'text-emerald-400';
-      case 'paused': return 'text-yellow-400';
-      case 'stopped': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const getStatusDot = (status) => {
-    switch (status) {
-      case 'running': return 'bg-emerald-400 animate-pulse';
-      case 'paused': return 'bg-yellow-400';
-      case 'stopped': return 'bg-red-400';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getLogColor = (type) => {
-    switch (type) {
-      case 'success': return 'text-emerald-400';
-      case 'warning': return 'text-yellow-400';
-      case 'error': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
-
   // Collapsed view
   if (!expanded) {
     return (
@@ -98,16 +142,12 @@ export default function TerminalPanel({ themeClasses }) {
         className={`h-8 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border} cursor-pointer hover:bg-[#252525] transition-colors`}
         onClick={() => setExpanded(true)}
       >
-        <div className="flex items-center gap-4">
-          {tabs.map((tab) => (
-            <span key={tab.id} className={`text-xs ${themeClasses.textMuted} flex items-center gap-1`}>
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </span>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-medium text-white">Deployed Strategies</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-emerald-400">3 strategies active</span>
+          <span className="text-xs text-emerald-400">{deployedStrategies.length} active</span>
           <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
           </svg>
@@ -116,7 +156,6 @@ export default function TerminalPanel({ themeClasses }) {
     );
   }
 
-  // Expanded view
   return (
     <div className={`flex flex-col ${themeClasses.surfaceElevated} border-t ${themeClasses.border}`}>
       {/* Resize handle */}
@@ -127,42 +166,21 @@ export default function TerminalPanel({ themeClasses }) {
         <div className={`w-12 h-0.5 rounded-full ${isDragging ? 'bg-emerald-500' : 'bg-[#3A3A3A]'}`} />
       </div>
 
-      {/* Tab bar */}
-      <div className={`h-9 flex items-center justify-between px-2 border-b ${themeClasses.border}`}>
-        <div className="flex items-center gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-t flex items-center gap-1.5 transition-colors ${
-                activeTab === tab.id 
-                  ? `${themeClasses.text} bg-[#2A2A2A]` 
-                  : `${themeClasses.textMuted} hover:${themeClasses.text}`
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
+      {/* Header */}
+      <div className={`h-9 flex items-center justify-between px-4 border-b ${themeClasses.border}`}>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setExpanded(false)}
-            className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <button 
-            onClick={() => setExpanded(false)}
-            className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-sm font-medium text-white">Deployed Strategies</span>
+          <span className="text-xs text-emerald-400 ml-2">{deployedStrategies.length} active</span>
         </div>
+        <button 
+          onClick={() => setExpanded(false)}
+          className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
       </div>
 
       {/* Panel content */}
@@ -170,113 +188,78 @@ export default function TerminalPanel({ themeClasses }) {
         className="overflow-hidden"
         style={{ height: `${panelHeight}px` }}
       >
-        {/* Strategies Tab */}
-        {activeTab === 'strategies' && (
-          <div className="h-full overflow-y-auto p-3 scrollbar-hide">
-            <div className="grid gap-2">
-              {strategies.map((strategy) => (
-                <div 
-                  key={strategy.id}
-                  className={`flex items-center justify-between p-3 rounded-lg ${themeClasses.surface} border ${themeClasses.border} hover:border-emerald-500/30 transition-colors`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${getStatusDot(strategy.status)}`} />
-                    <div>
-                      <div className={`text-sm font-medium ${themeClasses.text}`}>{strategy.name}</div>
-                      <div className={`text-xs ${getStatusColor(strategy.status)} capitalize`}>{strategy.status}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 text-xs">
-                    <div className="text-right">
-                      <div className={themeClasses.textMuted}>P&L</div>
-                      <div className="text-emerald-400 font-medium">{strategy.profit}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className={themeClasses.textMuted}>Trades</div>
-                      <div className={themeClasses.text}>{strategy.trades}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className={themeClasses.textMuted}>Win Rate</div>
-                      <div className={themeClasses.text}>{strategy.winRate}</div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {/* Play - Green */}
-                      <button className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors" title="Start">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </button>
-                      
-                      {/* Pause - Yellow */}
-                      <button className="p-1 text-yellow-400 hover:text-yellow-300 transition-colors" title="Pause">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                        </svg>
-                      </button>
-                      
-                      {/* Kill - Red */}
-                      <button className="p-1 text-red-400 hover:text-red-300 transition-colors" title="Kill">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M6 6h12v12H6z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Add Strategy Button */}
-              <button className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed ${themeClasses.border} hover:border-emerald-500/50 text-gray-500 hover:text-emerald-400 transition-colors`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="text-sm font-medium">Deploy New Strategy</span>
-              </button>
+        <div className="h-full overflow-y-auto p-3 scrollbar-hide">
+          {deployedStrategies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <svg className="w-8 h-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <p className="text-xs">No deployed strategies yet</p>
+              <p className="text-[10px] mt-1 opacity-70">Backtest and deploy strategies from the center panel</p>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="grid gap-2">
+              {deployedStrategies.map((strategy) => {
+                const live = liveData[strategy.id] || { pnl: 0, trades: 0, winRate: parseFloat(strategy.metrics.winRate) };
+                const isPositive = live.pnl >= 0;
 
-        {/* Output Tab */}
-        {activeTab === 'output' && (
-          <div className="h-full overflow-y-auto p-3 font-mono text-xs scrollbar-hide">
-            <div className="text-emerald-400">$ stratify engine started</div>
-            <div className="text-gray-400">Connecting to Alpaca API...</div>
-            <div className="text-emerald-400">✓ Connected to market data stream</div>
-            <div className="text-emerald-400">✓ Connected to trading API</div>
-            <div className="text-gray-400">Loading strategies...</div>
-            <div className="text-cyan-400">→ RSI Breakout (active)</div>
-            <div className="text-cyan-400">→ MACD Crossover (active)</div>
-            <div className="text-yellow-400">→ Bollinger Bounce (paused)</div>
-            <div className="text-emerald-400">✓ All strategies loaded</div>
-            <div className="text-gray-400">Monitoring 500 symbols...</div>
-            <div className="text-gray-500 animate-pulse">▋</div>
-          </div>
-        )}
-
-        {/* Logs Tab */}
-        {activeTab === 'logs' && (
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            <table className="w-full text-xs">
-              <thead className={`sticky top-0 ${themeClasses.surfaceElevated}`}>
-                <tr className={`border-b ${themeClasses.border}`}>
-                  <th className={`px-3 py-2 text-left ${themeClasses.textMuted} font-medium`}>Time</th>
-                  <th className={`px-3 py-2 text-left ${themeClasses.textMuted} font-medium`}>Type</th>
-                  <th className={`px-3 py-2 text-left ${themeClasses.textMuted} font-medium`}>Message</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log, i) => (
-                  <tr key={i} className={`border-b ${themeClasses.border} hover:bg-[#252525]`}>
-                    <td className={`px-3 py-2 ${themeClasses.textMuted} font-mono`}>{log.time}</td>
-                    <td className={`px-3 py-2 ${getLogColor(log.type)} capitalize`}>{log.type}</td>
-                    <td className={`px-3 py-2 ${themeClasses.text}`}>{log.message}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                return (
+                  <div 
+                    key={strategy.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${themeClasses.surface} border ${themeClasses.border} hover:border-emerald-500/30 transition-colors animate-fadeIn`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <div>
+                        <div className={`text-sm font-medium ${themeClasses.text}`}>{strategy.name}</div>
+                        <div className="text-xs text-emerald-400">Running</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-xs">
+                      <div className="text-right">
+                        <div className={themeClasses.textMuted}>P&L</div>
+                        <div className={`font-medium tabular-nums ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isPositive ? '+' : ''}{live.pnl < 0 ? '-' : ''}${Math.abs(live.pnl).toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={themeClasses.textMuted}>Trades</div>
+                        <div className={`${themeClasses.text} tabular-nums`}>{live.trades}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className={themeClasses.textMuted}>Win Rate</div>
+                        <div className="text-emerald-400 tabular-nums">{live.winRate.toFixed(1)}%</div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button className="p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                          </svg>
+                        </button>
+                        <button className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Stop">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 6h12v12H6z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.4s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }

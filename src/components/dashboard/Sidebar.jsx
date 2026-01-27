@@ -110,7 +110,7 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
     };
   }, [isDragging]);
 
-  // VS Code style: expand on hover, collapse on leave (always)
+  // Expand on hover, collapse on leave
   const handleMouseEnter = () => onToggle(true);
   const handleMouseLeave = () => {
     if (!isDragging && !isDraggingNav) onToggle(false);
@@ -219,6 +219,7 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
             </div>
           </div>
         )}
+
       </nav>
 
       {/* Bottom items (Settings, Help) */}
