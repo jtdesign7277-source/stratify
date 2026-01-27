@@ -481,11 +481,18 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
               className={`absolute right-2 bottom-2 p-1 transition-all ${
                 demoPhase === 'clicking-submit'
                   ? 'text-orange-300 scale-90'
-                  : 'text-[#f97316] hover:text-[#ea580c] disabled:text-gray-600 disabled:cursor-not-allowed'
+                  : 'text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed'
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-7-7l7 7-7 7" />
+              <svg 
+                className={`w-5 h-5 transition-transform duration-200 ${
+                  demoPhase === 'clicking-submit' ? 'rotate-180' : ''
+                }`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
             {(demoPhase === 'cursor-submit' || demoPhase === 'clicking-submit') && (
