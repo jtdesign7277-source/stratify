@@ -38,12 +38,13 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
     return () => clearInterval(interval);
   }, []);
 
-  // Use real data if available, otherwise use mock
-  const dailyPnL = account.daily_pnl ?? mockPnL.daily;
-  const unrealizedPnL = account.unrealized_pl ?? mockPnL.unrealized;
-  const realizedPnL = account.realized_pl ?? mockPnL.realized;
-  const netLiquidity = account.equity ?? mockPnL.netLiq;
-  const buyingPower = account.buying_power ?? mockPnL.buyingPower;
+  // Use real data if available and non-zero, otherwise use mock
+  const hasRealData = account.equity && account.equity > 0;
+  const dailyPnL = hasRealData ? (account.daily_pnl ?? 0) : mockPnL.daily;
+  const unrealizedPnL = hasRealData ? (account.unrealized_pl ?? 0) : mockPnL.unrealized;
+  const realizedPnL = hasRealData ? (account.realized_pl ?? 0) : mockPnL.realized;
+  const netLiquidity = hasRealData ? account.equity : mockPnL.netLiq;
+  const buyingPower = hasRealData ? (account.buying_power ?? 0) : mockPnL.buyingPower;
   
   const metrics = [
     { label: 'Daily P&L', value: formatCurrency(dailyPnL), change: dailyPnL },
