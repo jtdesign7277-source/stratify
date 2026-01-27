@@ -1,6 +1,13 @@
+import { useState, useEffect } from 'react';
 import SearchBar from "./SearchBar";
 
 const formatCurrency = (value) => {
+  if (value === null || value === undefined || isNaN(value)) return '--';
+  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(Math.abs(value));
+  return value < 0 ? `-${formatted}` : `+${formatted}`;
+};
+
+const formatCurrencyNeutral = (value) => {
   if (value === null || value === undefined || isNaN(value)) return '--';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
 };
@@ -8,12 +15,42 @@ const formatCurrency = (value) => {
 export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist }) {
   const account = alpacaData?.account || {};
   
+  // Mock live P&L data
+  const [mockPnL, setMockPnL] = useState({
+    daily: 1247.83,
+    unrealized: 3892.45,
+    realized: 856.22,
+    netLiq: 125840.00,
+    buyingPower: 98420.00
+  });
+
+  // Animate P&L values
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMockPnL(prev => ({
+        daily: prev.daily + (Math.random() - 0.45) * 50,
+        unrealized: prev.unrealized + (Math.random() - 0.48) * 80,
+        realized: prev.realized + (Math.random() - 0.5) * 20,
+        netLiq: prev.netLiq + (Math.random() - 0.45) * 100,
+        buyingPower: prev.buyingPower + (Math.random() - 0.5) * 50
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use real data if available, otherwise use mock
+  const dailyPnL = account.daily_pnl ?? mockPnL.daily;
+  const unrealizedPnL = account.unrealized_pl ?? mockPnL.unrealized;
+  const realizedPnL = account.realized_pl ?? mockPnL.realized;
+  const netLiquidity = account.equity ?? mockPnL.netLiq;
+  const buyingPower = account.buying_power ?? mockPnL.buyingPower;
+  
   const metrics = [
-    { label: 'Daily P&L', value: formatCurrency(account.daily_pnl), change: account.daily_pnl },
-    { label: 'Unrealized P&L', value: formatCurrency(account.unrealized_pl), change: account.unrealized_pl },
-    { label: 'Realized P&L', value: formatCurrency(account.realized_pl), change: account.realized_pl },
-    { label: 'Net Liquidity', value: formatCurrency(account.equity) },
-    { label: 'Buying Power', value: formatCurrency(account.buying_power) },
+    { label: 'Daily P&L', value: formatCurrency(dailyPnL), change: dailyPnL },
+    { label: 'Unrealized P&L', value: formatCurrency(unrealizedPnL), change: unrealizedPnL },
+    { label: 'Realized P&L', value: formatCurrency(realizedPnL), change: realizedPnL },
+    { label: 'Net Liquidity', value: formatCurrencyNeutral(netLiquidity) },
+    { label: 'Buying Power', value: formatCurrencyNeutral(buyingPower) },
   ];
 
   const getValueColor = (change) => {
@@ -38,7 +75,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         <div className="flex items-center gap-4 pl-4 border-l border-[#2A2A2A]">
           <div className="text-right">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
-            <p className={`text-sm font-semibold ${themeClasses.text}`}>{formatCurrency(account.equity)}</p>
+            <p className={`text-sm font-semibold ${themeClasses.text}`}>{formatCurrencyNeutral(netLiquidity)}</p>
           </div>
         </div>
         <button onClick={onThemeToggle} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
