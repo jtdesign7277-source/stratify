@@ -8,6 +8,7 @@ import TerminalPanel from './TerminalPanel';
 import StockDetailView from './StockDetailView';
 import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
+import NewsletterPage from './NewsletterPage';
 
 const loadDashboardState = () => {
   try {
@@ -277,34 +278,40 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           onOpenBrokerModal={() => setShowBrokerModal(true)}
         />
         <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
-          <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-semibold ${themeClasses.text}`}>Strategy Builder</span>
-              {draftStrategiesCount > 0 && (
-                <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
-              )}
-            </div>
-          </div>
-          <DataTable 
-            activeTab={activeTab} 
-            alpacaData={alpacaData} 
-            strategies={strategies} 
-            demoState={demoState} 
-            theme={theme} 
-            themeClasses={themeClasses} 
-            onDeleteStrategy={handleDeleteStrategy}
-            onDeployStrategy={handleDeployStrategy}
-            onEditStrategy={handleEditStrategy}
-            onSaveToSidebar={handleSaveToSidebar}
-            onUpdateStrategy={handleUpdateStrategy}
-            savedStrategies={savedStrategies}
-            autoBacktestStrategy={autoBacktestStrategy}
-          />
-          <TerminalPanel 
-            themeClasses={themeClasses} 
-            deployedStrategies={deployedStrategies} 
-            onRemoveStrategy={(id) => setDeployedStrategies(prev => prev.filter(s => s.id !== id))}
-          />
+          {activeSection === 'newsletter' ? (
+            <NewsletterPage themeClasses={themeClasses} />
+          ) : (
+            <>
+              <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-semibold ${themeClasses.text}`}>Strategy Builder</span>
+                  {draftStrategiesCount > 0 && (
+                    <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
+                  )}
+                </div>
+              </div>
+              <DataTable 
+                activeTab={activeTab} 
+                alpacaData={alpacaData} 
+                strategies={strategies} 
+                demoState={demoState} 
+                theme={theme} 
+                themeClasses={themeClasses} 
+                onDeleteStrategy={handleDeleteStrategy}
+                onDeployStrategy={handleDeployStrategy}
+                onEditStrategy={handleEditStrategy}
+                onSaveToSidebar={handleSaveToSidebar}
+                onUpdateStrategy={handleUpdateStrategy}
+                savedStrategies={savedStrategies}
+                autoBacktestStrategy={autoBacktestStrategy}
+              />
+              <TerminalPanel 
+                themeClasses={themeClasses} 
+                deployedStrategies={deployedStrategies} 
+                onRemoveStrategy={(id) => setDeployedStrategies(prev => prev.filter(s => s.id !== id))}
+              />
+            </>
+          )}
         </div>
         <RightPanel 
           width={rightPanelWidth} 
