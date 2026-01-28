@@ -1,19 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../../config';
 
 export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses, compact = false }) {
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState({});
 
-  useEffect(() => {
-    stocks.forEach(stock => {
-      if (!quotes[stock.symbol]) {
-        fetchQuote(stock.symbol);
-      }
-    });
-  }, [stocks]);
-
-  const fetchQuote = async (symbol) => {
+  const fetchQuote = useCallback(async (symbol) => {
     setLoading(prev => ({ ...prev, [symbol]: true }));
     try {
       const res = await fetch(`${API_URL}/api/public/quote/${symbol}`);
@@ -23,7 +15,18 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
       console.error('Quote fetch error:', err);
     }
     setLoading(prev => ({ ...prev, [symbol]: false }));
-  };
+  }, []);
+
+  useEffect(() => {
+    stocks.forEach(stock => {
+      fetchQuote(stock.symbol);
+    });
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      stocks.forEach(stock => fetchQuote(stock.symbol));
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [stocks, fetchQuote]);
 
   const refreshAll = () => {
     stocks.forEach(stock => fetchQuote(stock.symbol));

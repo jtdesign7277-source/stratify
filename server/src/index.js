@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
+import yahooFinance from 'yahoo-finance2';
 import stocksRouter from './routes/stocks.js';
 import { startAlpacaStream } from './services/alpaca.js';
 
@@ -37,47 +38,96 @@ startAlpacaStream((data) => {
     }
   });
 });
-// Public API endpoints for Alpaca
+
+// Yahoo Finance API endpoints (Google Finance style data)
 app.get('/api/public/quote/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
     const sym = symbol.toUpperCase();
-    const headers = {
-      'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
-      'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY
-    };
     
-    // Fetch both latest quote and previous day bar for change calculation
-    const [quoteRes, barRes] = await Promise.all([
-      fetch(`https://data.alpaca.markets/v2/stocks/${sym}/quotes/latest`, { headers }),
-      fetch(`https://data.alpaca.markets/v2/stocks/${sym}/bars?timeframe=1Day&limit=2`, { headers })
-    ]);
-    
-    const quoteData = await quoteRes.json();
-    const barData = await barRes.json();
-    
-    const bid = quoteData.quote?.bp || 0;
-    const ask = quoteData.quote?.ap || 0;
-    const price = (bid + ask) / 2;
-    
-    // Calculate change from previous close
-    const bars = barData.bars || [];
-    const prevClose = bars.length >= 2 ? bars[bars.length - 2]?.c : (bars[0]?.c || price);
-    const changePercent = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+    const quote = await yahooFinance.quote(sym);
     
     res.json({ 
-      symbol: sym, 
-      bid, 
-      ask, 
-      price,
-      prevClose,
-      changePercent: parseFloat(changePercent.toFixed(2))
+      symbol: sym,
+      name: quote.shortName || quote.longName || sym,
+      price: quote.regularMarketPrice || 0,
+      change: quote.regularMarketChange || 0,
+      changePercent: quote.regularMarketChangePercent || 0,
+      prevClose: quote.regularMarketPreviousClose || 0,
+      open: quote.regularMarketOpen || 0,
+      dayHigh: quote.regularMarketDayHigh || 0,
+      dayLow: quote.regularMarketDayLow || 0,
+      volume: quote.regularMarketVolume || 0,
+      avgVolume: quote.averageDailyVolume3Month || 0,
+      marketCap: quote.marketCap || 0,
+      fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh || 0,
+      fiftyTwoWeekLow: quote.fiftyTwoWeekLow || 0,
+      exchange: quote.exchange || '',
+      currency: quote.currency || 'USD',
+      marketState: quote.marketState || 'CLOSED',
+      // Pre/Post market data
+      preMarketPrice: quote.preMarketPrice,
+      preMarketChange: quote.preMarketChange,
+      preMarketChangePercent: quote.preMarketChangePercent,
+      postMarketPrice: quote.postMarketPrice,
+      postMarketChange: quote.postMarketChange,
+      postMarketChangePercent: quote.postMarketChangePercent,
     });
   } catch (error) {
+    console.error('Yahoo Finance error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
+// Get historical data for charts
+app.get('/api/public/history/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { period = '1d', interval = '5m' } = req.query;
+    const sym = symbol.toUpperCase();
+    
+    const result = await yahooFinance.chart(sym, {
+      period1: getPeriodStart(period),
+      interval: interval,
+    });
+    
+    const data = result.quotes.map(q => ({
+      time: q.date,
+      open: q.open,
+      high: q.high,
+      low: q.low,
+      close: q.close,
+      volume: q.volume,
+    }));
+    
+    res.json({
+      symbol: sym,
+      period,
+      interval,
+      data,
+    });
+  } catch (error) {
+    console.error('Yahoo Finance history error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function for period calculation
+function getPeriodStart(period) {
+  const now = new Date();
+  switch(period) {
+    case '1d': return new Date(now.setDate(now.getDate() - 1));
+    case '5d': return new Date(now.setDate(now.getDate() - 5));
+    case '1mo': return new Date(now.setMonth(now.getMonth() - 1));
+    case '3mo': return new Date(now.setMonth(now.getMonth() - 3));
+    case '6mo': return new Date(now.setMonth(now.getMonth() - 6));
+    case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+    case '5y': return new Date(now.setFullYear(now.getFullYear() - 5));
+    default: return new Date(now.setDate(now.getDate() - 1));
+  }
+}
+
+// Search using Yahoo Finance
 app.get('/api/public/search', async (req, res) => {
   try {
     const { q } = req.query;
@@ -85,58 +135,50 @@ app.get('/api/public/search', async (req, res) => {
       return res.json([]);
     }
     
-    const query = q.toUpperCase();
-    const response = await fetch(`https://api.alpaca.markets/v2/assets?status=active&asset_class=us_equity`, {
-      headers: {
-        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
-        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY
-      }
-    });
-    const assets = await response.json();
+    const results = await yahooFinance.search(q);
     
-    // Filter matching assets
-    const matches = assets.filter(a => 
-      a.tradable && (
-        a.symbol.includes(query) || 
-        (a.name && a.name.toUpperCase().includes(query))
-      )
+    const stocks = (results.quotes || [])
+      .filter(r => r.quoteType === 'EQUITY' || r.quoteType === 'ETF')
+      .slice(0, 15)
+      .map(r => ({
+        symbol: r.symbol,
+        name: r.shortname || r.longname || r.symbol,
+        exchange: r.exchange,
+        type: r.quoteType,
+      }));
+    
+    res.json(stocks);
+  } catch (error) {
+    console.error('Yahoo Finance search error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Trending/popular stocks
+app.get('/api/public/trending', async (req, res) => {
+  try {
+    const trending = await yahooFinance.trendingSymbols('US');
+    const symbols = trending.quotes.slice(0, 10).map(q => q.symbol);
+    
+    const quotes = await Promise.all(
+      symbols.map(async (sym) => {
+        try {
+          const quote = await yahooFinance.quote(sym);
+          return {
+            symbol: sym,
+            name: quote.shortName || sym,
+            price: quote.regularMarketPrice,
+            changePercent: quote.regularMarketChangePercent,
+          };
+        } catch {
+          return null;
+        }
+      })
     );
     
-    // Sort by relevance: exact symbol > symbol starts with > symbol contains > name contains
-    matches.sort((a, b) => {
-      const aSymbol = a.symbol;
-      const bSymbol = b.symbol;
-      const aName = (a.name || '').toUpperCase();
-      const bName = (b.name || '').toUpperCase();
-      
-      // Exact symbol match gets highest priority
-      if (aSymbol === query && bSymbol !== query) return -1;
-      if (bSymbol === query && aSymbol !== query) return 1;
-      
-      // Symbol starts with query
-      const aStartsWith = aSymbol.startsWith(query);
-      const bStartsWith = bSymbol.startsWith(query);
-      if (aStartsWith && !bStartsWith) return -1;
-      if (bStartsWith && !aStartsWith) return 1;
-      
-      // Symbol contains query (shorter symbols first)
-      const aSymbolContains = aSymbol.includes(query);
-      const bSymbolContains = bSymbol.includes(query);
-      if (aSymbolContains && !bSymbolContains) return -1;
-      if (bSymbolContains && !aSymbolContains) return 1;
-      if (aSymbolContains && bSymbolContains) return aSymbol.length - bSymbol.length;
-      
-      // Name starts with query
-      if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
-      if (bName.startsWith(query) && !aName.startsWith(query)) return 1;
-      
-      // Alphabetical by symbol
-      return aSymbol.localeCompare(bSymbol);
-    });
-    
-    const results = matches.slice(0, 15);
-    res.json(results.map(a => ({ symbol: a.symbol, name: a.name, exchange: a.exchange, tradable: a.tradable })));
+    res.json(quotes.filter(q => q !== null));
   } catch (error) {
+    console.error('Yahoo Finance trending error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

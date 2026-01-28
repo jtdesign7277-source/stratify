@@ -217,20 +217,29 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     };
   }, [isDragging]);
 
+  // Google Finance color scheme
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#0D0D0D]',
-    surface: 'bg-[#0D0D0D]',
-    surfaceElevated: 'bg-[#111111]',
-    border: 'border-[#1A1A1A]',
-    text: 'text-[#F5F5F5]',
-    textMuted: 'text-[#6B6B6B]'
+    bg: 'bg-[#202124]',           // Google dark background
+    surface: 'bg-[#202124]',
+    surfaceElevated: 'bg-[#303134]', // Google surface
+    border: 'border-[#5f6368]',
+    text: 'text-[#E8EAED]',       // Google primary text
+    textMuted: 'text-[#9AA0A6]',  // Google secondary text
+    green: 'text-[#00C853]',      // Google Finance green
+    red: 'text-[#F44336]',        // Google Finance red
+    greenBg: 'bg-[#00C853]/10',
+    redBg: 'bg-[#F44336]/10',
   } : {
-    bg: 'bg-[#FAFAFA]',
+    bg: 'bg-[#FFFFFF]',
     surface: 'bg-white',
-    surfaceElevated: 'bg-white',
-    border: 'border-[#E5E5E5]',
-    text: 'text-[#171717]',
-    textMuted: 'text-[#A3A3A3]'
+    surfaceElevated: 'bg-[#F8F9FA]',
+    border: 'border-[#DADCE0]',
+    text: 'text-[#202124]',
+    textMuted: 'text-[#5f6368]',
+    green: 'text-[#137333]',
+    red: 'text-[#A50E0E]',
+    greenBg: 'bg-[#137333]/10',
+    redBg: 'bg-[#A50E0E]/10',
   };
 
   const draftStrategiesCount = strategies.filter(s => s.status !== 'deployed').length;
