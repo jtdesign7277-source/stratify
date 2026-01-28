@@ -94,16 +94,16 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
                 </div>
               </div>
               
-              {/* Right: Price and Change */}
-              <div className="text-right flex-shrink-0">
+              {/* Right: Price and Change - side by side like after hours */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {loading[stock.symbol] ? (
                   <div className="text-[14px] text-[#9AA0A6]">...</div>
                 ) : (
                   <>
-                    <div className="text-[15px] font-medium text-[#E8EAED]">
+                    <span className="text-[15px] font-medium text-[#E8EAED]">
                       ${formatPrice(price)}
-                    </div>
-                    <div className="flex items-center justify-end gap-0.5">
+                    </span>
+                    <div className="flex items-center gap-0.5">
                       <span className={`text-[13px] ${isPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
                         {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
                       </span>

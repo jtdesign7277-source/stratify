@@ -156,7 +156,7 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, sidebarExpa
 
 // Nav items - customizable
 const defaultNavItems = [
-  { id: 'watchlist', label: 'Lists', icon: 'eye', hasContent: true },
+  { id: 'watchlist', label: 'Watchlist', icon: 'eye', hasContent: true },
   { id: 'strategies', label: 'Strategies', icon: 'chart', hasContent: true },
   { id: 'brokers', label: 'Brokers', icon: 'link', hasContent: true },
   { id: 'backtest', label: 'Backtest', icon: 'flask' },

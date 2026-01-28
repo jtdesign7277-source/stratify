@@ -48,7 +48,20 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [deployedStrategies, setDeployedStrategies] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-deployed-strategies');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      // Assign varied deployedAt timestamps for demo realism
+      const staggeredTimes = [
+        Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000), // ~2 weeks ago
+        Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),  // ~3 days ago
+        Date.now() - (45 * 60 * 1000),  // ~45 minutes ago
+        Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000), // ~1 week ago
+        Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),  // ~1 day ago
+      ];
+      return parsed.map((s, i) => ({
+        ...s,
+        deployedAt: staggeredTimes[i % staggeredTimes.length]
+      }));
     } catch { return []; }
   });
   const [savedStrategies, setSavedStrategies] = useState(() => {
@@ -127,7 +140,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     // Add to deployed strategies list
     setDeployedStrategies(prev => {
       if (prev.some(s => s.name === strategy.name)) return prev;
-      return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];
+      return [...prev, { ...strategy, status: 'deployed', runStatus: 'running', deployedAt: Date.now() }];
     });
     // Clear auto backtest
     setAutoBacktestStrategy(null);

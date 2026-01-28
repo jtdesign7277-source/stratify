@@ -333,7 +333,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                       Edit
                     </button>
                     <button 
-                      className={`text-purple-400 text-xs font-medium transition-colors px-2 py-1 rounded ${
+                      className={`text-purple-400 text-xs font-light transition-colors px-2 py-1 rounded ${
                         isClickingBacktest && strategy.id === autoBacktestStrategy?.id
                           ? 'bg-purple-500 text-white scale-95'
                           : 'hover:text-purple-300 hover:bg-purple-500/10'
@@ -351,13 +351,12 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                       onClick={(e) => {
                         e.stopPropagation();
                         onSaveToSidebar?.(strategy);
-                        onDeleteStrategy?.(strategy.id);
                       }}
-                      className="text-yellow-400 hover:text-yellow-300 transition-colors p-0.5 rounded hover:bg-yellow-500/10"
-                      title="Save to sidebar"
+                      className="text-emerald-400 hover:text-emerald-300 transition-colors p-0.5 rounded hover:bg-emerald-500/10"
+                      title="Save to Strategies"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                       </svg>
                     </button>
                     <button 
@@ -489,7 +488,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                               <button
                                 onClick={() => runEditBacktest(strategy.id)}
                                 disabled={editBacktestRunning}
-                                className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                className="text-sm font-light text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1.5 disabled:opacity-50"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -516,7 +515,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                               </button>
                               <button
                                 onClick={() => { setEditBacktestResults(null); }}
-                                className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors"
+                                className="text-sm font-light text-purple-400 hover:text-purple-300 transition-colors"
                               >
                                 Re-test
                               </button>
@@ -581,7 +580,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                           <div className="flex justify-center relative">
                             <button 
                               onClick={() => onDeployStrategy?.(strategy)}
-                              className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all ${
+                              className={`px-4 py-2 text-sm font-light rounded-lg flex items-center gap-2 transition-all ${
                                 cursorPhase === 'clicking-deploy'
                                   ? 'bg-emerald-500 text-white scale-95'
                                   : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30'
@@ -634,7 +633,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
 
                         <div className="flex justify-center relative">
                           <button 
-                            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all ${
+                            className={`px-4 py-2 text-sm font-light rounded-lg flex items-center gap-2 transition-all ${
                               cursorPhase === 'clicking-deploy'
                                 ? 'bg-emerald-500 text-white scale-95'
                                 : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30'

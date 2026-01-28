@@ -9,6 +9,32 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
   const [isDragging, setIsDragging] = useState(false);
   const [liveData, setLiveData] = useState({});
   const [pausedStrategies, setPausedStrategies] = useState({});
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update current time every second for running clocks
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format elapsed time as "Xd Xh Xm Xs"
+  const formatElapsedTime = (deployedAt) => {
+    const elapsed = currentTime - deployedAt;
+    const seconds = Math.floor(elapsed / 1000) % 60;
+    const minutes = Math.floor(elapsed / (1000 * 60)) % 60;
+    const hours = Math.floor(elapsed / (1000 * 60 * 60)) % 24;
+    const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+    
+    let result = '';
+    if (days > 0) result += `${days}d `;
+    if (days > 0 || hours > 0) result += `${hours}h `;
+    if (days > 0 || hours > 0 || minutes > 0) result += `${minutes}m `;
+    result += `${seconds}s`;
+    
+    return result;
+  };
 
   // Initialize live data for each strategy
   useEffect(() => {
@@ -227,6 +253,12 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
                         </div>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <div className={`text-xs ${themeClasses.textMuted}`}>Runtime</div>
+                      <div className="text-xs text-white font-mono tabular-nums">
+                        {formatElapsedTime(strategy.deployedAt || Date.now())}
+                      </div>
+                    </div>
                     <div className="flex items-center gap-6 text-xs">
                       <div className="text-right">
                         <div className={themeClasses.textMuted}>P&L</div>
@@ -245,7 +277,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
                       <div className="flex items-center gap-1">
                         <button 
                           onClick={() => handlePause(strategy.id)}
-                          className={`px-2 py-1 text-sm font-medium rounded transition-colors ${
+                          className={`px-2 py-1 text-sm font-light rounded transition-colors ${
                             isPaused 
                               ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10' 
                               : 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
@@ -256,7 +288,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
                         </button>
                         <button 
                           onClick={() => handleKill(strategy.id, strategy.name)}
-                          className="px-2 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" 
+                          className="px-2 py-1 text-sm font-light text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" 
                           title="Kill Strategy"
                         >
                           KILL
