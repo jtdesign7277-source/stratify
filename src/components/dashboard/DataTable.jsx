@@ -292,7 +292,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             const isClickingBacktest = cursorPhase === 'clicking-backtest';
 
             return (
-              <div key={strategy.id} className={`bg-[#1A1A1A] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#2A2A2A] hover:border-purple-500/30'}`}>
+              <div key={strategy.id} className={`bg-[#111111] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#1A1A1A] hover:border-purple-500/30'}`}>
                 {/* Strategy Row */}
                 <div className="flex items-center justify-between gap-4 px-3 py-2">
                   {/* Left: Dropdown toggle + Name + Status */}
@@ -685,7 +685,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             <tr><td colSpan={columns.length} className={`px-4 py-16 text-center ${themeClasses.textMuted}`}>No {activeTab} to display</td></tr>
           ) : (
             sortedData.map((row, index) => (
-              <tr key={row.symbol || index} onClick={() => setSelectedRow(index)} className={`border-b border-[#1A1A1A] cursor-pointer ${selectedRow === index ? 'bg-[#252525] border-l-2 border-l-emerald-500' : 'hover:bg-[#1E1E1E]'}`}>
+              <tr key={row.symbol || index} onClick={() => setSelectedRow(index)} className={`border-b border-[#1A1A1A] cursor-pointer ${selectedRow === index ? 'bg-[#161616] border-l-2 border-l-emerald-500' : 'hover:bg-[#111111]'}`}>
                 {columns.map((col) => (
                   <td key={col.key} className={`px-4 py-3 text-sm font-mono ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.colored ? getValueColor(row[col.key]) : themeClasses.text}`}>{renderCell(row, col)}</td>
                 ))}

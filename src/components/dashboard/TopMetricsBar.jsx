@@ -12,7 +12,30 @@ const formatCurrencyNeutral = (value) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist }) {
+// Mini broker badge for connected accounts
+const BrokerBadge = ({ broker }) => {
+  const colors = {
+    alpaca: 'bg-[#FFCD00] text-black',
+    polymarket: 'bg-[#6366F1] text-white',
+    kalshi: 'bg-[#00D4AA] text-black',
+    webull: 'bg-[#FF5722] text-white',
+    ibkr: 'bg-[#D32F2F] text-white',
+    robinhood: 'bg-[#00C805] text-white',
+    coinbase: 'bg-[#0052FF] text-white',
+    binance: 'bg-[#F3BA2F] text-black',
+  };
+  const initials = {
+    alpaca: 'A', polymarket: 'P', kalshi: 'K', webull: 'W',
+    ibkr: 'IB', robinhood: 'R', coinbase: 'C', binance: 'B'
+  };
+  return (
+    <div className={`w-5 h-5 rounded ${colors[broker.id] || 'bg-gray-500 text-white'} flex items-center justify-center text-[8px] font-bold`} title={broker.name}>
+      {initials[broker.id] || '?'}
+    </div>
+  );
+};
+
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, connectedBrokers = [] }) {
   const account = alpacaData?.account || {};
   
   // Mock live P&L data
@@ -71,6 +94,23 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
       <div className="flex items-center gap-4 ml-4">
         <SearchBar onSelectStock={onAddToWatchlist} />
         <div className="flex items-center gap-4 pl-4 border-l border-[#2A2A2A]">
+          {/* Connected Accounts */}
+          {connectedBrokers.length > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {connectedBrokers.slice(0, 4).map(broker => (
+                  <BrokerBadge key={broker.id} broker={broker} />
+                ))}
+                {connectedBrokers.length > 4 && (
+                  <span className="text-[10px] text-gray-500">+{connectedBrokers.length - 4}</span>
+                )}
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-emerald-400 uppercase tracking-wider">Connected</span>
+                <p className="text-xs text-gray-400">{connectedBrokers.length} account{connectedBrokers.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+          )}
           <div className="text-right">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
             <p className={`text-sm font-semibold ${themeClasses.text}`}>{formatCurrencyNeutral(netLiquidity)}</p>

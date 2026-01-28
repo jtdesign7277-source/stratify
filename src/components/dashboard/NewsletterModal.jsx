@@ -1,136 +1,79 @@
 import { useState, useEffect } from 'react';
 
-// Floating stock ticker component
-const FloatingTicker = ({ symbol, price, change, delay, position }) => (
-  <div 
-    className="absolute bg-[#1A1A1A] rounded-lg px-3 py-2 shadow-xl border border-[#2A2A2A] animate-float"
-    style={{ 
-      ...position,
-      animationDelay: `${delay}s`,
-    }}
-  >
-    <div className="text-[10px] text-gray-400 font-medium">{symbol}</div>
-    <div className="text-sm text-white font-bold">${price}</div>
-    <div className={`text-[10px] font-medium ${change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-      {change >= 0 ? '+' : ''}{change}%
+// Stratify Logo SVG
+const StratifyLogo = () => (
+  <svg viewBox="0 0 64 64" className="w-16 h-16">
+    <ellipse cx="32" cy="32" rx="28" ry="16" stroke="#3b82f6" strokeWidth="1" fill="none" opacity="0.4" transform="rotate(-20 32 32)"/>
+    <ellipse cx="32" cy="32" rx="26" ry="22" stroke="#60a5fa" strokeWidth="0.8" fill="none" opacity="0.5" transform="rotate(25 32 32)"/>
+    <ellipse cx="32" cy="32" rx="22" ry="18" stroke="#93c5fd" strokeWidth="0.6" fill="none" opacity="0.3" transform="rotate(-45 32 32)"/>
+    <circle cx="56" cy="22" r="2.5" fill="#60a5fa"/>
+    <circle cx="8" cy="42" r="2.5" fill="#60a5fa"/>
+    <circle cx="48" cy="54" r="2" fill="#3b82f6" opacity="0.7"/>
+    <circle cx="14" cy="12" r="1.5" fill="#93c5fd" opacity="0.5"/>
+    <text x="32" y="40" textAnchor="middle" fill="url(#logoGrad)" fontSize="28" fontWeight="600" fontFamily="system-ui">S</text>
+    <defs>
+      <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#60a5fa"/>
+        <stop offset="100%" stopColor="#3b82f6"/>
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+// Section component
+const Section = ({ label, title, children }) => (
+  <div className="mb-10">
+    <span className="text-[11px] font-bold text-blue-500 uppercase tracking-wider">{label}</span>
+    <h3 className="text-xl font-semibold text-white mt-2 mb-4">{title}</h3>
+    {children}
+  </div>
+);
+
+// Feature card
+const FeatureCard = ({ icon, title, children }) => (
+  <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-5 hover:border-blue-500/50 transition-colors">
+    <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mb-3 text-blue-500">
+      {icon}
+    </div>
+    <h4 className="text-base font-semibold text-white mb-2">{title}</h4>
+    <p className="text-sm text-gray-400 leading-relaxed">{children}</p>
+  </div>
+);
+
+// Step component
+const Step = ({ number, title, description }) => (
+  <div className="flex gap-4 mb-5">
+    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+      {number}
+    </div>
+    <div>
+      <h4 className="text-sm font-semibold text-white">{title}</h4>
+      <p className="text-sm text-gray-400">{description}</p>
     </div>
   </div>
 );
 
-// Mini candlestick chart
-const MiniChart = ({ delay, position }) => (
-  <div 
-    className="absolute bg-[#1A1A1A]/90 rounded-lg p-2 shadow-xl border border-[#2A2A2A] animate-float"
-    style={{ 
-      ...position,
-      animationDelay: `${delay}s`,
-    }}
-  >
-    <div className="flex items-end gap-0.5 h-12">
-      {[40, 60, 45, 70, 55, 80, 65, 90, 75, 85].map((h, i) => (
-        <div key={i} className="flex flex-col items-center">
-          <div 
-            className={`w-1.5 rounded-sm ${i % 2 === 0 ? 'bg-emerald-500' : 'bg-red-500'}`}
-            style={{ height: `${h * 0.4}px` }}
-          />
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-// Trend line graphic
-const TrendLine = ({ delay, position }) => (
-  <div 
-    className="absolute animate-float"
-    style={{ 
-      ...position,
-      animationDelay: `${delay}s`,
-    }}
-  >
-    <svg width="100" height="50" viewBox="0 0 100 50" className="opacity-60">
-      <defs>
-        <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
-        </linearGradient>
-      </defs>
-      <path 
-        d="M 0 40 Q 25 35 40 25 T 70 15 T 100 5" 
-        stroke="url(#lineGrad)" 
-        strokeWidth="2" 
-        fill="none"
-      />
-      <circle cx="100" cy="5" r="3" fill="#10b981" className="animate-pulse" />
-    </svg>
+// Stat card
+const StatCard = ({ value, label }) => (
+  <div className="bg-[#161b22] border border-[#21262d] rounded-lg p-4 text-center">
+    <div className="text-2xl font-bold text-blue-500">{value}</div>
+    <div className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</div>
   </div>
 );
 
 export default function NewsletterModal({ isOpen, onClose }) {
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [prices, setPrices] = useState({
-    NVDA: { price: '891.25', change: 4.2 },
-    TSLA: { price: '248.50', change: -1.8 },
-    AAPL: { price: '189.84', change: 2.1 },
-    SPY: { price: '502.12', change: 0.8 },
-  });
-
-  // Animate prices
-  useEffect(() => {
-    if (!isOpen) return;
-    const interval = setInterval(() => {
-      setPrices(prev => ({
-        NVDA: { 
-          price: (parseFloat(prev.NVDA.price) + (Math.random() - 0.4) * 2).toFixed(2),
-          change: prev.NVDA.change + (Math.random() - 0.5) * 0.2
-        },
-        TSLA: { 
-          price: (parseFloat(prev.TSLA.price) + (Math.random() - 0.5) * 1.5).toFixed(2),
-          change: prev.TSLA.change + (Math.random() - 0.5) * 0.2
-        },
-        AAPL: { 
-          price: (parseFloat(prev.AAPL.price) + (Math.random() - 0.4) * 0.8).toFixed(2),
-          change: prev.AAPL.change + (Math.random() - 0.5) * 0.1
-        },
-        SPY: { 
-          price: (parseFloat(prev.SPY.price) + (Math.random() - 0.4) * 0.5).toFixed(2),
-          change: prev.SPY.change + (Math.random() - 0.5) * 0.1
-        },
-      }));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [isOpen]);
-
   if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (email) {
-      const subscribers = JSON.parse(localStorage.getItem('stratify-newsletter') || '[]');
-      if (!subscribers.includes(email)) {
-        subscribers.push(email);
-        localStorage.setItem('stratify-newsletter', JSON.stringify(subscribers));
-      }
-      setSubmitted(true);
-      setTimeout(() => {
-        onClose();
-        setSubmitted(false);
-        setEmail('');
-      }, 2000);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/85 backdrop-blur-sm"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-4xl mx-4 animate-fadeIn">
+      <div className="relative w-full max-w-2xl mx-4 max-h-[90vh] animate-fadeIn">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -141,95 +84,183 @@ export default function NewsletterModal({ isOpen, onClose }) {
           </svg>
         </button>
 
-        {/* Card */}
-        <div className="bg-[#FAFAFA] rounded-2xl overflow-hidden flex">
-          {/* Left side - Form */}
-          <div className="flex-1 p-8 md:p-10">
-            {!submitted ? (
-              <>
-                <h2 className="text-2xl md:text-3xl font-bold text-[#0D0D0D] mb-2 tracking-tight">
-                  Trade signals to your inbox
-                </h2>
-                
-                <p className="text-gray-600 text-sm mb-1">
-                  3 edge picks weekly with exact entry and exit points
-                </p>
-                
-                <p className="text-gray-500 text-xs mb-5 italic">
-                  The setups we don't post publicly. First movers only.
-                </p>
+        {/* Newsletter Content */}
+        <div className="bg-[#111111] rounded-2xl overflow-hidden border border-[#21262d]">
+          
+          {/* Header */}
+          <div className="bg-gradient-to-br from-[#0d1117] to-[#161b22] p-8 text-center border-b border-[#21262d]">
+            <div className="flex justify-center mb-4">
+              <StratifyLogo />
+            </div>
+            <h1 className="text-2xl font-semibold text-white mb-1">Stratify</h1>
+            <p className="text-gray-400 text-sm">Trade Smarter with AI-Powered Strategies</p>
+            <span className="inline-block bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full mt-4">
+              📈 January 2026 Edition
+            </span>
+          </div>
 
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Your email address"
-                    required
-                    className="flex-1 px-4 py-2.5 rounded-full border border-gray-300 text-[#0D0D0D] placeholder-gray-400 focus:outline-none focus:border-gray-500 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-[#0D0D0D] text-white rounded-full font-medium text-sm hover:bg-[#1A1A1A] transition-colors whitespace-nowrap"
-                  >
-                    Subscribe
-                  </button>
-                </form>
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[60vh] p-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#2A2A2A #111' }}>
+            
+            {/* Intro */}
+            <p className="text-gray-300 text-base leading-relaxed mb-8">
+              Welcome to the <strong className="text-white">first edition</strong> of the Stratify newsletter! We're building something special — a platform that lets you describe trading strategies in plain English and watch AI transform them into executable, backtested algorithms. No coding required.
+            </p>
 
-                <p className="text-[10px] text-gray-400 mt-3">
-                  No spam. Unsubscribe anytime.
+            {/* Vision Section */}
+            <Section label="The Vision" title="Trading Strategies in Plain English">
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                What if you could simply <em>describe</em> a trading strategy to an AI, and it builds it for you? That's exactly what Stratify does. Tell us what you want — RSI reversals, moving average crossovers, breakout patterns — and watch it come to life.
+              </p>
+              <div className="bg-blue-500/10 border-l-2 border-blue-500 rounded-r-lg p-4">
+                <p className="text-gray-300 text-sm italic mb-2">
+                  "Buy Tesla when RSI drops below 30 and sell when it goes above 70. Use a 2% position size with a 5% stop loss."
                 </p>
-              </>
-            ) : (
-              <div className="text-center py-6">
-                <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-[#0D0D0D] mb-1">You're in.</h3>
-                <p className="text-gray-600 text-sm">First signal drops soon.</p>
+                <span className="text-xs text-gray-500">— That's all it takes. Plain English → Working Strategy.</span>
               </div>
-            )}
+            </Section>
+
+            {/* AI Strategy Builder */}
+            <Section label="Core Feature" title="🤖 AI Strategy Builder">
+              <p className="text-gray-400 text-sm leading-relaxed mb-5">
+                Our AI chatbot understands trading concepts and translates your ideas into real, executable code. It's like having a quantitative developer on call 24/7.
+              </p>
+              
+              <Step number="1" title="Describe Your Strategy" description="Type what you want in natural language. No technical jargon needed." />
+              <Step number="2" title="AI Generates the Code" description="Claude AI translates your idea into backtestable Python code instantly." />
+              <Step number="3" title="Review & Customize" description="Adjust risk parameters, position sizing, and stop losses with simple controls." />
+              <Step number="4" title="Backtest & Deploy" description="Test against historical data, then deploy to live markets with one click." />
+
+              <div className="bg-[#0d1117] border border-[#21262d] rounded-lg p-4 font-mono text-xs mt-4">
+                <span className="text-gray-500"># Generated by Stratify AI</span><br/>
+                <span className="text-red-400">class</span> <span className="text-purple-400">RSIStrategy</span>(Strategy):<br/>
+                <span className="text-gray-400 ml-4">def</span> <span className="text-purple-400">on_bar</span>(self, bar):<br/>
+                <span className="text-gray-300 ml-8">rsi = self.indicators.RSI(</span><span className="text-blue-400">14</span><span className="text-gray-300">)</span><br/>
+                <span className="text-red-400 ml-8">if</span> <span className="text-gray-300">rsi &lt; </span><span className="text-blue-400">30</span><span className="text-gray-300">:</span><br/>
+                <span className="text-gray-300 ml-12">self.buy(size=</span><span className="text-blue-400">0.02</span><span className="text-gray-300">)</span>
+              </div>
+            </Section>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#21262d] to-transparent my-8" />
+
+            {/* Backtesting */}
+            <Section label="Before You Risk Real Money" title="📊 Powerful Backtesting">
+              <p className="text-gray-400 text-sm leading-relaxed mb-5">
+                Every strategy gets tested against years of historical market data before you risk a single dollar. See exactly how your strategy would have performed.
+              </p>
+              
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <StatCard value="67%" label="Win Rate" />
+                <StatCard value="2.1" label="Profit Factor" />
+                <StatCard value="-8.2%" label="Max Drawdown" />
+              </div>
+            </Section>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#21262d] to-transparent my-8" />
+
+            {/* Deployment */}
+            <Section label="Go Live" title="🚀 One-Click Deployment">
+              <p className="text-gray-400 text-sm leading-relaxed mb-5">
+                When you're confident in your strategy, deploy it to live markets with a single click. Stratify connects directly to your broker via the Alpaca API.
+              </p>
+              
+              <div className="grid gap-3">
+                <FeatureCard
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                  }
+                  title="Real-Time Execution"
+                >
+                  Sub-millisecond order execution with direct market access. Your strategy runs 24/7.
+                </FeatureCard>
+                
+                <FeatureCard
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                  }
+                  title="Built-In Risk Controls"
+                >
+                  Automatic stop-losses, position limits, and daily loss caps protect your capital.
+                </FeatureCard>
+              </div>
+            </Section>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#21262d] to-transparent my-8" />
+
+            {/* Watchlist */}
+            <Section label="Research Tools" title="👁️ Watchlist & TradingView Charts">
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                Build your watchlist and analyze any stock with professional-grade TradingView charts — right inside Stratify.
+              </p>
+              
+              <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-4">
+                <p className="text-sm text-gray-300">
+                  ✓ Real-time stock quotes & price alerts<br/>
+                  ✓ Full TradingView charting with indicators<br/>
+                  ✓ One-click chart access from your watchlist<br/>
+                  ✓ Track P&L across all your strategies
+                </p>
+              </div>
+            </Section>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#21262d] to-transparent my-8" />
+
+            {/* Strategy Templates */}
+            <Section label="Get Started Fast" title="📁 50+ Strategy Templates">
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                Don't want to start from scratch? Browse our library of battle-tested strategies built by experienced traders.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-[#161b22] border border-[#21262d] rounded-lg p-3">
+                  <div className="text-sm font-medium text-white">EMA Crossover</div>
+                  <div className="text-xs text-gray-500">8/21 EMA momentum</div>
+                </div>
+                <div className="bg-[#161b22] border border-[#21262d] rounded-lg p-3">
+                  <div className="text-sm font-medium text-white">RSI Reversal</div>
+                  <div className="text-xs text-gray-500">Mean reversion</div>
+                </div>
+                <div className="bg-[#161b22] border border-[#21262d] rounded-lg p-3">
+                  <div className="text-sm font-medium text-white">Breakout Hunter</div>
+                  <div className="text-xs text-gray-500">Resistance breaks</div>
+                </div>
+                <div className="bg-[#161b22] border border-[#21262d] rounded-lg p-3">
+                  <div className="text-sm font-medium text-white">Golden Cross</div>
+                  <div className="text-xs text-gray-500">50/200 MA trend</div>
+                </div>
+              </div>
+            </Section>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#21262d] to-transparent my-8" />
+
+            {/* Coming Next */}
+            <Section label="On The Roadmap" title="🔮 What's Coming Next">
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+                <h4 className="text-emerald-400 text-sm font-semibold mb-3">🚧 In Development</h4>
+                <ul className="text-sm text-gray-400 space-y-1">
+                  <li>→ Real Alpaca API integration for live trading</li>
+                  <li>→ User authentication & account management</li>
+                  <li>→ Advanced backtesting engine with 10+ years of data</li>
+                  <li>→ Mobile app for monitoring on the go</li>
+                  <li>→ Social features — share & discover strategies</li>
+                  <li>→ Crypto trading support (BTC, ETH, SOL & more)</li>
+                </ul>
+              </div>
+            </Section>
+
           </div>
 
-          {/* Right side - Floating graphics */}
-          <div className="hidden md:block w-72 bg-gradient-to-br from-[#0D0D0D] to-[#1A1A1A] relative overflow-hidden">
-            {/* Floating tickers */}
-            <FloatingTicker 
-              symbol="NVDA" 
-              price={prices.NVDA.price} 
-              change={parseFloat(prices.NVDA.change.toFixed(1))} 
-              delay={0}
-              position={{ top: '15%', left: '10%' }}
-            />
-            <FloatingTicker 
-              symbol="TSLA" 
-              price={prices.TSLA.price} 
-              change={parseFloat(prices.TSLA.change.toFixed(1))} 
-              delay={0.5}
-              position={{ top: '55%', right: '15%' }}
-            />
-            <FloatingTicker 
-              symbol="SPY" 
-              price={prices.SPY.price} 
-              change={parseFloat(prices.SPY.change.toFixed(1))} 
-              delay={1}
-              position={{ bottom: '15%', left: '20%' }}
-            />
-            
-            {/* Mini charts */}
-            <MiniChart delay={0.3} position={{ top: '35%', right: '10%' }} />
-            <MiniChart delay={0.8} position={{ bottom: '35%', left: '5%' }} />
-            
-            {/* Trend lines */}
-            <TrendLine delay={0.2} position={{ top: '10%', right: '5%' }} />
-            <TrendLine delay={0.7} position={{ bottom: '10%', right: '20%' }} />
-
-            {/* Glowing orb effect */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl" />
-            <div className="absolute top-1/4 right-1/4 w-20 h-20 bg-purple-500/20 rounded-full blur-2xl" />
+          {/* Footer */}
+          <div className="bg-[#0d1117] border-t border-[#21262d] p-4 text-center">
+            <p className="text-xs text-gray-500">
+              © 2026 Stratify. All rights reserved. This is not financial advice. Trading involves risk.
+            </p>
           </div>
+
         </div>
       </div>
 
@@ -238,15 +269,8 @@ export default function NewsletterModal({ isOpen, onClose }) {
           from { opacity: 0; transform: scale(0.95) translateY(10px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
         .animate-fadeIn {
           animation: fadeIn 0.2s ease-out forwards;
-        }
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
         }
       `}</style>
     </div>

@@ -139,7 +139,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
   if (!expanded) {
     return (
       <div 
-        className={`h-8 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border} cursor-pointer hover:bg-[#252525] transition-colors`}
+        className={`h-8 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border} cursor-pointer hover:bg-[#161616] transition-colors`}
         onClick={() => setExpanded(true)}
       >
         <div className="flex items-center gap-2">
@@ -265,10 +265,10 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                         <div className="text-emerald-400 tabular-nums">{live.winRate.toFixed(1)}%</div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button className="px-2 py-1 text-xs font-bold text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
+                        <button className="px-2 py-1 text-sm font-medium text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
                           PAUSE
                         </button>
-                        <button className="px-2 py-1 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Kill Strategy">
+                        <button className="px-2 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Kill Strategy">
                           KILL
                         </button>
                       </div>

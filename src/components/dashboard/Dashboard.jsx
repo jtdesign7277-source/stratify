@@ -7,6 +7,7 @@ import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
 import StockDetailView from './StockDetailView';
 import NewsletterModal from './NewsletterModal';
+import BrokerConnectModal from './BrokerConnectModal';
 
 const loadDashboardState = () => {
   try {
@@ -60,6 +61,13 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [showNewsletter, setShowNewsletter] = useState(false);
+  const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [connectedBrokers, setConnectedBrokers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-connected-brokers');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
 
   const handleStrategyGenerated = (strategy) => {
     setStrategies(prev => {
@@ -132,9 +140,21 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     }
   };
 
+  const handleConnectBroker = (broker) => {
+    setConnectedBrokers(prev => {
+      if (prev.some(b => b.id === broker.id)) return prev;
+      return [...prev, broker];
+    });
+  };
+
   useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
   }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme]);
+
+  // Persist connected brokers
+  useEffect(() => {
+    localStorage.setItem('stratify-connected-brokers', JSON.stringify(connectedBrokers));
+  }, [connectedBrokers]);
 
   useEffect(() => {
     localStorage.setItem('stratify-watchlist', JSON.stringify(watchlist));
@@ -199,9 +219,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   const themeClasses = theme === 'dark' ? {
     bg: 'bg-[#0D0D0D]',
-    surface: 'bg-[#1A1A1A]',
-    surfaceElevated: 'bg-[#1E1E1E]',
-    border: 'border-[#2A2A2A]',
+    surface: 'bg-[#0D0D0D]',
+    surfaceElevated: 'bg-[#111111]',
+    border: 'border-[#1A1A1A]',
     text: 'text-[#F5F5F5]',
     textMuted: 'text-[#6B6B6B]'
   } : {
@@ -217,7 +237,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
-      <TopMetricsBar alpacaData={alpacaData} onAddToWatchlist={addToWatchlist} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} />
+      <TopMetricsBar alpacaData={alpacaData} onAddToWatchlist={addToWatchlist} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} connectedBrokers={connectedBrokers} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           expanded={sidebarExpanded} 
@@ -231,6 +251,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           onViewChart={(stock) => setSelectedStock(stock)}
           savedStrategies={savedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
+          connectedBrokers={connectedBrokers}
+          onOpenBrokerModal={() => setShowBrokerModal(true)}
         />
         <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
           <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
@@ -284,6 +306,13 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       <NewsletterModal 
         isOpen={showNewsletter} 
         onClose={() => setShowNewsletter(false)} 
+      />
+
+      <BrokerConnectModal 
+        isOpen={showBrokerModal} 
+        onClose={() => setShowBrokerModal(false)}
+        onConnect={handleConnectBroker}
+        connectedBrokers={connectedBrokers}
       />
     </div>
   );

@@ -288,33 +288,20 @@ const LandingPage = ({ onEnter }) => {
             </div>
 
             {/* Social Proof Stats */}
-            <div className="flex items-center justify-center gap-12 mb-16">
-              <div>
+            <div className="flex items-center justify-center gap-16 mb-16">
+              <div className="text-center">
                 <div className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   <AnimatedCounter end={501} suffix="+" />
                 </div>
                 <div className="text-sm text-gray-400">Beta Waitlist</div>
               </div>
               <div className="w-px h-12 bg-white/10" />
-              <div>
-                <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                  $<AnimatedCounter end={2} />M+
+              <div className="text-center">
+                <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-baseline justify-center gap-1">
+                  <span className="text-3xl">⚡</span>
+                  <span>Instant</span>
                 </div>
-                <div className="text-sm text-gray-400">Paper Traded Volume</div>
-              </div>
-              <div className="w-px h-12 bg-white/10" />
-              <div>
-                <div className="text-5xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-                  <AnimatedCounter end={50} suffix="+" />
-                </div>
-                <div className="text-sm text-gray-400">Strategy Templates</div>
-              </div>
-              <div className="w-px h-12 bg-white/10" />
-              <div>
-                <div className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
-                  <AnimatedCounter end={67} suffix="%" />
-                </div>
-                <div className="text-sm text-gray-400">Avg. User Win Rate</div>
+                <div className="text-sm text-gray-400">Strategy Deployment</div>
               </div>
             </div>
 
@@ -322,20 +309,56 @@ const LandingPage = ({ onEnter }) => {
             <div className="mb-16">
               <p className="text-sm text-gray-500 mb-6">INTEGRATED WITH</p>
               <div className="flex items-center justify-center gap-12 flex-wrap">
+                {/* Vertex AI */}
+                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L4 6v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V6l-8-4z" fill="#4285F4"/>
+                    <circle cx="8" cy="10" r="1.5" fill="#fff"/>
+                    <circle cx="12" cy="8" r="1.5" fill="#fff"/>
+                    <circle cx="16" cy="10" r="1.5" fill="#fff"/>
+                    <circle cx="10" cy="14" r="1.5" fill="#fff"/>
+                    <circle cx="14" cy="14" r="1.5" fill="#fff"/>
+                  </svg>
+                  <span className="text-xl font-semibold text-gray-300">Vertex AI</span>
+                </div>
+
+                {/* Perplexity */}
+                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L14 8H20L15 12L17 18L12 14L7 18L9 12L4 8H10L12 2Z" fill="#20B8CD"/>
+                    <path d="M12 6L13 9H16L13.5 11L14.5 14L12 12L9.5 14L10.5 11L8 9H11L12 6Z" fill="#0D9488"/>
+                  </svg>
+                  <span className="text-xl font-medium text-gray-300">perplexity</span>
+                </div>
+
+                {/* Gemini */}
+                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                  <span className="text-2xl font-medium bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Gemini</span>
+                </div>
+
                 {/* Polymarket */}
-                <span className="text-xl font-bold tracking-tight text-gray-300 opacity-60 hover:opacity-100 transition-opacity">Polymarket</span>
+                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L22 12L12 22L2 12L12 2Z" stroke="#fff" strokeWidth="2" fill="none"/>
+                    <path d="M12 6L18 12L12 18L6 12L12 6Z" stroke="#fff" strokeWidth="1.5" fill="none"/>
+                  </svg>
+                  <span className="text-xl font-semibold text-gray-300">Polymarket</span>
+                </div>
 
-                {/* Webull */}
-                <span className="text-xl font-bold text-gray-300 opacity-60 hover:opacity-100 transition-opacity">Webull</span>
-
-                {/* TradingView */}
-                <span className="text-xl font-semibold text-gray-300 opacity-60 hover:opacity-100 transition-opacity">TradingView</span>
-
-                {/* Kalshi */}
-                <span className="text-xl font-bold tracking-wide text-gray-300 opacity-60 hover:opacity-100 transition-opacity">Kalshi</span>
-
-                {/* Alpaca */}
-                <span className="text-xl font-bold text-gray-300 tracking-wider opacity-60 hover:opacity-100 transition-opacity">ALPACA</span>
+                {/* GOLDSKY */}
+                <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <defs>
+                      <linearGradient id="goldsky-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#F59E0B"/>
+                        <stop offset="100%" stopColor="#EF4444"/>
+                      </linearGradient>
+                    </defs>
+                    <circle cx="12" cy="12" r="10" fill="url(#goldsky-grad)"/>
+                    <circle cx="12" cy="12" r="6" fill="#0F172A"/>
+                  </svg>
+                  <span className="text-xl font-bold tracking-wider text-gray-300">GOLDSKY</span>
+                </div>
               </div>
             </div>
           </div>

@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stratify Scanner 2.0 - WEB VERSION</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#0a0a0a;--sidebar:#0f0f0f;--card:#141414;--border:rgba(255,255,255,0.08);--t1:#fff;--t2:rgba(255,255,255,0.7);--t3:rgba(255,255,255,0.4);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--red:#f87171;--blue:#60a5fa;--purple:#c084fc;--orange:#fb923c;--font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace}
+    body{font-family:var(--font);background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased}
+    .app{display:flex;min-height:100vh}
+    
+    /* Sidebar - Auto Collapse */
+    .sidebar{width:68px;background:var(--sidebar);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:width .25s ease, padding .25s ease;overflow:hidden}
+    .sidebar:hover,.sidebar.expanded{width:240px;padding:20px 16px}
+    .logo{font-size:20px;font-weight:700;margin-bottom:32px;display:flex;align-items:center;gap:10px;padding:0 8px;white-space:nowrap}
+    .logo svg{width:24px;height:24px;min-width:24px;stroke:var(--green);fill:none;stroke-width:2}
+    .logo-text,.logo span{opacity:0;transition:opacity .2s ease;pointer-events:none}
+    .sidebar:hover .logo-text,.sidebar.expanded .logo-text,.sidebar:hover .logo span,.sidebar.expanded .logo span{opacity:1;pointer-events:auto}
+    .nav{display:flex;flex-direction:column;gap:4px;flex:1}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;font-size:14px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .2s;border:none;background:none;width:100%;text-align:left;white-space:nowrap;overflow:hidden}
+    .nav-item:hover{background:var(--card);color:var(--t1)}
+    .nav-item.active{background:var(--green-dim);color:var(--green)}
+    .nav-item svg{width:20px;height:20px;min-width:20px;stroke:currentColor;fill:none;stroke-width:2}
+    .nav-item-text{opacity:0;transition:opacity .2s ease}
+    .sidebar:hover .nav-item-text,.sidebar.expanded .nav-item-text{opacity:1}
+    .badge{margin-left:auto;background:var(--green);color:var(--bg);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;opacity:0;transition:opacity .2s ease}
+    .sidebar:hover .badge,.sidebar.expanded .badge{opacity:1}
+    .badge.alert{background:var(--red)}
+    .nav-section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin:28px 0 12px;padding-left:14px;opacity:0;height:0;overflow:hidden;transition:opacity .2s ease, height .2s ease, margin .2s ease}
+    .sidebar:hover .nav-section,.sidebar.expanded .nav-section{opacity:1;height:auto}
+    .user{display:flex;align-items:center;gap:12px;padding:12px;border-top:1px solid var(--border);margin-top:auto;overflow:hidden}
+    .avatar{width:36px;height:36px;min-width:36px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600}
+    .user-info{opacity:0;transition:opacity .2s ease;white-space:nowrap}
+    .sidebar:hover .user-info,.sidebar.expanded .user-info{opacity:1}
+    
+    /* Main */
+    .main{flex:1;margin-left:68px;padding:24px;transition:margin-left .25s ease}
+    .page{display:none}
+    .page.active{display:block}
+    
+    /* Header */
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
+    .header h1{font-size:28px;font-weight:700;margin-bottom:4px}
+    .header p{font-size:14px;color:var(--t2)}
+    .actions{display:flex;gap:12px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s}
+    .btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+    .btn-secondary{background:var(--card);border:1px solid var(--border);color:var(--t1)}
+    .btn-primary{background:var(--green);color:var(--bg)}
+    
+    /* Stats */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+    .stat-label{font-size:13px;color:var(--t2);margin-bottom:12px}
+    .stat-value{font-family:var(--mono);font-size:28px;font-weight:700}
+    .stat-change{font-size:12px;color:var(--green);margin-top:4px}
+    
+    /* Card */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+    .card-title{font-size:16px;font-weight:600;margin-bottom:20px}
+    
+    /* Chart */
+    .chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .chart-value{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--green)}
+    .chart-tabs{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:8px}
+    .chart-tab{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;color:var(--t3);cursor:pointer;border:none;background:none}
+    .chart-tab.active{background:var(--card);color:var(--t1)}
+    #chart{height:300px;width:100%}
+    
+    /* Table */
+    .table-header{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 80px;gap:16px;padding:14px 20px;background:var(--bg);border-radius:8px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+    .table-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 80px;gap:16px;padding:16px 20px;align-items:center;border-bottom:1px solid var(--border)}
+    .market{display:flex;align-items:center;gap:12px}
+    .market-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .market-icon.crypto{background:rgba(251,146,60,0.15)}
+    .market-icon.sports{background:rgba(74,222,128,0.15)}
+    .market-icon.politics{background:rgba(96,165,250,0.15)}
+    .market-icon.finance{background:rgba(192,132,252,0.15)}
+    .market h4{font-size:14px;font-weight:500}
+    .market span{font-size:12px;color:var(--t3)}
+    .profit{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--green)}
+    .trade-btn{background:var(--border);border:none;color:var(--t1);padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+    .trade-btn:hover{background:var(--green);color:var(--bg)}
+    
+    /* Watchlist */
+    .watch-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+    .watch-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+    .watch-card.has-arb{border-color:var(--green);background:linear-gradient(135deg,rgba(74,222,128,0.05),transparent)}
+    .watch-header{display:flex;justify-content:space-between;margin-bottom:16px}
+    .watch-title{font-size:15px;font-weight:600}
+    .watch-cat{font-size:12px;color:var(--t3)}
+    .watch-status{padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600}
+    .watch-status.active{background:var(--green-dim);color:var(--green)}
+    .watch-status.waiting{background:rgba(255,255,255,0.05);color:var(--t3)}
+    .watch-prices{display:flex;gap:24px;margin-bottom:16px}
+    .watch-price-label{font-size:11px;color:var(--t3)}
+    .watch-price-value{font-family:var(--mono);font-size:16px;font-weight:600}
+    .watch-footer{display:flex;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border)}
+    
+    /* Alerts */
+    .alert{display:flex;align-items:center;gap:16px;padding:16px 20px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px}
+    .alert.unread{border-left:3px solid var(--green)}
+    .alert-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+    .alert-icon.profit{background:rgba(74,222,128,0.15)}
+    .alert-icon.price{background:rgba(96,165,250,0.15)}
+    .alert-content{flex:1}
+    .alert-title{font-size:14px;font-weight:500;margin-bottom:4px}
+    .alert-desc{font-size:13px;color:var(--t2)}
+    .alert-meta{text-align:right}
+    .alert-time{font-size:12px;color:var(--t3);margin-bottom:4px}
+    .alert-value{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--green)}
+    
+    /* Leaderboard */
+    .leader-row{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border)}
+    .rank{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:700;background:var(--bg)}
+    .rank.gold{background:rgba(250,204,21,0.15);color:#facc15}
+    .rank.silver{background:rgba(255,255,255,0.1);color:var(--t2)}
+    .rank.bronze{background:rgba(251,146,60,0.15);color:var(--orange)}
+    .leader-user{flex:1;display:flex;align-items:center;gap:12px}
+    .leader-name{font-size:14px;font-weight:500}
+    .leader-trades{font-size:12px;color:var(--t3)}
+    .leader-profit{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--green)}
+    
+    /* Settings */
+    .setting{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border)}
+    .setting h4{font-size:14px;font-weight:500;margin-bottom:4px}
+    .setting p{font-size:13px;color:var(--t3)}
+    .toggle{width:48px;height:28px;background:var(--bg);border-radius:28px;position:relative;cursor:pointer}
+    .toggle.on{background:var(--green-dim)}
+    .toggle::after{content:'';position:absolute;top:4px;left:4px;width:20px;height:20px;background:var(--t3);border-radius:50%;transition:.3s}
+    .toggle.on::after{transform:translateX(20px);background:var(--green)}
+    
+    /* Analytics */
+    .analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:32px}
+    .bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .bar-label{width:80px;font-size:13px;color:var(--t2)}
+    .bar-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px}
+    .bar-value{width:50px;font-family:var(--mono);font-size:13px;text-align:right}
+    
+    /* Mobile */
+    .mobile-toggle{display:none;position:fixed;top:16px;left:16px;z-index:200;background:var(--card);border:1px solid var(--border);padding:10px;border-radius:8px;cursor:pointer}
+    .mobile-toggle svg{width:24px;height:24px;stroke:var(--t1);fill:none;stroke-width:2}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99}
+    .overlay.open{display:block}
+    
+    @media(max-width:1200px){.stats{grid-template-columns:repeat(2,1fr)}.watch-grid,.analytics-grid{grid-template-columns:1fr}}
+    @media(max-width:768px){.sidebar{width:0;padding:20px 0;transform:translateX(-100%)}.sidebar.open{width:240px;padding:20px 16px;transform:translateX(0)}.sidebar.open .logo-text,.sidebar.open .nav-item-text,.sidebar.open .badge,.sidebar.open .nav-section,.sidebar.open .user-info,.sidebar.open .logo span{opacity:1}.main{margin-left:0;padding:16px;padding-top:70px}.mobile-toggle{display:block}.stats{grid-template-columns:1fr}.header{flex-direction:column;align-items:flex-start;gap:16px}.table-header,.table-row{grid-template-columns:1fr 1fr 80px}.table-header>*:nth-child(3),.table-row>*:nth-child(3),.table-header>*:nth-child(4),.table-row>*:nth-child(4){display:none}}
+    
+    /* Modal Styles */
+    .modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center}
+    .modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px)}
+    .modal-content{position:relative;background:var(--card);border:1px solid var(--border);border-radius:16px;width:90%;max-width:500px;max-height:90vh;overflow:hidden;animation:modalIn 0.2s ease}
+    @keyframes modalIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border)}
+    .modal-header h2{font-size:18px;font-weight:600}
+    .modal-close{background:none;border:none;color:var(--t3);cursor:pointer;padding:4px}
+    .modal-close:hover{color:var(--t1)}
+    .modal-body{padding:24px;max-height:60vh;overflow-y:auto}
+    .modal-footer{display:flex;justify-content:flex-end;gap:12px;padding:20px 24px;border-top:1px solid var(--border)}
+    
+    /* Filter Styles */
+    .filter-section{margin-bottom:24px}
+    .filter-section:last-child{margin-bottom:0}
+    .filter-label{display:block;font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px}
+    .filter-chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:500;background:var(--bg);border:1px solid var(--border);color:var(--t2);cursor:pointer;transition:all 0.2s}
+    .chip:hover{border-color:var(--green);color:var(--t1)}
+    .chip.active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+    .filter-range{display:flex;align-items:center;gap:16px}
+    .filter-range input[type="range"]{flex:1;-webkit-appearance:none;height:6px;background:var(--bg);border-radius:3px;outline:none}
+    .filter-range input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--green);border-radius:50%;cursor:pointer}
+    .filter-range span{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--green);min-width:40px}
+    .filter-checkboxes{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .checkbox-label{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--t2);cursor:pointer}
+    .checkbox-label input{display:none}
+    .checkmark{width:20px;height:20px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+    .checkbox-label input:checked+.checkmark{background:var(--green);border-color:var(--green)}
+    .checkbox-label input:checked+.checkmark::after{content:'✓';color:var(--bg);font-size:12px;font-weight:700}
+    .filter-select{width:100%;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-size:14px;cursor:pointer;outline:none}
+    .filter-select:focus{border-color:var(--green)}
+    
+    /* Active Filter Tags */
+    .filter-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--green-dim);border:1px solid var(--green);border-radius:20px;font-size:12px;color:var(--green)}
+    .filter-tag button{background:none;border:none;color:var(--green);cursor:pointer;padding:0;font-size:14px}
+    
+    /* Scanner Loading State */
+    .scanning .scan-icon{animation:spin 1s linear infinite}
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .skeleton{background:linear-gradient(90deg,var(--bg) 25%,var(--card) 50%,var(--bg) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:20px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <button class="mobile-toggle" onclick="toggleSidebar()"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <div class="overlay" onclick="toggleSidebar()"></div>
+    
+    <aside class="sidebar">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg><span class="logo-text">Stratify</span><span style="font-size:10px;background:var(--green);color:var(--bg);padding:2px 6px;border-radius:4px;margin-left:8px;font-weight:600">WEB</span></div>
+      <nav class="nav">
+        <button class="nav-item active" data-page="home"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nav-item-text">Home</span></button>
+        <button class="nav-item" data-page="scanner"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg><span class="nav-item-text">Scanner</span><span class="badge">12</span></button>
+        <button class="nav-item" data-page="watchlist"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span class="nav-item-text">Watchlist</span></button>
+        <button class="nav-item" data-page="alerts"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nav-item-text">Alerts</span><span class="badge alert">3</span></button>
+        <button class="nav-item" data-page="history"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="nav-item-text">History</span></button>
+        <div class="nav-section">Analytics</div>
+        <button class="nav-item" data-page="analytics"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="nav-item-text">Analytics</span></button>
+        <button class="nav-item" data-page="leaderboard"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-item-text">Leaderboard</span></button>
+        <div class="nav-section">Settings</div>
+        <button class="nav-item" data-page="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="nav-item-text">Settings</span></button>
+      </nav>
+      <div class="user"><div class="avatar">J</div><div class="user-info"><div style="font-size:13px;font-weight:600">Jeff</div><div style="font-size:11px;color:var(--t3)">Pro Plan</div></div></div>
+    </aside>
+    
+    <main class="main">
+      <!-- HOME -->
+      <div class="page active" id="page-home">
+        <header class="header"><div><h1>Dashboard</h1><p>Real-time arbitrage opportunities</p></div><div class="actions"><button class="btn btn-secondary"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button><button class="btn btn-primary" onclick="switchPage('scanner')"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>Scan Now</button></div></header>
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Active Opportunities</div><div class="stat-value">12</div><div class="stat-change">+3 from yesterday</div></div>
+          <div class="stat"><div class="stat-label">Best Profit</div><div class="stat-value" style="color:var(--green)">+3.09%</div><div class="stat-change">BTC $100k March</div></div>
+          <div class="stat"><div class="stat-label">Total Volume</div><div class="stat-value">$847K</div><div class="stat-change">+12% this week</div></div>
+          <div class="stat"><div class="stat-label">Your Profit</div><div class="stat-value" style="color:var(--green)">$2,847</div><div class="stat-change">+$342 today</div></div>
+        </div>
+        <div class="card">
+          <div class="chart-header"><div><div style="font-size:16px;font-weight:600;margin-bottom:4px">Profit Over Time</div><div class="chart-value" id="chart-total">+$2,847</div></div><div class="chart-tabs"><button class="chart-tab" data-range="1D">1D</button><button class="chart-tab" data-range="1W">1W</button><button class="chart-tab active" data-range="1M">1M</button><button class="chart-tab" data-range="ALL">ALL</button></div></div>
+          <div id="chart"></div>
+        </div>
+        <div class="card-title">Top Opportunities</div>
+        <div class="table-header"><span>Market</span><span>Platforms</span><span>Cost</span><span>Profit</span><span></span></div>
+        <div class="table-row"><div class="market"><div class="market-icon crypto">₿</div><div><h4>Bitcoin $100k by March</h4><span>Crypto • Mar 31</span></div></div><div style="font-size:12px">Poly 42¢ / Kalshi 55¢</div><div style="font-family:var(--mono)">$0.97</div><div class="profit">+3.09%</div><button class="trade-btn">Trade</button></div>
+        <div class="table-row"><div class="market"><div class="market-icon sports">🏈</div><div><h4>Chiefs Super Bowl</h4><span>Sports • Feb 9</span></div></div><div style="font-size:12px">Poly 35¢ / Kalshi 63¢</div><div style="font-family:var(--mono)">$0.98</div><div class="profit">+2.04%</div><button class="trade-btn">Trade</button></div>
+        <div class="table-row"><div class="market"><div class="market-icon finance">💵</div><div><h4>Fed Rate Cut March</h4><span>Finance • Mar 19</span></div></div><div style="font-size:12px">Poly 28¢ / Kalshi 71¢</div><div style="font-family:var(--mono)">$0.99</div><div class="profit">+1.01%</div><button class="trade-btn">Trade</button></div>
+      </div>
+      
+      <!-- SCANNER -->
+      <div class="page" id="page-scanner">
+        <header class="header">
+          <div>
+            <h1>Live Scanner</h1>
+            <p>All arbitrage opportunities across platforms • <span id="scanner-status">Ready</span></p>
+          </div>
+          <div class="actions">
+            <button class="btn btn-secondary" onclick="openFilterModal()">
+              <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filter
+              <span id="filter-count" style="display:none;background:var(--green);color:var(--bg);padding:2px 6px;border-radius:10px;font-size:10px;margin-left:4px">0</span>
+            </button>
+            <button class="btn btn-primary" id="scan-btn" onclick="runScan()">
+              <svg viewBox="0 0 24 24" id="scan-icon"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <span id="scan-text">Scan Now</span>
+            </button>
+          </div>
+        </header>
+        
+        <!-- Scanner Stats -->
+        <div class="stats" id="scanner-stats">
+          <div class="stat">
+            <div class="stat-label">Total Opportunities</div>
+            <div class="stat-value" id="stat-total">--</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Avg Profit</div>
+            <div class="stat-value" style="color:var(--green)" id="stat-avg">--</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Best Available</div>
+            <div class="stat-value" style="color:var(--green)" id="stat-best">--</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Last Scan</div>
+            <div class="stat-value" id="stat-time" style="font-size:18px">Never</div>
+          </div>
+        </div>
+        
+        <!-- Active Filters Display -->
+        <div id="active-filters" style="display:none;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px"></div>
+        
+        <!-- Results Table -->
+        <div id="scanner-results">
+          <div class="table-header"><span>Market</span><span>Platforms</span><span>Cost</span><span>Profit</span><span></span></div>
+          <div id="scanner-rows">
+            <div style="text-align:center;padding:60px 20px;color:var(--t3)">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              <p style="font-size:14px">Click "Scan Now" to find arbitrage opportunities</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- FILTER MODAL -->
+      <div id="filter-modal" class="modal" style="display:none">
+        <div class="modal-backdrop" onclick="closeFilterModal()"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Filter Opportunities</h2>
+            <button class="modal-close" onclick="closeFilterModal()">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <!-- Category Filter -->
+            <div class="filter-section">
+              <label class="filter-label">Category</label>
+              <div class="filter-chips" id="filter-categories">
+                <button class="chip active" data-value="all">All</button>
+                <button class="chip" data-value="crypto">₿ Crypto</button>
+                <button class="chip" data-value="sports">🏈 Sports</button>
+                <button class="chip" data-value="politics">🏛 Politics</button>
+                <button class="chip" data-value="finance">💵 Finance</button>
+                <button class="chip" data-value="entertainment">🎬 Entertainment</button>
+              </div>
+            </div>
+            
+            <!-- Profit Range -->
+            <div class="filter-section">
+              <label class="filter-label">Minimum Profit %</label>
+              <div class="filter-range">
+                <input type="range" id="filter-min-profit" min="0" max="10" step="0.5" value="0">
+                <span id="filter-min-profit-value">0%</span>
+              </div>
+            </div>
+            
+            <!-- Platforms -->
+            <div class="filter-section">
+              <label class="filter-label">Platforms</label>
+              <div class="filter-checkboxes">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="filter-polymarket" checked>
+                  <span class="checkmark"></span>
+                  Polymarket
+                </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="filter-kalshi" checked>
+                  <span class="checkmark"></span>
+                  Kalshi
+                </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="filter-predictit" checked>
+                  <span class="checkmark"></span>
+                  PredictIt
+                </label>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="filter-betfair" checked>
+                  <span class="checkmark"></span>
+                  Betfair
+                </label>
+              </div>
+            </div>
+            
+            <!-- Liquidity -->
+            <div class="filter-section">
+              <label class="filter-label">Minimum Liquidity</label>
+              <select id="filter-liquidity" class="filter-select">
+                <option value="0">Any</option>
+                <option value="1000">$1,000+</option>
+                <option value="10000">$10,000+</option>
+                <option value="50000">$50,000+</option>
+                <option value="100000">$100,000+</option>
+              </select>
+            </div>
+            
+            <!-- Expiry -->
+            <div class="filter-section">
+              <label class="filter-label">Expires Within</label>
+              <select id="filter-expiry" class="filter-select">
+                <option value="0">Any time</option>
+                <option value="1">24 hours</option>
+                <option value="7">1 week</option>
+                <option value="30">1 month</option>
+                <option value="90">3 months</option>
+              </select>
+            </div>
+            
+            <!-- Sort By -->
+            <div class="filter-section">
+              <label class="filter-label">Sort By</label>
+              <select id="filter-sort" class="filter-select">
+                <option value="profit-desc">Highest Profit</option>
+                <option value="profit-asc">Lowest Profit</option>
+                <option value="liquidity-desc">Highest Liquidity</option>
+                <option value="expiry-asc">Expiring Soonest</option>
+                <option value="recent">Recently Added</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="resetFilters()">Reset All</button>
+            <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- WATCHLIST -->
+      <div class="page" id="page-watchlist">
+        <header class="header"><div><h1>Watchlist</h1><p>Markets you're monitoring</p></div><div class="actions"><button class="btn btn-primary"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Market</button></div></header>
+        <div class="watch-grid">
+          <div class="watch-card has-arb"><div class="watch-header"><div><div class="watch-title">Bitcoin $100k by March</div><div class="watch-cat">Crypto</div></div><span class="watch-status active">Arb Available</span></div><div class="watch-prices"><div><div class="watch-price-label">Polymarket</div><div class="watch-price-value" style="color:var(--purple)">42¢ YES</div></div><div><div class="watch-price-label">Kalshi</div><div class="watch-price-value" style="color:var(--blue)">55¢ NO</div></div></div><div class="watch-footer"><span class="profit">+3.09%</span><span style="font-size:12px;color:var(--t3)">Alert: >1%</span></div></div>
+          <div class="watch-card has-arb"><div class="watch-header"><div><div class="watch-title">Chiefs Super Bowl</div><div class="watch-cat">Sports</div></div><span class="watch-status active">Arb Available</span></div><div class="watch-prices"><div><div class="watch-price-label">Polymarket</div><div class="watch-price-value" style="color:var(--purple)">35¢ YES</div></div><div><div class="watch-price-label">Kalshi</div><div class="watch-price-value" style="color:var(--blue)">63¢ NO</div></div></div><div class="watch-footer"><span class="profit">+2.04%</span><span style="font-size:12px;color:var(--t3)">Alert: >1.5%</span></div></div>
+          <div class="watch-card"><div class="watch-header"><div><div class="watch-title">ETH $5k by June</div><div class="watch-cat">Crypto</div></div><span class="watch-status waiting">Monitoring</span></div><div class="watch-prices"><div><div class="watch-price-label">Polymarket</div><div class="watch-price-value" style="color:var(--purple)">31¢ YES</div></div><div><div class="watch-price-label">Kalshi</div><div class="watch-price-value" style="color:var(--blue)">69¢ NO</div></div></div><div class="watch-footer"><span style="font-size:14px;color:var(--t3)">No arb (0%)</span><span style="font-size:12px;color:var(--t3)">Alert: >2%</span></div></div>
+          <div class="watch-card"><div class="watch-header"><div><div class="watch-title">Trump 2028 Run</div><div class="watch-cat">Politics</div></div><span class="watch-status waiting">Monitoring</span></div><div class="watch-prices"><div><div class="watch-price-label">Polymarket</div><div class="watch-price-value" style="color:var(--purple)">65¢ YES</div></div><div><div class="watch-price-label">Kalshi</div><div class="watch-price-value" style="color:var(--blue)">35¢ NO</div></div></div><div class="watch-footer"><span style="font-size:14px;color:var(--t3)">No arb (0%)</span><span style="font-size:12px;color:var(--t3)">Alert: >1%</span></div></div>
+        </div>
+      </div>
+      
+      <!-- ALERTS -->
+      <div class="page" id="page-alerts">
+        <header class="header"><div><h1>Alerts</h1><p>Notifications when opportunities hit thresholds</p></div><div class="actions"><button class="btn btn-secondary">Mark All Read</button></div></header>
+        <div class="alert unread"><div class="alert-icon profit">💰</div><div class="alert-content"><div class="alert-title">New Arbitrage: Bitcoin $100k</div><div class="alert-desc">Profit exceeds your 1% threshold on Polymarket × Kalshi</div></div><div class="alert-meta"><div class="alert-time">2 min ago</div><div class="alert-value">+3.09%</div></div></div>
+        <div class="alert unread"><div class="alert-icon profit">💰</div><div class="alert-content"><div class="alert-title">New Arbitrage: Chiefs Super Bowl</div><div class="alert-desc">Profit exceeds your 1.5% threshold</div></div><div class="alert-meta"><div class="alert-time">15 min ago</div><div class="alert-value">+2.04%</div></div></div>
+        <div class="alert unread"><div class="alert-icon price">📈</div><div class="alert-content"><div class="alert-title">Price Movement: ETH $5k</div><div class="alert-desc">Polymarket dropped from 38¢ to 31¢</div></div><div class="alert-meta"><div class="alert-time">1 hour ago</div><div class="alert-value" style="color:var(--red)">-18%</div></div></div>
+        <div class="alert"><div class="alert-icon profit">✅</div><div class="alert-content"><div class="alert-title">Trade Executed: Democrats Midterms</div><div class="alert-desc">Your arbitrage trade completed successfully</div></div><div class="alert-meta"><div class="alert-time">Yesterday</div><div class="alert-value">+$45.20</div></div></div>
+      </div>
+      
+      <!-- HISTORY -->
+      <div class="page" id="page-history">
+        <header class="header"><div><h1>Trade History</h1><p>Your past trades</p></div><div class="actions"><button class="btn btn-secondary"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV</button></div></header>
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Total Trades</div><div class="stat-value">47</div></div>
+          <div class="stat"><div class="stat-label">Win Rate</div><div class="stat-value" style="color:var(--green)">98%</div></div>
+          <div class="stat"><div class="stat-label">Total Profit</div><div class="stat-value" style="color:var(--green)">$2,847</div></div>
+          <div class="stat"><div class="stat-label">Avg Per Trade</div><div class="stat-value">$60.57</div></div>
+        </div>
+        <div class="card">
+          <div class="table-header"><span>Date</span><span>Market</span><span>Investment</span><span>Profit</span><span>Status</span></div>
+          <div class="table-row"><div style="font-size:13px">Jan 27, 2026</div><div class="market"><div class="market-icon crypto" style="width:32px;height:32px;font-size:14px">₿</div>BTC $100k</div><div style="font-family:var(--mono)">$500</div><div class="profit">+$15.45</div><span style="background:var(--green-dim);color:var(--green);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">Completed</span></div>
+          <div class="table-row"><div style="font-size:13px">Jan 26, 2026</div><div class="market"><div class="market-icon sports" style="width:32px;height:32px;font-size:14px">🏈</div>Chiefs SB</div><div style="font-family:var(--mono)">$1,000</div><div class="profit">+$20.40</div><span style="background:var(--green-dim);color:var(--green);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">Completed</span></div>
+          <div class="table-row"><div style="font-size:13px">Jan 25, 2026</div><div class="market"><div class="market-icon politics" style="width:32px;height:32px;font-size:14px">🏛</div>Democrats</div><div style="font-family:var(--mono)">$2,000</div><div class="profit">+$45.20</div><span style="background:var(--green-dim);color:var(--green);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">Completed</span></div>
+          <div class="table-row"><div style="font-size:13px">Jan 24, 2026</div><div class="market"><div class="market-icon finance" style="width:32px;height:32px;font-size:14px">💵</div>Fed Rate</div><div style="font-family:var(--mono)">$750</div><div class="profit">+$8.25</div><span style="background:var(--green-dim);color:var(--green);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">Completed</span></div>
+        </div>
+      </div>
+      
+      <!-- ANALYTICS -->
+      <div class="page" id="page-analytics">
+        <header class="header"><div><h1>Analytics</h1><p>Performance breakdown</p></div></header>
+        <div class="analytics-grid">
+          <div class="card"><div class="card-title">Profit by Category</div><div class="bar"><span class="bar-label">Crypto</span><div class="bar-track"><div class="bar-fill" style="width:45%;background:var(--orange)"></div></div><span class="bar-value">$1,281</span></div><div class="bar"><span class="bar-label">Sports</span><div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--green)"></div></div><span class="bar-value">$854</span></div><div class="bar"><span class="bar-label">Politics</span><div class="bar-track"><div class="bar-fill" style="width:20%;background:var(--blue)"></div></div><span class="bar-value">$569</span></div><div class="bar"><span class="bar-label">Finance</span><div class="bar-track"><div class="bar-fill" style="width:5%;background:var(--purple)"></div></div><span class="bar-value">$143</span></div></div>
+          <div class="card"><div class="card-title">Platform Performance</div><div class="bar"><span class="bar-label">Polymarket</span><div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--purple)"></div></div><span class="bar-value">60%</span></div><div class="bar"><span class="bar-label">Kalshi</span><div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--blue)"></div></div><span class="bar-value">40%</span></div></div>
+          <div class="card"><div class="card-title">Monthly Trend</div><div class="bar"><span class="bar-label">Jan</span><div class="bar-track"><div class="bar-fill" style="width:80%;background:var(--green)"></div></div><span class="bar-value">$2,847</span></div><div class="bar"><span class="bar-label">Dec</span><div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--green)"></div></div><span class="bar-value">$2,134</span></div><div class="bar"><span class="bar-label">Nov</span><div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--green)"></div></div><span class="bar-value">$1,456</span></div></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Avg Hold Time</div><div class="stat-value">4.2 days</div></div>
+          <div class="stat"><div class="stat-label">Best Trade</div><div class="stat-value" style="color:var(--green)">+$156</div></div>
+          <div class="stat"><div class="stat-label">Worst Trade</div><div class="stat-value" style="color:var(--red)">-$12</div></div>
+          <div class="stat"><div class="stat-label">Sharpe Ratio</div><div class="stat-value">3.2</div></div>
+        </div>
+      </div>
+      
+      <!-- LEADERBOARD -->
+      <div class="page" id="page-leaderboard">
+        <header class="header"><div><h1>Leaderboard</h1><p>Top traders this month</p></div></header>
+        <div class="card">
+          <div class="leader-row"><div class="rank gold">1</div><div class="leader-user"><div class="avatar">A</div><div><div class="leader-name">AlphaTrader</div><div class="leader-trades">234 trades</div></div></div><div class="leader-profit">+$12,450</div></div>
+          <div class="leader-row"><div class="rank silver">2</div><div class="leader-user"><div class="avatar" style="background:linear-gradient(135deg,var(--green),var(--blue))">M</div><div><div class="leader-name">MarketMaker</div><div class="leader-trades">189 trades</div></div></div><div class="leader-profit">+$9,876</div></div>
+          <div class="leader-row"><div class="rank bronze">3</div><div class="leader-user"><div class="avatar" style="background:linear-gradient(135deg,var(--orange),#facc15)">P</div><div><div class="leader-name">PredictPro</div><div class="leader-trades">156 trades</div></div></div><div class="leader-profit">+$7,234</div></div>
+          <div class="leader-row" style="background:rgba(74,222,128,0.05)"><div class="rank" style="background:var(--green-dim);color:var(--green)">4</div><div class="leader-user"><div class="avatar">J</div><div><div class="leader-name">Jeff (You)</div><div class="leader-trades">47 trades</div></div></div><div class="leader-profit">+$2,847</div></div>
+          <div class="leader-row"><div class="rank">5</div><div class="leader-user"><div class="avatar" style="background:linear-gradient(135deg,var(--red),var(--orange))">S</div><div><div class="leader-name">SwingKing</div><div class="leader-trades">98 trades</div></div></div><div class="leader-profit">+$2,456</div></div>
+        </div>
+      </div>
+      
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <header class="header"><div><h1>Settings</h1><p>Configure preferences</p></div></header>
+        <div class="card">
+          <div class="card-title">Notifications</div>
+          <div class="setting"><div><h4>Push Notifications</h4><p>Alert when new opportunities appear</p></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting"><div><h4>Email Alerts</h4><p>Daily digest of opportunities</p></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting"><div><h4>Min Profit Threshold</h4><p>Only alert above this %</p></div><input type="number" value="1.0" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--t1);width:100px"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Platforms</div>
+          <div class="setting"><div><h4>Polymarket</h4><p>Include in scans</p></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting"><div><h4>Kalshi</h4><p>Include in scans</p></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting"><div><h4>PredictIt</h4><p>Include in scans</p></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Display</div>
+          <div class="setting"><div><h4>Dark Mode</h4><p>Currently active</p></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script>
+    // =============================================
+    // CONFIGURATION - Update this after Railway deploy
+    // =============================================
+    const CONFIG = {
+      API_URL: 'https://your-app.railway.app',  // ← Replace with your Railway URL
+      USER_ID: 'user_demo_123',                  // ← Replace with actual user ID after auth
+      USE_MOCK_DATA: true                        // ← Set to false when API is live
+    };
+
+    // =============================================
+    // PAGE NAVIGATION
+    // =============================================
+    function switchPage(p) {
+      document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+      document.getElementById('page-' + p).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(x => {
+        x.classList.remove('active');
+        if (x.dataset.page === p) x.classList.add('active');
+      });
+      if (window.innerWidth < 768) toggleSidebar();
+    }
+    
+    document.querySelectorAll('.nav-item').forEach(x => x.onclick = () => switchPage(x.dataset.page));
+    
+    function toggleSidebar() {
+      document.querySelector('.sidebar').classList.toggle('open');
+      document.querySelector('.overlay').classList.toggle('open');
+    }
+
+    // =============================================
+    // TRADINGVIEW CHART WITH REAL DATA
+    // =============================================
+    const chartContainer = document.getElementById('chart');
+    let chart, areaSeries, volumeSeries;
+    let chartDataCache = {};
+    let ws = null;
+
+    if (chartContainer) {
+      // Initialize TradingView Lightweight Chart
+      chart = LightweightCharts.createChart(chartContainer, {
+        width: chartContainer.clientWidth,
+        height: 300,
+        layout: {
+          background: { type: 'solid', color: 'transparent' },
+          textColor: 'rgba(255, 255, 255, 0.5)',
+          fontFamily: "'Inter', sans-serif",
+        },
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Magnet,
+          vertLine: { 
+            color: 'rgba(74, 222, 128, 0.3)', 
+            width: 1, 
+            style: 2, 
+            labelBackgroundColor: '#4ADE80' 
+          },
+          horzLine: { 
+            color: 'rgba(74, 222, 128, 0.3)', 
+            width: 1, 
+            style: 2, 
+            labelBackgroundColor: '#4ADE80' 
+          },
+        },
+        rightPriceScale: { 
+          borderVisible: false,
+          scaleMargins: { top: 0.1, bottom: 0.2 }
+        },
+        timeScale: { 
+          borderVisible: false,
+          timeVisible: true
+        },
+      });
+
+      // Profit area chart
+      areaSeries = chart.addAreaSeries({
+        lineColor: '#4ADE80',
+        topColor: 'rgba(74, 222, 128, 0.4)',
+        bottomColor: 'rgba(74, 222, 128, 0.0)',
+        lineWidth: 2,
+        priceFormat: { type: 'price', precision: 2, minMove: 0.01 }
+      });
+
+      // Volume histogram (optional)
+      volumeSeries = chart.addHistogramSeries({
+        color: '#60A5FA',
+        priceScaleId: 'volume',
+        priceFormat: { type: 'volume' }
+      });
+      chart.priceScale('volume').applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+
+      // Tooltip
+      const toolTip = document.createElement('div');
+      toolTip.style.cssText = `
+        position: absolute; display: none; padding: 8px 12px; 
+        background: rgba(20,20,20,0.95); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px; font-size: 12px; pointer-events: none; z-index: 100;
+      `;
+      chartContainer.style.position = 'relative';
+      chartContainer.appendChild(toolTip);
+
+      chart.subscribeCrosshairMove(param => {
+        if (!param.time || !param.seriesData.get(areaSeries)) {
+          toolTip.style.display = 'none';
+          return;
+        }
+        const data = param.seriesData.get(areaSeries);
+        const date = new Date(param.time * 1000);
+        toolTip.innerHTML = `
+          <div style="color: var(--t3); margin-bottom: 4px;">${date.toLocaleDateString()}</div>
+          <div style="color: var(--green); font-family: var(--mono); font-weight: 600;">
+            $${data.value.toFixed(2)}
+          </div>
+        `;
+        toolTip.style.display = 'block';
+        toolTip.style.left = param.point.x + 'px';
+        toolTip.style.top = '10px';
+      });
+
+      // Load initial data
+      updateChart('1M');
+
+      // Chart tab clicks
+      document.querySelectorAll('.chart-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          updateChart(this.dataset.range);
+        });
+      });
+
+      // Resize handler
+      window.addEventListener('resize', () => {
+        chart.applyOptions({ width: chartContainer.clientWidth });
+      });
+
+      // Connect WebSocket for live updates
+      connectWebSocket();
+    }
+
+    // =============================================
+    // FETCH PROFIT DATA FROM API
+    // =============================================
+    async function fetchProfitData(range) {
+      if (CONFIG.USE_MOCK_DATA) {
+        return generateMockData(range);
+      }
+
+      try {
+        const response = await fetch(
+          `${CONFIG.API_URL}/api/users/${CONFIG.USER_ID}/profit-history?range=${range}`,
+          {
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+        
+        if (!response.ok) throw new Error('API error');
+        
+        const json = await response.json();
+        
+        // Transform API response to chart format
+        return {
+          profit: json.data.map(d => ({
+            time: d.timestamp,
+            value: d.profit
+          })),
+          volume: json.data.map(d => ({
+            time: d.timestamp,
+            value: d.volume || 0,
+            color: d.change >= 0 ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)'
+          })),
+          totalProfit: json.total_profit,
+          totalTrades: json.total_trades
+        };
+      } catch (error) {
+        console.warn('API fetch failed, using mock data:', error);
+        return generateMockData(range);
+      }
+    }
+
+    // =============================================
+    // GENERATE MOCK DATA (Fallback)
+    // =============================================
+    function generateMockData(range) {
+      const days = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, 'ALL': 365 }[range] || 30;
+      const profit = [];
+      const volume = [];
+      let price = 500;
+      const now = Math.floor(Date.now() / 1000);
+      const daySeconds = 86400;
+      const pointsPerDay = range === '1D' ? 24 : 1; // Hourly for 1D, daily for others
+      const interval = daySeconds / pointsPerDay;
+      const totalPoints = days * pointsPerDay;
+
+      for (let i = totalPoints; i >= 0; i--) {
+        const time = now - (i * interval);
+        const change = (Math.random() - 0.35) * (range === '1D' ? 10 : 50);
+        price = Math.max(0, price + change);
+        
+        profit.push({ time, value: price });
+        volume.push({
+          time,
+          value: Math.abs(change) * (50 + Math.random() * 100),
+          color: change >= 0 ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)'
+        });
+      }
+
+      return {
+        profit,
+        volume,
+        totalProfit: price,
+        totalTrades: Math.floor(Math.random() * 50) + 20
+      };
+    }
+
+    // =============================================
+    // UPDATE CHART WITH DATA
+    // =============================================
+    async function updateChart(range) {
+      // Show loading state
+      document.getElementById('chart-total').textContent = 'Loading...';
+      
+      // Check cache first
+      if (!chartDataCache[range]) {
+        chartDataCache[range] = await fetchProfitData(range);
+      }
+      
+      const data = chartDataCache[range];
+      
+      // Update chart series
+      areaSeries.setData(data.profit);
+      volumeSeries.setData(data.volume);
+      chart.timeScale().fitContent();
+
+      // Update stats display
+      const latest = data.profit[data.profit.length - 1]?.value || 0;
+      const first = data.profit[0]?.value || 0;
+      const change = first > 0 ? ((latest - first) / first) * 100 : 0;
+
+      document.getElementById('chart-total').textContent = '+$' + latest.toFixed(2);
+      
+      // Update stats cards if they exist
+      updateStatsDisplay(data);
+    }
+
+    // =============================================
+    // UPDATE DASHBOARD STATS
+    // =============================================
+    function updateStatsDisplay(data) {
+      // These selectors target the stat cards on the home page
+      const statValues = document.querySelectorAll('#page-home .stat-value');
+      if (statValues.length >= 4) {
+        // Update "Your Profit" stat
+        statValues[3].textContent = '$' + (data.totalProfit || 2847).toFixed(0);
+      }
+    }
+
+    // =============================================
+    // WEBSOCKET FOR LIVE UPDATES
+    // =============================================
+    function connectWebSocket() {
+      if (CONFIG.USE_MOCK_DATA) {
+        // Simulate live updates with mock data
+        simulateLiveUpdates();
+        return;
+      }
+
+      const wsUrl = CONFIG.API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+      
+      try {
+        ws = new WebSocket(`${wsUrl}/ws/${CONFIG.USER_ID}`);
+        
+        ws.onopen = () => {
+          console.log('WebSocket connected - live updates enabled');
+          showNotification('Live updates connected', 'success');
+        };
+        
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          handleLiveUpdate(data);
+        };
+        
+        ws.onerror = (error) => {
+          console.warn('WebSocket error:', error);
+        };
+        
+        ws.onclose = () => {
+          console.log('WebSocket closed, reconnecting in 5s...');
+          setTimeout(connectWebSocket, 5000);
+        };
+      } catch (error) {
+        console.warn('WebSocket connection failed:', error);
+        simulateLiveUpdates();
+      }
+    }
+
+    // =============================================
+    // HANDLE LIVE UPDATES
+    // =============================================
+    function handleLiveUpdate(data) {
+      if (data.type === 'profit_update') {
+        // Add new point to chart
+        const newPoint = {
+          time: data.timestamp,
+          value: data.cumulative_profit
+        };
+        
+        areaSeries.update(newPoint);
+        
+        // Update total display
+        document.getElementById('chart-total').textContent = '+$' + data.cumulative_profit.toFixed(2);
+        
+        // Clear cache to force refresh on next tab switch
+        chartDataCache = {};
+        
+        // Show notification
+        if (data.trade_profit) {
+          showNotification(`Trade completed: +$${data.trade_profit.toFixed(2)}`, 'profit');
+        }
+      }
+      
+      if (data.type === 'new_opportunity') {
+        // Update opportunity count badge
+        const badge = document.querySelector('.nav-item[data-page="scanner"] .badge');
+        if (badge) {
+          badge.textContent = data.count || parseInt(badge.textContent) + 1;
+        }
+        showNotification(`New arbitrage: ${data.market} +${data.profit}%`, 'alert');
+      }
+    }
+
+    // =============================================
+    // SIMULATE LIVE UPDATES (Demo Mode)
+    // =============================================
+    function simulateLiveUpdates() {
+      // Simulate a new data point every 30 seconds
+      setInterval(() => {
+        if (!areaSeries) return;
+        
+        const lastData = chartDataCache['1M']?.profit;
+        if (!lastData || lastData.length === 0) return;
+        
+        const lastPoint = lastData[lastData.length - 1];
+        const change = (Math.random() - 0.4) * 20;
+        const newValue = Math.max(0, lastPoint.value + change);
+        const newTime = Math.floor(Date.now() / 1000);
+        
+        const newPoint = { time: newTime, value: newValue };
+        
+        // Update chart
+        areaSeries.update(newPoint);
+        
+        // Update display
+        document.getElementById('chart-total').textContent = '+$' + newValue.toFixed(2);
+        
+        // Add to cache
+        if (chartDataCache['1M']) {
+          chartDataCache['1M'].profit.push(newPoint);
+        }
+      }, 30000); // Every 30 seconds
+    }
+
+    // =============================================
+    // NOTIFICATION HELPER
+    // =============================================
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+        background: ${type === 'profit' ? 'rgba(74, 222, 128, 0.15)' : type === 'alert' ? 'rgba(251, 146, 60, 0.15)' : 'rgba(96, 165, 250, 0.15)'};
+        border: 1px solid ${type === 'profit' ? 'var(--green)' : type === 'alert' ? 'var(--orange)' : 'var(--blue)'};
+        border-radius: 8px; color: var(--t1); font-size: 13px; z-index: 1000;
+        animation: slideIn 0.3s ease;
+      `;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+      }, 4000);
+    }
+
+    // =============================================
+    // FETCH LIVE OPPORTUNITIES
+    // =============================================
+    async function fetchOpportunities() {
+      if (CONFIG.USE_MOCK_DATA) return;
+      
+      try {
+        const response = await fetch(`${CONFIG.API_URL}/api/opportunities`);
+        const opportunities = await response.json();
+        
+        // Update scanner page with real opportunities
+        renderOpportunities(opportunities);
+        
+        // Update badge count
+        const badge = document.querySelector('.nav-item[data-page="scanner"] .badge');
+        if (badge) badge.textContent = opportunities.length;
+      } catch (error) {
+        console.warn('Failed to fetch opportunities:', error);
+      }
+    }
+
+    // =============================================
+    // RENDER OPPORTUNITIES (if API connected)
+    // =============================================
+    function renderOpportunities(opportunities) {
+      const container = document.querySelector('#page-scanner .table-row')?.parentElement;
+      if (!container || !opportunities.length) return;
+      
+      // Keep the header
+      const header = container.querySelector('.table-header');
+      container.innerHTML = '';
+      if (header) container.appendChild(header);
+      
+      opportunities.forEach(opp => {
+        const row = document.createElement('div');
+        row.className = 'table-row';
+        row.innerHTML = `
+          <div class="market">
+            <div class="market-icon ${opp.category}">${opp.icon || '📊'}</div>
+            <div>
+              <h4>${opp.market}</h4>
+              <span>${opp.category} • ${opp.expires}</span>
+            </div>
+          </div>
+          <div style="font-size:12px">${opp.platform1} ${opp.price1}¢ / ${opp.platform2} ${opp.price2}¢</div>
+          <div style="font-family:var(--mono)">$${opp.cost.toFixed(2)}</div>
+          <div class="profit">+${opp.profit.toFixed(2)}%</div>
+          <button class="trade-btn" onclick="executeTrade('${opp.id}')">Trade</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    // =============================================
+    // EXECUTE TRADE (placeholder)
+    // =============================================
+    async function executeTrade(opportunityId) {
+      showNotification('Opening trade modal...', 'info');
+      // In production, this would open a trade confirmation modal
+      // and then POST to /api/trades
+    }
+
+    // =============================================
+    // INITIALIZE
+    // =============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Fetch initial opportunities if API is configured
+      if (!CONFIG.USE_MOCK_DATA) {
+        fetchOpportunities();
+        // Refresh opportunities every 30 seconds
+        setInterval(fetchOpportunities, 30000);
+      }
+    });
+
+    // Add animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `@keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`;
+    document.head.appendChild(style);
+
+    // =============================================
+    // SCANNER FUNCTIONALITY
+    // =============================================
+    let allOpportunities = [];
+    let filteredOpportunities = [];
+    let isScanning = false;
+    
+    // Current filter state
+    let currentFilters = {
+      category: 'all',
+      minProfit: 0,
+      platforms: ['polymarket', 'kalshi', 'predictit', 'betfair'],
+      minLiquidity: 0,
+      expiresWithin: 0,
+      sortBy: 'profit-desc'
+    };
+
+    // Real prediction market data sources (simulated with realistic data)
+    const MARKET_DATA = {
+      crypto: [
+        { market: 'Bitcoin $100k by March 2026', icon: '₿', expires: 'Mar 31, 2026', expiryDays: 63 },
+        { market: 'Bitcoin $150k by Dec 2026', icon: '₿', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'ETH $5,000 by June 2026', icon: '🪙', expires: 'Jun 30, 2026', expiryDays: 154 },
+        { market: 'ETH Flips BTC Market Cap', icon: '🪙', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'Solana $500 by 2026', icon: '◎', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'XRP $5 by 2026', icon: '✕', expires: 'Dec 31, 2026', expiryDays: 338 },
+      ],
+      sports: [
+        { market: 'Chiefs Win Super Bowl LX', icon: '🏈', expires: 'Feb 9, 2026', expiryDays: 13 },
+        { market: 'Eagles Win Super Bowl LX', icon: '🏈', expires: 'Feb 9, 2026', expiryDays: 13 },
+        { market: 'Lakers Win NBA Championship', icon: '🏀', expires: 'Jun 15, 2026', expiryDays: 139 },
+        { market: 'Real Madrid Win Champions League', icon: '⚽', expires: 'May 31, 2026', expiryDays: 124 },
+        { market: 'Man City Win Premier League', icon: '⚽', expires: 'May 25, 2026', expiryDays: 118 },
+        { market: 'Yankees Win World Series', icon: '⚾', expires: 'Oct 31, 2026', expiryDays: 277 },
+      ],
+      politics: [
+        { market: 'Democrats Win 2026 Midterms (House)', icon: '🏛', expires: 'Nov 3, 2026', expiryDays: 280 },
+        { market: 'Republicans Win 2026 Midterms (Senate)', icon: '🏛', expires: 'Nov 3, 2026', expiryDays: 280 },
+        { market: 'Trump Approval Rating > 50%', icon: '📊', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'US Government Shutdown 2026', icon: '🏛', expires: 'Sep 30, 2026', expiryDays: 246 },
+        { market: 'Biden Pardons Before Leaving', icon: '📜', expires: 'Jan 20, 2025', expiryDays: 0 },
+      ],
+      finance: [
+        { market: 'Fed Rate Cut March 2026', icon: '💵', expires: 'Mar 19, 2026', expiryDays: 51 },
+        { market: 'Fed Rate Cut June 2026', icon: '💵', expires: 'Jun 18, 2026', expiryDays: 142 },
+        { market: 'US Recession in 2026', icon: '📉', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'S&P 500 > 6500 by June', icon: '📈', expires: 'Jun 30, 2026', expiryDays: 154 },
+        { market: 'Oil > $100/barrel in 2026', icon: '🛢️', expires: 'Dec 31, 2026', expiryDays: 338 },
+      ],
+      entertainment: [
+        { market: 'Oppenheimer Wins Best Picture', icon: '🎬', expires: 'Mar 10, 2026', expiryDays: 42 },
+        { market: 'Taylor Swift #1 Album 2026', icon: '🎵', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'GTA 6 Released by Dec 2026', icon: '🎮', expires: 'Dec 31, 2026', expiryDays: 338 },
+        { market: 'Twitter/X Files Bankruptcy', icon: '🐦', expires: 'Dec 31, 2026', expiryDays: 338 },
+      ]
+    };
+
+    const PLATFORMS = [
+      { id: 'polymarket', name: 'Polymarket', short: 'Poly' },
+      { id: 'kalshi', name: 'Kalshi', short: 'Kalshi' },
+      { id: 'predictit', name: 'PredictIt', short: 'PredIt' },
+      { id: 'betfair', name: 'Betfair', short: 'Betfair' }
+    ];
+
+    // Generate realistic arbitrage opportunities
+    function generateOpportunities() {
+      const opportunities = [];
+      
+      Object.entries(MARKET_DATA).forEach(([category, markets]) => {
+        markets.forEach(marketData => {
+          // Randomly select 2 platforms
+          const shuffledPlatforms = [...PLATFORMS].sort(() => Math.random() - 0.5);
+          const platform1 = shuffledPlatforms[0];
+          const platform2 = shuffledPlatforms[1];
+          
+          // Generate realistic prices
+          const basePrice = Math.random() * 0.6 + 0.2; // 20-80 cents
+          const spread = Math.random() * 0.15 + 0.02; // 2-17% spread
+          
+          const price1 = Math.round(basePrice * 100);
+          const price2 = Math.round((1 - basePrice - spread) * 100);
+          
+          const totalCost = (price1 + price2) / 100;
+          const profit = ((1 - totalCost) / totalCost) * 100;
+          
+          // Only include if there's actual arbitrage (profit > 0)
+          if (profit > 0.5 && profit < 15) {
+            const liquidity = Math.floor(Math.random() * 500000) + 5000;
+            
+            opportunities.push({
+              id: `opp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              ...marketData,
+              category,
+              platform1: platform1,
+              platform2: platform2,
+              price1,
+              price2,
+              totalCost,
+              profit: parseFloat(profit.toFixed(2)),
+              liquidity,
+              timestamp: Date.now()
+            });
+          }
+        });
+      });
+      
+      return opportunities.sort((a, b) => b.profit - a.profit);
+    }
+
+    // Run scanner
+    async function runScan() {
+      if (isScanning) return;
+      
+      isScanning = true;
+      const scanBtn = document.getElementById('scan-btn');
+      const scanText = document.getElementById('scan-text');
+      const scanIcon = document.getElementById('scan-icon');
+      const status = document.getElementById('scanner-status');
+      
+      // Update UI to scanning state
+      scanBtn.classList.add('scanning');
+      scanIcon.style.animation = 'spin 1s linear infinite';
+      scanText.textContent = 'Scanning...';
+      status.textContent = 'Scanning markets...';
+      status.style.color = 'var(--orange)';
+      
+      // Show skeleton loading
+      document.getElementById('scanner-rows').innerHTML = `
+        <div class="table-row"><div class="skeleton" style="width:200px;height:40px"></div><div class="skeleton" style="width:100px"></div><div class="skeleton" style="width:60px"></div><div class="skeleton" style="width:60px"></div><div class="skeleton" style="width:60px"></div></div>
+        <div class="table-row"><div class="skeleton" style="width:180px;height:40px"></div><div class="skeleton" style="width:100px"></div><div class="skeleton" style="width:60px"></div><div class="skeleton" style="width:60px"></div><div class="skeleton" style="width:60px"></div></div>
+        <div class="table-row"><div class="skeleton" style="width:220px;height:40px"></div><div class="skeleton" style="width:100px"></div><div class="skeleton" style="width:60px"></div><div class="skeleton" style="width:60px"></div><div class="skeleton" style="width:60px"></div></div>
+      `;
+      
+      // Simulate API call delay (In production, this would fetch from real APIs)
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+      
+      // Generate opportunities
+      allOpportunities = generateOpportunities();
+      
+      // Apply filters
+      applyFiltersToData();
+      
+      // Update UI
+      scanBtn.classList.remove('scanning');
+      scanIcon.style.animation = '';
+      scanText.textContent = 'Scan Now';
+      status.textContent = `Found ${filteredOpportunities.length} opportunities`;
+      status.style.color = 'var(--green)';
+      
+      // Update stats
+      updateScannerStats();
+      
+      // Render results
+      renderOpportunities();
+      
+      // Update last scan time
+      document.getElementById('stat-time').textContent = 'Just now';
+      
+      isScanning = false;
+      
+      showNotification(`Found ${filteredOpportunities.length} arbitrage opportunities!`, 'profit');
+    }
+
+    // Update scanner stats
+    function updateScannerStats() {
+      const total = filteredOpportunities.length;
+      const avgProfit = total > 0 
+        ? (filteredOpportunities.reduce((sum, o) => sum + o.profit, 0) / total).toFixed(2)
+        : 0;
+      const bestProfit = total > 0 
+        ? Math.max(...filteredOpportunities.map(o => o.profit)).toFixed(2)
+        : 0;
+      
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-avg').textContent = avgProfit + '%';
+      document.getElementById('stat-best').textContent = '+' + bestProfit + '%';
+    }
+
+    // Render opportunities table
+    function renderOpportunities() {
+      const container = document.getElementById('scanner-rows');
+      
+      if (filteredOpportunities.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:60px 20px;color:var(--t3)">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <p style="font-size:14px">No opportunities match your filters</p>
+            <button class="btn btn-secondary" style="margin-top:16px" onclick="resetFilters()">Reset Filters</button>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = filteredOpportunities.map(opp => `
+        <div class="table-row" data-id="${opp.id}">
+          <div class="market">
+            <div class="market-icon ${opp.category}">${opp.icon}</div>
+            <div>
+              <h4>${opp.market}</h4>
+              <span>${opp.category.charAt(0).toUpperCase() + opp.category.slice(1)} • ${opp.expires}</span>
+            </div>
+          </div>
+          <div style="font-size:12px">
+            <div>${opp.platform1.short} ${opp.price1}¢ YES</div>
+            <div style="color:var(--t3)">${opp.platform2.short} ${opp.price2}¢ NO</div>
+          </div>
+          <div style="font-family:var(--mono)">$${opp.totalCost.toFixed(2)}</div>
+          <div class="profit">+${opp.profit}%</div>
+          <button class="trade-btn" onclick="openTradeModal('${opp.id}')">Trade</button>
+        </div>
+      `).join('');
+    }
+
+    // =============================================
+    // FILTER MODAL
+    // =============================================
+    function openFilterModal() {
+      document.getElementById('filter-modal').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      
+      // Sync UI with current filter state
+      syncFilterUI();
+    }
+
+    function closeFilterModal() {
+      document.getElementById('filter-modal').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    function syncFilterUI() {
+      // Category chips
+      document.querySelectorAll('#filter-categories .chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.value === currentFilters.category);
+      });
+      
+      // Min profit slider
+      document.getElementById('filter-min-profit').value = currentFilters.minProfit;
+      document.getElementById('filter-min-profit-value').textContent = currentFilters.minProfit + '%';
+      
+      // Platform checkboxes
+      document.getElementById('filter-polymarket').checked = currentFilters.platforms.includes('polymarket');
+      document.getElementById('filter-kalshi').checked = currentFilters.platforms.includes('kalshi');
+      document.getElementById('filter-predictit').checked = currentFilters.platforms.includes('predictit');
+      document.getElementById('filter-betfair').checked = currentFilters.platforms.includes('betfair');
+      
+      // Dropdowns
+      document.getElementById('filter-liquidity').value = currentFilters.minLiquidity;
+      document.getElementById('filter-expiry').value = currentFilters.expiresWithin;
+      document.getElementById('filter-sort').value = currentFilters.sortBy;
+    }
+
+    // Category chip clicks
+    document.querySelectorAll('#filter-categories .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#filter-categories .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+
+    // Min profit slider
+    document.getElementById('filter-min-profit')?.addEventListener('input', (e) => {
+      document.getElementById('filter-min-profit-value').textContent = e.target.value + '%';
+    });
+
+    function applyFilters() {
+      // Read values from UI
+      const activeCategory = document.querySelector('#filter-categories .chip.active');
+      currentFilters.category = activeCategory ? activeCategory.dataset.value : 'all';
+      currentFilters.minProfit = parseFloat(document.getElementById('filter-min-profit').value);
+      
+      currentFilters.platforms = [];
+      if (document.getElementById('filter-polymarket').checked) currentFilters.platforms.push('polymarket');
+      if (document.getElementById('filter-kalshi').checked) currentFilters.platforms.push('kalshi');
+      if (document.getElementById('filter-predictit').checked) currentFilters.platforms.push('predictit');
+      if (document.getElementById('filter-betfair').checked) currentFilters.platforms.push('betfair');
+      
+      currentFilters.minLiquidity = parseInt(document.getElementById('filter-liquidity').value);
+      currentFilters.expiresWithin = parseInt(document.getElementById('filter-expiry').value);
+      currentFilters.sortBy = document.getElementById('filter-sort').value;
+      
+      // Apply to data
+      applyFiltersToData();
+      
+      // Update UI
+      updateScannerStats();
+      renderOpportunities();
+      updateActiveFiltersDisplay();
+      
+      closeFilterModal();
+      
+      showNotification(`Filters applied: ${filteredOpportunities.length} results`, 'info');
+    }
+
+    function applyFiltersToData() {
+      filteredOpportunities = allOpportunities.filter(opp => {
+        // Category filter
+        if (currentFilters.category !== 'all' && opp.category !== currentFilters.category) {
+          return false;
+        }
+        
+        // Min profit filter
+        if (opp.profit < currentFilters.minProfit) {
+          return false;
+        }
+        
+        // Platform filter
+        if (!currentFilters.platforms.includes(opp.platform1.id) && 
+            !currentFilters.platforms.includes(opp.platform2.id)) {
+          return false;
+        }
+        
+        // Liquidity filter
+        if (opp.liquidity < currentFilters.minLiquidity) {
+          return false;
+        }
+        
+        // Expiry filter
+        if (currentFilters.expiresWithin > 0 && opp.expiryDays > currentFilters.expiresWithin) {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // Sort
+      switch (currentFilters.sortBy) {
+        case 'profit-desc':
+          filteredOpportunities.sort((a, b) => b.profit - a.profit);
+          break;
+        case 'profit-asc':
+          filteredOpportunities.sort((a, b) => a.profit - b.profit);
+          break;
+        case 'liquidity-desc':
+          filteredOpportunities.sort((a, b) => b.liquidity - a.liquidity);
+          break;
+        case 'expiry-asc':
+          filteredOpportunities.sort((a, b) => a.expiryDays - b.expiryDays);
+          break;
+        case 'recent':
+          filteredOpportunities.sort((a, b) => b.timestamp - a.timestamp);
+          break;
+      }
+    }
+
+    function resetFilters() {
+      currentFilters = {
+        category: 'all',
+        minProfit: 0,
+        platforms: ['polymarket', 'kalshi', 'predictit', 'betfair'],
+        minLiquidity: 0,
+        expiresWithin: 0,
+        sortBy: 'profit-desc'
+      };
+      
+      syncFilterUI();
+      applyFiltersToData();
+      updateScannerStats();
+      renderOpportunities();
+      updateActiveFiltersDisplay();
+      
+      closeFilterModal();
+    }
+
+    function updateActiveFiltersDisplay() {
+      const container = document.getElementById('active-filters');
+      const filterCount = document.getElementById('filter-count');
+      const tags = [];
+      
+      if (currentFilters.category !== 'all') {
+        tags.push(`Category: ${currentFilters.category}`);
+      }
+      if (currentFilters.minProfit > 0) {
+        tags.push(`Min profit: ${currentFilters.minProfit}%`);
+      }
+      if (currentFilters.platforms.length < 4) {
+        tags.push(`Platforms: ${currentFilters.platforms.length}`);
+      }
+      if (currentFilters.minLiquidity > 0) {
+        tags.push(`Min liquidity: $${currentFilters.minLiquidity.toLocaleString()}`);
+      }
+      if (currentFilters.expiresWithin > 0) {
+        tags.push(`Expires: ${currentFilters.expiresWithin} days`);
+      }
+      
+      if (tags.length > 0) {
+        container.style.display = 'flex';
+        container.innerHTML = tags.map(tag => `
+          <span class="filter-tag">${tag}</span>
+        `).join('') + `<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="resetFilters()">Clear all</button>`;
+        
+        filterCount.style.display = 'inline';
+        filterCount.textContent = tags.length;
+      } else {
+        container.style.display = 'none';
+        filterCount.style.display = 'none';
+      }
+    }
+
+    // Trade modal (placeholder)
+    function openTradeModal(oppId) {
+      const opp = allOpportunities.find(o => o.id === oppId);
+      if (!opp) return;
+      
+      showNotification(`Opening trade for ${opp.market}...`, 'info');
+      // In production, this would open a proper trade execution modal
+    }
+
+    // Auto-refresh scanner every 60 seconds if on scanner page
+    setInterval(() => {
+      if (document.getElementById('page-scanner').classList.contains('active') && allOpportunities.length > 0) {
+        runScan();
+      }
+    }, 60000);
+  </script>
+</body>
+</html>

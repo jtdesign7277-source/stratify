@@ -1,91 +1,145 @@
 import { useState, useEffect } from 'react';
 import Watchlist from './Watchlist';
 
-// Risk Level Folders Component
-const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy }) => {
+// Stratify Logo - Orbital S design
+const StratifyLogo = ({ collapsed }) => {
+  if (collapsed) {
+    return (
+      <svg viewBox="0 0 40 40" className="w-8 h-8">
+        {/* Outer orbital ring */}
+        <ellipse cx="20" cy="20" rx="18" ry="10" fill="none" stroke="#3B82F6" strokeWidth="0.8" opacity="0.4" transform="rotate(-20 20 20)" />
+        {/* Middle orbital ring */}
+        <ellipse cx="20" cy="20" rx="16" ry="14" fill="none" stroke="#60A5FA" strokeWidth="0.6" opacity="0.5" transform="rotate(25 20 20)" />
+        {/* Inner orbital ring */}
+        <ellipse cx="20" cy="20" rx="14" ry="12" fill="none" stroke="#93C5FD" strokeWidth="0.5" opacity="0.3" transform="rotate(-45 20 20)" />
+        {/* Orbital dots */}
+        <circle cx="36" cy="14" r="1.5" fill="#60A5FA" />
+        <circle cx="4" cy="26" r="1.5" fill="#60A5FA" />
+        <circle cx="28" cy="34" r="1.2" fill="#3B82F6" opacity="0.7" />
+        <circle cx="8" cy="8" r="1" fill="#93C5FD" opacity="0.5" />
+        {/* The S */}
+        <text x="20" y="26" textAnchor="middle" fill="url(#logoGradient)" fontSize="18" fontWeight="600" fontFamily="system-ui, -apple-system, sans-serif">S</text>
+        <defs>
+          <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#60A5FA" />
+            <stop offset="100%" stopColor="#3B82F6" />
+          </linearGradient>
+        </defs>
+      </svg>
+    );
+  }
+  
+  return (
+    <div className="flex items-center gap-2">
+      <svg viewBox="0 0 40 40" className="w-7 h-7">
+        <ellipse cx="20" cy="20" rx="18" ry="10" fill="none" stroke="#3B82F6" strokeWidth="0.8" opacity="0.4" transform="rotate(-20 20 20)" />
+        <ellipse cx="20" cy="20" rx="16" ry="14" fill="none" stroke="#60A5FA" strokeWidth="0.6" opacity="0.5" transform="rotate(25 20 20)" />
+        <ellipse cx="20" cy="20" rx="14" ry="12" fill="none" stroke="#93C5FD" strokeWidth="0.5" opacity="0.3" transform="rotate(-45 20 20)" />
+        <circle cx="36" cy="14" r="1.5" fill="#60A5FA" />
+        <circle cx="4" cy="26" r="1.5" fill="#60A5FA" />
+        <circle cx="28" cy="34" r="1.2" fill="#3B82F6" opacity="0.7" />
+        <circle cx="8" cy="8" r="1" fill="#93C5FD" opacity="0.5" />
+        <text x="20" y="26" textAnchor="middle" fill="url(#logoGradientFull)" fontSize="18" fontWeight="600" fontFamily="system-ui, -apple-system, sans-serif">S</text>
+        <defs>
+          <linearGradient id="logoGradientFull" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#60A5FA" />
+            <stop offset="100%" stopColor="#3B82F6" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <span className="text-lg font-semibold text-white tracking-tight">Stratify</span>
+    </div>
+  );
+};
+
+// Clean folder icon - just lines
+const FolderIcon = ({ open, className = "w-4 h-4" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+    {open ? (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+    ) : (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+    )}
+  </svg>
+);
+
+// Chevron icon
+const ChevronIcon = ({ open, className = "w-3 h-3" }) => (
+  <svg className={`${className} transition-transform duration-150 ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+  </svg>
+);
+
+// Strategy Folders Component - Clean design
+const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, sidebarExpanded }) => {
   const [expandedFolders, setExpandedFolders] = useState({
-    low: true,
-    medium: true,
-    high: true
+    low: false,
+    medium: false,
+    high: false
   });
 
   const toggleFolder = (folder) => {
     setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
   };
 
-  const riskFolders = [
-    { id: 'low', label: 'Low Risk', color: 'emerald', icon: '🛡️' },
-    { id: 'medium', label: 'Medium Risk', color: 'amber', icon: '⚖️' },
-    { id: 'high', label: 'High Risk', color: 'red', icon: '🔥' }
+  const folders = [
+    { id: 'low', label: 'Low Risk', color: '#10B981' },
+    { id: 'medium', label: 'Medium Risk', color: '#F59E0B' },
+    { id: 'high', label: 'High Risk', color: '#EF4444' }
   ];
 
   const getStrategiesByRisk = (riskLevel) => {
     return savedStrategies.filter(s => s.riskLevel === riskLevel);
   };
 
-  const colorClasses = {
-    low: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', hover: 'hover:border-emerald-500/50' },
-    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', hover: 'hover:border-amber-500/50' },
-    high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', hover: 'hover:border-red-500/50' }
-  };
-
   if (savedStrategies.length === 0) {
     return (
-      <div className="text-center py-4 text-gray-500 text-xs px-2">
-        <svg className="w-6 h-6 mx-auto mb-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-        </svg>
-        <p className="text-[10px]">No saved strategies</p>
+      <div className="px-3 py-4 text-center">
+        <p className="text-xs text-gray-500">No saved strategies</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1 px-2 py-1">
-      {riskFolders.map(folder => {
+    <div className="py-1">
+      {folders.map(folder => {
         const strategies = getStrategiesByRisk(folder.id);
-        const colors = colorClasses[folder.id];
-        const isExpanded = expandedFolders[folder.id];
+        const isOpen = expandedFolders[folder.id];
         
         return (
-          <div key={folder.id} className="rounded-lg overflow-hidden">
+          <div key={folder.id}>
+            {/* Folder header - clean, no background box */}
             <button
               onClick={() => toggleFolder(folder.id)}
-              className={`w-full flex items-center justify-between p-1.5 ${colors.bg} border ${colors.border} ${colors.hover} rounded transition-colors`}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white transition-colors group"
             >
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs">{folder.icon}</span>
-                <span className={`text-[10px] font-medium ${colors.text}`}>{folder.label}</span>
-                <span className="text-[9px] text-gray-500">({strategies.length})</span>
-              </div>
-              <svg 
-                className={`w-2.5 h-2.5 ${colors.text} transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronIcon open={isOpen} className="w-2.5 h-2.5 text-gray-500 group-hover:text-gray-400" />
+              <FolderIcon open={isOpen} className="w-3.5 h-3.5" style={{ color: folder.color }} />
+              <span className="text-xs font-medium flex-1 text-left">{folder.label}</span>
+              {strategies.length > 0 && (
+                <span className="text-[10px] text-gray-600">{strategies.length}</span>
+              )}
             </button>
             
-            {isExpanded && strategies.length > 0 && (
-              <div className="mt-0.5 ml-1.5 space-y-0.5">
+            {/* Strategies list - indented, clean lines */}
+            {isOpen && strategies.length > 0 && (
+              <div className="ml-5 border-l border-[#2A2A2A]">
                 {strategies.map(strategy => (
                   <div 
                     key={strategy.id}
-                    className="group flex items-center justify-between p-1.5 rounded bg-[#1A1A1A] border border-[#2A2A2A] hover:border-purple-500/30 transition-colors"
+                    className="group flex items-center justify-between pl-3 pr-2 py-1 hover:bg-[#1A1A1A] transition-colors"
                   >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <svg className={`w-2.5 h-2.5 ${colors.text} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                      <span className="text-[10px] text-[#F5F5F5] truncate">{strategy.name}</span>
-                    </div>
+                    <span className="text-[11px] text-gray-400 group-hover:text-gray-200 truncate">
+                      {strategy.name}
+                    </span>
                     <button
-                      onClick={() => onRemoveSavedStrategy?.(strategy.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all p-0.5 rounded hover:bg-red-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveSavedStrategy?.(strategy.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-0.5"
                     >
-                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -100,20 +154,71 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy }) => {
   );
 };
 
-const navItems = [
-  { id: 'watchlist', label: 'Watchlist', icon: 'eye' },
-  { id: 'strategies', label: 'Strategies', icon: 'trending-up' },
+// Nav items - customizable
+const defaultNavItems = [
+  { id: 'watchlist', label: 'Watchlist', icon: 'eye', hasContent: true },
+  { id: 'strategies', label: 'Strategies', icon: 'chart', hasContent: true },
+  { id: 'brokers', label: 'Brokers', icon: 'link', hasContent: true },
   { id: 'backtest', label: 'Backtest', icon: 'flask' },
-  { id: 'ai-builder', label: 'AI Builder', icon: 'brain' },
-  { id: 'news', label: 'News', icon: 'newspaper' },
+  { id: 'ai-builder', label: 'AI Builder', icon: 'spark' },
+  { id: 'news', label: 'News', icon: 'document' },
 ];
 
-const bottomItems = [
-  { id: 'settings', label: 'Settings', icon: 'cog', hasContent: true },
+const defaultBottomItems = [
+  { id: 'settings', label: 'Settings', icon: 'gear', hasContent: true },
   { id: 'help', label: 'Help', icon: 'question' },
 ];
 
-// Settings Panel Component
+// Icon component - clean outlined icons, no backgrounds
+const Icon = ({ name, className = "w-4 h-4" }) => {
+  const icons = {
+    eye: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+    chart: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+      </svg>
+    ),
+    flask: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611l-.002 0a9.002 9.002 0 01-6.766-1.604 9.002 9.002 0 00-6.766 1.604l-.002 0c-1.717-.293-2.299-2.379-1.067-3.611L5 14.5" />
+      </svg>
+    ),
+    spark: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+      </svg>
+    ),
+    document: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+    ),
+    gear: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+    question: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+      </svg>
+    ),
+    link: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+      </svg>
+    ),
+  };
+  return icons[name] || null;
+};
+
+// Settings Panel Component - Clean design
 const SettingsPanel = () => {
   const [userInfo, setUserInfo] = useState(() => {
     const saved = localStorage.getItem('stratify-user-info');
@@ -130,63 +235,136 @@ const SettingsPanel = () => {
 
   return (
     <div className="px-3 py-3 space-y-3">
-      <div className="text-xs text-gray-400 font-medium mb-2">User Information</div>
-      
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-1">First Name</label>
-        <input
-          type="text"
-          value={userInfo.firstName}
-          onChange={(e) => handleChange('firstName', e.target.value)}
-          placeholder="Enter first name"
-          className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2.5 py-1.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
-        />
-      </div>
-      
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-1">Last Name</label>
-        <input
-          type="text"
-          value={userInfo.lastName}
-          onChange={(e) => handleChange('lastName', e.target.value)}
-          placeholder="Enter last name"
-          className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2.5 py-1.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
-        />
-      </div>
-      
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-1">Email</label>
-        <input
-          type="email"
-          value={userInfo.email}
-          onChange={(e) => handleChange('email', e.target.value)}
-          placeholder="Enter email address"
-          className="w-full bg-[#1A1A1A] border border-[#3A3A3A] rounded px-2.5 py-1.5 text-sm text-white placeholder-gray-600 focus:border-emerald-500/50 focus:outline-none transition-colors"
-        />
-      </div>
-
-      <div className="pt-2 border-t border-[#2A2A2A] mt-3">
-        <div className="text-[10px] text-gray-600">Changes are saved automatically</div>
+      <div className="space-y-2">
+        <div>
+          <label className="text-[10px] text-gray-500 uppercase tracking-wide">First Name</label>
+          <input
+            type="text"
+            value={userInfo.firstName}
+            onChange={(e) => handleChange('firstName', e.target.value)}
+            placeholder="Enter first name"
+            className="w-full bg-transparent border-b border-[#2A2A2A] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+          />
+        </div>
+        
+        <div>
+          <label className="text-[10px] text-gray-500 uppercase tracking-wide">Last Name</label>
+          <input
+            type="text"
+            value={userInfo.lastName}
+            onChange={(e) => handleChange('lastName', e.target.value)}
+            placeholder="Enter last name"
+            className="w-full bg-transparent border-b border-[#2A2A2A] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+          />
+        </div>
+        
+        <div>
+          <label className="text-[10px] text-gray-500 uppercase tracking-wide">Email</label>
+          <input
+            type="email"
+            value={userInfo.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            placeholder="Enter email address"
+            className="w-full bg-transparent border-b border-[#2A2A2A] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+          />
+        </div>
       </div>
     </div>
   );
 };
 
-const IconComponent = ({ name, className }) => {
+// Mini broker icons for sidebar
+const MiniBrokerIcon = ({ broker, className = "w-6 h-6" }) => {
   const icons = {
-    'eye': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
-    'trending-up': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
-    'flask': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>,
-    'brain': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>,
-    'newspaper': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>,
-    'cog': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
-    'question': <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    alpaca: <div className={`${className} rounded bg-[#FFCD00] flex items-center justify-center text-[8px] font-bold text-black`}>A</div>,
+    polymarket: <div className={`${className} rounded bg-[#6366F1] flex items-center justify-center text-[8px] font-bold text-white`}>P</div>,
+    kalshi: <div className={`${className} rounded bg-[#00D4AA] flex items-center justify-center text-[8px] font-bold text-black`}>K</div>,
+    webull: <div className={`${className} rounded bg-[#FF5722] flex items-center justify-center text-[8px] font-bold text-white`}>W</div>,
+    ibkr: <div className={`${className} rounded bg-[#D32F2F] flex items-center justify-center text-[6px] font-bold text-white`}>IB</div>,
+    robinhood: <div className={`${className} rounded bg-[#00C805] flex items-center justify-center text-[8px] font-bold text-white`}>R</div>,
+    coinbase: <div className={`${className} rounded bg-[#0052FF] flex items-center justify-center text-[8px] font-bold text-white`}>C</div>,
+    binance: <div className={`${className} rounded bg-[#F3BA2F] flex items-center justify-center text-[8px] font-bold text-black`}>B</div>,
   };
-  return icons[name] || null;
+  return icons[broker] || null;
 };
 
-export default function Sidebar({ expanded, onToggle, activeSection, onSectionChange, theme, themeClasses, watchlist = [], onRemoveFromWatchlist, onViewChart, savedStrategies = [], onRemoveSavedStrategy }) {
+const availableBrokers = [
+  { id: 'alpaca', name: 'Alpaca' },
+  { id: 'polymarket', name: 'Polymarket' },
+  { id: 'kalshi', name: 'Kalshi' },
+  { id: 'webull', name: 'Webull' },
+  { id: 'ibkr', name: 'IBKR' },
+  { id: 'robinhood', name: 'Robinhood' },
+  { id: 'coinbase', name: 'Coinbase' },
+  { id: 'binance', name: 'Binance' },
+];
+
+// Brokers Grid Component
+const BrokersGrid = ({ connectedBrokers = [], onOpenBrokerModal }) => {
+  const isConnected = (brokerId) => connectedBrokers.some(b => b.id === brokerId);
+  
+  return (
+    <div className="p-2">
+      <div className="grid grid-cols-4 gap-1.5">
+        {availableBrokers.map(broker => {
+          const connected = isConnected(broker.id);
+          return (
+            <button
+              key={broker.id}
+              onClick={() => !connected && onOpenBrokerModal?.()}
+              className={`relative p-2 rounded-lg transition-all flex flex-col items-center gap-1 ${
+                connected 
+                  ? 'bg-emerald-500/10 border border-emerald-500/30'
+                  : 'bg-[#111111] border border-[#1A1A1A] hover:border-blue-500/50'
+              }`}
+            >
+              {connected && (
+                <div className="absolute -top-1 -right-1">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+              <MiniBrokerIcon broker={broker.id} />
+              <span className="text-[9px] text-gray-400 truncate w-full text-center">{broker.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => onOpenBrokerModal?.()}
+        className="w-full mt-2 py-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+      >
+        + Connect New Broker
+      </button>
+    </div>
+  );
+};
+
+export default function Sidebar({ 
+  expanded, 
+  onToggle, 
+  activeSection, 
+  onSectionChange, 
+  theme, 
+  themeClasses, 
+  watchlist = [], 
+  onRemoveFromWatchlist, 
+  onViewChart, 
+  savedStrategies = [], 
+  onRemoveSavedStrategy,
+  connectedBrokers = [],
+  onOpenBrokerModal,
+  customNavItems,
+  customBottomItems
+}) {
   const [hoveredItem, setHoveredItem] = useState(null);
+  
+  // Use custom items if provided, otherwise defaults
+  const navItems = customNavItems || defaultNavItems;
+  const bottomItems = customBottomItems || defaultBottomItems;
   
   // Track which sections are expanded (multiple can be open)
   const [expandedSections, setExpandedSections] = useState(() => {
@@ -207,111 +385,105 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
   const handleMouseEnter = () => onToggle(true);
   const handleMouseLeave = () => onToggle(false);
 
-  // Count open sections for width calculation
-  const openSectionsCount = Object.values(expandedSections).filter(Boolean).length;
-
-  // Determine width based on expanded state
-  const getWidth = () => {
-    if (!expanded) return 'w-16';
-    return 'w-72';
-  };
-
   return (
     <div 
       id="sidebar-container"
-      className={`${getWidth()} flex flex-col transition-all duration-200 ${themeClasses.surfaceElevated}`} 
+      className={`${expanded ? 'w-64' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#0D0D0D] border-r border-[#1A1A1A]`}
       onMouseEnter={handleMouseEnter} 
       onMouseLeave={handleMouseLeave}
     >
       {/* Logo */}
-      <div className="h-14 flex items-center justify-center border-b border-[#2A2A2A]">
-        {!expanded ? (
-          <span className="text-2xl font-semibold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">S</span>
-        ) : (
-          <span className="font-semibold text-xl bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Stratify</span>
-        )}
+      <div className="h-14 flex items-center justify-center px-3">
+        <StratifyLogo collapsed={!expanded} />
       </div>
 
-      {/* Navigation - Scrollable */}
-      <nav className="flex-1 py-2 flex flex-col overflow-y-auto overflow-x-hidden scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      {/* Divider */}
+      <div className="mx-3 border-t border-[#1A1A1A]" />
+
+      {/* Navigation */}
+      <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {navItems.map((item) => {
           const isExpanded = expandedSections[item.id];
-          const hasContent = item.id === 'watchlist' || item.id === 'strategies';
+          const isActive = activeSection === item.id;
           
           return (
             <div key={item.id}>
-              {/* Section Header */}
+              {/* Nav item */}
               <button 
                 onClick={() => {
                   onSectionChange(item.id);
-                  if (hasContent && expanded) {
+                  if (item.hasContent && expanded) {
                     toggleSection(item.id);
                   }
                 }}
                 onMouseEnter={() => setHoveredItem(item.id)} 
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 transition-all relative ${
-                  activeSection === item.id 
-                    ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
-                    : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
+                className={`w-full flex items-center gap-3 px-4 py-2 transition-colors relative group ${
+                  isActive 
+                    ? 'text-white' 
+                    : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
-                <div className="flex items-center">
-                  {/* Active indicator */}
-                  {activeSection === item.id && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r" />
-                  )}
-                  
-                  {/* Icon */}
-                  <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-                  
-                  {/* Label (shown when expanded) */}
-                  {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
-                </div>
-
-                {/* Expand/Collapse Arrow for sections with content */}
-                {expanded && hasContent && (
-                  <svg 
-                    className={`w-3.5 h-3.5 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                {/* Active indicator - subtle left border */}
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-500 rounded-r" />
                 )}
                 
-                {/* Tooltip (shown when collapsed and hovered) */}
+                {/* Icon - no background, just the icon */}
+                <Icon name={item.icon} className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : ''}`} />
+                
+                {/* Label */}
+                {expanded && (
+                  <>
+                    <span className="text-sm flex-1 text-left">{item.label}</span>
+                    {item.hasContent && (
+                      <ChevronIcon open={isExpanded} className="w-3 h-3 text-gray-600" />
+                    )}
+                  </>
+                )}
+                
+                {/* Tooltip when collapsed */}
                 {!expanded && hoveredItem === item.id && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#1A1A1A] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#2A2A2A]">
                     {item.label}
                   </div>
                 )}
               </button>
 
-              {/* Section Content - Watchlist */}
+              {/* Watchlist content */}
               {expanded && item.id === 'watchlist' && isExpanded && (
-                <div className="border-t border-b border-[#2A2A2A] bg-[#161616]">
-                  <div 
-                    className="overflow-y-auto scrollbar-hide max-h-48"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                  >
+                <div className="ml-4 border-l border-[#1A1A1A]">
+                  <div className="max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <Watchlist 
                       stocks={watchlist} 
                       onRemove={onRemoveFromWatchlist}
                       onViewChart={onViewChart}
-                      themeClasses={themeClasses} 
+                      themeClasses={themeClasses}
+                      compact={true}
                     />
                   </div>
                 </div>
               )}
 
-              {/* Section Content - Strategies */}
+              {/* Strategies content */}
               {expanded && item.id === 'strategies' && isExpanded && (
-                <div className="border-t border-b border-[#2A2A2A] bg-[#161616] max-h-64 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  <StrategiesFolders 
-                    savedStrategies={savedStrategies} 
-                    onRemoveSavedStrategy={onRemoveSavedStrategy}
+                <div className="ml-4 border-l border-[#1A1A1A]">
+                  <div className="max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <StrategiesFolders 
+                      savedStrategies={savedStrategies} 
+                      onRemoveSavedStrategy={onRemoveSavedStrategy}
+                      sidebarExpanded={expanded}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Brokers content */}
+              {expanded && item.id === 'brokers' && isExpanded && (
+                <div className="ml-4 border-l border-[#1A1A1A]">
+                  <BrokersGrid 
+                    connectedBrokers={connectedBrokers}
+                    onOpenBrokerModal={onOpenBrokerModal}
                   />
                 </div>
               )}
@@ -320,10 +492,14 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
         })}
       </nav>
 
-      {/* Bottom items (Settings, Help) */}
-      <div className="border-t border-[#2A2A2A] py-2">
+      {/* Divider */}
+      <div className="mx-3 border-t border-[#1A1A1A]" />
+
+      {/* Bottom items */}
+      <div className="py-3">
         {bottomItems.map((item) => {
-          const isSettingsExpanded = expandedSections[item.id];
+          const isExpanded = expandedSections[item.id];
+          const isActive = activeSection === item.id;
           
           return (
             <div key={item.id}>
@@ -336,41 +512,37 @@ export default function Sidebar({ expanded, onToggle, activeSection, onSectionCh
                 }} 
                 onMouseEnter={() => setHoveredItem(item.id)} 
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 transition-all relative ${
-                  activeSection === item.id 
-                    ? 'text-[#F5F5F5] bg-[#2A2A2A]' 
-                    : 'text-[#6B6B6B] hover:text-[#F5F5F5] hover:bg-[#252525]'
+                className={`w-full flex items-center gap-3 px-4 py-2 transition-colors relative group ${
+                  isActive 
+                    ? 'text-white' 
+                    : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
-                <div className="flex items-center">
-                  {activeSection === item.id && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-500 rounded-r" />
-                  )}
-                  <IconComponent name={item.icon} className="w-5 h-5 flex-shrink-0" />
-                  {expanded && <span className="ml-3 text-sm font-medium whitespace-nowrap">{item.label}</span>}
-                </div>
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-500 rounded-r" />
+                )}
                 
-                {expanded && item.hasContent && (
-                  <svg 
-                    className={`w-3.5 h-3.5 text-gray-500 transition-transform ${isSettingsExpanded ? 'rotate-90' : ''}`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                <Icon name={item.icon} className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : ''}`} />
+                
+                {expanded && (
+                  <>
+                    <span className="text-sm flex-1 text-left">{item.label}</span>
+                    {item.hasContent && (
+                      <ChevronIcon open={isExpanded} className="w-3 h-3 text-gray-600" />
+                    )}
+                  </>
                 )}
                 
                 {!expanded && hoveredItem === item.id && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#333] text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#1A1A1A] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#2A2A2A]">
                     {item.label}
                   </div>
                 )}
               </button>
               
-              {/* Settings Content */}
-              {expanded && item.id === 'settings' && isSettingsExpanded && (
-                <div className="border-t border-b border-[#2A2A2A] bg-[#161616]">
+              {/* Settings content */}
+              {expanded && item.id === 'settings' && isExpanded && (
+                <div className="ml-4 border-l border-[#1A1A1A]">
                   <SettingsPanel />
                 </div>
               )}

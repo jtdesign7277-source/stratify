@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 
-// Claude spark icon (outlined)
+// AI spark icon (outlined) - matches sidebar blue
 const ClaudeIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" stroke="#f97316" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
   </svg>
 );
 
@@ -48,7 +48,7 @@ const AnimatedCursor = ({ phase, target = 'submit' }) => {
       {/* Click ripple effect */}
       {isClicking && (
         <div className={`absolute top-2 left-1 w-4 h-4 rounded-full animate-ping ${
-          target === 'add' ? 'bg-emerald-400/60' : 'bg-orange-400/60'
+          target === 'add' ? 'bg-emerald-400/60' : 'bg-blue-400/60'
         }`} />
       )}
     </div>
@@ -359,7 +359,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   if (!expanded) {
     return (
       <div 
-        className={`w-12 flex flex-col items-center py-4 gap-4 ${themeClasses.surfaceElevated} cursor-pointer transition-all duration-200 hover:bg-[#252525]`}
+        className={`w-12 flex flex-col items-center py-4 gap-4 ${themeClasses.surfaceElevated} cursor-pointer transition-all duration-200 hover:bg-[#161616]`}
         onClick={() => setExpanded(true)}
       >
         <div className="flex flex-col items-center gap-1">
@@ -413,13 +413,13 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
           <div className={`${themeClasses.surface} border ${themeClasses.border} rounded-lg p-3 animate-fadeIn`}>
             <div className="flex items-center gap-2 mb-2">
               <ClaudeIcon className="w-4 h-4" />
-              <span className="text-[#f97316] text-xs font-semibold">Claude</span>
+              <span className="text-blue-400 text-xs font-semibold">Claude</span>
             </div>
             
             {displayedClaudeText && (
               <div className={`text-sm ${themeClasses.text} mb-2`}>
                 {displayedClaudeText}
-                {demoPhase === 'typing-claude' && !displayedCode && <span className="animate-pulse text-[#f97316]">|</span>}
+                {demoPhase === 'typing-claude' && !displayedCode && <span className="animate-pulse text-blue-400">|</span>}
               </div>
             )}
             
@@ -432,7 +432,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
                   </div>
                   <pre className="text-xs text-gray-400 overflow-x-auto font-mono leading-relaxed whitespace-pre-wrap scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {displayedCode}
-                    {demoPhase === 'typing-claude' && <span className="animate-pulse text-[#f97316]">|</span>}
+                    {demoPhase === 'typing-claude' && <span className="animate-pulse text-blue-400">|</span>}
                   </pre>
                 </div>
 
@@ -483,7 +483,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
             onChange={(e) => setInputValue(e.target.value)}
             placeholder="Describe your trading strategy..."
             rows={3}
-            className={`w-full px-3 py-2 ${themeClasses.surface} border ${themeClasses.border} focus:border-[#f97316] rounded-lg text-sm ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors resize-none`}
+            className={`w-full px-3 py-2 ${themeClasses.surface} border ${themeClasses.border} focus:border-blue-500 rounded-lg text-sm ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors resize-none`}
             readOnly={demoPhase === 'typing-user' || demoPhase === 'cursor-submit'}
           />
           <div className="relative">
@@ -491,7 +491,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
               disabled={!inputValue.trim()}
               className={`absolute right-2 bottom-2 p-1 transition-all ${
                 demoPhase === 'clicking-submit'
-                  ? 'text-orange-300 scale-90'
+                  ? 'text-blue-300 scale-90'
                   : 'text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed'
               }`}
             >
@@ -516,7 +516,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
           <input
             type="text"
             placeholder="e.g. RSI Momentum"
-            className={`flex-1 px-2 py-1 ${themeClasses.surface} border ${themeClasses.border} focus:border-[#f97316] rounded text-xs ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors`}
+            className={`flex-1 px-2 py-1 ${themeClasses.surface} border ${themeClasses.border} focus:border-blue-500 rounded text-xs ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors`}
             readOnly={demoPhase === 'typing-user' || demoPhase === 'cursor-submit'}
           />
         </div>
