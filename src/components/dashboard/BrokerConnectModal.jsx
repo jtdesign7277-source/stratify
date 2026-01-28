@@ -213,18 +213,18 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           </svg>
         </button>
 
-        <div className="bg-[#0D0D0D] rounded-2xl overflow-hidden border border-[#1A1A1A]">
+        <div className="bg-[#202124] rounded-2xl overflow-hidden border border-[#5f6368]">
           
           {!selectedBroker ? (
             <>
               {/* Header */}
-              <div className="p-6 border-b border-[#1A1A1A]">
+              <div className="p-6 border-b border-[#5f6368]">
                 <h2 className="text-xl font-semibold text-white mb-1">Connect a Broker</h2>
                 <p className="text-sm text-gray-400">Link your accounts to enable cross-market scanning & arbitrage</p>
               </div>
 
               {/* Filters */}
-              <div className="px-6 py-3 border-b border-[#1A1A1A] flex gap-2 flex-wrap">
+              <div className="px-6 py-3 border-b border-[#5f6368] flex gap-2 flex-wrap">
                 {['all', 'stocks', 'futures', 'prediction', 'crypto', 'tools'].map(f => (
                   <button
                     key={f}
@@ -232,7 +232,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                     className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
                       filter === f 
                         ? 'bg-blue-500 text-white' 
-                        : 'bg-[#1A1A1A] text-gray-400 hover:text-white'
+                        : 'bg-[#3c4043] text-gray-400 hover:text-white'
                     }`}
                   >
                     {f === 'all' ? 'All' : f === 'prediction' ? 'Prediction' : f === 'tools' ? 'Tools' : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -252,7 +252,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                       className={`relative p-4 rounded-xl border transition-all text-center group ${
                         connected 
                           ? 'bg-emerald-500/10 border-emerald-500/30 cursor-default'
-                          : 'bg-[#111111] border-[#1A1A1A] hover:border-blue-500/50 hover:bg-[#161616]'
+                          : 'bg-[#303134] border-[#5f6368] hover:border-blue-500/50 hover:bg-[#3c4043]'
                       }`}
                     >
                       {connected && (
@@ -275,7 +275,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           ) : (
             <>
               {/* Connect Form */}
-              <div className="p-6 border-b border-[#1A1A1A]">
+              <div className="p-6 border-b border-[#5f6368]">
                 <button 
                   onClick={() => setSelectedBroker(null)}
                   className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors"
@@ -303,7 +303,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="Enter your API key"
-                    className="w-full bg-[#111111] border border-[#1A1A1A] focus:border-blue-500 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none transition-colors"
+                    className="w-full bg-[#303134] border border-[#5f6368] focus:border-blue-500 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none transition-colors"
                   />
                 </div>
                 
@@ -314,7 +314,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                     value={secretKey}
                     onChange={(e) => setSecretKey(e.target.value)}
                     placeholder="Enter your secret key"
-                    className="w-full bg-[#111111] border border-[#1A1A1A] focus:border-blue-500 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none transition-colors"
+                    className="w-full bg-[#303134] border border-[#5f6368] focus:border-blue-500 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none transition-colors"
                   />
                 </div>
 
@@ -330,7 +330,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                   className={`w-full py-3 rounded-lg font-medium transition-all ${
                     apiKey && secretKey && !connecting
                       ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : 'bg-[#1A1A1A] text-gray-500 cursor-not-allowed'
+                      : 'bg-[#3c4043] text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   {connecting ? (

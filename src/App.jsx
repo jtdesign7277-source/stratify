@@ -193,7 +193,7 @@ const LandingPage = ({ onEnter }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white relative overflow-hidden">
+    <div className="min-h-screen bg-[#202124] text-white relative overflow-hidden">
       <GridBackground />
 
       {/* Mouse-following glow effect */}
@@ -383,7 +383,7 @@ const LandingPage = ({ onEnter }) => {
           {/* Feature Preview Cards */}
           <div className="grid grid-cols-3 gap-6 mb-20" id="features">
             {/* AI Strategy Builder Card */}
-            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
+            <div className="bg-[#202124] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
               {/* Visual Element */}
               <div className="flex-1 flex items-center justify-center mb-6">
                 <div className="relative w-full h-64">
@@ -436,7 +436,7 @@ const LandingPage = ({ onEnter }) => {
             </div>
 
             {/* Real-time Execution Card */}
-            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
+            <div className="bg-[#202124] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
               {/* Visual Element */}
               <div className="flex-1 flex items-center justify-center mb-6">
                 <div className="relative w-full h-64 flex flex-col items-center justify-center">
@@ -485,7 +485,7 @@ const LandingPage = ({ onEnter }) => {
             </div>
 
             {/* Advanced Analytics Card */}
-            <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
+            <div className="bg-[#202124] border border-white/10 rounded-2xl p-8 flex flex-col h-[500px] hover:border-white/20 transition-all">
               {/* Visual Element */}
               <div className="flex-1 flex items-center justify-center mb-6">
                 <div className="relative w-full h-64">
@@ -570,7 +570,7 @@ const LandingPage = ({ onEnter }) => {
             {/* Strategy Cards */}
             <div className="grid grid-cols-3 gap-6">
               {/* EMA Crossover */}
-              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
+              <div className="bg-[#202124] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
                 <div className="h-40 bg-gradient-to-br from-purple-500/10 to-blue-500/10 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 opacity-50">
                     <svg viewBox="0 0 200 80" className="w-full h-full">
@@ -600,7 +600,7 @@ const LandingPage = ({ onEnter }) => {
               </div>
 
               {/* RSI Reversal */}
-              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
+              <div className="bg-[#202124] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
                 <div className="h-40 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 opacity-50">
                     <svg viewBox="0 0 200 80" className="w-full h-full">
@@ -631,7 +631,7 @@ const LandingPage = ({ onEnter }) => {
               </div>
 
               {/* Breakout */}
-              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
+              <div className="bg-[#202124] border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all group">
                 <div className="h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 opacity-50">
                     <svg viewBox="0 0 200 80" className="w-full h-full">
@@ -816,7 +816,7 @@ const LandingPage = ({ onEnter }) => {
 
             <div className="grid grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
               {/* Free Tier */}
-              <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-10">
+              <div className="bg-[#202124] border border-white/10 rounded-2xl p-10">
                 <div className="text-base text-gray-400 mb-2">Free</div>
                 <div className="text-4xl font-bold mb-1">
                   Paper trade for free
@@ -869,7 +869,7 @@ const LandingPage = ({ onEnter }) => {
               </div>
 
               {/* Pro Tier */}
-              <div className="relative bg-[#0a0a0f] border border-purple-500/30 rounded-2xl p-10 shadow-2xl shadow-purple-500/20">
+              <div className="relative bg-[#202124] border border-purple-500/30 rounded-2xl p-10 shadow-2xl shadow-purple-500/20">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl pointer-events-none" />
                 <div className="relative z-10">
                   <div className="text-base text-purple-400 mb-2">Pro</div>
@@ -945,7 +945,7 @@ const Terminal = () => {
   const totalPL = strategies.reduce((sum, s) => sum + s.profit, 0);
 
   return (
-    <div className="h-full bg-[#0a0a0f] flex flex-col">
+    <div className="h-full bg-[#202124] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-2">
@@ -986,7 +986,7 @@ const Terminal = () => {
       </div>
 
       {/* Footer - Total P&L */}
-      <div className="border-t border-white/10 px-6 py-4 bg-[#0a0a0f]">
+      <div className="border-t border-white/10 px-6 py-4 bg-[#202124]">
         <div className="flex items-center justify-between">
           <span className="text-base text-gray-400">Total P&L:</span>
           <span className="text-emerald-400 font-mono text-xl font-bold">
@@ -1027,7 +1027,7 @@ const ClaudeCodeChat = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a0f]">
+    <div className="flex flex-col h-full bg-[#202124]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a]">
         <div className="flex items-center gap-2">
@@ -1106,7 +1106,7 @@ const ClaudeCodeChat = () => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[#2a2a2a] p-4 bg-[#0a0a0f]">
+      <div className="border-t border-[#2a2a2a] p-4 bg-[#202124]">
         <div className="mb-3">
           <div className="text-xs text-gray-500 flex items-center gap-1.5">
             <kbd className="px-1.5 py-0.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded text-xs font-mono">⌘</kbd>
@@ -1379,7 +1379,7 @@ export class TeslaEMAStrategy extends Strategy {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex">
+    <div className="min-h-screen bg-[#202124] text-white flex">
       <GridBackground />
 
       {/* Edge Navigation Sidebar */}
@@ -1517,12 +1517,12 @@ export class TeslaEMAStrategy extends Strategy {
         {/* Code Editor Area */}
         <div className="flex-1 flex flex-col">
           {/* Tab Bar */}
-          <div className="bg-[#0a0a0f] border-b border-white/10 px-4 py-3 flex items-center">
+          <div className="bg-[#202124] border-b border-white/10 px-4 py-3 flex items-center">
             <span className="text-sm font-medium text-gray-400">tesla-ema-strategy.ts</span>
           </div>
 
           {/* Editor Content */}
-          <div className="flex-1 bg-[#0a0a0f] relative overflow-hidden">
+          <div className="flex-1 bg-[#202124] relative overflow-hidden">
             <Editor
               height="100%"
               defaultLanguage="typescript"
@@ -1562,7 +1562,7 @@ export class TeslaEMAStrategy extends Strategy {
               className={`h-1 bg-white/5 hover:bg-blue-500/30 transition-colors ${isDragging ? 'bg-blue-500/50' : ''} cursor-ns-resize`}
             />
 
-            <div className="border-t border-white/10 bg-[#0a0a0f]" style={{ height: `${strategiesHeight}px` }}>
+            <div className="border-t border-white/10 bg-[#202124]" style={{ height: `${strategiesHeight}px` }}>
               {/* Tabs */}
               <div className="flex items-center justify-between px-2 py-1 border-b border-white/10 bg-[#1e1e1e]">
                 <div className="flex items-center gap-1">
@@ -1570,7 +1570,7 @@ export class TeslaEMAStrategy extends Strategy {
                     onClick={() => setBottomTab('strategies')}
                     className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                       bottomTab === 'strategies'
-                        ? 'bg-[#0a0a0f] text-white'
+                        ? 'bg-[#202124] text-white'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -1580,7 +1580,7 @@ export class TeslaEMAStrategy extends Strategy {
                     onClick={() => setBottomTab('terminal')}
                     className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                       bottomTab === 'terminal'
-                        ? 'bg-[#0a0a0f] text-white'
+                        ? 'bg-[#202124] text-white'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -1658,7 +1658,7 @@ export class TeslaEMAStrategy extends Strategy {
             </div>
             <div className="flex items-center gap-2">
               {activeStrategies.map((strategy, i) => (
-                <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-[#0a0a0f] rounded text-xs">
+                <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-[#202124] rounded text-xs">
                   <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                   <span className="text-gray-400">{strategy.name}</span>
                   <span className="text-emerald-400 font-mono">+${strategy.profit.toFixed(0)}</span>
@@ -1670,7 +1670,7 @@ export class TeslaEMAStrategy extends Strategy {
       </div>
 
       {/* Right Sidebar - Claude Code Chat */}
-      <div className="relative z-10 w-[380px] border-l border-white/10 bg-[#0a0a0f]">
+      <div className="relative z-10 w-[380px] border-l border-white/10 bg-[#202124]">
         <ClaudeCodeChat />
       </div>
     </div>

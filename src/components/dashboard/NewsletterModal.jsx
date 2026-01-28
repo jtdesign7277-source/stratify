@@ -85,7 +85,7 @@ export default function NewsletterModal({ isOpen, onClose }) {
         </button>
 
         {/* Newsletter Content */}
-        <div className="bg-[#111111] rounded-2xl overflow-hidden border border-[#21262d]">
+        <div className="bg-[#303134] rounded-2xl overflow-hidden border border-[#21262d]">
           
           {/* Header */}
           <div className="bg-gradient-to-br from-[#0d1117] to-[#161b22] p-8 text-center border-b border-[#21262d]">

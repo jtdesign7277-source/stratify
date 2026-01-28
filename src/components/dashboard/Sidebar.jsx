@@ -123,11 +123,11 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, sidebarExpa
             
             {/* Strategies list - indented, clean lines */}
             {isOpen && strategies.length > 0 && (
-              <div className="ml-5 border-l border-[#2A2A2A]">
+              <div className="ml-5 border-l border-[#5f6368]">
                 {strategies.map(strategy => (
                   <div 
                     key={strategy.id}
-                    className="group flex items-center justify-between pl-3 pr-2 py-1 hover:bg-[#1A1A1A] transition-colors"
+                    className="group flex items-center justify-between pl-3 pr-2 py-1 hover:bg-[#3c4043] transition-colors"
                   >
                     <span className="text-[11px] text-gray-400 group-hover:text-gray-200 truncate">
                       {strategy.name}
@@ -243,7 +243,7 @@ const SettingsPanel = () => {
             value={userInfo.firstName}
             onChange={(e) => handleChange('firstName', e.target.value)}
             placeholder="Enter first name"
-            className="w-full bg-transparent border-b border-[#2A2A2A] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+            className="w-full bg-transparent border-b border-[#5f6368] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
           />
         </div>
         
@@ -254,7 +254,7 @@ const SettingsPanel = () => {
             value={userInfo.lastName}
             onChange={(e) => handleChange('lastName', e.target.value)}
             placeholder="Enter last name"
-            className="w-full bg-transparent border-b border-[#2A2A2A] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+            className="w-full bg-transparent border-b border-[#5f6368] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
           />
         </div>
         
@@ -265,7 +265,7 @@ const SettingsPanel = () => {
             value={userInfo.email}
             onChange={(e) => handleChange('email', e.target.value)}
             placeholder="Enter email address"
-            className="w-full bg-transparent border-b border-[#2A2A2A] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+            className="w-full bg-transparent border-b border-[#5f6368] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
           />
         </div>
       </div>
@@ -315,7 +315,7 @@ const BrokersGrid = ({ connectedBrokers = [], onOpenBrokerModal }) => {
               className={`relative p-2 rounded-lg transition-all flex flex-col items-center gap-1 ${
                 connected 
                   ? 'bg-emerald-500/10 border border-emerald-500/30'
-                  : 'bg-[#111111] border border-[#1A1A1A] hover:border-blue-500/50'
+                  : 'bg-[#303134] border border-[#5f6368] hover:border-blue-500/50'
               }`}
             >
               {connected && (
@@ -388,7 +388,7 @@ export default function Sidebar({
   return (
     <div 
       id="sidebar-container"
-      className={`${expanded ? 'w-64' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#0D0D0D] border-r border-[#1A1A1A]`}
+      className={`${expanded ? 'w-64' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#202124] border-r border-[#5f6368]`}
       onMouseEnter={handleMouseEnter} 
       onMouseLeave={handleMouseLeave}
     >
@@ -398,7 +398,7 @@ export default function Sidebar({
       </div>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-[#1A1A1A]" />
+      <div className="mx-3 border-t border-[#5f6368]" />
 
       {/* Navigation */}
       <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -444,7 +444,7 @@ export default function Sidebar({
                 
                 {/* Tooltip when collapsed */}
                 {!expanded && hoveredItem === item.id && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#1A1A1A] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#2A2A2A]">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#5f6368]">
                     {item.label}
                   </div>
                 )}
@@ -452,7 +452,7 @@ export default function Sidebar({
 
               {/* Watchlist content */}
               {expanded && item.id === 'watchlist' && isExpanded && (
-                <div className="ml-4 border-l border-[#1A1A1A]">
+                <div className="ml-4 border-l border-[#5f6368]">
                   <div className="max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <Watchlist 
                       stocks={watchlist} 
@@ -467,7 +467,7 @@ export default function Sidebar({
 
               {/* Strategies content */}
               {expanded && item.id === 'strategies' && isExpanded && (
-                <div className="ml-4 border-l border-[#1A1A1A]">
+                <div className="ml-4 border-l border-[#5f6368]">
                   <div className="max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <StrategiesFolders 
                       savedStrategies={savedStrategies} 
@@ -480,7 +480,7 @@ export default function Sidebar({
 
               {/* Brokers content */}
               {expanded && item.id === 'brokers' && isExpanded && (
-                <div className="ml-4 border-l border-[#1A1A1A]">
+                <div className="ml-4 border-l border-[#5f6368]">
                   <BrokersGrid 
                     connectedBrokers={connectedBrokers}
                     onOpenBrokerModal={onOpenBrokerModal}
@@ -493,7 +493,7 @@ export default function Sidebar({
       </nav>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-[#1A1A1A]" />
+      <div className="mx-3 border-t border-[#5f6368]" />
 
       {/* Bottom items */}
       <div className="py-3">
@@ -534,7 +534,7 @@ export default function Sidebar({
                 )}
                 
                 {!expanded && hoveredItem === item.id && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#1A1A1A] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#2A2A2A]">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#5f6368]">
                     {item.label}
                   </div>
                 )}
@@ -542,7 +542,7 @@ export default function Sidebar({
               
               {/* Settings content */}
               {expanded && item.id === 'settings' && isExpanded && (
-                <div className="ml-4 border-l border-[#1A1A1A]">
+                <div className="ml-4 border-l border-[#5f6368]">
                   <SettingsPanel />
                 </div>
               )}

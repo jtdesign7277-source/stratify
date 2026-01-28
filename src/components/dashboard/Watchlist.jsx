@@ -57,7 +57,7 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
           return (
             <div 
               key={stock.symbol} 
-              className="group flex items-center justify-between pl-3 pr-2 py-1 hover:bg-[#1A1A1A] transition-colors"
+              className="group flex items-center justify-between pl-3 pr-2 py-1 hover:bg-[#3c4043] transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <button

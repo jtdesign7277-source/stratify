@@ -139,7 +139,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
   if (!expanded) {
     return (
       <div 
-        className={`h-8 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border} cursor-pointer hover:bg-[#161616] transition-colors`}
+        className={`h-8 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border} cursor-pointer hover:bg-[#3c4043] transition-colors`}
         onClick={() => setExpanded(true)}
       >
         <div className="flex items-center gap-2">

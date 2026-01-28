@@ -359,7 +359,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   if (!expanded) {
     return (
       <div 
-        className={`w-12 flex flex-col items-center py-4 gap-4 ${themeClasses.surfaceElevated} cursor-pointer transition-all duration-200 hover:bg-[#161616]`}
+        className={`w-12 flex flex-col items-center py-4 gap-4 ${themeClasses.surfaceElevated} cursor-pointer transition-all duration-200 hover:bg-[#3c4043]`}
         onClick={() => setExpanded(true)}
       >
         <div className="flex flex-col items-center gap-1">

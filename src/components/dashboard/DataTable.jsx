@@ -292,7 +292,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             const isClickingBacktest = cursorPhase === 'clicking-backtest';
 
             return (
-              <div key={strategy.id} className={`bg-[#111111] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#1A1A1A] hover:border-purple-500/30'}`}>
+              <div key={strategy.id} className={`bg-[#303134] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#5f6368] hover:border-purple-500/30'}`}>
                 {/* Strategy Row */}
                 <div className="flex items-center justify-between gap-4 px-3 py-2">
                   {/* Left: Dropdown toggle + Name + Status */}
@@ -376,7 +376,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
 
                 {/* Expanded Section - Stats & Code */}
                 {isExpanded && (
-                  <div className="px-3 pb-3 border-t border-[#2A2A2A] mt-1 pt-3">
+                  <div className="px-3 pb-3 border-t border-[#5f6368] mt-1 pt-3">
                     
                     {/* Edit Mode Panel */}
                     {editingStrategyId === strategy.id && (
@@ -392,7 +392,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.stopLoss}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, stopLoss: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#202124] border border-[#5f6368] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 max="0"
                               />
@@ -405,7 +405,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.takeProfit}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, takeProfit: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#202124] border border-[#5f6368] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0"
                               />
@@ -418,7 +418,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.positionSize}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, positionSize: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#202124] border border-[#5f6368] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0.5"
                                 max="100"
@@ -432,7 +432,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                                 type="number"
                                 value={editParams.trailingStop}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, trailingStop: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#0D0D0D] border border-[#2A2A2A] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#202124] border border-[#5f6368] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0"
                               />
@@ -443,7 +443,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
 
                         {/* Edit Backtest Progress */}
                         {editBacktestRunning && (
-                          <div className="flex items-center justify-center gap-3 py-3 mb-3 bg-[#0D0D0D] rounded-lg border border-purple-500/30">
+                          <div className="flex items-center justify-center gap-3 py-3 mb-3 bg-[#202124] rounded-lg border border-purple-500/30">
                             <svg className="w-4 h-4 animate-spin text-purple-400" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
@@ -462,19 +462,19 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                               New Backtest Results
                             </div>
                             <div className="grid grid-cols-4 gap-2">
-                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                              <div className="bg-[#202124] rounded p-2 border border-emerald-500/30">
                                 <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
                                 <div className="text-sm font-semibold text-emerald-400">{editBacktestResults.winRate}%</div>
                               </div>
-                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                              <div className="bg-[#202124] rounded p-2 border border-emerald-500/30">
                                 <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
                                 <div className="text-sm font-semibold text-blue-400">{editBacktestResults.profitFactor}</div>
                               </div>
-                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                              <div className="bg-[#202124] rounded p-2 border border-emerald-500/30">
                                 <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
                                 <div className="text-sm font-semibold text-purple-400">{editBacktestResults.sharpeRatio}</div>
                               </div>
-                              <div className="bg-[#0D0D0D] rounded p-2 border border-emerald-500/30">
+                              <div className="bg-[#202124] rounded p-2 border border-emerald-500/30">
                                 <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
                                 <div className="text-sm font-semibold text-orange-400">-{editBacktestResults.maxDrawdown}%</div>
                               </div>
@@ -548,19 +548,19 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                       <>
                         <div className="text-xs text-gray-500 mb-2">Backtest Results</div>
                         <div className="grid grid-cols-4 gap-2 mb-3">
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
                             <div className="text-sm font-semibold text-emerald-400">{strategy.metrics.winRate}%</div>
                           </div>
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
                             <div className="text-sm font-semibold text-blue-400">{strategy.metrics.profitFactor}</div>
                           </div>
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
                             <div className="text-sm font-semibold text-purple-400">{strategy.metrics.sharpeRatio}</div>
                           </div>
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
                             <div className="text-sm font-semibold text-orange-400">-{strategy.metrics.maxDrawdown}%</div>
                           </div>
@@ -570,7 +570,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                         {strategy.code && (
                           <div className="mb-3">
                             <div className="text-xs text-gray-500 mb-2">Strategy Code</div>
-                            <pre className="bg-[#0D0D0D] rounded p-3 border border-[#2A2A2A] text-xs text-gray-400 font-mono overflow-x-auto max-h-32 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+                            <pre className="bg-[#202124] rounded p-3 border border-[#5f6368] text-xs text-gray-400 font-mono overflow-x-auto max-h-32 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
                               {strategy.code}
                             </pre>
                           </div>
@@ -614,19 +614,19 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                         </div>
 
                         <div className="grid grid-cols-4 gap-2 mb-3">
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
                             <div className="text-sm font-semibold text-emerald-400">{strategy.metrics.winRate}%</div>
                           </div>
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
                             <div className="text-sm font-semibold text-blue-400">{strategy.metrics.profitFactor}</div>
                           </div>
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
                             <div className="text-sm font-semibold text-purple-400">{strategy.metrics.sharpeRatio}</div>
                           </div>
-                          <div className="bg-[#0D0D0D] rounded p-2 border border-[#2A2A2A]">
+                          <div className="bg-[#202124] rounded p-2 border border-[#5f6368]">
                             <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
                             <div className="text-sm font-semibold text-orange-400">-{strategy.metrics.maxDrawdown}%</div>
                           </div>
@@ -685,7 +685,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             <tr><td colSpan={columns.length} className={`px-4 py-16 text-center ${themeClasses.textMuted}`}>No {activeTab} to display</td></tr>
           ) : (
             sortedData.map((row, index) => (
-              <tr key={row.symbol || index} onClick={() => setSelectedRow(index)} className={`border-b border-[#1A1A1A] cursor-pointer ${selectedRow === index ? 'bg-[#161616] border-l-2 border-l-emerald-500' : 'hover:bg-[#111111]'}`}>
+              <tr key={row.symbol || index} onClick={() => setSelectedRow(index)} className={`border-b border-[#5f6368] cursor-pointer ${selectedRow === index ? 'bg-[#3c4043] border-l-2 border-l-emerald-500' : 'hover:bg-[#303134]'}`}>
                 {columns.map((col) => (
                   <td key={col.key} className={`px-4 py-3 text-sm font-mono ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.colored ? getValueColor(row[col.key]) : themeClasses.text}`}>{renderCell(row, col)}</td>
                 ))}
