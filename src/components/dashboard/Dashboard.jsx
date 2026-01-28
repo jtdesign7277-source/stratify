@@ -287,7 +287,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             savedStrategies={savedStrategies}
             autoBacktestStrategy={autoBacktestStrategy}
           />
-          <TerminalPanel themeClasses={themeClasses} deployedStrategies={deployedStrategies} />
+          <TerminalPanel 
+            themeClasses={themeClasses} 
+            deployedStrategies={deployedStrategies} 
+            onRemoveStrategy={(id) => setDeployedStrategies(prev => prev.filter(s => s.id !== id))}
+          />
         </div>
         <RightPanel 
           width={rightPanelWidth} 

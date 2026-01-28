@@ -1,58 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// Live updating number component
-const LiveNumber = ({ baseValue, prefix = '', suffix = '', color = 'text-white', fluctuation = 0.5 }) => {
-  const [value, setValue] = useState(parseFloat(baseValue));
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const change = (Math.random() - 0.5) * fluctuation;
-      setValue(prev => {
-        const newVal = prev + change;
-        return Math.max(0, newVal);
-      });
-    }, 1000 + Math.random() * 2000);
-    
-    return () => clearInterval(interval);
-  }, [baseValue, fluctuation]);
-
-  return (
-    <span className={`${color} font-medium tabular-nums transition-all duration-300`}>
-      {prefix}{value.toFixed(2)}{suffix}
-    </span>
-  );
-};
-
-// Live P&L that can go up or down
-const LivePnL = ({ baseValue = 1000 }) => {
-  const [value, setValue] = useState(baseValue);
-  const [trades, setTrades] = useState(0);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const change = (Math.random() - 0.4) * 50; // Slightly biased positive
-      setValue(prev => prev + change);
-      if (Math.random() > 0.7) {
-        setTrades(prev => prev + 1);
-      }
-    }, 2000 + Math.random() * 3000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const isPositive = value >= 0;
-  
-  return {
-    pnl: (
-      <span className={`font-medium tabular-nums ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-        {isPositive ? '+' : ''}{value < 0 ? '-' : ''}${Math.abs(value).toFixed(2)}
-      </span>
-    ),
-    trades
-  };
-};
-
-export default function TerminalPanel({ themeClasses, deployedStrategies = [] }) {
+export default function TerminalPanel({ themeClasses, deployedStrategies = [], onRemoveStrategy }) {
   const [expanded, setExpanded] = useState(true);
   const [panelHeight, setPanelHeight] = useState(() => {
     const saved = localStorage.getItem('stratify-terminal-height');
@@ -60,6 +8,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
   });
   const [isDragging, setIsDragging] = useState(false);
   const [liveData, setLiveData] = useState({});
+  const [pausedStrategies, setPausedStrategies] = useState({});
 
   // Initialize live data for each strategy
   useEffect(() => {
@@ -69,16 +18,18 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
         newLiveData[s.id] = {
           pnl: Math.random() * 2000 - 500,
           trades: Math.floor(Math.random() * 20),
-          winRate: parseFloat(s.metrics.winRate),
+          winRate: parseFloat(s.metrics?.winRate || 60),
         };
       } else {
         newLiveData[s.id] = liveData[s.id];
       }
     });
-    setLiveData(newLiveData);
+    if (Object.keys(newLiveData).length > 0) {
+      setLiveData(prev => ({ ...prev, ...newLiveData }));
+    }
   }, [deployedStrategies.length]);
 
-  // Live update effect
+  // Live update effect - only for non-paused strategies
   useEffect(() => {
     if (deployedStrategies.length === 0) return;
     
@@ -86,13 +37,14 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
       setLiveData(prev => {
         const updated = { ...prev };
         deployedStrategies.forEach(s => {
-          if (updated[s.id]) {
+          // Only update if not paused
+          if (updated[s.id] && !pausedStrategies[s.id]) {
             const pnlChange = (Math.random() - 0.4) * 30;
             updated[s.id] = {
               ...updated[s.id],
               pnl: updated[s.id].pnl + pnlChange,
               trades: Math.random() > 0.8 ? updated[s.id].trades + 1 : updated[s.id].trades,
-              winRate: updated[s.id].winRate + (Math.random() - 0.5) * 0.3,
+              winRate: Math.max(0, Math.min(100, updated[s.id].winRate + (Math.random() - 0.5) * 0.3)),
             };
           }
         });
@@ -101,7 +53,27 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [deployedStrategies]);
+  }, [deployedStrategies, pausedStrategies]);
+
+  // Handlers for Pause/Kill
+  const handlePause = (strategyId) => {
+    setPausedStrategies(prev => ({ ...prev, [strategyId]: !prev[strategyId] }));
+  };
+
+  const handleKill = (strategyId, strategyName) => {
+    if (window.confirm(`Kill strategy "${strategyName}"? This will stop all trading for this strategy.`)) {
+      // Remove from live data
+      setLiveData(prev => {
+        const updated = { ...prev };
+        delete updated[strategyId];
+        return updated;
+      });
+      // Call parent handler if provided
+      if (onRemoveStrategy) {
+        onRemoveStrategy(strategyId);
+      }
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('stratify-terminal-height', panelHeight.toString());
@@ -135,6 +107,9 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
     };
   }, [isDragging]);
 
+  // Filter out killed strategies
+  const activeStrategies = deployedStrategies.filter(s => liveData[s.id] !== undefined);
+
   // Collapsed view
   if (!expanded) {
     return (
@@ -147,7 +122,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
           <span className="text-xs font-medium text-white">Deployed Strategies</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-emerald-400">{deployedStrategies.length} active</span>
+          <span className="text-xs text-emerald-400">{activeStrategies.length} active</span>
           <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
           </svg>
@@ -171,20 +146,19 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-sm font-medium text-white">Deployed Strategies</span>
-          <span className="text-xs text-emerald-400 ml-2">{deployedStrategies.length} active</span>
+          <span className="text-xs text-emerald-400 ml-2">{activeStrategies.length} active</span>
         </div>
         <div className="flex items-center gap-6">
-          {/* Totals in header */}
-          {deployedStrategies.length > 0 && (() => {
-            const totals = deployedStrategies.reduce((acc, strategy) => {
-              const live = liveData[strategy.id] || { pnl: 0, trades: 0, winRate: parseFloat(strategy.metrics.winRate) };
+          {activeStrategies.length > 0 && (() => {
+            const totals = activeStrategies.reduce((acc, strategy) => {
+              const live = liveData[strategy.id] || { pnl: 0, trades: 0, winRate: 60 };
               return {
                 pnl: acc.pnl + live.pnl,
                 trades: acc.trades + live.trades,
                 winRateSum: acc.winRateSum + live.winRate,
               };
             }, { pnl: 0, trades: 0, winRateSum: 0 });
-            const avgWinRate = totals.winRateSum / deployedStrategies.length;
+            const avgWinRate = totals.winRateSum / activeStrategies.length;
             const isPositive = totals.pnl >= 0;
 
             return (
@@ -218,12 +192,9 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
       </div>
 
       {/* Panel content */}
-      <div 
-        className="overflow-hidden"
-        style={{ height: `${panelHeight}px` }}
-      >
+      <div className="overflow-hidden" style={{ height: `${panelHeight}px` }}>
         <div className="h-full overflow-y-auto p-3 scrollbar-hide">
-          {deployedStrategies.length === 0 ? (
+          {activeStrategies.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <svg className="w-8 h-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -233,20 +204,27 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
             </div>
           ) : (
             <div className="grid gap-2">
-              {deployedStrategies.map((strategy) => {
-                const live = liveData[strategy.id] || { pnl: 0, trades: 0, winRate: parseFloat(strategy.metrics.winRate) };
+              {activeStrategies.map((strategy) => {
+                const live = liveData[strategy.id] || { pnl: 0, trades: 0, winRate: 60 };
                 const isPositive = live.pnl >= 0;
+                const isPaused = pausedStrategies[strategy.id];
 
                 return (
                   <div 
                     key={strategy.id}
-                    className={`flex items-center justify-between p-3 rounded-lg ${themeClasses.surface} border ${themeClasses.border} hover:border-emerald-500/30 transition-colors animate-fadeIn`}
+                    className={`flex items-center justify-between p-3 rounded-lg ${themeClasses.surface} border ${
+                      isPaused ? 'border-yellow-500/50' : themeClasses.border
+                    } hover:border-emerald-500/30 transition-colors animate-fadeIn`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <div className={`w-2 h-2 rounded-full ${
+                        isPaused ? 'bg-yellow-400' : 'bg-emerald-400 animate-pulse'
+                      }`} />
                       <div>
                         <div className={`text-sm font-medium ${themeClasses.text}`}>{strategy.name}</div>
-                        <div className="text-xs text-emerald-400">Running</div>
+                        <div className={`text-xs ${isPaused ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                          {isPaused ? 'Paused' : 'Running'}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-6 text-xs">
@@ -265,10 +243,22 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                         <div className="text-emerald-400 tabular-nums">{live.winRate.toFixed(1)}%</div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button className="px-2 py-1 text-sm font-medium text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded transition-colors" title="Pause">
-                          PAUSE
+                        <button 
+                          onClick={() => handlePause(strategy.id)}
+                          className={`px-2 py-1 text-sm font-medium rounded transition-colors ${
+                            isPaused 
+                              ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10' 
+                              : 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
+                          }`}
+                          title={isPaused ? 'Resume' : 'Pause'}
+                        >
+                          {isPaused ? 'RESUME' : 'PAUSE'}
                         </button>
-                        <button className="px-2 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Kill Strategy">
+                        <button 
+                          onClick={() => handleKill(strategy.id, strategy.name)}
+                          className="px-2 py-1 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" 
+                          title="Kill Strategy"
+                        >
                           KILL
                         </button>
                       </div>
@@ -276,7 +266,6 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [] })
                   </div>
                 );
               })}
-
             </div>
           )}
         </div>
