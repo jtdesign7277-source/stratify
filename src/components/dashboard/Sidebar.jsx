@@ -388,7 +388,7 @@ export default function Sidebar({
   return (
     <div 
       id="sidebar-container"
-      className={`${expanded ? 'w-64' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#202124] border-r border-[#5f6368]`}
+      className={`${expanded ? 'w-80' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#202124] border-r border-[#5f6368]`}
       onMouseEnter={handleMouseEnter} 
       onMouseLeave={handleMouseLeave}
     >
@@ -453,7 +453,7 @@ export default function Sidebar({
               {/* Watchlist content */}
               {expanded && item.id === 'watchlist' && isExpanded && (
                 <div className="ml-4 border-l border-[#5f6368]">
-                  <div className="max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <Watchlist 
                       stocks={watchlist} 
                       onRemove={onRemoveFromWatchlist}

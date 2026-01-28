@@ -1,10 +1,54 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../../config';
 
-// Google Finance style up/down arrow
-const ChangeArrow = ({ positive, small = false }) => (
+// Mini sparkline chart component
+const MiniChart = ({ positive, data = [] }) => {
+  // Generate fake sparkline data if none provided
+  const chartData = data.length > 0 ? data : Array.from({ length: 20 }, (_, i) => {
+    const base = 50;
+    const trend = positive ? i * 0.5 : -i * 0.3;
+    const noise = (Math.random() - 0.5) * 15;
+    return Math.max(10, Math.min(90, base + trend + noise));
+  });
+
+  const points = chartData.map((val, i) => {
+    const x = (i / (chartData.length - 1)) * 100;
+    const y = 100 - val;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const color = positive ? '#00C853' : '#F44336';
+  const bgColor = positive ? 'rgba(0, 200, 83, 0.1)' : 'rgba(244, 67, 54, 0.1)';
+
+  return (
+    <svg viewBox="0 0 100 100" className="w-20 h-10" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`gradient-${positive ? 'up' : 'down'}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={bgColor} />
+          <stop offset="100%" stopColor="transparent" />
+        </linearGradient>
+      </defs>
+      {/* Area fill */}
+      <polygon
+        points={`0,100 ${points} 100,100`}
+        fill={`url(#gradient-${positive ? 'up' : 'down'})`}
+      />
+      {/* Line */}
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+};
+
+// Up/down arrow
+const ChangeArrow = ({ positive }) => (
   <svg 
-    className={`${small ? 'w-2.5 h-2.5' : 'w-3 h-3'} ${positive ? 'text-[#00C853]' : 'text-[#F44336]'}`} 
+    className={`w-3.5 h-3.5 ${positive ? 'text-[#00C853]' : 'text-[#F44336]'}`} 
     viewBox="0 0 24 24" 
     fill="currentColor"
   >
@@ -13,13 +57,6 @@ const ChangeArrow = ({ positive, small = false }) => (
     ) : (
       <path d="M7 10l5 5 5-5H7z" />
     )}
-  </svg>
-);
-
-// Moon icon for after hours
-const MoonIcon = () => (
-  <svg className="w-2.5 h-2.5 text-[#9AA0A6]" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
   </svg>
 );
 
@@ -49,81 +86,87 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
     return () => clearInterval(interval);
   }, [stocks, fetchQuote]);
 
+  const formatPrice = (price) => {
+    if (!price) return '--';
+    if (price >= 1000) {
+      return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return price.toFixed(2);
+  };
+
   if (stocks.length === 0) {
     return (
-      <div className="px-3 py-4 text-center text-[#9AA0A6] text-xs">
+      <div className="px-4 py-6 text-center text-[#9AA0A6] text-sm">
         No stocks in watchlist
       </div>
     );
   }
 
   return (
-    <div className="py-1">
+    <div className="py-2">
       {stocks.map(stock => {
         const quote = quotes[stock.symbol] || {};
-        const marketState = quote.marketState || 'REGULAR';
-        const regularChange = quote.changePercent || 0;
-        const isRegularPositive = regularChange >= 0;
-        
-        // Extended hours data
-        const hasAfterHours = marketState === 'POST' && quote.postMarketChangePercent != null;
-        const hasPreMarket = marketState === 'PRE' && quote.preMarketChangePercent != null;
-        const extendedChange = hasAfterHours ? quote.postMarketChangePercent : 
-                               hasPreMarket ? quote.preMarketChangePercent : null;
-        const isExtendedPositive = extendedChange >= 0;
+        const price = quote.price || 0;
+        const changePercent = quote.changePercent || 0;
+        const isPositive = changePercent >= 0;
+        const companyName = quote.name || stock.name || '';
         
         return (
           <div 
             key={stock.symbol} 
-            className="group px-3 py-2 hover:bg-[#3c4043] cursor-pointer transition-colors"
+            className="group flex items-center px-4 py-3 hover:bg-[#3c4043] cursor-pointer transition-colors border-b border-[#3c4043]/50 last:border-b-0"
             onClick={() => onViewChart && onViewChart(stock)}
           >
-            {/* Row 1: Symbol and regular change */}
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-[#E8EAED]">
+            {/* Left: Symbol and Company Name */}
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-medium text-[#E8EAED]">
                 {stock.symbol}
-              </span>
-              
-              <div className="flex items-center gap-2">
-                {loading[stock.symbol] ? (
-                  <span className="text-[11px] text-[#9AA0A6]">...</span>
-                ) : (
-                  <div className="flex items-center gap-0.5">
-                    <span className={`text-[11px] font-medium ${isRegularPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
-                      {isRegularPositive ? '+' : ''}{regularChange.toFixed(2)}%
-                    </span>
-                    <ChangeArrow positive={isRegularPositive} small />
-                  </div>
-                )}
-                
-                {/* Remove button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(stock.symbol);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 text-[#9AA0A6] hover:text-[#F44336] transition-all p-0.5"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+              </div>
+              <div className="text-[13px] text-[#9AA0A6] truncate">
+                {companyName || stock.symbol}
               </div>
             </div>
             
-            {/* Row 2: Extended hours (if applicable) */}
-            {(hasAfterHours || hasPreMarket) && !loading[stock.symbol] && (
-              <div className="flex items-center justify-end gap-1 mt-0.5">
-                <MoonIcon />
-                <span className={`text-[10px] font-medium ${isExtendedPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
-                  {isExtendedPositive ? '+' : ''}{extendedChange.toFixed(2)}%
-                </span>
-                <ChangeArrow positive={isExtendedPositive} small />
-                <span className="text-[9px] text-[#9AA0A6] ml-0.5">
-                  {hasAfterHours ? 'AH' : 'PM'}
-                </span>
-              </div>
-            )}
+            {/* Center: Mini Chart */}
+            <div className="mx-3 flex-shrink-0">
+              {loading[stock.symbol] ? (
+                <div className="w-20 h-10 bg-[#3c4043] rounded animate-pulse" />
+              ) : (
+                <MiniChart positive={isPositive} />
+              )}
+            </div>
+            
+            {/* Right: Price and Change */}
+            <div className="text-right flex-shrink-0 min-w-[80px]">
+              {loading[stock.symbol] ? (
+                <div className="text-[15px] text-[#9AA0A6]">...</div>
+              ) : (
+                <>
+                  <div className="text-[15px] font-medium text-[#E8EAED]">
+                    ${formatPrice(price)}
+                  </div>
+                  <div className="flex items-center justify-end gap-0.5">
+                    <span className={`text-[13px] ${isPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
+                      {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                    </span>
+                    <ChangeArrow positive={isPositive} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Remove button - shows on hover */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(stock.symbol);
+              }}
+              className="opacity-0 group-hover:opacity-100 ml-3 text-[#9AA0A6] hover:text-[#F44336] transition-all p-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         );
       })}
