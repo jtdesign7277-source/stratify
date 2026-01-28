@@ -43,10 +43,6 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
     return () => clearInterval(interval);
   }, [stocks, fetchQuote]);
 
-  const refreshAll = () => {
-    stocks.forEach(stock => fetchQuote(stock.symbol));
-  };
-
   if (stocks.length === 0) {
     return (
       <div className="px-3 py-4 text-center text-[#9AA0A6] text-xs">
@@ -60,8 +56,29 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
     <div className="py-1">
       {stocks.map(stock => {
         const quote = quotes[stock.symbol] || {};
-        const changePercent = quote.changePercent || 0;
-        const isPositive = changePercent >= 0;
+        const marketState = quote.marketState || 'REGULAR';
+        
+        // Determine which price/change to show based on market state
+        let displayChange, displayLabel, isExtendedHours;
+        
+        if (marketState === 'POST' && quote.postMarketChangePercent != null) {
+          // After hours - show post-market change
+          displayChange = quote.postMarketChangePercent;
+          displayLabel = 'AH';
+          isExtendedHours = true;
+        } else if (marketState === 'PRE' && quote.preMarketChangePercent != null) {
+          // Pre-market - show pre-market change
+          displayChange = quote.preMarketChangePercent;
+          displayLabel = 'PM';
+          isExtendedHours = true;
+        } else {
+          // Regular hours or closed - show regular change
+          displayChange = quote.changePercent || 0;
+          displayLabel = null;
+          isExtendedHours = false;
+        }
+        
+        const isPositive = displayChange >= 0;
         
         return (
           <div 
@@ -76,14 +93,20 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
               </span>
             </div>
             
-            {/* Right: Change percent with arrow */}
-            <div className="flex items-center gap-0.5">
+            {/* Right: Change percent with arrow and optional AH/PM label */}
+            <div className="flex items-center gap-1">
               {loading[stock.symbol] ? (
                 <span className="text-[12px] text-[#9AA0A6]">...</span>
               ) : (
                 <>
+                  {/* Extended hours label */}
+                  {isExtendedHours && displayLabel && (
+                    <span className="text-[9px] text-[#9AA0A6] font-medium mr-0.5">
+                      {displayLabel}
+                    </span>
+                  )}
                   <span className={`text-[12px] font-medium ${isPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
-                    {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                    {isPositive ? '+' : ''}{displayChange.toFixed(2)}%
                   </span>
                   <ChangeArrow positive={isPositive} />
                 </>
