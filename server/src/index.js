@@ -41,14 +41,38 @@ startAlpacaStream((data) => {
 app.get('/api/public/quote/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
-    const response = await fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/quotes/latest`, {
-      headers: {
-        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
-        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY
-      }
+    const sym = symbol.toUpperCase();
+    const headers = {
+      'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+      'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY
+    };
+    
+    // Fetch both latest quote and previous day bar for change calculation
+    const [quoteRes, barRes] = await Promise.all([
+      fetch(`https://data.alpaca.markets/v2/stocks/${sym}/quotes/latest`, { headers }),
+      fetch(`https://data.alpaca.markets/v2/stocks/${sym}/bars?timeframe=1Day&limit=2`, { headers })
+    ]);
+    
+    const quoteData = await quoteRes.json();
+    const barData = await barRes.json();
+    
+    const bid = quoteData.quote?.bp || 0;
+    const ask = quoteData.quote?.ap || 0;
+    const price = (bid + ask) / 2;
+    
+    // Calculate change from previous close
+    const bars = barData.bars || [];
+    const prevClose = bars.length >= 2 ? bars[bars.length - 2]?.c : (bars[0]?.c || price);
+    const changePercent = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+    
+    res.json({ 
+      symbol: sym, 
+      bid, 
+      ask, 
+      price,
+      prevClose,
+      changePercent: parseFloat(changePercent.toFixed(2))
     });
-    const data = await response.json();
-    res.json({ symbol: symbol.toUpperCase(), bid: data.quote?.bp, ask: data.quote?.ap, price: (data.quote?.bp + data.quote?.ap) / 2 });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
