@@ -2,11 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
 import stocksRouter from './routes/stocks.js';
 import { startAlpacaStream } from './services/alpaca.js';
 
 dotenv.config();
+
+// Initialize Yahoo Finance
+const yahooFinance = new YahooFinance();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
