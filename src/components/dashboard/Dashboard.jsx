@@ -23,6 +23,63 @@ const saveDashboardState = (state) => {
   localStorage.setItem('stratify-dashboard-state', JSON.stringify(state));
 };
 
+// Demo respawn - Random strategy generator
+const STRATEGY_TEMPLATES = [
+  { name: 'MACD Crossover', symbol: 'TSLA', type: 'Momentum' },
+  { name: 'RSI Divergence', symbol: 'NVDA', type: 'Mean Reversion' },
+  { name: 'Bollinger Squeeze', symbol: 'AAPL', type: 'Volatility' },
+  { name: 'Golden Cross', symbol: 'SPY', type: 'Trend Following' },
+  { name: 'VWAP Bounce', symbol: 'AMD', type: 'Scalping' },
+  { name: 'Gap Fill', symbol: 'MSFT', type: 'Mean Reversion' },
+  { name: 'Breakout Hunter', symbol: 'META', type: 'Momentum' },
+  { name: 'Support Bounce', symbol: 'GOOGL', type: 'Technical' },
+  { name: 'EMA Ribbon', symbol: 'QQQ', type: 'Trend Following' },
+  { name: 'Stochastic Pop', symbol: 'AMZN', type: 'Momentum' },
+];
+
+const generateRandomStrategy = () => {
+  const template = STRATEGY_TEMPLATES[Math.floor(Math.random() * STRATEGY_TEMPLATES.length)];
+  const winRate = (55 + Math.random() * 25).toFixed(1);
+  const totalReturn = (10 + Math.random() * 40).toFixed(1);
+  const maxDrawdown = (5 + Math.random() * 15).toFixed(1);
+  const sharpeRatio = (1 + Math.random() * 1.5).toFixed(2);
+  
+  return {
+    id: `strategy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: `${template.name} ${template.symbol}`,
+    symbol: template.symbol,
+    type: template.type,
+    status: 'draft',
+    metrics: {
+      winRate: `${winRate}%`,
+      totalReturn: `${totalReturn}%`,
+      maxDrawdown: maxDrawdown,
+      sharpeRatio: sharpeRatio,
+      trades: Math.floor(50 + Math.random() * 150),
+    }
+  };
+};
+
+const generateRandomDeployedStrategy = () => {
+  const strategy = generateRandomStrategy();
+  const staggeredTimes = [
+    Date.now() - (14 * 24 * 60 * 60 * 1000) - Math.random() * (3 * 60 * 60 * 1000),
+    Date.now() - (3 * 24 * 60 * 60 * 1000) - Math.random() * (7 * 60 * 60 * 1000),
+    Date.now() - (45 * 60 * 1000) - Math.random() * (30 * 60 * 1000),
+    Date.now() - (7 * 24 * 60 * 60 * 1000) - Math.random() * (11 * 60 * 60 * 1000),
+    Date.now() - (1 * 24 * 60 * 60 * 1000) - Math.random() * (2 * 60 * 60 * 1000),
+  ];
+  return {
+    ...strategy,
+    status: 'deployed',
+    runStatus: 'running',
+    deployedAt: staggeredTimes[Math.floor(Math.random() * staggeredTimes.length)]
+  };
+};
+
+// Respawn delay (60 seconds for demo)
+const RESPAWN_DELAY_MS = 60000;
+
 export default function Dashboard({ setCurrentPage, alpacaData }) {
   const savedState = loadDashboardState();
   
@@ -103,6 +160,16 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   const handleDeleteStrategy = (strategyId) => {
     setStrategies(prev => prev.filter(s => s.id !== strategyId));
+    // Demo respawn: add a new random strategy after 60 seconds
+    setTimeout(() => {
+      setStrategies(prev => {
+        // Only respawn if we have less than 3 strategies
+        if (prev.length < 3) {
+          return [...prev, generateRandomStrategy()];
+        }
+        return prev;
+      });
+    }, RESPAWN_DELAY_MS);
   };
 
   const handleEditStrategy = (strategy) => {
@@ -178,6 +245,34 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   useEffect(() => {
     localStorage.setItem('stratify-strategies', JSON.stringify(strategies));
   }, [strategies]);
+
+  // Demo auto-populate: ensure minimum content exists
+  useEffect(() => {
+    // If strategies are empty, populate with demo data after a short delay
+    if (strategies.length === 0) {
+      const timer = setTimeout(() => {
+        setStrategies([
+          generateRandomStrategy(),
+          generateRandomStrategy(),
+          generateRandomStrategy(),
+        ]);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [strategies.length]);
+
+  // Demo auto-populate: ensure deployed strategies exist
+  useEffect(() => {
+    if (deployedStrategies.length === 0) {
+      const timer = setTimeout(() => {
+        setDeployedStrategies([
+          generateRandomDeployedStrategy(),
+          generateRandomDeployedStrategy(),
+        ]);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [deployedStrategies.length]);
 
   // Persist deployed strategies to localStorage
   useEffect(() => {
@@ -308,7 +403,19 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               <TerminalPanel 
                 themeClasses={themeClasses} 
                 deployedStrategies={deployedStrategies} 
-                onRemoveStrategy={(id) => setDeployedStrategies(prev => prev.filter(s => s.id !== id))}
+                onRemoveStrategy={(id) => {
+                  setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                  // Demo respawn: add a new random deployed strategy after 60 seconds
+                  setTimeout(() => {
+                    setDeployedStrategies(prev => {
+                      // Only respawn if we have less than 2 deployed strategies
+                      if (prev.length < 2) {
+                        return [...prev, generateRandomDeployedStrategy()];
+                      }
+                      return prev;
+                    });
+                  }, RESPAWN_DELAY_MS);
+                }}
               />
             </>
           )}

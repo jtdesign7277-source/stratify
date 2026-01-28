@@ -98,33 +98,33 @@ export default function NewsletterPage({ themeClasses }) {
   return (
     <div className="h-full flex">
       {/* Main Newsletter Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-white">Weekly Newsletter</h1>
-            <p className="text-[#9AA0A6] text-sm mt-1">Market insights, unusual options activity & prediction markets</p>
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* Header - Compact */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-white">Newsletter</h1>
+            <span className="text-[#9AA0A6] text-xs">Market insights & unusual options activity</span>
           </div>
           <button
             onClick={() => setShowArchive(!showArchive)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5 text-[#8ab4f8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-[#8ab4f8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
             </svg>
-            <span className="text-sm text-[#E8EAED]">Archive ({NEWSLETTERS.length})</span>
+            <span className="text-xs text-[#E8EAED]">Archive ({NEWSLETTERS.length})</span>
           </button>
         </div>
 
         {/* Current Newsletter */}
         <div className="bg-[#303134] border border-[#5f6368] rounded-xl overflow-hidden">
-          {/* Newsletter Header */}
-          <div className="px-6 py-4 border-b border-[#5f6368] bg-gradient-to-r from-[#303134] to-[#3c4043]">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="px-2 py-0.5 bg-[#8ab4f8]/20 text-[#8ab4f8] text-xs font-medium rounded">LATEST</span>
-              <span className="text-[#9AA0A6] text-sm">{selectedNewsletter.date}</span>
+          {/* Newsletter Header - Compact */}
+          <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="px-2 py-0.5 bg-[#8ab4f8]/20 text-[#8ab4f8] text-[10px] font-medium rounded">LATEST</span>
+              <h2 className="text-base font-medium text-white">{selectedNewsletter.title}</h2>
             </div>
-            <h2 className="text-xl font-semibold text-white">{selectedNewsletter.title}</h2>
+            <span className="text-[#9AA0A6] text-xs">{selectedNewsletter.date}</span>
           </div>
 
           {/* Newsletter Body */}

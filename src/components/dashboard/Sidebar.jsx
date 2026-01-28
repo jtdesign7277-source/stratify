@@ -278,17 +278,78 @@ const SettingsPanel = () => {
   );
 };
 
-// Mini broker icons for sidebar
+// Mini broker icons for sidebar - Modern styled icons
 const MiniBrokerIcon = ({ broker, className = "w-6 h-6" }) => {
   const icons = {
-    alpaca: <div className={`${className} rounded bg-[#FFCD00] flex items-center justify-center text-[8px] font-bold text-black`}>A</div>,
-    polymarket: <div className={`${className} rounded bg-[#6366F1] flex items-center justify-center text-[8px] font-bold text-white`}>P</div>,
-    kalshi: <div className={`${className} rounded bg-[#00D4AA] flex items-center justify-center text-[8px] font-bold text-black`}>K</div>,
-    webull: <div className={`${className} rounded bg-[#FF5722] flex items-center justify-center text-[8px] font-bold text-white`}>W</div>,
-    ibkr: <div className={`${className} rounded bg-[#D32F2F] flex items-center justify-center text-[6px] font-bold text-white`}>IB</div>,
-    robinhood: <div className={`${className} rounded bg-[#00C805] flex items-center justify-center text-[8px] font-bold text-white`}>R</div>,
-    coinbase: <div className={`${className} rounded bg-[#0052FF] flex items-center justify-center text-[8px] font-bold text-white`}>C</div>,
-    binance: <div className={`${className} rounded bg-[#F3BA2F] flex items-center justify-center text-[8px] font-bold text-black`}>B</div>,
+    // Alpaca - Llama head silhouette
+    alpaca: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#FFCD00] to-[#FFA500] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#000">
+          <path d="M12 2C9.5 2 7.5 3.5 7 5.5L6 9H5c-1.1 0-2 .9-2 2v2c0 .55.45 1 1 1h1v6c0 1.1.9 2 2 2h1v-3h8v3h1c1.1 0 2-.9 2-2v-6h1c.55 0 1-.45 1-1v-2c0-1.1-.9-2-2-2h-1l-1-3.5C16.5 3.5 14.5 2 12 2zm-2 7a1 1 0 110 2 1 1 0 010-2zm4 0a1 1 0 110 2 1 1 0 010-2z"/>
+        </svg>
+      </div>
+    ),
+    // Polymarket - Hexagon/prediction icon
+    polymarket: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#fff" strokeWidth="2">
+          <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
+          <circle cx="12" cy="12" r="3" fill="#fff"/>
+        </svg>
+      </div>
+    ),
+    // Kalshi - K with chart line
+    kalshi: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#00D4AA] to-[#00A080] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#000" strokeWidth="2.5">
+          <path d="M6 4v16M6 12l6-6M6 12l6 6"/>
+          <path d="M14 8l3 3-3 3" strokeWidth="2"/>
+        </svg>
+      </div>
+    ),
+    // Webull - Bull head
+    webull: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#FF5722] to-[#E64A19] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#fff">
+          <path d="M4 8c0-1 .5-2 2-3l2 3v4l-2 2H4V8zm16 0c0-1-.5-2-2-3l-2 3v4l2 2h2V8zM8 6c0-2 2-4 4-4s4 2 4 4v10c0 2-2 4-4 4s-4-2-4-4V6zm2 3a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2z"/>
+        </svg>
+      </div>
+    ),
+    // IBKR - Globe with trade arrows
+    ibkr: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#D32F2F] to-[#B71C1C] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#fff" strokeWidth="1.5">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 3c-3 4-3 10 0 14M12 3c3 4 3 10 0 14M3 12h18"/>
+          <path d="M17 7l2-2m0 0l2 2m-2-2v5" strokeWidth="2"/>
+        </svg>
+      </div>
+    ),
+    // Robinhood - Feather
+    robinhood: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#00C805] to-[#00A804] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#fff">
+          <path d="M20 4c-2 0-4 1-6 3-2-2-4-3-6-3-3 0-5 2-5 5 0 6 8 12 11 14 3-2 11-8 11-14 0-3-2-5-5-5z"/>
+        </svg>
+      </div>
+    ),
+    // Coinbase - C with circle
+    coinbase: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#0052FF] to-[#0040CC] flex items-center justify-center p-0.5`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#fff">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="#fff" strokeWidth="2"/>
+          <path d="M15 9.5c-.8-1-2-1.5-3-1.5-2.2 0-4 1.8-4 4s1.8 4 4 4c1 0 2.2-.5 3-1.5"/>
+        </svg>
+      </div>
+    ),
+    // Binance - Diamond shape
+    binance: (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-[#F3BA2F] to-[#E5A91D] flex items-center justify-center p-1`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#000">
+          <path d="M12 4l3 3-3 3-3-3 3-3zm-6 6l3 3-3 3-3-3 3-3zm12 0l3 3-3 3-3-3 3-3zm-6 6l3 3-3 3-3-3 3-3z"/>
+        </svg>
+      </div>
+    ),
   };
   return icons[broker] || null;
 };
