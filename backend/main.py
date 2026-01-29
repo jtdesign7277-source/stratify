@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth, market, notifications, social, users, websocket
+from api import auth, market, notifications, social, users, websocket, atlas
 from core.config import settings
 from core.database import close_db, init_db
 from core.redis import redis_client
@@ -57,6 +57,7 @@ app.include_router(social.router, prefix="/api/v1/social", tags=["Social Feed"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
 app.include_router(websocket.router, prefix="/api/v1/ws", tags=["WebSocket"])
 app.include_router(public.router, prefix="/api/public", tags=["Public"])
+app.include_router(atlas.router, prefix="/api/v1", tags=["Atlas AI"])
 
 
 @app.get("/")

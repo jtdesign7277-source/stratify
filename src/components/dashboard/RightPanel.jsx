@@ -199,9 +199,13 @@ class MeanReversion(Strategy):
   }
 ];
 
+// API URL for Atlas
+const API_URL = import.meta.env.VITE_API_URL || 'https://stratify-backend-production.up.railway.app';
+
 export default function RightPanel({ width, alpacaData, theme, themeClasses, onStrategyGenerated, onDemoStateChange, onStrategyAdded, editingStrategy, onClearEdit }) {
   const [expanded, setExpanded] = useState(true);
   const [inputValue, setInputValue] = useState('');
+  const [strategyName, setStrategyName] = useState('');
   const [demoPhase, setDemoPhase] = useState('idle');
   const [displayedClaudeText, setDisplayedClaudeText] = useState('');
   const [displayedCode, setDisplayedCode] = useState('');
@@ -210,7 +214,110 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const [showClaudeResponse, setShowClaudeResponse] = useState(false);
   const [showAddButton, setShowAddButton] = useState(false);
   const [strategyIndex, setStrategyIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [liveMode, setLiveMode] = useState(false); // Toggle between demo and live AI
+  const [generatedStrategy, setGeneratedStrategy] = useState(null);
   const messagesEndRef = useRef(null);
+  
+  // Real API call to Atlas
+  const callAtlasAPI = async (message, name) => {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/atlas/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, name })
+      });
+      
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Atlas API error:', error);
+      return null;
+    }
+  };
+  
+  // Handle real submission (live mode)
+  const handleSubmit = async () => {
+    if (!inputValue.trim() || isLoading) return;
+    
+    // Stop any demo
+    setDemoPhase('idle');
+    
+    // Show user message
+    setUserMessage(inputValue);
+    setShowUserMessage(true);
+    setShowClaudeResponse(true);
+    setDisplayedClaudeText('');
+    setDisplayedCode('');
+    setShowAddButton(false);
+    setIsLoading(true);
+    
+    const userInput = inputValue;
+    const name = strategyName;
+    setInputValue('');
+    
+    // Call real API
+    const result = await callAtlasAPI(userInput, name);
+    
+    setIsLoading(false);
+    
+    if (result && result.success) {
+      // Typewriter effect for response
+      const responseText = `I've created a ${result.name} based on your description:`;
+      let i = 0;
+      const typeInterval = setInterval(() => {
+        if (i <= responseText.length) {
+          setDisplayedClaudeText(responseText.slice(0, i));
+          i++;
+        } else {
+          clearInterval(typeInterval);
+          // Show code with typewriter
+          let j = 0;
+          const codeInterval = setInterval(() => {
+            if (j <= result.code.length) {
+              setDisplayedCode(result.code.slice(0, j));
+              j += 3; // Faster for code
+            } else {
+              clearInterval(codeInterval);
+              setDisplayedCode(result.code);
+              setShowAddButton(true);
+              setGeneratedStrategy({
+                id: Date.now(),
+                name: result.name,
+                description: userInput,
+                code: result.code,
+                status: 'draft',
+                metrics: result.metrics
+              });
+            }
+          }, 10);
+        }
+      }, 30);
+    } else {
+      setDisplayedClaudeText('Sorry, I encountered an error generating your strategy. Please try again.');
+    }
+  };
+  
+  // Add generated strategy
+  const handleAddStrategy = () => {
+    if (generatedStrategy && onStrategyGenerated) {
+      onStrategyGenerated(generatedStrategy);
+      if (onStrategyAdded) onStrategyAdded(generatedStrategy);
+      setShowAddButton(false);
+      setDisplayedClaudeText(prev => prev);
+      // Show success state
+      setTimeout(() => {
+        setShowUserMessage(false);
+        setShowClaudeResponse(false);
+        setDisplayedClaudeText('');
+        setDisplayedCode('');
+        setGeneratedStrategy(null);
+      }, 2000);
+    }
+  };
 
   const currentDemo = demoStrategies[strategyIndex];
   const currentStrategy = {
@@ -440,15 +547,16 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
                 {showAddButton && (
                   <div className="flex justify-center pt-2 relative">
                     <button 
+                      onClick={liveMode ? handleAddStrategy : undefined}
                       className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
                         demoPhase === 'clicking-add' 
                           ? 'bg-emerald-500 text-white scale-95' 
-                          : demoPhase === 'complete'
+                          : demoPhase === 'complete' || (liveMode && !generatedStrategy)
                           ? 'bg-transparent'
-                          : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30'
+                          : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 cursor-pointer'
                       }`}
                     >
-                      {demoPhase === 'complete' ? (
+                      {(demoPhase === 'complete' || (liveMode && !generatedStrategy)) ? (
                         <>
                           <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -464,7 +572,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
                         </>
                       )}
                     </button>
-                    <AnimatedCursor phase={demoPhase} target="add" />
+                    {!liveMode && <AnimatedCursor phase={demoPhase} target="add" />}
                   </div>
                 )}
               </div>
@@ -477,36 +585,75 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
 
       {/* Input Area */}
       <div className={`border-t ${themeClasses.border} p-3 ${themeClasses.surfaceElevated} relative`}>
+        {/* Live/Demo Toggle */}
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => {
+              setLiveMode(!liveMode);
+              if (!liveMode) {
+                // Switching to live mode - stop demo
+                setDemoPhase('idle');
+              }
+            }}
+            className={`text-xs px-2 py-1 rounded transition-all ${
+              liveMode 
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                : 'bg-gray-700/50 text-gray-400 border border-gray-600/30'
+            }`}
+          >
+            {liveMode ? '🟢 Live AI' : '🔵 Demo Mode'}
+          </button>
+          {isLoading && (
+            <span className="text-xs text-blue-400 animate-pulse">Atlas is thinking...</span>
+          )}
+        </div>
+        
         <div className="relative">
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Describe your trading strategy..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && liveMode) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            placeholder={liveMode ? "Describe your trading strategy... (Enter to send)" : "Watching demo..."}
             rows={3}
             className={`w-full px-3 py-2 ${themeClasses.surface} border ${themeClasses.border} focus:border-blue-500 rounded-lg text-sm ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors resize-none`}
-            readOnly={demoPhase === 'typing-user' || demoPhase === 'cursor-submit'}
+            readOnly={!liveMode && (demoPhase === 'typing-user' || demoPhase === 'cursor-submit')}
+            disabled={isLoading}
           />
           <div className="relative">
             <button
-              disabled={!inputValue.trim()}
+              onClick={liveMode ? handleSubmit : undefined}
+              disabled={!inputValue.trim() || isLoading}
               className={`absolute right-2 bottom-2 p-1 transition-all ${
-                demoPhase === 'clicking-submit'
+                isLoading
+                  ? 'text-blue-400 animate-spin'
+                  : demoPhase === 'clicking-submit'
                   ? 'text-blue-300 scale-90'
                   : 'text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed'
               }`}
             >
-              <svg 
-                className={`w-5 h-5 transition-transform duration-200 ${
-                  demoPhase === 'clicking-submit' ? 'rotate-180' : ''
-                }`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              {isLoading ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              ) : (
+                <svg 
+                  className={`w-5 h-5 transition-transform duration-200 ${
+                    demoPhase === 'clicking-submit' ? 'rotate-180' : ''
+                  }`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              )}
             </button>
-            {(demoPhase === 'cursor-submit' || demoPhase === 'clicking-submit') && (
+            {!liveMode && (demoPhase === 'cursor-submit' || demoPhase === 'clicking-submit') && (
               <AnimatedCursor phase={demoPhase} target="submit" />
             )}
           </div>
@@ -515,9 +662,12 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
           <span className="text-xs text-gray-500">Strategy Name</span>
           <input
             type="text"
+            value={strategyName}
+            onChange={(e) => setStrategyName(e.target.value)}
             placeholder="e.g. RSI Momentum"
             className={`flex-1 px-2 py-1 ${themeClasses.surface} border ${themeClasses.border} focus:border-blue-500 rounded text-xs ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors`}
-            readOnly={demoPhase === 'typing-user' || demoPhase === 'cursor-submit'}
+            readOnly={!liveMode && (demoPhase === 'typing-user' || demoPhase === 'cursor-submit')}
+            disabled={isLoading}
           />
         </div>
       </div>

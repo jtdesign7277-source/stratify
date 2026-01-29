@@ -43,6 +43,9 @@ dependencies = [
     # HTTP Client
     "httpx>=0.26.0",
     
+    # Anthropic (Claude AI)
+    "anthropic>=0.40.0",
+    
     # WebSockets
     "websockets>=12.0",
 ]
