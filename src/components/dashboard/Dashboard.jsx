@@ -5,10 +5,12 @@ import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
+import ArbitragePanel from './ArbitragePanel';
 import StockDetailView from './StockDetailView';
 import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
+import SettingsPage from './SettingsPage';
 
 const loadDashboardState = () => {
   try {
@@ -86,6 +88,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState('strategies');
+  const [strategyBuilderCollapsed, setStrategyBuilderCollapsed] = useState(true);
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
@@ -369,55 +372,94 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           onViewChart={(stock) => setSelectedStock(stock)}
           savedStrategies={savedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
+          onDeployStrategy={handleDeployStrategy}
           connectedBrokers={connectedBrokers}
           onOpenBrokerModal={() => setShowBrokerModal(true)}
         />
-        <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden`}>
-          {activeSection === 'newsletter' ? (
-            <NewsletterPage themeClasses={themeClasses} />
-          ) : (
-            <>
-              <div className={`h-11 flex items-center justify-between px-4 border-b ${themeClasses.border} ${themeClasses.surfaceElevated}`}>
+        <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}>
+          {/* Main Dashboard Content - Always visible */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Strategy Builder Section */}
+            <div className={`flex flex-col ${strategyBuilderCollapsed ? '' : 'max-h-[45%]'} min-h-0 relative z-10 flex-shrink-0`}>
+              {/* Strategy Builder Header - Always visible */}
+              <div 
+                className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-b ${themeClasses.border} ${themeClasses.surfaceElevated} cursor-pointer hover:bg-[#3c4043]/50 transition-colors relative z-10`}
+                onClick={() => setStrategyBuilderCollapsed(!strategyBuilderCollapsed)}
+              >
                 <div className="flex items-center gap-2">
+                  <svg 
+                    className={`w-4 h-4 text-gray-500 transition-transform ${strategyBuilderCollapsed ? '' : 'rotate-90'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                   <span className={`text-sm font-semibold ${themeClasses.text}`}>Strategy Builder</span>
                   {draftStrategiesCount > 0 && (
                     <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
                   )}
                 </div>
+                <span className="text-xs text-gray-500">{strategyBuilderCollapsed ? 'Click to expand' : ''}</span>
               </div>
-              <DataTable 
-                activeTab={activeTab} 
-                alpacaData={alpacaData} 
-                strategies={strategies} 
-                demoState={demoState} 
-                theme={theme} 
-                themeClasses={themeClasses} 
-                onDeleteStrategy={handleDeleteStrategy}
-                onDeployStrategy={handleDeployStrategy}
-                onEditStrategy={handleEditStrategy}
-                onSaveToSidebar={handleSaveToSidebar}
-                onUpdateStrategy={handleUpdateStrategy}
-                savedStrategies={savedStrategies}
-                autoBacktestStrategy={autoBacktestStrategy}
-              />
-              <TerminalPanel 
-                themeClasses={themeClasses} 
-                deployedStrategies={deployedStrategies} 
-                onRemoveStrategy={(id) => {
-                  setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                  // Demo respawn: add a new random deployed strategy after 60 seconds
-                  setTimeout(() => {
-                    setDeployedStrategies(prev => {
-                      // Only respawn if we have less than 2 deployed strategies
-                      if (prev.length < 2) {
-                        return [...prev, generateRandomDeployedStrategy()];
-                      }
-                      return prev;
-                    });
-                  }, RESPAWN_DELAY_MS);
-                }}
-              />
-            </>
+              
+              {/* Strategy Builder Content - Collapsible */}
+              {!strategyBuilderCollapsed && (
+                <div className="flex-1 overflow-auto">
+                  <DataTable 
+                    activeTab={activeTab} 
+                    alpacaData={alpacaData} 
+                    strategies={strategies} 
+                    demoState={demoState} 
+                    theme={theme} 
+                    themeClasses={themeClasses} 
+                    onDeleteStrategy={handleDeleteStrategy}
+                    onDeployStrategy={handleDeployStrategy}
+                    onEditStrategy={handleEditStrategy}
+                    onSaveToSidebar={handleSaveToSidebar}
+                    onUpdateStrategy={handleUpdateStrategy}
+                    savedStrategies={savedStrategies}
+                    autoBacktestStrategy={autoBacktestStrategy}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Arbitrage Scanner Section */}
+            <ArbitragePanel themeClasses={themeClasses} />
+            
+            {/* Deployed Strategies Section - Always at bottom */}
+            <TerminalPanel 
+              themeClasses={themeClasses} 
+              deployedStrategies={deployedStrategies} 
+              onRemoveStrategy={(id) => {
+                setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                // Demo respawn: add a new random deployed strategy after 60 seconds
+                setTimeout(() => {
+                  setDeployedStrategies(prev => {
+                    // Only respawn if we have less than 2 deployed strategies
+                    if (prev.length < 2) {
+                      return [...prev, generateRandomDeployedStrategy()];
+                    }
+                    return prev;
+                  });
+                }, RESPAWN_DELAY_MS);
+              }}
+            />
+          </div>
+
+          {/* Settings Full Page Overlay */}
+          {activeSection === 'settings' && (
+            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
+              <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+            </div>
+          )}
+
+          {/* Newsletter Full Page Overlay */}
+          {activeSection === 'newsletter' && (
+            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
+              <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+            </div>
           )}
         </div>
         <RightPanel 

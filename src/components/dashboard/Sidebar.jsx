@@ -71,85 +71,276 @@ const ChevronIcon = ({ open, className = "w-3 h-3" }) => (
 );
 
 // Strategy Folders Component - Clean design
-const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, sidebarExpanded }) => {
-  const [expandedFolders, setExpandedFolders] = useState({
-    low: false,
-    medium: false,
-    high: false
+const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStrategy, onDeployStrategy, sidebarExpanded }) => {
+  // Custom folders stored in localStorage
+  const [folders, setFolders] = useState(() => {
+    const saved = localStorage.getItem('stratify-strategy-folders');
+    return saved ? JSON.parse(saved) : [
+      { id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' },
+      { id: 'active', name: 'Active', color: '#10B981', icon: 'play' },
+      { id: 'testing', name: 'Testing', color: '#8B5CF6', icon: 'flask' },
+    ];
+  });
+  
+  const [expandedFolders, setExpandedFolders] = useState({ favorites: true, active: true, testing: true, uncategorized: true });
+  const [draggedStrategy, setDraggedStrategy] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  const [editingFolder, setEditingFolder] = useState(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderInput, setNewFolderInput] = useState('');
+  const [selectedStrategy, setSelectedStrategy] = useState(null);
+
+  // Save folders to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-strategy-folders', JSON.stringify(folders));
+  }, [folders]);
+
+  // Save strategy-folder assignments
+  const [strategyFolders, setStrategyFolders] = useState(() => {
+    const saved = localStorage.getItem('stratify-strategy-folder-map');
+    return saved ? JSON.parse(saved) : {};
   });
 
-  const toggleFolder = (folder) => {
-    setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
+  useEffect(() => {
+    localStorage.setItem('stratify-strategy-folder-map', JSON.stringify(strategyFolders));
+  }, [strategyFolders]);
+
+  const toggleFolder = (folderId) => {
+    setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
   };
 
-  const folders = [
-    { id: 'low', label: 'Low Risk', color: '#10B981' },
-    { id: 'medium', label: 'Medium Risk', color: '#F59E0B' },
-    { id: 'high', label: 'High Risk', color: '#EF4444' }
-  ];
-
-  const getStrategiesByRisk = (riskLevel) => {
-    return savedStrategies.filter(s => s.riskLevel === riskLevel);
+  const getStrategiesInFolder = (folderId) => {
+    if (folderId === 'uncategorized') {
+      return savedStrategies.filter(s => !strategyFolders[s.id]);
+    }
+    return savedStrategies.filter(s => strategyFolders[s.id] === folderId);
   };
 
-  if (savedStrategies.length === 0) {
+  const handleDragStart = (e, strategy) => {
+    setDraggedStrategy(strategy);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, folderId) => {
+    e.preventDefault();
+    setDropTarget(folderId);
+  };
+
+  const handleDragLeave = () => {
+    setDropTarget(null);
+  };
+
+  const handleDrop = (e, folderId) => {
+    e.preventDefault();
+    if (draggedStrategy) {
+      setStrategyFolders(prev => ({
+        ...prev,
+        [draggedStrategy.id]: folderId === 'uncategorized' ? null : folderId
+      }));
+    }
+    setDraggedStrategy(null);
+    setDropTarget(null);
+  };
+
+  const createFolder = () => {
+    if (!newFolderInput.trim()) return;
+    const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+    const newFolder = {
+      id: `folder-${Date.now()}`,
+      name: newFolderInput.trim(),
+      color: colors[folders.length % colors.length],
+      icon: 'folder'
+    };
+    setFolders(prev => [...prev, newFolder]);
+    setExpandedFolders(prev => ({ ...prev, [newFolder.id]: true }));
+    setNewFolderInput('');
+    setShowNewFolder(false);
+  };
+
+  const renameFolder = (folderId) => {
+    if (!newFolderName.trim()) {
+      setEditingFolder(null);
+      return;
+    }
+    setFolders(prev => prev.map(f => f.id === folderId ? { ...f, name: newFolderName.trim() } : f));
+    setEditingFolder(null);
+    setNewFolderName('');
+  };
+
+  const deleteFolder = (folderId) => {
+    setFolders(prev => prev.filter(f => f.id !== folderId));
+    // Move strategies to uncategorized
+    setStrategyFolders(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(stratId => {
+        if (updated[stratId] === folderId) updated[stratId] = null;
+      });
+      return updated;
+    });
+  };
+
+  const FolderIconSvg = ({ icon, color }) => {
+    const icons = {
+      star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill={color}/>,
+      play: <path d="M5 3l14 9-14 9V3z" fill={color}/>,
+      flask: <path d="M9 3v8.5c0 .83-.67 1.5-1.5 1.5S6 12.33 6 11.5V3M15 3v8.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V3M6 14c-1.66 0-3 1.34-3 3v2c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-2c0-1.66-1.34-3-3-3" stroke={color} fill="none" strokeWidth="2"/>,
+      folder: <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" fill={color}/>,
+    };
+    return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">{icons[icon] || icons.folder}</svg>;
+  };
+
+  const renderFolder = (folder, isUncategorized = false) => {
+    const strategies = getStrategiesInFolder(folder.id);
+    const isOpen = expandedFolders[folder.id];
+    const isDropping = dropTarget === folder.id;
+
     return (
-      <div className="px-3 py-4 text-center">
-        <p className="text-xs text-gray-500">No saved strategies</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="py-1">
-      {folders.map(folder => {
-        const strategies = getStrategiesByRisk(folder.id);
-        const isOpen = expandedFolders[folder.id];
-        
-        return (
-          <div key={folder.id}>
-            {/* Folder header - clean, no background box */}
-            <button
-              onClick={() => toggleFolder(folder.id)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white transition-colors group"
+      <div 
+        key={folder.id}
+        onDragOver={(e) => handleDragOver(e, folder.id)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, folder.id)}
+      >
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded transition-colors ${isDropping ? 'bg-blue-500/20 border border-blue-500/50' : 'hover:bg-[#303134]'}`}>
+          <button onClick={() => toggleFolder(folder.id)} className="text-gray-500 hover:text-gray-300">
+            <ChevronIcon open={isOpen} className="w-2.5 h-2.5" />
+          </button>
+          
+          <FolderIconSvg icon={folder.icon} color={folder.color} />
+          
+          {editingFolder === folder.id ? (
+            <input
+              autoFocus
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onBlur={() => renameFolder(folder.id)}
+              onKeyDown={(e) => e.key === 'Enter' && renameFolder(folder.id)}
+              className="flex-1 bg-transparent text-xs text-white border-b border-blue-500 outline-none px-1"
+            />
+          ) : (
+            <span 
+              className="flex-1 text-xs text-gray-300 truncate cursor-default"
+              onDoubleClick={() => {
+                if (!isUncategorized) {
+                  setEditingFolder(folder.id);
+                  setNewFolderName(folder.name);
+                }
+              }}
             >
-              <ChevronIcon open={isOpen} className="w-2.5 h-2.5 text-gray-500 group-hover:text-gray-400" />
-              <FolderIcon open={isOpen} className="w-3.5 h-3.5" style={{ color: folder.color }} />
-              <span className="text-xs font-medium flex-1 text-left">{folder.label}</span>
-              {strategies.length > 0 && (
-                <span className="text-[10px] text-gray-600">{strategies.length}</span>
-              )}
+              {folder.name}
+            </span>
+          )}
+          
+          <span className="text-[10px] text-gray-600">{strategies.length}</span>
+          
+          {!isUncategorized && (
+            <button
+              onClick={() => deleteFolder(folder.id)}
+              className="opacity-0 group-hover:opacity-100 hover:opacity-100 text-gray-600 hover:text-red-400 p-0.5"
+            >
+              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-            
-            {/* Strategies list - indented, clean lines */}
-            {isOpen && strategies.length > 0 && (
-              <div className="ml-5 border-l border-[#5f6368]">
-                {strategies.map(strategy => (
-                  <div 
-                    key={strategy.id}
-                    className="group flex items-center justify-between pl-3 pr-2 py-1 hover:bg-[#3c4043] transition-colors"
-                  >
-                    <span className="text-[11px] text-gray-400 group-hover:text-gray-200 truncate">
-                      {strategy.name}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveSavedStrategy?.(strategy.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all p-0.5"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+          )}
+        </div>
+
+        {isOpen && (
+          <div className="ml-4 pl-2 border-l border-[#3c4043]">
+            {strategies.length === 0 ? (
+              <div className="py-1.5 px-2 text-[10px] text-gray-600 italic">
+                {isDropping ? 'Drop here' : 'Empty'}
               </div>
+            ) : (
+              strategies.map(strategy => (
+                  <div
+                    key={strategy.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, strategy)}
+                    className="group flex flex-col py-1 px-2 rounded cursor-pointer transition-colors hover:bg-[#3c4043]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <svg className="w-2.5 h-2.5 text-gray-600 flex-shrink-0 cursor-grab" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="5" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>
+                        </svg>
+                        <span className="text-[11px] truncate text-gray-400 group-hover:text-gray-200">{strategy.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Deploy button - shows on hover */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeployStrategy?.(strategy);
+                          }}
+                          className="text-emerald-400 hover:text-emerald-300 text-[10px] font-light px-1.5 py-0.5 rounded hover:bg-emerald-500/20 transition-colors"
+                        >
+                          Deploy
+                        </button>
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(strategy.id); }}
+                          className="text-gray-600 hover:text-red-400 p-0.5"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
             )}
           </div>
-        );
-      })}
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="py-1 group">
+      {/* Custom folders */}
+      {folders.map(folder => renderFolder(folder))}
+      
+      {/* Uncategorized */}
+      {renderFolder({ id: 'uncategorized', name: 'Uncategorized', color: '#6B7280', icon: 'folder' }, true)}
+
+      {/* New folder input */}
+      {showNewFolder ? (
+        <div className="flex items-center gap-1.5 px-2 py-1 mt-1">
+          <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          <input
+            autoFocus
+            value={newFolderInput}
+            onChange={(e) => setNewFolderInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') createFolder();
+              if (e.key === 'Escape') setShowNewFolder(false);
+            }}
+            onBlur={() => { if (!newFolderInput) setShowNewFolder(false); }}
+            placeholder="Folder name..."
+            className="flex-1 bg-transparent text-xs text-white placeholder-gray-600 outline-none"
+          />
+          <button onClick={createFolder} className="text-blue-400 hover:text-blue-300 p-0.5">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowNewFolder(true)}
+          className="w-full mt-1 py-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          New Folder
+        </button>
+      )}
     </div>
   );
 };
@@ -159,8 +350,6 @@ const defaultNavItems = [
   { id: 'watchlist', label: 'Watchlist', icon: 'eye', hasContent: true },
   { id: 'strategies', label: 'Strategies', icon: 'chart', hasContent: true },
   { id: 'brokers', label: 'Brokers', icon: 'link', hasContent: true },
-  { id: 'backtest', label: 'Backtest', icon: 'flask' },
-  { id: 'ai-builder', label: 'AI Builder', icon: 'spark' },
   { id: 'newsletter', label: 'Newsletter', icon: 'mail' },
 ];
 
@@ -421,6 +610,7 @@ export default function Sidebar({
   onViewChart, 
   savedStrategies = [], 
   onRemoveSavedStrategy,
+  onDeployStrategy,
   connectedBrokers = [],
   onOpenBrokerModal,
   customNavItems,
@@ -444,7 +634,15 @@ export default function Sidebar({
   }, [expandedSections]);
 
   const toggleSection = (sectionId) => {
-    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+    setExpandedSections(prev => {
+      // If clicking the already open section, close it
+      if (prev[sectionId]) {
+        return { ...prev, [sectionId]: false };
+      }
+      // Otherwise, close all sections and open only the clicked one (accordion behavior)
+      const allClosed = Object.keys(prev).reduce((acc, key) => ({ ...acc, [key]: false }), {});
+      return { ...allClosed, [sectionId]: true };
+    });
   };
 
   // Expand on hover, collapse on leave
@@ -468,7 +666,12 @@ export default function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {navItems.map((item) => {
+        {/* Sort items to show expanded section first */}
+        {[...navItems].sort((a, b) => {
+          const aExpanded = expandedSections[a.id] ? 1 : 0;
+          const bExpanded = expandedSections[b.id] ? 1 : 0;
+          return bExpanded - aExpanded;
+        }).map((item) => {
           const isExpanded = expandedSections[item.id];
           const isActive = activeSection === item.id;
           
@@ -538,6 +741,7 @@ export default function Sidebar({
                     <StrategiesFolders 
                       savedStrategies={savedStrategies} 
                       onRemoveSavedStrategy={onRemoveSavedStrategy}
+                      onDeployStrategy={onDeployStrategy}
                       sidebarExpanded={expanded}
                     />
                   </div>

@@ -62,6 +62,9 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
     <div className="py-2">
       {stocks.map(stock => {
         const quote = quotes[stock.symbol] || {};
+        const isLoading = loading[stock.symbol];
+        const hasData = quote.price !== undefined;
+        
         const price = quote.price || 0;
         const changePercent = quote.changePercent || 0;
         const isPositive = changePercent >= 0;
@@ -69,8 +72,8 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
         const marketState = quote.marketState || 'REGULAR';
         
         // Extended hours data
-        const hasAfterHours = (marketState === 'POST' || marketState === 'CLOSED') && quote.postMarketPrice;
-        const hasPreMarket = marketState === 'PRE' && quote.preMarketPrice;
+        const hasAfterHours = hasData && (marketState === 'POST' || marketState === 'CLOSED') && quote.postMarketPrice;
+        const hasPreMarket = hasData && marketState === 'PRE' && quote.preMarketPrice;
         
         const extendedPrice = hasAfterHours ? quote.postMarketPrice : hasPreMarket ? quote.preMarketPrice : null;
         const extendedChange = hasAfterHours ? quote.postMarketChangePercent : hasPreMarket ? quote.preMarketChangePercent : null;
@@ -94,11 +97,11 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
                 </div>
               </div>
               
-              {/* Right: Price and Change - side by side like after hours */}
+              {/* Right: Price and Change - side by side */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {loading[stock.symbol] ? (
-                  <div className="text-[14px] text-[#9AA0A6]">...</div>
-                ) : (
+                {isLoading && !hasData ? (
+                  <div className="w-4 h-4 border-2 border-[#3c4043] border-t-[#8ab4f8] rounded-full animate-spin" />
+                ) : hasData ? (
                   <>
                     <span className="text-[15px] font-medium text-[#E8EAED]">
                       ${formatPrice(price)}
@@ -110,6 +113,8 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
                       <ChangeArrow positive={isPositive} />
                     </div>
                   </>
+                ) : (
+                  <span className="text-[13px] text-[#9AA0A6]">—</span>
                 )}
               </div>
 
@@ -128,7 +133,7 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
             </div>
             
             {/* Row 2: After Hours / Pre-Market (if applicable) */}
-            {(hasAfterHours || hasPreMarket) && !loading[stock.symbol] && (
+            {(hasAfterHours || hasPreMarket) && (
               <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-[#3c4043]/30">
                 <div className="text-[11px] text-[#9AA0A6]">
                   {hasAfterHours ? 'After hours' : 'Pre-market'}

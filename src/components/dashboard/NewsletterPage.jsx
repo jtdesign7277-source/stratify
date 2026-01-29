@@ -1,5 +1,303 @@
 import { useState } from 'react';
 
+// Bet Slip Modal Component
+const BetSlipModal = ({ market, onClose }) => {
+  const [betAmount, setBetAmount] = useState('');
+  const [position, setPosition] = useState('YES');
+  
+  if (!market) return null;
+  
+  const price = position === 'YES' ? market.yesPrice : (100 - market.yesPrice);
+  const potentialWin = betAmount ? ((100 / price) * parseFloat(betAmount) - parseFloat(betAmount)).toFixed(2) : '0.00';
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
+      <div 
+        className="bg-[#202124] border border-[#5f6368] rounded-xl w-[400px] overflow-hidden shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-sm font-medium text-white">Quick Trade</span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Market Info */}
+        <div className="px-4 py-4 border-b border-[#5f6368]">
+          <div className="text-white font-medium mb-1">{market.name}</div>
+          <div className="flex items-center gap-4 text-xs">
+            <span className="text-emerald-400">YES {market.yesPrice}¢</span>
+            <span className="text-red-400">NO {100 - market.yesPrice}¢</span>
+            <span className={`${market.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {market.change >= 0 ? '+' : ''}{market.change}¢ 7d
+            </span>
+          </div>
+        </div>
+        
+        {/* Position Toggle */}
+        <div className="px-4 py-3">
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setPosition('YES')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                position === 'YES' 
+                  ? 'bg-emerald-500 text-white' 
+                  : 'bg-[#303134] text-gray-400 hover:bg-[#3c4043]'
+              }`}
+            >
+              YES {market.yesPrice}¢
+            </button>
+            <button
+              onClick={() => setPosition('NO')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                position === 'NO' 
+                  ? 'bg-red-500 text-white' 
+                  : 'bg-[#303134] text-gray-400 hover:bg-[#3c4043]'
+              }`}
+            >
+              NO {100 - market.yesPrice}¢
+            </button>
+          </div>
+          
+          {/* Amount Input */}
+          <div className="mb-4">
+            <label className="text-xs text-gray-500 mb-1 block">Amount (USD)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={betAmount}
+                onChange={(e) => setBetAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full pl-7 pr-4 py-2 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-sm focus:border-[#8ab4f8] focus:outline-none"
+              />
+            </div>
+          </div>
+          
+          {/* Quick Amounts */}
+          <div className="flex gap-2 mb-4">
+            {[10, 25, 50, 100].map(amount => (
+              <button
+                key={amount}
+                onClick={() => setBetAmount(amount.toString())}
+                className="flex-1 py-1.5 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded text-xs text-gray-300"
+              >
+                ${amount}
+              </button>
+            ))}
+          </div>
+          
+          {/* Potential Win */}
+          <div className="bg-[#303134] rounded-lg p-3 mb-4">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-gray-500">Shares</span>
+              <span className="text-white">{betAmount ? (parseFloat(betAmount) / (price / 100)).toFixed(0) : '0'}</span>
+            </div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-gray-500">Avg Price</span>
+              <span className="text-white">{price}¢</span>
+            </div>
+            <div className="flex justify-between text-sm font-medium pt-2 border-t border-[#5f6368]">
+              <span className="text-gray-400">Potential Profit</span>
+              <span className="text-emerald-400">+${potentialWin}</span>
+            </div>
+          </div>
+          
+          {/* Submit Button */}
+          <button
+            disabled={!betAmount || parseFloat(betAmount) <= 0}
+            className={`w-full py-3 rounded-lg text-sm font-medium transition-colors ${
+              position === 'YES'
+                ? 'bg-emerald-500 hover:bg-emerald-400 text-white disabled:bg-emerald-500/30 disabled:text-emerald-300/50'
+                : 'bg-red-500 hover:bg-red-400 text-white disabled:bg-red-500/30 disabled:text-red-300/50'
+            }`}
+          >
+            {betAmount ? `Buy ${position} for $${betAmount}` : 'Enter Amount'}
+          </button>
+          
+          <p className="text-[10px] text-gray-600 text-center mt-3">
+            Trading on {market.platform || 'Polymarket'} • Requires connected account
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Arb Bet Slip Modal - Unified dual-side execution
+const ArbBetSlipModal = ({ arb, onClose }) => {
+  const [betAmount, setBetAmount] = useState('');
+  
+  if (!arb) return null;
+  
+  const amount = parseFloat(betAmount) || 0;
+  const HOUSE_FEE_PERCENT = 0.5; // 0.5% fee
+  
+  // Calculate optimal allocation for arb
+  // To guarantee profit, we need: (amount on YES / YES price) = (amount on NO / NO price)
+  // This ensures we win the same amount regardless of outcome
+  const yesPrice = arb.polymarket.price / 100;
+  const noPrice = arb.kalshi.price / 100;
+  const totalCost = yesPrice + noPrice; // Combined cost per $1 of guaranteed return
+  
+  const yesAllocation = amount * (yesPrice / totalCost);
+  const noAllocation = amount * (noPrice / totalCost);
+  
+  // Guaranteed payout is $1 for every $totalCost invested
+  const grossPayout = amount / totalCost;
+  const grossProfit = grossPayout - amount;
+  const houseFee = amount * (HOUSE_FEE_PERCENT / 100);
+  const netProfit = grossProfit - houseFee;
+  const profitPercent = amount > 0 ? ((netProfit / amount) * 100).toFixed(1) : '0.0';
+  
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
+      <div 
+        className="bg-[#202124] border border-amber-500/50 rounded-xl w-[440px] overflow-hidden shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-[#5f6368] bg-amber-500/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400">🎯</span>
+              <span className="text-sm font-medium text-white">Arbitrage Executor</span>
+              <span className="text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded">GUARANTEED PROFIT</span>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        {/* Market Info */}
+        <div className="px-4 py-4 border-b border-[#5f6368]">
+          <div className="text-white font-medium mb-2">{arb.name}</div>
+          <div className="text-xs text-gray-400 mb-3">Execute both sides simultaneously to lock in profit</div>
+          
+          {/* Two Legs */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+              <div className="text-[10px] text-gray-500 mb-1">LEG 1 • Polymarket</div>
+              <div className="text-emerald-400 font-medium">Buy YES @ {arb.polymarket.price}¢</div>
+              {amount > 0 && <div className="text-xs text-gray-400 mt-1">${yesAllocation.toFixed(2)}</div>}
+            </div>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+              <div className="text-[10px] text-gray-500 mb-1">LEG 2 • Kalshi</div>
+              <div className="text-red-400 font-medium">Buy NO @ {arb.kalshi.price}¢</div>
+              {amount > 0 && <div className="text-xs text-gray-400 mt-1">${noAllocation.toFixed(2)}</div>}
+            </div>
+          </div>
+        </div>
+        
+        {/* Amount Input */}
+        <div className="px-4 py-4">
+          <div className="mb-4">
+            <label className="text-xs text-gray-500 mb-1 block">Total Investment (USD)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+              <input
+                type="number"
+                value={betAmount}
+                onChange={(e) => setBetAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full pl-7 pr-4 py-3 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-lg focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          
+          {/* Quick Amounts */}
+          <div className="flex gap-2 mb-4">
+            {[50, 100, 250, 500, 1000].map(amt => (
+              <button
+                key={amt}
+                onClick={() => setBetAmount(amt.toString())}
+                className="flex-1 py-2 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded text-xs text-gray-300"
+              >
+                ${amt}
+              </button>
+            ))}
+          </div>
+          
+          {/* Breakdown */}
+          <div className="bg-[#303134] rounded-lg p-4 mb-4">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Polymarket (YES)</span>
+                <span className="text-white">${yesAllocation.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Kalshi (NO)</span>
+                <span className="text-white">${noAllocation.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-[#5f6368] pt-2">
+                <span className="text-gray-500">Total Investment</span>
+                <span className="text-white">${amount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Guaranteed Payout</span>
+                <span className="text-white">${grossPayout.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Gross Profit</span>
+                <span className="text-emerald-400">+${grossProfit.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600">Stratify Fee ({HOUSE_FEE_PERCENT}%)</span>
+                <span className="text-gray-500">-${houseFee.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-t border-amber-500/30 pt-2">
+                <span className="text-amber-400 font-medium">Net Profit</span>
+                <span className="text-amber-400 font-semibold">+${netProfit.toFixed(2)} ({profitPercent}%)</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Submit Button */}
+          <button
+            disabled={!betAmount || parseFloat(betAmount) <= 0}
+            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-semibold rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {amount > 0 ? `Execute Arb • Lock in +$${netProfit.toFixed(2)}` : 'Enter Amount to Calculate'}
+          </button>
+          
+          <p className="text-[10px] text-gray-600 text-center mt-3">
+            Executes on Polymarket + Kalshi simultaneously • {HOUSE_FEE_PERCENT}% Stratify fee
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Prediction Markets data (structured for rendering with trade buttons)
+const PREDICTION_MARKETS = [
+  { id: 1, name: 'Fed cuts rates in March', yesPrice: 23, change: -8 },
+  { id: 2, name: 'Bitcoin $100K by March', yesPrice: 41, change: 12 },
+  { id: 3, name: 'Trump announces 2028 run', yesPrice: 67, change: 3 },
+  { id: 4, name: 'TSLA hits $500 Q1 2026', yesPrice: 34, change: 9 },
+];
+
+// Arbitrage opportunities
+const ARBITRAGE_OPPORTUNITIES = [
+  { 
+    id: 'arb-1', 
+    name: 'Bitcoin $100K by March', 
+    polymarket: { side: 'YES', price: 41 },
+    kalshi: { side: 'NO', price: 56 },
+    spread: 3.0
+  },
+];
+
 // Newsletter archive - newest first
 const NEWSLETTERS = [
   {
@@ -91,9 +389,11 @@ Why it works: Institutional rebalancing and short covering typically kicks in th
   }
 ];
 
-export default function NewsletterPage({ themeClasses }) {
+export default function NewsletterPage({ themeClasses, onClose }) {
   const [selectedNewsletter, setSelectedNewsletter] = useState(NEWSLETTERS[0]);
   const [showArchive, setShowArchive] = useState(false);
+  const [selectedMarket, setSelectedMarket] = useState(null);
+  const [selectedArb, setSelectedArb] = useState(null);
 
   return (
     <div className="h-full flex">
@@ -102,6 +402,16 @@ export default function NewsletterPage({ themeClasses }) {
         {/* Header - Compact */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
+            {onClose && (
+              <button 
+                onClick={onClose}
+                className="p-1.5 hover:bg-[#303134] rounded-lg transition-colors mr-1"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
             <h1 className="text-lg font-semibold text-white">Newsletter</h1>
             <span className="text-[#9AA0A6] text-xs">Market insights & unusual options activity</span>
           </div>
@@ -131,7 +441,87 @@ export default function NewsletterPage({ themeClasses }) {
           <div className="px-6 py-6 prose prose-invert max-w-none">
             <div 
               className="text-[#E8EAED] text-[15px] leading-relaxed newsletter-content"
-              dangerouslySetInnerHTML={{ __html: formatMarkdown(selectedNewsletter.content) }}
+              dangerouslySetInnerHTML={{ __html: formatMarkdownWithoutPredictionMarkets(selectedNewsletter.content) }}
+            />
+            
+            {/* Interactive Prediction Markets Section */}
+            <div className="my-6">
+              <h2 className="text-xl font-semibold text-[#E8EAED] flex items-center gap-2 mb-4">
+                🎰 Prediction Markets Update
+              </h2>
+              <h3 className="text-base font-semibold text-[#8ab4f8] mb-3">Polymarket Hot Markets</h3>
+              <div className="bg-[#202124] rounded-lg border border-[#5f6368] overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#5f6368]">
+                      <th className="px-4 py-3 text-left text-xs text-[#9AA0A6] font-medium">Market</th>
+                      <th className="px-4 py-3 text-left text-xs text-[#9AA0A6] font-medium">YES Price</th>
+                      <th className="px-4 py-3 text-left text-xs text-[#9AA0A6] font-medium">7-Day Change</th>
+                      <th className="px-4 py-3 text-right text-xs text-[#9AA0A6] font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PREDICTION_MARKETS.map((market) => (
+                      <tr key={market.id} className="border-b border-[#5f6368] last:border-b-0 hover:bg-[#303134] transition-colors">
+                        <td className="px-4 py-3 text-sm text-[#E8EAED]">{market.name}</td>
+                        <td className="px-4 py-3 text-sm text-emerald-400 font-medium">{market.yesPrice}¢</td>
+                        <td className={`px-4 py-3 text-sm font-medium ${market.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {market.change >= 0 ? '+' : ''}{market.change}¢
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => setSelectedMarket(market)}
+                            className="px-3 py-1 bg-[#8ab4f8]/20 hover:bg-[#8ab4f8]/30 text-[#8ab4f8] text-xs font-medium rounded transition-colors"
+                          >
+                            Trade
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Arbitrage Alerts */}
+              {ARBITRAGE_OPPORTUNITIES.map((arb) => (
+                <div key={arb.id} className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-amber-400 font-semibold">🚨 Arbitrage Alert</span>
+                    <span className="text-xs text-amber-400/80 bg-amber-500/20 px-2 py-0.5 rounded">+{arb.spread}% guaranteed</span>
+                  </div>
+                  <p className="text-sm text-[#BDC1C6] mb-3">
+                    <strong className="text-white">{arb.name}</strong> — {arb.spread}% spread between Polymarket ({arb.polymarket.price}¢ {arb.polymarket.side}) and Kalshi ({arb.kalshi.price}¢ {arb.kalshi.side}). Lock in guaranteed profit by executing both sides.
+                  </p>
+                  
+                  {/* Leg Preview */}
+                  <div className="flex items-center gap-2 mb-3 text-xs">
+                    <div className="flex-1 py-1.5 px-3 bg-[#202124] rounded border border-emerald-500/30 text-center">
+                      <span className="text-gray-500">Polymarket</span>
+                      <span className="text-emerald-400 ml-2">YES @ {arb.polymarket.price}¢</span>
+                    </div>
+                    <span className="text-gray-600">+</span>
+                    <div className="flex-1 py-1.5 px-3 bg-[#202124] rounded border border-red-500/30 text-center">
+                      <span className="text-gray-500">Kalshi</span>
+                      <span className="text-red-400 ml-2">NO @ {arb.kalshi.price}¢</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => setSelectedArb(arb)}
+                    className="w-full py-2.5 bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 border border-amber-500/50 text-amber-400 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>🎯</span>
+                    <span>Execute Arb</span>
+                    <span className="text-amber-400/60 text-xs">+{arb.spread}% profit</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            {/* Rest of newsletter content after prediction markets */}
+            <div 
+              className="text-[#E8EAED] text-[15px] leading-relaxed newsletter-content"
+              dangerouslySetInnerHTML={{ __html: formatMarkdownAfterPredictionMarkets(selectedNewsletter.content) }}
             />
           </div>
         </div>
@@ -252,12 +642,22 @@ export default function NewsletterPage({ themeClasses }) {
           font-size: 0.875rem;
         }
       `}</style>
+      
+      {/* Bet Slip Modal */}
+      {selectedMarket && (
+        <BetSlipModal market={selectedMarket} onClose={() => setSelectedMarket(null)} />
+      )}
+      
+      {/* Arb Bet Slip Modal */}
+      {selectedArb && (
+        <ArbBetSlipModal arb={selectedArb} onClose={() => setSelectedArb(null)} />
+      )}
     </div>
   );
 }
 
-// Simple markdown to HTML converter
-function formatMarkdown(text) {
+// Helper to convert markdown to HTML
+function convertMarkdown(text) {
   return text
     .replace(/^## (.*$)/gim, '<h2>$1</h2>')
     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
@@ -277,4 +677,18 @@ function formatMarkdown(text) {
     .replace(/(<tr>.*<\/tr>)/gs, '<table>$1</table>')
     .replace(/<p><\/p>/g, '')
     .replace(/^\s+|\s+$/g, '');
+}
+
+// Get content BEFORE prediction markets section
+function formatMarkdownWithoutPredictionMarkets(text) {
+  const predictionMarketsIndex = text.indexOf('## 🎰 Prediction Markets Update');
+  if (predictionMarketsIndex === -1) return convertMarkdown(text);
+  return convertMarkdown(text.substring(0, predictionMarketsIndex));
+}
+
+// Get content AFTER prediction markets section (starts at Sector Watch)
+function formatMarkdownAfterPredictionMarkets(text) {
+  const sectorWatchIndex = text.indexOf('## 📈 Sector Watch');
+  if (sectorWatchIndex === -1) return '';
+  return convertMarkdown(text.substring(sectorWatchIndex));
 }

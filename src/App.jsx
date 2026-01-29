@@ -428,9 +428,9 @@ const LandingPage = ({ onEnter }) => {
 
               {/* Content */}
               <div className="text-center">
-                <h3 className="text-xl font-semibold mb-3">AI strategy builder. Zero fees.</h3>
+                <h3 className="text-xl font-semibold mb-3">Atlas. Zero fees.</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  Stratify is the only platform with AI-powered strategy building and no monthly fees. Build sophisticated algorithms with natural language.
+                  Stratify is the only platform with Atlas AI-powered strategy building and no monthly fees. Build sophisticated algorithms with natural language.
                 </p>
               </div>
             </div>
@@ -810,118 +810,142 @@ const LandingPage = ({ onEnter }) => {
           {/* Pricing Section */}
           <div className="py-24 border-t border-white/10" id="pricing">
             <h2 className="text-5xl font-bold text-center mb-4 leading-tight">
-              Start trading smarter with<br />
-              AI-powered strategies
+              Find arbitrage. Lock in profit.<br />
+              <span className="text-purple-400">Guaranteed.</span>
             </h2>
+            <p className="text-gray-400 text-center text-lg mb-16">Cross-platform arbitrage scanning for prediction markets & sportsbooks</p>
 
-            <div className="grid grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
+            <div className="grid grid-cols-3 gap-6 max-w-6xl mx-auto">
               {/* Free Tier */}
-              <div className="bg-[#202124] border border-white/10 rounded-2xl p-10">
+              <div className="bg-[#202124] border border-white/10 rounded-2xl p-8">
                 <div className="text-base text-gray-400 mb-2">Free</div>
                 <div className="text-4xl font-bold mb-1">
-                  Paper trade for free
+                  $0<span className="text-lg text-gray-400">/month</span>
                 </div>
-                <div className="text-gray-400 text-sm mb-8 leading-relaxed">
-                  Perfect for learning and testing<br />
-                  strategies risk-free.
+                <div className="text-gray-400 text-sm mb-6 leading-relaxed">
+                  See the opportunities.<br />
+                  Execute manually.
                 </div>
-                <button className="w-full py-3 border border-white/30 rounded-full hover:bg-white/5 transition-colors mb-8">
-                  Start for Free
+                <button className="w-full py-3 border border-white/30 rounded-full hover:bg-white/5 transition-colors mb-6">
+                  Start Free
                 </button>
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Paper trading account ($10K virtual)</span>
+                    <span className="text-gray-300">5 arb alerts per day</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Up to 3 active strategies</span>
+                    <span className="text-gray-300">Polymarket + Kalshi scanning</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Basic technical indicators</span>
+                    <span className="text-gray-300">Manual execution (links out)</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">50+ community strategy templates</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">15-minute delayed market data</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Manual trade execution</span>
+                    <span className="text-gray-300">Basic profit calculator</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-emerald-400 mt-0.5">✓</span>
                     <span className="text-gray-300">Email support</span>
                   </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Basic backtesting (1 year history)</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
-                    <span className="text-gray-300">Strategy sharing & learning</span>
-                  </li>
                 </ul>
               </div>
 
               {/* Pro Tier */}
-              <div className="relative bg-[#202124] border border-purple-500/30 rounded-2xl p-10 shadow-2xl shadow-purple-500/20">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl pointer-events-none" />
+              <div className="bg-[#202124] border border-purple-500/30 rounded-2xl p-8">
+                <div className="text-base text-purple-400 mb-2">Pro</div>
+                <div className="text-4xl font-bold mb-1">
+                  $29<span className="text-lg text-gray-400">/month</span>
+                </div>
+                <div className="text-gray-400 text-sm mb-6 leading-relaxed">
+                  Unlimited alerts.<br />
+                  AI-powered strategies.
+                </div>
+                <button
+                  onClick={onEnter}
+                  className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-full transition-all mb-6"
+                >
+                  Get Pro
+                </button>
+                <ul className="space-y-3 text-sm">
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Unlimited arb alerts</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">All platforms (+ sportsbooks)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Atlas AI strategy builder</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Real-time scanning (30s refresh)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Priority support</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-400 mt-0.5">✓</span>
+                    <span className="text-gray-300">Bet tracking & P&L history</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Elite Tier */}
+              <div className="relative bg-[#202124] border-2 border-amber-500/50 rounded-2xl p-8 shadow-2xl shadow-amber-500/20">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-black text-xs font-bold px-3 py-1 rounded-full">
+                  MOST POPULAR
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent rounded-2xl pointer-events-none" />
                 <div className="relative z-10">
-                  <div className="text-base text-purple-400 mb-2">Pro</div>
-                  <div className="text-5xl font-bold mb-1">
-                    $9.99<span className="text-lg text-gray-400">/month</span>
+                  <div className="text-base text-amber-400 mb-2">Elite</div>
+                  <div className="text-4xl font-bold mb-1">
+                    $99<span className="text-lg text-gray-400">/month</span>
                   </div>
-                  <div className="text-gray-400 text-sm mb-8 leading-relaxed">
-                    Unlock advanced automation and<br />
-                    real-time execution capabilities.
+                  <div className="text-gray-400 text-sm mb-6 leading-relaxed">
+                    One-click execution.<br />
+                    Maximum speed. Maximum edge.
                   </div>
                   <button
                     onClick={onEnter}
-                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-blue-600 transition-all mb-8"
+                    className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold rounded-full hover:from-amber-400 hover:to-amber-500 transition-all mb-6"
                   >
-                    Get Started
+                    Get Elite 🚀
                   </button>
                   <ul className="space-y-3 text-sm">
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Live trading account (connect broker)</span>
+                      <span className="text-amber-400 mt-0.5">⚡</span>
+                      <span className="text-white font-semibold">1-CLICK EXECUTION - Both sides instantly</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Unlimited active strategies</span>
+                      <span className="text-amber-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Everything in Pro</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Advanced technical indicators & AI signals</span>
+                      <span className="text-amber-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Auto-execute arbs instantly</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Custom AI strategy builder</span>
+                      <span className="text-amber-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Live in-game arbitrage</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Real-time market data feeds</span>
+                      <span className="text-amber-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">API access & webhooks</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Automated execution engine</span>
+                      <span className="text-amber-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Dedicated support + strategy calls</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Priority support & strategy consultations</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Advanced backtesting (10+ years history)</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-purple-400 mt-0.5">✓</span>
-                      <span className="text-gray-300">Full API access & webhooks</span>
+                      <span className="text-amber-400 mt-0.5">✓</span>
+                      <span className="text-gray-300">Early access to new features</span>
                     </li>
                   </ul>
                 </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export default function TerminalPanel({ themeClasses, deployedStrategies = [], onRemoveStrategy }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [panelHeight, setPanelHeight] = useState(() => {
     const saved = localStorage.getItem('stratify-terminal-height');
     return saved ? parseInt(saved, 10) : 200;
@@ -144,14 +144,12 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
         onClick={() => setExpanded(true)}
       >
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-medium text-white">Deployed Strategies</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-emerald-400">{activeStrategies.length} active</span>
           <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
+          <span className="text-sm font-semibold text-white">Deployed Strategies</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs text-emerald-400">{activeStrategies.length} active</span>
         </div>
       </div>
     );
@@ -170,9 +168,17 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
       {/* Header */}
       <div className={`h-9 flex items-center justify-between px-4 border-b ${themeClasses.border}`}>
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setExpanded(false)}
+            className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
+          >
+            <svg className="w-4 h-4 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <span className="text-sm font-semibold text-white">Deployed Strategies</span>
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-sm font-medium text-white">Deployed Strategies</span>
-          <span className="text-xs text-emerald-400 ml-2">{activeStrategies.length} active</span>
+          <span className="text-xs text-emerald-400">{activeStrategies.length} active</span>
         </div>
         <div className="flex items-center gap-6">
           {activeStrategies.length > 0 && (() => {
@@ -206,14 +212,6 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
               </div>
             );
           })()}
-          <button 
-            onClick={() => setExpanded(false)}
-            className={`p-1 rounded hover:bg-[#2A2A2A] ${themeClasses.textMuted}`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
         </div>
       </div>
 
