@@ -11,9 +11,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir pip --upgrade && \
-    pip install --no-cache-dir .
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
