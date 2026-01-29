@@ -58,7 +58,12 @@ class Settings(BaseSettings):
     ml_batch_size: int = 32
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000"]
+    cors_origins: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://stratify-black.vercel.app",
+        "https://*.vercel.app",
+    ]
 
     # Rate Limiting
     rate_limit_per_minute: int = 60

@@ -17,16 +17,35 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup/shutdown."""
     # Startup
     print("🚀 Starting Stratify Backend...")
-    await init_db()
-    await redis_client.connect()
-    print("✅ Database and Redis connected")
+    
+    # Try to connect to DB (optional)
+    try:
+        await init_db()
+        print("✅ Database connected")
+    except Exception as e:
+        print(f"⚠️ Database not available (optional): {e}")
+    
+    # Try to connect to Redis (optional)
+    try:
+        await redis_client.connect()
+        print("✅ Redis connected")
+    except Exception as e:
+        print(f"⚠️ Redis not available (optional): {e}")
+    
+    print("✅ Stratify Backend ready!")
     
     yield
     
     # Shutdown
     print("🛑 Shutting down Stratify Backend...")
-    await close_db()
-    await redis_client.disconnect()
+    try:
+        await close_db()
+    except:
+        pass
+    try:
+        await redis_client.disconnect()
+    except:
+        pass
     print("✅ Connections closed")
 
 
