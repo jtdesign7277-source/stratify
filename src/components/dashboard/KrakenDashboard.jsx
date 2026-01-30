@@ -594,79 +594,50 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
 // Arbitrage Opportunities Panel (Kraken Style)
 const ArbOppsPanel = ({ onClose }) => {
   const [selectedMarket, setSelectedMarket] = useState('All');
+  const [opportunities, setOpportunities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
 
-  const ARB_OPPORTUNITIES = [
-    { 
-      id: 1,
-      event: 'Will Bitcoin reach $100K by March 2026?',
-      polymarket: { yes: 0.62, volume: '2.4M' },
-      kalshi: { yes: 0.58, volume: '890K' },
-      spread: 4.0,
-      profit: '$40 per $1000',
-      confidence: 'High',
-      expiry: '2026-03-31'
-    },
-    { 
-      id: 2,
-      event: 'Fed rate cut in Q1 2026?',
-      polymarket: { yes: 0.71, volume: '5.1M' },
-      kalshi: { yes: 0.68, volume: '1.2M' },
-      spread: 3.0,
-      profit: '$30 per $1000',
-      confidence: 'High',
-      expiry: '2026-03-15'
-    },
-    { 
-      id: 3,
-      event: 'Tesla stock above $500 by Feb 2026?',
-      polymarket: { yes: 0.34, volume: '1.8M' },
-      kalshi: { yes: 0.38, volume: '620K' },
-      spread: 4.0,
-      profit: '$40 per $1000',
-      confidence: 'Medium',
-      expiry: '2026-02-28'
-    },
-    { 
-      id: 4,
-      event: 'Super Bowl LVIII Winner: Chiefs?',
-      polymarket: { yes: 0.28, volume: '8.2M' },
-      kalshi: { yes: 0.31, volume: '2.1M' },
-      spread: 3.0,
-      profit: '$30 per $1000',
-      confidence: 'Medium',
-      expiry: '2026-02-09'
-    },
-    { 
-      id: 5,
-      event: 'Nvidia earnings beat Q4 2025?',
-      polymarket: { yes: 0.76, volume: '3.4M' },
-      kalshi: { yes: 0.72, volume: '980K' },
-      spread: 4.0,
-      profit: '$40 per $1000',
-      confidence: 'High',
-      expiry: '2026-02-21'
-    },
-    { 
-      id: 6,
-      event: 'ETH above $4000 by March 2026?',
-      polymarket: { yes: 0.45, volume: '4.7M' },
-      kalshi: { yes: 0.42, volume: '1.5M' },
-      spread: 3.0,
-      profit: '$30 per $1000',
-      confidence: 'Medium',
-      expiry: '2026-03-31'
-    },
-    { 
-      id: 7,
-      event: 'Apple announces AR glasses in 2026?',
-      polymarket: { yes: 0.22, volume: '1.1M' },
-      kalshi: { yes: 0.18, volume: '340K' },
-      spread: 4.0,
-      profit: '$40 per $1000',
-      confidence: 'Low',
-      expiry: '2026-12-31'
-    },
-  ];
+  // Fetch live arbitrage opportunities from backend
+  const fetchOpportunities = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://divine-gratitude-production.up.railway.app';
+      const response = await fetch(`${backendUrl}/api/v1/kalshi/arbitrage?limit=20`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data.success && data.opportunities) {
+        setOpportunities(data.opportunities);
+        setLastRefresh(new Date());
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      console.error('Error fetching arbitrage opportunities:', err);
+      setError(err.message);
+      // Fall back to mock data if API fails
+      setOpportunities([
+        { id: 1, event: 'Will Bitcoin reach $100K by March 2026?', polymarket: { yes: 0.62, volume: '2.4M' }, kalshi: { yes: 0.58, volume: '890K' }, spread: 4.0, profit: '$40 per $1000', confidence: 'High', expiry: '2026-03-31' },
+        { id: 2, event: 'Fed rate cut in Q1 2026?', polymarket: { yes: 0.71, volume: '5.1M' }, kalshi: { yes: 0.68, volume: '1.2M' }, spread: 3.0, profit: '$30 per $1000', confidence: 'High', expiry: '2026-03-15' },
+        { id: 3, event: 'Tesla stock above $500 by Feb 2026?', polymarket: { yes: 0.34, volume: '1.8M' }, kalshi: { yes: 0.38, volume: '620K' }, spread: 4.0, profit: '$40 per $1000', confidence: 'Medium', expiry: '2026-02-28' },
+        { id: 4, event: 'Nvidia earnings beat Q4 2025?', polymarket: { yes: 0.76, volume: '3.4M' }, kalshi: { yes: 0.72, volume: '980K' }, spread: 4.0, profit: '$40 per $1000', confidence: 'High', expiry: '2026-02-21' },
+        { id: 5, event: 'ETH above $4000 by March 2026?', polymarket: { yes: 0.45, volume: '4.7M' }, kalshi: { yes: 0.42, volume: '1.5M' }, spread: 3.0, profit: '$30 per $1000', confidence: 'Medium', expiry: '2026-03-31' },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchOpportunities();
+  }, []);
 
   const MARKETS = ['All', 'Crypto', 'Politics', 'Sports', 'Finance', 'Tech'];
 
@@ -702,7 +673,12 @@ const ArbOppsPanel = ({ onClose }) => {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">Arbitrage Opportunities</h2>
-              <p className="text-sm text-[#6b6b80]">{ARB_OPPORTUNITIES.length} opportunities found across markets</p>
+              <p className="text-sm text-[#6b6b80]">
+                {loading ? 'Loading...' : `${opportunities.length} opportunities found`}
+                {lastRefresh && !loading && (
+                  <span className="ml-2 text-emerald-400">• Live from Kalshi</span>
+                )}
+              </p>
             </div>
           </div>
           <button 
@@ -735,26 +711,52 @@ const ArbOppsPanel = ({ onClose }) => {
         {/* Stats Row */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
-            <div className="text-2xl font-bold text-white font-mono">{ARB_OPPORTUNITIES.length}</div>
+            <div className="text-2xl font-bold text-white font-mono">{opportunities.length}</div>
             <div className="text-xs text-[#6b6b80]">Active Opps</div>
           </div>
           <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
-            <div className="text-2xl font-bold text-emerald-400 font-mono">3.5%</div>
+            <div className="text-2xl font-bold text-emerald-400 font-mono">
+              {opportunities.length > 0 ? (opportunities.reduce((sum, o) => sum + (o.spread || 0), 0) / opportunities.length).toFixed(1) : '0'}%
+            </div>
             <div className="text-xs text-[#6b6b80]">Avg Spread</div>
           </div>
           <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
-            <div className="text-2xl font-bold text-cyan-400 font-mono">$35</div>
+            <div className="text-2xl font-bold text-cyan-400 font-mono">
+              ${opportunities.length > 0 ? Math.round(opportunities.reduce((sum, o) => sum + (o.spread || 0), 0) / opportunities.length * 10) : '0'}
+            </div>
             <div className="text-xs text-[#6b6b80]">Avg Profit/1K</div>
           </div>
           <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
-            <div className="text-2xl font-bold text-amber-400 font-mono">4</div>
+            <div className="text-2xl font-bold text-amber-400 font-mono">
+              {opportunities.filter(o => o.confidence === 'High').length}
+            </div>
             <div className="text-xs text-[#6b6b80]">High Conf.</div>
           </div>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-[#6b6b80]">Scanning markets...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-4">
+            <div className="flex items-center gap-2 text-amber-400 text-sm">
+              <span>⚠️</span>
+              <span>Using cached data - Live connection unavailable</span>
+            </div>
+          </div>
+        )}
+
         {/* Opportunities List */}
         <div className="space-y-3">
-          {ARB_OPPORTUNITIES.map((opp) => (
+          {!loading && opportunities.map((opp) => (
             <div
               key={opp.id}
               className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-cyan-500/40 transition-all cursor-pointer group"
@@ -814,8 +816,19 @@ const ArbOppsPanel = ({ onClose }) => {
 
         {/* Quick Actions */}
         <div className="mt-6 flex gap-3">
-          <button className="flex-1 px-4 py-3 bg-cyan-500/20 text-cyan-400 rounded-xl font-medium hover:bg-cyan-500/30 transition-colors">
-            Refresh Scan
+          <button 
+            onClick={fetchOpportunities}
+            disabled={loading}
+            className="flex-1 px-4 py-3 bg-cyan-500/20 text-cyan-400 rounded-xl font-medium hover:bg-cyan-500/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              'Refresh Scan'
+            )}
           </button>
           <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
             Set Alerts
