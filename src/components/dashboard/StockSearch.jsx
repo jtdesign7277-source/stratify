@@ -59,7 +59,6 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
   const [error, setError] = useState(null);
-  const [savedListExpanded, setSavedListExpanded] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -228,137 +227,106 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
 
   return (
     <div className="border-b border-white/5">
-      {/* Tab Header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={`
-          group relative w-full px-4 py-3 flex items-center gap-3 
-          transition-all duration-300 ease-out
-          hover:bg-gradient-to-r hover:from-violet-500/10 hover:via-blue-500/10 hover:to-cyan-500/10
-          ${isExpanded ? 'bg-gradient-to-r from-violet-500/5 via-blue-500/5 to-cyan-500/5' : ''}
-        `}
-      >
-        {/* Brain icon with glow */}
-        <div className={`relative flex items-center justify-center ${isSearching ? 'animate-pulse' : ''}`}>
-          {/* Glow layers */}
-          <div className={`
-            absolute inset-0 rounded-full blur-md transition-opacity duration-300
-            bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-500
-            ${isSearching ? 'opacity-60 animate-pulse' : 'opacity-0 group-hover:opacity-40'}
-          `} style={{ transform: 'scale(1.8)' }} />
-          <div className={`
-            absolute inset-0 rounded-full blur-sm transition-opacity duration-300
-            bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-400
-            ${isSearching ? 'opacity-80' : 'opacity-0 group-hover:opacity-60'}
-          `} style={{ transform: 'scale(1.4)' }} />
-          
-          <BrainIcon 
-            className={`
-              relative w-5 h-5 transition-all duration-300
-              ${isSearching 
-                ? 'text-blue-300' 
-                : 'text-zinc-400 group-hover:text-blue-300'
-              }
-            `}
-            isSearching={isSearching}
-          />
-          
-          {/* Neural activity dots when searching */}
-          {isSearching && (
-            <>
-              <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
-              <span className="absolute -bottom-1 -left-1 h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping" style={{ animationDelay: '0.2s' }} />
-              <span className="absolute top-0 -left-2 h-1 w-1 rounded-full bg-blue-400 animate-ping" style={{ animationDelay: '0.4s' }} />
-            </>
-          )}
-        </div>
-
-        <span className={`
-          font-medium text-sm transition-all duration-300
-          ${isSearching ? 'text-blue-300' : 'text-zinc-400 group-hover:text-zinc-200'}
-        `}>
-          {isSearching ? 'Analyzing...' : 'Stock Search'}
-        </span>
-
-        {watchlist.length > 0 && (
-          <span className="ml-auto mr-2 text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
-            {watchlist.length}
-          </span>
-        )}
-
-        <SearchIcon className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 ml-auto" />
-
-        {/* Bottom glow bar */}
+      {/* Search Header Row - Brain + Input integrated */}
+      <form onSubmit={handleSubmit} className="relative">
         <div className={`
-          absolute bottom-0 left-0 right-0 h-px
-          bg-gradient-to-r from-transparent via-blue-500 to-transparent
-          transition-opacity duration-300
-          ${isSearching ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}
-        `} />
-      </button>
-
-      {/* Expanded Panel */}
-      {isExpanded && (
-        <div className="px-4 pb-4 space-y-3 animate-slideDown">
-          {/* Search Input with Autocomplete */}
-          <div className="relative">
-            <form onSubmit={handleSubmit} className="relative">
-              <input
-                type="text"
-                placeholder="Search stocks (AAPL, TSLA...)"
-                value={query}
-                onChange={handleQueryChange}
-                onFocus={() => query && suggestions.length > 0 && setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                className="
-                  w-full rounded-lg border border-zinc-700/50 bg-zinc-800/30 
-                  py-2 pl-4 pr-10 text-sm text-white uppercase
-                  placeholder:text-zinc-500 placeholder:normal-case
-                  focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50
-                  transition-all duration-200
-                "
-              />
-              <button
-                type="submit"
-                disabled={isSearching || !query.trim()}
-                className="
-                  absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md
-                  text-zinc-400 hover:text-blue-400 hover:bg-zinc-700/50
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  transition-colors duration-200
-                "
-              >
-                {isLoadingSuggestions || isSearching ? (
-                  <LoaderIcon className="w-4 h-4" />
-              ) : (
-                <SearchIcon className="w-4 h-4" />
-              )}
-              </button>
-            </form>
-
-            {/* Autocomplete Dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 rounded-lg border border-zinc-700/50 bg-zinc-900 shadow-xl overflow-hidden">
-                {suggestions.map((suggestion, idx) => (
-                  <button
-                    key={suggestion.symbol || idx}
-                    type="button"
-                    onClick={() => selectSuggestion(suggestion)}
-                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-800 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-white">{suggestion.symbol}</span>
-                      <span className="text-xs text-zinc-500 truncate max-w-[120px]">
-                        {suggestion.shortname || suggestion.longname || suggestion.name}
-                      </span>
-                    </div>
-                    <span className="text-xs text-zinc-600">{suggestion.exchDisp || suggestion.exchange}</span>
-                  </button>
-                ))}
-              </div>
+          relative flex items-center gap-2 px-3 py-2
+          transition-all duration-300 ease-out
+          hover:bg-gradient-to-r hover:from-violet-500/5 hover:via-blue-500/5 hover:to-cyan-500/5
+          ${(isSearching || query) ? 'bg-gradient-to-r from-violet-500/5 via-blue-500/5 to-cyan-500/5' : ''}
+        `}>
+          {/* Brain icon with glow */}
+          <div className={`relative flex items-center justify-center flex-shrink-0 ${isSearching ? 'animate-pulse' : ''}`}>
+            <div className={`
+              absolute inset-0 rounded-full blur-md transition-opacity duration-300
+              bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-500
+              ${isSearching ? 'opacity-60 animate-pulse' : 'opacity-0'}
+            `} style={{ transform: 'scale(1.8)' }} />
+            
+            <BrainIcon 
+              className={`
+                relative w-5 h-5 transition-all duration-300
+                ${isSearching ? 'text-blue-300' : 'text-zinc-500'}
+              `}
+              isSearching={isSearching}
+            />
+            
+            {/* Neural activity dots when searching */}
+            {isSearching && (
+              <>
+                <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
+                <span className="absolute -bottom-1 -left-1 h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping" style={{ animationDelay: '0.2s' }} />
+              </>
             )}
           </div>
 
+          {/* Input Field */}
+          <input
+            type="text"
+            placeholder="Search stocks..."
+            value={query}
+            onChange={handleQueryChange}
+            onFocus={() => {
+              setIsExpanded(true);
+              if (query && suggestions.length > 0) setShowSuggestions(true);
+            }}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            className="
+              flex-1 bg-transparent text-sm text-white 
+              placeholder:text-zinc-500 
+              focus:outline-none
+              uppercase
+            "
+          />
+
+          {/* Search/Loading Icon */}
+          <button
+            type="submit"
+            disabled={isSearching || !query.trim()}
+            className="flex-shrink-0 p-1 rounded text-zinc-500 hover:text-blue-400 disabled:opacity-50 transition-colors"
+          >
+            {isLoadingSuggestions || isSearching ? (
+              <LoaderIcon className="w-4 h-4" />
+            ) : (
+              <SearchIcon className="w-4 h-4" />
+            )}
+          </button>
+
+          {/* Bottom glow bar */}
+          <div className={`
+            absolute bottom-0 left-0 right-0 h-px
+            bg-gradient-to-r from-transparent via-blue-500 to-transparent
+            transition-opacity duration-300
+            ${isSearching ? 'opacity-100' : 'opacity-0'}
+          `} />
+        </div>
+
+        {/* Autocomplete Dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute z-50 left-3 right-3 mt-1 rounded-lg border border-zinc-700/50 bg-zinc-900 shadow-xl overflow-hidden">
+            {suggestions.map((suggestion, idx) => (
+              <button
+                key={suggestion.symbol || idx}
+                type="button"
+                onClick={() => selectSuggestion(suggestion)}
+                className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-800 transition-colors text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-white">{suggestion.symbol}</span>
+                  <span className="text-xs text-zinc-500 truncate max-w-[100px]">
+                    {suggestion.shortname || suggestion.longname || suggestion.name}
+                  </span>
+                </div>
+                <span className="text-xs text-zinc-600">{suggestion.exchDisp || suggestion.exchange}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </form>
+
+      {/* Results Panel - shows when we have results */}
+      {(searchResult || error) && (
+        <div className="px-3 pb-3 space-y-2">
           {/* Error */}
           {error && (
             <div className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">
@@ -409,43 +377,6 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
             </div>
           )}
 
-          {/* Watchlist - Collapsible */}
-          {watchlist.length > 0 && (
-            <div className="pt-2">
-              <button
-                onClick={() => setSavedListExpanded(!savedListExpanded)}
-                className="flex items-center gap-2 w-full text-left text-xs text-zinc-500 hover:text-zinc-400 transition-colors mb-2"
-              >
-                <ChevronIcon open={savedListExpanded} className="w-3 h-3" />
-                <span className="font-medium uppercase tracking-wide">Watchlist ({watchlist.length})</span>
-              </button>
-              
-              {savedListExpanded && (
-                <div className="space-y-1.5 animate-slideDown">
-                  {watchlist.map((stock) => (
-                    <div
-                      key={stock.symbol}
-                      className="flex items-center justify-between rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2 hover:border-zinc-600/50 hover:bg-zinc-800/40 transition-all"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-white">{stock.symbol}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-zinc-300">${stock.price?.toFixed(2) || '—'}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!isSearching && !searchResult && watchlist.length === 0 && !error && (
-            <p className="text-xs text-zinc-600 text-center py-2">
-              Search for stocks to add to watchlist
-            </p>
-          )}
         </div>
       )}
 
