@@ -60,14 +60,66 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
   const [searchResult, setSearchResult] = useState(null);
   const [error, setError] = useState(null);
   const [savedListExpanded, setSavedListExpanded] = useState(true);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Debounced autocomplete search
+  useEffect(() => {
+    if (!query || query.length < 1) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        // Try our API first
+        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.results) {
+            setSuggestions(data.results.slice(0, 6));
+            setShowSuggestions(true);
+            return;
+          }
+        }
+        // Fallback: use Yahoo Finance autocomplete
+        const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=6&newsCount=0`;
+        const yahooRes = await fetch(yahooUrl);
+        const yahooData = await yahooRes.json();
+        if (yahooData.quotes) {
+          setSuggestions(yahooData.quotes.filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'ETF').slice(0, 6));
+          setShowSuggestions(true);
+        }
+      } catch (err) {
+        console.error('Autocomplete error:', err);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // Auto-expand when user starts typing
   const handleQueryChange = (e) => {
     const val = e.target.value.toUpperCase();
     setQuery(val);
+    setSearchResult(null);
     if (val && !isExpanded) {
       setIsExpanded(true);
     }
+  };
+
+  // Select suggestion
+  const selectSuggestion = (suggestion) => {
+    const symbol = suggestion.symbol;
+    setQuery(symbol);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    searchStock(symbol);
   };
 
   // Check if stock is already in watchlist
@@ -248,38 +300,64 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
       {/* Expanded Panel */}
       {isExpanded && (
         <div className="px-4 pb-4 space-y-3 animate-slideDown">
-          {/* Search Input */}
-          <form onSubmit={handleSubmit} className="relative">
-            <input
-              type="text"
-              placeholder="Symbol (AAPL, TSLA...)"
-              value={query}
-              onChange={handleQueryChange}
-              className="
-                w-full rounded-lg border border-zinc-700/50 bg-zinc-800/30 
-                py-2 pl-4 pr-10 text-sm text-white uppercase
-                placeholder:text-zinc-500 placeholder:normal-case
-                focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50
-                transition-all duration-200
-              "
-            />
-            <button
-              type="submit"
-              disabled={isSearching || !query.trim()}
-              className="
-                absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md
-                text-zinc-400 hover:text-blue-400 hover:bg-zinc-700/50
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-colors duration-200
-              "
-            >
-              {isSearching ? (
-                <LoaderIcon className="w-4 h-4" />
+          {/* Search Input with Autocomplete */}
+          <div className="relative">
+            <form onSubmit={handleSubmit} className="relative">
+              <input
+                type="text"
+                placeholder="Search stocks (AAPL, TSLA...)"
+                value={query}
+                onChange={handleQueryChange}
+                onFocus={() => query && suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                className="
+                  w-full rounded-lg border border-zinc-700/50 bg-zinc-800/30 
+                  py-2 pl-4 pr-10 text-sm text-white uppercase
+                  placeholder:text-zinc-500 placeholder:normal-case
+                  focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/50
+                  transition-all duration-200
+                "
+              />
+              <button
+                type="submit"
+                disabled={isSearching || !query.trim()}
+                className="
+                  absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md
+                  text-zinc-400 hover:text-blue-400 hover:bg-zinc-700/50
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-colors duration-200
+                "
+              >
+                {isLoadingSuggestions || isSearching ? (
+                  <LoaderIcon className="w-4 h-4" />
               ) : (
                 <SearchIcon className="w-4 h-4" />
               )}
-            </button>
-          </form>
+              </button>
+            </form>
+
+            {/* Autocomplete Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 rounded-lg border border-zinc-700/50 bg-zinc-900 shadow-xl overflow-hidden">
+                {suggestions.map((suggestion, idx) => (
+                  <button
+                    key={suggestion.symbol || idx}
+                    type="button"
+                    onClick={() => selectSuggestion(suggestion)}
+                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-zinc-800 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-white">{suggestion.symbol}</span>
+                      <span className="text-xs text-zinc-500 truncate max-w-[120px]">
+                        {suggestion.shortname || suggestion.longname || suggestion.name}
+                      </span>
+                    </div>
+                    <span className="text-xs text-zinc-600">{suggestion.exchDisp || suggestion.exchange}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Error */}
           {error && (
