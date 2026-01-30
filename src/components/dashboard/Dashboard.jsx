@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
 import DataTable from './DataTable';
@@ -11,6 +11,8 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
+import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
+import StrategyBuilder from './StrategyBuilder';
 
 const loadDashboardState = () => {
   try {
@@ -79,7 +81,6 @@ const generateRandomDeployedStrategy = () => {
   };
 };
 
-// Respawn delay (60 seconds for demo)
 const RESPAWN_DELAY_MS = 60000;
 
 export default function Dashboard({ setCurrentPage, alpacaData }) {
@@ -88,11 +89,38 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState('strategies');
-  const [strategyBuilderCollapsed, setStrategyBuilderCollapsed] = useState(true);
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  
+  // Panel expanded states - single source of truth
+  const [panelStates, setPanelStates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-panel-states');
+      return saved ? JSON.parse(saved) : {
+        strategyBuilder: true,
+        arbitrageScanner: true,
+        deployedStrategies: true,
+      };
+    } catch {
+      return { strategyBuilder: true, arbitrageScanner: true, deployedStrategies: true };
+    }
+  });
+
+  // Persist panel states
+  useEffect(() => {
+    localStorage.setItem('stratify-panel-states', JSON.stringify(panelStates));
+  }, [panelStates]);
+
+  // Toggle panel expanded state
+  const togglePanel = useCallback((panelId) => {
+    setPanelStates(prev => ({
+      ...prev,
+      [panelId]: !prev[panelId],
+    }));
+  }, []);
+  
   const [watchlist, setWatchlist] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-watchlist');
@@ -111,13 +139,12 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       const saved = localStorage.getItem('stratify-deployed-strategies');
       if (!saved) return [];
       const parsed = JSON.parse(saved);
-      // Assign varied deployedAt timestamps for demo realism
       const staggeredTimes = [
-        Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000), // ~2 weeks ago
-        Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),  // ~3 days ago
-        Date.now() - (45 * 60 * 1000),  // ~45 minutes ago
-        Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000), // ~1 week ago
-        Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),  // ~1 day ago
+        Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000),
+        Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),
+        Date.now() - (45 * 60 * 1000),
+        Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000),
+        Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),
       ];
       return parsed.map((s, i) => ({
         ...s,
@@ -134,16 +161,6 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
-  
-  // Resizable section heights (percentages)
-  const [sectionHeights, setSectionHeights] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-section-heights');
-      return saved ? JSON.parse(saved) : { strategyBuilder: 35, arbitrageScanner: 35, deployedStrategies: 30 };
-    } catch { return { strategyBuilder: 35, arbitrageScanner: 35, deployedStrategies: 30 }; }
-  });
-  const [resizing, setResizing] = useState(null);
-  const containerRef = useRef(null);
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState(() => {
@@ -153,69 +170,6 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     } catch { return []; }
   });
 
-  // Save section heights to localStorage
-  useEffect(() => {
-    localStorage.setItem('stratify-section-heights', JSON.stringify(sectionHeights));
-  }, [sectionHeights]);
-
-  // Resize handlers
-  const handleResizeStart = useCallback((section) => (e) => {
-    e.preventDefault();
-    setResizing(section);
-  }, []);
-
-  const handleResizeMove = useCallback((e) => {
-    if (!resizing || !containerRef.current) return;
-    
-    const container = containerRef.current;
-    const rect = container.getBoundingClientRect();
-    const mouseY = e.clientY - rect.top;
-    const totalHeight = rect.height;
-    const mousePercent = (mouseY / totalHeight) * 100;
-    
-    setSectionHeights(prev => {
-      const newHeights = { ...prev };
-      const minHeight = 15; // Minimum 15% for any section
-      
-      if (resizing === 'strategyBuilder') {
-        // Dragging bottom of Strategy Builder
-        const newStrategyHeight = Math.max(minHeight, Math.min(mousePercent, 100 - 2 * minHeight));
-        const remaining = 100 - newStrategyHeight;
-        const ratio = prev.arbitrageScanner / (prev.arbitrageScanner + prev.deployedStrategies);
-        newHeights.strategyBuilder = newStrategyHeight;
-        newHeights.arbitrageScanner = Math.max(minHeight, remaining * ratio);
-        newHeights.deployedStrategies = Math.max(minHeight, remaining * (1 - ratio));
-      } else if (resizing === 'arbitrageScanner') {
-        // Dragging bottom of Arbitrage Scanner
-        const arbTop = prev.strategyBuilder;
-        const newArbBottom = Math.max(arbTop + minHeight, Math.min(mousePercent, 100 - minHeight));
-        newHeights.arbitrageScanner = newArbBottom - arbTop;
-        newHeights.deployedStrategies = 100 - newArbBottom;
-      }
-      
-      return newHeights;
-    });
-  }, [resizing]);
-
-  const handleResizeEnd = useCallback(() => {
-    setResizing(null);
-  }, []);
-
-  useEffect(() => {
-    if (resizing) {
-      document.addEventListener('mousemove', handleResizeMove);
-      document.addEventListener('mouseup', handleResizeEnd);
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-      return () => {
-        document.removeEventListener('mousemove', handleResizeMove);
-        document.removeEventListener('mouseup', handleResizeEnd);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      };
-    }
-  }, [resizing, handleResizeMove, handleResizeEnd]);
-
   const handleStrategyGenerated = (strategy) => {
     setStrategies(prev => {
       if (prev.some(s => s.name === strategy.name)) return prev;
@@ -223,12 +177,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     });
   };
 
-  // Called when strategy is added to center - trigger auto backtest
   const handleStrategyAdded = (strategy) => {
-    // Make sure we're on the strategies tab
     setActiveTab('strategies');
-    
-    // Trigger auto backtest animation after a short delay
     setTimeout(() => {
       setAutoBacktestStrategy(strategy);
     }, 800);
@@ -236,10 +186,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   const handleDeleteStrategy = (strategyId) => {
     setStrategies(prev => prev.filter(s => s.id !== strategyId));
-    // Demo respawn: add a new random strategy after 60 seconds
     setTimeout(() => {
       setStrategies(prev => {
-        // Only respawn if we have less than 3 strategies
         if (prev.length < 3) {
           return [...prev, generateRandomStrategy()];
         }
@@ -263,7 +211,6 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const handleSaveToSidebar = (strategy) => {
     setSavedStrategies(prev => {
       if (prev.some(s => s.id === strategy.id)) return prev;
-      // Determine risk level based on max drawdown
       const maxDrawdown = parseFloat(strategy.metrics?.maxDrawdown) || 15;
       let riskLevel = 'medium';
       if (maxDrawdown <= 10) riskLevel = 'low';
@@ -277,16 +224,13 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   };
 
   const handleDeployStrategy = (strategy) => {
-    // Update strategy status to deployed (keep in list for modification)
     setStrategies(prev => prev.map(s => 
       s.id === strategy.id ? { ...s, status: 'deployed' } : s
     ));
-    // Add to deployed strategies list
     setDeployedStrategies(prev => {
       if (prev.some(s => s.name === strategy.name)) return prev;
       return [...prev, { ...strategy, status: 'deployed', runStatus: 'running', deployedAt: Date.now() }];
     });
-    // Clear auto backtest
     setAutoBacktestStrategy(null);
   };
 
@@ -308,7 +252,6 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
   }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme]);
 
-  // Persist connected brokers
   useEffect(() => {
     localStorage.setItem('stratify-connected-brokers', JSON.stringify(connectedBrokers));
   }, [connectedBrokers]);
@@ -317,14 +260,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     localStorage.setItem('stratify-watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
 
-  // Persist strategies to localStorage
   useEffect(() => {
     localStorage.setItem('stratify-strategies', JSON.stringify(strategies));
   }, [strategies]);
 
-  // Demo auto-populate: ensure minimum content exists
   useEffect(() => {
-    // If strategies are empty, populate with demo data after a short delay
     if (strategies.length === 0) {
       const timer = setTimeout(() => {
         setStrategies([
@@ -337,7 +277,6 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     }
   }, [strategies.length]);
 
-  // Demo auto-populate: ensure deployed strategies exist
   useEffect(() => {
     if (deployedStrategies.length === 0) {
       const timer = setTimeout(() => {
@@ -350,12 +289,10 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     }
   }, [deployedStrategies.length]);
 
-  // Persist deployed strategies to localStorage
   useEffect(() => {
     localStorage.setItem('stratify-deployed-strategies', JSON.stringify(deployedStrategies));
   }, [deployedStrategies]);
 
-  // Persist saved strategies to localStorage
   useEffect(() => {
     localStorage.setItem('stratify-saved-strategies', JSON.stringify(savedStrategies));
   }, [savedStrategies]);
@@ -402,16 +339,15 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     };
   }, [isDragging]);
 
-  // Google Finance color scheme
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#202124]',           // Google dark background
+    bg: 'bg-[#202124]',
     surface: 'bg-[#202124]',
-    surfaceElevated: 'bg-[#303134]', // Google surface
+    surfaceElevated: 'bg-[#303134]',
     border: 'border-[#5f6368]',
-    text: 'text-[#E8EAED]',       // Google primary text
-    textMuted: 'text-[#9AA0A6]',  // Google secondary text
-    green: 'text-[#00C853]',      // Google Finance green
-    red: 'text-[#F44336]',        // Google Finance red
+    text: 'text-[#E8EAED]',
+    textMuted: 'text-[#9AA0A6]',
+    green: 'text-[#00C853]',
+    red: 'text-[#F44336]',
     greenBg: 'bg-[#00C853]/10',
     redBg: 'bg-[#F44336]/10',
   } : {
@@ -431,7 +367,15 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
-      <TopMetricsBar alpacaData={alpacaData} onAddToWatchlist={addToWatchlist} theme={theme} themeClasses={themeClasses} onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} onLogout={() => setCurrentPage('landing')} connectedBrokers={connectedBrokers} />
+      <TopMetricsBar 
+        alpacaData={alpacaData} 
+        onAddToWatchlist={addToWatchlist} 
+        theme={theme} 
+        themeClasses={themeClasses} 
+        onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
+        onLogout={() => setCurrentPage('landing')} 
+        connectedBrokers={connectedBrokers} 
+      />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           expanded={sidebarExpanded} 
@@ -449,96 +393,88 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           connectedBrokers={connectedBrokers}
           onOpenBrokerModal={() => setShowBrokerModal(true)}
         />
-        <div id="main-content-area" ref={containerRef} className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}>
-          {/* Main Dashboard Content - Resizable Sections */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Strategy Builder Section */}
-            <div 
-              className="flex flex-col min-h-[40px] overflow-hidden"
-              style={{ height: `${sectionHeights.strategyBuilder}%` }}
-            >
-              {/* Strategy Builder Header */}
-              <div 
-                className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-b ${themeClasses.border} ${themeClasses.surfaceElevated} cursor-pointer hover:bg-[#3c4043]/50 transition-colors`}
-                onClick={() => setStrategyBuilderCollapsed(!strategyBuilderCollapsed)}
-              >
-                <div className="flex items-center gap-2">
-                  <svg 
-                    className={`w-4 h-4 text-gray-500 transition-transform ${strategyBuilderCollapsed ? '' : 'rotate-90'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  <span className={`text-sm font-semibold ${themeClasses.text}`}>Strategy Builder</span>
-                  {draftStrategiesCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">{draftStrategiesCount}</span>
-                  )}
-                </div>
-                <span className="text-xs text-gray-500">{strategyBuilderCollapsed ? 'Click to expand' : ''}</span>
-              </div>
-              
-              {/* Strategy Builder Content */}
-              {!strategyBuilderCollapsed && (
-                <div className="flex-1 overflow-auto min-h-0">
-                  <DataTable 
-                    activeTab={activeTab} 
-                    alpacaData={alpacaData} 
-                    strategies={strategies} 
-                    demoState={demoState} 
-                    theme={theme} 
-                    themeClasses={themeClasses} 
-                    onDeleteStrategy={handleDeleteStrategy}
-                    onDeployStrategy={handleDeployStrategy}
-                    onEditStrategy={handleEditStrategy}
-                    onSaveToSidebar={handleSaveToSidebar}
-                    onUpdateStrategy={handleUpdateStrategy}
-                    savedStrategies={savedStrategies}
-                    autoBacktestStrategy={autoBacktestStrategy}
-                  />
-                </div>
-              )}
+        
+        {/* Main Content Area - Three Collapsible Panels */}
+        <div 
+          id="main-content-area" 
+          className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
+        >
+          {/* Settings/Newsletter Overlays */}
+          {activeSection === 'settings' && (
+            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
+              <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
             </div>
-            
-            {/* Resize Handle 1 */}
-            <div 
-              className="h-2 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent hover:via-blue-500 cursor-row-resize flex-shrink-0 relative z-30 transition-all"
-              onMouseDown={handleResizeStart('strategyBuilder')}
-            >
-              <div className="absolute inset-x-0 -top-2 -bottom-2" />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5">
-                <div className="w-6 h-0.5 bg-gray-500 rounded-full" />
-              </div>
+          )}
+          {activeSection === 'newsletter' && (
+            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
+              <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
             </div>
+          )}
+
+          {/* Panel Container - Flex column with proper distribution */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             
-            {/* Arbitrage Scanner Section */}
-            <div 
-              className="min-h-[40px] overflow-hidden"
-              style={{ height: `${sectionHeights.arbitrageScanner}%` }}
+            {/* Strategy Builder Panel */}
+            <CollapsiblePanel
+              id="strategyBuilder"
+              title="Strategy Builder"
+              badge={draftStrategiesCount > 0 ? draftStrategiesCount : null}
+              badgeColor="bg-purple-500/20 text-purple-400"
+              expanded={panelStates.strategyBuilder}
+              onToggle={() => togglePanel('strategyBuilder')}
+              themeClasses={themeClasses}
             >
-              <ArbitragePanel themeClasses={themeClasses} />
-            </div>
-            
-            {/* Resize Handle 2 */}
-            <div 
-              className="h-2 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent hover:via-blue-500 cursor-row-resize flex-shrink-0 relative z-30 transition-all"
-              onMouseDown={handleResizeStart('arbitrageScanner')}
+              <StrategyBuilder 
+                strategies={strategies} 
+                deployedStrategies={deployedStrategies}
+                onStrategyGenerated={handleStrategyGenerated}
+                onDeleteStrategy={handleDeleteStrategy}
+                onDeployStrategy={handleDeployStrategy}
+                onUpdateStrategy={handleUpdateStrategy}
+                themeClasses={themeClasses}
+              />
+            </CollapsiblePanel>
+
+            {/* Divider between Strategy Builder and Arb Scanner */}
+            {panelStates.strategyBuilder && panelStates.arbitrageScanner && (
+              <PanelDivider />
+            )}
+
+            {/* Arbitrage Scanner Panel */}
+            <CollapsiblePanel
+              id="arbitrageScanner"
+              title="Arbitrage Scanner"
+              badgeColor="bg-amber-500/20 text-amber-400"
+              expanded={panelStates.arbitrageScanner}
+              onToggle={() => togglePanel('arbitrageScanner')}
+              statusDot={true}
+              statusColor="amber"
+              themeClasses={themeClasses}
             >
-              <div className="absolute inset-x-0 -top-2 -bottom-2" />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5">
-                <div className="w-6 h-0.5 bg-gray-500 rounded-full" />
-              </div>
-            </div>
-            
-            {/* Deployed Strategies Section */}
-            <div 
-              className="min-h-[40px] overflow-hidden"
-              style={{ height: `${sectionHeights.deployedStrategies}%` }}
+              <ArbitragePanel themeClasses={themeClasses} embedded={true} />
+            </CollapsiblePanel>
+
+            {/* Divider between Arb Scanner and Deployed Strategies */}
+            {panelStates.arbitrageScanner && panelStates.deployedStrategies && (
+              <PanelDivider />
+            )}
+
+            {/* Deployed Strategies Panel */}
+            <CollapsiblePanel
+              id="deployedStrategies"
+              title="Deployed Strategies"
+              badge={deployedStrategies.length > 0 ? `${deployedStrategies.length} active` : null}
+              badgeColor="bg-emerald-500/20 text-emerald-400"
+              expanded={panelStates.deployedStrategies}
+              onToggle={() => togglePanel('deployedStrategies')}
+              statusDot={deployedStrategies.length > 0}
+              statusColor="emerald"
+              themeClasses={themeClasses}
             >
               <TerminalPanel 
                 themeClasses={themeClasses} 
                 deployedStrategies={deployedStrategies} 
+                embedded={true}
                 onRemoveStrategy={(id) => {
                   setDeployedStrategies(prev => prev.filter(s => s.id !== id));
                   setTimeout(() => {
@@ -551,23 +487,10 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
                   }, RESPAWN_DELAY_MS);
                 }}
               />
-            </div>
+            </CollapsiblePanel>
           </div>
-
-          {/* Settings Full Page Overlay */}
-          {activeSection === 'settings' && (
-            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
-              <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
-
-          {/* Newsletter Full Page Overlay */}
-          {activeSection === 'newsletter' && (
-            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
-              <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
         </div>
+        
         <RightPanel 
           width={rightPanelWidth} 
           alpacaData={alpacaData} 

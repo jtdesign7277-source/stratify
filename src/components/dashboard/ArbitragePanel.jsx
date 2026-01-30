@@ -317,9 +317,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
   );
 };
 
-export default function ArbitragePanel({ themeClasses }) {
-  // Accordion: only one section open at a time (null = all closed)
-  const [activeSection, setActiveSection] = useState(null); // 'scanner' | 'openBets' | 'history' | null
+export default function ArbitragePanel({ themeClasses, embedded = false }) {
   const [opportunities, setOpportunities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dataSource, setDataSource] = useState('loading'); // 'live' | 'fallback' | 'loading'
@@ -334,8 +332,10 @@ export default function ArbitragePanel({ themeClasses }) {
     autoExecute: false,
   });
   const [isScanning, setIsScanning] = useState(true);
+  // Section state for accordion views
+  const [activeSection, setActiveSection] = useState('scanner'); // 'scanner' | 'openBets' | 'history' | null
   
-  // Toggle section - accordion style (only one open at a time)
+  // Toggle section (accordion style - one open at a time)
   const toggleSection = (section) => {
     setActiveSection(prev => prev === section ? null : section);
   };
@@ -402,10 +402,10 @@ export default function ArbitragePanel({ themeClasses }) {
   );
   
   return (
-    <div className={`flex flex-col border-t ${themeClasses.border} relative z-0 overflow-hidden h-full`}>
-      {/* Arbitrage Scanner Header */}
+    <div className={`flex flex-col ${embedded ? '' : `border-t ${themeClasses.border}`} relative z-0`}>
+      {/* Sub-sections with internal accordion - all 3 headers always visible */}
       <div 
-        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 cursor-pointer transition-colors ${activeSection === 'scanner' ? 'bg-amber-500/10' : 'hover:bg-[#252525]'}`}
+        className={`h-8 flex-shrink-0 flex items-center justify-between px-3 cursor-pointer transition-colors ${activeSection === 'scanner' ? 'bg-amber-500/10' : 'hover:bg-[#252525]'}`}
         onClick={() => toggleSection('scanner')}
       >
         <div className="flex items-center gap-2">
@@ -415,7 +415,7 @@ export default function ArbitragePanel({ themeClasses }) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-          <span className={`text-sm font-semibold ${activeSection === 'scanner' ? 'text-amber-400' : 'text-gray-400'}`}>Arbitrage Scanner</span>
+          <span className={`text-xs font-medium ${activeSection === 'scanner' ? 'text-amber-400' : 'text-gray-400'}`}>Opportunities</span>
           {isScanning && (
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
           )}
@@ -440,7 +440,7 @@ export default function ArbitragePanel({ themeClasses }) {
       
       {/* Arbitrage Scanner Content */}
       {activeSection === 'scanner' && (
-        <div className="flex-1 overflow-y-auto bg-[#1a1a1a] scrollbar-hide">
+        <div className="max-h-64 overflow-y-auto bg-[#1a1a1a] scrollbar-hide">
           {/* Settings Summary */}
           <div className="px-3 py-1.5 border-b border-[#2a2a2a] text-[10px] text-gray-600 flex justify-between">
             <span>Sharpe ≥ {settings.minSharpe} • Spread ≥ {settings.minSpread}%</span>
@@ -502,7 +502,7 @@ export default function ArbitragePanel({ themeClasses }) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-          <span className={`text-sm font-semibold ${activeSection === 'openBets' ? 'text-emerald-400' : 'text-gray-400'}`}>Open Bets</span>
+          <span className={`text-xs font-medium ${activeSection === 'openBets' ? 'text-emerald-400' : 'text-gray-400'}`}>Open Bets</span>
         </div>
         {openBets.length > 0 && (
           <span className="px-1.5 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full">
@@ -587,7 +587,7 @@ export default function ArbitragePanel({ themeClasses }) {
           <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className={`text-sm font-semibold ${activeSection === 'history' ? 'text-gray-300' : 'text-gray-500'}`}>History</span>
+          <span className={`text-xs font-medium ${activeSection === 'history' ? 'text-gray-300' : 'text-gray-500'}`}>History</span>
         </div>
         <span className="text-xs text-gray-600">{betHistory.length}</span>
       </div>
