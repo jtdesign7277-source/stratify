@@ -192,11 +192,15 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
   };
 
   const addToWatchlist = (stock) => {
-    if (onAddToWatchlist && !isInWatchlist(stock.symbol)) {
+    console.log('Adding to watchlist:', stock);
+    if (onAddToWatchlist) {
       onAddToWatchlist(stock);
+      setSearchResult(null);
+      setQuery('');
+      setShowSuggestions(false);
+    } else {
+      console.error('onAddToWatchlist prop not provided');
     }
-    setSearchResult(null);
-    setQuery('');
   };
 
   const getChangeColor = (change) => {
@@ -373,12 +377,17 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
                   {searchResult.marketCap && <span>MCap: {formatNumber(searchResult.marketCap)}</span>}
                 </div>
                 <button
-                  onClick={() => addToWatchlist(searchResult)}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    addToWatchlist(searchResult);
+                  }}
                   disabled={isInWatchlist(searchResult.symbol)}
                   className={`text-xs font-medium transition-colors ${
                     isInWatchlist(searchResult.symbol) 
                       ? 'text-zinc-500 cursor-not-allowed' 
-                      : 'text-blue-400 hover:text-blue-300'
+                      : 'text-blue-400 hover:text-blue-300 cursor-pointer'
                   }`}
                 >
                   {isInWatchlist(searchResult.symbol) ? '✓ In Watchlist' : '+ Add to Watchlist'}
