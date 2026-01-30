@@ -402,7 +402,7 @@ export default function ArbitragePanel({ themeClasses }) {
   );
   
   return (
-    <div className={`flex flex-col border-t ${themeClasses.border} relative z-0 overflow-hidden`}>
+    <div className={`flex flex-col border-t ${themeClasses.border} relative z-0 overflow-hidden h-full`}>
       {/* Arbitrage Scanner Header */}
       <div 
         className={`h-10 flex-shrink-0 flex items-center justify-between px-3 cursor-pointer transition-colors ${activeSection === 'scanner' ? 'bg-amber-500/10' : 'hover:bg-[#252525]'}`}
@@ -440,7 +440,7 @@ export default function ArbitragePanel({ themeClasses }) {
       
       {/* Arbitrage Scanner Content */}
       {activeSection === 'scanner' && (
-        <div className="overflow-y-auto bg-[#1a1a1a] scrollbar-hide" style={{ maxHeight: '280px' }}>
+        <div className="flex-1 overflow-y-auto bg-[#1a1a1a] scrollbar-hide">
           {/* Settings Summary */}
           <div className="px-3 py-1.5 border-b border-[#2a2a2a] text-[10px] text-gray-600 flex justify-between">
             <span>Sharpe ≥ {settings.minSharpe} • Spread ≥ {settings.minSpread}%</span>

@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export default function TerminalPanel({ themeClasses, deployedStrategies = [], onRemoveStrategy }) {
-  const [expanded, setExpanded] = useState(false);
-  const [panelHeight, setPanelHeight] = useState(() => {
-    const saved = localStorage.getItem('stratify-terminal-height');
-    return saved ? parseInt(saved, 10) : 200;
-  });
-  const [isDragging, setIsDragging] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [liveData, setLiveData] = useState({});
   const [pausedStrategies, setPausedStrategies] = useState({});
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -101,38 +96,6 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
     }
   };
 
-  useEffect(() => {
-    localStorage.setItem('stratify-terminal-height', panelHeight.toString());
-  }, [panelHeight]);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e) => {
-      const container = document.getElementById('main-content-area');
-      if (!container) return;
-      const containerRect = container.getBoundingClientRect();
-      const newHeight = containerRect.bottom - e.clientY;
-      setPanelHeight(Math.max(100, Math.min(400, newHeight)));
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    };
-
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
-
   // Filter out killed strategies
   const activeStrategies = deployedStrategies.filter(s => liveData[s.id] !== undefined);
 
@@ -156,17 +119,9 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
   }
 
   return (
-    <div className={`flex flex-col ${themeClasses.surfaceElevated} border-t ${themeClasses.border}`}>
-      {/* Resize handle */}
-      <div 
-        className={`h-1 cursor-row-resize flex items-center justify-center ${isDragging ? 'bg-emerald-500/30' : 'hover:bg-emerald-500/20'}`}
-        onMouseDown={() => setIsDragging(true)}
-      >
-        <div className={`w-12 h-0.5 rounded-full ${isDragging ? 'bg-emerald-500' : 'bg-[#3A3A3A]'}`} />
-      </div>
-
+    <div className={`flex flex-col h-full ${themeClasses.surfaceElevated} border-t ${themeClasses.border}`}>
       {/* Header */}
-      <div className={`h-9 flex items-center justify-between px-4 border-b ${themeClasses.border}`}>
+      <div className={`h-10 flex-shrink-0 flex items-center justify-between px-4 border-b ${themeClasses.border}`}>
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setExpanded(false)}
@@ -216,7 +171,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
       </div>
 
       {/* Panel content */}
-      <div className="overflow-hidden" style={{ height: `${panelHeight}px` }}>
+      <div className="flex-1 overflow-hidden min-h-0">
         <div className="h-full overflow-y-auto p-3 scrollbar-hide">
           {activeStrategies.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
