@@ -415,7 +415,6 @@ export default function ArbitragePanel({ themeClasses }) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-          <span className="text-amber-400">🎯</span>
           <span className={`text-sm font-semibold ${activeSection === 'scanner' ? 'text-amber-400' : 'text-gray-400'}`}>Arbitrage Scanner</span>
           {isScanning && (
             <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
