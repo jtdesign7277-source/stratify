@@ -298,7 +298,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     
     try {
       // Call Atlas AI backend
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://stratify-backend-production-3ebd.up.railway.app';
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://divine-gratitude-production.up.railway.app';
       const response = await fetch(`${backendUrl}/api/v1/chat/`, {
         method: 'POST',
         headers: {
