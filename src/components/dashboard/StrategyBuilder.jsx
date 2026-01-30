@@ -309,9 +309,14 @@ const BacktestMetricsTable = ({ metrics = {} }) => {
 };
 
 // Slider Input Component
-const SliderInput = ({ label, value, onChange, min, max, step = 1, unit = '', tooltip }) => (
+const clampNumber = (value, min, max) => {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+};
+
+const SliderInput = ({ label, value, onChange, min, max, step = 1, unit = '', tooltip, showInput = false }) => (
   <div className="space-y-2">
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-1">
         <span className="text-xs text-gray-400">{label}</span>
         {tooltip && (
@@ -326,7 +331,27 @@ const SliderInput = ({ label, value, onChange, min, max, step = 1, unit = '', to
           </div>
         )}
       </div>
-      <span className="text-xs text-cyan-400 font-mono">{value}{unit}</span>
+      {showInput ? (
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            value={Number.isFinite(value) ? value : ''}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(e) => {
+              const parsed = parseFloat(e.target.value);
+              if (!Number.isNaN(parsed)) {
+                onChange(clampNumber(parsed, min, max));
+              }
+            }}
+            className="w-20 bg-[#0a0a0f] border border-[#1e1e2d] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-cyan-500 outline-none"
+          />
+          <span className="text-[10px] text-gray-500">{unit}</span>
+        </div>
+      ) : (
+        <span className="text-xs text-cyan-400 font-mono">{value}{unit}</span>
+      )}
     </div>
     <input
       type="range"
@@ -373,6 +398,19 @@ export default function StrategyBuilder({
     trailingStop: 3,
   });
 
+  const updateRiskParams = useCallback((updates) => {
+    setRiskParams(prev => {
+      const next = { ...prev, ...updates };
+      if (selectedStrategy?.id && onUpdateStrategy) {
+        onUpdateStrategy(selectedStrategy.id, { risk: next });
+      }
+      setSelectedStrategy(prevSelected => (
+        prevSelected?.id === selectedStrategy?.id ? { ...prevSelected, risk: next } : prevSelected
+      ));
+      return next;
+    });
+  }, [onUpdateStrategy, selectedStrategy?.id]);
+
   // Optimization State
   const [optimizing, setOptimizing] = useState(false);
   const [optimizeProgress, setOptimizeProgress] = useState(0);
@@ -408,10 +446,43 @@ export default function StrategyBuilder({
 
   // Auto-select first strategy
   useEffect(() => {
-    if (!selectedStrategy && currentStrategies.length > 0) {
+    if (!currentStrategies.length) {
+      setSelectedStrategy(null);
+      return;
+    }
+    if (!selectedStrategy || !currentStrategies.some(s => s.id === selectedStrategy.id)) {
       setSelectedStrategy(currentStrategies[0]);
+      return;
+    }
+    const updated = currentStrategies.find(s => s.id === selectedStrategy.id);
+    if (updated && updated !== selectedStrategy) {
+      setSelectedStrategy(updated);
     }
   }, [currentStrategies, selectedStrategy]);
+
+  // Sync risk parameters from selected strategy
+  useEffect(() => {
+    if (!selectedStrategy) {
+      setRiskParams({
+        stopLoss: 5,
+        takeProfit: 15,
+        maxDrawdown: 20,
+        positionSize: 2,
+        maxPositions: 5,
+        trailingStop: 3,
+      });
+      return;
+    }
+    const nextRisk = {
+      stopLoss: selectedStrategy.risk?.stopLoss ?? 5,
+      takeProfit: selectedStrategy.risk?.takeProfit ?? 15,
+      maxDrawdown: selectedStrategy.risk?.maxDrawdown ?? 20,
+      positionSize: selectedStrategy.risk?.positionSize ?? 2,
+      maxPositions: selectedStrategy.risk?.maxPositions ?? 5,
+      trailingStop: selectedStrategy.risk?.trailingStop ?? 3,
+    };
+    setRiskParams(nextRisk);
+  }, [selectedStrategy?.id]);
 
   // Run Backtest
   const runBacktest = useCallback(() => {
@@ -623,14 +694,14 @@ export default function StrategyBuilder({
               <SliderInput 
                 label="Position Size" 
                 value={riskParams.positionSize} 
-                onChange={(v) => setRiskParams(p => ({ ...p, positionSize: v }))}
+                onChange={(v) => updateRiskParams({ positionSize: v })}
                 min={0.5} max={10} step={0.5} unit="%"
                 tooltip="Percentage of portfolio per trade"
               />
               <SliderInput 
                 label="Max Positions" 
                 value={riskParams.maxPositions} 
-                onChange={(v) => setRiskParams(p => ({ ...p, maxPositions: v }))}
+                onChange={(v) => updateRiskParams({ maxPositions: v })}
                 min={1} max={20} step={1}
                 tooltip="Maximum concurrent open positions"
               />
@@ -647,19 +718,19 @@ export default function StrategyBuilder({
             <div className="flex items-center gap-2 mb-4">
               <span className="text-xs text-gray-400">Presets:</span>
               <button
-                onClick={() => setRiskParams({ stopLoss: 3, takeProfit: 8, maxDrawdown: 10, positionSize: 1, maxPositions: 3, trailingStop: 2 })}
+                onClick={() => updateRiskParams({ stopLoss: 3, takeProfit: 8, maxDrawdown: 10, positionSize: 1, maxPositions: 3, trailingStop: 2 })}
                 className="px-3 py-1.5 text-xs font-medium rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all"
               >
                 🛡️ Conservative
               </button>
               <button
-                onClick={() => setRiskParams({ stopLoss: 5, takeProfit: 15, maxDrawdown: 20, positionSize: 2, maxPositions: 5, trailingStop: 3 })}
+                onClick={() => updateRiskParams({ stopLoss: 5, takeProfit: 15, maxDrawdown: 20, positionSize: 2, maxPositions: 5, trailingStop: 3 })}
                 className="px-3 py-1.5 text-xs font-medium rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-all"
               >
                 ⚖️ Balanced
               </button>
               <button
-                onClick={() => setRiskParams({ stopLoss: 8, takeProfit: 25, maxDrawdown: 30, positionSize: 5, maxPositions: 10, trailingStop: 5 })}
+                onClick={() => updateRiskParams({ stopLoss: 8, takeProfit: 25, maxDrawdown: 30, positionSize: 5, maxPositions: 10, trailingStop: 5 })}
                 className="px-3 py-1.5 text-xs font-medium rounded bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all"
               >
                 🚀 Aggressive
@@ -672,21 +743,23 @@ export default function StrategyBuilder({
                 <SliderInput 
                   label="Stop Loss" 
                   value={riskParams.stopLoss} 
-                  onChange={(v) => setRiskParams(p => ({ ...p, stopLoss: v }))}
+                  onChange={(v) => updateRiskParams({ stopLoss: v })}
                   min={1} max={15} step={0.5} unit="%"
                   tooltip="Maximum loss per trade before exit"
+                  showInput
                 />
                 <SliderInput 
                   label="Take Profit" 
                   value={riskParams.takeProfit} 
-                  onChange={(v) => setRiskParams(p => ({ ...p, takeProfit: v }))}
+                  onChange={(v) => updateRiskParams({ takeProfit: v })}
                   min={2} max={50} step={1} unit="%"
                   tooltip="Target profit to close position"
+                  showInput
                 />
                 <SliderInput 
                   label="Trailing Stop" 
                   value={riskParams.trailingStop} 
-                  onChange={(v) => setRiskParams(p => ({ ...p, trailingStop: v }))}
+                  onChange={(v) => updateRiskParams({ trailingStop: v })}
                   min={1} max={10} step={0.5} unit="%"
                   tooltip="Lock in profits as price rises"
                 />
@@ -696,21 +769,23 @@ export default function StrategyBuilder({
                 <SliderInput 
                   label="Max Drawdown" 
                   value={riskParams.maxDrawdown} 
-                  onChange={(v) => setRiskParams(p => ({ ...p, maxDrawdown: v }))}
+                  onChange={(v) => updateRiskParams({ maxDrawdown: v })}
                   min={5} max={50} step={1} unit="%"
                   tooltip="Stop trading when portfolio drops this much"
+                  showInput
                 />
                 <SliderInput 
                   label="Position Size" 
                   value={riskParams.positionSize} 
-                  onChange={(v) => setRiskParams(p => ({ ...p, positionSize: v }))}
+                  onChange={(v) => updateRiskParams({ positionSize: v })}
                   min={0.5} max={10} step={0.5} unit="%"
                   tooltip="Percentage of portfolio per trade"
+                  showInput
                 />
                 <SliderInput 
                   label="Max Positions" 
                   value={riskParams.maxPositions} 
-                  onChange={(v) => setRiskParams(p => ({ ...p, maxPositions: v }))}
+                  onChange={(v) => updateRiskParams({ maxPositions: v })}
                   min={1} max={20} step={1}
                   tooltip="Maximum concurrent positions"
                 />
@@ -996,24 +1071,33 @@ export default function StrategyBuilder({
         </div>
 
         {/* Strategy List */}
-        {!sidebarCollapsed && currentStrategies.length > 0 && (
+        {!sidebarCollapsed && (
           <div className="border-t border-[#1e1e2d] max-h-48 overflow-auto scrollbar-hide">
-            {currentStrategies.map(strategy => (
-              <button
-                key={strategy.id}
-                onClick={() => setSelectedStrategy(strategy)}
-                className={`w-full flex items-center gap-2 px-3 py-2 transition-all ${
-                  selectedStrategy?.id === strategy.id 
-                    ? 'bg-cyan-500/10 text-cyan-400 border-l-2 border-cyan-500' 
-                    : 'text-gray-400 hover:bg-[#12121a] hover:text-gray-300'
-                }`}
-              >
-                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="text-xs truncate">{strategy.name}</span>
-              </button>
-            ))}
+            <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-gray-600">
+              {foldersWithCounts.find(folder => folder.id === selectedFolder)?.name || 'Strategies'}
+            </div>
+            {currentStrategies.length > 0 ? (
+              currentStrategies.map(strategy => (
+                <button
+                  key={strategy.id}
+                  onClick={() => setSelectedStrategy(strategy)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 transition-all ${
+                    selectedStrategy?.id === strategy.id 
+                      ? 'bg-cyan-500/10 text-cyan-400 border-l-2 border-cyan-500' 
+                      : 'text-gray-400 hover:bg-[#12121a] hover:text-gray-300'
+                  }`}
+                >
+                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-xs truncate">{strategy.name}</span>
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-4 text-[11px] text-gray-500">
+                No strategies in this folder.
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -224,13 +224,21 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   };
 
   const handleDeployStrategy = (strategy) => {
+    const nextStatus = strategy.status === 'paper' ? 'paper' : 'deployed';
+
     setStrategies(prev => prev.map(s => 
-      s.id === strategy.id ? { ...s, status: 'deployed' } : s
+      s.id === strategy.id ? { ...s, status: nextStatus } : s
     ));
-    setDeployedStrategies(prev => {
-      if (prev.some(s => s.name === strategy.name)) return prev;
-      return [...prev, { ...strategy, status: 'deployed', runStatus: 'running', deployedAt: Date.now() }];
-    });
+
+    if (nextStatus === 'paper') {
+      setDeployedStrategies(prev => prev.filter(s => s.id !== strategy.id));
+    } else {
+      setDeployedStrategies(prev => {
+        if (prev.some(s => s.id === strategy.id)) return prev;
+        return [...prev, { ...strategy, status: 'deployed', runStatus: 'running', deployedAt: Date.now() }];
+      });
+    }
+
     setAutoBacktestStrategy(null);
   };
 
