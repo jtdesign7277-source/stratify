@@ -53,22 +53,27 @@ const formatNumber = (num) => {
   return num.toString();
 };
 
-export default function StockSearch({ collapsed = false }) {
+export default function StockSearch({ collapsed = false, onAddToWatchlist, watchlist = [] }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
   const [error, setError] = useState(null);
-  const [savedStocks, setSavedStocks] = useState(() => {
-    const saved = localStorage.getItem('stratify-saved-stocks');
-    return saved ? JSON.parse(saved) : [];
-  });
   const [savedListExpanded, setSavedListExpanded] = useState(true);
 
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem('stratify-saved-stocks', JSON.stringify(savedStocks));
-  }, [savedStocks]);
+  // Auto-expand when user starts typing
+  const handleQueryChange = (e) => {
+    const val = e.target.value.toUpperCase();
+    setQuery(val);
+    if (val && !isExpanded) {
+      setIsExpanded(true);
+    }
+  };
+
+  // Check if stock is already in watchlist
+  const isInWatchlist = (symbol) => {
+    return watchlist.some(s => s.symbol === symbol);
+  };
 
   const searchStock = useCallback(async (symbol) => {
     if (!symbol.trim()) return;
@@ -135,16 +140,12 @@ export default function StockSearch({ collapsed = false }) {
     searchStock(query);
   };
 
-  const saveStock = (stock) => {
-    if (!savedStocks.find(s => s.symbol === stock.symbol)) {
-      setSavedStocks([...savedStocks, { ...stock, savedAt: Date.now() }]);
+  const addToWatchlist = (stock) => {
+    if (onAddToWatchlist && !isInWatchlist(stock.symbol)) {
+      onAddToWatchlist(stock);
     }
     setSearchResult(null);
     setQuery('');
-  };
-
-  const removeStock = (symbol) => {
-    setSavedStocks(savedStocks.filter(s => s.symbol !== symbol));
   };
 
   const getChangeColor = (change) => {
@@ -227,9 +228,9 @@ export default function StockSearch({ collapsed = false }) {
           {isSearching ? 'Analyzing...' : 'Stock Search'}
         </span>
 
-        {savedStocks.length > 0 && (
+        {watchlist.length > 0 && (
           <span className="ml-auto mr-2 text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
-            {savedStocks.length}
+            {watchlist.length}
           </span>
         )}
 
@@ -253,7 +254,7 @@ export default function StockSearch({ collapsed = false }) {
               type="text"
               placeholder="Symbol (AAPL, TSLA...)"
               value={query}
-              onChange={(e) => setQuery(e.target.value.toUpperCase())}
+              onChange={handleQueryChange}
               className="
                 w-full rounded-lg border border-zinc-700/50 bg-zinc-800/30 
                 py-2 pl-4 pr-10 text-sm text-white uppercase
@@ -316,47 +317,43 @@ export default function StockSearch({ collapsed = false }) {
                   {searchResult.marketCap && <span>MCap: {formatNumber(searchResult.marketCap)}</span>}
                 </div>
                 <button
-                  onClick={() => saveStock(searchResult)}
-                  className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                  onClick={() => addToWatchlist(searchResult)}
+                  disabled={isInWatchlist(searchResult.symbol)}
+                  className={`text-xs font-medium transition-colors ${
+                    isInWatchlist(searchResult.symbol) 
+                      ? 'text-zinc-500 cursor-not-allowed' 
+                      : 'text-blue-400 hover:text-blue-300'
+                  }`}
                 >
-                  + Save
+                  {isInWatchlist(searchResult.symbol) ? '✓ In Watchlist' : '+ Add to Watchlist'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Saved Stocks - Collapsible */}
-          {savedStocks.length > 0 && (
+          {/* Watchlist - Collapsible */}
+          {watchlist.length > 0 && (
             <div className="pt-2">
               <button
                 onClick={() => setSavedListExpanded(!savedListExpanded)}
                 className="flex items-center gap-2 w-full text-left text-xs text-zinc-500 hover:text-zinc-400 transition-colors mb-2"
               >
                 <ChevronIcon open={savedListExpanded} className="w-3 h-3" />
-                <span className="font-medium uppercase tracking-wide">Saved ({savedStocks.length})</span>
+                <span className="font-medium uppercase tracking-wide">Watchlist ({watchlist.length})</span>
               </button>
               
               {savedListExpanded && (
                 <div className="space-y-1.5 animate-slideDown">
-                  {savedStocks.map((stock) => (
+                  {watchlist.map((stock) => (
                     <div
                       key={stock.symbol}
-                      className="group flex items-center justify-between rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2 hover:border-zinc-600/50 hover:bg-zinc-800/40 transition-all"
+                      className="flex items-center justify-between rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2 hover:border-zinc-600/50 hover:bg-zinc-800/40 transition-all"
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm text-white">{stock.symbol}</span>
-                        <span className={`text-xs ${getChangeColor(stock.change)}`}>
-                          {stock.change >= 0 ? '+' : ''}{stock.changePercent?.toFixed(1)}%
-                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-zinc-300">${stock.price?.toFixed(2)}</span>
-                        <button
-                          onClick={() => removeStock(stock.symbol)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-all"
-                        >
-                          <XIcon className="w-3 h-3" />
-                        </button>
+                        <span className="text-sm text-zinc-300">${stock.price?.toFixed(2) || '—'}</span>
                       </div>
                     </div>
                   ))}
@@ -366,9 +363,9 @@ export default function StockSearch({ collapsed = false }) {
           )}
 
           {/* Empty state */}
-          {!isSearching && !searchResult && savedStocks.length === 0 && !error && (
+          {!isSearching && !searchResult && watchlist.length === 0 && !error && (
             <p className="text-xs text-zinc-600 text-center py-2">
-              Search for stocks to track
+              Search for stocks to add to watchlist
             </p>
           )}
         </div>

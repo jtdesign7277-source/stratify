@@ -394,6 +394,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           themeClasses={themeClasses}
           watchlist={watchlist}
           onRemoveFromWatchlist={removeFromWatchlist}
+          onAddToWatchlist={addToWatchlist}
           onViewChart={(stock) => setSelectedStock(stock)}
           savedStrategies={savedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}

@@ -641,7 +641,8 @@ export default function Sidebar({
   theme, 
   themeClasses, 
   watchlist = [], 
-  onRemoveFromWatchlist, 
+  onRemoveFromWatchlist,
+  onAddToWatchlist,
   onViewChart, 
   savedStrategies = [], 
   onRemoveSavedStrategy,
@@ -709,7 +710,7 @@ export default function Sidebar({
       <div className="mx-3 border-t border-[#1e1e2d]" />
 
       {/* Stock Search */}
-      <StockSearch collapsed={!expanded} />
+      <StockSearch collapsed={!expanded} watchlist={watchlist} onAddToWatchlist={onAddToWatchlist} />
 
       {/* Navigation */}
       <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
