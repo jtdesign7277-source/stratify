@@ -415,95 +415,98 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
             </div>
           )}
-          {activeSection === 'strategies' && (
-            <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
-              <StrategiesPage savedStrategies={savedStrategies} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
           {activeSection === 'newsletter' && (
             <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
               <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
             </div>
           )}
 
-          {/* Panel Container - Flex column with proper distribution */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            
-            {/* Strategy Builder Panel */}
-            <CollapsiblePanel
-              id="strategyBuilder"
-              title="Strategy Builder"
-              badge={draftStrategiesCount > 0 ? draftStrategiesCount : null}
-              badgeColor="bg-purple-500/20 text-purple-400"
-              expanded={panelStates.strategyBuilder}
-              onToggle={() => togglePanel('strategyBuilder')}
-              themeClasses={themeClasses}
-            >
-              <StrategyBuilder 
-                strategies={strategies} 
-                deployedStrategies={deployedStrategies}
-                onStrategyGenerated={handleStrategyGenerated}
-                onDeleteStrategy={handleDeleteStrategy}
-                onDeployStrategy={handleDeployStrategy}
-                onUpdateStrategy={handleUpdateStrategy}
+          {/* Main Content - Show StrategiesPage OR the collapsible panels */}
+          {activeSection === 'strategies' ? (
+            /* Strategies Page - shows in middle content area */
+            <div className="flex-1 overflow-hidden">
+              <StrategiesPage savedStrategies={savedStrategies} onClose={() => setActiveSection('watchlist')} />
+            </div>
+          ) : (
+            /* Panel Container - Flex column with proper distribution */
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              
+              {/* Strategy Builder Panel */}
+              <CollapsiblePanel
+                id="strategyBuilder"
+                title="Strategy Builder"
+                badge={draftStrategiesCount > 0 ? draftStrategiesCount : null}
+                badgeColor="bg-purple-500/20 text-purple-400"
+                expanded={panelStates.strategyBuilder}
+                onToggle={() => togglePanel('strategyBuilder')}
                 themeClasses={themeClasses}
-              />
-            </CollapsiblePanel>
+              >
+                <StrategyBuilder 
+                  strategies={strategies} 
+                  deployedStrategies={deployedStrategies}
+                  onStrategyGenerated={handleStrategyGenerated}
+                  onDeleteStrategy={handleDeleteStrategy}
+                  onDeployStrategy={handleDeployStrategy}
+                  onUpdateStrategy={handleUpdateStrategy}
+                  themeClasses={themeClasses}
+                />
+              </CollapsiblePanel>
 
-            {/* Divider between Strategy Builder and Arb Scanner */}
-            {panelStates.strategyBuilder && panelStates.arbitrageScanner && (
-              <PanelDivider />
-            )}
+              {/* Divider between Strategy Builder and Arb Scanner */}
+              {panelStates.strategyBuilder && panelStates.arbitrageScanner && (
+                <PanelDivider />
+              )}
 
-            {/* Arbitrage Scanner Panel */}
-            <CollapsiblePanel
-              id="arbitrageScanner"
-              title="Arbitrage Scanner"
-              badgeColor="bg-amber-500/20 text-amber-400"
-              expanded={panelStates.arbitrageScanner}
-              onToggle={() => togglePanel('arbitrageScanner')}
-              statusDot={true}
-              statusColor="amber"
-              themeClasses={themeClasses}
-            >
-              <ArbitragePanel themeClasses={themeClasses} embedded={true} />
-            </CollapsiblePanel>
+              {/* Arbitrage Scanner Panel */}
+              <CollapsiblePanel
+                id="arbitrageScanner"
+                title="Arbitrage Scanner"
+                badgeColor="bg-amber-500/20 text-amber-400"
+                expanded={panelStates.arbitrageScanner}
+                onToggle={() => togglePanel('arbitrageScanner')}
+                statusDot={true}
+                statusColor="amber"
+                themeClasses={themeClasses}
+              >
+                <ArbitragePanel themeClasses={themeClasses} embedded={true} />
+              </CollapsiblePanel>
 
-            {/* Divider between Arb Scanner and Deployed Strategies */}
-            {panelStates.arbitrageScanner && panelStates.deployedStrategies && (
-              <PanelDivider />
-            )}
+              {/* Divider between Arb Scanner and Deployed Strategies */}
+              {panelStates.arbitrageScanner && panelStates.deployedStrategies && (
+                <PanelDivider />
+              )}
 
-            {/* Deployed Strategies Panel */}
-            <CollapsiblePanel
-              id="deployedStrategies"
-              title="Deployed Strategies"
-              badge={deployedStrategies.length > 0 ? `${deployedStrategies.length} active` : null}
-              badgeColor="bg-emerald-500/20 text-emerald-400"
-              expanded={panelStates.deployedStrategies}
-              onToggle={() => togglePanel('deployedStrategies')}
-              statusDot={deployedStrategies.length > 0}
-              statusColor="emerald"
-              themeClasses={themeClasses}
-            >
-              <TerminalPanel 
-                themeClasses={themeClasses} 
-                deployedStrategies={deployedStrategies} 
-                embedded={true}
-                onRemoveStrategy={(id) => {
-                  setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                  setTimeout(() => {
-                    setDeployedStrategies(prev => {
-                      if (prev.length < 2) {
-                        return [...prev, generateRandomDeployedStrategy()];
-                      }
-                      return prev;
-                    });
-                  }, RESPAWN_DELAY_MS);
-                }}
-              />
-            </CollapsiblePanel>
-          </div>
+              {/* Deployed Strategies Panel */}
+              <CollapsiblePanel
+                id="deployedStrategies"
+                title="Deployed Strategies"
+                badge={deployedStrategies.length > 0 ? `${deployedStrategies.length} active` : null}
+                badgeColor="bg-emerald-500/20 text-emerald-400"
+                expanded={panelStates.deployedStrategies}
+                onToggle={() => togglePanel('deployedStrategies')}
+                statusDot={deployedStrategies.length > 0}
+                statusColor="emerald"
+                themeClasses={themeClasses}
+              >
+                <TerminalPanel 
+                  themeClasses={themeClasses} 
+                  deployedStrategies={deployedStrategies} 
+                  embedded={true}
+                  onRemoveStrategy={(id) => {
+                    setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                    setTimeout(() => {
+                      setDeployedStrategies(prev => {
+                        if (prev.length < 2) {
+                          return [...prev, generateRandomDeployedStrategy()];
+                        }
+                        return prev;
+                      });
+                    }, RESPAWN_DELAY_MS);
+                  }}
+                />
+              </CollapsiblePanel>
+            </div>
+          )}
         </div>
         
         <RightPanel 
