@@ -417,6 +417,180 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
   );
 };
 
+// Strategies Detail Panel (Kraken Style)
+const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClose }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [riskFilter, setRiskFilter] = useState('All');
+
+  const FEATURED_STRATEGIES = [
+    { name: 'Growth Investing', description: 'Stocks with high growth potential', risk: 'Medium-High', icon: '📈' },
+    { name: 'Dividend Investing', description: 'Companies with regular dividend payouts', risk: 'Low-Medium', icon: '💰' },
+    { name: 'Value Investing', description: 'Undervalued stocks with strong fundamentals', risk: 'Medium', icon: '💎' },
+    { name: 'Index Fund Investing', description: 'Broad market index funds for diversification', risk: 'Low', icon: '📊' },
+    { name: 'Day Trading', description: 'Buy/sell stocks within the same day', risk: 'High', icon: '⚡' },
+    { name: 'Momentum Trading', description: 'Ride trending stocks for quick gains', risk: 'High', icon: '🚀' },
+  ];
+
+  const EXPLORE_MORE = [
+    { title: 'Risk Management Tools', icon: '🛡️', color: 'emerald' },
+    { title: 'Portfolio Analyzer', icon: '📈', color: 'cyan' },
+    { title: 'Market News', icon: '📰', color: 'amber' },
+    { title: 'Community Forums', icon: '💬', color: 'purple' },
+  ];
+
+  const getRiskColor = (risk) => {
+    if (risk.toLowerCase().includes('high')) return 'bg-red-500/15 text-red-300 border-red-500/30';
+    if (risk.toLowerCase().includes('medium')) return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+  };
+
+  const filteredStrategies = FEATURED_STRATEGIES.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          s.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRisk = riskFilter === 'All' || s.risk.toLowerCase().includes(riskFilter.toLowerCase());
+    return matchesSearch && matchesRisk;
+  });
+
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="overflow-hidden border-b border-[#1e1e2d]"
+    >
+      <div className="p-6 bg-[#0a0a10] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Strategies</h2>
+              <p className="text-sm text-[#6b6b80]">{deployedStrategies.length} Live • {savedStrategies.length} Saved</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Search & Filter */}
+        <div className="flex gap-3 mb-6">
+          <div className="flex-1 flex items-center gap-2 bg-[#06060c] border border-[#1e1e2d] rounded-xl px-4 py-2.5">
+            <svg className="w-4 h-4 text-[#6b6b80]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search strategies..."
+              className="flex-1 bg-transparent text-sm text-white placeholder-[#6b6b80] focus:outline-none"
+            />
+          </div>
+          <select
+            value={riskFilter}
+            onChange={(e) => setRiskFilter(e.target.value)}
+            className="bg-[#06060c] border border-[#1e1e2d] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
+          >
+            <option>All</option>
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+          </select>
+        </div>
+
+        {/* Featured Strategies */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs uppercase tracking-wider text-cyan-400 font-medium">Featured Strategies</span>
+            <div className="flex-1 h-px bg-[#1e1e2d]" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredStrategies.map((strategy) => (
+              <div
+                key={strategy.name}
+                className="group bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-blue-500/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all cursor-pointer"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <span className="text-2xl">{strategy.icon}</span>
+                  <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${getRiskColor(strategy.risk)}`}>
+                    {strategy.risk}
+                  </span>
+                </div>
+                <h3 className="text-white font-semibold mb-1">{strategy.name}</h3>
+                <p className="text-xs text-[#6b6b80] mb-3">{strategy.description}</p>
+                <button className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                  View Details →
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Your Saved Strategies */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg">📊</span>
+            <span className="text-sm font-medium text-white">Your Saved Strategies</span>
+            <div className="flex-1 h-px bg-[#1e1e2d]" />
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+            {savedStrategies.length === 0 ? (
+              <div className="min-w-[200px] bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 text-sm text-[#6b6b80]">
+                No saved strategies yet
+              </div>
+            ) : (
+              savedStrategies.slice(0, 5).map((strategy) => (
+                <div
+                  key={strategy.id}
+                  className="min-w-[180px] bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-emerald-500/40 transition-all cursor-pointer"
+                >
+                  <h4 className="text-white font-medium text-sm mb-1 truncate">{strategy.name}</h4>
+                  <p className="text-xs text-[#6b6b80] mb-2">{strategy.type || 'Custom'}</p>
+                  <div className="text-xs text-emerald-400">Open →</div>
+                </div>
+              ))
+            )}
+            <button className="min-w-[140px] bg-[#06060c] border border-dashed border-[#1e1e2d] rounded-xl p-4 text-sm text-[#6b6b80] hover:text-white hover:border-blue-500/50 transition-all flex items-center justify-center gap-2">
+              <span className="text-lg">＋</span>
+              Add New
+            </button>
+          </div>
+        </div>
+
+        {/* Explore More */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg">🧩</span>
+            <span className="text-sm font-medium text-white">Explore More</span>
+            <div className="flex-1 h-px bg-[#1e1e2d]" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {EXPLORE_MORE.map((item) => (
+              <div
+                key={item.title}
+                className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-[#2a2a3d] transition-all cursor-pointer group"
+              >
+                <div className="text-2xl mb-2">{item.icon}</div>
+                <p className="text-sm text-white font-medium group-hover:text-cyan-400 transition-colors">{item.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // Main Dashboard Component - with ALL existing functionality
 export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const savedState = loadDashboardState();
@@ -787,6 +961,13 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                 dayChange={dayChange}
                 dayChangePercent={dayChangePercent}
                 alpacaData={alpacaData}
+                onClose={() => setExpandedCard(null)}
+              />
+            )}
+            {expandedCard === 'strategies' && (
+              <StrategiesPanel 
+                savedStrategies={savedStrategies}
+                deployedStrategies={deployedStrategies}
                 onClose={() => setExpandedCard(null)}
               />
             )}
