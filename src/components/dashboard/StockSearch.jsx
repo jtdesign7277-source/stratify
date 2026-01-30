@@ -236,17 +236,26 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
           ${(isSearching || query) ? 'bg-gradient-to-r from-violet-500/5 via-blue-500/5 to-cyan-500/5' : ''}
         `}>
           {/* Brain icon with glow */}
-          <div className={`relative flex items-center justify-center flex-shrink-0 ${isSearching ? 'animate-pulse' : ''}`}>
+          <div className={`group/brain relative flex items-center justify-center flex-shrink-0 cursor-pointer ${isSearching ? 'animate-pulse' : ''}`}>
+            {/* Outer glow */}
             <div className={`
               absolute inset-0 rounded-full blur-md transition-opacity duration-300
               bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-500
-              ${isSearching ? 'opacity-60 animate-pulse' : 'opacity-0'}
+              ${isSearching ? 'opacity-60 animate-pulse' : 'opacity-0 group-hover/brain:opacity-40'}
             `} style={{ transform: 'scale(1.8)' }} />
+            {/* Inner glow */}
+            <div className={`
+              absolute inset-0 rounded-full blur-sm transition-opacity duration-300
+              bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-400
+              ${isSearching ? 'opacity-80' : 'opacity-0 group-hover/brain:opacity-60'}
+            `} style={{ transform: 'scale(1.4)' }} />
             
             <BrainIcon 
               className={`
                 relative w-5 h-5 transition-all duration-300
-                ${isSearching ? 'text-blue-300' : 'text-zinc-500'}
+                ${isSearching 
+                  ? 'text-blue-300 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]' 
+                  : 'text-zinc-500 group-hover/brain:text-blue-300 group-hover/brain:drop-shadow-[0_0_6px_rgba(129,140,248,0.6)]'}
               `}
               isSearching={isSearching}
             />
@@ -256,6 +265,7 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
               <>
                 <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
                 <span className="absolute -bottom-1 -left-1 h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping" style={{ animationDelay: '0.2s' }} />
+                <span className="absolute top-0 -left-2 h-1 w-1 rounded-full bg-blue-400 animate-ping" style={{ animationDelay: '0.4s' }} />
               </>
             )}
           </div>
