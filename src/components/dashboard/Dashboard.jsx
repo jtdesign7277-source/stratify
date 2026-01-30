@@ -348,10 +348,10 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   }, [isDragging]);
 
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#202124]',
-    surface: 'bg-[#202124]',
-    surfaceElevated: 'bg-[#303134]',
-    border: 'border-[#5f6368]',
+    bg: 'bg-[#0f0f14]',
+    surface: 'bg-[#0f0f14]',
+    surfaceElevated: 'bg-[#1e1e2d]',
+    border: 'border-[#1e1e2d]',
     text: 'text-[#E8EAED]',
     textMuted: 'text-[#9AA0A6]',
     green: 'text-[#00C853]',
@@ -409,12 +409,12 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         >
           {/* Settings/Newsletter Overlays */}
           {activeSection === 'settings' && (
-            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
+            <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
               <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
             </div>
           )}
           {activeSection === 'newsletter' && (
-            <div className="absolute inset-0 z-20 bg-[#1a1a1a] overflow-hidden">
+            <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
               <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
             </div>
           )}

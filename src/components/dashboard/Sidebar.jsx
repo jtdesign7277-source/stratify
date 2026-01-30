@@ -202,7 +202,7 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, folder.id)}
       >
-        <div className={`flex items-center gap-1.5 px-2 py-1 rounded transition-colors ${isDropping ? 'bg-blue-500/20 border border-blue-500/50' : 'hover:bg-[#303134]'}`}>
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded transition-colors ${isDropping ? 'bg-blue-500/20 border border-blue-500/50' : 'hover:bg-[#1e1e2d]'}`}>
           <button onClick={() => toggleFolder(folder.id)} className="text-gray-500 hover:text-gray-300">
             <ChevronIcon open={isOpen} className="w-2.5 h-2.5" />
           </button>
@@ -247,7 +247,7 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
         </div>
 
         {isOpen && (
-          <div className="ml-4 pl-2 border-l border-[#3c4043]">
+          <div className="ml-4 pl-2 border-l border-[#2a2a3d]">
             {strategies.length === 0 ? (
               <div className="py-1.5 px-2 text-[10px] text-gray-600 italic">
                 {isDropping ? 'Drop here' : 'Empty'}
@@ -258,7 +258,7 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
                     key={strategy.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, strategy)}
-                    className="group flex flex-col py-1 px-2 rounded cursor-pointer transition-colors hover:bg-[#3c4043]"
+                    className="group flex flex-col py-1 px-2 rounded cursor-pointer transition-colors hover:bg-[#2a2a3d]"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
@@ -437,7 +437,7 @@ const SettingsPanel = () => {
             value={userInfo.firstName}
             onChange={(e) => handleChange('firstName', e.target.value)}
             placeholder="Enter first name"
-            className="w-full bg-transparent border-b border-[#5f6368] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+            className="w-full bg-transparent border-b border-[#1e1e2d] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
           />
         </div>
         
@@ -448,7 +448,7 @@ const SettingsPanel = () => {
             value={userInfo.lastName}
             onChange={(e) => handleChange('lastName', e.target.value)}
             placeholder="Enter last name"
-            className="w-full bg-transparent border-b border-[#5f6368] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+            className="w-full bg-transparent border-b border-[#1e1e2d] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
           />
         </div>
         
@@ -459,7 +459,7 @@ const SettingsPanel = () => {
             value={userInfo.email}
             onChange={(e) => handleChange('email', e.target.value)}
             placeholder="Enter email address"
-            className="w-full bg-transparent border-b border-[#5f6368] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+            className="w-full bg-transparent border-b border-[#1e1e2d] focus:border-blue-500 px-0 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
           />
         </div>
       </div>
@@ -570,7 +570,7 @@ const BrokersGrid = ({ connectedBrokers = [], onOpenBrokerModal }) => {
               className={`relative p-2 rounded-lg transition-all flex flex-col items-center gap-1 ${
                 connected 
                   ? 'bg-emerald-500/10 border border-emerald-500/30'
-                  : 'bg-[#303134] border border-[#5f6368] hover:border-blue-500/50'
+                  : 'bg-[#1e1e2d] border border-[#1e1e2d] hover:border-blue-500/50'
               }`}
             >
               {connected && (
@@ -652,7 +652,7 @@ export default function Sidebar({
   return (
     <div 
       id="sidebar-container"
-      className={`${expanded ? 'w-80' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#202124] border-r border-[#5f6368]`}
+      className={`${expanded ? 'w-80' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#0f0f14] border-r border-[#1e1e2d]`}
       onMouseEnter={handleMouseEnter} 
       onMouseLeave={handleMouseLeave}
     >
@@ -662,7 +662,7 @@ export default function Sidebar({
       </div>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-[#5f6368]" />
+      <div className="mx-3 border-t border-[#1e1e2d]" />
 
       {/* Navigation */}
       <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -713,7 +713,7 @@ export default function Sidebar({
                 
                 {/* Tooltip when collapsed */}
                 {!expanded && hoveredItem === item.id && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#5f6368]">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#1e1e2d]">
                     {item.label}
                   </div>
                 )}
@@ -721,7 +721,7 @@ export default function Sidebar({
 
               {/* Watchlist content */}
               {expanded && item.id === 'watchlist' && isExpanded && (
-                <div className="ml-4 border-l border-[#5f6368]">
+                <div className="ml-4 border-l border-[#1e1e2d]">
                   <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <Watchlist 
                       stocks={watchlist} 
@@ -736,7 +736,7 @@ export default function Sidebar({
 
               {/* Strategies content */}
               {expanded && item.id === 'strategies' && isExpanded && (
-                <div className="ml-4 border-l border-[#5f6368]">
+                <div className="ml-4 border-l border-[#1e1e2d]">
                   <div className="max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <StrategiesFolders 
                       savedStrategies={savedStrategies} 
@@ -750,7 +750,7 @@ export default function Sidebar({
 
               {/* Brokers content */}
               {expanded && item.id === 'brokers' && isExpanded && (
-                <div className="ml-4 border-l border-[#5f6368]">
+                <div className="ml-4 border-l border-[#1e1e2d]">
                   <BrokersGrid 
                     connectedBrokers={connectedBrokers}
                     onOpenBrokerModal={onOpenBrokerModal}
@@ -763,7 +763,7 @@ export default function Sidebar({
       </nav>
 
       {/* Divider */}
-      <div className="mx-3 border-t border-[#5f6368]" />
+      <div className="mx-3 border-t border-[#1e1e2d]" />
 
       {/* Bottom items */}
       <div className="py-3">
@@ -804,7 +804,7 @@ export default function Sidebar({
                 )}
                 
                 {!expanded && hoveredItem === item.id && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#5f6368]">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#1e1e2d]">
                     {item.label}
                   </div>
                 )}
@@ -812,7 +812,7 @@ export default function Sidebar({
               
               {/* Settings content */}
               {expanded && item.id === 'settings' && isExpanded && (
-                <div className="ml-4 border-l border-[#5f6368]">
+                <div className="ml-4 border-l border-[#1e1e2d]">
                   <SettingsPanel />
                 </div>
               )}

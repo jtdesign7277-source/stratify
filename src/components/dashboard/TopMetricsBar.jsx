@@ -41,9 +41,9 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-[#1a1a1a] border border-[#3c4043] rounded-xl shadow-2xl z-50 overflow-hidden">
+    <div className="absolute right-0 top-full mt-2 w-80 bg-[#0a0a0f] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#3c4043] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -60,7 +60,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
 
       <div className={`${settings.enabled ? '' : 'opacity-50 pointer-events-none'}`}>
         {/* Delivery Methods */}
-        <div className="px-4 py-3 border-b border-[#3c4043]">
+        <div className="px-4 py-3 border-b border-[#2a2a3d]">
           <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Delivery Method</p>
           <div className="space-y-2">
             <label className="flex items-center justify-between cursor-pointer">
@@ -174,7 +174,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 bg-[#151515] border-t border-[#3c4043]">
+      <div className="px-4 py-2 bg-[#151515] border-t border-[#2a2a3d]">
         <p className="text-[10px] text-gray-600 text-center">
           {settings.enabled ? 'Notifications are enabled' : 'Notifications are disabled'}
         </p>
@@ -318,7 +318,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
       </div>
       <div className="flex items-center gap-4 ml-4">
         <SearchBar onSelectStock={onAddToWatchlist} />
-        <div className="flex items-center gap-4 pl-4 border-l border-[#5f6368]">
+        <div className="flex items-center gap-4 pl-4 border-l border-[#1e1e2d]">
           {/* Connected Accounts */}
           {connectedBrokers.length > 0 && (
             <div className="flex items-center gap-2">

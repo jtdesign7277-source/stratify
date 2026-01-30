@@ -80,10 +80,10 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-[#202124] border border-amber-500/50 rounded-xl w-[440px] overflow-hidden shadow-2xl"
+        className="bg-[#0f0f14] border border-amber-500/50 rounded-xl w-[440px] overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 py-3 border-b border-[#5f6368] bg-amber-500/10">
+        <div className="px-4 py-3 border-b border-[#1e1e2d] bg-amber-500/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-amber-400">🎯</span>
@@ -98,7 +98,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
           </div>
         </div>
         
-        <div className="px-4 py-4 border-b border-[#5f6368]">
+        <div className="px-4 py-4 border-b border-[#1e1e2d]">
           <div className="text-white font-medium mb-2">{arb.name}</div>
           <div className="text-xs text-gray-400 mb-3">Sharpe: {arb.sharpe} • Category: {arb.category}</div>
           
@@ -143,7 +143,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
                 value={betAmount}
                 onChange={(e) => setBetAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-7 pr-4 py-3 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-lg focus:border-amber-500 focus:outline-none"
+                className="w-full pl-7 pr-4 py-3 bg-[#1e1e2d] border border-[#1e1e2d] rounded-lg text-white text-lg focus:border-amber-500 focus:outline-none"
               />
             </div>
           </div>
@@ -153,14 +153,14 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
               <button
                 key={amt}
                 onClick={() => setBetAmount(amt.toString())}
-                className="flex-1 py-2 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded text-xs text-gray-300"
+                className="flex-1 py-2 bg-[#1e1e2d] hover:bg-[#2a2a3d] border border-[#1e1e2d] rounded text-xs text-gray-300"
               >
                 ${amt}
               </button>
             ))}
           </div>
           
-          <div className="bg-[#303134] rounded-lg p-4 mb-4">
+          <div className="bg-[#1e1e2d] rounded-lg p-4 mb-4">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Total Investment</span>
@@ -224,10 +224,10 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-[#202124] border border-[#5f6368] rounded-xl w-[400px] overflow-hidden shadow-2xl"
+        className="bg-[#0f0f14] border border-[#1e1e2d] rounded-xl w-[400px] overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[#1e1e2d] flex items-center justify-between">
           <span className="text-sm font-medium text-white">Scanner Settings</span>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +244,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
               step="0.1"
               value={localSettings.minSharpe}
               onChange={(e) => setLocalSettings({ ...localSettings, minSharpe: parseFloat(e.target.value) })}
-              className="w-full px-3 py-2 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-[#1e1e2d] border border-[#1e1e2d] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
             />
             <p className="text-[10px] text-gray-600 mt-1">Higher = less risk, fewer opportunities</p>
           </div>
@@ -256,7 +256,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
               step="0.5"
               value={localSettings.minSpread}
               onChange={(e) => setLocalSettings({ ...localSettings, minSpread: parseFloat(e.target.value) })}
-              className="w-full px-3 py-2 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-[#1e1e2d] border border-[#1e1e2d] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
             />
           </div>
           
@@ -281,7 +281,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     localSettings.categories.includes(cat) || (cat === 'All' && localSettings.categories.includes('All'))
                       ? 'bg-amber-500/30 text-amber-400 border border-amber-500/50'
-                      : 'bg-[#303134] text-gray-400 border border-[#5f6368] hover:border-gray-500'
+                      : 'bg-[#1e1e2d] text-gray-400 border border-[#1e1e2d] hover:border-gray-500'
                   }`}
                 >
                   {cat}
@@ -301,8 +301,8 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
           </div>
         </div>
         
-        <div className="px-4 py-3 border-t border-[#5f6368] flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 bg-[#303134] text-gray-400 text-sm rounded-lg hover:bg-[#3c4043]">
+        <div className="px-4 py-3 border-t border-[#1e1e2d] flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2 bg-[#1e1e2d] text-gray-400 text-sm rounded-lg hover:bg-[#2a2a3d]">
             Cancel
           </button>
           <button 
@@ -405,7 +405,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
     <div className={`flex flex-col ${embedded ? '' : `border-t ${themeClasses.border}`} relative z-0`}>
       {/* Sub-sections with internal accordion - all 3 headers always visible */}
       <div 
-        className={`h-8 flex-shrink-0 flex items-center justify-between px-3 cursor-pointer transition-colors ${activeSection === 'scanner' ? 'bg-amber-500/10' : 'hover:bg-[#252525]'}`}
+        className={`h-8 flex-shrink-0 flex items-center justify-between px-3 cursor-pointer transition-colors ${activeSection === 'scanner' ? 'bg-amber-500/10' : 'hover:bg-[#12121a]'}`}
         onClick={() => toggleSection('scanner')}
       >
         <div className="flex items-center gap-2">
@@ -440,9 +440,9 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Arbitrage Scanner Content */}
       {activeSection === 'scanner' && (
-        <div className="max-h-64 overflow-y-auto bg-[#1a1a1a] scrollbar-hide">
+        <div className="max-h-64 overflow-y-auto bg-[#0a0a0f] scrollbar-hide">
           {/* Settings Summary */}
-          <div className="px-3 py-1.5 border-b border-[#2a2a2a] text-[10px] text-gray-600 flex justify-between">
+          <div className="px-3 py-1.5 border-b border-[#1e1e2d] text-[10px] text-gray-600 flex justify-between">
             <span>Sharpe ≥ {settings.minSharpe} • Spread ≥ {settings.minSpread}%</span>
             <span className={dataSource === 'live' ? 'text-emerald-500' : 'text-amber-500'}>
               {dataSource === 'live' ? '● LIVE' : dataSource === 'loading' ? '○ Loading...' : '○ Demo'}
@@ -467,12 +467,12 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                   
                   {/* Compact Leg Preview */}
                   <div className="flex items-center gap-1 mb-1.5">
-                    <div className="flex-1 py-1 px-2 bg-[#202124] rounded text-[10px] flex justify-between">
+                    <div className="flex-1 py-1 px-2 bg-[#0f0f14] rounded text-[10px] flex justify-between">
                       <span className="text-gray-500">Poly</span>
                       <span className="text-emerald-400">{arb.polymarket.side} {arb.polymarket.price}¢</span>
                     </div>
                     <span className="text-gray-600 text-[10px]">+</span>
-                    <div className="flex-1 py-1 px-2 bg-[#202124] rounded text-[10px] flex justify-between">
+                    <div className="flex-1 py-1 px-2 bg-[#0f0f14] rounded text-[10px] flex justify-between">
                       <span className="text-gray-500">Kalshi</span>
                       <span className="text-red-400">{arb.kalshi.side} {arb.kalshi.price}¢</span>
                     </div>
@@ -492,7 +492,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Open Bets Header */}
       <div 
-        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#2a2a2a] cursor-pointer transition-colors ${activeSection === 'openBets' ? 'bg-emerald-500/10' : 'hover:bg-[#252525]'}`}
+        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#1e1e2d] cursor-pointer transition-colors ${activeSection === 'openBets' ? 'bg-emerald-500/10' : 'hover:bg-[#12121a]'}`}
         onClick={() => toggleSection('openBets')}
       >
         <div className="flex items-center gap-2">
@@ -513,7 +513,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Open Bets Content */}
       {activeSection === 'openBets' && (
-        <div className="bg-[#1a1a1a] max-h-48 overflow-y-auto scrollbar-hide">
+        <div className="bg-[#0a0a0f] max-h-48 overflow-y-auto scrollbar-hide">
           {openBets.length === 0 ? (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">No open bets</div>
           ) : (
@@ -521,7 +521,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
               {openBets.map((bet) => (
                 <div 
                   key={bet.id} 
-                  className="p-3 hover:bg-[#222] transition-colors cursor-pointer relative group"
+                  className="p-3 hover:bg-[#12121a] transition-colors cursor-pointer relative group"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-white text-sm">{bet.name}</span>
@@ -533,8 +533,8 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                   </div>
                   
                   {/* Hover Popup */}
-                  <div className="absolute left-full top-0 ml-2 w-72 bg-[#202124] border border-amber-500/30 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
-                    <div className="px-3 py-2 border-b border-[#3c4043] bg-amber-500/10 rounded-t-lg">
+                  <div className="absolute left-full top-0 ml-2 w-72 bg-[#0f0f14] border border-amber-500/30 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
+                    <div className="px-3 py-2 border-b border-[#2a2a3d] bg-amber-500/10 rounded-t-lg">
                       <div className="flex items-center gap-2">
                         <span className="text-amber-400 text-xs">🎯</span>
                         <span className="text-white text-xs font-medium">{bet.name}</span>
@@ -553,7 +553,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                           <div className="text-[10px] text-gray-400">${bet.kalshi?.amount?.toFixed(2)}</div>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-[#3c4043] space-y-1">
+                      <div className="pt-2 border-t border-[#2a2a3d] space-y-1">
                         <div className="flex justify-between text-[10px]">
                           <span className="text-gray-500">Total Invested</span>
                           <span className="text-white">${bet.totalInvested?.toFixed(2)}</span>
@@ -574,7 +574,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* History Header */}
       <div 
-        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#2a2a2a] cursor-pointer transition-colors ${activeSection === 'history' ? 'bg-gray-500/10' : 'hover:bg-[#252525]'}`}
+        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#1e1e2d] cursor-pointer transition-colors ${activeSection === 'history' ? 'bg-gray-500/10' : 'hover:bg-[#12121a]'}`}
         onClick={() => toggleSection('history')}
       >
         <div className="flex items-center gap-2">
@@ -594,13 +594,13 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* History Content */}
       {activeSection === 'history' && (
-        <div className="bg-[#1a1a1a] max-h-48 overflow-y-auto scrollbar-hide">
+        <div className="bg-[#0a0a0f] max-h-48 overflow-y-auto scrollbar-hide">
           {betHistory.length === 0 ? (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">No bet history</div>
           ) : (
             <div className="divide-y divide-[#2a2a2a]">
               {betHistory.map((bet) => (
-                <div key={bet.id} className="p-3 hover:bg-[#222] transition-colors">
+                <div key={bet.id} className="p-3 hover:bg-[#12121a] transition-colors">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-gray-300 text-sm">{bet.name}</span>
                     <span className={`text-xs ${bet.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
