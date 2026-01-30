@@ -454,12 +454,12 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           <div className="flex-1 flex flex-col min-h-0">
             {/* Strategy Builder Section */}
             <div 
-              className="flex flex-col min-h-0 relative"
-              style={{ height: strategyBuilderCollapsed ? 'auto' : `${sectionHeights.strategyBuilder}%`, flexShrink: strategyBuilderCollapsed ? 0 : 1 }}
+              className="flex flex-col min-h-[40px] overflow-hidden"
+              style={{ height: `${sectionHeights.strategyBuilder}%` }}
             >
-              {/* Strategy Builder Header - Always visible */}
+              {/* Strategy Builder Header */}
               <div 
-                className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-b ${themeClasses.border} ${themeClasses.surfaceElevated} cursor-pointer hover:bg-[#3c4043]/50 transition-colors relative z-10`}
+                className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-b ${themeClasses.border} ${themeClasses.surfaceElevated} cursor-pointer hover:bg-[#3c4043]/50 transition-colors`}
                 onClick={() => setStrategyBuilderCollapsed(!strategyBuilderCollapsed)}
               >
                 <div className="flex items-center gap-2">
@@ -479,9 +479,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
                 <span className="text-xs text-gray-500">{strategyBuilderCollapsed ? 'Click to expand' : ''}</span>
               </div>
               
-              {/* Strategy Builder Content - Collapsible */}
+              {/* Strategy Builder Content */}
               {!strategyBuilderCollapsed && (
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto min-h-0">
                   <DataTable 
                     activeTab={activeTab} 
                     alpacaData={alpacaData} 
@@ -501,42 +501,42 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               )}
             </div>
             
-            {/* Resize Handle - Strategy Builder / Arbitrage Scanner */}
-            {!strategyBuilderCollapsed && (
-              <div 
-                className="h-1 bg-transparent hover:bg-blue-500/50 cursor-row-resize flex-shrink-0 relative z-20 group"
-                onMouseDown={handleResizeStart('strategyBuilder')}
-              >
-                <div className="absolute inset-x-0 -top-1 -bottom-1" />
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-1 rounded-full bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            )}
+            {/* Resize Handle 1 */}
+            <div 
+              className="h-1.5 bg-[#2a2a2a] hover:bg-blue-500 cursor-row-resize flex-shrink-0 relative z-20 group transition-colors"
+              onMouseDown={handleResizeStart('strategyBuilder')}
+            >
+              <div className="absolute inset-x-0 -top-1 -bottom-1" />
+            </div>
             
             {/* Arbitrage Scanner Section */}
-            <div style={{ height: `${sectionHeights.arbitrageScanner}%`, flexShrink: 1 }} className="min-h-0">
+            <div 
+              className="min-h-[40px] overflow-hidden"
+              style={{ height: `${sectionHeights.arbitrageScanner}%` }}
+            >
               <ArbitragePanel themeClasses={themeClasses} />
             </div>
             
-            {/* Resize Handle - Arbitrage Scanner / Deployed Strategies */}
+            {/* Resize Handle 2 */}
             <div 
-              className="h-1 bg-transparent hover:bg-blue-500/50 cursor-row-resize flex-shrink-0 relative z-20 group"
+              className="h-1.5 bg-[#2a2a2a] hover:bg-blue-500 cursor-row-resize flex-shrink-0 relative z-20 group transition-colors"
               onMouseDown={handleResizeStart('arbitrageScanner')}
             >
               <div className="absolute inset-x-0 -top-1 -bottom-1" />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-1 rounded-full bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             
-            {/* Deployed Strategies Section - Always at bottom */}
-            <div style={{ height: `${sectionHeights.deployedStrategies}%`, flexShrink: 1 }} className="min-h-0">
+            {/* Deployed Strategies Section */}
+            <div 
+              className="min-h-[40px] overflow-hidden"
+              style={{ height: `${sectionHeights.deployedStrategies}%` }}
+            >
               <TerminalPanel 
                 themeClasses={themeClasses} 
                 deployedStrategies={deployedStrategies} 
                 onRemoveStrategy={(id) => {
                   setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                  // Demo respawn: add a new random deployed strategy after 60 seconds
                   setTimeout(() => {
                     setDeployedStrategies(prev => {
-                      // Only respawn if we have less than 2 deployed strategies
                       if (prev.length < 2) {
                         return [...prev, generateRandomDeployedStrategy()];
                       }
