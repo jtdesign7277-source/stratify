@@ -97,6 +97,7 @@ Copy `.env.example` to `.env` and configure:
 - `POST /api/v1/auth/login` - Login and get tokens
 - `POST /api/v1/auth/refresh` - Refresh access token
 - `GET /api/v1/auth/me` - Get current user
+- Detailed docs: `docs/auth.md`
 
 ### Market Data
 - `GET /api/v1/market/quote/{symbol}` - Real-time quote

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
+import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import { useAlpacaData } from './useAlpacaData';
 
 // Animated grid background component with Dovetail-style design
@@ -1710,5 +1711,5 @@ export default function StratifyApp() {
     return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
   }
 
-  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: stocks, account: { equity: 0, cash: 0, buying_power: 0 } }} />;
+  return <KrakenDashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: stocks, account: { equity: 0, cash: 0, buying_power: 0 } }} />;
 }
