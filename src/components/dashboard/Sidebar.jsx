@@ -354,7 +354,7 @@ const defaultNavItems = [
 ];
 
 const defaultBottomItems = [
-  { id: 'settings', label: 'Settings', icon: 'gear', hasContent: true },
+  { id: 'settings', label: 'Settings', icon: 'gear', hasContent: false },
   { id: 'help', label: 'Help', icon: 'question' },
 ];
 
@@ -810,12 +810,7 @@ export default function Sidebar({
                 )}
               </button>
               
-              {/* Settings content */}
-              {expanded && item.id === 'settings' && isExpanded && (
-                <div className="ml-4 border-l border-[#1e1e2d]">
-                  <SettingsPanel />
-                </div>
-              )}
+{/* Settings opens as full page now */}
             </div>
           );
         })}
