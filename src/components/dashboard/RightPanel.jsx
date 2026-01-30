@@ -316,6 +316,20 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       
       const data = await response.json();
       
+      // Extract code from markdown response if not provided separately
+      let extractedCode = data.code;
+      let responseText = data.response || '';
+      
+      if (!extractedCode && responseText) {
+        // Extract code block from markdown (```python ... ``` or ``` ... ```)
+        const codeMatch = responseText.match(/```(?:python)?\n([\s\S]*?)```/);
+        if (codeMatch) {
+          extractedCode = codeMatch[1].trim();
+          // Get text before the code block as the response
+          responseText = responseText.split('```')[0].trim();
+        }
+      }
+      
       // Generate metrics (these would come from backtesting in the future)
       const metrics = {
         winRate: (55 + Math.random() * 20).toFixed(1),
@@ -328,13 +342,13 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
         id: Date.now(),
         name: name,
         description: userInput,
-        code: data.code || generateStrategyCode(userInput, name),
+        code: extractedCode || generateStrategyCode(userInput, name),
         status: 'draft',
         metrics: metrics
       };
       
       setGeneratedStrategy(strategy);
-      setDisplayedAtlasText(data.response || `I've created a ${name} based on your description:`);
+      setDisplayedAtlasText(responseText || `I've created a ${name} based on your description:`);
       setDisplayedCode(strategy.code);
       setShowAtlasResponse(true);
       setShowAddButton(true);
