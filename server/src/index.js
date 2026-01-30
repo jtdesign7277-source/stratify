@@ -5,6 +5,7 @@ import { WebSocketServer } from 'ws';
 import YahooFinance from 'yahoo-finance2';
 import OpenAI from 'openai';
 import stocksRouter from './routes/stocks.js';
+import chatRouter from './routes/chat.js';
 import kalshiRouter from './routes/kalshi.js';
 import { startAlpacaStream } from './services/alpaca.js';
 
@@ -26,6 +27,7 @@ app.use(express.json());
 
 app.use('/api/stocks', stocksRouter);
 app.use('/api/v1/kalshi', kalshiRouter);
+app.use('/api/claude', chatRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

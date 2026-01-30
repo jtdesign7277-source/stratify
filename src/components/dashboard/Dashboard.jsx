@@ -14,6 +14,7 @@ import SettingsPage from './SettingsPage';
 import StrategiesPage from './StrategiesPage';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
+import AIChat from './AIChat';
 
 const loadDashboardState = () => {
   try {
@@ -451,7 +452,6 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
                   themeClasses={themeClasses}
                 />
               </CollapsiblePanel>
-
               {/* Divider between Strategy Builder and Arb Scanner */}
               {panelStates.strategyBuilder && panelStates.arbitrageScanner && (
                 <PanelDivider />
@@ -505,6 +505,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
                   }}
                 />
               </CollapsiblePanel>
+
+              {/* AI Chat Panel */}
+              <div className="mt-4 h-96">
+                <AIChat />
+              </div>
             </div>
           )}
         </div>

@@ -319,7 +319,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const [inputValue, setInputValue] = useState('');
   const [strategyName, setStrategyName] = useState('');
   const [demoPhase, setDemoPhase] = useState('idle');
-  const [demoActive, setDemoActive] = useState(true); // Demo enabled for showcase
+  const [demoActive, setDemoActive] = useState(false); // Demo disabled for showcase
   const [displayedUserText, setDisplayedUserText] = useState('');
   const [displayedAtlasText, setDisplayedAtlasText] = useState('');
   const [displayedCode, setDisplayedCode] = useState('');
@@ -494,7 +494,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     try {
       // Call Atlas AI backend
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/v1/chat/`, {
+      const response = await fetch(`${backendUrl}/api/claude`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
