@@ -591,6 +591,244 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
   );
 };
 
+// Arbitrage Opportunities Panel (Kraken Style)
+const ArbOppsPanel = ({ onClose }) => {
+  const [selectedMarket, setSelectedMarket] = useState('All');
+
+  const ARB_OPPORTUNITIES = [
+    { 
+      id: 1,
+      event: 'Will Bitcoin reach $100K by March 2026?',
+      polymarket: { yes: 0.62, volume: '2.4M' },
+      kalshi: { yes: 0.58, volume: '890K' },
+      spread: 4.0,
+      profit: '$40 per $1000',
+      confidence: 'High',
+      expiry: '2026-03-31'
+    },
+    { 
+      id: 2,
+      event: 'Fed rate cut in Q1 2026?',
+      polymarket: { yes: 0.71, volume: '5.1M' },
+      kalshi: { yes: 0.68, volume: '1.2M' },
+      spread: 3.0,
+      profit: '$30 per $1000',
+      confidence: 'High',
+      expiry: '2026-03-15'
+    },
+    { 
+      id: 3,
+      event: 'Tesla stock above $500 by Feb 2026?',
+      polymarket: { yes: 0.34, volume: '1.8M' },
+      kalshi: { yes: 0.38, volume: '620K' },
+      spread: 4.0,
+      profit: '$40 per $1000',
+      confidence: 'Medium',
+      expiry: '2026-02-28'
+    },
+    { 
+      id: 4,
+      event: 'Super Bowl LVIII Winner: Chiefs?',
+      polymarket: { yes: 0.28, volume: '8.2M' },
+      kalshi: { yes: 0.31, volume: '2.1M' },
+      spread: 3.0,
+      profit: '$30 per $1000',
+      confidence: 'Medium',
+      expiry: '2026-02-09'
+    },
+    { 
+      id: 5,
+      event: 'Nvidia earnings beat Q4 2025?',
+      polymarket: { yes: 0.76, volume: '3.4M' },
+      kalshi: { yes: 0.72, volume: '980K' },
+      spread: 4.0,
+      profit: '$40 per $1000',
+      confidence: 'High',
+      expiry: '2026-02-21'
+    },
+    { 
+      id: 6,
+      event: 'ETH above $4000 by March 2026?',
+      polymarket: { yes: 0.45, volume: '4.7M' },
+      kalshi: { yes: 0.42, volume: '1.5M' },
+      spread: 3.0,
+      profit: '$30 per $1000',
+      confidence: 'Medium',
+      expiry: '2026-03-31'
+    },
+    { 
+      id: 7,
+      event: 'Apple announces AR glasses in 2026?',
+      polymarket: { yes: 0.22, volume: '1.1M' },
+      kalshi: { yes: 0.18, volume: '340K' },
+      spread: 4.0,
+      profit: '$40 per $1000',
+      confidence: 'Low',
+      expiry: '2026-12-31'
+    },
+  ];
+
+  const MARKETS = ['All', 'Crypto', 'Politics', 'Sports', 'Finance', 'Tech'];
+
+  const getConfidenceColor = (conf) => {
+    if (conf === 'High') return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+    if (conf === 'Medium') return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    return 'bg-red-500/15 text-red-300 border-red-500/30';
+  };
+
+  const getSpreadColor = (spread) => {
+    if (spread >= 4) return 'text-emerald-400';
+    if (spread >= 3) return 'text-amber-400';
+    return 'text-gray-400';
+  };
+
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="overflow-hidden border-b border-[#1e1e2d]"
+    >
+      <div className="p-6 bg-[#0a0a10] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Arbitrage Opportunities</h2>
+              <p className="text-sm text-[#6b6b80]">{ARB_OPPORTUNITIES.length} opportunities found across markets</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Market Filter */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+          {MARKETS.map((market) => (
+            <button
+              key={market}
+              onClick={() => setSelectedMarket(market)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                selectedMarket === market 
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
+                  : 'bg-[#06060c] text-[#6b6b80] border border-[#1e1e2d] hover:border-[#2a2a3d] hover:text-white'
+              }`}
+            >
+              {market}
+            </button>
+          ))}
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+            <div className="text-2xl font-bold text-white font-mono">{ARB_OPPORTUNITIES.length}</div>
+            <div className="text-xs text-[#6b6b80]">Active Opps</div>
+          </div>
+          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+            <div className="text-2xl font-bold text-emerald-400 font-mono">3.5%</div>
+            <div className="text-xs text-[#6b6b80]">Avg Spread</div>
+          </div>
+          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+            <div className="text-2xl font-bold text-cyan-400 font-mono">$35</div>
+            <div className="text-xs text-[#6b6b80]">Avg Profit/1K</div>
+          </div>
+          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+            <div className="text-2xl font-bold text-amber-400 font-mono">4</div>
+            <div className="text-xs text-[#6b6b80]">High Conf.</div>
+          </div>
+        </div>
+
+        {/* Opportunities List */}
+        <div className="space-y-3">
+          {ARB_OPPORTUNITIES.map((opp) => (
+            <div
+              key={opp.id}
+              className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-cyan-500/40 transition-all cursor-pointer group"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <h3 className="text-white font-medium mb-1 group-hover:text-cyan-400 transition-colors">{opp.event}</h3>
+                  <div className="flex items-center gap-3 text-xs text-[#6b6b80]">
+                    <span>Expires: {opp.expiry}</span>
+                    <span className={`px-2 py-0.5 rounded-full border ${getConfidenceColor(opp.confidence)}`}>
+                      {opp.confidence} Confidence
+                    </span>
+                  </div>
+                </div>
+                <div className={`text-2xl font-bold font-mono ${getSpreadColor(opp.spread)}`}>
+                  {opp.spread}%
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                {/* Polymarket */}
+                <div className="bg-[#0a0a10] rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-5 h-5 rounded bg-purple-500/20 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-purple-400">P</span>
+                    </div>
+                    <span className="text-xs text-[#6b6b80]">Polymarket</span>
+                  </div>
+                  <div className="text-white font-mono font-medium">{(opp.polymarket.yes * 100).toFixed(0)}¢ YES</div>
+                  <div className="text-[10px] text-[#6b6b80]">Vol: ${opp.polymarket.volume}</div>
+                </div>
+                
+                {/* Kalshi */}
+                <div className="bg-[#0a0a10] rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-emerald-400">K</span>
+                    </div>
+                    <span className="text-xs text-[#6b6b80]">Kalshi</span>
+                  </div>
+                  <div className="text-white font-mono font-medium">{(opp.kalshi.yes * 100).toFixed(0)}¢ YES</div>
+                  <div className="text-[10px] text-[#6b6b80]">Vol: ${opp.kalshi.volume}</div>
+                </div>
+                
+                {/* Profit */}
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                  <div className="text-xs text-emerald-400 mb-1">Est. Profit</div>
+                  <div className="text-emerald-400 font-mono font-bold">{opp.profit}</div>
+                  <button className="mt-2 text-[10px] text-white bg-emerald-500/30 hover:bg-emerald-500/50 px-3 py-1 rounded-lg transition-colors">
+                    Execute →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mt-6 flex gap-3">
+          <button className="flex-1 px-4 py-3 bg-cyan-500/20 text-cyan-400 rounded-xl font-medium hover:bg-cyan-500/30 transition-colors">
+            Refresh Scan
+          </button>
+          <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
+            Set Alerts
+          </button>
+          <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
+            Auto-Trade
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // Main Dashboard Component - with ALL existing functionality
 export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const savedState = loadDashboardState();
@@ -968,6 +1206,11 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               <StrategiesPanel 
                 savedStrategies={savedStrategies}
                 deployedStrategies={deployedStrategies}
+                onClose={() => setExpandedCard(null)}
+              />
+            )}
+            {expandedCard === 'arb' && (
+              <ArbOppsPanel 
                 onClose={() => setExpandedCard(null)}
               />
             )}
