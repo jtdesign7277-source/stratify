@@ -503,10 +503,13 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             
             {/* Resize Handle 1 */}
             <div 
-              className="h-1.5 bg-[#2a2a2a] hover:bg-blue-500 cursor-row-resize flex-shrink-0 relative z-20 group transition-colors"
+              className="h-2 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent hover:via-blue-500 cursor-row-resize flex-shrink-0 relative z-30 transition-all"
               onMouseDown={handleResizeStart('strategyBuilder')}
             >
-              <div className="absolute inset-x-0 -top-1 -bottom-1" />
+              <div className="absolute inset-x-0 -top-2 -bottom-2" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5">
+                <div className="w-6 h-0.5 bg-gray-500 rounded-full" />
+              </div>
             </div>
             
             {/* Arbitrage Scanner Section */}
@@ -519,10 +522,13 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             
             {/* Resize Handle 2 */}
             <div 
-              className="h-1.5 bg-[#2a2a2a] hover:bg-blue-500 cursor-row-resize flex-shrink-0 relative z-20 group transition-colors"
+              className="h-2 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent hover:via-blue-500 cursor-row-resize flex-shrink-0 relative z-30 transition-all"
               onMouseDown={handleResizeStart('arbitrageScanner')}
             >
-              <div className="absolute inset-x-0 -top-1 -bottom-1" />
+              <div className="absolute inset-x-0 -top-2 -bottom-2" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5">
+                <div className="w-6 h-0.5 bg-gray-500 rounded-full" />
+              </div>
             </div>
             
             {/* Deployed Strategies Section */}
