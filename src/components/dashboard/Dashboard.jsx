@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
 import DataTable from './DataTable';
@@ -134,6 +134,16 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
+  
+  // Resizable section heights (percentages)
+  const [sectionHeights, setSectionHeights] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-section-heights');
+      return saved ? JSON.parse(saved) : { strategyBuilder: 35, arbitrageScanner: 35, deployedStrategies: 30 };
+    } catch { return { strategyBuilder: 35, arbitrageScanner: 35, deployedStrategies: 30 }; }
+  });
+  const [resizing, setResizing] = useState(null);
+  const containerRef = useRef(null);
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState(() => {
@@ -142,6 +152,69 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+
+  // Save section heights to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-section-heights', JSON.stringify(sectionHeights));
+  }, [sectionHeights]);
+
+  // Resize handlers
+  const handleResizeStart = useCallback((section) => (e) => {
+    e.preventDefault();
+    setResizing(section);
+  }, []);
+
+  const handleResizeMove = useCallback((e) => {
+    if (!resizing || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+    const mouseY = e.clientY - rect.top;
+    const totalHeight = rect.height;
+    const mousePercent = (mouseY / totalHeight) * 100;
+    
+    setSectionHeights(prev => {
+      const newHeights = { ...prev };
+      const minHeight = 15; // Minimum 15% for any section
+      
+      if (resizing === 'strategyBuilder') {
+        // Dragging bottom of Strategy Builder
+        const newStrategyHeight = Math.max(minHeight, Math.min(mousePercent, 100 - 2 * minHeight));
+        const remaining = 100 - newStrategyHeight;
+        const ratio = prev.arbitrageScanner / (prev.arbitrageScanner + prev.deployedStrategies);
+        newHeights.strategyBuilder = newStrategyHeight;
+        newHeights.arbitrageScanner = Math.max(minHeight, remaining * ratio);
+        newHeights.deployedStrategies = Math.max(minHeight, remaining * (1 - ratio));
+      } else if (resizing === 'arbitrageScanner') {
+        // Dragging bottom of Arbitrage Scanner
+        const arbTop = prev.strategyBuilder;
+        const newArbBottom = Math.max(arbTop + minHeight, Math.min(mousePercent, 100 - minHeight));
+        newHeights.arbitrageScanner = newArbBottom - arbTop;
+        newHeights.deployedStrategies = 100 - newArbBottom;
+      }
+      
+      return newHeights;
+    });
+  }, [resizing]);
+
+  const handleResizeEnd = useCallback(() => {
+    setResizing(null);
+  }, []);
+
+  useEffect(() => {
+    if (resizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [resizing, handleResizeMove, handleResizeEnd]);
 
   const handleStrategyGenerated = (strategy) => {
     setStrategies(prev => {
@@ -376,11 +449,14 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           connectedBrokers={connectedBrokers}
           onOpenBrokerModal={() => setShowBrokerModal(true)}
         />
-        <div id="main-content-area" className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}>
-          {/* Main Dashboard Content - Always visible */}
+        <div id="main-content-area" ref={containerRef} className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}>
+          {/* Main Dashboard Content - Resizable Sections */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Strategy Builder Section */}
-            <div className={`flex flex-col ${strategyBuilderCollapsed ? '' : 'max-h-[45%]'} min-h-0 relative z-10 flex-shrink-0`}>
+            <div 
+              className="flex flex-col min-h-0 relative"
+              style={{ height: strategyBuilderCollapsed ? 'auto' : `${sectionHeights.strategyBuilder}%`, flexShrink: strategyBuilderCollapsed ? 0 : 1 }}
+            >
               {/* Strategy Builder Header - Always visible */}
               <div 
                 className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-b ${themeClasses.border} ${themeClasses.surfaceElevated} cursor-pointer hover:bg-[#3c4043]/50 transition-colors relative z-10`}
@@ -425,27 +501,51 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               )}
             </div>
             
+            {/* Resize Handle - Strategy Builder / Arbitrage Scanner */}
+            {!strategyBuilderCollapsed && (
+              <div 
+                className="h-1 bg-transparent hover:bg-blue-500/50 cursor-row-resize flex-shrink-0 relative z-20 group"
+                onMouseDown={handleResizeStart('strategyBuilder')}
+              >
+                <div className="absolute inset-x-0 -top-1 -bottom-1" />
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-1 rounded-full bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+            
             {/* Arbitrage Scanner Section */}
-            <ArbitragePanel themeClasses={themeClasses} />
+            <div style={{ height: `${sectionHeights.arbitrageScanner}%`, flexShrink: 1 }} className="min-h-0">
+              <ArbitragePanel themeClasses={themeClasses} />
+            </div>
+            
+            {/* Resize Handle - Arbitrage Scanner / Deployed Strategies */}
+            <div 
+              className="h-1 bg-transparent hover:bg-blue-500/50 cursor-row-resize flex-shrink-0 relative z-20 group"
+              onMouseDown={handleResizeStart('arbitrageScanner')}
+            >
+              <div className="absolute inset-x-0 -top-1 -bottom-1" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-1 rounded-full bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
             
             {/* Deployed Strategies Section - Always at bottom */}
-            <TerminalPanel 
-              themeClasses={themeClasses} 
-              deployedStrategies={deployedStrategies} 
-              onRemoveStrategy={(id) => {
-                setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                // Demo respawn: add a new random deployed strategy after 60 seconds
-                setTimeout(() => {
-                  setDeployedStrategies(prev => {
-                    // Only respawn if we have less than 2 deployed strategies
-                    if (prev.length < 2) {
-                      return [...prev, generateRandomDeployedStrategy()];
-                    }
-                    return prev;
-                  });
-                }, RESPAWN_DELAY_MS);
-              }}
-            />
+            <div style={{ height: `${sectionHeights.deployedStrategies}%`, flexShrink: 1 }} className="min-h-0">
+              <TerminalPanel 
+                themeClasses={themeClasses} 
+                deployedStrategies={deployedStrategies} 
+                onRemoveStrategy={(id) => {
+                  setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                  // Demo respawn: add a new random deployed strategy after 60 seconds
+                  setTimeout(() => {
+                    setDeployedStrategies(prev => {
+                      // Only respawn if we have less than 2 deployed strategies
+                      if (prev.length < 2) {
+                        return [...prev, generateRandomDeployedStrategy()];
+                      }
+                      return prev;
+                    });
+                  }, RESPAWN_DELAY_MS);
+                }}
+              />
+            </div>
           </div>
 
           {/* Settings Full Page Overlay */}
