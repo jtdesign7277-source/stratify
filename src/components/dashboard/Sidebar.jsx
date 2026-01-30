@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Watchlist from './Watchlist';
+import StockSearch from './StockSearch';
 
 // Animation variants for smooth transitions
 const sidebarVariants = {
@@ -706,6 +707,9 @@ export default function Sidebar({
 
       {/* Divider */}
       <div className="mx-3 border-t border-[#1e1e2d]" />
+
+      {/* Stock Search */}
+      <StockSearch collapsed={!expanded} />
 
       {/* Navigation */}
       <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
