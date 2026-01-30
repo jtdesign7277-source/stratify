@@ -348,16 +348,16 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   }, [isDragging]);
 
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#0f0f14]',
-    surface: 'bg-[#0f0f14]',
-    surfaceElevated: 'bg-[#1e1e2d]',
+    bg: 'bg-[#0a0a0f]',
+    surface: 'bg-[#0a0a0f]',
+    surfaceElevated: 'bg-[#0f0f14]',
     border: 'border-[#1e1e2d]',
-    text: 'text-[#E8EAED]',
-    textMuted: 'text-[#9AA0A6]',
-    green: 'text-[#00C853]',
-    red: 'text-[#F44336]',
-    greenBg: 'bg-[#00C853]/10',
-    redBg: 'bg-[#F44336]/10',
+    text: 'text-white',
+    textMuted: 'text-gray-500',
+    green: 'text-emerald-400',
+    red: 'text-red-400',
+    greenBg: 'bg-emerald-500/10',
+    redBg: 'bg-red-500/10',
   } : {
     bg: 'bg-[#FFFFFF]',
     surface: 'bg-white',
