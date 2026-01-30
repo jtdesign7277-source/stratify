@@ -553,7 +553,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       );
       setDisplayedCode(strategy.code);
       setShowAtlasResponse(true);
-      setShowAddButton(true);
+      setShowSaveButton(true);
       
     } catch (error) {
       console.error('Atlas API error:', error);
@@ -581,7 +581,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       setDisplayedAtlasText(fallbackPayload.response);
       setDisplayedCode(code);
       setShowAtlasResponse(true);
-      setShowAddButton(true);
+      setShowSaveButton(true);
     } finally {
       setIsGenerating(false);
     }
@@ -591,7 +591,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const handleAddStrategy = () => {
     if (generatedStrategy && onStrategyGenerated) {
       onStrategyGenerated(generatedStrategy);
-      setShowAddButton(false);
+      setShowSaveButton(false);
       // Show confirmation briefly
       setTimeout(() => {
         // Reset for next strategy
@@ -619,7 +619,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       setDemoPhase('idle'); // Stop any demo
       setShowUserMessage(false);
       setShowAtlasResponse(false);
-      setShowAddButton(false);
+      setShowSaveButton(false);
     }
   }, [editingStrategy]);
 
