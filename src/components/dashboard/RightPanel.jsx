@@ -1,11 +1,126 @@
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// AI spark icon (outlined) - matches sidebar blue
+// AI spark icon (outlined) - matches Kraken purple
 const AtlasIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" stroke="#7B61FF" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
   </svg>
 );
+
+// Syntax Highlighter Component for Python code
+const SyntaxHighlightedCode = ({ code, isTyping }) => {
+  const highlightCode = (text) => {
+    if (!text) return null;
+    
+    // Split into lines for processing
+    const lines = text.split('\n');
+    
+    return lines.map((line, lineIdx) => {
+      // Check if it's a comment
+      if (line.trim().startsWith('#')) {
+        return (
+          <div key={lineIdx} className="text-[#6b6b80]">{line}</div>
+        );
+      }
+      
+      // Tokenize the line
+      let result = [];
+      let remaining = line;
+      let keyIdx = 0;
+      
+      // Keywords
+      const keywords = ['from', 'import', 'class', 'def', 'self', 'if', 'elif', 'else', 'and', 'or', 'not', 'return', 'True', 'False', 'None'];
+      const builtins = ['Strategy', 'super', 'len', 'range', 'print'];
+      
+      // Process the line character by character for better highlighting
+      const parts = [];
+      let current = '';
+      let i = 0;
+      
+      while (i < line.length) {
+        const char = line[i];
+        
+        // Check for strings
+        if (char === '"' || char === "'") {
+          if (current) parts.push({ type: 'text', value: current });
+          current = '';
+          const quote = char;
+          let str = quote;
+          i++;
+          while (i < line.length && line[i] !== quote) {
+            str += line[i];
+            i++;
+          }
+          str += quote;
+          parts.push({ type: 'string', value: str });
+          i++;
+          continue;
+        }
+        
+        // Check for numbers
+        if (/\d/.test(char) && (current === '' || /[\s\(\[,=<>]/.test(current[current.length - 1]))) {
+          if (current) parts.push({ type: 'text', value: current });
+          current = '';
+          let num = '';
+          while (i < line.length && /[\d.]/.test(line[i])) {
+            num += line[i];
+            i++;
+          }
+          parts.push({ type: 'number', value: num });
+          continue;
+        }
+        
+        current += char;
+        i++;
+      }
+      if (current) parts.push({ type: 'text', value: current });
+      
+      // Now highlight keywords in text parts
+      return (
+        <div key={lineIdx}>
+          {parts.map((part, partIdx) => {
+            if (part.type === 'string') {
+              return <span key={partIdx} className="text-emerald-400">{part.value}</span>;
+            }
+            if (part.type === 'number') {
+              return <span key={partIdx} className="text-amber-400">{part.value}</span>;
+            }
+            
+            // Process text for keywords
+            let text = part.value;
+            let elements = [];
+            
+            // Split by word boundaries but keep delimiters
+            const tokens = text.split(/(\b)/);
+            
+            tokens.forEach((token, tokenIdx) => {
+              if (keywords.includes(token)) {
+                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-purple-400">{token}</span>);
+              } else if (builtins.includes(token)) {
+                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-cyan-400">{token}</span>);
+              } else if (token.startsWith('self.')) {
+                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-purple-400">self</span>);
+                elements.push(<span key={`${partIdx}-${tokenIdx}-dot`} className="text-white">{token.slice(4)}</span>);
+              } else {
+                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-white">{token}</span>);
+              }
+            });
+            
+            return elements;
+          })}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap">
+      {highlightCode(code)}
+      {isTyping && <span className="animate-pulse text-purple-400 ml-0.5">▊</span>}
+    </pre>
+  );
+};
 
 // Standard Mouse Arrow Cursor Component
 const AnimatedCursor = ({ phase, target = 'submit' }) => {
@@ -204,17 +319,25 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const [inputValue, setInputValue] = useState('');
   const [strategyName, setStrategyName] = useState('');
   const [demoPhase, setDemoPhase] = useState('idle');
-  const [demoActive, setDemoActive] = useState(false); // Demo disabled - real Atlas AI is live
+  const [demoActive, setDemoActive] = useState(true); // Demo enabled for showcase
+  const [displayedUserText, setDisplayedUserText] = useState('');
   const [displayedAtlasText, setDisplayedAtlasText] = useState('');
   const [displayedCode, setDisplayedCode] = useState('');
   const [userMessage, setUserMessage] = useState('');
   const [showUserMessage, setShowUserMessage] = useState(false);
   const [showAtlasResponse, setShowAtlasResponse] = useState(false);
-  const [showAddButton, setShowAddButton] = useState(false);
+  const [showSaveButton, setShowSaveButton] = useState(false);
   const [strategyIndex, setStrategyIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedStrategy, setGeneratedStrategy] = useState(null);
+  const [isTypingUser, setIsTypingUser] = useState(false);
+  const [isTypingAtlas, setIsTypingAtlas] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  // Typing speeds (ms per character) - slower for natural feel
+  const USER_TYPING_SPEED = 45; // Human typing speed
+  const ATLAS_TEXT_SPEED = 25;  // Atlas intro text
+  const ATLAS_CODE_SPEED = 15;  // Code typing (faster)
 
   const currentDemo = demoStrategies[strategyIndex];
   const currentStrategy = {
@@ -500,34 +623,51 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     }
   }, [editingStrategy]);
 
-  // Start demo (only if demoActive)
+  // Start demo (only if demoActive) - with initial delay
   useEffect(() => {
     if (!demoActive) return;
     const timeout = setTimeout(() => {
       setDemoPhase('typing-user');
+      setIsTypingUser(true);
       if (onDemoStateChange) onDemoStateChange('thinking');
-    }, 2000);
+    }, 3000); // 3 second initial delay
     return () => clearTimeout(timeout);
   }, [demoActive]);
 
-  // Typewriter for user input (demo only)
+  // Typewriter for user input (demo only) - SLOWER, more natural
   useEffect(() => {
     if (!demoActive || demoPhase !== 'typing-user') return;
     const message = currentDemo.userMessage;
     let index = 0;
-    const interval = setInterval(() => {
+    
+    // Variable typing speed for natural feel
+    const getTypingDelay = () => {
+      const base = USER_TYPING_SPEED;
+      // Pause longer at punctuation
+      const lastChar = message[index - 1];
+      if (['.', ',', '!', '?'].includes(lastChar)) return base + 150;
+      if (lastChar === ' ') return base + 30;
+      // Random variation
+      return base + Math.random() * 30;
+    };
+    
+    const typeNextChar = () => {
       if (index <= message.length) {
         setInputValue(message.slice(0, index));
+        setDisplayedUserText(message.slice(0, index));
         index++;
+        setTimeout(typeNextChar, getTypingDelay());
       } else {
-        clearInterval(interval);
-        setTimeout(() => setDemoPhase('cursor-submit'), 600);
+        setIsTypingUser(false);
+        // Pause before "sending"
+        setTimeout(() => setDemoPhase('cursor-submit'), 1200);
       }
-    }, 40);
-    return () => clearInterval(interval);
+    };
+    
+    typeNextChar();
   }, [demoPhase, strategyIndex, demoActive]);
 
-  // Cursor to submit
+  // Cursor to submit - natural pause
   useEffect(() => {
     if (demoPhase !== 'cursor-submit') return;
     const clickTimeout = setTimeout(() => {
@@ -536,14 +676,19 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
         setUserMessage(inputValue);
         setShowUserMessage(true);
         setInputValue('');
-        setShowAtlasResponse(true);
-        setDemoPhase('typing-atlas');
+        setDisplayedUserText('');
+        // Brief pause before Atlas starts responding
+        setTimeout(() => {
+          setShowAtlasResponse(true);
+          setDemoPhase('typing-atlas');
+          setIsTypingAtlas(true);
+        }, 800);
       }, 400);
-    }, 2000);
+    }, 1500);
     return () => clearTimeout(clickTimeout);
   }, [demoPhase, inputValue]);
 
-  // Typewriter for Atlas response
+  // Typewriter for Atlas response - with syntax highlighting
   useEffect(() => {
     if (demoPhase !== 'typing-atlas') return;
     const atlasResponse = currentDemo.atlasResponse;
@@ -552,62 +697,70 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     let codeIndex = 0;
     let typingCode = false;
 
-    const interval = setInterval(() => {
+    const typeNext = () => {
       if (!typingCode && textIndex <= atlasResponse.length) {
         setDisplayedAtlasText(atlasResponse.slice(0, textIndex));
         textIndex++;
+        setTimeout(typeNext, ATLAS_TEXT_SPEED + Math.random() * 15);
       } else if (!typingCode) {
         typingCode = true;
+        // Small pause before code starts
+        setTimeout(typeNext, 400);
       } else if (codeIndex <= code.length) {
         setDisplayedCode(code.slice(0, codeIndex));
         codeIndex++;
+        // Faster for code, but pause at newlines
+        const nextChar = code[codeIndex];
+        const delay = nextChar === '\n' ? ATLAS_CODE_SPEED + 80 : ATLAS_CODE_SPEED;
+        setTimeout(typeNext, delay);
       } else {
-        clearInterval(interval);
+        setIsTypingAtlas(false);
+        // Show Save button after typing completes
         setTimeout(() => {
-          setShowAddButton(true);
-          setTimeout(() => setDemoPhase('cursor-add'), 500);
-        }, 500);
+          setShowSaveButton(true);
+        }, 600);
       }
-    }, 20);
-    return () => clearInterval(interval);
+    };
+    
+    typeNext();
   }, [demoPhase, strategyIndex]);
 
-  // Cursor to add button
+  // Auto-rotate to next demo after Save button is shown
   useEffect(() => {
-    if (demoPhase !== 'cursor-add') return;
-    const clickTimeout = setTimeout(() => {
-      setDemoPhase('clicking-add');
-      setTimeout(() => {
-        // Add strategy to center
-        if (onStrategyGenerated) onStrategyGenerated(currentStrategy);
-        setDemoPhase('complete');
-        
-        // Signal that strategy was added - trigger center panel animation
-        setTimeout(() => {
-          if (onStrategyAdded) onStrategyAdded(currentStrategy);
-        }, 500);
+    if (!showSaveButton || !demoActive) return;
+    
+    // Wait 8 seconds showing the complete response, then rotate
+    const rotateTimeout = setTimeout(() => {
+      resetDemo();
+    }, 8000);
+    
+    return () => clearTimeout(rotateTimeout);
+  }, [showSaveButton, demoActive]);
 
-      }, 400);
-    }, 1500);
-    return () => clearTimeout(clickTimeout);
-  }, [demoPhase, strategyIndex]);
-
-  // Reset for next cycle (triggered externally after deploy completes)
+  // Reset for next cycle
   const resetDemo = () => {
     setDemoPhase('idle');
     setInputValue('');
+    setDisplayedUserText('');
     setUserMessage('');
     setShowUserMessage(false);
     setDisplayedAtlasText('');
     setDisplayedCode('');
     setShowAtlasResponse(false);
-    setShowAddButton(false);
+    setShowSaveButton(false);
+    setIsTypingUser(false);
+    setIsTypingAtlas(false);
     if (onDemoStateChange) onDemoStateChange('idle');
+    
+    // Move to next strategy
     setStrategyIndex(prev => (prev + 1) % demoStrategies.length);
+    
+    // Start next demo after pause
     setTimeout(() => {
       setDemoPhase('typing-user');
+      setIsTypingUser(true);
       if (onDemoStateChange) onDemoStateChange('thinking');
-    }, 2000);
+    }, 3000);
   };
 
   // Expose resetDemo via window for Dashboard to call
@@ -641,16 +794,24 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       style={{ width }}
     >
       {/* Header */}
-      <div className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-b ${themeClasses.border}`}>
-        <div className="flex items-center gap-2">
-          <AtlasIcon className="w-5 h-5" />
-          <span className={`text-sm font-semibold ${themeClasses.text}`}>Atlas</span>
+      <div className="h-14 flex-shrink-0 flex items-center justify-between px-4 border-b border-[#1e1e2d] bg-[#0a0a10]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+            <AtlasIcon className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <span className="text-sm font-semibold text-white">Atlas</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+              <span className="text-xs text-emerald-400">Online</span>
+            </div>
+          </div>
         </div>
         <button 
           onClick={() => setExpanded(false)}
-          className="p-1 hover:bg-white/10 rounded transition-colors"
+          className="p-2 hover:bg-[#1e1e2d] rounded-lg transition-colors"
         >
-          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-[#6b6b80]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -660,78 +821,95 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         
         {/* User Message Bubble */}
-        {showUserMessage && (
-          <div className="flex justify-end animate-fadeIn">
-            <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2.5 text-sm">
-              {userMessage}
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {showUserMessage && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="flex justify-end"
+            >
+              <div className="max-w-[85%] bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl rounded-br-md px-4 py-3 text-sm shadow-lg shadow-purple-500/20">
+                {userMessage}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Atlas Response */}
-        {showAtlasResponse && (
-          <div className={`${themeClasses.surface} border ${themeClasses.border} rounded-lg p-3 animate-fadeIn`}>
-            <div className="flex items-center gap-2 mb-2">
-              <AtlasIcon className="w-4 h-4" />
-              <span className="text-blue-400 text-xs font-semibold">Atlas</span>
-            </div>
-            
-            {displayedAtlasText && (
-              <div className={`text-sm ${themeClasses.text} mb-2`}>
-                {displayedAtlasText}
-                {demoPhase === 'typing-atlas' && !displayedCode && <span className="animate-pulse text-blue-400">|</span>}
-              </div>
-            )}
-            
-            {displayedCode && (
-              <div className="mt-3 space-y-3">
-                <div className={`${themeClasses.bg} rounded-lg p-3 border ${themeClasses.border}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-500">Generated Code</span>
-                    <button className="text-xs text-purple-400 hover:text-purple-300">Edit</button>
-                  </div>
-                  <pre className="text-xs text-gray-400 overflow-x-auto font-mono leading-relaxed whitespace-pre-wrap scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {displayedCode}
-                    {demoPhase === 'typing-atlas' && <span className="animate-pulse text-blue-400">|</span>}
-                  </pre>
+        <AnimatePresence>
+          {showAtlasResponse && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-[#0a0a10] border border-[#1e1e2d] rounded-xl p-4"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                  <AtlasIcon className="w-4 h-4 text-white" />
                 </div>
-
-                {/* Add to Strategies Button */}
-                {showAddButton && (
-                  <div className="flex justify-center pt-2 relative">
-                    <button 
-                      onClick={generatedStrategy ? handleAddStrategy : undefined}
-                      className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
-                        demoPhase === 'clicking-add' 
-                          ? 'bg-emerald-500 text-white scale-95' 
-                          : demoPhase === 'complete' || (generatedStrategy && !showAddButton)
-                          ? 'bg-transparent'
-                          : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 cursor-pointer'
-                      }`}
-                    >
-                      {demoPhase === 'complete' ? (
-                        <>
-                          <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-emerald-400">Added to Strategies</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          Add to Strategies
-                        </>
-                      )}
-                    </button>
-                    {demoActive && <AnimatedCursor phase={demoPhase} target="add" />}
-                  </div>
+                <span className="text-purple-400 text-sm font-semibold">Atlas</span>
+                {isTypingAtlas && (
+                  <span className="text-[#6b6b80] text-xs">typing...</span>
                 )}
               </div>
-            )}
-          </div>
-        )}
+              
+              {displayedAtlasText && (
+                <div className="text-sm text-[#e0e0e6] mb-3">
+                  {displayedAtlasText}
+                  {isTypingAtlas && !displayedCode && <span className="animate-pulse text-purple-400 ml-0.5">▊</span>}
+                </div>
+              )}
+              
+              {displayedCode && (
+                <div className="space-y-3">
+                  {/* Code Block with Syntax Highlighting */}
+                  <div className="bg-[#06060c] rounded-lg p-4 border border-[#1e1e2d]">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                          <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+                          <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                          <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                        </div>
+                        <span className="text-xs text-[#6b6b80] ml-2">strategy.py</span>
+                      </div>
+                      <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                        Copy
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      <SyntaxHighlightedCode code={displayedCode} isTyping={isTypingAtlas} />
+                    </div>
+                  </div>
+
+                  {/* Save Button - appears after typing completes */}
+                  <AnimatePresence>
+                    {showSaveButton && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="flex justify-end pt-2"
+                      >
+                        <button 
+                          onClick={generatedStrategy ? handleAddStrategy : undefined}
+                          className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-purple-500 hover:to-blue-500 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                          </svg>
+                          Save Strategy
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         <div ref={messagesEndRef} />
       </div>
