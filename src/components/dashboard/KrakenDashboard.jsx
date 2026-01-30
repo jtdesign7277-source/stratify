@@ -218,13 +218,21 @@ const PortfolioGrowthChart = ({ data, height = 180 }) => {
 };
 
 // Index Card Component
-const IndexCard = ({ title, value, change, icon, color = 'purple' }) => {
+const IndexCard = ({ title, value, change, icon, color = 'purple', onClick, active }) => {
   const colorClasses = {
     purple: 'from-purple-500/20 to-purple-600/10 border-purple-500/30 hover:border-purple-500/50',
     blue: 'from-blue-500/20 to-blue-600/10 border-blue-500/30 hover:border-blue-500/50',
     cyan: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30 hover:border-cyan-500/50',
     emerald: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 hover:border-emerald-500/50',
     amber: 'from-amber-500/20 to-amber-600/10 border-amber-500/30 hover:border-amber-500/50',
+  };
+  
+  const activeClasses = {
+    purple: 'ring-2 ring-purple-500/50 border-purple-500',
+    blue: 'ring-2 ring-blue-500/50 border-blue-500',
+    cyan: 'ring-2 ring-cyan-500/50 border-cyan-500',
+    emerald: 'ring-2 ring-emerald-500/50 border-emerald-500',
+    amber: 'ring-2 ring-amber-500/50 border-amber-500',
   };
   
   const iconColors = {
@@ -236,10 +244,28 @@ const IndexCard = ({ title, value, change, icon, color = 'purple' }) => {
   };
   
   return (
-    <div className={`flex-1 min-w-[140px] p-4 rounded-xl border bg-gradient-to-br transition-all cursor-pointer ${colorClasses[color]}`}>
+    <motion.div 
+      className={`flex-1 min-w-[140px] p-4 rounded-xl border bg-gradient-to-br cursor-pointer ${colorClasses[color]} ${active ? activeClasses[color] : ''}`}
+      onClick={onClick}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className={`w-5 h-5 ${iconColors[color]}`}>{icon}</div>
         <span className="text-sm font-medium text-white">{title}</span>
+        {active && (
+          <motion.div 
+            className="ml-auto"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: 180 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <svg className="w-4 h-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </motion.div>
+        )}
       </div>
       {value && (
         <div className="text-xl font-bold text-white font-mono">{value}</div>
@@ -249,7 +275,145 @@ const IndexCard = ({ title, value, change, icon, color = 'purple' }) => {
           {change >= 0 ? '+' : ''}{change}%
         </div>
       )}
-    </div>
+    </motion.div>
+  );
+};
+
+// Portfolio Detail Panel (Kraken Style)
+const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaData, onClose }) => {
+  // Mock data for different balance types
+  const spotBalances = [
+    { asset: 'USD', symbol: '$', amount: alpacaData?.account?.cash || 45230.50, change: 0 },
+    { asset: 'BTC', symbol: '₿', amount: 0.449, usdValue: 37124.82, change: 2.4 },
+    { asset: 'ETH', symbol: 'Ξ', amount: 12.5, usdValue: 42770.88, change: -1.2 },
+    { asset: 'SOL', symbol: '◎', amount: 85.2, usdValue: 16902.84, change: 3.8 },
+  ];
+  
+  const totalSpot = spotBalances.reduce((sum, b) => sum + (b.usdValue || b.amount), 0);
+  
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="overflow-hidden border-b border-[#1e1e2d]"
+    >
+      <div className="p-6 bg-[#0a0a10]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Portfolio</h2>
+              <p className="text-sm text-[#6b6b80]">Total Balance</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Total Balance */}
+        <div className="mb-8">
+          <div className="text-4xl font-bold text-white font-mono mb-2">
+            ${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-lg font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {dayChange >= 0 ? '+' : ''}${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </span>
+            <span className={`px-2 py-0.5 rounded text-sm font-medium ${dayChange >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+              {dayChange >= 0 ? '+' : ''}{dayChangePercent}%
+            </span>
+            <span className="text-[#6b6b80] text-sm">today</span>
+          </div>
+        </div>
+        
+        {/* Balance Sections */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Spot Balances */}
+          <div className="bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Spot Balances</h3>
+              <span className="text-white font-mono font-medium">${totalSpot.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="space-y-3">
+              {spotBalances.map((balance, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-[#1e1e2d] last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#1e1e2d] flex items-center justify-center text-sm font-bold text-white">
+                      {balance.symbol}
+                    </div>
+                    <div>
+                      <div className="text-white font-medium">{balance.asset}</div>
+                      <div className="text-xs text-[#6b6b80]">{balance.amount.toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-white font-mono">${(balance.usdValue || balance.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                    {balance.change !== 0 && (
+                      <div className={`text-xs ${balance.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {balance.change >= 0 ? '+' : ''}{balance.change}%
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Trading Stats */}
+          <div className="bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
+            <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider mb-4">Trading Stats</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b6b80]">Buying Power</span>
+                <span className="text-white font-mono">${(alpacaData?.account?.buying_power || 90461).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b6b80]">Cash Available</span>
+                <span className="text-white font-mono">${(alpacaData?.account?.cash || 45230.50).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b6b80]">Open Positions</span>
+                <span className="text-white font-mono">{alpacaData?.positions?.length || 4}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b6b80]">Day Trades Left</span>
+                <span className="text-emerald-400 font-mono">3</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6b6b80]">Account Type</span>
+                <span className="text-purple-400 font-medium">Paper Trading</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Quick Actions */}
+        <div className="mt-6 flex gap-3">
+          <button className="flex-1 px-4 py-3 bg-purple-500/20 text-purple-400 rounded-xl font-medium hover:bg-purple-500/30 transition-colors">
+            Deposit
+          </button>
+          <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
+            Withdraw
+          </button>
+          <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
+            Transfer
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 
@@ -267,6 +431,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [chartCollapsed, setChartCollapsed] = useState(false);
   const [contentTab, setContentTab] = useState('strategies');
+  const [expandedCard, setExpandedCard] = useState(null); // 'portfolio', 'strategies', 'arb', 'bets', 'pnl'
   
   // Panel states
   const [panelStates, setPanelStates] = useState(() => {
@@ -575,23 +740,31 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               change={parseFloat(dayChangePercent)}
               color="purple"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+              onClick={() => setExpandedCard(expandedCard === 'portfolio' ? null : 'portfolio')}
+              active={expandedCard === 'portfolio'}
             />
             <IndexCard
               title="Strategies"
               value={`${deployedStrategies.length} Live`}
               color="blue"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/></svg>}
+              onClick={() => setExpandedCard(expandedCard === 'strategies' ? null : 'strategies')}
+              active={expandedCard === 'strategies'}
             />
             <IndexCard
               title="Arb Opps"
               value="7 Found"
               color="cyan"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>}
+              onClick={() => setExpandedCard(expandedCard === 'arb' ? null : 'arb')}
+              active={expandedCard === 'arb'}
             />
             <IndexCard
               title="Open Bets"
               value={`$${(strategies.length * 580).toLocaleString()}`}
               change={4.2}
+              onClick={() => setExpandedCard(expandedCard === 'bets' ? null : 'bets')}
+              active={expandedCard === 'bets'}
               color="emerald"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
             />
@@ -601,8 +774,23 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               change={parseFloat(dayChangePercent)}
               color="amber"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>}
+              onClick={() => setExpandedCard(expandedCard === 'pnl' ? null : 'pnl')}
+              active={expandedCard === 'pnl'}
             />
           </div>
+          
+          {/* Expanded Card Panel */}
+          <AnimatePresence>
+            {expandedCard === 'portfolio' && (
+              <PortfolioPanel 
+                portfolioValue={portfolioValue}
+                dayChange={dayChange}
+                dayChangePercent={dayChangePercent}
+                alpacaData={alpacaData}
+                onClose={() => setExpandedCard(null)}
+              />
+            )}
+          </AnimatePresence>
         </header>
         
         {/* Main Content */}
