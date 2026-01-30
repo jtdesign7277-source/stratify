@@ -221,7 +221,7 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
           <div className={`
             absolute inset-0 rounded-full blur-md transition-opacity duration-300
             bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-500
-            opacity-0 group-hover:opacity-40
+            opacity-40 group-hover:opacity-100
           `} style={{ transform: 'scale(1.8)' }} />
           <BrainIcon className="relative w-5 h-5 text-zinc-400 group-hover:text-blue-400 transition-colors" />
         </div>
@@ -245,13 +245,13 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
             <div className={`
               absolute inset-0 rounded-full blur-md transition-opacity duration-300
               bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-500
-              ${isSearching ? 'opacity-60 animate-pulse' : 'opacity-0 group-hover/brain:opacity-40'}
+              ${isSearching ? 'opacity-100 animate-pulse' : 'opacity-40 group-hover/brain:opacity-100'}
             `} style={{ transform: 'scale(1.8)' }} />
             {/* Inner glow */}
             <div className={`
               absolute inset-0 rounded-full blur-sm transition-opacity duration-300
               bg-gradient-to-r from-violet-400 via-blue-400 to-cyan-400
-              ${isSearching ? 'opacity-80' : 'opacity-0 group-hover/brain:opacity-60'}
+              ${isSearching ? 'opacity-100' : 'opacity-40 group-hover/brain:opacity-100'}
             `} style={{ transform: 'scale(1.4)' }} />
             
             <BrainIcon 
