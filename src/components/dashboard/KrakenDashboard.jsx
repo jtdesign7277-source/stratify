@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 // Import ALL existing working components
 import Sidebar from './Sidebar';
 import RightPanel from './RightPanel';
@@ -16,6 +17,55 @@ import SettingsPage from './SettingsPage';
 // KRAKEN-STYLE DASHBOARD
 // Uses existing working components with Kraken theme
 // ============================================
+
+// Animation variants for smooth transitions
+const chartVariants = {
+  collapsed: { 
+    height: 48,
+    transition: { 
+      type: "spring", 
+      stiffness: 300, 
+      damping: 30 
+    }
+  },
+  expanded: { 
+    height: 280,
+    transition: { 
+      type: "spring", 
+      stiffness: 300, 
+      damping: 30 
+    }
+  }
+};
+
+const contentFadeVariants = {
+  hidden: { 
+    opacity: 0,
+    transition: { duration: 0.15 }
+  },
+  visible: { 
+    opacity: 1,
+    transition: { duration: 0.25, delay: 0.1 }
+  }
+};
+
+const tabContentVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      type: "spring",
+      stiffness: 300,
+      damping: 30
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    y: -10,
+    transition: { duration: 0.15 }
+  }
+};
 
 const loadDashboardState = () => {
   try {
@@ -558,24 +608,36 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
           
-          {/* Chart Section (Collapsible) */}
-          <div className={`flex-shrink-0 border-b ${themeClasses.border} transition-all duration-300 ${chartCollapsed ? 'h-12' : 'h-[280px]'}`}>
+          {/* Chart Section (Collapsible) - Smooth Animation */}
+          <motion.div 
+            className={`flex-shrink-0 border-b ${themeClasses.border} overflow-hidden`}
+            initial={false}
+            animate={chartCollapsed ? "collapsed" : "expanded"}
+            variants={chartVariants}
+          >
             <div 
-              className={`h-12 px-6 flex items-center justify-between ${themeClasses.surface} cursor-pointer hover:bg-[#12121a] transition-colors`}
+              className={`h-12 px-6 flex items-center justify-between ${themeClasses.surface} cursor-pointer hover:bg-[#12121a] transition-colors duration-200`}
               onClick={() => setChartCollapsed(!chartCollapsed)}
             >
               <div className="flex items-center gap-4">
-                <svg className={`w-4 h-4 ${themeClasses.textMuted} transition-transform ${chartCollapsed ? '' : 'rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <motion.svg 
+                  className={`w-4 h-4 ${themeClasses.textMuted}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                  animate={{ rotate: chartCollapsed ? 0 : 90 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                </motion.svg>
                 <span className="text-white font-medium">Portfolio Growth</span>
                 <div className="flex gap-2">
                   {['1D', '1W', '1M', '3M', 'YTD', 'ALL'].map(period => (
                     <button
                       key={period}
                       onClick={(e) => e.stopPropagation()}
-                      className={`px-2 py-1 text-xs rounded ${
-                        period === '1M' ? 'bg-purple-500/20 text-purple-400' : `${themeClasses.textMuted} hover:text-white`
+                      className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+                        period === '1M' ? 'bg-purple-500/20 text-purple-400' : `${themeClasses.textMuted} hover:text-white hover:bg-[#1e1e2d]`
                       }`}
                     >
                       {period}
@@ -591,40 +653,67 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               </div>
             </div>
             
-            {!chartCollapsed && (
-              <div className="h-[calc(100%-48px)] px-6 py-4">
-                <PortfolioGrowthChart height={200} />
-              </div>
-            )}
-          </div>
+            <AnimatePresence>
+              {!chartCollapsed && (
+                <motion.div 
+                  className="h-[calc(100%-48px)] px-6 py-4"
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  variants={contentFadeVariants}
+                >
+                  <PortfolioGrowthChart height={200} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
           
-          {/* Content Tabs */}
+          {/* Content Tabs - Smooth hover and active states */}
           <div className={`h-12 px-6 flex items-center gap-1 border-b ${themeClasses.border} ${themeClasses.surface}`}>
             {[
               { id: 'strategies', label: 'Strategies', badge: draftStrategiesCount },
               { id: 'arbitrage', label: 'Arb Scanner' },
               { id: 'deployed', label: 'Deployed', badge: deployedStrategies.length },
             ].map(tab => (
-              <button
+              <motion.button
                 key={tab.id}
                 onClick={() => setContentTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 relative ${
                   contentTab === tab.id
-                    ? 'bg-[#1e1e2d] text-white'
-                    : `${themeClasses.textMuted} hover:text-white hover:bg-[#12121a]`
+                    ? 'text-white'
+                    : `${themeClasses.textMuted} hover:text-white`
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
-                {tab.label}
-                {tab.badge > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/30 text-purple-400 rounded-full">{tab.badge}</span>
+                {contentTab === tab.id && (
+                  <motion.div
+                    className="absolute inset-0 bg-[#1e1e2d] rounded-lg"
+                    layoutId="activeTab"
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
                 )}
-              </button>
+                <span className="relative z-10">{tab.label}</span>
+                {tab.badge > 0 && (
+                  <span className="relative z-10 px-1.5 py-0.5 text-[10px] bg-purple-500/30 text-purple-400 rounded-full">{tab.badge}</span>
+                )}
+              </motion.button>
             ))}
           </div>
           
-          {/* Content Panel - Uses existing components */}
+          {/* Content Panel - Animated transitions between tabs */}
           <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
-            {contentTab === 'strategies' && (
+            <AnimatePresence mode="wait">
+              {contentTab === 'strategies' && (
+              <motion.div
+                key="strategies"
+                className="h-full"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={tabContentVariants}
+              >
               <DataTable 
                 activeTab={activeTab} 
                 alpacaData={alpacaData} 
@@ -640,42 +729,78 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                 savedStrategies={savedStrategies}
                 autoBacktestStrategy={autoBacktestStrategy}
               />
+              </motion.div>
             )}
             {contentTab === 'arbitrage' && (
-              <ArbitragePanel themeClasses={themeClasses} />
+              <motion.div
+                key="arbitrage"
+                className="h-full"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={tabContentVariants}
+              >
+                <ArbitragePanel themeClasses={themeClasses} />
+              </motion.div>
             )}
             {contentTab === 'deployed' && (
-              <TerminalPanel 
-                themeClasses={themeClasses} 
-                deployedStrategies={deployedStrategies} 
-                onRemoveStrategy={(id) => {
-                  setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                  setTimeout(() => {
-                    setDeployedStrategies(prev => {
-                      if (prev.length < 2) {
-                        return [...prev, generateRandomDeployedStrategy()];
-                      }
-                      return prev;
-                    });
-                  }, RESPAWN_DELAY_MS);
-                }}
-              />
+              <motion.div
+                key="deployed"
+                className="h-full"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={tabContentVariants}
+              >
+                <TerminalPanel 
+                  themeClasses={themeClasses} 
+                  deployedStrategies={deployedStrategies} 
+                  onRemoveStrategy={(id) => {
+                    setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                    setTimeout(() => {
+                      setDeployedStrategies(prev => {
+                        if (prev.length < 2) {
+                          return [...prev, generateRandomDeployedStrategy()];
+                        }
+                        return prev;
+                      });
+                    }, RESPAWN_DELAY_MS);
+                  }}
+                />
+              </motion.div>
             )}
+            </AnimatePresence>
           </div>
 
-          {/* Settings Full Page Overlay */}
-          {activeSection === 'settings' && (
-            <div className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden">
-              <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
+          {/* Settings Full Page Overlay - Smooth slide in */}
+          <AnimatePresence>
+            {activeSection === 'settings' && (
+              <motion.div 
+                className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Newsletter Full Page Overlay */}
-          {activeSection === 'newsletter' && (
-            <div className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden">
-              <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
+          {/* Newsletter Full Page Overlay - Smooth slide in */}
+          <AnimatePresence>
+            {activeSection === 'newsletter' && (
+              <motion.div 
+                className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
       

@@ -1,5 +1,39 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Watchlist from './Watchlist';
+
+// Animation variants for smooth transitions
+const sidebarVariants = {
+  collapsed: { width: 56 },
+  expanded: { width: 320 }
+};
+
+const contentVariants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: { 
+    opacity: 1, 
+    x: 0,
+    transition: { duration: 0.2, ease: "easeOut" }
+  },
+  exit: { 
+    opacity: 0, 
+    x: -10,
+    transition: { duration: 0.15 }
+  }
+};
+
+const expandContentVariants = {
+  collapsed: { 
+    height: 0, 
+    opacity: 0,
+    transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] }
+  },
+  expanded: { 
+    height: "auto", 
+    opacity: 1,
+    transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+  }
+};
 
 // Stratify Logo - Orbital S design
 const StratifyLogo = ({ collapsed }) => {
@@ -650,9 +684,18 @@ export default function Sidebar({
   const handleMouseLeave = () => onToggle(false);
 
   return (
-    <div 
+    <motion.div 
       id="sidebar-container"
-      className={`${expanded ? 'w-80' : 'w-14'} flex flex-col transition-all duration-200 ease-out bg-[#0f0f14] border-r border-[#1e1e2d]`}
+      initial={false}
+      animate={expanded ? "expanded" : "collapsed"}
+      variants={sidebarVariants}
+      transition={{ 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 30,
+        mass: 0.8
+      }}
+      className="flex flex-col bg-[#0f0f14] border-r border-[#1e1e2d]"
       onMouseEnter={handleMouseEnter} 
       onMouseLeave={handleMouseLeave}
     >
@@ -815,6 +858,6 @@ export default function Sidebar({
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }
