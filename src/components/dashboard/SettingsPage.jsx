@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ============== MOCK DATA ==============
 const MOCK_USER = {
@@ -428,7 +428,7 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
 }
 
 // ============== ACCOUNT VIEW ==============
-function AccountView({ onClose, user, setUser }) {
+function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPicker, avatarProcessing, avatarError }) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [saving, setSaving] = useState(false);
@@ -473,10 +473,26 @@ function AccountView({ onClose, user, setUser }) {
         
         <div className="flex items-center gap-6">
           <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">
-              {user.initials}
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-0.5">
+              <div className="relative w-full h-full rounded-[14px] bg-[#0a0a0f] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                {user.avatar ? (
+                  <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  user.initials
+                )}
+                {avatarProcessing && (
+                  <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-cyan-300/60 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
-            <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#1e1e2d] border border-[#2a2a3d] rounded-lg flex items-center justify-center hover:bg-[#2a2a3d] transition-colors">
+            <button
+              onClick={onTriggerAvatarPicker}
+              disabled={avatarProcessing}
+              className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#1e1e2d] border border-[#2a2a3d] rounded-lg flex items-center justify-center hover:bg-[#2a2a3d] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              title="Change photo"
+            >
               <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
@@ -485,6 +501,18 @@ function AccountView({ onClose, user, setUser }) {
           <div>
             <p className="text-sm text-gray-500">Profile Photo</p>
             <p className="text-xs text-gray-600 mt-1">JPG, PNG or GIF. Max 2MB.</p>
+            {avatarError && (
+              <p className="text-xs text-amber-400 mt-2">{avatarError}</p>
+            )}
+            {user.avatar && (
+              <button
+                onClick={onRemoveAvatar}
+                disabled={avatarProcessing}
+                className="mt-3 text-xs text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Remove Photo
+              </button>
+            )}
           </div>
         </div>
 
@@ -561,6 +589,59 @@ export default function SettingsPage({ themeClasses, onClose }) {
   const [brokers] = useState(MOCK_BROKERS);
   const [activity] = useState(MOCK_ACTIVITY);
   const [currentPlan, setCurrentPlan] = useState(user.plan);
+  const [avatarProcessing, setAvatarProcessing] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleTriggerAvatarPicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarFileChange = (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const maxSize = 2 * 1024 * 1024;
+
+    if (!allowedTypes.includes(file.type)) {
+      setAvatarError('Unsupported format. Use JPG, PNG, or GIF.');
+      input.value = '';
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setAvatarError('File too large. Max size is 2MB.');
+      input.value = '';
+      return;
+    }
+
+    setAvatarError('');
+    setAvatarProcessing(true);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setUser((prev) => ({ ...prev, avatar: reader.result }));
+      } else {
+        setAvatarError('Could not process the image. Please try another file.');
+      }
+      setAvatarProcessing(false);
+      input.value = '';
+    };
+    reader.onerror = () => {
+      setAvatarProcessing(false);
+      setAvatarError('Could not process the image. Please try another file.');
+      input.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setUser((prev) => ({ ...prev, avatar: null }));
+    setAvatarError('');
+  };
 
   // Sub-views
   if (activeView === 'billing') {
@@ -581,10 +662,21 @@ export default function SettingsPage({ themeClasses, onClose }) {
     return (
       <div className="h-full overflow-y-auto bg-[#0a0a0f] p-8">
         <div className="max-w-3xl mx-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif"
+            onChange={handleAvatarFileChange}
+            className="hidden"
+          />
           <AccountView 
             onClose={() => setActiveView('main')} 
             user={user}
             setUser={setUser}
+            onTriggerAvatarPicker={handleTriggerAvatarPicker}
+            onRemoveAvatar={handleRemoveAvatar}
+            avatarProcessing={avatarProcessing}
+            avatarError={avatarError}
           />
         </div>
       </div>
@@ -594,6 +686,13 @@ export default function SettingsPage({ themeClasses, onClose }) {
   // Main settings view
   return (
     <div className="h-full overflow-y-auto bg-[#0a0a0f]">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif"
+        onChange={handleAvatarFileChange}
+        className="hidden"
+      />
       {/* Gradient background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <GradientOrb className="w-96 h-96 bg-cyan-500 -top-48 -right-48" />
@@ -627,11 +726,25 @@ export default function SettingsPage({ themeClasses, onClose }) {
             {/* Avatar */}
             <div className="relative group">
               <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 p-1 shadow-2xl shadow-cyan-500/20">
-                <div className="w-full h-full rounded-[22px] bg-[#0a0a0f] flex items-center justify-center text-white text-3xl font-bold">
-                  {user.initials}
+                <div className="relative w-full h-full rounded-[22px] bg-[#0a0a0f] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    user.initials
+                  )}
+                  {avatarProcessing && (
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-cyan-300/60 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
                 </div>
               </div>
-              <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:bg-cyan-400 transition-colors">
+              <button
+                onClick={handleTriggerAvatarPicker}
+                disabled={avatarProcessing}
+                className="absolute -bottom-2 -right-2 w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:bg-cyan-400 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                title="Change photo"
+              >
                 <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>

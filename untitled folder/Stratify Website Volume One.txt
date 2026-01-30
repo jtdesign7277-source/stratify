@@ -1,0 +1,147 @@
+╔══════════════════════════════════════════════════════════════════╗
+║           STRATIFY WEBSITE - VOLUME ONE                          ║
+║           Development Notes & Progress                            ║
+║           Date: January 26, 2026                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT IS STRATIFY?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AI-powered trading platform that:
+  1. User describes strategy in plain English
+  2. AI translates to backtestable logic
+  3. User reviews backtest and deploys
+  4. Bot scans markets for setups
+  5. Bot executes trades automatically
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TECH STACK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Frontend:     React + Vite + Tailwind CSS
+Backend:      Node.js + Express (on Railway)
+Broker API:   Alpaca (paper + live trading)
+Location:     ~/Desktop/Stratify/
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY URLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Local Dev:        http://localhost:5173
+Railway Backend:  https://stratify-backend-production-3ebd.up.railway.app
+GitHub Repo:      github.com/jtdesign7277-source/stratify
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMPLETED IN VOLUME ONE (Jan 26, 2026)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ SEARCH RANKING
+   - Fixed stock search to show exact matches first
+   - TSLA, META, AAPL now appear at top when searched
+   - File: /server/src/index.js
+
+✅ SIDEBAR (VS Code Style)
+   - Collapsed by default (icons only)
+   - Expands on mouse hover
+   - Auto-collapses when mouse leaves
+   - Removed Portfolio item (not needed)
+   - File: /src/components/dashboard/Sidebar.jsx
+
+✅ WATCHLIST INTEGRATION
+   - Moved inside sidebar (not floating separately)
+   - Shows when Watchlist section is clicked
+   - Resizable height with drag handle
+   - Height saves to localStorage
+   - File: /src/components/dashboard/Watchlist.jsx
+
+✅ TOP BAR CLEANUP
+   - Removed Account "N/A" cyan text
+   - File: /src/components/dashboard/TopMetricsBar.jsx
+
+✅ INFRASTRUCTURE
+   - Connected GitHub to Railway for auto-deploy
+   - Environment config: .env.development / .env.production
+   - Centralized API config: /src/config.js
+
+✅ LANDING PAGE
+   - Hero section with waitlist signup
+   - Features cards
+   - Pricing (Free + Pro tiers)
+   - Trust badges
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROJECT STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+~/Desktop/Stratify/
+├── src/                    # React frontend
+│   ├── components/
+│   │   └── dashboard/      # Dashboard components
+│   ├── config.js           # API URL config
+│   └── App.jsx             # Main app + landing page
+├── server/                 # Node.js backend ⚠️ RAILWAY DEPLOYS THIS
+│   └── src/index.js        # Express server
+├── backend/                # Python/FastAPI (NOT in production)
+├── .env.development        # Local API URL
+├── .env.production         # Production API URL
+└── CLAUDE.md               # Project context for AI
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  Railway deploys /server (Node.js), NOT /backend (Python)
+⚠️  Alpaca API keys are in Railway dashboard, not in code
+⚠️  Frontend uses VITE_API_URL from environment files
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TODO FOR VOLUME TWO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ AI Builder section (core feature - natural language → strategy)
+□ Strategy backtesting engine
+□ Strategy deployment/execution
+□ User authentication (Clerk? Supabase?)
+□ Database setup (PostgreSQL?)
+□ Real-time market data streaming
+□ Production launch (~1 month timeline)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW TO RUN LOCALLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Terminal 1 (Frontend):
+  cd ~/Desktop/Stratify
+  npm run dev
+  → Opens at http://localhost:5173
+
+Terminal 2 (Backend - optional, can use Railway):
+  cd ~/Desktop/Stratify/server
+  npm run dev
+  → Runs at http://localhost:3001
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI ASSISTANT MEMORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AlphaTrader (your AI sidekick) remembers this project via:
+  • ~/clawd/MEMORY.md (long-term memory)
+  • ~/clawd/memory/2025-07-14.md (session notes)
+  • ~/Desktop/Stratify/CLAUDE.md (project context)
+
+Just say "Let's work on Stratify" and I'll know the context.
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                     END OF VOLUME ONE                            ║
+║                     Ready for Volume Two! 📈                      ║
+╚══════════════════════════════════════════════════════════════════╝

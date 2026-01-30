@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stratify Dashboard Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { mono: ['SF Mono', 'Monaco', 'monospace'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body class="dark bg-gray-950 text-white min-h-screen">
+  <!-- Navbar -->
+  <nav class="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-lg"></div>
+          <span class="text-xl font-bold">Stratify</span>
+        </div>
+        <div class="hidden md:flex items-center space-x-8">
+          <a href="#" class="text-emerald-500 font-medium">Dashboard</a>
+          <a href="#" class="hover:text-emerald-500 transition-colors text-gray-400">Strategies</a>
+          <a href="#" class="hover:text-emerald-500 transition-colors text-gray-400">Leaderboard</a>
+          <a href="#" class="hover:text-emerald-500 transition-colors text-gray-400">Alerts</a>
+        </div>
+        <div class="flex items-center space-x-4">
+          <button class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            </svg>
+          </button>
+          <span class="text-sm text-gray-400">Jeff</span>
+          <button class="px-4 py-2 text-sm rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors">Logout</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- Header Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div class="text-sm text-gray-400 mb-1">Portfolio Value</div>
+        <div class="text-2xl font-bold font-mono">$125,847.32</div>
+      </div>
+      <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div class="text-sm text-gray-400 mb-1">Buying Power</div>
+        <div class="text-2xl font-bold font-mono">$251,694.64</div>
+      </div>
+      <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div class="text-sm text-gray-400 mb-1">Cash</div>
+        <div class="text-2xl font-bold font-mono">$12,847.32</div>
+      </div>
+      <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div class="text-sm text-gray-400 mb-1">Total P&L</div>
+        <div class="text-2xl font-bold font-mono text-emerald-500">+$3,421.87</div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left Column -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Portfolio Chart -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <h2 class="text-lg font-semibold mb-4">Portfolio Performance</h2>
+          <div class="h-48 flex items-end justify-between gap-1 px-4">
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 45%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 52%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 48%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 61%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 58%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 72%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 68%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 75%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 71%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 82%"></div>
+            <div class="w-full bg-emerald-500/20 rounded-t" style="height: 78%"></div>
+            <div class="w-full bg-emerald-500 rounded-t" style="height: 88%"></div>
+          </div>
+          <div class="flex justify-between text-xs text-gray-500 mt-2 px-4">
+            <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+            <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+          </div>
+        </div>
+
+        <!-- Positions Table -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div class="p-4 border-b border-gray-800">
+            <h2 class="text-lg font-semibold">Positions</h2>
+          </div>
+          <table class="w-full">
+            <thead class="bg-gray-800/50">
+              <tr>
+                <th class="text-left p-4 text-sm font-medium text-gray-500">Symbol</th>
+                <th class="text-right p-4 text-sm font-medium text-gray-500">Qty</th>
+                <th class="text-right p-4 text-sm font-medium text-gray-500">Value</th>
+                <th class="text-right p-4 text-sm font-medium text-gray-500">P&L</th>
+                <th class="text-right p-4 text-sm font-medium text-gray-500">%</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+              <tr class="hover:bg-gray-800/50">
+                <td class="p-4 font-mono font-bold">NVDA</td>
+                <td class="p-4 text-right">50</td>
+                <td class="p-4 text-right font-mono">$67,450</td>
+                <td class="p-4 text-right font-mono text-emerald-500">+$2,847.32</td>
+                <td class="p-4 text-right font-mono text-emerald-500">+4.41%</td>
+              </tr>
+              <tr class="hover:bg-gray-800/50">
+                <td class="p-4 font-mono font-bold">AAPL</td>
+                <td class="p-4 text-right">120</td>
+                <td class="p-4 text-right font-mono">$28,320</td>
+                <td class="p-4 text-right font-mono text-emerald-500">+$432.00</td>
+                <td class="p-4 text-right font-mono text-emerald-500">+1.55%</td>
+              </tr>
+              <tr class="hover:bg-gray-800/50">
+                <td class="p-4 font-mono font-bold">TSLA</td>
+                <td class="p-4 text-right">25</td>
+                <td class="p-4 text-right font-mono">$18,750</td>
+                <td class="p-4 text-right font-mono text-red-500">-$312.50</td>
+                <td class="p-4 text-right font-mono text-red-500">-1.64%</td>
+              </tr>
+              <tr class="hover:bg-gray-800/50">
+                <td class="p-4 font-mono font-bold">MSFT</td>
+                <td class="p-4 text-right">30</td>
+                <td class="p-4 text-right font-mono">$12,840</td>
+                <td class="p-4 text-right font-mono text-emerald-500">+$455.05</td>
+                <td class="p-4 text-right font-mono text-emerald-500">+3.67%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="space-y-6">
+        <!-- Stock Ticker -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold">Live Quotes</h3>
+            <div class="flex items-center space-x-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span class="text-xs text-gray-500">Live</span>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <span class="font-mono font-bold">AAPL</span>
+              <div class="text-right">
+                <div class="font-mono font-bold">$236.00</div>
+                <div class="text-sm font-mono text-emerald-500">+1.24%</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <span class="font-mono font-bold">MSFT</span>
+              <div class="text-right">
+                <div class="font-mono font-bold">$428.00</div>
+                <div class="text-sm font-mono text-emerald-500">+0.87%</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <span class="font-mono font-bold">GOOGL</span>
+              <div class="text-right">
+                <div class="font-mono font-bold">$197.50</div>
+                <div class="text-sm font-mono text-red-500">-0.32%</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <span class="font-mono font-bold">TSLA</span>
+              <div class="text-right">
+                <div class="font-mono font-bold">$750.00</div>
+                <div class="text-sm font-mono text-red-500">-1.64%</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <span class="font-mono font-bold">NVDA</span>
+              <div class="text-right">
+                <div class="font-mono font-bold">$1,349.00</div>
+                <div class="text-sm font-mono text-emerald-500">+2.18%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts Feed -->
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <h3 class="font-semibold mb-4">Recent Alerts</h3>
+          <div class="space-y-3">
+            <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-emerald-500">●</span>
+                <span class="text-sm font-medium">NVDA Target Hit</span>
+              </div>
+              <p class="text-xs text-gray-400">Price reached $1,350 target. Consider taking profits.</p>
+              <span class="text-xs text-gray-500">2 min ago</span>
+            </div>
+            <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-amber-500">●</span>
+                <span class="text-sm font-medium">TSLA Volume Spike</span>
+              </div>
+              <p class="text-xs text-gray-400">Unusual volume detected. 3x average.</p>
+              <span class="text-xs text-gray-500">15 min ago</span>
+            </div>
+            <div class="p-3 bg-gray-800 border border-gray-700 rounded-lg">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-gray-500">●</span>
+                <span class="text-sm font-medium">Market Close</span>
+              </div>
+              <p class="text-xs text-gray-400">Markets closed. Portfolio up +2.8% today.</p>
+              <span class="text-xs text-gray-500">4 hours ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
