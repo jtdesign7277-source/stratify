@@ -11,6 +11,7 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
+import StrategiesPage from './StrategiesPage';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
 
@@ -412,6 +413,11 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeSection === 'settings' && (
             <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
               <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+            </div>
+          )}
+          {activeSection === 'strategies' && (
+            <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
+              <StrategiesPage savedStrategies={savedStrategies} onClose={() => setActiveSection('watchlist')} />
             </div>
           )}
           {activeSection === 'newsletter' && (
