@@ -5,6 +5,7 @@ import { WebSocketServer } from 'ws';
 import YahooFinance from 'yahoo-finance2';
 import OpenAI from 'openai';
 import stocksRouter from './routes/stocks.js';
+import kalshiRouter from './routes/kalshi.js';
 import { startAlpacaStream } from './services/alpaca.js';
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/stocks', stocksRouter);
+app.use('/api/v1/kalshi', kalshiRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
