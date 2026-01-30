@@ -204,7 +204,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const [inputValue, setInputValue] = useState('');
   const [strategyName, setStrategyName] = useState('');
   const [demoPhase, setDemoPhase] = useState('idle');
-  const [demoActive, setDemoActive] = useState(true); // Track if demo should run
+  const [demoActive, setDemoActive] = useState(false); // Demo disabled - real Atlas AI is live
   const [displayedAtlasText, setDisplayedAtlasText] = useState('');
   const [displayedCode, setDisplayedCode] = useState('');
   const [userMessage, setUserMessage] = useState('');
