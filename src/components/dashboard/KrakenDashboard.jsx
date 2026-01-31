@@ -1122,6 +1122,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         theme={theme} 
         themeClasses={themeClasses}
         watchlist={watchlist}
+        onAddToWatchlist={addToWatchlist}
         onRemoveFromWatchlist={removeFromWatchlist}
         onViewChart={(stock) => setSelectedStock(stock)}
         savedStrategies={savedStrategies}
