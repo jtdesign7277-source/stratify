@@ -587,7 +587,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
 };
 
 // Strategies Detail Panel (Kraken Style)
-const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClose }) => {
+const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClose, onDeployTemplate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState('All');
   const [selectedStrategyId, setSelectedStrategyId] = useState(null);
@@ -758,7 +758,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
           </div>
         </div>
       </div>
-      <StrategyDetailModal strategyId={selectedStrategyId} isOpen={!!selectedStrategyId} onClose={() => setSelectedStrategyId(null)} />
+      <StrategyDetailModal strategyId={selectedStrategyId} isOpen={!!selectedStrategyId} onClose={() => setSelectedStrategyId(null)} onDeploy={onDeployTemplate} />
     </motion.div>
   );
 };
@@ -1415,7 +1415,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                 dayChangePercent={dayChangePercent}
                 alpacaData={alpacaData}
                 connectedBrokers={connectedBrokers}
-                onClose={() => setExpandedCard(null)}
+                onClose={() => setExpandedCard(null)} onDeployTemplate={(strategy) => setDeployedStrategies(prev => [...prev, strategy])}
                 onOpenBrokerModal={() => setShowBrokerModal(true)}
               />
             )}
@@ -1423,12 +1423,12 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               <StrategiesPanel 
                 savedStrategies={savedStrategies}
                 deployedStrategies={deployedStrategies}
-                onClose={() => setExpandedCard(null)}
+                onClose={() => setExpandedCard(null)} onDeployTemplate={(strategy) => setDeployedStrategies(prev => [...prev, strategy])}
               />
             )}
             {expandedCard === 'arb' && (
               <ArbOppsPanel 
-                onClose={() => setExpandedCard(null)}
+                onClose={() => setExpandedCard(null)} onDeployTemplate={(strategy) => setDeployedStrategies(prev => [...prev, strategy])}
               />
             )}
           </AnimatePresence>

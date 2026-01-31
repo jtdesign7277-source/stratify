@@ -231,7 +231,7 @@ const ExpandableSection = ({ title, icon: Icon, children, defaultOpen = false })
   );
 };
 
-const StrategyDetailModal = ({ strategyId, isOpen, onClose }) => {
+const StrategyDetailModal = ({ strategyId, isOpen, onClose, onDeploy }) => {
   const strategy = STRATEGIES[strategyId];
   if (!strategy) return null;
   const IconComponent = strategy.icon;
@@ -317,7 +317,7 @@ const StrategyDetailModal = ({ strategyId, isOpen, onClose }) => {
                   <Clock size={14} strokeWidth={1.5} />
                   Timeframe: {strategy.timeframe}
                 </div>
-                <button className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
+                <button onClick={() => { if (onDeploy) { onDeploy({ id: `template-${strategyId}-${Date.now()}`, name: strategy.name, description: strategy.tagline, type: strategy.name, riskLevel: strategy.riskLevel, isTemplate: true, status: "active", createdAt: new Date().toISOString() }); onClose(); } }} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
                   Use This Strategy
                   <ArrowRight size={16} strokeWidth={1.5} />
                 </button>
