@@ -12,6 +12,7 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
+import { StrategyDetailModal, STRATEGIES } from '../strategies/FeaturedStrategies';
 
 // ============================================
 // KRAKEN-STYLE DASHBOARD
@@ -589,6 +590,8 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
 const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState('All');
+  const [selectedStrategyId, setSelectedStrategyId] = useState(null);
+  const nameToId = { 'Growth Investing': 'growth-investing', 'Dividend Investing': 'dividend-investing', 'Value Investing': 'value-investing', 'Index Fund Investing': 'index-fund-investing', 'Day Trading': 'day-trading', 'Momentum Trading': 'momentum-trading' };
 
   const FEATURED_STRATEGIES = [
     { name: 'Growth Investing', description: 'Stocks with high growth potential', risk: 'Medium-High', icon: '📈' },
@@ -696,7 +699,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
                 </div>
                 <h3 className="text-white font-semibold mb-1">{strategy.name}</h3>
                 <p className="text-xs text-[#6b6b80] mb-3">{strategy.description}</p>
-                <button className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                <button onClick={() => setSelectedStrategyId(nameToId[strategy.name])} className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors">
                   View Details →
                 </button>
               </div>
@@ -755,6 +758,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
           </div>
         </div>
       </div>
+      <StrategyDetailModal strategyId={selectedStrategyId} isOpen={!!selectedStrategyId} onClose={() => setSelectedStrategyId(null)} />
     </motion.div>
   );
 };
