@@ -316,7 +316,38 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
   };
 
   // Generate account balances from connected brokers
-  // If Alpaca is connected, use real data; otherwise use demo values
+  // Show 3 default accounts that sum to portfolioValue
+  const defaultAccounts = [
+    {
+      broker: 'Alpaca',
+      brokerId: 'alpaca',
+      icon: getBrokerIcon('alpaca'),
+      colorClass: getBrokerColor('alpaca'),
+      balance: portfolioValue * 0.45, // 45% of portfolio
+      change: 2.14,
+      accountType: 'Paper Trading'
+    },
+    {
+      broker: 'Robinhood',
+      brokerId: 'robinhood',
+      icon: getBrokerIcon('robinhood'),
+      colorClass: getBrokerColor('robinhood'),
+      balance: portfolioValue * 0.35, // 35% of portfolio
+      change: 1.87,
+      accountType: 'Cash Account'
+    },
+    {
+      broker: 'Coinbase',
+      brokerId: 'coinbase',
+      icon: getBrokerIcon('coinbase'),
+      colorClass: getBrokerColor('coinbase'),
+      balance: portfolioValue * 0.20, // 20% of portfolio
+      change: -0.42,
+      accountType: 'Crypto'
+    }
+  ];
+
+  // Use real connected brokers if available, otherwise show defaults
   const spotBalances = connectedBrokers.length > 0 
     ? connectedBrokers.map((broker, index) => {
         // For Alpaca, use real data if available
@@ -341,22 +372,11 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
           icon: getBrokerIcon(broker.id),
           colorClass: getBrokerColor(broker.id),
           balance: brokerShare,
-          change: (Math.random() * 4 - 1).toFixed(2), // Random -1% to +3%
+          change: (Math.random() * 4 - 1).toFixed(2),
           accountType: broker.accountType || 'Trading'
         };
       })
-    : [
-        // Default demo account when no brokers connected
-        {
-          broker: 'Demo Account',
-          brokerId: 'demo',
-          icon: '📊',
-          colorClass: 'from-purple-500 to-purple-700',
-          balance: portfolioValue,
-          change: dayChangePercent,
-          accountType: 'Paper Trading'
-        }
-      ];
+    : defaultAccounts;
   
   // Total is sum of all connected account balances
   const totalSpot = spotBalances.reduce((sum, acc) => sum + acc.balance, 0);
