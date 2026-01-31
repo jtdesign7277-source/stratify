@@ -483,33 +483,6 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                       Edit
                     </button>
                     
-                    {/* Backtest button or progress */}
-                    {isBacktesting ? (
-                      <div className="flex items-center gap-2 px-2 py-1 bg-purple-500/10 rounded">
-                        <div className="w-20">
-                          <BacktestSparkline progress={backtestProgress} />
-                        </div>
-                        <span className="text-purple-400 text-xs font-mono">{backtestProgress}%</span>
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => runBacktest(strategy.id)}
-                        className={`text-purple-400 text-xs font-light transition-colors px-2 py-1 rounded ${
-                          isClickingBacktest && strategy.id === autoBacktestStrategy?.id
-                            ? 'bg-purple-500 text-white scale-95'
-                            : 'hover:text-purple-300 hover:bg-purple-500/10'
-                        }`}
-                      >
-                        Backtest
-                      </button>
-                    )}
-                    
-                    {showBacktestCursor && strategy.id === autoBacktestStrategy?.id && (
-                      <AnimatedCursor 
-                        visible={true} 
-                        clicking={isClickingBacktest}
-                      />
-                    )}
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
