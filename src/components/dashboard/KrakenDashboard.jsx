@@ -283,20 +283,70 @@ const IndexCard = ({ title, value, change, icon, color = 'purple', onClick, acti
 const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaData, connectedBrokers = [], onClose, onOpenBrokerModal }) => {
   // Build spot balances from connected broker accounts
   // Each connected broker contributes to the total portfolio
+  // Premium SVG icons for brokers
   const getBrokerIcon = (brokerId) => {
     const icons = {
-      alpaca: '🦙',
-      robinhood: '🪶',
-      webull: '🐂',
-      tdameritrade: '📊',
-      etrade: '📈',
-      fidelity: '💼',
-      schwab: '🏦',
-      interactive: '🌐',
-      coinbase: '🪙',
-      kraken: '🐙',
+      alpaca: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <path d="M12 2L4 6v12l8 4 8-4V6l-8-4z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+          <path d="M12 6v12M8 8l4 2 4-2M8 16l4-2 4 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+      robinhood: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M15 4l2-2M9 4L7 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+      coinbase: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M12 7v10M9 12h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      ),
+      webull: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M17 7h4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      tdameritrade: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M7 12h10M12 7v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+      fidelity: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <path d="M12 2l3 6h6l-5 4 2 6-6-4-6 4 2-6-5-4h6l3-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        </svg>
+      ),
+      schwab: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M3 10h18M7 14h4M7 17h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+      interactive: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M12 3v4M12 17v4M3 12h4M17 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
+      kraken: (
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+          <circle cx="12" cy="10" r="6" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M8 16l-2 6M16 16l2 6M12 16v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      ),
     };
-    return icons[brokerId] || '💰';
+    return icons[brokerId] || (
+      <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    );
   };
 
   const getBrokerColor = (brokerId) => {
@@ -446,7 +496,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
               {spotBalances.map((account, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-[#1e1e2d] last:border-0">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${account.colorClass} flex items-center justify-center text-sm`}>
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${account.colorClass} flex items-center justify-center text-white`}>
                       {account.icon}
                     </div>
                     <div>
