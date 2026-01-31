@@ -226,10 +226,13 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
 
   // Generate from Custom AI
   const handleCustomGenerate = async () => {
-    if (!customTicker || !customName || !customPrompt) return;
+    if (!customTicker || !customName || !customPrompt || !backtestTimeframe) return;
     
-    const prompt = `Create a trading strategy called "${customName}" for $${customTicker}. ${customPrompt}`;
-    await generateStrategy(prompt, customName, customTicker);
+    const selectedTimeframe = timeframeOptions.find(tf => tf.id === backtestTimeframe);
+    const timeframeLabel = selectedTimeframe?.label || '6 Months';
+    
+    const prompt = `Create a trading strategy called "${customName}" for $${customTicker}. ${customPrompt}. Backtest period: ${timeframeLabel}.`;
+    await generateStrategy(prompt, customName, customTicker, timeframeLabel);
   };
 
   // Core generate function with typewriter streaming
@@ -580,16 +583,36 @@ if __name__ == "__main__":
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="Example: Buy when RSI drops below 30 and price is above the 200-day moving average. Sell when RSI goes above 70. Use a 5% stop loss..."
-                  className="w-full h-full min-h-[140px] px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full h-full min-h-[120px] px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
                 />
+              </div>
+
+              {/* Backtest Timeframe */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-400 mb-1.5 block">Backtest Timeframe</label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {timeframeOptions.map(tf => (
+                    <button
+                      key={tf.id}
+                      onClick={() => setBacktestTimeframe(backtestTimeframe === tf.id ? '' : tf.id)}
+                      className={`py-2 px-1 rounded text-xs font-medium transition-all ${
+                        backtestTimeframe === tf.id
+                          ? 'bg-blue-600 text-white border border-blue-500'
+                          : 'bg-[#0a1628] text-gray-400 border border-blue-500/20 hover:border-blue-500/50'
+                      }`}
+                    >
+                      {tf.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Generate Button */}
               <button
                 onClick={handleCustomGenerate}
-                disabled={!customTicker || !customName || !customPrompt}
+                disabled={!customTicker || !customName || !customPrompt || !backtestTimeframe}
                 className={`py-2.5 rounded text-sm font-semibold transition-all ${
-                  customTicker && customName && customPrompt
+                  customTicker && customName && customPrompt && backtestTimeframe
                     ? 'bg-blue-600 text-white hover:bg-blue-500'
                     : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
                 }`}>
