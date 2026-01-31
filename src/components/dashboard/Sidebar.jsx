@@ -106,7 +106,7 @@ const ChevronIcon = ({ open, className = "w-3 h-3" }) => (
 );
 
 // Strategy Folders Component - Clean design
-const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStrategy, onDeployStrategy, sidebarExpanded }) => {
+const StrategiesFolders = ({ savedStrategies, deployedStrategies = [], onRemoveSavedStrategy, onUpdateStrategy, onDeployStrategy, sidebarExpanded }) => {
   // Custom folders stored in localStorage
   const [folders, setFolders] = useState(() => {
     const saved = localStorage.getItem('stratify-strategy-folders');
@@ -146,6 +146,10 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
   };
 
   const getStrategiesInFolder = (folderId) => {
+    // Active folder shows deployed strategies
+    if (folderId === 'active') {
+      return deployedStrategies;
+    }
     if (folderId === 'uncategorized') {
       return savedStrategies.filter(s => !strategyFolders[s.id]);
     }
@@ -288,44 +292,60 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
                 {isDropping ? 'Drop here' : 'Empty'}
               </div>
             ) : (
-              strategies.map(strategy => (
+              strategies.map(strategy => {
+                const isActiveFolder = folder.id === 'active';
+                const isRunning = strategy.runStatus === 'running' || strategy.status === 'deployed';
+                
+                return (
                   <div
                     key={strategy.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, strategy)}
+                    draggable={!isActiveFolder}
+                    onDragStart={(e) => !isActiveFolder && handleDragStart(e, strategy)}
                     className="group flex flex-col py-2 px-2 rounded cursor-pointer transition-colors hover:bg-[#2a2a3d]"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
-                        <svg className="w-3 h-3 text-gray-600 flex-shrink-0 cursor-grab" fill="currentColor" viewBox="0 0 24 24">
-                          <circle cx="5" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>
-                        </svg>
-                        <span className="text-sm truncate text-gray-400 group-hover:text-gray-200">{strategy.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {/* Deploy button - shows on hover */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeployStrategy?.(strategy);
-                          }}
-                          className="text-emerald-400 hover:text-emerald-300 text-xs font-medium px-2 py-1 rounded hover:bg-emerald-500/20 transition-colors"
-                        >
-                          Deploy
-                        </button>
-                        {/* Delete button */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(strategy.id); }}
-                          className="text-gray-600 hover:text-red-400 p-1"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        {isActiveFolder ? (
+                          /* Running indicator for active/deployed strategies */
+                          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                        ) : (
+                          <svg className="w-3 h-3 text-gray-600 flex-shrink-0 cursor-grab" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="5" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>
                           </svg>
-                        </button>
+                        )}
+                        <span className={`text-sm truncate group-hover:text-gray-200 ${isActiveFolder ? 'text-gray-300' : 'text-gray-400'}`}>{strategy.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {isActiveFolder ? (
+                          /* Running status for deployed strategies */
+                          <span className="text-xs text-emerald-400 font-medium">Running</span>
+                        ) : (
+                          /* Deploy and delete buttons for saved strategies */
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeployStrategy?.(strategy);
+                              }}
+                              className="text-emerald-400 hover:text-emerald-300 text-xs font-medium px-2 py-1 rounded hover:bg-emerald-500/20 transition-colors"
+                            >
+                              Deploy
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(strategy.id); }}
+                              className="text-gray-600 hover:text-red-400 p-1"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))
+                );
+              })
             )}
           </div>
         )}
@@ -645,6 +665,7 @@ export default function Sidebar({
   onAddToWatchlist,
   onViewChart, 
   savedStrategies = [], 
+  deployedStrategies = [],
   onRemoveSavedStrategy,
   onDeployStrategy,
   connectedBrokers = [],
@@ -777,6 +798,7 @@ export default function Sidebar({
                   <div className="overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     <StrategiesFolders 
                       savedStrategies={savedStrategies} 
+                      deployedStrategies={deployedStrategies}
                       onRemoveSavedStrategy={onRemoveSavedStrategy}
                       onDeployStrategy={onDeployStrategy}
                       sidebarExpanded={expanded}
