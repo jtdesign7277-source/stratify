@@ -222,7 +222,7 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
       flask: <path d="M9 3v8.5c0 .83-.67 1.5-1.5 1.5S6 12.33 6 11.5V3M15 3v8.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V3M6 14c-1.66 0-3 1.34-3 3v2c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-2c0-1.66-1.34-3-3-3" stroke={color} fill="none" strokeWidth="2"/>,
       folder: <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" fill={color}/>,
     };
-    return <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">{icons[icon] || icons.folder}</svg>;
+    return <svg className="w-4 h-4" viewBox="0 0 24 24">{icons[icon] || icons.folder}</svg>;
   };
 
   const renderFolder = (folder, isUncategorized = false) => {
@@ -237,9 +237,9 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, folder.id)}
       >
-        <div className={`flex items-center gap-1.5 px-2 py-1 rounded transition-colors ${isDropping ? 'bg-blue-500/20 border border-blue-500/50' : 'hover:bg-[#1e1e2d]'}`}>
+        <div className={`flex items-center gap-2 px-3 py-2.5 rounded transition-colors ${isDropping ? 'bg-blue-500/20 border border-blue-500/50' : 'hover:bg-[#1e1e2d]'}`}>
           <button onClick={() => toggleFolder(folder.id)} className="text-gray-500 hover:text-gray-300">
-            <ChevronIcon open={isOpen} className="w-2.5 h-2.5" />
+            <ChevronIcon open={isOpen} className="w-3 h-3" />
           </button>
           
           <FolderIconSvg icon={folder.icon} color={folder.color} />
@@ -251,11 +251,11 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
               onChange={(e) => setNewFolderName(e.target.value)}
               onBlur={() => renameFolder(folder.id)}
               onKeyDown={(e) => e.key === 'Enter' && renameFolder(folder.id)}
-              className="flex-1 bg-transparent text-xs text-white border-b border-blue-500 outline-none px-1"
+              className="flex-1 bg-transparent text-sm text-white border-b border-blue-500 outline-none px-1"
             />
           ) : (
             <span 
-              className="flex-1 text-xs text-gray-300 truncate cursor-default"
+              className="flex-1 text-sm text-gray-300 truncate cursor-default"
               onDoubleClick={() => {
                 if (!isUncategorized) {
                   setEditingFolder(folder.id);
@@ -267,14 +267,14 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
             </span>
           )}
           
-          <span className="text-[10px] text-gray-600">{strategies.length}</span>
+          <span className="text-xs text-gray-500">{strategies.length}</span>
           
           {!isUncategorized && (
             <button
               onClick={() => deleteFolder(folder.id)}
               className="opacity-0 group-hover:opacity-100 hover:opacity-100 text-gray-600 hover:text-red-400 p-0.5"
             >
-              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -282,9 +282,9 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
         </div>
 
         {isOpen && (
-          <div className="ml-4 pl-2 border-l border-[#2a2a3d]">
+          <div className="ml-5 pl-3 border-l border-[#2a2a3d]">
             {strategies.length === 0 ? (
-              <div className="py-1.5 px-2 text-[10px] text-gray-600 italic">
+              <div className="py-2 px-2 text-xs text-gray-600 italic">
                 {isDropping ? 'Drop here' : 'Empty'}
               </div>
             ) : (
@@ -293,32 +293,32 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
                     key={strategy.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, strategy)}
-                    className="group flex flex-col py-1 px-2 rounded cursor-pointer transition-colors hover:bg-[#2a2a3d]"
+                    className="group flex flex-col py-2 px-2 rounded cursor-pointer transition-colors hover:bg-[#2a2a3d]"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">
-                        <svg className="w-2.5 h-2.5 text-gray-600 flex-shrink-0 cursor-grab" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 text-gray-600 flex-shrink-0 cursor-grab" fill="currentColor" viewBox="0 0 24 24">
                           <circle cx="5" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>
                         </svg>
-                        <span className="text-[11px] truncate text-gray-400 group-hover:text-gray-200">{strategy.name}</span>
+                        <span className="text-sm truncate text-gray-400 group-hover:text-gray-200">{strategy.name}</span>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {/* Deploy button - shows on hover */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onDeployStrategy?.(strategy);
                           }}
-                          className="text-emerald-400 hover:text-emerald-300 text-[10px] font-light px-1.5 py-0.5 rounded hover:bg-emerald-500/20 transition-colors"
+                          className="text-emerald-400 hover:text-emerald-300 text-xs font-medium px-2 py-1 rounded hover:bg-emerald-500/20 transition-colors"
                         >
                           Deploy
                         </button>
                         {/* Delete button */}
                         <button
                           onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(strategy.id); }}
-                          className="text-gray-600 hover:text-red-400 p-0.5"
+                          className="text-gray-600 hover:text-red-400 p-1"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -334,7 +334,7 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
   };
 
   return (
-    <div className="py-1 group">
+    <div className="py-2 group">
       {/* Custom folders */}
       {folders.map(folder => renderFolder(folder))}
       
@@ -343,8 +343,8 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
 
       {/* New folder input */}
       {showNewFolder ? (
-        <div className="flex items-center gap-1.5 px-2 py-1 mt-1">
-          <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-2 px-3 py-2 mt-1">
+          <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
           </svg>
           <input
@@ -357,10 +357,10 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
             }}
             onBlur={() => { if (!newFolderInput) setShowNewFolder(false); }}
             placeholder="Folder name..."
-            className="flex-1 bg-transparent text-xs text-white placeholder-gray-600 outline-none"
+            className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 outline-none"
           />
-          <button onClick={createFolder} className="text-blue-400 hover:text-blue-300 p-0.5">
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={createFolder} className="text-blue-400 hover:text-blue-300 p-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </button>
@@ -368,9 +368,9 @@ const StrategiesFolders = ({ savedStrategies, onRemoveSavedStrategy, onUpdateStr
       ) : (
         <button
           onClick={() => setShowNewFolder(true)}
-          className="w-full mt-1 py-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1"
+          className="w-full mt-2 py-2 text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1.5"
         >
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           New Folder
