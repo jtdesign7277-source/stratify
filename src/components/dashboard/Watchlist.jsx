@@ -1,20 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_URL } from '../../config';
 
-// Up/down arrow
-const ChangeArrow = ({ positive }) => (
-  <svg 
-    className={`w-3 h-3 ${positive ? 'text-[#00C853]' : 'text-[#F44336]'}`} 
-    viewBox="0 0 24 24" 
-    fill="currentColor"
-  >
-    {positive ? (
-      <path d="M7 14l5-5 5 5H7z" />
-    ) : (
-      <path d="M7 10l5 5 5-5H7z" />
-    )}
+const TrendUpIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
   </svg>
 );
+
+const TrendDownIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
+  </svg>
+);
+
+const formatNumber = (num) => {
+  if (!num) return null;
+  if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+  return num.toString();
+};
 
 export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses, compact = false }) {
   const [quotes, setQuotes] = useState({});
@@ -23,9 +28,11 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
   const fetchQuote = useCallback(async (symbol) => {
     setLoading(prev => ({ ...prev, [symbol]: true }));
     try {
-      const res = await fetch(`${API_URL}/api/public/quote/${symbol}`);
+      const res = await fetch(`/api/stock/${symbol}`);
       const data = await res.json();
-      setQuotes(prev => ({ ...prev, [symbol]: data }));
+      if (data.stock) {
+        setQuotes(prev => ({ ...prev, [symbol]: data.stock }));
+      }
     } catch (err) {
       console.error('Quote fetch error:', err);
     }
@@ -42,115 +49,83 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
     return () => clearInterval(interval);
   }, [stocks, fetchQuote]);
 
-  const formatPrice = (price) => {
-    if (!price && price !== 0) return '--';
-    if (price >= 10000) {
-      return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    return price.toFixed(2);
+  const getChangeColor = (change) => {
+    if (change > 0) return 'text-emerald-400';
+    if (change < 0) return 'text-red-400';
+    return 'text-zinc-400';
   };
 
   if (stocks.length === 0) {
     return (
-      <div className="px-4 py-6 text-center text-[#9AA0A6] text-sm">
+      <div className="px-4 py-6 text-center text-zinc-500 text-sm">
         No stocks in watchlist
       </div>
     );
   }
 
   return (
-    <div className="py-2">
+    <div className="px-3 pb-3 space-y-2">
       {stocks.map(stock => {
         const quote = quotes[stock.symbol] || {};
         const isLoading = loading[stock.symbol];
         const hasData = quote.price !== undefined;
         
-        const price = quote.price || 0;
-        const changePercent = quote.changePercent || 0;
-        const isPositive = changePercent >= 0;
+        const price = quote.price || stock.price || 0;
+        const change = quote.change || stock.change || 0;
+        const changePercent = quote.changePercent || stock.changePercent || 0;
+        const volume = quote.volume || stock.volume;
         const companyName = quote.name || stock.name || '';
-        const marketState = quote.marketState || 'REGULAR';
-        
-        // Extended hours data
-        const hasAfterHours = hasData && (marketState === 'POST' || marketState === 'CLOSED') && quote.postMarketPrice;
-        const hasPreMarket = hasData && marketState === 'PRE' && quote.preMarketPrice;
-        
-        const extendedPrice = hasAfterHours ? quote.postMarketPrice : hasPreMarket ? quote.preMarketPrice : null;
-        const extendedChange = hasAfterHours ? quote.postMarketChangePercent : hasPreMarket ? quote.preMarketChangePercent : null;
-        const isExtendedPositive = extendedChange >= 0;
         
         return (
           <div 
             key={stock.symbol} 
-            className="group px-4 py-3 hover:bg-[#3c4043] cursor-pointer transition-colors border-b border-[#3c4043]/50 last:border-b-0"
+            className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 hover:border-zinc-600/50 transition-colors cursor-pointer"
             onClick={() => onViewChart && onViewChart(stock)}
           >
-            {/* Row 1: Symbol, Company Name, Price, Change */}
-            <div className="flex items-center justify-between">
-              {/* Left: Symbol and Company Name */}
-              <div className="flex-1 min-w-0">
-                <div className="text-[15px] font-medium text-[#E8EAED]">
-                  {stock.symbol}
-                </div>
-                <div className="text-[12px] text-[#9AA0A6] truncate">
-                  {companyName}
-                </div>
+            {/* Top row: Symbol/Name and Price/Change */}
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <span className="font-bold text-white">{stock.symbol}</span>
+                <p className="text-xs text-zinc-500 truncate max-w-[140px]">{companyName}</p>
               </div>
-              
-              {/* Right: Price and Change - side by side */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-right">
                 {isLoading && !hasData ? (
-                  <div className="w-4 h-4 border-2 border-[#3c4043] border-t-[#8ab4f8] rounded-full animate-spin" />
-                ) : hasData ? (
+                  <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-400 rounded-full animate-spin" />
+                ) : (
                   <>
-                    <span className="text-[15px] font-medium text-[#E8EAED]">
-                      ${formatPrice(price)}
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      <span className={`text-[13px] ${isPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
-                        {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                    <p className="font-semibold text-white">${price.toFixed(2)}</p>
+                    <div className={`flex items-center justify-end gap-1 text-xs ${getChangeColor(change)}`}>
+                      {change >= 0 ? (
+                        <TrendUpIcon className="w-3 h-3" />
+                      ) : (
+                        <TrendDownIcon className="w-3 h-3" />
+                      )}
+                      <span>
+                        {change >= 0 ? '+' : ''}{change.toFixed(2)} ({changePercent.toFixed(2)}%)
                       </span>
-                      <ChangeArrow positive={isPositive} />
                     </div>
                   </>
-                ) : (
-                  <span className="text-[13px] text-[#9AA0A6]">—</span>
                 )}
               </div>
-
-              {/* Remove button */}
+            </div>
+            
+            {/* Bottom row: Volume and Remove button */}
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-700/30">
+              <div className="flex gap-3 text-xs text-zinc-500">
+                {volume && <span>Vol: {formatNumber(volume)}</span>}
+              </div>
               <button
+                type="button"
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   onRemove(stock.symbol);
                 }}
-                className="opacity-0 group-hover:opacity-100 ml-3 text-[#9AA0A6] hover:text-[#F44336] transition-all p-1"
+                className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Remove
               </button>
             </div>
-            
-            {/* Row 2: After Hours / Pre-Market (if applicable) */}
-            {(hasAfterHours || hasPreMarket) && (
-              <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-[#3c4043]/30">
-                <div className="text-[11px] text-[#9AA0A6]">
-                  {hasAfterHours ? 'After hours' : 'Pre-market'}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] text-[#E8EAED]">
-                    ${formatPrice(extendedPrice)}
-                  </span>
-                  <div className="flex items-center gap-0.5">
-                    <span className={`text-[12px] ${isExtendedPositive ? 'text-[#00C853]' : 'text-[#F44336]'}`}>
-                      {isExtendedPositive ? '+' : ''}{extendedChange?.toFixed(2)}%
-                    </span>
-                    <ChangeArrow positive={isExtendedPositive} />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         );
       })}
