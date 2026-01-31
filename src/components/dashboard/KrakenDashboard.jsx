@@ -325,7 +325,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
       colorClass: getBrokerColor('alpaca'),
       balance: portfolioValue * 0.45, // 45% of portfolio
       change: 2.14,
-      accountType: 'Paper Trading'
+      accountType: 'Margin Account'
     },
     {
       broker: 'Robinhood',
@@ -481,7 +481,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Buying Power</span>
-                <span className="text-white font-mono">${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                <span className="text-white font-mono">${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Cash Available</span>
@@ -489,15 +489,17 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Connected Accounts</span>
-                <span className="text-white font-mono">{connectedBrokers.length || 1}</span>
+                <span className="text-white font-mono">{spotBalances.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Day Trades Left</span>
                 <span className="text-emerald-400 font-mono">3</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6b6b80]">Account Type</span>
-                <span className="text-purple-400 font-medium">Paper Trading</span>
+                <span className="text-[#6b6b80]">Today's P&L</span>
+                <span className={`font-mono font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {dayChange >= 0 ? '+' : ''}${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
           </div>
