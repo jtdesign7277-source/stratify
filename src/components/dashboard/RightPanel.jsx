@@ -577,13 +577,13 @@ if __name__ == "__main__":
               </div>
 
               {/* Chat/Describe */}
-              <div className="flex-1 mb-3">
+              <div className="mb-3">
                 <label className="text-xs text-gray-400 mb-1.5 block">Describe Your Strategy</label>
                 <textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="Example: Buy when RSI drops below 30 and price is above the 200-day moving average. Sell when RSI goes above 70. Use a 5% stop loss..."
-                  className="w-full h-full min-h-[120px] px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full h-[100px] px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
                 />
               </div>
 
