@@ -1315,7 +1315,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
           {/* Content Tabs - Smooth hover and active states */}
           <div className={`h-12 px-6 flex items-center gap-1 border-b ${themeClasses.border} ${themeClasses.surface}`}>
             {[
-              { id: 'strategies', label: 'Strategies', badge: draftStrategiesCount },
+              { id: 'strategies', label: 'Edit Strategies', badge: draftStrategiesCount },
               { id: 'arbitrage', label: 'Arb Scanner' },
               { id: 'deployed', label: 'Deployed', badge: deployedStrategies.length },
             ].map(tab => (
