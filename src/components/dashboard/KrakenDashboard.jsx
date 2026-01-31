@@ -986,6 +986,14 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   };
 
   const handleEditStrategy = (strategy) => {
+    // Add strategy to the strategies list if not already there
+    setStrategies(prev => {
+      if (prev.some(s => s.id === strategy.id)) {
+        return prev;
+      }
+      return [...prev, { ...strategy, status: 'draft' }];
+    });
+    // Set as editing strategy
     setEditingStrategy(strategy);
     // Switch to Edit Strategies tab
     setContentTab('strategies');
