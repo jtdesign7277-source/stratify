@@ -1438,6 +1438,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         theme={theme} 
         themeClasses={themeClasses} 
         onStrategyGenerated={handleStrategyGenerated} 
+        onSaveToSidebar={handleSaveToSidebar}
         onDemoStateChange={handleDemoStateChange}
         onStrategyAdded={handleStrategyAdded}
         editingStrategy={editingStrategy}

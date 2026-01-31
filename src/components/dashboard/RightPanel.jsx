@@ -140,7 +140,7 @@ const EditableCodeBlock = ({ code, name, onCodeChange }) => {
 };
 
 // Main Component
-export default function RightPanel({ width, onStrategyGenerated }) {
+export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar }) {
   const [expanded, setExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState('quick'); // quick | custom | results
   
@@ -342,12 +342,27 @@ if __name__ == "__main__":
     }
   };
 
-  // Save strategy
-  const handleSave = () => {
+  // Save and deploy strategy
+  const handleSaveAndDeploy = () => {
     if (generatedStrategy && onStrategyGenerated) {
       const finalStrategy = { ...generatedStrategy, code: editableCode, status: 'deployed' };
       onStrategyGenerated(finalStrategy);
       setResultMessage(`Strategy "${generatedStrategy.name}" saved and deployed!`);
+    }
+  };
+
+  // Save strategy only (to sidebar)
+  const handleSaveOnly = () => {
+    if (generatedStrategy && onSaveToSidebar) {
+      const strategyToSave = { 
+        ...generatedStrategy, 
+        code: editableCode, 
+        status: 'saved',
+        id: generatedStrategy.id || `strategy-${Date.now()}`,
+        metrics: generatedStrategy.metrics || { maxDrawdown: 12 }
+      };
+      onSaveToSidebar(strategyToSave);
+      setResultMessage(`Strategy "${generatedStrategy.name}" saved!`);
     }
   };
 
@@ -578,13 +593,13 @@ if __name__ == "__main__":
                   <div className="flex gap-2 mt-2 flex-shrink-0">
                     {generatedStrategy.status !== 'deployed' ? (
                       <>
-                        <button onClick={handleSave}
+                        <button onClick={handleSaveAndDeploy}
                           className="flex-1 py-2.5 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
                           Save & Deploy
                         </button>
-                        <button onClick={handleReset}
+                        <button onClick={handleSaveOnly}
                           className="flex-1 py-2.5 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
-                          Start Over
+                          Save
                         </button>
                       </>
                     ) : (
