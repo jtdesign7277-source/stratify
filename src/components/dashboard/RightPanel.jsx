@@ -148,6 +148,16 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   const [selectedTicker, setSelectedTicker] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [strategyName, setStrategyName] = useState('');
+  const [backtestTimeframe, setBacktestTimeframe] = useState('');
+  
+  // Backtest timeframe options
+  const timeframeOptions = [
+    { id: '1m', label: '1 Month', months: 1 },
+    { id: '3m', label: '3 Months', months: 3 },
+    { id: '6m', label: '6 Months', months: 6 },
+    { id: '9m', label: '9 Months', months: 9 },
+    { id: '1y', label: '1 Year', months: 12 },
+  ];
   
   // Custom AI State
   const [customTicker, setCustomTicker] = useState('');
@@ -192,6 +202,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     setSelectedTicker('');
     setSelectedTemplate(null);
     setStrategyName('');
+    setBacktestTimeframe('');
     setCustomTicker('');
     setCustomName('');
     setCustomPrompt('');
@@ -204,10 +215,13 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
 
   // Generate from Quick Build
   const handleQuickGenerate = async () => {
-    if (!selectedTicker || !selectedTemplate || !strategyName) return;
+    if (!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe) return;
     
-    const prompt = `Create a ${selectedTemplate.name} trading strategy called "${strategyName}" for $${selectedTicker}. ${selectedTemplate.desc}.`;
-    await generateStrategy(prompt, strategyName, selectedTicker);
+    const selectedTimeframe = timeframeOptions.find(tf => tf.id === backtestTimeframe);
+    const timeframeLabel = selectedTimeframe?.label || '6 Months';
+    
+    const prompt = `Create a ${selectedTemplate.name} trading strategy called "${strategyName}" for $${selectedTicker}. ${selectedTemplate.desc}. Backtest period: ${timeframeLabel}.`;
+    await generateStrategy(prompt, strategyName, selectedTicker, timeframeLabel);
   };
 
   // Generate from Custom AI
@@ -219,7 +233,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   };
 
   // Core generate function with typewriter streaming
-  const generateStrategy = async (prompt, name, ticker) => {
+  const generateStrategy = async (prompt, name, ticker, timeframe = '6 Months') => {
     setIsGenerating(true);
     setStreamingText('');
     setActiveTab('results');
@@ -228,7 +242,8 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     const streamMessages = [
       `# Initializing strategy generator...\n`,
       `# Target: $${ticker}\n`,
-      `# Strategy: ${name}\n\n`,
+      `# Strategy: ${name}\n`,
+      `# Backtest: ${timeframe}\n\n`,
       `import alpaca_trade_api as tradeapi\n`,
       `import pandas as pd\n`,
       `import numpy as np\n\n`,
@@ -287,7 +302,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
         code = generateDefaultCode(name, ticker);
       }
       
-      const strategy = { id: Date.now(), name, ticker: `$${ticker}`, code, status: 'draft' };
+      const strategy = { id: Date.now(), name, ticker: `$${ticker}`, code, status: 'draft', backtestPeriod: timeframe };
       setGeneratedStrategy(strategy);
       setEditableCode(code);
       setResultMessage(`Strategy "${name}" for $${ticker} - Review and edit before saving`);
@@ -492,12 +507,32 @@ if __name__ == "__main__":
                 />
               </div>
 
+              {/* Backtest Timeframe */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-400 mb-1.5 block">Backtest Timeframe</label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {timeframeOptions.map(tf => (
+                    <button
+                      key={tf.id}
+                      onClick={() => setBacktestTimeframe(backtestTimeframe === tf.id ? '' : tf.id)}
+                      className={`py-2 px-1 rounded text-xs font-medium transition-all ${
+                        backtestTimeframe === tf.id
+                          ? 'bg-blue-600 text-white border border-blue-500'
+                          : 'bg-[#0a1628] text-gray-400 border border-blue-500/20 hover:border-blue-500/50'
+                      }`}
+                    >
+                      {tf.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Generate Button */}
               <button
                 onClick={handleQuickGenerate}
-                disabled={!selectedTicker || !selectedTemplate || !strategyName}
+                disabled={!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe}
                 className={`mt-auto py-2.5 rounded text-sm font-semibold transition-all ${
-                  selectedTicker && selectedTemplate && strategyName
+                  selectedTicker && selectedTemplate && strategyName && backtestTimeframe
                     ? 'bg-blue-600 text-white hover:bg-blue-500'
                     : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
                 }`}>
