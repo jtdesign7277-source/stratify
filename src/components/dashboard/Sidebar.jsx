@@ -106,7 +106,7 @@ const ChevronIcon = ({ open, className = "w-3 h-3" }) => (
 );
 
 // Strategy Folders Component - Clean design
-const StrategiesFolders = ({ savedStrategies, deployedStrategies = [], onRemoveSavedStrategy, onUpdateStrategy, onDeployStrategy, sidebarExpanded }) => {
+const StrategiesFolders = ({ savedStrategies, deployedStrategies = [], onRemoveSavedStrategy, onUpdateStrategy, onDeployStrategy, onEditStrategy, sidebarExpanded }) => {
   // Custom folders stored in localStorage
   const [folders, setFolders] = useState(() => {
     const saved = localStorage.getItem('stratify-strategy-folders');
@@ -319,8 +319,17 @@ const StrategiesFolders = ({ savedStrategies, deployedStrategies = [], onRemoveS
                           /* Running status for deployed strategies */
                           <span className="text-xs text-emerald-400 font-medium">Running</span>
                         ) : (
-                          /* Deploy and delete buttons for saved strategies */
+                          /* Edit, Deploy and delete buttons for saved strategies */
                           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditStrategy?.(strategy);
+                              }}
+                              className="text-cyan-400 hover:text-cyan-300 text-xs font-medium px-2 py-1 rounded hover:bg-cyan-500/20 transition-colors"
+                            >
+                              Edit
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -659,6 +668,7 @@ export default function Sidebar({
   deployedStrategies = [],
   onRemoveSavedStrategy,
   onDeployStrategy,
+  onEditStrategy,
   connectedBrokers = [],
   onOpenBrokerModal,
   customNavItems,
@@ -792,6 +802,7 @@ export default function Sidebar({
                       deployedStrategies={deployedStrategies}
                       onRemoveSavedStrategy={onRemoveSavedStrategy}
                       onDeployStrategy={onDeployStrategy}
+                      onEditStrategy={onEditStrategy}
                       sidebarExpanded={expanded}
                     />
                   </div>

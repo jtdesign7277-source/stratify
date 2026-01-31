@@ -987,6 +987,8 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
 
   const handleEditStrategy = (strategy) => {
     setEditingStrategy(strategy);
+    // Switch to Edit Strategies tab
+    setContentTab('strategies');
   };
 
   const handleUpdateStrategy = (strategyId, updates) => {
@@ -1146,6 +1148,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         deployedStrategies={deployedStrategies}
         onRemoveSavedStrategy={handleRemoveSavedStrategy}
         onDeployStrategy={handleDeployStrategy}
+        onEditStrategy={handleEditStrategy}
         connectedBrokers={connectedBrokers}
         onOpenBrokerModal={() => setShowBrokerModal(true)}
       />
