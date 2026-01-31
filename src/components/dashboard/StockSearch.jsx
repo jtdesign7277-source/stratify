@@ -348,50 +348,65 @@ export default function StockSearch({ collapsed = false, onAddToWatchlist, watch
             </div>
           )}
 
-          {/* Search Result */}
+          {/* Search Result - Grok style card */}
           {searchResult && (
-            <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 hover:border-zinc-600/50 transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <span className="font-bold text-white">{searchResult.symbol}</span>
-                  <p className="text-xs text-zinc-500 truncate max-w-[140px]">{searchResult.name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-white">${searchResult.price.toFixed(2)}</p>
-                  <div className={`flex items-center gap-1 text-xs ${getChangeColor(searchResult.change)}`}>
-                    {searchResult.change >= 0 ? (
-                      <TrendUpIcon className="w-3 h-3" />
-                    ) : (
-                      <TrendDownIcon className="w-3 h-3" />
-                    )}
-                    <span>
-                      {searchResult.change >= 0 ? '+' : ''}{searchResult.change.toFixed(2)} ({searchResult.changePercent.toFixed(2)}%)
-                    </span>
+            <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/50 p-4 hover:border-zinc-600/70 hover:bg-zinc-800/70 transition-all duration-200">
+              {/* Main content - two columns */}
+              <div className="flex items-start justify-between gap-4">
+                {/* Left column: Symbol, Company, Volume */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-lg font-bold text-white">
+                    {searchResult.symbol}
+                  </div>
+                  <div className="text-sm text-zinc-400 truncate mt-0.5">
+                    {searchResult.name}
+                  </div>
+                  <div className="text-sm text-zinc-500 mt-2">
+                    Vol: {formatNumber(searchResult.volume)}
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-between pt-2 border-t border-zinc-700/30">
-                <div className="flex gap-3 text-xs text-zinc-500">
-                  {searchResult.volume && <span>Vol: {formatNumber(searchResult.volume)}</span>}
-                  {searchResult.marketCap && <span>MCap: {formatNumber(searchResult.marketCap)}</span>}
+                
+                {/* Right column: Price, Change, Action */}
+                <div className="flex flex-col items-end flex-shrink-0">
+                  {/* Price */}
+                  <div className="text-lg font-semibold text-white">
+                    ${searchResult.price.toFixed(2)}
+                  </div>
+                  
+                  {/* Change with arrow */}
+                  <div className={`flex items-center gap-1 mt-0.5 ${searchResult.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {searchResult.change >= 0 ? (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H7M17 7V17" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 7L7 17M7 17H17M7 17V7" />
+                      </svg>
+                    )}
+                    <span className="text-sm font-medium">
+                      {searchResult.change >= 0 ? '+' : ''}{searchResult.change.toFixed(2)} ({searchResult.changePercent >= 0 ? '+' : ''}{searchResult.changePercent.toFixed(2)}%)
+                    </span>
+                  </div>
+                  
+                  {/* Add to Watchlist link */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      addToWatchlist(searchResult);
+                    }}
+                    disabled={isInWatchlist(searchResult.symbol)}
+                    className={`mt-3 text-sm font-medium transition-colors ${
+                      isInWatchlist(searchResult.symbol) 
+                        ? 'text-zinc-500 cursor-not-allowed' 
+                        : 'text-blue-400 hover:text-blue-300 cursor-pointer'
+                    }`}
+                  >
+                    {isInWatchlist(searchResult.symbol) ? '✓ In Watchlist' : '+ Add to Watchlist'}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addToWatchlist(searchResult);
-                  }}
-                  disabled={isInWatchlist(searchResult.symbol)}
-                  className={`text-xs font-medium transition-colors ${
-                    isInWatchlist(searchResult.symbol) 
-                      ? 'text-zinc-500 cursor-not-allowed' 
-                      : 'text-blue-400 hover:text-blue-300 cursor-pointer'
-                  }`}
-                >
-                  {isInWatchlist(searchResult.symbol) ? '✓ In Watchlist' : '+ Add to Watchlist'}
-                </button>
               </div>
             </div>
           )}
