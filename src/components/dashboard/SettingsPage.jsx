@@ -738,8 +738,8 @@ export default function SettingsPage({ themeClasses, onClose }) {
           <div className="relative flex items-center gap-8">
             {/* Avatar */}
             <div className="relative group">
-              <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 p-1">
-                <div className="relative w-full h-full rounded-[22px] bg-[#0a0a0f] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+              <div className="w-28 h-28 rounded-3xl border border-[#2a2a3d] bg-[#12121a]">
+                <div className="relative w-full h-full rounded-3xl bg-[#0a0a0f] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
                   {user.avatar === 'brain' ? (
                     <AtlasBrainIcon />
                   ) : user.avatar ? (
