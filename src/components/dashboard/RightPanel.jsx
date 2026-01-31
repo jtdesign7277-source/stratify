@@ -611,10 +611,10 @@ if __name__ == "__main__":
               <button
                 onClick={handleCustomGenerate}
                 disabled={!customTicker || !customName || !customPrompt || !backtestTimeframe}
-                className={`py-2.5 rounded text-sm font-semibold transition-all ${
+                className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
                   customTicker && customName && customPrompt && backtestTimeframe
-                    ? 'bg-blue-600 text-white hover:bg-blue-500'
-                    : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
+                    ? 'bg-transparent text-blue-400 border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.7)] hover:border-blue-400 hover:text-blue-300'
+                    : 'bg-[#0a1628] text-gray-500 border-2 border-gray-700 cursor-not-allowed'
                 }`}>
                 Generate with AI →
               </button>
