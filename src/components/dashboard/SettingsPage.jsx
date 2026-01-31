@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 
 // ============== MOCK DATA ==============
 const MOCK_USER = {
-  name: 'Jeff Chen',
-  email: 'jeff@stratify.io',
-  avatar: null,
-  initials: 'JC',
+  name: 'Atlas',
+  email: 'atlas@stratify.io',
+  avatar: 'brain', // Special avatar type for Atlas AI brain icon
+  initials: 'AI',
   plan: 'pro',
   planExpiresAt: '2026-02-28',
   memberSince: '2024-11-15',
@@ -52,6 +52,17 @@ const PLANS = {
 // Animated gradient background
 const GradientOrb = ({ className }) => (
   <div className={`absolute rounded-full blur-3xl opacity-20 animate-pulse ${className}`} />
+);
+
+// Atlas Brain Icon for avatar
+const AtlasBrainIcon = ({ className = "w-full h-full" }) => (
+  <div className={`${className} flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 animate-pulse`}>
+    <svg viewBox="0 0 24 24" className="w-3/5 h-3/5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 4.5C10 4.5 9 5.5 9 7c0-2-1.5-3-3-3s-2.5 1.5-2.5 3c0 1 .5 2 1 2.5-.5.5-1.5 1.5-1.5 3 0 2 1.5 3 3 3 .5 0 1-.1 1.5-.3 0 1.8 1.5 3.3 3.5 3.3" />
+      <path d="M12 4.5c2 0 3 1 3 2.5 0-2 1.5-3 3-3s2.5 1.5 2.5 3c0 1-.5 2-1 2.5.5.5 1.5 1.5 1.5 3 0 2-1.5 3-3 3-.5 0-1-.1-1.5-.3 0 1.8-1.5 3.3-3.5 3.3" />
+      <path d="M12 4.5v15" />
+    </svg>
+  </div>
 );
 
 // Stat card with animation
@@ -475,7 +486,9 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-0.5">
               <div className="relative w-full h-full rounded-[14px] bg-[#0a0a0f] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
-                {user.avatar ? (
+                {user.avatar === 'brain' ? (
+                  <AtlasBrainIcon />
+                ) : user.avatar ? (
                   <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   user.initials
@@ -727,7 +740,9 @@ export default function SettingsPage({ themeClasses, onClose }) {
             <div className="relative group">
               <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 p-1 shadow-2xl shadow-cyan-500/20">
                 <div className="relative w-full h-full rounded-[22px] bg-[#0a0a0f] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
-                  {user.avatar ? (
+                  {user.avatar === 'brain' ? (
+                    <AtlasBrainIcon />
+                  ) : user.avatar ? (
                     <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     user.initials
