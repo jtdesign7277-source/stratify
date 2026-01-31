@@ -1400,15 +1400,25 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                   themeClasses={themeClasses} 
                   deployedStrategies={deployedStrategies} 
                   onRemoveStrategy={(id) => {
-                    setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                    setTimeout(() => {
-                      setDeployedStrategies(prev => {
-                        if (prev.length < 2) {
-                          return [...prev, generateRandomDeployedStrategy()];
-                        }
-                        return prev;
+                    // Find the strategy before removing
+                    const strategyToSave = deployedStrategies.find(s => s.id === id);
+                    
+                    // Save to sidebar (Uncategorized) before removing
+                    if (strategyToSave) {
+                      setSavedStrategies(prev => {
+                        if (prev.some(s => s.id === strategyToSave.id || s.name === strategyToSave.name)) return prev;
+                        return [...prev, { 
+                          ...strategyToSave, 
+                          status: 'stopped', 
+                          runStatus: 'stopped',
+                          savedAt: Date.now(),
+                          riskLevel: 'medium'
+                        }];
                       });
-                    }, RESPAWN_DELAY_MS);
+                    }
+                    
+                    // Remove from deployed
+                    setDeployedStrategies(prev => prev.filter(s => s.id !== id));
                   }}
                 />
               </motion.div>
