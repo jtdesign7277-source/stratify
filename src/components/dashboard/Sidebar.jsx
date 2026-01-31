@@ -113,11 +113,10 @@ const StrategiesFolders = ({ savedStrategies, deployedStrategies = [], onRemoveS
     return saved ? JSON.parse(saved) : [
       { id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' },
       { id: 'active', name: 'Active', color: '#10B981', icon: 'play' },
-      { id: 'testing', name: 'Testing', color: '#8B5CF6', icon: 'flask' },
     ];
   });
   
-  const [expandedFolders, setExpandedFolders] = useState({ favorites: true, active: true, testing: true, uncategorized: true });
+  const [expandedFolders, setExpandedFolders] = useState({ favorites: true, active: true, uncategorized: true });
   const [draggedStrategy, setDraggedStrategy] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [editingFolder, setEditingFolder] = useState(null);
