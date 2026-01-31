@@ -714,12 +714,95 @@ export default function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 py-3 flex flex-col overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {/* Sort items to show expanded section first */}
-        {[...navItems].sort((a, b) => {
-          const aExpanded = expandedSections[a.id] ? 1 : 0;
-          const bExpanded = expandedSections[b.id] ? 1 : 0;
-          return bExpanded - aExpanded;
-        }).map((item, index, arr) => {
+        {/* Expanded sections at top */}
+        {navItems.filter(item => expandedSections[item.id]).map((item) => {
+          const isExpanded = expandedSections[item.id];
+          const isActive = activeSection === item.id;
+          
+          return (
+            <div key={item.id} className="border-b border-white/5">
+              {/* Nav item */}
+              <button 
+                onClick={() => {
+                  onSectionChange(item.id);
+                  if (item.hasContent && expanded) {
+                    toggleSection(item.id);
+                  }
+                }}
+                onMouseEnter={() => setHoveredItem(item.id)} 
+                onMouseLeave={() => setHoveredItem(null)}
+                className={`w-full flex items-center gap-3 px-4 py-2 transition-colors relative group ${
+                  isActive 
+                    ? 'text-white' 
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-500 rounded-r" />
+                )}
+                <Icon name={item.icon} className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : ''}`} />
+                {expanded && (
+                  <>
+                    <span className="text-sm flex-1 text-left">{item.label}</span>
+                    {item.hasContent && (
+                      <ChevronIcon open={isExpanded} className="w-3 h-3 text-gray-600" />
+                    )}
+                  </>
+                )}
+                {!expanded && hoveredItem === item.id && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#1e1e2d]">
+                    {item.label}
+                  </div>
+                )}
+              </button>
+
+              {/* Watchlist content */}
+              {expanded && item.id === 'watchlist' && isExpanded && (
+                <div className="ml-4 border-l border-[#1e1e2d]">
+                  <div className="overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <Watchlist 
+                      stocks={watchlist} 
+                      onRemove={onRemoveFromWatchlist}
+                      onViewChart={onViewChart}
+                      themeClasses={themeClasses}
+                      compact={true}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Strategies content */}
+              {expanded && item.id === 'strategies' && isExpanded && (
+                <div className="ml-4 border-l border-[#1e1e2d]">
+                  <div className="overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <StrategiesFolders 
+                      savedStrategies={savedStrategies} 
+                      onRemoveSavedStrategy={onRemoveSavedStrategy}
+                      onDeployStrategy={onDeployStrategy}
+                      sidebarExpanded={expanded}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Brokers content */}
+              {expanded && item.id === 'brokers' && isExpanded && (
+                <div className="ml-4 border-l border-[#1e1e2d]">
+                  <BrokersGrid 
+                    connectedBrokers={connectedBrokers}
+                    onOpenBrokerModal={onOpenBrokerModal}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Spacer pushes collapsed items to bottom */}
+        <div className="flex-1" />
+
+        {/* Collapsed sections at bottom */}
+        {navItems.filter(item => !expandedSections[item.id]).map((item, index, arr) => {
           const isExpanded = expandedSections[item.id];
           const isActive = activeSection === item.id;
           const isLast = index === arr.length - 1;
@@ -742,15 +825,10 @@ export default function Sidebar({
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
-                {/* Active indicator - subtle left border */}
                 {isActive && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-500 rounded-r" />
                 )}
-                
-                {/* Icon - no background, just the icon */}
                 <Icon name={item.icon} className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : ''}`} />
-                
-                {/* Label */}
                 {expanded && (
                   <>
                     <span className="text-sm flex-1 text-left">{item.label}</span>
@@ -759,53 +837,12 @@ export default function Sidebar({
                     )}
                   </>
                 )}
-                
-                {/* Tooltip when collapsed */}
                 {!expanded && hoveredItem === item.id && (
                   <div className="absolute left-full ml-2 px-2 py-1 bg-[#3c4043] text-white text-xs rounded shadow-lg whitespace-nowrap z-50 border border-[#1e1e2d]">
                     {item.label}
                   </div>
                 )}
               </button>
-
-              {/* Watchlist content */}
-              {expanded && item.id === 'watchlist' && isExpanded && (
-                <div className="ml-4 border-l border-[#1e1e2d]">
-                  <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    <Watchlist 
-                      stocks={watchlist} 
-                      onRemove={onRemoveFromWatchlist}
-                      onViewChart={onViewChart}
-                      themeClasses={themeClasses}
-                      compact={true}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Strategies content */}
-              {expanded && item.id === 'strategies' && isExpanded && (
-                <div className="ml-4 border-l border-[#1e1e2d]">
-                  <div className="max-h-64 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    <StrategiesFolders 
-                      savedStrategies={savedStrategies} 
-                      onRemoveSavedStrategy={onRemoveSavedStrategy}
-                      onDeployStrategy={onDeployStrategy}
-                      sidebarExpanded={expanded}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Brokers content */}
-              {expanded && item.id === 'brokers' && isExpanded && (
-                <div className="ml-4 border-l border-[#1e1e2d]">
-                  <BrokersGrid 
-                    connectedBrokers={connectedBrokers}
-                    onOpenBrokerModal={onOpenBrokerModal}
-                  />
-                </div>
-              )}
             </div>
           );
         })}
