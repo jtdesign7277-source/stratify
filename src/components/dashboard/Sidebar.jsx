@@ -719,12 +719,13 @@ export default function Sidebar({
           const aExpanded = expandedSections[a.id] ? 1 : 0;
           const bExpanded = expandedSections[b.id] ? 1 : 0;
           return bExpanded - aExpanded;
-        }).map((item) => {
+        }).map((item, index, arr) => {
           const isExpanded = expandedSections[item.id];
           const isActive = activeSection === item.id;
+          const isLast = index === arr.length - 1;
           
           return (
-            <div key={item.id}>
+            <div key={item.id} className={!isLast ? 'border-b border-white/5' : ''}>
               {/* Nav item */}
               <button 
                 onClick={() => {
