@@ -12,6 +12,7 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
+import StrategyTemplates from './StrategyTemplates';
 
 // ============================================
 // KRAKEN-STYLE DASHBOARD
@@ -1185,6 +1186,14 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               active={expandedCard === 'arb'}
             />
             <IndexCard
+              title="Templates"
+              value="8 Curated"
+              color="emerald"
+              icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>}
+              onClick={() => setExpandedCard(expandedCard === 'templates' ? null : 'templates')}
+              active={expandedCard === 'templates'}
+            />
+            <IndexCard
               title="Open Bets"
               value={`$${(strategies.length * 580).toLocaleString()}`}
               change={4.2}
@@ -1226,6 +1235,65 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               <ArbOppsPanel 
                 onClose={() => setExpandedCard(null)}
               />
+            )}
+            {expandedCard === 'templates' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="overflow-hidden border-b border-[#1e1e2d]"
+              >
+                <div className="p-6 bg-[#0a0a10] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-white">Strategy Templates</h2>
+                        <p className="text-sm text-[#6b6b80]">8 curated strategies ready to deploy</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setExpandedCard(null)}
+                      className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <StrategyTemplates 
+                    onSelectTemplate={(template) => {
+                      // Add template as a new strategy
+                      const newStrategy = {
+                        id: `template-${template.id}-${Date.now()}`,
+                        name: template.name,
+                        description: template.description,
+                        type: template.category,
+                        status: 'draft',
+                        code: template.code,
+                        metrics: {
+                          winRate: template.performance.winRate,
+                          sharpeRatio: template.performance.sharpe,
+                          maxDrawdown: template.performance.maxDrawdown.replace('-', ''),
+                        },
+                        risk: {
+                          stopLoss: template.risk === 'High' ? 8 : template.risk === 'Medium' ? 5 : 3,
+                          takeProfit: template.risk === 'High' ? 25 : template.risk === 'Medium' ? 15 : 10,
+                        },
+                        createdAt: Date.now(),
+                      };
+                      setStrategies(prev => [...prev, newStrategy]);
+                      setExpandedCard(null);
+                      setContentTab('strategies');
+                    }}
+                  />
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </header>
