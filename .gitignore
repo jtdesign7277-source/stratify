@@ -30,3 +30,4 @@ server/.env
 
 # Vercel
 .vercel
+server/.env.save
