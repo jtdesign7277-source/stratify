@@ -281,15 +281,24 @@ const IndexCard = ({ title, value, change, icon, color = 'purple', onClick, acti
 
 // Portfolio Detail Panel (Kraken Style)
 const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaData, onClose }) => {
-  // Mock data for different balance types
+  // Calculate spot balances based on portfolioValue so numbers stay in sync
+  const cashAmount = alpacaData?.account?.cash || portfolioValue * 0.355; // ~35.5% in cash
+  const btcValue = portfolioValue * 0.291; // ~29.1% in BTC
+  const ethValue = portfolioValue * 0.336; // ~33.6% in ETH  
+  const solValue = portfolioValue * 0.133; // ~13.3% in SOL
+  
+  // Adjust to make sure they sum to portfolioValue exactly
+  const cryptoTotal = btcValue + ethValue + solValue;
+  const adjustedCash = portfolioValue - cryptoTotal;
+  
   const spotBalances = [
-    { asset: 'USD', symbol: '$', amount: alpacaData?.account?.cash || 45230.50, change: 0 },
-    { asset: 'BTC', symbol: '₿', amount: 0.449, usdValue: 37124.82, change: 2.4 },
-    { asset: 'ETH', symbol: 'Ξ', amount: 12.5, usdValue: 42770.88, change: -1.2 },
-    { asset: 'SOL', symbol: '◎', amount: 85.2, usdValue: 16902.84, change: 3.8 },
+    { asset: 'USD', symbol: '$', amount: adjustedCash, change: 0 },
+    { asset: 'BTC', symbol: '₿', amount: (btcValue / 82683).toFixed(3), usdValue: btcValue, change: 2.4 },
+    { asset: 'ETH', symbol: 'Ξ', amount: (ethValue / 3421.67).toFixed(1), usdValue: ethValue, change: -1.2 },
+    { asset: 'SOL', symbol: '◎', amount: (solValue / 198.39).toFixed(1), usdValue: solValue, change: 3.8 },
   ];
   
-  const totalSpot = spotBalances.reduce((sum, b) => sum + (b.usdValue || b.amount), 0);
+  const totalSpot = portfolioValue; // Now always matches
   
   return (
     <motion.div
@@ -299,7 +308,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="overflow-hidden border-b border-[#1e1e2d]"
     >
-      <div className="p-6 bg-[#0a0a10]">
+      <div className="p-6 bg-[#0a0a10] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -378,15 +387,15 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Buying Power</span>
-                <span className="text-white font-mono">${(alpacaData?.account?.buying_power || 90461).toLocaleString()}</span>
+                <span className="text-white font-mono">${(alpacaData?.account?.buying_power || adjustedCash * 2).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Cash Available</span>
-                <span className="text-white font-mono">${(alpacaData?.account?.cash || 45230.50).toLocaleString()}</span>
+                <span className="text-white font-mono">${(alpacaData?.account?.cash || adjustedCash).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Open Positions</span>
-                <span className="text-white font-mono">{alpacaData?.positions?.length || 4}</span>
+                <span className="text-white font-mono">{alpacaData?.positions?.length || spotBalances.filter(b => b.asset !== 'USD').length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Day Trades Left</span>
@@ -397,6 +406,36 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
                 <span className="text-purple-400 font-medium">Paper Trading</span>
               </div>
             </div>
+          </div>
+        </div>
+        
+        {/* Portfolio Growth Chart */}
+        <div className="mt-6 bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Portfolio Growth</h3>
+              <div className="flex gap-1">
+                {['1D', '1W', '1M', '3M', 'YTD', 'ALL'].map(period => (
+                  <button
+                    key={period}
+                    className={`px-2 py-1 text-[10px] rounded transition-colors ${
+                      period === '1M' ? 'bg-purple-500/20 text-purple-400' : 'text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d]'
+                    }`}
+                  >
+                    {period}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-mono">${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className={`text-xs font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {dayChange >= 0 ? '+' : ''}{dayChangePercent}%
+              </span>
+            </div>
+          </div>
+          <div className="h-[140px]">
+            <PortfolioGrowthChart height={140} />
           </div>
         </div>
         
