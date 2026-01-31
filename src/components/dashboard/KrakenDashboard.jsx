@@ -942,10 +942,27 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
 
   // ALL handlers from original Dashboard
   const handleStrategyGenerated = (strategy) => {
-    setStrategies(prev => {
-      if (prev.some(s => s.name === strategy.name)) return prev;
-      return [...prev, { ...strategy, status: 'draft' }];
-    });
+    // If strategy is marked as deployed, add to deployed strategies
+    if (strategy.status === 'deployed') {
+      setDeployedStrategies(prev => {
+        if (prev.some(s => s.name === strategy.name)) return prev;
+        return [...prev, { 
+          ...strategy, 
+          id: strategy.id || `strategy-${Date.now()}`,
+          status: 'deployed', 
+          runStatus: 'running', 
+          deployedAt: Date.now() 
+        }];
+      });
+      // Switch to deployed tab
+      setContentTab('deployed');
+    } else {
+      // Add to draft strategies
+      setStrategies(prev => {
+        if (prev.some(s => s.name === strategy.name)) return prev;
+        return [...prev, { ...strategy, status: 'draft' }];
+      });
+    }
   };
 
   const handleStrategyAdded = (strategy) => {
