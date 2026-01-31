@@ -12,93 +12,64 @@ const AtlasIcon = ({ className }) => (
 const SyntaxHighlightedCode = ({ code, isTyping }) => {
   const highlightCode = (text) => {
     if (!text) return null;
-    
     const lines = text.split('\n');
-    
     return lines.map((line, lineIdx) => {
       if (line.trim().startsWith('#')) {
-        return (
-          <div key={lineIdx} className="text-[#6b6b80]">{line}</div>
-        );
+        return <div key={lineIdx} className="text-[#6b6b80]">{line}</div>;
       }
-      
       const keywords = ['from', 'import', 'class', 'def', 'self', 'if', 'elif', 'else', 'and', 'or', 'not', 'return', 'True', 'False', 'None'];
       const builtins = ['Strategy', 'super', 'len', 'range', 'print'];
-      
       const parts = [];
       let current = '';
       let i = 0;
-      
       while (i < line.length) {
         const char = line[i];
-        
         if (char === '"' || char === "'") {
           if (current) parts.push({ type: 'text', value: current });
           current = '';
           const quote = char;
           let str = quote;
           i++;
-          while (i < line.length && line[i] !== quote) {
-            str += line[i];
-            i++;
-          }
+          while (i < line.length && line[i] !== quote) { str += line[i]; i++; }
           str += quote;
           parts.push({ type: 'string', value: str });
           i++;
           continue;
         }
-        
         if (/\d/.test(char) && (current === '' || /[\s\(\[,=<>]/.test(current[current.length - 1]))) {
           if (current) parts.push({ type: 'text', value: current });
           current = '';
           let num = '';
-          while (i < line.length && /[\d.]/.test(line[i])) {
-            num += line[i];
-            i++;
-          }
+          while (i < line.length && /[\d.]/.test(line[i])) { num += line[i]; i++; }
           parts.push({ type: 'number', value: num });
           continue;
         }
-        
         current += char;
         i++;
       }
       if (current) parts.push({ type: 'text', value: current });
-      
       return (
         <div key={lineIdx}>
           {parts.map((part, partIdx) => {
-            if (part.type === 'string') {
-              return <span key={partIdx} className="text-emerald-400">{part.value}</span>;
-            }
-            if (part.type === 'number') {
-              return <span key={partIdx} className="text-amber-400">{part.value}</span>;
-            }
-            
-            let text = part.value;
+            if (part.type === 'string') return <span key={partIdx} className="text-emerald-400">{part.value}</span>;
+            if (part.type === 'number') return <span key={partIdx} className="text-amber-400">{part.value}</span>;
             let elements = [];
-            const tokens = text.split(/(\b)/);
-            
+            const tokens = part.value.split(/(\b)/);
             tokens.forEach((token, tokenIdx) => {
               if (keywords.includes(token)) {
                 elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-purple-400">{token}</span>);
               } else if (builtins.includes(token)) {
                 elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-cyan-400">{token}</span>);
-              } else if (token.startsWith('self.')) {
-                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-purple-400">self</span>);
-                elements.push(<span key={`${partIdx}-${tokenIdx}-dot`} className="text-white">{token.slice(4)}</span>);
               } else {
                 elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-white">{token}</span>);
               }
             });
-            
             return elements;
           })}
         </div>
       );
     });
   };
-
   return (
     <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap">
       {highlightCode(code)}
@@ -121,128 +92,109 @@ const popularTickers = [
 const strategyTemplates = [
   { 
     icon: '📈', 
-    name: 'Momentum', 
-    prompt: (ticker) => `Create a momentum strategy for ${ticker}. Buy when 20-day MA crosses above 50-day MA with RSI above 50. Sell when MA crosses below or RSI drops under 40. Use 2% position size.`
+    name: 'Momentum',
+    getPrompt: (ticker) => `Create a momentum strategy for ${ticker}. Buy when 20-day MA crosses above 50-day MA with RSI above 50. Sell on the opposite crossover. Use 2% position size with 5% stop loss.`
   },
   { 
     icon: '📊', 
-    name: 'RSI Oversold', 
-    prompt: (ticker) => `Build an RSI mean reversion strategy for ${ticker}. Enter long when RSI drops below 30, exit when RSI crosses above 70. Risk 2% per trade with 5% stop loss.`
+    name: 'RSI Oversold',
+    getPrompt: (ticker) => `Create an RSI oversold strategy for ${ticker}. Buy when RSI drops below 30 and sell when it rises above 70. Use 2% position size with 5% stop loss.`
   },
   { 
     icon: '🔄', 
-    name: 'Mean Reversion', 
-    prompt: (ticker) => `Create a Bollinger Band mean reversion strategy for ${ticker}. Buy when price touches lower band, sell at middle band. Use 20-period bands with 2 standard deviations.`
+    name: 'Mean Reversion',
+    getPrompt: (ticker) => `Create a mean reversion strategy for ${ticker}. Buy when price drops 2 standard deviations below the 20-day moving average. Sell when price returns to the mean. Use 3% position size with 8% stop loss.`
   },
   { 
     icon: '💹', 
-    name: 'Breakout', 
-    prompt: (ticker) => `Build a breakout strategy for ${ticker}. Enter when price breaks above 20-day high with volume 50% above average. Trail stop at 2 ATR.`
+    name: 'Breakout',
+    getPrompt: (ticker) => `Create a breakout strategy for ${ticker}. Enter long when price breaks above 20-day high with volume 50% above average. Use ATR trailing stop at 2x ATR. Position size 2%.`
   },
   { 
     icon: '⚡', 
-    name: 'MACD Cross', 
-    prompt: (ticker) => `Create a MACD crossover strategy for ${ticker}. Buy when MACD crosses above signal line below zero, sell when MACD crosses below signal. 3% position size.`
+    name: 'MACD Cross',
+    getPrompt: (ticker) => `Create a MACD crossover strategy for ${ticker}. Buy when MACD line crosses above signal line. Sell when MACD crosses below signal. Use 3% position size with 5% stop loss.`
   },
 ];
 
 // Welcome State Component
-const WelcomeState = ({ onTickerSelect, selectedTicker, onStrategySelect, onClearTicker }) => {
+const WelcomeState = ({ selectedTicker, setSelectedTicker, onStrategySelect }) => {
+  if (!selectedTicker) {
+    // Step 1: Show ticker selection
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center h-full px-4 py-8"
+      >
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mb-4">
+          <AtlasIcon className="w-7 h-7 text-white" />
+        </div>
+        <h2 className="text-lg font-semibold text-white mb-1">Hey! I'm Atlas 👋</h2>
+        <p className="text-sm text-[#6b6b80] mb-6 text-center">Pick a ticker to get started</p>
+        
+        <div className="flex flex-wrap gap-2 justify-center max-w-[280px]">
+          {popularTickers.map((ticker) => (
+            <motion.button
+              key={ticker.symbol}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setSelectedTicker(ticker.symbol)}
+              className="px-4 py-2 rounded-full bg-[#1e1e2d] border border-[#2a2a3d] hover:border-purple-500/50 text-white text-sm font-medium transition-colors"
+            >
+              {ticker.symbol}
+            </motion.button>
+          ))}
+        </div>
+        
+        <p className="text-xs text-[#4a4a5a] mt-6">Or describe your strategy below ↓</p>
+      </motion.div>
+    );
+  }
+  
+  // Step 2: Show strategy templates for selected ticker
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex flex-col items-center justify-center h-full px-4 py-8"
+      className="flex flex-col h-full px-3 py-4"
     >
-      {!selectedTicker ? (
-        <>
-          {/* Welcome Message */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-purple-500/30">
-            <AtlasIcon className="w-10 h-10 text-white" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Hey! I'm Atlas 👋</h3>
-          <p className="text-sm text-[#8b8b9b] text-center mb-6 max-w-[250px]">
-            Your AI trading strategist. Pick a ticker to get started.
-          </p>
-          
-          {/* Ticker Chips */}
-          <div className="w-full">
-            <p className="text-xs text-[#6b6b80] mb-2 text-center">Popular Tickers</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {popularTickers.map((ticker) => (
-                <motion.button
-                  key={ticker.symbol}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onTickerSelect(ticker.symbol)}
-                  className="px-3 py-1.5 bg-[#1a1a2e] hover:bg-[#252540] border border-[#2a2a3d] hover:border-purple-500/50 rounded-full text-sm font-medium text-white transition-all"
-                >
-                  {ticker.symbol}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-          
-          {/* Or type hint */}
-          <p className="text-xs text-[#4a4a5a] mt-6">
-            Or describe your strategy below ↓
-          </p>
-        </>
-      ) : (
-        <>
-          {/* Ticker Selected - Show Strategies */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full"
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => setSelectedTicker(null)}
+          className="p-1.5 rounded-lg hover:bg-[#1e1e2d] transition-colors"
+        >
+          <svg className="w-4 h-4 text-[#6b6b80]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <span className="text-sm text-[#6b6b80]">Strategy for</span>
+        <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-sm font-semibold">
+          {selectedTicker}
+        </span>
+      </div>
+      
+      <div className="space-y-2">
+        {strategyTemplates.map((template) => (
+          <motion.button
+            key={template.name}
+            whileHover={{ scale: 1.02, x: 4 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => onStrategySelect(template.getPrompt(selectedTicker), `${selectedTicker} ${template.name}`)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#0a0a10] border border-[#1e1e2d] hover:border-purple-500/30 transition-all text-left group"
           >
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <span className="text-2xl font-bold text-white">{selectedTicker}</span>
-              <button 
-                onClick={onClearTicker}
-                className="p-1 hover:bg-[#2a2a3d] rounded-full transition-colors"
-              >
-                <svg className="w-4 h-4 text-[#6b6b80]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <span className="text-xl">{template.icon}</span>
+            <div className="flex-1">
+              <span className="text-sm text-white font-medium">{template.name}</span>
             </div>
-            
-            <p className="text-sm text-[#8b8b9b] text-center mb-4">
-              Choose a strategy type
-            </p>
-            
-            {/* Strategy Chips */}
-            <div className="space-y-2">
-              {strategyTemplates.map((strategy) => (
-                <motion.button
-                  key={strategy.name}
-                  whileHover={{ scale: 1.02, x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => onStrategySelect(strategy.prompt(selectedTicker), `${selectedTicker} ${strategy.name}`)}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#0f0f18] hover:bg-[#1a1a2e] border border-[#1e1e2d] hover:border-purple-500/30 rounded-xl transition-all text-left group"
-                >
-                  <span className="text-xl">{strategy.icon}</span>
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-white group-hover:text-purple-300 transition-colors">
-                      {strategy.name}
-                    </span>
-                  </div>
-                  <svg className="w-4 h-4 text-[#4a4a5a] group-hover:text-purple-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </motion.button>
-              ))}
-            </div>
-            
-            {/* Custom option */}
-            <p className="text-xs text-[#4a4a5a] mt-4 text-center">
-              Or type a custom strategy below ↓
-            </p>
-          </motion.div>
-        </>
-      )}
+            <svg className="w-4 h-4 text-[#4a4a5a] group-hover:text-purple-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </motion.button>
+        ))}
+      </div>
+      
+      <p className="text-xs text-[#4a4a5a] mt-4 text-center">Or describe a custom strategy below ↓</p>
     </motion.div>
   );
 };
@@ -251,7 +203,6 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const [expanded, setExpanded] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [strategyName, setStrategyName] = useState('');
-  const [demoActive, setDemoActive] = useState(false);
   const [displayedAtlasText, setDisplayedAtlasText] = useState('');
   const [displayedCode, setDisplayedCode] = useState('');
   const [userMessage, setUserMessage] = useState('');
@@ -264,27 +215,13 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
   const [selectedTicker, setSelectedTicker] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Check if we should show welcome state
+  // Show welcome state when no conversation is active
   const showWelcome = !showUserMessage && !showAtlasResponse && !isGenerating;
   
-  const handleTickerSelect = (ticker) => {
-    setSelectedTicker(ticker);
+  const handleUserInput = (value) => {
+    setInputValue(value);
   };
   
-  const handleClearTicker = () => {
-    setSelectedTicker(null);
-  };
-  
-  const handleStrategySelect = (prompt, name) => {
-    setInputValue(prompt);
-    setStrategyName(name);
-    setSelectedTicker(null);
-    // Auto-submit after a brief moment
-    setTimeout(() => {
-      handleSubmitWithValues(prompt, name);
-    }, 100);
-  };
-
   const extractStrategyDetails = (description) => {
     const upperWords = description.toUpperCase().match(/\b[A-Z]{2,5}\b/g) || [];
     const ignore = new Set(['RSI', 'MACD', 'SMA', 'EMA', 'ATR', 'VWAP', 'USD', 'BTC', 'ETH']);
@@ -295,7 +232,6 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     const takeProfitMatch = description.match(/(?:take\s*profit|tp)[^0-9]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
     const drawdownMatch = description.match(/max\s*drawdown[^0-9]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
     const positionMatch = description.match(/(?:position\s*size|risk)[^0-9]*([0-9]+(?:\.[0-9]+)?)\s*%/i);
-
     return {
       symbol,
       timeframe,
@@ -320,22 +256,15 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     const takeProfit = Number.isFinite(riskOverrides?.takeProfit) ? riskOverrides.takeProfit / 100 : 0.12;
     
     let code = `# ${name}\n# Generated by Stratify AI\n\nfrom stratify import Strategy\n\nclass ${name.replace(/[^a-zA-Z0-9]/g, '')}(Strategy):\n    def __init__(self):\n`;
-    
     if (hasRSI) code += `        self.rsi_period = 14\n        self.oversold = 30\n        self.overbought = 70\n`;
     if (hasMACD) code += `        self.fast = 12\n        self.slow = 26\n        self.signal = 9\n`;
     if (hasMA) code += `        self.fast_period = 20\n        self.slow_period = 50\n`;
     if (hasBollinger) code += `        self.bb_period = 20\n        self.bb_std = 2.0\n`;
-    
     code += `        self.position_size = ${positionSize.toFixed(4)}\n        self.stop_loss = ${stopLoss.toFixed(4)}\n        self.take_profit = ${takeProfit.toFixed(4)}\n\n    def on_bar(self, bar):\n`;
     
     if (hasRSI) {
       code += `        rsi = self.indicators.RSI(self.rsi_period)\n`;
-      if (hasVolume) {
-        code += `        avg_volume = self.indicators.SMA_volume(20)\n`;
-        code += `        if rsi < self.oversold and bar.volume > avg_volume * 1.2:\n            self.buy(size=self.position_size)\n`;
-      } else {
-        code += `        if rsi < self.oversold:\n            self.buy(size=self.position_size)\n`;
-      }
+      code += `        if rsi < self.oversold:\n            self.buy(size=self.position_size)\n`;
       code += `        elif rsi > self.overbought:\n            self.sell()\n`;
     } else if (hasMACD) {
       code += `        macd = self.indicators.MACD(self.fast, self.slow, self.signal)\n`;
@@ -344,34 +273,22 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     } else if (hasMA) {
       code += `        fast_ma = self.indicators.SMA(self.fast_period)\n`;
       code += `        slow_ma = self.indicators.SMA(self.slow_period)\n`;
-      if (hasVolume) {
-        code += `        avg_volume = self.indicators.SMA_volume(20)\n`;
-        code += `        if fast_ma > slow_ma and bar.volume > avg_volume * 1.2:\n            self.buy(size=self.position_size)\n`;
-      } else {
-        code += `        if fast_ma > slow_ma:\n            self.buy(size=self.position_size)\n`;
-      }
+      code += `        if fast_ma > slow_ma:\n            self.buy(size=self.position_size)\n`;
       code += `        elif fast_ma < slow_ma:\n            self.sell()\n`;
     } else if (hasBollinger) {
       code += `        sma = self.indicators.SMA(self.bb_period)\n`;
       code += `        std = self.indicators.STDDEV(self.bb_period)\n`;
-      code += `        upper = sma + (std * self.bb_std)\n        lower = sma - (std * self.bb_std)\n`;
-      if (hasVolume) {
-        code += `        avg_volume = self.indicators.SMA_volume(20)\n`;
-        code += `        if bar.close < lower and bar.volume > avg_volume * 1.2:\n            self.buy(size=self.position_size)\n        elif bar.close > upper:\n            self.sell()\n`;
-      } else {
-        code += `        if bar.close < lower:\n            self.buy(size=self.position_size)\n        elif bar.close > upper:\n            self.sell()\n`;
-      }
+      code += `        lower = sma - (std * self.bb_std)\n`;
+      code += `        if bar.close < lower:\n            self.buy(size=self.position_size)\n`;
+      code += `        elif bar.close > sma:\n            self.sell()\n`;
     } else {
-      code += `        # Custom logic based on your description\n`;
       code += `        price = bar.close\n`;
       code += `        if self.should_buy(price):\n            self.buy(size=self.position_size)\n`;
       code += `        elif self.should_sell(price):\n            self.sell()\n`;
     }
-
     if (hasATR) {
       code += `\n        atr = self.indicators.ATR(14)\n        self.set_trailing_stop(atr * 2)\n`;
     }
-    
     return code;
   };
 
@@ -384,24 +301,22 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     if (/sma|ema|moving average/i.test(description)) indicators.push('moving average trend filter');
     if (/volume/i.test(description)) indicators.push('volume confirmation');
     if (!indicators.length) indicators.push('price action triggers');
-
-    const response = `Here's a ${name} blueprint for ${details.symbol} on the ${details.timeframe} timeframe.\n` +
-      `Entry logic leans on ${indicators.join(', ')}, with exits layered by stop-loss and take-profit.\n` +
-      `Risk defaults: ${details.risk.stopLoss}% SL, ${details.risk.takeProfit}% TP, ${details.risk.positionSize}% position size, ${details.risk.maxDrawdown}% max drawdown.`;
-
-    return {
-      response,
-      code: generateStrategyCode(description, name, details.risk),
-      risk: details.risk,
-    };
+    const response = `Here's a ${name} blueprint for ${details.symbol} on the ${details.timeframe} timeframe.\nEntry logic leans on ${indicators.join(', ')}, with exits layered by stop-loss and take-profit.\nRisk defaults: ${details.risk.stopLoss}% SL, ${details.risk.takeProfit}% TP, ${details.risk.positionSize}% position size, ${details.risk.maxDrawdown}% max drawdown.`;
+    return { response, code: generateStrategyCode(description, name, details.risk), risk: details.risk };
   };
-  
-  // Handle submission with explicit values (for quick actions)
-  const handleSubmitWithValues = async (promptValue, nameValue) => {
-    const name = nameValue || `Strategy ${Date.now() % 10000}`;
-    const userInput = promptValue;
-    
-    setDemoActive(false);
+
+  // Handle strategy selection from quick actions
+  const handleStrategySelect = (prompt, name) => {
+    setInputValue(prompt);
+    setStrategyName(name);
+    // Auto-submit after a brief delay
+    setTimeout(() => {
+      handleSubmitWithValues(prompt, name);
+    }, 100);
+  };
+
+  // Submit with specific values (for quick actions)
+  const handleSubmitWithValues = async (userInput, name) => {
     setUserMessage(userInput);
     setShowUserMessage(true);
     setIsGenerating(true);
@@ -412,19 +327,11 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const response = await fetch(`${backendUrl}/api/claude`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userInput,
-          strategy_name: name
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userInput, strategy_name: name })
       });
       
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
       const data = await response.json();
       
       let extractedCode = data.code;
@@ -440,14 +347,12 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       
       const placeholderResponse = /placeholder/i.test(responseText || '');
       const fallback = !responseText || placeholderResponse;
-
       const metrics = {
         winRate: (55 + Math.random() * 20).toFixed(1),
         profitFactor: (1.5 + Math.random() * 1.5).toFixed(2),
         sharpeRatio: (1.2 + Math.random() * 1.3).toFixed(2),
         maxDrawdown: (8 + Math.random() * 12).toFixed(1)
       };
-
       const fallbackPayload = fallback ? generateMockAtlasResponse(userInput, name) : null;
       const derivedRisk = fallbackPayload?.risk || extractStrategyDetails(userInput).risk;
       const strategy = {
@@ -461,37 +366,31 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       };
       
       setGeneratedStrategy(strategy);
-      setDisplayedAtlasText(
-        fallback ? (fallbackPayload?.response || `I've created a ${name} based on your description:`) : responseText
-      );
+      setDisplayedAtlasText(fallback ? (fallbackPayload?.response || `I've created a ${name} based on your description:`) : responseText);
       setDisplayedCode(strategy.code);
       setShowAtlasResponse(true);
       setShowSaveButton(true);
-      
     } catch (error) {
       console.error('Atlas API error:', error);
       const fallbackPayload = generateMockAtlasResponse(userInput, name);
-      const code = fallbackPayload.code;
       const metrics = {
         winRate: (55 + Math.random() * 20).toFixed(1),
         profitFactor: (1.5 + Math.random() * 1.5).toFixed(2),
         sharpeRatio: (1.2 + Math.random() * 1.3).toFixed(2),
         maxDrawdown: (8 + Math.random() * 12).toFixed(1)
       };
-      
       const strategy = {
         id: Date.now(),
         name: name,
         description: userInput,
-        code: code,
+        code: fallbackPayload.code,
         status: 'draft',
         metrics: metrics,
         risk: fallbackPayload.risk
       };
-      
       setGeneratedStrategy(strategy);
       setDisplayedAtlasText(fallbackPayload.response);
-      setDisplayedCode(code);
+      setDisplayedCode(fallbackPayload.code);
       setShowAtlasResponse(true);
       setShowSaveButton(true);
     } finally {
@@ -499,11 +398,10 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     }
   };
   
-  // Handle user submission from input
   const handleSubmit = async () => {
     if (!inputValue.trim()) return;
     const name = strategyName.trim() || `Strategy ${Date.now() % 10000}`;
-    handleSubmitWithValues(inputValue, name);
+    await handleSubmitWithValues(inputValue, name);
   };
   
   const handleAddStrategy = () => {
@@ -521,18 +419,17 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
     }
   };
 
-  // New chat function
   const handleNewChat = () => {
     setShowUserMessage(false);
     setShowAtlasResponse(false);
     setDisplayedAtlasText('');
     setDisplayedCode('');
     setGeneratedStrategy(null);
+    setShowSaveButton(false);
     setSelectedTicker(null);
     setInputValue('');
     setStrategyName('');
-    setShowSaveButton(false);
-    setUserMessage('');
+    setIsGenerating(false);
   };
 
   const scrollToBottom = () => {
@@ -590,8 +487,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          {/* New Chat Button */}
+        <div className="flex items-center gap-2">
           {!showWelcome && (
             <button 
               onClick={handleNewChat}
@@ -615,125 +511,118 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        
-        {/* Welcome State */}
-        {showWelcome && (
+      <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {showWelcome ? (
           <WelcomeState 
-            onTickerSelect={handleTickerSelect}
             selectedTicker={selectedTicker}
+            setSelectedTicker={setSelectedTicker}
             onStrategySelect={handleStrategySelect}
-            onClearTicker={handleClearTicker}
           />
-        )}
+        ) : (
+          <div className="px-3 py-4 space-y-3">
+            {/* User Message Bubble */}
+            <AnimatePresence>
+              {showUserMessage && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="flex justify-end"
+                >
+                  <div className="max-w-[85%] bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl rounded-br-md px-4 py-3 text-sm shadow-lg shadow-purple-500/20">
+                    {userMessage}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-        {/* User Message Bubble */}
-        <AnimatePresence>
-          {showUserMessage && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="flex justify-end mb-3"
-            >
-              <div className="max-w-[85%] bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl rounded-br-md px-4 py-3 text-sm shadow-lg shadow-purple-500/20">
-                {userMessage}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Generating indicator */}
-        {isGenerating && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2 mb-3"
-          >
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-              <AtlasIcon className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Atlas Response */}
-        <AnimatePresence>
-          {showAtlasResponse && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="bg-[#0a0a10] border border-[#1e1e2d] rounded-xl p-4"
-            >
-              <div className="flex items-center gap-2 mb-3">
+            {/* Generating indicator */}
+            {isGenerating && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-2 text-[#6b6b80] text-sm"
+              >
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
                   <AtlasIcon className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-purple-400 text-sm font-semibold">Atlas</span>
-              </div>
-              
-              {displayedAtlasText && (
-                <div className="text-sm text-[#e0e0e6] mb-3">
-                  {displayedAtlasText}
-                </div>
-              )}
-              
-              {displayedCode && (
-                <div className="space-y-3">
-                  <div className="bg-[#06060c] rounded-lg p-4 border border-[#1e1e2d]">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-1.5">
-                          <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                          <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
-                          <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
-                        </div>
-                        <span className="text-xs text-[#6b6b80] ml-2">strategy.py</span>
-                      </div>
-                      <button 
-                        onClick={() => navigator.clipboard.writeText(displayedCode)}
-                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                    <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                      <SyntaxHighlightedCode code={displayedCode} isTyping={isTypingAtlas} />
-                    </div>
-                  </div>
+                <span>Atlas is thinking</span>
+                <span className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                  <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                </span>
+              </motion.div>
+            )}
 
-                  <AnimatePresence>
-                    {showSaveButton && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="flex justify-end pt-2"
-                      >
-                        <button 
-                          onClick={generatedStrategy ? handleAddStrategy : undefined}
-                          className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-purple-500 hover:to-blue-500 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                          </svg>
-                          Save Strategy
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+            {/* Atlas Response */}
+            <AnimatePresence>
+              {showAtlasResponse && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="bg-[#0a0a10] border border-[#1e1e2d] rounded-xl p-4"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                      <AtlasIcon className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-purple-400 text-sm font-semibold">Atlas</span>
+                  </div>
+                  
+                  {displayedAtlasText && (
+                    <div className="text-sm text-[#e0e0e6] mb-3">{displayedAtlasText}</div>
+                  )}
+                  
+                  {displayedCode && (
+                    <div className="space-y-3">
+                      <div className="bg-[#06060c] rounded-lg p-4 border border-[#1e1e2d]">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1.5">
+                              <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+                              <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                              <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                            </div>
+                            <span className="text-xs text-[#6b6b80] ml-2">strategy.py</span>
+                          </div>
+                          <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">Copy</button>
+                        </div>
+                        <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                          <SyntaxHighlightedCode code={displayedCode} isTyping={isTypingAtlas} />
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {showSaveButton && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="flex justify-end pt-2"
+                          >
+                            <button 
+                              onClick={handleAddStrategy}
+                              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-purple-500 hover:to-blue-500 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                              </svg>
+                              Save Strategy
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </motion.div>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        <div ref={messagesEndRef} />
+            </AnimatePresence>
+            
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
@@ -741,7 +630,7 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
         <div className="relative">
           <textarea
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => handleUserInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && inputValue.trim()) {
                 e.preventDefault();
@@ -750,17 +639,13 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
             }}
             placeholder="Describe your trading strategy..."
             rows={3}
-            className={`w-full px-3 py-2 ${themeClasses.surface} border ${themeClasses.border} focus:border-purple-500 rounded-lg text-sm ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors resize-none`}
+            className={`w-full px-3 py-2 ${themeClasses.surface} border ${themeClasses.border} focus:border-blue-500 rounded-lg text-sm ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors resize-none`}
           />
           <button
             onClick={handleSubmit}
             disabled={!inputValue.trim() || isGenerating}
             className={`absolute right-2 bottom-2 p-1.5 transition-all rounded ${
-              isGenerating
-                ? 'text-purple-400 animate-pulse'
-                : inputValue.trim()
-                ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-500/20'
-                : 'text-gray-600 cursor-not-allowed'
+              isGenerating ? 'text-blue-400 animate-pulse' : inputValue.trim() ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/20' : 'text-gray-600 cursor-not-allowed'
             }`}
           >
             {isGenerating ? (
@@ -781,13 +666,9 @@ export default function RightPanel({ width, alpacaData, theme, themeClasses, onS
             type="text"
             value={strategyName}
             onChange={(e) => setStrategyName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && inputValue.trim()) {
-                handleSubmit();
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && inputValue.trim()) handleSubmit(); }}
             placeholder="e.g. RSI Momentum"
-            className={`flex-1 px-2 py-1 ${themeClasses.surface} border ${themeClasses.border} focus:border-purple-500 rounded text-xs ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors`}
+            className={`flex-1 px-2 py-1 ${themeClasses.surface} border ${themeClasses.border} focus:border-blue-500 rounded text-xs ${themeClasses.text} placeholder-gray-600 focus:outline-none transition-colors`}
           />
         </div>
       </div>
