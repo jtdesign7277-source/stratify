@@ -280,25 +280,91 @@ const IndexCard = ({ title, value, change, icon, color = 'purple', onClick, acti
 };
 
 // Portfolio Detail Panel (Kraken Style)
-const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaData, onClose }) => {
-  // Calculate spot balances based on portfolioValue so numbers stay in sync
-  const cashAmount = alpacaData?.account?.cash || portfolioValue * 0.355; // ~35.5% in cash
-  const btcValue = portfolioValue * 0.291; // ~29.1% in BTC
-  const ethValue = portfolioValue * 0.336; // ~33.6% in ETH  
-  const solValue = portfolioValue * 0.133; // ~13.3% in SOL
+const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaData, connectedBrokers = [], onClose, onOpenBrokerModal }) => {
+  // Build spot balances from connected broker accounts
+  // Each connected broker contributes to the total portfolio
+  const getBrokerIcon = (brokerId) => {
+    const icons = {
+      alpaca: '🦙',
+      robinhood: '🪶',
+      webull: '🐂',
+      tdameritrade: '📊',
+      etrade: '📈',
+      fidelity: '💼',
+      schwab: '🏦',
+      interactive: '🌐',
+      coinbase: '🪙',
+      kraken: '🐙',
+    };
+    return icons[brokerId] || '💰';
+  };
+
+  const getBrokerColor = (brokerId) => {
+    const colors = {
+      alpaca: 'from-yellow-500 to-amber-600',
+      robinhood: 'from-green-500 to-emerald-600',
+      webull: 'from-orange-500 to-red-600',
+      tdameritrade: 'from-green-600 to-green-800',
+      etrade: 'from-purple-500 to-purple-700',
+      fidelity: 'from-green-500 to-green-700',
+      schwab: 'from-blue-500 to-blue-700',
+      interactive: 'from-red-500 to-red-700',
+      coinbase: 'from-blue-500 to-indigo-600',
+      kraken: 'from-purple-500 to-purple-700',
+    };
+    return colors[brokerId] || 'from-gray-500 to-gray-700';
+  };
+
+  // Generate account balances from connected brokers
+  // If Alpaca is connected, use real data; otherwise use demo values
+  const spotBalances = connectedBrokers.length > 0 
+    ? connectedBrokers.map((broker, index) => {
+        // For Alpaca, use real data if available
+        if (broker.id === 'alpaca' && alpacaData?.account) {
+          return {
+            broker: broker.name,
+            brokerId: broker.id,
+            icon: getBrokerIcon(broker.id),
+            colorClass: getBrokerColor(broker.id),
+            balance: parseFloat(alpacaData.account.equity) || 0,
+            change: alpacaData.account.equity && alpacaData.account.last_equity 
+              ? (((alpacaData.account.equity - alpacaData.account.last_equity) / alpacaData.account.last_equity) * 100).toFixed(2)
+              : 0,
+            accountType: alpacaData.account.account_type || 'Trading'
+          };
+        }
+        // For other brokers, distribute portfolio value (demo mode)
+        const brokerShare = portfolioValue / connectedBrokers.length;
+        return {
+          broker: broker.name,
+          brokerId: broker.id,
+          icon: getBrokerIcon(broker.id),
+          colorClass: getBrokerColor(broker.id),
+          balance: brokerShare,
+          change: (Math.random() * 4 - 1).toFixed(2), // Random -1% to +3%
+          accountType: broker.accountType || 'Trading'
+        };
+      })
+    : [
+        // Default demo account when no brokers connected
+        {
+          broker: 'Demo Account',
+          brokerId: 'demo',
+          icon: '📊',
+          colorClass: 'from-purple-500 to-purple-700',
+          balance: portfolioValue,
+          change: dayChangePercent,
+          accountType: 'Paper Trading'
+        }
+      ];
   
-  // Adjust to make sure they sum to portfolioValue exactly
-  const cryptoTotal = btcValue + ethValue + solValue;
-  const adjustedCash = portfolioValue - cryptoTotal;
+  // Total is sum of all connected account balances
+  const totalSpot = spotBalances.reduce((sum, acc) => sum + acc.balance, 0);
   
-  const spotBalances = [
-    { asset: 'USD', symbol: '$', amount: adjustedCash, change: 0 },
-    { asset: 'BTC', symbol: '₿', amount: (btcValue / 82683).toFixed(3), usdValue: btcValue, change: 2.4 },
-    { asset: 'ETH', symbol: 'Ξ', amount: (ethValue / 3421.67).toFixed(1), usdValue: ethValue, change: -1.2 },
-    { asset: 'SOL', symbol: '◎', amount: (solValue / 198.39).toFixed(1), usdValue: solValue, change: 3.8 },
-  ];
-  
-  const totalSpot = portfolioValue; // Now always matches
+  // For Trading Stats, use first account or Alpaca data
+  const primaryAccount = spotBalances[0];
+  const cashAvailable = alpacaData?.account?.cash || (totalSpot * 0.35);
+  const buyingPower = alpacaData?.account?.buying_power || (cashAvailable * 2);
   
   return (
     <motion.div
@@ -350,34 +416,42 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
         
         {/* Balance Sections */}
         <div className="grid grid-cols-2 gap-6">
-          {/* Spot Balances */}
+          {/* Connected Accounts / Spot Balances */}
           <div className="bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Spot Balances</h3>
+              <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Connected Accounts</h3>
               <span className="text-white font-mono font-medium">${totalSpot.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="space-y-3">
-              {spotBalances.map((balance, i) => (
+              {spotBalances.map((account, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-[#1e1e2d] last:border-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#1e1e2d] flex items-center justify-center text-sm font-bold text-white">
-                      {balance.symbol}
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${account.colorClass} flex items-center justify-center text-sm`}>
+                      {account.icon}
                     </div>
                     <div>
-                      <div className="text-white font-medium">{balance.asset}</div>
-                      <div className="text-xs text-[#6b6b80]">{balance.amount.toLocaleString()}</div>
+                      <div className="text-white font-medium">{account.broker}</div>
+                      <div className="text-xs text-[#6b6b80]">{account.accountType}</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-white font-mono">${(balance.usdValue || balance.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                    {balance.change !== 0 && (
-                      <div className={`text-xs ${balance.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {balance.change >= 0 ? '+' : ''}{balance.change}%
+                    <div className="text-white font-mono">${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                    {account.change != 0 && (
+                      <div className={`text-xs ${parseFloat(account.change) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {parseFloat(account.change) >= 0 ? '+' : ''}{account.change}%
                       </div>
                     )}
                   </div>
                 </div>
               ))}
+              {/* Add Account Button */}
+              <button 
+                onClick={onOpenBrokerModal}
+                className="w-full mt-2 py-2 border border-dashed border-[#2a2a3d] rounded-lg text-sm text-[#6b6b80] hover:text-white hover:border-purple-500/50 transition-colors flex items-center justify-center gap-2"
+              >
+                <span>+</span>
+                <span>Connect Account</span>
+              </button>
             </div>
           </div>
           
@@ -387,15 +461,15 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Buying Power</span>
-                <span className="text-white font-mono">${(alpacaData?.account?.buying_power || adjustedCash * 2).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                <span className="text-white font-mono">${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Cash Available</span>
-                <span className="text-white font-mono">${(alpacaData?.account?.cash || adjustedCash).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-white font-mono">${cashAvailable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6b6b80]">Open Positions</span>
-                <span className="text-white font-mono">{alpacaData?.positions?.length || spotBalances.filter(b => b.asset !== 'USD').length}</span>
+                <span className="text-[#6b6b80]">Connected Accounts</span>
+                <span className="text-white font-mono">{connectedBrokers.length || 1}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Day Trades Left</span>
@@ -1281,7 +1355,9 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                 dayChange={dayChange}
                 dayChangePercent={dayChangePercent}
                 alpacaData={alpacaData}
+                connectedBrokers={connectedBrokers}
                 onClose={() => setExpandedCard(null)}
+                onOpenBrokerModal={() => setShowBrokerModal(true)}
               />
             )}
             {expandedCard === 'strategies' && (
