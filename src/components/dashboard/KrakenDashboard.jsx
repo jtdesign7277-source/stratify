@@ -1358,12 +1358,12 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
           </div>
           
           {/* Content Panel - Animated transitions between tabs */}
-          <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
+          <div className={`flex-1 overflow-auto ${themeClasses.bg}`} style={{ scrollbarWidth: 'thin' }}>
             <AnimatePresence mode="wait">
               {contentTab === 'strategies' && (
               <motion.div
                 key="strategies"
-                className="h-full"
+                className="min-h-full"
                 initial="initial"
                 animate="animate"
                 exit="exit"
@@ -1389,7 +1389,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
             {contentTab === 'arbitrage' && (
               <motion.div
                 key="arbitrage"
-                className="h-full"
+                className="min-h-full"
                 initial="initial"
                 animate="animate"
                 exit="exit"
@@ -1401,7 +1401,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
             {contentTab === 'deployed' && (
               <motion.div
                 key="deployed"
-                className="h-full"
+                className="min-h-full"
                 initial="initial"
                 animate="animate"
                 exit="exit"
