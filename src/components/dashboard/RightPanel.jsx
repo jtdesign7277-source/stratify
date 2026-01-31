@@ -78,51 +78,36 @@ const TypewriterStream = ({ strategyName, streamingText }) => {
   );
 };
 
-// Resizable Code Block with Editable Content
-const ResizableCodeBlock = ({ code, name, onCodeChange, isEditable }) => {
-  const [height, setHeight] = useState(180);
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef(null);
-  const startY = useRef(0);
-  const startHeight = useRef(0);
+// Editable Code Block - Click to edit
+const EditableCodeBlock = ({ code, name, onCodeChange }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const textareaRef = useRef(null);
 
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    startY.current = e.clientY;
-    startHeight.current = height;
-    e.preventDefault();
+  const handleClick = () => {
+    setIsEditing(true);
   };
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      const delta = e.clientY - startY.current;
-      const newHeight = Math.max(100, Math.min(350, startHeight.current + delta));
-      setHeight(newHeight);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
     }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
+  }, [isEditing]);
 
   return (
-    <div ref={containerRef} className="bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden flex flex-col">
+    <div className="flex-1 flex flex-col bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden">
+      {/* Header */}
       <div className="flex justify-between items-center px-3 py-2 border-b border-blue-500/20 flex-shrink-0">
         <span className="text-xs text-gray-400">{name}.py</span>
         <div className="flex items-center gap-3">
-          {isEditable && (
-            <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">✏️ Editable</span>
+          {isEditing ? (
+            <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">✏️ Editing...</span>
+          ) : (
+            <button 
+              onClick={handleClick}
+              className="text-[10px] text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded hover:bg-blue-400/20"
+            >
+              Click to Edit
+            </button>
           )}
           <button 
             onClick={() => navigator.clipboard.writeText(code)} 
@@ -133,24 +118,22 @@ const ResizableCodeBlock = ({ code, name, onCodeChange, isEditable }) => {
         </div>
       </div>
       
-      {isEditable ? (
-        <textarea
-          value={code}
-          onChange={(e) => onCodeChange(e.target.value)}
-          style={{ height }}
-          className="w-full p-3 text-xs text-gray-300 bg-[#0a1220] font-mono resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 border-none"
-          spellCheck={false}
-        />
-      ) : (
-        <pre style={{ height }} className="p-3 text-xs text-gray-300 overflow-auto font-mono">{code}</pre>
-      )}
-      
-      {/* Resize Handle */}
-      <div
-        onMouseDown={handleMouseDown}
-        className={`h-3 bg-blue-500/10 hover:bg-blue-500/30 cursor-ns-resize flex items-center justify-center transition-colors flex-shrink-0 ${isDragging ? 'bg-blue-500/30' : ''}`}
-      >
-        <div className="w-10 h-1 bg-gray-600 rounded" />
+      {/* Code Area - Click to Edit */}
+      <div className="flex-1 overflow-hidden" onClick={!isEditing ? handleClick : undefined}>
+        {isEditing ? (
+          <textarea
+            ref={textareaRef}
+            value={code}
+            onChange={(e) => onCodeChange(e.target.value)}
+            onBlur={() => setIsEditing(false)}
+            className="w-full h-full p-3 text-xs text-gray-300 bg-[#0a1220] font-mono resize-none focus:outline-none"
+            spellCheck={false}
+          />
+        ) : (
+          <pre className="w-full h-full p-3 text-xs text-gray-300 font-mono overflow-auto cursor-text hover:bg-blue-500/5">
+            {code}
+          </pre>
+        )}
       </div>
     </div>
   );
@@ -573,55 +556,51 @@ if __name__ == "__main__":
               {isGenerating ? (
                 <TypewriterStream strategyName={strategyName || customName} streamingText={streamingText} />
               ) : generatedStrategy ? (
-                <>
-                  {/* Status Message */}
-                  <div className={`mb-3 p-3 rounded-lg ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'} border`}>
-                    <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-col h-full">
+                  {/* Status Message - Compact */}
+                  <div className={`mb-2 p-2 rounded-lg ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'} border`}>
+                    <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${generatedStrategy.status === 'deployed' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                      <span className={`text-sm font-medium ${generatedStrategy.status === 'deployed' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {generatedStrategy.status === 'deployed' ? 'Strategy Deployed' : 'Review & Edit'}
+                      <span className={`text-xs font-medium ${generatedStrategy.status === 'deployed' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {generatedStrategy.status === 'deployed' ? 'Deployed ✓' : 'Click code to edit'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-300">{resultMessage}</p>
                   </div>
 
-                  {/* Editable Code - Resizable */}
-                  <div className="flex-1 overflow-hidden mb-3">
-                    <ResizableCodeBlock 
-                      code={editableCode} 
-                      name={generatedStrategy.name.replace(/\s+/g, '_').toLowerCase()} 
-                      onCodeChange={handleCodeChange}
-                      isEditable={generatedStrategy.status !== 'deployed'}
-                    />
-                  </div>
+                  {/* Editable Code - Fills remaining space */}
+                  <EditableCodeBlock 
+                    code={editableCode} 
+                    name={generatedStrategy.name.replace(/\s+/g, '_').toLowerCase()} 
+                    onCodeChange={handleCodeChange}
+                  />
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
+                  {/* Actions - Fixed at bottom */}
+                  <div className="flex gap-2 mt-2 flex-shrink-0">
                     {generatedStrategy.status !== 'deployed' ? (
                       <>
                         <button onClick={handleSave}
-                          className="flex-1 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
+                          className="flex-1 py-2.5 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
                           Save & Deploy
                         </button>
                         <button onClick={handleReset}
-                          className="flex-1 py-2 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
+                          className="flex-1 py-2.5 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
                           Start Over
                         </button>
                       </>
                     ) : (
                       <>
                         <button onClick={() => navigator.clipboard.writeText(editableCode)}
-                          className="flex-1 py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-500">
+                          className="flex-1 py-2.5 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-500">
                           Copy Code
                         </button>
                         <button onClick={handleReset}
-                          className="flex-1 py-2 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
+                          className="flex-1 py-2.5 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
                           New Strategy
                         </button>
                       </>
                     )}
                   </div>
-                </>
+                </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center">
                   <BrainIcon className="w-12 h-12 text-blue-400/50 mb-3" />
