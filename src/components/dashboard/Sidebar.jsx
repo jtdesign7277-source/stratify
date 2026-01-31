@@ -522,122 +522,114 @@ const SettingsPanel = () => {
 };
 
 // Mini broker icons for sidebar - Modern styled icons
-const MiniBrokerIcon = ({ broker, className = "w-6 h-6" }) => {
+// Premium circular broker icons
+const PremiumBrokerIcon = ({ broker, size = 48 }) => {
   const icons = {
-    // Alpaca - Llama head silhouette
+    // Alpaca - Blue crescent smile
     alpaca: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#FFCD00] to-[#FFA500] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#000">
-          <path d="M12 2C9.5 2 7.5 3.5 7 5.5L6 9H5c-1.1 0-2 .9-2 2v2c0 .55.45 1 1 1h1v6c0 1.1.9 2 2 2h1v-3h8v3h1c1.1 0 2-.9 2-2v-6h1c.55 0 1-.45 1-1v-2c0-1.1-.9-2-2-2h-1l-1-3.5C16.5 3.5 14.5 2 12 2zm-2 7a1 1 0 110 2 1 1 0 010-2zm4 0a1 1 0 110 2 1 1 0 010-2z"/>
-        </svg>
-      </div>
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <path d="M5 12c0 3.5 3 6.5 7 6.5s7-3 7-6.5" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round"/>
+      </svg>
     ),
-    // Polymarket - Hexagon/prediction icon
-    polymarket: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#fff" strokeWidth="2">
-          <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
-          <circle cx="12" cy="12" r="3" fill="#fff"/>
-        </svg>
-      </div>
-    ),
-    // Kalshi - K with chart line
-    kalshi: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#00D4AA] to-[#00A080] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#000" strokeWidth="2.5">
-          <path d="M6 4v16M6 12l6-6M6 12l6 6"/>
-          <path d="M14 8l3 3-3 3" strokeWidth="2"/>
-        </svg>
-      </div>
-    ),
-    // Webull - Bull head
-    webull: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#FF5722] to-[#E64A19] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#fff">
-          <path d="M4 8c0-1 .5-2 2-3l2 3v4l-2 2H4V8zm16 0c0-1-.5-2-2-3l-2 3v4l2 2h2V8zM8 6c0-2 2-4 4-4s4 2 4 4v10c0 2-2 4-4 4s-4-2-4-4V6zm2 3a1 1 0 100 2 1 1 0 000-2zm4 0a1 1 0 100 2 1 1 0 000-2z"/>
-        </svg>
-      </div>
-    ),
-    // IBKR - Globe with trade arrows
-    ibkr: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#D32F2F] to-[#B71C1C] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#fff" strokeWidth="1.5">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 3c-3 4-3 10 0 14M12 3c3 4 3 10 0 14M3 12h18"/>
-          <path d="M17 7l2-2m0 0l2 2m-2-2v5" strokeWidth="2"/>
-        </svg>
-      </div>
-    ),
-    // Robinhood - Feather
-    robinhood: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#00C805] to-[#00A804] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#fff">
-          <path d="M20 4c-2 0-4 1-6 3-2-2-4-3-6-3-3 0-5 2-5 5 0 6 8 12 11 14 3-2 11-8 11-14 0-3-2-5-5-5z"/>
-        </svg>
-      </div>
-    ),
-    // Coinbase - C with circle
+    // Coinbase - Black square with brackets
     coinbase: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#0052FF] to-[#0040CC] flex items-center justify-center p-0.5`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#fff">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="#fff" strokeWidth="2"/>
-          <path d="M15 9.5c-.8-1-2-1.5-3-1.5-2.2 0-4 1.8-4 4s1.8 4 4 4c1 0 2.2-.5 3-1.5"/>
+      <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="w-5 h-5">
+          <path d="M6 8v8M6 8h3M6 16h3M18 8v8M18 8h-3M18 16h-3" stroke="white" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       </div>
     ),
-    // Binance - Diamond shape
+    // Robinhood - Green feather
+    robinhood: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <path d="M20 4c-1.5 0-3 .5-4.5 1.5L12 9l-1-4c-.5-2-2-3-4-3-1 0-2 .5-2.5 1.5-.5 1 0 2 .5 2.5l6 6c1 1 2.5 1.5 4 1.5 2.5 0 5-2 6-4.5.5-1.5 0-3-1-4z" fill="#00C805"/>
+      </svg>
+    ),
+    // Polymarket - Purple hexagon
+    polymarket: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="none" stroke="#8B5CF6" strokeWidth="2"/>
+        <circle cx="12" cy="12" r="3" fill="#8B5CF6"/>
+      </svg>
+    ),
+    // Kalshi - Teal K
+    kalshi: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <path d="M8 4v16M8 12l8-8M8 12l8 8" fill="none" stroke="#00D4AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    // Webull - Orange W
+    webull: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <path d="M4 6l4 12 4-8 4 8 4-12" fill="none" stroke="#FF5722" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    // IBKR - Red globe
+    ibkr: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="#D32F2F" strokeWidth="2"/>
+        <path d="M12 3v18M3 12h18M5 7h14M5 17h14" stroke="#D32F2F" strokeWidth="1.5"/>
+      </svg>
+    ),
+    // Binance - Yellow diamond
     binance: (
-      <div className={`${className} rounded-lg bg-gradient-to-br from-[#F3BA2F] to-[#E5A91D] flex items-center justify-center p-1`}>
-        <svg viewBox="0 0 24 24" className="w-full h-full" fill="#000">
-          <path d="M12 4l3 3-3 3-3-3 3-3zm-6 6l3 3-3 3-3-3 3-3zm12 0l3 3-3 3-3-3 3-3zm-6 6l3 3-3 3-3-3 3-3z"/>
-        </svg>
-      </div>
+      <svg viewBox="0 0 24 24" className="w-6 h-6">
+        <path d="M12 4l2.5 2.5L12 9 9.5 6.5 12 4z" fill="#F3BA2F"/>
+        <path d="M6 10l2.5 2.5L6 15 3.5 12.5 6 10z" fill="#F3BA2F"/>
+        <path d="M18 10l2.5 2.5L18 15l-2.5-2.5L18 10z" fill="#F3BA2F"/>
+        <path d="M12 16l2.5 2.5L12 21l-2.5-2.5L12 16z" fill="#F3BA2F"/>
+        <path d="M12 10l2.5 2.5L12 15l-2.5-2.5L12 10z" fill="#F3BA2F"/>
+      </svg>
     ),
   };
-  return icons[broker] || null;
+  
+  return (
+    <div 
+      className="rounded-full bg-white/5 border border-indigo-500/30 flex items-center justify-center hover:border-indigo-400/50 transition-all"
+      style={{ width: size, height: size }}
+    >
+      {icons[broker] || null}
+    </div>
+  );
 };
 
 const availableBrokers = [
   { id: 'alpaca', name: 'Alpaca' },
+  { id: 'coinbase', name: 'Coinbase' },
+  { id: 'robinhood', name: 'Robinhood' },
   { id: 'polymarket', name: 'Polymarket' },
   { id: 'kalshi', name: 'Kalshi' },
   { id: 'webull', name: 'Webull' },
   { id: 'ibkr', name: 'IBKR' },
-  { id: 'robinhood', name: 'Robinhood' },
-  { id: 'coinbase', name: 'Coinbase' },
   { id: 'binance', name: 'Binance' },
 ];
 
-// Brokers Grid Component
+// Premium Brokers Grid Component
 const BrokersGrid = ({ connectedBrokers = [], onOpenBrokerModal }) => {
   const isConnected = (brokerId) => connectedBrokers.some(b => b.id === brokerId);
   
   return (
-    <div className="p-2">
-      <div className="grid grid-cols-4 gap-1.5">
+    <div className="p-4">
+      <div className="grid grid-cols-3 gap-4">
         {availableBrokers.map(broker => {
           const connected = isConnected(broker.id);
           return (
             <button
               key={broker.id}
               onClick={() => !connected && onOpenBrokerModal?.()}
-              className={`relative p-2 rounded-lg transition-all flex flex-col items-center gap-1 ${
-                connected 
-                  ? 'bg-emerald-500/10 border border-emerald-500/30'
-                  : 'bg-[#1e1e2d] border border-[#1e1e2d] hover:border-blue-500/50'
-              }`}
+              className="relative flex flex-col items-center gap-2 p-2 rounded-xl transition-all hover:bg-white/5"
             >
               {connected && (
-                <div className="absolute -top-1 -right-1">
-                  <div className="w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <div className="absolute top-0 right-1">
+                  <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
                 </div>
               )}
-              <MiniBrokerIcon broker={broker.id} />
-              <span className="text-[9px] text-gray-400 truncate w-full text-center">{broker.name}</span>
+              <PremiumBrokerIcon broker={broker.id} size={48} />
+              <span className="text-xs text-gray-400">{broker.name}</span>
             </button>
           );
         })}
