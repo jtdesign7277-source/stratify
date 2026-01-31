@@ -10,6 +10,16 @@ const BrainIcon = ({ className }) => (
   </svg>
 );
 
+// Refresh Icon
+const RefreshIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+    <path d="M3 21v-5h5" />
+  </svg>
+);
+
 // Strategy templates
 const strategyTemplates = [
   { id: 'momentum', name: 'Momentum', icon: '📈', desc: 'MA crossover trend following' },
@@ -73,16 +83,73 @@ const Globe3D = ({ strategyName }) => (
   </div>
 );
 
-// Code Highlighter
-const CodeBlock = ({ code, name }) => (
-  <div className="bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden">
-    <div className="flex justify-between items-center px-3 py-1.5 border-b border-blue-500/20">
-      <span className="text-xs text-gray-400">{name}.py</span>
-      <button onClick={() => navigator.clipboard.writeText(code)} className="text-xs text-blue-400 hover:text-blue-300">Copy</button>
+// Resizable Code Block with Editable Content
+const ResizableCodeBlock = ({ code, name, onCodeChange, isEditable }) => {
+  const [height, setHeight] = useState(160);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
+  const startY = useRef(0);
+  const startHeight = useRef(0);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    startY.current = e.clientY;
+    startHeight.current = height;
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      const delta = e.clientY - startY.current;
+      const newHeight = Math.max(80, Math.min(300, startHeight.current + delta));
+      setHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  return (
+    <div ref={containerRef} className="bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden">
+      <div className="flex justify-between items-center px-3 py-1.5 border-b border-blue-500/20">
+        <span className="text-xs text-gray-400">{name}.py</span>
+        <div className="flex items-center gap-2">
+          {isEditable && <span className="text-[10px] text-emerald-400">Editable</span>}
+          <button onClick={() => navigator.clipboard.writeText(code)} className="text-xs text-blue-400 hover:text-blue-300">Copy</button>
+        </div>
+      </div>
+      {isEditable ? (
+        <textarea
+          value={code}
+          onChange={(e) => onCodeChange(e.target.value)}
+          style={{ height }}
+          className="w-full p-3 text-xs text-gray-300 bg-transparent font-mono resize-none focus:outline-none"
+        />
+      ) : (
+        <pre style={{ height }} className="p-3 text-xs text-gray-300 overflow-auto font-mono">{code}</pre>
+      )}
+      {/* Resize Handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={`h-2 bg-blue-500/10 hover:bg-blue-500/30 cursor-ns-resize flex items-center justify-center transition-colors ${isDragging ? 'bg-blue-500/30' : ''}`}
+      >
+        <div className="w-8 h-0.5 bg-gray-500 rounded" />
+      </div>
     </div>
-    <pre className="p-3 text-xs text-gray-300 overflow-auto max-h-36 font-mono">{code}</pre>
-  </div>
-);
+  );
+};
 
 // Main Component
 export default function RightPanel({ width, onStrategyGenerated }) {
@@ -102,24 +169,47 @@ export default function RightPanel({ width, onStrategyGenerated }) {
   // Generation State
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedStrategy, setGeneratedStrategy] = useState(null);
+  const [editableCode, setEditableCode] = useState('');
   const [resultMessage, setResultMessage] = useState('');
-  
-  const chatRef = useRef(null);
 
-  // Handle quick template select
-  const handleTemplateSelect = (template) => {
-    setSelectedTemplate(template);
-    if (selectedTicker) {
-      setStrategyName(`$${selectedTicker} ${template.name}`);
+  // Handle ticker select (toggle)
+  const handleTickerSelect = (ticker) => {
+    if (selectedTicker === ticker) {
+      setSelectedTicker('');
+      setStrategyName('');
+    } else {
+      setSelectedTicker(ticker);
+      if (selectedTemplate) {
+        setStrategyName(`$${ticker} ${selectedTemplate.name}`);
+      }
     }
   };
 
-  // Handle ticker select
-  const handleTickerSelect = (ticker) => {
-    setSelectedTicker(ticker);
-    if (selectedTemplate) {
-      setStrategyName(`$${ticker} ${selectedTemplate.name}`);
+  // Handle template select (toggle)
+  const handleTemplateSelect = (template) => {
+    if (selectedTemplate?.id === template.id) {
+      setSelectedTemplate(null);
+      setStrategyName(selectedTicker ? '' : strategyName);
+    } else {
+      setSelectedTemplate(template);
+      if (selectedTicker) {
+        setStrategyName(`$${selectedTicker} ${template.name}`);
+      }
     }
+  };
+
+  // Reset everything
+  const handleReset = () => {
+    setSelectedTicker('');
+    setSelectedTemplate(null);
+    setStrategyName('');
+    setCustomTicker('');
+    setCustomName('');
+    setCustomPrompt('');
+    setGeneratedStrategy(null);
+    setEditableCode('');
+    setResultMessage('');
+    setActiveTab('quick');
   };
 
   // Generate from Quick Build
@@ -163,40 +253,68 @@ export default function RightPanel({ width, onStrategyGenerated }) {
       }
       
       if (!code) {
-        code = `# ${name}\n# Strategy for $${ticker}\n\nclass Strategy:\n    def __init__(self):\n        self.symbol = '${ticker}'\n    \n    def execute(self):\n        return 'HOLD'`;
+        code = generateDefaultCode(name, ticker);
       }
       
-      const strategy = { id: Date.now(), name, ticker: `$${ticker}`, code, status: 'deployed' };
+      const strategy = { id: Date.now(), name, ticker: `$${ticker}`, code, status: 'draft' };
       setGeneratedStrategy(strategy);
-      setResultMessage(`Strategy "${name}" created for $${ticker}`);
+      setEditableCode(code);
+      setResultMessage(`Strategy "${name}" for $${ticker} - Review and edit before saving`);
       
     } catch (err) {
       console.error('API Error:', err);
-      const code = `# ${name}\n# Strategy for $${ticker}\n\nclass Strategy:\n    def __init__(self):\n        self.symbol = '${ticker}'\n    \n    def execute(self):\n        return 'HOLD'`;
-      setGeneratedStrategy({ id: Date.now(), name, ticker: `$${ticker}`, code, status: 'deployed' });
-      setResultMessage(`Strategy "${name}" created for $${ticker}`);
+      const code = generateDefaultCode(name, ticker);
+      setGeneratedStrategy({ id: Date.now(), name, ticker: `$${ticker}`, code, status: 'draft' });
+      setEditableCode(code);
+      setResultMessage(`Strategy "${name}" for $${ticker} - Review and edit before saving`);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Reset
-  const handleReset = () => {
-    setSelectedTicker('');
-    setSelectedTemplate(null);
-    setStrategyName('');
-    setCustomTicker('');
-    setCustomName('');
-    setCustomPrompt('');
-    setGeneratedStrategy(null);
-    setResultMessage('');
-    setActiveTab('quick');
+  // Generate default code
+  const generateDefaultCode = (name, ticker) => {
+    return `# ${name}
+# Strategy for $${ticker}
+# Edit this code before saving
+
+import alpaca_trade_api as tradeapi
+import pandas as pd
+import numpy as np
+
+class Strategy:
+    def __init__(self):
+        self.symbol = '${ticker}'
+        self.position_size = 0.02  # 2% of portfolio
+        
+    def calculate_signals(self, df):
+        # Add your logic here
+        df['signal'] = 0
+        return df
+    
+    def execute(self):
+        # Fetch data and run strategy
+        return 'HOLD'
+
+if __name__ == "__main__":
+    strategy = Strategy()
+    print(strategy.execute())`;
+  };
+
+  // Handle code edit
+  const handleCodeChange = (newCode) => {
+    setEditableCode(newCode);
+    if (generatedStrategy) {
+      setGeneratedStrategy({ ...generatedStrategy, code: newCode });
+    }
   };
 
   // Save strategy
   const handleSave = () => {
     if (generatedStrategy && onStrategyGenerated) {
-      onStrategyGenerated(generatedStrategy);
+      const finalStrategy = { ...generatedStrategy, code: editableCode, status: 'deployed' };
+      onStrategyGenerated(finalStrategy);
+      setResultMessage(`Strategy "${generatedStrategy.name}" saved and deployed!`);
     }
   };
 
@@ -220,13 +338,10 @@ export default function RightPanel({ width, onStrategyGenerated }) {
           <span className="text-sm font-semibold text-white">Atlas AI</span>
         </div>
         <div className="flex gap-1">
-          {generatedStrategy && (
-            <button onClick={handleReset} className="p-1.5 hover:bg-blue-500/10 rounded">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          )}
+          {/* Refresh Button - Always visible */}
+          <button onClick={handleReset} className="p-1.5 hover:bg-blue-500/10 rounded" title="Start Fresh">
+            <RefreshIcon className="w-4 h-4 text-gray-400 hover:text-blue-400" />
+          </button>
           <button onClick={() => setExpanded(false)} className="p-1.5 hover:bg-blue-500/10 rounded">
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -264,7 +379,7 @@ export default function RightPanel({ width, onStrategyGenerated }) {
               
               {/* Ticker Selection */}
               <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Select Ticker</label>
+                <label className="text-xs text-gray-400 mb-1.5 block">Select Ticker (click again to deselect)</label>
                 <div className="grid grid-cols-5 gap-1">
                   {stockTickers.map(t => (
                     <button key={t} onClick={() => handleTickerSelect(t)}
@@ -298,7 +413,7 @@ export default function RightPanel({ width, onStrategyGenerated }) {
 
               {/* Strategy Templates */}
               <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Type</label>
+                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Type (click again to deselect)</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {strategyTemplates.map(s => (
                     <button key={s.id} onClick={() => handleTemplateSelect(s)}
@@ -379,7 +494,6 @@ export default function RightPanel({ width, onStrategyGenerated }) {
               <div className="flex-1 mb-3">
                 <label className="text-xs text-gray-400 mb-1.5 block">Describe Your Strategy</label>
                 <textarea
-                  ref={chatRef}
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="Example: Buy when RSI drops below 30 and price is above the 200-day moving average. Sell when RSI goes above 70. Use a 5% stop loss..."
@@ -410,30 +524,52 @@ export default function RightPanel({ width, onStrategyGenerated }) {
                 <Globe3D strategyName={strategyName || customName} />
               ) : generatedStrategy ? (
                 <>
-                  {/* Success Message */}
-                  <div className="mb-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  {/* Status Message */}
+                  <div className={`mb-3 p-3 rounded-lg ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'} border`}>
                     <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="text-sm font-medium text-emerald-400">Strategy Deployed</span>
+                      <div className={`w-2 h-2 rounded-full ${generatedStrategy.status === 'deployed' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                      <span className={`text-sm font-medium ${generatedStrategy.status === 'deployed' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {generatedStrategy.status === 'deployed' ? 'Strategy Deployed' : 'Review & Edit'}
+                      </span>
                     </div>
                     <p className="text-xs text-gray-300">{resultMessage}</p>
                   </div>
 
-                  {/* Code */}
+                  {/* Editable Code - Resizable */}
                   <div className="flex-1 overflow-hidden mb-3">
-                    <CodeBlock code={generatedStrategy.code} name={generatedStrategy.name.replace(/\s+/g, '_').toLowerCase()} />
+                    <ResizableCodeBlock 
+                      code={editableCode} 
+                      name={generatedStrategy.name.replace(/\s+/g, '_').toLowerCase()} 
+                      onCodeChange={handleCodeChange}
+                      isEditable={generatedStrategy.status !== 'deployed'}
+                    />
                   </div>
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <button onClick={handleSave}
-                      className="flex-1 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
-                      Save Strategy
-                    </button>
-                    <button onClick={handleReset}
-                      className="flex-1 py-2 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
-                      New Strategy
-                    </button>
+                    {generatedStrategy.status !== 'deployed' ? (
+                      <>
+                        <button onClick={handleSave}
+                          className="flex-1 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
+                          Save & Deploy
+                        </button>
+                        <button onClick={handleReset}
+                          className="flex-1 py-2 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
+                          Start Over
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => navigator.clipboard.writeText(editableCode)}
+                          className="flex-1 py-2 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-500">
+                          Copy Code
+                        </button>
+                        <button onClick={handleReset}
+                          className="flex-1 py-2 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
+                          New Strategy
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (
