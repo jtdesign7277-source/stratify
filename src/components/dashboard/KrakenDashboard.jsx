@@ -513,18 +513,6 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
           </div>
         </div>
         
-        {/* Quick Actions */}
-        <div className="mt-6 flex gap-3">
-          <button className="flex-1 px-4 py-3 bg-purple-500/20 text-purple-400 rounded-xl font-medium hover:bg-purple-500/30 transition-colors">
-            Deposit
-          </button>
-          <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
-            Withdraw
-          </button>
-          <button className="flex-1 px-4 py-3 bg-[#1e1e2d] text-white rounded-xl font-medium hover:bg-[#2a2a3d] transition-colors">
-            Transfer
-          </button>
-        </div>
       </div>
     </motion.div>
   );
