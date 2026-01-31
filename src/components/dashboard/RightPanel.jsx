@@ -40,52 +40,47 @@ const cryptoTickers = [
   'BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT'
 ];
 
-// 3D Globe Animation
-const Globe3D = ({ strategyName }) => (
-  <div className="flex flex-col items-center justify-center py-6">
-    <div className="relative w-32 h-32 mb-4" style={{ perspective: '500px' }}>
-      <div className="absolute inset-6 rounded-full bg-blue-500/30 blur-xl animate-pulse" />
-      <div className="absolute inset-0 flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
-        <motion.div 
-          animate={{ rotateY: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 shadow-2xl flex items-center justify-center"
-          style={{ transformStyle: 'preserve-3d' }}
-        >
-          <div className="absolute inset-0 rounded-full border border-blue-400/20" />
-          <div className="absolute inset-0 rounded-full border border-blue-400/20" style={{ transform: 'rotateY(60deg)' }} />
-          <div className="absolute inset-0 rounded-full border border-blue-400/20" style={{ transform: 'rotateY(120deg)' }} />
-          <span className="text-white font-bold text-2xl z-10">S</span>
-        </motion.div>
+// Typewriter Streaming Component
+const TypewriterStream = ({ strategyName, streamingText }) => {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+        <span className="text-sm font-medium text-white">Generating: {strategyName}</span>
       </div>
       
-      <motion.div animate={{ rotateZ: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-0" style={{ transform: 'rotateX(75deg)', transformStyle: 'preserve-3d' }}>
-        <div className="absolute inset-1 rounded-full border border-blue-400/40" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/60" />
-      </motion.div>
+      {/* Streaming Text Area */}
+      <div className="flex-1 bg-[#0a1220] rounded-lg border border-blue-500/20 p-3 overflow-auto">
+        <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
+          {streamingText}
+          <motion.span
+            animate={{ opacity: [1, 0] }}
+            transition={{ duration: 0.5, repeat: Infinity }}
+            className="inline-block w-2 h-4 bg-blue-400 ml-0.5"
+          />
+        </pre>
+      </div>
       
-      <motion.div animate={{ rotateZ: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-0" style={{ transform: 'rotateX(75deg) rotateY(60deg)', transformStyle: 'preserve-3d' }}>
-        <div className="absolute inset-3 rounded-full border border-blue-300/30" />
-        <div className="absolute top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/60" />
-      </motion.div>
-      
-      <motion.div animate={{ rotateZ: 360 }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-0" style={{ transform: 'rotateX(75deg) rotateY(-60deg)', transformStyle: 'preserve-3d' }}>
-        <div className="absolute inset-[-4px] rounded-full border border-blue-500/20" />
-        <div className="absolute top-[-4px] left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-blue-400 shadow-lg shadow-blue-400/80" />
-      </motion.div>
+      {/* Progress indicator */}
+      <div className="mt-3 flex items-center gap-2">
+        <div className="flex-1 h-1 bg-[#0a1628] rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: '0%' }}
+            animate={{ width: '100%' }}
+            transition={{ duration: 8, ease: 'linear' }}
+            className="h-full bg-gradient-to-r from-blue-600 to-cyan-400"
+          />
+        </div>
+        <span className="text-[10px] text-gray-500">Building...</span>
+      </div>
     </div>
-    
-    <p className="text-sm font-semibold text-white">Generating Strategy...</p>
-    <p className="text-blue-400 text-xs mt-1">{strategyName}</p>
-  </div>
-);
+  );
+};
 
 // Resizable Code Block with Editable Content
 const ResizableCodeBlock = ({ code, name, onCodeChange, isEditable }) => {
-  const [height, setHeight] = useState(160);
+  const [height, setHeight] = useState(180);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
   const startY = useRef(0);
@@ -102,7 +97,7 @@ const ResizableCodeBlock = ({ code, name, onCodeChange, isEditable }) => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
       const delta = e.clientY - startY.current;
-      const newHeight = Math.max(80, Math.min(300, startHeight.current + delta));
+      const newHeight = Math.max(100, Math.min(350, startHeight.current + delta));
       setHeight(newHeight);
     };
 
@@ -122,30 +117,40 @@ const ResizableCodeBlock = ({ code, name, onCodeChange, isEditable }) => {
   }, [isDragging]);
 
   return (
-    <div ref={containerRef} className="bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden">
-      <div className="flex justify-between items-center px-3 py-1.5 border-b border-blue-500/20">
+    <div ref={containerRef} className="bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden flex flex-col">
+      <div className="flex justify-between items-center px-3 py-2 border-b border-blue-500/20 flex-shrink-0">
         <span className="text-xs text-gray-400">{name}.py</span>
-        <div className="flex items-center gap-2">
-          {isEditable && <span className="text-[10px] text-emerald-400">Editable</span>}
-          <button onClick={() => navigator.clipboard.writeText(code)} className="text-xs text-blue-400 hover:text-blue-300">Copy</button>
+        <div className="flex items-center gap-3">
+          {isEditable && (
+            <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">✏️ Editable</span>
+          )}
+          <button 
+            onClick={() => navigator.clipboard.writeText(code)} 
+            className="text-xs text-blue-400 hover:text-blue-300"
+          >
+            Copy
+          </button>
         </div>
       </div>
+      
       {isEditable ? (
         <textarea
           value={code}
           onChange={(e) => onCodeChange(e.target.value)}
           style={{ height }}
-          className="w-full p-3 text-xs text-gray-300 bg-transparent font-mono resize-none focus:outline-none"
+          className="w-full p-3 text-xs text-gray-300 bg-[#0a1220] font-mono resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 border-none"
+          spellCheck={false}
         />
       ) : (
         <pre style={{ height }} className="p-3 text-xs text-gray-300 overflow-auto font-mono">{code}</pre>
       )}
+      
       {/* Resize Handle */}
       <div
         onMouseDown={handleMouseDown}
-        className={`h-2 bg-blue-500/10 hover:bg-blue-500/30 cursor-ns-resize flex items-center justify-center transition-colors ${isDragging ? 'bg-blue-500/30' : ''}`}
+        className={`h-3 bg-blue-500/10 hover:bg-blue-500/30 cursor-ns-resize flex items-center justify-center transition-colors flex-shrink-0 ${isDragging ? 'bg-blue-500/30' : ''}`}
       >
-        <div className="w-8 h-0.5 bg-gray-500 rounded" />
+        <div className="w-10 h-1 bg-gray-600 rounded" />
       </div>
     </div>
   );
@@ -168,6 +173,7 @@ export default function RightPanel({ width, onStrategyGenerated }) {
   
   // Generation State
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [generatedStrategy, setGeneratedStrategy] = useState(null);
   const [editableCode, setEditableCode] = useState('');
   const [resultMessage, setResultMessage] = useState('');
@@ -208,6 +214,7 @@ export default function RightPanel({ width, onStrategyGenerated }) {
     setCustomPrompt('');
     setGeneratedStrategy(null);
     setEditableCode('');
+    setStreamingText('');
     setResultMessage('');
     setActiveTab('quick');
   };
@@ -228,10 +235,49 @@ export default function RightPanel({ width, onStrategyGenerated }) {
     await generateStrategy(prompt, customName, customTicker);
   };
 
-  // Core generate function
+  // Core generate function with typewriter streaming
   const generateStrategy = async (prompt, name, ticker) => {
     setIsGenerating(true);
+    setStreamingText('');
     setActiveTab('results');
+    
+    // Simulate typewriter streaming while API runs
+    const streamMessages = [
+      `# Initializing strategy generator...\n`,
+      `# Target: $${ticker}\n`,
+      `# Strategy: ${name}\n\n`,
+      `import alpaca_trade_api as tradeapi\n`,
+      `import pandas as pd\n`,
+      `import numpy as np\n\n`,
+      `# Analyzing market patterns...\n`,
+      `# Configuring entry/exit signals...\n`,
+      `# Setting risk parameters...\n\n`,
+      `class ${name.replace(/[^a-zA-Z0-9]/g, '')}:\n`,
+      `    def __init__(self):\n`,
+      `        self.symbol = '${ticker}'\n`,
+      `        # Building strategy logic...\n`,
+    ];
+    
+    let fullText = '';
+    let streamIndex = 0;
+    
+    // Start streaming animation
+    const streamInterval = setInterval(() => {
+      if (streamIndex < streamMessages.length) {
+        const message = streamMessages[streamIndex];
+        let charIndex = 0;
+        const charInterval = setInterval(() => {
+          if (charIndex < message.length) {
+            fullText += message[charIndex];
+            setStreamingText(fullText);
+            charIndex++;
+          } else {
+            clearInterval(charInterval);
+          }
+        }, 20);
+        streamIndex++;
+      }
+    }, 400);
     
     try {
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -240,6 +286,8 @@ export default function RightPanel({ width, onStrategyGenerated }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: prompt, strategy_name: name })
       });
+      
+      clearInterval(streamInterval);
       
       if (!response.ok) throw new Error(`API error: ${response.status}`);
       const data = await response.json();
@@ -263,12 +311,14 @@ export default function RightPanel({ width, onStrategyGenerated }) {
       
     } catch (err) {
       console.error('API Error:', err);
+      clearInterval(streamInterval);
       const code = generateDefaultCode(name, ticker);
       setGeneratedStrategy({ id: Date.now(), name, ticker: `$${ticker}`, code, status: 'draft' });
       setEditableCode(code);
       setResultMessage(`Strategy "${name}" for $${ticker} - Review and edit before saving`);
     } finally {
       setIsGenerating(false);
+      setStreamingText('');
     }
   };
 
@@ -521,7 +571,7 @@ if __name__ == "__main__":
               className="p-3 h-full flex flex-col">
               
               {isGenerating ? (
-                <Globe3D strategyName={strategyName || customName} />
+                <TypewriterStream strategyName={strategyName || customName} streamingText={streamingText} />
               ) : generatedStrategy ? (
                 <>
                   {/* Status Message */}
