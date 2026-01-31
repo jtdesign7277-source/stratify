@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Premium Atlas AI Icon
-const AtlasIcon = ({ className }) => (
+// Stratify Logo Icon (S with orbital rings)
+const StratifyIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none">
-    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
+    <ellipse cx="12" cy="12" rx="10" ry="4" stroke="currentColor" strokeWidth="1" opacity="0.5" transform="rotate(-30 12 12)"/>
+    <ellipse cx="12" cy="12" rx="10" ry="4" stroke="currentColor" strokeWidth="1" opacity="0.5" transform="rotate(30 12 12)"/>
+    <text x="12" y="16" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="bold">S</text>
   </svg>
 );
 
@@ -14,7 +17,6 @@ const strategyTemplates = [
     id: 'momentum', 
     name: 'Momentum', 
     icon: '📈',
-    color: 'from-green-500 to-emerald-600',
     description: 'Trend-following with MA crossovers',
     params: [
       { key: 'fastMA', label: 'Fast MA', value: 20, min: 5, max: 50, step: 1 },
@@ -30,7 +32,6 @@ const strategyTemplates = [
     id: 'rsi', 
     name: 'RSI Reversal', 
     icon: '📊',
-    color: 'from-purple-500 to-indigo-600',
     description: 'Buy oversold, sell overbought',
     params: [
       { key: 'rsiPeriod', label: 'RSI Period', value: 14, min: 7, max: 21, step: 1 },
@@ -46,7 +47,6 @@ const strategyTemplates = [
     id: 'meanreversion', 
     name: 'Mean Reversion', 
     icon: '🔄',
-    color: 'from-blue-500 to-cyan-600',
     description: 'Trade the bounce back to average',
     params: [
       { key: 'maPeriod', label: 'MA Period', value: 20, min: 10, max: 50, step: 5 },
@@ -61,7 +61,6 @@ const strategyTemplates = [
     id: 'breakout', 
     name: 'Breakout', 
     icon: '💥',
-    color: 'from-orange-500 to-red-600',
     description: 'Catch explosive moves',
     params: [
       { key: 'lookback', label: 'Lookback Days', value: 20, min: 10, max: 50, step: 5 },
@@ -76,7 +75,6 @@ const strategyTemplates = [
     id: 'macd', 
     name: 'MACD Cross', 
     icon: '⚡',
-    color: 'from-yellow-500 to-orange-600',
     description: 'Signal line crossovers',
     params: [
       { key: 'fastPeriod', label: 'Fast Period', value: 12, min: 8, max: 16, step: 1 },
@@ -92,7 +90,6 @@ const strategyTemplates = [
     id: 'scalping', 
     name: 'Scalping', 
     icon: '🎯',
-    color: 'from-pink-500 to-rose-600',
     description: 'Quick in-and-out trades',
     params: [
       { key: 'emaPeriod', label: 'EMA Period', value: 9, min: 5, max: 15, step: 1 },
@@ -105,20 +102,24 @@ const strategyTemplates = [
   },
 ];
 
-// Popular tickers
-const popularTickers = [
-  { symbol: 'AAPL', name: 'Apple Inc.' },
-  { symbol: 'TSLA', name: 'Tesla Inc.' },
-  { symbol: 'NVDA', name: 'NVIDIA Corp.' },
+// Equities tickers
+const equityTickers = [
+  { symbol: 'AAPL', name: 'Apple' },
+  { symbol: 'TSLA', name: 'Tesla' },
+  { symbol: 'NVDA', name: 'NVIDIA' },
   { symbol: 'MSFT', name: 'Microsoft' },
   { symbol: 'GOOGL', name: 'Alphabet' },
   { symbol: 'AMZN', name: 'Amazon' },
-  { symbol: 'META', name: 'Meta Platforms' },
-  { symbol: 'SPY', name: 'S&P 500 ETF' },
-  { symbol: 'QQQ', name: 'Nasdaq ETF' },
-  { symbol: 'AMD', name: 'AMD Inc.' },
-  { symbol: 'COIN', name: 'Coinbase' },
-  { symbol: 'PLTR', name: 'Palantir' },
+];
+
+// Crypto tickers
+const cryptoTickers = [
+  { symbol: 'BTC', name: 'Bitcoin' },
+  { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'DOGE', name: 'Dogecoin' },
+  { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'XRP', name: 'Ripple' },
+  { symbol: 'LINK', name: 'Chainlink' },
 ];
 
 // Backtest time periods
@@ -182,7 +183,7 @@ const SyntaxHighlightedCode = ({ code }) => {
             const tokens = part.value.split(/(\b)/);
             tokens.forEach((token, tokenIdx) => {
               if (keywords.includes(token)) {
-                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-purple-400 font-medium">{token}</span>);
+                elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-blue-400 font-medium">{token}</span>);
               } else if (builtins.includes(token)) {
                 elements.push(<span key={`${partIdx}-${tokenIdx}`} className="text-cyan-400">{token}</span>);
               } else {
@@ -208,103 +209,60 @@ const BacktestLoadingAnimation = ({ period }) => (
   <motion.div 
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    className="flex flex-col items-center justify-center py-8"
+    className="flex flex-col items-center justify-center py-4"
   >
-    <div className="relative mb-4">
+    <div className="relative mb-3">
       <motion.div 
         animate={{ rotate: 360 }}
         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        className="w-16 h-16 rounded-full border-2 border-purple-500/30 border-t-purple-500"
+        className="w-12 h-12 rounded-full border-2 border-blue-500/30 border-t-blue-500"
       />
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xl">📊</span>
+        <span className="text-base">📊</span>
       </div>
     </div>
-    <p className="text-sm font-medium text-white mb-1">Running Backtest</p>
-    <p className="text-xs text-gray-400">Analyzing {period} of historical data...</p>
-    <div className="flex items-center gap-1 mt-3">
-      {[0, 1, 2].map((i) => (
-        <motion.div
-          key={i}
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-          className="w-2 h-2 rounded-full bg-purple-500"
-        />
-      ))}
-    </div>
+    <p className="text-xs font-medium text-white mb-0.5">Running Backtest</p>
+    <p className="text-[10px] text-gray-400">Analyzing {period}...</p>
   </motion.div>
 );
 
-// Backtest Results Component
+// Compact Backtest Results
 const BacktestResults = ({ results, period }) => (
   <motion.div
-    initial={{ opacity: 0, y: 10 }}
+    initial={{ opacity: 0, y: 5 }}
     animate={{ opacity: 1, y: 0 }}
-    className="space-y-3"
+    className="space-y-2"
   >
-    {/* Performance Summary */}
-    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-400">Backtest Results ({period})</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded ${results.totalReturn >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+    {/* Main Stats - 2x3 grid */}
+    <div className="grid grid-cols-3 gap-1.5">
+      <div className="text-center p-2 rounded-lg bg-[#0a1628] border border-blue-500/20">
+        <p className={`text-sm font-bold ${results.totalReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
           {results.totalReturn >= 0 ? '+' : ''}{results.totalReturn}%
-        </span>
+        </p>
+        <p className="text-[9px] text-gray-500">Return</p>
       </div>
-      
-      <div className="grid grid-cols-2 gap-3">
-        <div className="text-center p-2 rounded-lg bg-[#12121a]">
-          <p className="text-lg font-bold text-emerald-400">{results.winRate}%</p>
-          <p className="text-[10px] text-gray-500">Win Rate</p>
-        </div>
-        <div className="text-center p-2 rounded-lg bg-[#12121a]">
-          <p className="text-lg font-bold text-blue-400">{results.profitFactor}</p>
-          <p className="text-[10px] text-gray-500">Profit Factor</p>
-        </div>
-        <div className="text-center p-2 rounded-lg bg-[#12121a]">
-          <p className="text-lg font-bold text-purple-400">{results.sharpeRatio}</p>
-          <p className="text-[10px] text-gray-500">Sharpe Ratio</p>
-        </div>
-        <div className="text-center p-2 rounded-lg bg-[#12121a]">
-          <p className="text-lg font-bold text-red-400">{results.maxDrawdown}%</p>
-          <p className="text-[10px] text-gray-500">Max Drawdown</p>
-        </div>
+      <div className="text-center p-2 rounded-lg bg-[#0a1628] border border-blue-500/20">
+        <p className="text-sm font-bold text-white">{results.winRate}%</p>
+        <p className="text-[9px] text-gray-500">Win Rate</p>
       </div>
-    </div>
-
-    {/* Trade Stats */}
-    <div className="p-3 rounded-lg bg-[#12121a] border border-[#2a2a3d]">
-      <p className="text-xs text-gray-400 mb-2">Trade Statistics</p>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-sm font-bold text-white">{results.totalTrades}</p>
-          <p className="text-[10px] text-gray-500">Total Trades</p>
-        </div>
-        <div>
-          <p className="text-sm font-bold text-emerald-400">{results.winningTrades}</p>
-          <p className="text-[10px] text-gray-500">Winners</p>
-        </div>
-        <div>
-          <p className="text-sm font-bold text-red-400">{results.losingTrades}</p>
-          <p className="text-[10px] text-gray-500">Losers</p>
-        </div>
+      <div className="text-center p-2 rounded-lg bg-[#0a1628] border border-blue-500/20">
+        <p className="text-sm font-bold text-white">{results.profitFactor}</p>
+        <p className="text-[9px] text-gray-500">Profit Factor</p>
+      </div>
+      <div className="text-center p-2 rounded-lg bg-[#0a1628] border border-blue-500/20">
+        <p className="text-sm font-bold text-white">{results.sharpeRatio}</p>
+        <p className="text-[9px] text-gray-500">Sharpe</p>
+      </div>
+      <div className="text-center p-2 rounded-lg bg-[#0a1628] border border-blue-500/20">
+        <p className="text-sm font-bold text-red-400">-{results.maxDrawdown}%</p>
+        <p className="text-[9px] text-gray-500">Drawdown</p>
+      </div>
+      <div className="text-center p-2 rounded-lg bg-[#0a1628] border border-blue-500/20">
+        <p className="text-sm font-bold text-white">{results.totalTrades}</p>
+        <p className="text-[9px] text-gray-500">Trades</p>
       </div>
     </div>
-
-    {/* Mini Chart Visualization */}
-    <div className="p-3 rounded-lg bg-[#12121a] border border-[#2a2a3d]">
-      <p className="text-xs text-gray-400 mb-2">Equity Curve</p>
-      <div className="h-16 flex items-end gap-0.5">
-        {results.equityCurve.map((val, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ height: 0 }}
-            animate={{ height: `${val}%` }}
-            transition={{ delay: idx * 0.05 }}
-            className={`flex-1 rounded-t ${val >= 50 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' : 'bg-gradient-to-t from-red-600 to-red-400'}`}
-          />
-        ))}
-      </div>
-    </div>
+    <p className="text-[10px] text-gray-500 text-center">Backtest: {period}</p>
   </motion.div>
 );
 
@@ -320,7 +278,7 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
   const [strategyParams, setStrategyParams] = useState({});
   
   // Backtest state
-  const [selectedPeriod, setSelectedPeriod] = useState(backtestPeriods[2]); // Default 6M
+  const [selectedPeriod, setSelectedPeriod] = useState(backtestPeriods[2]);
   const [isBacktesting, setIsBacktesting] = useState(false);
   const [backtestResults, setBacktestResults] = useState(null);
   
@@ -330,14 +288,18 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
   const [messages, setMessages] = useState([]);
   
   const messagesEndRef = useRef(null);
+
+  // Format ticker with $
+  const formatTicker = (symbol) => `$${symbol}`;
   
-  // Filter tickers
+  // Filter tickers from both lists
+  const allTickers = [...equityTickers, ...cryptoTickers];
   const filteredTickers = tickerSearch 
-    ? popularTickers.filter(t => 
+    ? allTickers.filter(t => 
         t.symbol.toLowerCase().includes(tickerSearch.toLowerCase()) ||
         t.name.toLowerCase().includes(tickerSearch.toLowerCase())
       )
-    : popularTickers;
+    : null;
 
   // Handle ticker selection
   const handleTickerSelect = (symbol) => {
@@ -349,11 +311,10 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
   // Handle strategy selection
   const handleStrategySelect = (strategy) => {
     setSelectedStrategy(strategy);
-    // Initialize params with defaults
     const defaultParams = {};
     strategy.params.forEach(p => { defaultParams[p.key] = p.value; });
     setStrategyParams(defaultParams);
-    setStrategyName(`${selectedTicker} ${strategy.name}`);
+    setStrategyName(`${formatTicker(selectedTicker)} ${strategy.name}`);
     setBuildStep(3);
     setBacktestResults(null);
   };
@@ -361,7 +322,7 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
   // Handle param change
   const handleParamChange = (key, value) => {
     setStrategyParams(prev => ({ ...prev, [key]: parseFloat(value) }));
-    setBacktestResults(null); // Clear backtest when params change
+    setBacktestResults(null);
   };
 
   // Handle back
@@ -380,24 +341,18 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
     setIsBacktesting(true);
     setBacktestResults(null);
     
-    // Simulate backtest delay
-    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+    await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
     
-    // Generate mock results based on params
     const baseWinRate = 50 + Math.random() * 25;
     const totalTrades = Math.floor(20 + selectedPeriod.months * 8 + Math.random() * 20);
-    const winningTrades = Math.floor(totalTrades * (baseWinRate / 100));
     
     const results = {
       totalReturn: (Math.random() * 40 - 5).toFixed(1),
-      winRate: baseWinRate.toFixed(1),
+      winRate: baseWinRate.toFixed(0),
       profitFactor: (1.2 + Math.random() * 1.5).toFixed(2),
       sharpeRatio: (0.8 + Math.random() * 1.8).toFixed(2),
       maxDrawdown: (5 + Math.random() * 15).toFixed(1),
       totalTrades,
-      winningTrades,
-      losingTrades: totalTrades - winningTrades,
-      equityCurve: Array.from({ length: 20 }, () => 30 + Math.random() * 60),
     };
     
     setBacktestResults(results);
@@ -408,7 +363,7 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
   const handleGenerate = async () => {
     if (!selectedTicker || !selectedStrategy) return;
     
-    const prompt = selectedStrategy.getPrompt(selectedTicker, strategyName, strategyParams);
+    const prompt = selectedStrategy.getPrompt(formatTicker(selectedTicker), strategyName, strategyParams);
     
     setMessages([{ role: 'user', content: prompt }]);
     setIsGenerating(true);
@@ -439,25 +394,19 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
       const strategy = {
         id: Date.now(),
         name: strategyName,
-        ticker: selectedTicker,
+        ticker: formatTicker(selectedTicker),
         type: selectedStrategy.id,
         description: prompt,
         code: code || generateFallbackCode(),
         params: strategyParams,
         backtestResults,
-        status: 'draft',
-        metrics: backtestResults || {
-          winRate: '—',
-          profitFactor: '—',
-          sharpeRatio: '—',
-          maxDrawdown: '—'
-        }
+        status: 'deployed',
       };
       
       setGeneratedStrategy(strategy);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: responseText || `I've created your ${strategyName} strategy for ${selectedTicker}.`,
+        content: responseText || `Strategy ${strategyName} created for ${formatTicker(selectedTicker)}.`,
         code: strategy.code,
         strategy: strategy
       }]);
@@ -468,19 +417,18 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
       const strategy = {
         id: Date.now(),
         name: strategyName,
-        ticker: selectedTicker,
+        ticker: formatTicker(selectedTicker),
         type: selectedStrategy.id,
         description: prompt,
         code,
         params: strategyParams,
         backtestResults,
-        status: 'draft',
-        metrics: backtestResults || {}
+        status: 'deployed',
       };
       setGeneratedStrategy(strategy);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `I've created your ${strategyName} strategy for ${selectedTicker}.`,
+        content: `Strategy ${strategyName} created for ${formatTicker(selectedTicker)}.`,
         code,
         strategy
       }]);
@@ -494,7 +442,7 @@ export default function RightPanel({ width, themeClasses, onStrategyGenerated })
     const className = strategyName.replace(/[^a-zA-Z0-9]/g, '');
     const params = strategyParams;
     return `# ${strategyName}
-# Generated by Atlas AI for ${selectedTicker}
+# Generated by Atlas AI for ${formatTicker(selectedTicker)}
 # Strategy: ${selectedStrategy?.name}
 
 import alpaca_trade_api as tradeapi
@@ -508,12 +456,7 @@ class ${className}:
         ${selectedStrategy?.params.map(p => `self.${p.key} = ${params[p.key]}`).join('\n        ')}
         
     def calculate_signals(self, df):
-        # Calculate indicators based on strategy type
         df['signal'] = 0
-        
-        # ${selectedStrategy?.name} logic implementation
-        # Parameters: ${JSON.stringify(params)}
-        
         return df
         
     def execute(self):
@@ -563,11 +506,11 @@ if __name__ == "__main__":
   if (!expanded) {
     return (
       <div 
-        className="w-12 flex flex-col items-center py-4 gap-4 bg-[#0d0d14] border-l border-[#1e1e2d] cursor-pointer hover:bg-[#12121a] transition-colors"
+        className="w-12 flex flex-col items-center py-4 gap-4 bg-[#060d18] border-l border-blue-500/20 cursor-pointer hover:bg-[#0a1628] transition-colors"
         onClick={() => setExpanded(true)}
       >
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-          <AtlasIcon className="w-5 h-5 text-white" />
+        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+          <StratifyIcon className="w-5 h-5 text-white" />
         </div>
         <span className="text-[10px] text-gray-500 font-medium tracking-wide" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
       </div>
@@ -575,31 +518,31 @@ if __name__ == "__main__":
   }
 
   return (
-    <div className="flex flex-col bg-[#0a0a10] border-l border-[#1e1e2d] overflow-hidden" style={{ width }}>
+    <div className="flex flex-col bg-[#060d18] border-l border-blue-500/20 overflow-hidden" style={{ width }}>
       {/* Header */}
-      <div className="h-14 flex-shrink-0 flex items-center justify-between px-4 border-b border-[#1e1e2d]">
-        <div className="flex items-center gap-3">
+      <div className="h-12 flex-shrink-0 flex items-center justify-between px-3 border-b border-blue-500/20">
+        <div className="flex items-center gap-2">
           <div className="relative">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-              <AtlasIcon className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <StratifyIcon className="w-5 h-5 text-white" />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0a0a10]" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#060d18]" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white">Atlas AI</h2>
-            <p className="text-[10px] text-emerald-400 font-medium">Strategy Builder</p>
+            <h2 className="text-xs font-bold text-white">Atlas AI</h2>
+            <p className="text-[9px] text-blue-400">Strategy Builder</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           {(messages.length > 0 || buildStep > 1) && (
-            <button onClick={handleNewStrategy} className="p-2 hover:bg-[#1e1e2d] rounded-lg transition-colors" title="New Strategy">
-              <svg className="w-4 h-4 text-gray-500 hover:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onClick={handleNewStrategy} className="p-1.5 hover:bg-blue-500/10 rounded-lg transition-colors" title="New Strategy">
+              <svg className="w-3.5 h-3.5 text-gray-500 hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
           )}
-          <button onClick={() => setExpanded(false)} className="p-2 hover:bg-[#1e1e2d] rounded-lg transition-colors">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={() => setExpanded(false)} className="p-1.5 hover:bg-blue-500/10 rounded-lg transition-colors">
+            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -607,20 +550,20 @@ if __name__ == "__main__":
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#1e1e2d]">
+      <div className="flex border-b border-blue-500/20">
         <button
           onClick={() => setActiveTab('build')}
-          className={`flex-1 py-3 text-xs font-semibold transition-colors relative ${activeTab === 'build' ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex-1 py-2 text-[10px] font-semibold transition-colors relative ${activeTab === 'build' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
         >
           🛠️ Build
-          {activeTab === 'build' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500" />}
+          {activeTab === 'build' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
         </button>
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-3 text-xs font-semibold transition-colors relative ${activeTab === 'chat' ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex-1 py-2 text-[10px] font-semibold transition-colors relative ${activeTab === 'chat' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
         >
           💬 Results
-          {activeTab === 'chat' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500" />}
+          {activeTab === 'chat' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />}
         </button>
       </div>
 
@@ -633,251 +576,244 @@ if __name__ == "__main__":
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="p-4 space-y-4"
+              className="p-3 space-y-3"
             >
               {/* Progress */}
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-1.5">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="flex items-center">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      buildStep >= step ? 'bg-gradient-to-br from-purple-500 to-blue-600 text-white' : 'bg-[#1a1a24] text-gray-500 border border-[#2a2a3d]'
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                      buildStep >= step ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-[#0a1628] text-gray-500 border border-blue-500/20'
                     }`}>
                       {buildStep > step ? '✓' : step}
                     </div>
-                    {step < 3 && <div className={`w-6 h-0.5 mx-1 ${buildStep > step ? 'bg-purple-500' : 'bg-[#2a2a3d]'}`} />}
+                    {step < 3 && <div className={`w-5 h-0.5 mx-0.5 ${buildStep > step ? 'bg-blue-500' : 'bg-blue-500/20'}`} />}
                   </div>
                 ))}
               </div>
 
               {/* Step 1: Ticker */}
               {buildStep === 1 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
                   <div className="text-center">
-                    <h3 className="text-lg font-bold text-white mb-1">Select Ticker</h3>
-                    <p className="text-xs text-gray-400">Choose the asset for your strategy</p>
+                    <h3 className="text-sm font-bold text-white mb-0.5">Select Ticker</h3>
+                    <p className="text-[10px] text-gray-400">Choose an asset for your strategy</p>
                   </div>
 
                   {/* Search */}
                   <div className="relative">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 text-sm font-bold">$</span>
                     <input
                       type="text"
                       value={tickerSearch}
                       onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
-                      placeholder="Search ticker symbol..."
-                      className="w-full pl-10 pr-4 py-3 bg-[#12121a] border border-[#2a2a3d] rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
+                      placeholder="Search symbol..."
+                      className="w-full pl-7 pr-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
                     />
-                    {tickerSearch && (
-                      <button onClick={() => setTickerSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
                   </div>
 
-                  {/* Custom ticker */}
-                  {tickerSearch && !filteredTickers.find(t => t.symbol === tickerSearch) && (
-                    <motion.button
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      onClick={() => handleTickerSelect(tickerSearch)}
-                      className="w-full p-3 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                          {tickerSearch.slice(0, 2)}
-                        </div>
-                        <div className="text-left">
-                          <div className="text-sm font-bold text-white">{tickerSearch}</div>
-                          <div className="text-xs text-gray-400">Custom ticker</div>
+                  {/* Search Results or Default Lists */}
+                  {filteredTickers ? (
+                    <div className="space-y-1.5">
+                      {filteredTickers.length > 0 ? (
+                        filteredTickers.map((ticker) => (
+                          <button
+                            key={ticker.symbol}
+                            onClick={() => handleTickerSelect(ticker.symbol)}
+                            className="w-full p-2 rounded-lg bg-[#0a1628] border border-blue-500/20 hover:border-blue-500/50 flex items-center justify-between transition-all"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-400 font-bold text-xs">${ticker.symbol}</span>
+                              <span className="text-gray-500 text-[10px]">{ticker.name}</span>
+                            </div>
+                            <span className="text-blue-400 text-[10px]">→</span>
+                          </button>
+                        ))
+                      ) : (
+                        <button
+                          onClick={() => handleTickerSelect(tickerSearch)}
+                          className="w-full p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-between"
+                        >
+                          <span className="text-blue-400 font-bold text-xs">${tickerSearch}</span>
+                          <span className="text-blue-400 text-[10px]">Use custom →</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Equities */}
+                      <div>
+                        <p className="text-[10px] text-gray-500 mb-1.5 font-medium">Equities</p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {equityTickers.map((ticker) => (
+                            <button
+                              key={ticker.symbol}
+                              onClick={() => handleTickerSelect(ticker.symbol)}
+                              className="p-2 rounded-lg bg-[#0a1628] border border-blue-500/20 hover:border-blue-500/50 text-center transition-all group"
+                            >
+                              <div className="text-xs font-bold text-white group-hover:text-blue-400">${ticker.symbol}</div>
+                              <div className="text-[9px] text-gray-500 truncate">{ticker.name}</div>
+                            </button>
+                          ))}
                         </div>
                       </div>
-                      <span className="text-purple-400 text-xs">Use →</span>
-                    </motion.button>
-                  )}
 
-                  {/* Ticker Grid */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {filteredTickers.slice(0, 12).map((ticker) => (
-                      <motion.button
-                        key={ticker.symbol}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => handleTickerSelect(ticker.symbol)}
-                        className="p-3 rounded-xl bg-[#12121a] border border-[#2a2a3d] hover:border-purple-500/50 text-center group transition-all"
-                      >
-                        <div className="text-sm font-bold text-white group-hover:text-purple-400">{ticker.symbol}</div>
-                        <div className="text-[10px] text-gray-500 truncate">{ticker.name}</div>
-                      </motion.button>
-                    ))}
-                  </div>
+                      {/* Crypto */}
+                      <div>
+                        <p className="text-[10px] text-gray-500 mb-1.5 font-medium">Crypto</p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {cryptoTickers.map((ticker) => (
+                            <button
+                              key={ticker.symbol}
+                              onClick={() => handleTickerSelect(ticker.symbol)}
+                              className="p-2 rounded-lg bg-[#0a1628] border border-blue-500/20 hover:border-blue-500/50 text-center transition-all group"
+                            >
+                              <div className="text-xs font-bold text-white group-hover:text-blue-400">${ticker.symbol}</div>
+                              <div className="text-[9px] text-gray-500 truncate">{ticker.name}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </motion.div>
               )}
 
               {/* Step 2: Strategy */}
               {buildStep === 2 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <button onClick={handleBack} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onClick={handleBack} className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-white">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                       Back
                     </button>
-                    <div className="px-3 py-1 rounded-lg bg-purple-500/20 border border-purple-500/30">
-                      <span className="text-purple-400 text-sm font-bold">{selectedTicker}</span>
-                    </div>
+                    <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">{formatTicker(selectedTicker)}</span>
                   </div>
 
                   <div className="text-center">
-                    <h3 className="text-lg font-bold text-white mb-1">Choose Strategy</h3>
-                    <p className="text-xs text-gray-400">Select your trading approach</p>
+                    <h3 className="text-sm font-bold text-white mb-0.5">Choose Strategy</h3>
+                    <p className="text-[10px] text-gray-400">Select your trading approach</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {strategyTemplates.map((strategy) => (
-                      <motion.button
+                      <button
                         key={strategy.id}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
                         onClick={() => handleStrategySelect(strategy)}
-                        className="p-3 rounded-xl bg-[#12121a] border border-[#2a2a3d] hover:border-purple-500/50 text-left transition-all"
+                        className="p-2 rounded-lg bg-[#0a1628] border border-blue-500/20 hover:border-blue-500/50 text-left transition-all"
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xl">{strategy.icon}</span>
-                          <span className="text-xs font-bold text-gray-200">{strategy.name}</span>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-base">{strategy.icon}</span>
+                          <span className="text-[10px] font-bold text-white">{strategy.name}</span>
                         </div>
-                        <p className="text-[10px] text-gray-500 line-clamp-2">{strategy.description}</p>
-                      </motion.button>
+                        <p className="text-[9px] text-gray-500 line-clamp-1">{strategy.description}</p>
+                      </button>
                     ))}
                   </div>
                 </motion.div>
               )}
 
-              {/* Step 3: Configure, Backtest & Generate */}
+              {/* Step 3: Configure & Backtest */}
               {buildStep === 3 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <button onClick={handleBack} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onClick={handleBack} className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-white">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                       Back
                     </button>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs font-bold">{selectedTicker}</span>
-                      <span className="text-lg">{selectedStrategy?.icon}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">{formatTicker(selectedTicker)}</span>
+                      <span className="text-sm">{selectedStrategy?.icon}</span>
                     </div>
                   </div>
 
                   {/* Strategy Name */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 mb-1.5 block">📝 Strategy Name</label>
+                    <label className="text-[10px] text-gray-400 mb-1 block">Strategy Name</label>
                     <input
                       type="text"
                       value={strategyName}
                       onChange={(e) => setStrategyName(e.target.value)}
-                      placeholder="e.g. My RSI Strategy"
-                      className="w-full px-3 py-2.5 bg-[#12121a] border border-[#2a2a3d] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                      className="w-full px-2 py-1.5 bg-[#0a1628] border border-blue-500/20 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500/50"
                     />
                   </div>
 
-                  {/* Parameters */}
+                  {/* Parameters - 2 column grid */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 mb-2 block">⚙️ Parameters</label>
-                    <div className="space-y-2 p-3 rounded-xl bg-[#12121a] border border-[#2a2a3d]">
+                    <label className="text-[10px] text-gray-400 mb-1 block">Parameters</label>
+                    <div className="grid grid-cols-2 gap-1">
                       {selectedStrategy?.params.map((param) => (
-                        <div key={param.key} className="flex items-center justify-between">
-                          <span className="text-xs text-gray-400">{param.label}</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={strategyParams[param.key] ?? param.value}
-                              onChange={(e) => handleParamChange(param.key, e.target.value)}
-                              min={param.min}
-                              max={param.max}
-                              step={param.step}
-                              className="w-20 px-2 py-1 bg-[#0a0a10] border border-[#2a2a3d] rounded text-xs text-white text-right focus:outline-none focus:border-purple-500/50"
-                            />
-                          </div>
+                        <div key={param.key} className="flex items-center justify-between p-1.5 bg-[#0a1628] border border-blue-500/20 rounded">
+                          <span className="text-[9px] text-gray-400 truncate pr-1">{param.label}</span>
+                          <input
+                            type="number"
+                            value={strategyParams[param.key] ?? param.value}
+                            onChange={(e) => handleParamChange(param.key, e.target.value)}
+                            min={param.min}
+                            max={param.max}
+                            step={param.step}
+                            className="w-12 px-1 py-0.5 bg-[#060d18] border border-blue-500/20 rounded text-[10px] text-white text-right focus:outline-none"
+                          />
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Backtest Section */}
+                  {/* Backtest Period */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 mb-2 block">📊 Backtest Period</label>
-                    <div className="flex gap-1 mb-3">
+                    <label className="text-[10px] text-gray-400 mb-1 block">Backtest Period</label>
+                    <div className="flex gap-1">
                       {backtestPeriods.map((period) => (
                         <button
                           key={period.label}
                           onClick={() => { setSelectedPeriod(period); setBacktestResults(null); }}
-                          className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                          className={`flex-1 py-1.5 rounded text-[10px] font-medium transition-all ${
                             selectedPeriod.label === period.label
-                              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                              : 'bg-[#12121a] text-gray-400 border border-[#2a2a3d] hover:border-purple-500/20'
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                              : 'bg-[#0a1628] text-gray-400 border border-blue-500/20 hover:border-blue-500/40'
                           }`}
                         >
                           {period.label}
                         </button>
                       ))}
                     </div>
-
-                    {/* Backtest Button or Results */}
-                    {isBacktesting ? (
-                      <BacktestLoadingAnimation period={selectedPeriod.description} />
-                    ) : backtestResults ? (
-                      <BacktestResults results={backtestResults} period={selectedPeriod.description} />
-                    ) : (
-                      <button
-                        onClick={handleBacktest}
-                        className="w-full py-3 rounded-xl bg-[#12121a] border border-[#2a2a3d] text-gray-300 text-sm font-medium hover:border-purple-500/50 hover:text-white transition-all flex items-center justify-center gap-2"
-                      >
-                        <span>📊</span> Run Backtest ({selectedPeriod.description})
-                      </button>
-                    )}
                   </div>
 
-                  {/* Generate Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                  {/* Backtest Button/Loading/Results */}
+                  {isBacktesting ? (
+                    <BacktestLoadingAnimation period={selectedPeriod.description} />
+                  ) : backtestResults ? (
+                    <BacktestResults results={backtestResults} period={selectedPeriod.description} />
+                  ) : (
+                    <button
+                      onClick={handleBacktest}
+                      className="w-full py-2 rounded-lg bg-[#0a1628] border border-blue-500/20 text-gray-300 text-xs font-medium hover:border-blue-500/50 hover:text-white transition-all"
+                    >
+                      📊 Run Backtest
+                    </button>
+                  )}
+
+                  {/* Generate Button - Simple text */}
+                  <button
                     onClick={handleGenerate}
                     disabled={isGenerating || !strategyName.trim()}
-                    className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                    className={`w-full py-2 text-xs font-semibold transition-all ${
                       strategyName.trim()
-                        ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/25'
-                        : 'bg-[#1a1a24] text-gray-500 cursor-not-allowed'
+                        ? 'text-blue-400 hover:text-blue-300'
+                        : 'text-gray-600 cursor-not-allowed'
                     }`}
                   >
-                    {isGenerating ? (
-                      <>
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <AtlasIcon className="w-4 h-4" />
-                        Generate & Deploy Strategy
-                      </>
-                    )}
-                  </motion.button>
-
-                  <button onClick={handleNewStrategy} className="w-full text-xs text-gray-500 hover:text-gray-300">
-                    Start over
+                    {isGenerating ? 'Generating...' : 'Generate & Deploy Strategy →'}
                   </button>
                 </motion.div>
               )}
             </motion.div>
           ) : (
-            /* Results/Chat Tab */
+            /* Results Tab */
             <motion.div
               key="chat"
               initial={{ opacity: 0, x: 20 }}
@@ -886,64 +822,113 @@ if __name__ == "__main__":
               className="flex flex-col h-full"
             >
               {messages.length === 0 && !isGenerating ? (
-                <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mb-4 shadow-xl">
-                    <AtlasIcon className="w-8 h-8 text-white" />
+                <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/30">
+                    <StratifyIcon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-2">Ready to Build</h3>
-                  <p className="text-gray-400 text-sm mb-4">Configure and generate a strategy to see results here</p>
-                  <button onClick={() => setActiveTab('build')} className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium">
+                  <h3 className="text-sm font-bold text-white mb-1">Ready to Build</h3>
+                  <p className="text-gray-400 text-[10px] mb-3">Configure and generate a strategy</p>
+                  <button onClick={() => setActiveTab('build')} className="text-blue-400 text-xs hover:text-blue-300">
                     Go to Build →
                   </button>
                 </div>
               ) : isGenerating ? (
                 <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="relative mb-6">
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-20 h-20 rounded-full border-2 border-purple-500/30 border-t-purple-500" />
+                  {/* Globe with orbiting animation */}
+                  <div className="relative w-32 h-32 mb-4">
+                    {/* Glow effect */}
+                    <div className="absolute inset-4 rounded-full bg-blue-500/20 blur-xl" />
+                    
+                    {/* Globe core */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-                        <span className="text-2xl">{selectedStrategy?.icon}</span>
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 shadow-2xl shadow-blue-500/50 flex items-center justify-center border border-blue-400/30">
+                        <span className="text-white font-bold text-2xl">S</span>
                       </div>
                     </div>
+                    
+                    {/* Orbital ring 1 - horizontal */}
+                    <motion.div
+                      animate={{ rotateY: 360 }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0"
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      <div className="absolute inset-2 rounded-full border border-blue-500/40" />
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-2"
+                      >
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-blue-400 shadow-lg shadow-blue-400/80" />
+                      </motion.div>
+                    </motion.div>
+                    
+                    {/* Orbital ring 2 - tilted left */}
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0"
+                      style={{ transform: 'rotateX(60deg) rotateZ(-30deg)' }}
+                    >
+                      <div className="absolute inset-1 rounded-full border border-blue-400/30" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/80" />
+                    </motion.div>
+                    
+                    {/* Orbital ring 3 - tilted right */}
+                    <motion.div
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0"
+                      style={{ transform: 'rotateX(60deg) rotateZ(30deg)' }}
+                    >
+                      <div className="absolute inset-3 rounded-full border border-blue-300/20" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-300 shadow-lg shadow-blue-300/80" />
+                    </motion.div>
+                    
+                    {/* Orbital ring 4 - vertical */}
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0"
+                      style={{ transform: 'rotateY(90deg)' }}
+                    >
+                      <div className="absolute inset-0 rounded-full border border-blue-500/20" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/80" />
+                    </motion.div>
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-2">Generating Strategy</h3>
-                  <p className="text-purple-400 font-medium">{strategyName}</p>
+                  
+                  <h3 className="text-sm font-bold text-white mb-1">Generating Strategy</h3>
+                  <p className="text-blue-400 text-xs">{strategyName}</p>
+                  <p className="text-gray-500 text-[10px] mt-1">Analyzing patterns...</p>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
                   {messages.map((msg, idx) => (
                     <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                       {msg.role === 'user' ? (
                         <div className="flex justify-end">
-                          <div className="max-w-[90%] bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl rounded-br-sm px-4 py-3 text-sm">
-                            <p className="line-clamp-3">{msg.content.slice(0, 150)}...</p>
+                          <div className="max-w-[90%] bg-blue-600 text-white rounded-xl rounded-br-sm px-3 py-2 text-[10px]">
+                            <p className="line-clamp-2">{msg.content.slice(0, 100)}...</p>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                              <AtlasIcon className="w-4 h-4 text-white" />
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                              <StratifyIcon className="w-4 h-4 text-white" />
                             </div>
-                            <p className="text-sm text-gray-200">{msg.content}</p>
+                            <p className="text-[10px] text-gray-200">{msg.content}</p>
                           </div>
                           
                           {msg.code && (
-                            <div className="bg-[#0d0d14] rounded-xl border border-[#1e1e2d] overflow-hidden">
-                              <div className="flex items-center justify-between px-4 py-2 border-b border-[#1e1e2d]">
-                                <div className="flex items-center gap-2">
-                                  <div className="flex gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                                  </div>
-                                  <span className="text-xs text-gray-500 ml-2">{strategyName.toLowerCase().replace(/\s+/g, '_')}.py</span>
-                                </div>
-                                <button onClick={() => navigator.clipboard.writeText(msg.code)} className="text-xs text-purple-400 hover:text-purple-300">
+                            <div className="bg-[#0a1628] rounded-lg border border-blue-500/20 overflow-hidden">
+                              <div className="flex items-center justify-between px-2 py-1 border-b border-blue-500/20">
+                                <span className="text-[9px] text-gray-500">{strategyName.toLowerCase().replace(/\s+/g, '_')}.py</span>
+                                <button onClick={() => navigator.clipboard.writeText(msg.code)} className="text-[9px] text-blue-400">
                                   Copy
                                 </button>
                               </div>
-                              <div className="p-4 max-h-48 overflow-y-auto scrollbar-hide">
+                              <div className="p-2 max-h-32 overflow-y-auto scrollbar-hide">
                                 <SyntaxHighlightedCode code={msg.code} />
                               </div>
                             </div>
@@ -953,15 +938,12 @@ if __name__ == "__main__":
                             <div className="flex gap-2">
                               <button
                                 onClick={handleSaveStrategy}
-                                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
+                                className="flex-1 py-1.5 text-xs text-emerald-400 hover:text-emerald-300"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                                </svg>
-                                Deploy Strategy
+                                ✓ Save Strategy
                               </button>
-                              <button onClick={handleNewStrategy} className="px-4 py-2.5 rounded-xl bg-[#1a1a24] text-gray-300 text-sm border border-[#2a2a3d]">
-                                New
+                              <button onClick={handleNewStrategy} className="flex-1 py-1.5 text-xs text-gray-400 hover:text-gray-300">
+                                + New
                               </button>
                             </div>
                           )}
