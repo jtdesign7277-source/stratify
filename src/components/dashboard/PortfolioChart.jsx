@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { createChart } from 'lightweight-charts';
+import { createChart, AreaSeries } from 'lightweight-charts';
 
 const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
   const chartContainerRef = useRef(null);
@@ -12,178 +12,146 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
 
   const timeframes = ['1W', '1M', '3M', '6M', '1Y', 'All'];
 
-  // Generate mock portfolio data
   const generateData = (days) => {
     const data = [];
-    let value = initialValue * 0.85; // Start lower so we show growth
+    let value = initialValue * 0.85;
     const now = new Date();
     
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      
-      // Random daily change between -2% and +3% (slight upward bias)
-      const change = (Math.random() - 0.45) * 0.04;
-      value = value * (1 + change);
-      
+      const change = (Math.random() - 0.45) * (value * 0.02);
+      value = Math.max(value + change, initialValue * 0.5);
       data.push({
         time: date.toISOString().split('T')[0],
-        value: Math.round(value * 100) / 100
+        value: value,
       });
     }
-    
-    // Ensure last value matches current portfolio value
-    if (data.length > 0) {
-      data[data.length - 1].value = initialValue;
-    }
-    
     return data;
   };
 
-  const getDataForTimeframe = (timeframe) => {
-    switch (timeframe) {
-      case '1W': return generateData(7);
-      case '1M': return generateData(30);
-      case '3M': return generateData(90);
-      case '6M': return generateData(180);
-      case '1Y': return generateData(365);
-      case 'All': return generateData(730);
-      default: return generateData(30);
+  const getDaysForTimeframe = (tf) => {
+    switch (tf) {
+      case '1W': return 7;
+      case '1M': return 30;
+      case '3M': return 90;
+      case '6M': return 180;
+      case '1Y': return 365;
+      case 'All': return 730;
+      default: return 30;
     }
   };
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Create chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: 'solid', color: 'transparent' },
         textColor: '#9ca3af',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        vertLines: { visible: false },
         horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
       },
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          color: 'rgba(139, 92, 246, 0.5)',
-          width: 1,
-          style: 2,
-        },
-        horzLine: {
-          color: 'rgba(139, 92, 246, 0.5)',
-          width: 1,
-          style: 2,
-        },
-      },
+      width: chartContainerRef.current.clientWidth,
+      height: 220,
       rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.1,
-        },
+        borderVisible: false,
+        scaleMargins: { top: 0.1, bottom: 0.1 },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        timeVisible: true,
-        secondsVisible: false,
+        borderVisible: false,
+        timeVisible: false,
+      },
+      crosshair: {
+        vertLine: { color: 'rgba(139, 92, 246, 0.5)', width: 1, style: 2 },
+        horzLine: { color: 'rgba(139, 92, 246, 0.5)', width: 1, style: 2 },
       },
       handleScroll: false,
       handleScale: false,
     });
 
-    // Create area series with purple/blue gradient
-    const series = chart.addAreaSeries({
-      lineColor: 'rgba(139, 92, 246, 1)',
+    const areaSeries = chart.addSeries(AreaSeries, {
+      lineColor: '#8B5CF6',
       topColor: 'rgba(139, 92, 246, 0.4)',
       bottomColor: 'rgba(139, 92, 246, 0.0)',
       lineWidth: 2,
-      priceFormat: {
-        type: 'custom',
-        formatter: (price) => '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      },
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: true,
+      crosshairMarkerRadius: 4,
     });
 
     chartRef.current = chart;
-    seriesRef.current = series;
+    seriesRef.current = areaSeries;
 
-    // Handle resize
+    const days = getDaysForTimeframe(selectedTimeframe);
+    const data = generateData(days);
+    areaSeries.setData(data);
+    chart.timeScale().fitContent();
+
+    if (data.length > 0) {
+      const lastValue = data[data.length - 1].value;
+      const firstValue = data[0].value;
+      setCurrentValue(lastValue);
+      setChangeAmount(lastValue - firstValue);
+      setChangePercent(((lastValue - firstValue) / firstValue) * 100);
+    }
+
+    chart.subscribeCrosshairMove((param) => {
+      if (param.time && param.seriesData.size > 0) {
+        const value = param.seriesData.get(areaSeries);
+        if (value) {
+          setCurrentValue(value.value);
+        }
+      } else if (data.length > 0) {
+        setCurrentValue(data[data.length - 1].value);
+      }
+    });
+
     const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
+      if (chartContainerRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       }
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize();
 
-    // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
-      }
+      chart.remove();
     };
-  }, []);
-
-  // Update data when timeframe changes
-  useEffect(() => {
-    if (!seriesRef.current) return;
-
-    const data = getDataForTimeframe(selectedTimeframe);
-    seriesRef.current.setData(data);
-
-    // Calculate change
-    if (data.length > 1) {
-      const startValue = data[0].value;
-      const endValue = data[data.length - 1].value;
-      const change = endValue - startValue;
-      const percent = ((endValue - startValue) / startValue) * 100;
-      
-      setCurrentValue(endValue);
-      setChangeAmount(change);
-      setChangePercent(percent);
-    }
-
-    // Fit content
-    if (chartRef.current) {
-      chartRef.current.timeScale().fitContent();
-    }
   }, [selectedTimeframe, initialValue]);
 
-  const isPositive = changeAmount >= 0;
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
 
   return (
-    <div className={`flex flex-col ${className}`}>
-      {/* Header with value */}
-      <div className="flex justify-between items-start mb-4">
+    <div className={className}>
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-gray-400 text-sm">Total value</p>
-          <p className="text-white text-3xl font-semibold">
-            ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <span className="text-gray-400 text-lg ml-1">USD</span>
-          </p>
-          <p className={`text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-            {isPositive ? '+' : ''}{changeAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
-          </p>
+          <div className="text-sm text-gray-400 mb-1">Total value</div>
+          <div className="text-3xl font-bold text-white">{formatCurrency(currentValue)}</div>
+          <div className={`text-sm ${changeAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {changeAmount >= 0 ? '+' : ''}{formatCurrency(changeAmount)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
+          </div>
         </div>
-        
-        {/* Timeframe buttons */}
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           {timeframes.map((tf) => (
             <button
               key={tf}
               onClick={() => setSelectedTimeframe(tf)}
-              className={`px-3 py-1 text-sm rounded transition-all ${
+              className={`px-3 py-1 rounded text-sm font-medium transition-all ${
                 selectedTimeframe === tf
-                  ? 'bg-gray-700 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               {tf}
@@ -191,12 +159,7 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
           ))}
         </div>
       </div>
-
-      {/* Chart container */}
-      <div 
-        ref={chartContainerRef} 
-        className="w-full h-64 rounded-lg"
-      />
+      <div ref={chartContainerRef} className="w-full" />
     </div>
   );
 };
