@@ -4,9 +4,8 @@ import {
   RefreshCcw, Loader2, MoreHorizontal, Unlink
 } from 'lucide-react';
 import { getQuotes } from '../../services/marketData';
-import PortfolioChart from './PortfolioChart';
-import PortfolioChart from './PortfolioChart';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
+import PortfolioChart from './PortfolioChart';
 
 const PortfolioPage = ({ themeClasses, alpacaData }) => {
   const [prices, setPrices] = useState({});
@@ -14,17 +13,13 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState([]);
-  const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
-  const [chartTab, setChartTab] = useState('value');
 
-  // Mock data that syncs with TopMetricsBar
   const [mockData, setMockData] = useState({
     netLiq: 125840.00,
     buyingPower: 251680.00,
     dailyPnL: 1247.83
   });
 
-  // Animate mock values
   useEffect(() => {
     const interval = setInterval(() => {
       setMockData(prev => ({
@@ -36,7 +31,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Demo holdings
   const demoHoldings = [
     { symbol: 'AAPL', name: 'Apple Inc.', shares: 150, avgCost: 178.50 },
     { symbol: 'NVDA', name: 'NVIDIA Corp.', shares: 45, avgCost: 485.00 },
@@ -76,12 +70,10 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
       setLastUpdate(new Date());
       return;
     }
-    
     setLoading(true);
     try {
       const symbols = holdings.map(h => h.symbol);
       const quotes = await getQuotes(symbols);
-      
       const priceMap = {};
       quotes.forEach(q => {
         if (q && q.symbol) {
@@ -92,7 +84,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
           };
         }
       });
-      
       setPrices(priceMap);
       setLastUpdate(new Date());
     } catch (error) {
@@ -108,11 +99,9 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
     return () => clearInterval(interval);
   }, [positions]);
 
-  // Calculate portfolio metrics
   const portfolioData = useMemo(() => {
     let holdingsValue = 0;
     let totalCost = 0;
-
     holdings.forEach(holding => {
       if (holding.marketValue !== undefined) {
         holdingsValue += holding.marketValue;
@@ -124,11 +113,9 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
         totalCost += holding.avgCost * holding.shares;
       }
     });
-
     const totalPL = holdingsValue - totalCost;
     const totalPLPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
     const todayChangePercent = netLiquidity > 0 ? (dailyPnL / netLiquidity) * 100 : 0;
-
     return {
       totalValue: netLiquidity,
       totalPL,
@@ -156,111 +143,16 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
     setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId));
   };
 
-  // Calculate total value across all connected accounts
   const totalConnectedValue = connectedBrokers.reduce((sum, b) => sum + (b.value || 0), 0) + portfolioData.totalValue;
-
-  // Generate chart data points (mock)
-  const chartPoints = useMemo(() => {
-    const points = [];
-    const baseValue = portfolioData.totalValue;
-    for (let i = 0; i < 50; i++) {
-      const variance = (Math.random() - 0.5) * baseValue * 0.1;
-      points.push(baseValue + variance * (i / 50));
-    }
-    return points;
-  }, [portfolioData.totalValue]);
-
-  const timeframes = ['1W', '1M', '3M', '6M', '1Y', 'All'];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#060d18] overflow-auto">
-      {/* Top Section - Total Value & Actions */}
       <div className="px-6 pt-6 pb-4">
-        <div className="flex items-start justify-between">
-          {/* Left - Total Value */}
-          <div>
-            <div className="text-gray-400 text-sm mb-1">Total value</div>
-            <div className="text-4xl font-bold text-white mb-2">
-              {formatCurrency(totalConnectedValue)}
-            </div>
-            <div className={`flex items-center gap-2 text-sm ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {portfolioData.todayChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              <span>{portfolioData.todayChange >= 0 ? '+' : ''}{formatCurrency(portfolioData.todayChange)}</span>
-              <span className="text-gray-500">({portfolioData.todayChangePercent.toFixed(2)}%) today</span>
-            </div>
-          </div>
-
+        <div className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden p-4">
+          <PortfolioChart initialValue={totalConnectedValue} />
         </div>
       </div>
 
-      {/* Chart Section */}
-      <div className="px-6 pb-4">
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden">
-          {/* Chart Header */}
-          <div className="flex items-center justify-end px-4 py-3 border-b border-gray-800">
-            <div className="flex items-center gap-1">
-              {timeframes.map(tf => (
-                <button
-                  key={tf}
-                  onClick={() => setSelectedTimeframe(tf)}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                    selectedTimeframe === tf
-                      ? 'bg-purple-500/20 text-purple-400'
-                      : 'text-gray-500 hover:text-gray-300'
-                  }`}
-                >
-                  {tf}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Chart Area */}
-          <div className="h-64 px-4 py-4 relative">
-            {/* SVG Chart with gradient */}
-            <svg className="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              
-              {/* Area fill */}
-              <path
-                d={`M 0 200 ${chartPoints.map((p, i) => {
-                  const x = (i / (chartPoints.length - 1)) * 500;
-                  const y = 200 - ((p / (portfolioData.totalValue * 1.1)) * 200);
-                  return `L ${x} ${y}`;
-                }).join(' ')} L 500 200 Z`}
-                fill="url(#chartGradient)"
-              />
-              
-              {/* Line */}
-              <path
-                d={`M ${chartPoints.map((p, i) => {
-                  const x = (i / (chartPoints.length - 1)) * 500;
-                  const y = 200 - ((p / (portfolioData.totalValue * 1.1)) * 200);
-                  return `${i === 0 ? '' : 'L '}${x} ${y}`;
-                }).join(' ')}`}
-                fill="none"
-                stroke="#8B5CF6"
-                strokeWidth="2"
-              />
-            </svg>
-
-            {/* Chart value overlay */}
-            <div className="absolute top-4 left-4">
-              <div className="text-2xl font-bold text-white">{formatCurrency(portfolioData.totalValue)}</div>
-              <div className={`text-sm ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {portfolioData.todayChange >= 0 ? '+' : ''}{portfolioData.todayChangePercent.toFixed(2)}%
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Connected Accounts Section */}
       <div className="px-6 pb-6 flex-1">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Connected Accounts</h2>
@@ -275,7 +167,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Alpaca Account (always show if connected or has data) */}
           {(hasRealData || true) && (
             <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
               <div className="flex items-start justify-between mb-3">
@@ -295,7 +186,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
               </div>
-              
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Total value</span>
@@ -315,7 +205,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
             </div>
           )}
 
-          {/* Other connected brokers */}
           {connectedBrokers.map(broker => (
             <div key={broker.id} className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
               <div className="flex items-start justify-between mb-3">
@@ -339,7 +228,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
                   <Unlink className="w-4 h-4" />
                 </button>
               </div>
-              
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Total value</span>
@@ -353,7 +241,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
             </div>
           ))}
 
-          {/* Connect a Broker Card */}
           <button
             onClick={() => setShowBrokerModal(true)}
             className="bg-[#0a1628] border border-dashed border-gray-700 rounded-xl p-4 hover:border-purple-500/50 hover:bg-[#0a1628]/80 transition-all flex flex-col items-center justify-center min-h-[160px] group"
@@ -365,10 +252,8 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
             <div className="text-gray-500 text-sm text-center">Link your accounts for unified tracking</div>
           </button>
         </div>
-
       </div>
 
-      {/* Broker Connect Modal */}
       <BrokerConnectModal
         isOpen={showBrokerModal}
         onClose={() => setShowBrokerModal(false)}
