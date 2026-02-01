@@ -977,5 +977,5 @@ export default function StratifyApp() {
     return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
   }
 
-  return <KrakenDashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: stocks, account: { equity: 0, cash: 0, buying_power: 0 } }} />;
+  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: stocks, account: { equity: 0, cash: 0, buying_power: 0 } }} />;
 }
