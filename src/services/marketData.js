@@ -87,6 +87,30 @@ export async function getAlpacaBars() {
   }
 }
 
+// Get Alpaca account data (equity, buying power, etc.)
+export async function getAlpacaAccount() {
+  try {
+    const response = await fetch(`${API_BASE}/api/stocks/account`);
+    if (!response.ok) throw new Error('Failed to fetch Alpaca account');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Alpaca account:', error);
+    return null;
+  }
+}
+
+// Get Alpaca positions (holdings)
+export async function getAlpacaPositions() {
+  try {
+    const response = await fetch(`${API_BASE}/api/stocks/positions`);
+    if (!response.ok) throw new Error('Failed to fetch Alpaca positions');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Alpaca positions:', error);
+    return [];
+  }
+}
+
 // Chat with Atlas AI
 export async function chatWithAtlas(message, strategyName) {
   try {

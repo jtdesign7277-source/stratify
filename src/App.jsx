@@ -970,12 +970,12 @@ export class TeslaEMAStrategy extends Strategy {
 // Main App Component
 export default function StratifyApp() {
   const [currentPage, setCurrentPage] = useState('landing');
-  const { stocks, loading, error } = useAlpacaData();
+  const { stocks, account, positions, loading, error } = useAlpacaData();
 
   // Landing page with runway-bg video background + Experience Stratify intro
   if (currentPage === 'landing') {
     return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
   }
 
-  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: stocks, account: { equity: 0, cash: 0, buying_power: 0 } }} />;
+  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: positions.length > 0 ? positions : stocks, account: account || { equity: 0, cash: 0, buying_power: 0 } }} />;
 }

@@ -67,6 +67,46 @@ export async function getBars() {
   }
 }
 
+export async function getAccount() {
+  try {
+    const account = await alpaca.getAccount();
+    return {
+      equity: parseFloat(account.equity) || 0,
+      cash: parseFloat(account.cash) || 0,
+      buying_power: parseFloat(account.buying_power) || 0,
+      portfolio_value: parseFloat(account.portfolio_value) || 0,
+      last_equity: parseFloat(account.last_equity) || 0,
+      daily_pnl: (parseFloat(account.equity) - parseFloat(account.last_equity)) || 0,
+      account_type: account.account_type || 'paper',
+      status: account.status,
+    };
+  } catch (error) {
+    console.error('Error fetching account:', error.message);
+    throw error;
+  }
+}
+
+export async function getPositions() {
+  try {
+    const positions = await alpaca.getPositions();
+    return positions.map(pos => ({
+      symbol: pos.symbol,
+      qty: parseFloat(pos.qty) || 0,
+      avg_entry_price: parseFloat(pos.avg_entry_price) || 0,
+      current_price: parseFloat(pos.current_price) || 0,
+      market_value: parseFloat(pos.market_value) || 0,
+      cost_basis: parseFloat(pos.cost_basis) || 0,
+      unrealized_pl: parseFloat(pos.unrealized_pl) || 0,
+      unrealized_plpc: parseFloat(pos.unrealized_plpc) || 0,
+      change_today: parseFloat(pos.change_today) || 0,
+      side: pos.side,
+    }));
+  } catch (error) {
+    console.error('Error fetching positions:', error.message);
+    throw error;
+  }
+}
+
 export function startAlpacaStream(onData) {
   console.log('📊 Alpaca polling mode enabled');
 

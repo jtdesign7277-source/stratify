@@ -1,18 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getQuotes, getQuote, getAlpacaBars, getTrending } from './services/marketData';
+import { getQuotes, getQuote, getAlpacaBars, getTrending, getAlpacaAccount, getAlpacaPositions } from './services/marketData';
 
 // Default watchlist symbols
 const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'];
 
 export function useAlpacaData() {
   const [stocks, setStocks] = useState([]);
+  const [account, setAccount] = useState(null);
+  const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
-      // Try Alpaca bars first (has change data)
-      const bars = await getAlpacaBars();
+      // Fetch account and positions from Alpaca
+      const [accountData, positionsData, bars] = await Promise.all([
+        getAlpacaAccount(),
+        getAlpacaPositions(),
+        getAlpacaBars()
+      ]);
+      
+      if (accountData) {
+        setAccount(accountData);
+      }
+      
+      if (positionsData && positionsData.length > 0) {
+        setPositions(positionsData);
+      }
       
       if (bars && bars.length > 0) {
         setStocks(bars.map(bar => ({
@@ -53,7 +67,7 @@ export function useAlpacaData() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { stocks, loading, error, refetch: fetchData };
+  return { stocks, account, positions, loading, error, refetch: fetchData };
 }
 
 // Hook for watchlist with custom symbols

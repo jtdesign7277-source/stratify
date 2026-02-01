@@ -1,7 +1,25 @@
 import { Router } from 'express';
-import { getQuotes, getBars } from '../services/alpaca.js';
+import { getQuotes, getBars, getAccount, getPositions } from '../services/alpaca.js';
 
 const router = Router();
+
+router.get('/account', async (req, res) => {
+  try {
+    const account = await getAccount();
+    res.json(account);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/positions', async (req, res) => {
+  try {
+    const positions = await getPositions();
+    res.json(positions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 router.get('/quotes', async (req, res) => {
   try {
