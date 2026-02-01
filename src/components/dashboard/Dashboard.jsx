@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
+import GrokPanel from './GrokPanel';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
 import ArbitragePanel from './ArbitragePanel';
@@ -509,17 +510,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
         </div>
         
-        <RightPanel 
-          width={rightPanelWidth} 
-          alpacaData={alpacaData} 
-          theme={theme} 
-          themeClasses={themeClasses} 
-          onStrategyGenerated={handleStrategyGenerated} 
-          onDemoStateChange={handleDemoStateChange}
-          onStrategyAdded={handleStrategyAdded}
-          editingStrategy={editingStrategy}
-          onClearEdit={() => setEditingStrategy(null)}
-        />
+        <GrokPanel />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
 
