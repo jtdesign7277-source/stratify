@@ -4,6 +4,54 @@ import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import { useAlpacaData } from './useAlpacaData';
 
+// Cinematic Video Intro Component - "The Drop"
+const VideoIntro = ({ onComplete }) => {
+  const [fadeOut, setFadeOut] = useState(false);
+
+  useEffect(() => {
+    // Start fade out 0.5s before video ends
+    const fadeTimer = setTimeout(() => setFadeOut(true), 5500);
+    // Complete transition after video
+    const completeTimer = setTimeout(() => onComplete(), 6200);
+    
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(completeTimer);
+    };
+  }, [onComplete]);
+
+  return (
+    <div 
+      className={`fixed inset-0 z-50 bg-black flex items-center justify-center transition-opacity duration-700 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+    >
+      <video
+        autoPlay
+        muted
+        playsInline
+        className="w-full h-full object-cover"
+        onEnded={onComplete}
+      >
+        <source src="/intro.mp4" type="video/mp4" />
+      </video>
+      {/* STRATIFY text overlay - appears at end */}
+      <div 
+        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${fadeOut ? 'opacity-100' : 'opacity-0'}`}
+      >
+        <h1 className="text-6xl md:text-8xl font-bold tracking-widest text-white">
+          STRATIFY
+        </h1>
+      </div>
+      {/* Skip button */}
+      <button
+        onClick={onComplete}
+        className="absolute bottom-8 right-8 text-white/50 hover:text-white text-sm transition-colors"
+      >
+        Skip →
+      </button>
+    </div>
+  );
+};
+
 // Animated grid background component with Dovetail-style design
 const GridBackground = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -1704,8 +1752,14 @@ export class TeslaEMAStrategy extends Strategy {
 
 // Main App Component
 export default function StratifyApp() {
+  const [showIntro, setShowIntro] = useState(true);
   const [currentPage, setCurrentPage] = useState('landing');
   const { stocks, loading, error } = useAlpacaData();
+
+  // Show cinematic intro on first visit
+  if (showIntro) {
+    return <VideoIntro onComplete={() => setShowIntro(false)} />;
+  }
 
   if (currentPage === 'landing') {
     return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
