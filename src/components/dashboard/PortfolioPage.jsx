@@ -1,20 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wallet, TrendingUp, TrendingDown, PieChart, DollarSign, Percent, RefreshCw, Loader2 } from 'lucide-react';
+import { 
+  Wallet, TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownLeft, 
+  RefreshCcw, Loader2, MoreHorizontal, Link2, Unlink
+} from 'lucide-react';
 import { getQuotes } from '../../services/marketData';
+import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 
 const PortfolioPage = ({ themeClasses, alpacaData }) => {
   const [prices, setPrices] = useState({});
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [connectedBrokers, setConnectedBrokers] = useState([]);
+  const [selectedTimeframe, setSelectedTimeframe] = useState('1M');
+  const [chartTab, setChartTab] = useState('value');
 
-  // Mock data that syncs with TopMetricsBar (same initial values)
+  // Mock data that syncs with TopMetricsBar
   const [mockData, setMockData] = useState({
     netLiq: 125840.00,
     buyingPower: 251680.00,
     dailyPnL: 1247.83
   });
 
-  // Animate mock values to stay in sync with TopMetricsBar animation pattern
+  // Animate mock values
   useEffect(() => {
     const interval = setInterval(() => {
       setMockData(prev => ({
@@ -26,7 +34,7 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Demo holdings (used when no real positions available)
+  // Demo holdings
   const demoHoldings = [
     { symbol: 'AAPL', name: 'Apple Inc.', shares: 150, avgCost: 178.50 },
     { symbol: 'NVDA', name: 'NVIDIA Corp.', shares: 45, avgCost: 485.00 },
@@ -38,21 +46,17 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
 
   const account = alpacaData?.account || {};
   const hasRealData = account.equity && account.equity > 0;
-  
-  // Use real Alpaca positions or demo holdings
   const positions = alpacaData?.positions?.length > 0 ? alpacaData.positions : null;
   
-  // Account values - use real data if available, otherwise mock
   const netLiquidity = hasRealData ? account.equity : mockData.netLiq;
   const buyingPower = hasRealData ? (account.buying_power ?? 0) : mockData.buyingPower;
   const dailyPnL = hasRealData ? (account.daily_pnl ?? 0) : mockData.dailyPnL;
 
-  // Convert Alpaca positions to holdings format
   const holdings = useMemo(() => {
     if (positions) {
       return positions.map(pos => ({
         symbol: pos.symbol,
-        name: pos.symbol, // Alpaca doesn't provide name, use symbol
+        name: pos.symbol,
         shares: parseFloat(pos.qty) || 0,
         avgCost: parseFloat(pos.avg_entry_price) || 0,
         currentPrice: parseFloat(pos.current_price) || 0,
@@ -66,7 +70,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
 
   const fetchPrices = async () => {
     if (positions) {
-      // Already have real-time data from Alpaca
       setLoading(false);
       setLastUpdate(new Date());
       return;
@@ -107,79 +110,29 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
   const portfolioData = useMemo(() => {
     let holdingsValue = 0;
     let totalCost = 0;
-    let todayChange = 0;
 
-    const holdingsWithPrices = holdings.map(holding => {
-      // If we have real Alpaca data
+    holdings.forEach(holding => {
       if (holding.marketValue !== undefined) {
         holdingsValue += holding.marketValue;
         totalCost += holding.avgCost * holding.shares;
-        todayChange += holding.unrealizedPL;
-        
-        return {
-          ...holding,
-          value: holding.marketValue,
-          pl: holding.unrealizedPL,
-          plPercent: holding.unrealizedPLPercent,
-          dayPL: holding.unrealizedPL,
-          priceChange: null,
-          priceChangePercent: holding.unrealizedPLPercent,
-        };
+      } else {
+        const priceData = prices[holding.symbol] || {};
+        const currentPrice = priceData.price || holding.avgCost;
+        holdingsValue += currentPrice * holding.shares;
+        totalCost += holding.avgCost * holding.shares;
       }
-      
-      // Demo data with fetched prices
-      const priceData = prices[holding.symbol] || {};
-      const currentPrice = priceData.price || holding.avgCost;
-      const value = currentPrice * holding.shares;
-      const cost = holding.avgCost * holding.shares;
-      const pl = value - cost;
-      const plPercent = cost > 0 ? ((value - cost) / cost) * 100 : 0;
-      const dayPL = (priceData.change || 0) * holding.shares;
-
-      holdingsValue += value;
-      totalCost += cost;
-      todayChange += dayPL;
-
-      return {
-        ...holding,
-        currentPrice,
-        value,
-        pl,
-        plPercent,
-        dayPL,
-        priceChange: priceData.change,
-        priceChangePercent: priceData.changePercent,
-      };
     });
 
-    // Calculate cash as the difference between NET LIQ and holdings value
-    const cashBalance = netLiquidity - holdingsValue;
     const totalPL = holdingsValue - totalCost;
     const totalPLPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
     const todayChangePercent = netLiquidity > 0 ? (dailyPnL / netLiquidity) * 100 : 0;
 
-    // Calculate allocation
-    const allocation = [
-      { 
-        category: 'Stocks', 
-        value: holdingsValue,
-        color: 'bg-blue-500' 
-      },
-      { category: 'Cash', value: Math.max(0, cashBalance), color: 'bg-gray-500' },
-    ].map(item => ({
-      ...item,
-      percent: netLiquidity > 0 ? (item.value / netLiquidity) * 100 : 0,
-    }));
-
     return {
-      holdings: holdingsWithPrices,
       totalValue: netLiquidity,
       totalPL,
       totalPLPercent,
       todayChange: dailyPnL,
       todayChangePercent,
-      allocation,
-      cashBalance: Math.max(0, cashBalance),
     };
   }, [holdings, prices, netLiquidity, dailyPnL]);
 
@@ -192,147 +145,314 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
     }).format(value);
   };
 
+  const handleBrokerConnect = (broker) => {
+    setConnectedBrokers(prev => [...prev, broker]);
+    setShowBrokerModal(false);
+  };
+
+  const handleDisconnectBroker = (brokerId) => {
+    setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId));
+  };
+
+  // Calculate total value across all connected accounts
+  const totalConnectedValue = connectedBrokers.reduce((sum, b) => sum + (b.value || 0), 0) + portfolioData.totalValue;
+
+  // Generate chart data points (mock)
+  const chartPoints = useMemo(() => {
+    const points = [];
+    const baseValue = portfolioData.totalValue;
+    for (let i = 0; i < 50; i++) {
+      const variance = (Math.random() - 0.5) * baseValue * 0.1;
+      points.push(baseValue + variance * (i / 50));
+    }
+    return points;
+  }, [portfolioData.totalValue]);
+
+  const timeframes = ['1W', '1M', '3M', '6M', '1Y', 'All'];
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Portfolio</h1>
-          <p className="text-gray-400 text-sm">
-            {loading ? 'Updating prices...' : lastUpdate ? `Last updated ${lastUpdate.toLocaleTimeString()}` : 'Track your investments'}
-          </p>
-        </div>
-        <button
-          onClick={fetchPrices}
-          disabled={loading}
-          className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-400 hover:text-white disabled:opacity-50"
-          title="Refresh"
-        >
-          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-        </button>
-      </div>
+    <div className="flex-1 flex flex-col h-full bg-[#060d18] overflow-auto">
+      {/* Top Section - Total Value & Actions */}
+      <div className="px-6 pt-6 pb-4">
+        <div className="flex items-start justify-between">
+          {/* Left - Total Value */}
+          <div>
+            <div className="text-gray-400 text-sm mb-1">Total value</div>
+            <div className="text-4xl font-bold text-white mb-2">
+              {formatCurrency(totalConnectedValue)}
+            </div>
+            <div className={`flex items-center gap-2 text-sm ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {portfolioData.todayChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <span>{portfolioData.todayChange >= 0 ? '+' : ''}{formatCurrency(portfolioData.todayChange)}</span>
+              <span className="text-gray-500">({portfolioData.todayChangePercent.toFixed(2)}%) today</span>
+            </div>
+          </div>
 
-      {/* Portfolio Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-            <Wallet className="w-4 h-4" strokeWidth={1.5} />
-            Total Value
-          </div>
-          <div className="text-2xl font-bold text-white">
-            {formatCurrency(portfolioData.totalValue)}
-          </div>
-          <div className={`flex items-center gap-1 text-sm mt-1 ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {portfolioData.todayChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            {portfolioData.todayChange >= 0 ? '+' : ''}{formatCurrency(portfolioData.todayChange)} ({portfolioData.todayChangePercent.toFixed(2)}%) today
-          </div>
-        </div>
-
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-            <DollarSign className="w-4 h-4" strokeWidth={1.5} />
-            Buying Power
-          </div>
-          <div className="text-2xl font-bold text-white">{formatCurrency(buyingPower)}</div>
-          <div className="text-sm text-gray-500 mt-1">Available for trading</div>
-        </div>
-
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-            <Percent className="w-4 h-4" strokeWidth={1.5} />
-            Total Return
-          </div>
-          <div className={`text-2xl font-bold ${portfolioData.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {portfolioData.totalPL >= 0 ? '+' : ''}{portfolioData.totalPLPercent.toFixed(1)}%
-          </div>
-          <div className="text-sm text-gray-500 mt-1">
-            {portfolioData.totalPL >= 0 ? '+' : ''}{formatCurrency(portfolioData.totalPL)} all time
+          {/* Right - Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-2 px-4 py-2 bg-[#0a1628] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-600 transition-colors text-sm">
+              <ArrowDownLeft className="w-4 h-4" />
+              Withdraw
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-[#0a1628] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-600 transition-colors text-sm">
+              <ArrowUpRight className="w-4 h-4" />
+              Deposit
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-[#0a1628] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-600 transition-colors text-sm">
+              <RefreshCcw className="w-4 h-4" />
+              Convert
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
-        {/* Holdings */}
-        <div className="lg:col-span-2 bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800">
-            <h3 className="text-white font-medium">Holdings</h3>
+      {/* Chart Section */}
+      <div className="px-6 pb-4">
+        <div className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden">
+          {/* Chart Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <div className="flex items-center gap-4">
+              {['Value', 'P&L', 'Portfolio value'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setChartTab(tab.toLowerCase().replace(' ', '-'))}
+                  className={`text-sm font-medium transition-colors ${
+                    chartTab === tab.toLowerCase().replace(' ', '-')
+                      ? 'text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              {timeframes.map(tf => (
+                <button
+                  key={tf}
+                  onClick={() => setSelectedTimeframe(tf)}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                    selectedTimeframe === tf
+                      ? 'bg-purple-500/20 text-purple-400'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="overflow-auto">
-            {loading && Object.keys(prices).length === 0 && !positions ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+
+          {/* Chart Area */}
+          <div className="h-64 px-4 py-4 relative">
+            {/* SVG Chart with gradient */}
+            <svg className="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              
+              {/* Area fill */}
+              <path
+                d={`M 0 200 ${chartPoints.map((p, i) => {
+                  const x = (i / (chartPoints.length - 1)) * 500;
+                  const y = 200 - ((p / (portfolioData.totalValue * 1.1)) * 200);
+                  return `L ${x} ${y}`;
+                }).join(' ')} L 500 200 Z`}
+                fill="url(#chartGradient)"
+              />
+              
+              {/* Line */}
+              <path
+                d={`M ${chartPoints.map((p, i) => {
+                  const x = (i / (chartPoints.length - 1)) * 500;
+                  const y = 200 - ((p / (portfolioData.totalValue * 1.1)) * 200);
+                  return `${i === 0 ? '' : 'L '}${x} ${y}`;
+                }).join(' ')}`}
+                fill="none"
+                stroke="#8B5CF6"
+                strokeWidth="2"
+              />
+            </svg>
+
+            {/* Chart value overlay */}
+            <div className="absolute top-4 left-4">
+              <div className="text-2xl font-bold text-white">{formatCurrency(portfolioData.totalValue)}</div>
+              <div className={`text-sm ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {portfolioData.todayChange >= 0 ? '+' : ''}{portfolioData.todayChangePercent.toFixed(2)}%
               </div>
-            ) : (
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Connected Accounts Section */}
+      <div className="px-6 pb-6 flex-1">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">Connected Accounts</h2>
+          <button
+            onClick={fetchPrices}
+            disabled={loading}
+            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-400 hover:text-white disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Alpaca Account (always show if connected or has data) */}
+          {(hasRealData || true) && (
+            <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
+                    <BrokerIcon broker="alpaca" className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">Alpaca</div>
+                    <div className="text-gray-500 text-sm flex items-center gap-1">
+                      <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                      Connected
+                    </div>
+                  </div>
+                </div>
+                <button className="p-1 text-gray-500 hover:text-white transition-colors">
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Total value</span>
+                  <span className="text-white font-medium">{formatCurrency(portfolioData.totalValue)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Available balance</span>
+                  <span className="text-white font-medium">{formatCurrency(buyingPower)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Today's P&L</span>
+                  <span className={`font-medium ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {portfolioData.todayChange >= 0 ? '+' : ''}{formatCurrency(portfolioData.todayChange)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Other connected brokers */}
+          {connectedBrokers.map(broker => (
+            <div key={broker.id} className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
+                    <BrokerIcon broker={broker.id} className="w-10 h-10" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">{broker.name}</div>
+                    <div className="text-gray-500 text-sm flex items-center gap-1">
+                      <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                      Connected
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDisconnectBroker(broker.id)}
+                  className="p-1 text-gray-500 hover:text-red-400 transition-colors"
+                  title="Disconnect"
+                >
+                  <Unlink className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Total value</span>
+                  <span className="text-white font-medium">{formatCurrency(broker.value || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Available balance</span>
+                  <span className="text-white font-medium">{formatCurrency(broker.available || 0)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Connect a Broker Card */}
+          <button
+            onClick={() => setShowBrokerModal(true)}
+            className="bg-[#0a1628] border border-dashed border-gray-700 rounded-xl p-4 hover:border-purple-500/50 hover:bg-[#0a1628]/80 transition-all flex flex-col items-center justify-center min-h-[160px] group"
+          >
+            <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-3 group-hover:bg-purple-500/30 transition-colors">
+              <Plus className="w-6 h-6 text-purple-400" />
+            </div>
+            <div className="text-white font-medium mb-1">Connect a Broker</div>
+            <div className="text-gray-500 text-sm text-center">Link your accounts for unified tracking</div>
+          </button>
+        </div>
+
+        {/* Holdings Table (if connected) */}
+        {holdings.length > 0 && (
+          <div className="mt-6 bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+              <h3 className="text-white font-medium">Holdings</h3>
+              <span className="text-gray-500 text-sm">{holdings.length} positions</span>
+            </div>
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-xs text-gray-500 border-b border-gray-800">
-                    <th className="text-left px-4 py-2">Symbol</th>
-                    <th className="text-right px-4 py-2">Shares</th>
-                    <th className="text-right px-4 py-2">Avg Cost</th>
-                    <th className="text-right px-4 py-2">Price</th>
-                    <th className="text-right px-4 py-2">Value</th>
-                    <th className="text-right px-4 py-2">P/L</th>
+                  <tr className="text-sm text-gray-500 border-b border-gray-800">
+                    <th className="text-left px-4 py-3 font-medium">Asset</th>
+                    <th className="text-right px-4 py-3 font-medium">Shares</th>
+                    <th className="text-right px-4 py-3 font-medium">Avg Cost</th>
+                    <th className="text-right px-4 py-3 font-medium">Price</th>
+                    <th className="text-right px-4 py-3 font-medium">Value</th>
+                    <th className="text-right px-4 py-3 font-medium">P/L</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {portfolioData.holdings.map((holding) => {
-                    const isPositive = holding.pl >= 0;
+                  {holdings.map((holding) => {
+                    const priceData = prices[holding.symbol] || {};
+                    const currentPrice = holding.currentPrice || priceData.price || holding.avgCost;
+                    const value = holding.marketValue || (currentPrice * holding.shares);
+                    const pl = holding.unrealizedPL || (value - (holding.avgCost * holding.shares));
+                    const plPercent = holding.unrealizedPLPercent || (holding.avgCost > 0 ? ((currentPrice - holding.avgCost) / holding.avgCost) * 100 : 0);
+                    const isPositive = pl >= 0;
+                    
                     return (
-                      <tr key={holding.symbol} className="border-b border-gray-800/50 hover:bg-[#0d1829]">
+                      <tr key={holding.symbol} className="border-b border-gray-800/50 hover:bg-[#0d1829] transition-colors">
                         <td className="px-4 py-3">
                           <div className="text-white font-medium">{holding.symbol}</div>
-                          <div className="text-gray-500 text-xs">{holding.name}</div>
+                          <div className="text-gray-500 text-sm">{holding.name}</div>
                         </td>
                         <td className="px-4 py-3 text-right text-white">{holding.shares}</td>
                         <td className="px-4 py-3 text-right text-gray-400">{formatCurrency(holding.avgCost)}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="text-white">{formatCurrency(holding.currentPrice)}</div>
-                          {holding.priceChangePercent != null && (
-                            <div className={`text-xs ${holding.priceChangePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {holding.priceChangePercent >= 0 ? '+' : ''}{holding.priceChangePercent.toFixed(2)}%
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right text-white font-medium">
-                          {formatCurrency(holding.value)}
-                        </td>
+                        <td className="px-4 py-3 text-right text-white">{formatCurrency(currentPrice)}</td>
+                        <td className="px-4 py-3 text-right text-white font-medium">{formatCurrency(value)}</td>
                         <td className={`px-4 py-3 text-right ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{formatCurrency(holding.pl)}
-                          <div className="text-xs">{isPositive ? '+' : ''}{holding.plPercent.toFixed(1)}%</div>
+                          <div>{isPositive ? '+' : ''}{formatCurrency(pl)}</div>
+                          <div className="text-sm">{isPositive ? '+' : ''}{plPercent.toFixed(2)}%</div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            )}
+            </div>
           </div>
-        </div>
-
-        {/* Allocation */}
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChart className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
-            <h3 className="text-white font-medium">Allocation</h3>
-          </div>
-          <div className="space-y-3">
-            {portfolioData.allocation.map((item) => (
-              <div key={item.category}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-gray-300">{item.category}</span>
-                  <span className="text-white font-medium">{item.percent.toFixed(1)}%</span>
-                </div>
-                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                  <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${item.percent}%` }} />
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {formatCurrency(item.value)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* Broker Connect Modal */}
+      <BrokerConnectModal
+        isOpen={showBrokerModal}
+        onClose={() => setShowBrokerModal(false)}
+        onConnect={handleBrokerConnect}
+        connectedBrokers={connectedBrokers}
+      />
     </div>
   );
 };
