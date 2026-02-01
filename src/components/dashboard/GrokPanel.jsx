@@ -764,10 +764,10 @@ Generate a trading strategy with the following format:
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
-                  { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, strategy: 'momentum', prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
-                  { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, strategy: 'rsi', prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
-                  { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, strategy: 'mean-rev', prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
-                  { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, strategy: 'breakout', prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
+                  { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
+                  { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
+                  { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
+                  { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
                 ].map(template => {
                   const Icon = template.icon;
                   const isSelected = selectedQuickStrategy === template.name;
@@ -776,12 +776,10 @@ Generate a trading strategy with the following format:
                       key={template.id}
                       onClick={() => {
                         setSelectedQuickStrategy(template.name);
-                        setSelectedStrategy(template.strategy);
-                        setSelectedTimeframe('3m');
-                        // Combine ticker prefix with strategy name
+                        // Set strategy name with ticker prefix
                         const ticker = selectedTickers[0] || '';
                         setStrategyName(ticker ? `$${ticker} - ${template.name}` : template.name);
-                        // Update prompt with ticker if selected
+                        // Pre-fill prompt with ticker context
                         const tickerContext = selectedTickers.length > 0 
                           ? ` for ${selectedTickers.join(', ')}` 
                           : '';
