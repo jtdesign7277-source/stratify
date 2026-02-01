@@ -697,19 +697,19 @@ Generate a trading strategy with the following format:
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-3 flex flex-col gap-2 overflow-y-auto min-h-0">
+      <div className="flex-1 p-3 flex flex-col gap-3 min-h-0">
         
         {/* Config options - Chat tab only */}
         {activeTab === 'chat' && (
           <>
             <div className="flex-shrink-0">
-              <label className="text-gray-400 text-xs font-medium mb-1 block">TICKER</label>
-              <div className="flex flex-wrap gap-1 mb-1.5">
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
                 {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
                   <button
                     key={s}
                     onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
-                    className={`px-2 py-0.5 rounded text-xs font-medium transition-all ${
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
                       selectedTickers.includes(s)
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                         : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30'
@@ -720,7 +720,7 @@ Generate a trading strategy with the following format:
                 ))}
               </div>
               <div className="relative">
-                <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-2.5 py-1.5 hover:border-gray-600 transition-colors">
+                <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
                   {isSearching ? (
                     <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
                   ) : (
@@ -760,8 +760,8 @@ Generate a trading strategy with the following format:
 
             {/* Quick Strategy Templates */}
             <div className="flex-shrink-0">
-              <label className="text-gray-400 text-xs font-medium mb-1 block">QUICK STRATEGIES</label>
-              <div className="grid grid-cols-2 gap-1">
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
+              <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, strategy: 'momentum', prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
                   { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, strategy: 'rsi', prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
@@ -784,10 +784,10 @@ Generate a trading strategy with the following format:
                           : '';
                         setChatInput(template.prompt + tickerContext);
                       }}
-                      className="flex items-center gap-1.5 p-1.5 rounded-lg bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80 transition-all text-left"
+                      className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80 transition-all text-left"
                     >
-                      <Icon className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" strokeWidth={1.5} />
-                      <span className="text-xs text-[#e5e5e5]">{template.name}</span>
+                      <Icon className="w-4 h-4 text-emerald-400 flex-shrink-0" strokeWidth={1.5} />
+                      <span className="text-sm text-[#e5e5e5]">{template.name}</span>
                     </button>
                   );
                 })}
@@ -795,22 +795,22 @@ Generate a trading strategy with the following format:
             </div>
 
             <div className="flex-shrink-0">
-              <label className="text-gray-400 text-xs font-medium mb-1 block">STRATEGY</label>
-              <div className="grid grid-cols-3 gap-1">
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
+              <div className="grid grid-cols-3 gap-1.5">
                 {STRATEGY_TYPES.map(s => {
                   const Icon = s.icon;
                   return (
                     <button
                       key={s.id}
                       onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)}
-                      className={`p-1.5 rounded-lg text-center transition-all ${
+                      className={`p-2 rounded-lg text-center transition-all ${
                         selectedStrategy === s.id
                           ? 'bg-emerald-500/20 border border-emerald-500/50'
                           : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600'
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
-                      <span className={`text-xs block mt-0.5 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
+                      <Icon className={`w-4 h-4 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
+                      <span className={`text-sm block mt-1 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
                     </button>
                   );
                 })}
@@ -818,13 +818,13 @@ Generate a trading strategy with the following format:
             </div>
 
             <div className="flex-shrink-0">
-              <label className="text-gray-400 text-xs font-medium mb-1 block">TIMEFRAME</label>
-              <div className="flex gap-1">
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
+              <div className="flex gap-1.5">
                 {TIMEFRAMES.map(tf => (
                   <button
                     key={tf.id}
                     onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
-                    className={`flex-1 py-1 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       selectedTimeframe === tf.id
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                         : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
@@ -837,22 +837,22 @@ Generate a trading strategy with the following format:
             </div>
 
             <div className="flex-shrink-0">
-              <label className="text-gray-400 text-xs font-medium mb-1 block">NAME</label>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
               <input
                 type="text"
                 value={strategyName}
                 onChange={(e) => setStrategyName(e.target.value)}
                 placeholder="Strategy name..."
-                className="w-full px-2.5 py-1.5 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-xs focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full px-3 py-2 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
               />
             </div>
           </>
         )}
 
         {/* Chat / Strategy Content */}
-        <div className="flex flex-col min-h-0 max-h-48">
+        <div className="flex-1 flex flex-col min-h-0">
           {activeTab === 'chat' && (
-            <label className="text-gray-400 text-xs font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
+            <label className="text-gray-300 text-xs font-semibold mb-1.5 block flex-shrink-0">GROK CHAT</label>
           )}
           
           {/* Unified container */}
@@ -967,7 +967,7 @@ Generate a trading strategy with the following format:
             )}
 
             {/* Input area */}
-            <div className="flex gap-2 p-2 flex-shrink-0">
+            <div className="flex gap-2 p-3 flex-1">
               <textarea
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -978,8 +978,7 @@ Generate a trading strategy with the following format:
                   } 
                 }}
                 placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."}
-                rows={3}
-                className="flex-1 px-2.5 py-1.5 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none transition-colors overflow-y-auto"
+                className="flex-1 px-3 py-2 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none transition-colors overflow-y-auto"
               />
               <button
                 onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify}
