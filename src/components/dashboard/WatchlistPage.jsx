@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Trash2 } from 'lucide-react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const getMarketStatus = () => {
   const now = new Date();
@@ -47,7 +47,6 @@ const ALL_STOCKS = [
   // Meme Stocks / Retail Favorites
   { symbol: 'GME', name: 'GameStop Corp.', price: 28.45, change: 1.23, changePercent: 4.52 },
   { symbol: 'AMC', name: 'AMC Entertainment', price: 4.85, change: 0.15, changePercent: 3.19 },
-  { symbol: 'BBBY', name: 'Bed Bath & Beyond', price: 0.12, change: 0.01, changePercent: 9.09 },
   { symbol: 'BB', name: 'BlackBerry Limited', price: 2.85, change: 0.08, changePercent: 2.89 },
   { symbol: 'NOK', name: 'Nokia Corporation', price: 4.12, change: 0.05, changePercent: 1.23 },
   { symbol: 'WISH', name: 'ContextLogic Inc.', price: 5.67, change: 0.23, changePercent: 4.23 },
@@ -76,30 +75,19 @@ const ALL_STOCKS = [
   { symbol: 'NIO', name: 'NIO Inc.', price: 5.80, change: 0.12, changePercent: 2.11 },
   { symbol: 'XPEV', name: 'XPeng Inc.', price: 14.56, change: 0.45, changePercent: 3.19 },
   { symbol: 'LI', name: 'Li Auto Inc.', price: 28.90, change: 0.87, changePercent: 3.10 },
-  { symbol: 'FSR', name: 'Fisker Inc.', price: 0.08, change: -0.01, changePercent: -11.11 },
-  { symbol: 'GOEV', name: 'Canoo Inc.', price: 0.45, change: 0.02, changePercent: 4.65 },
-  { symbol: 'NKLA', name: 'Nikola Corporation', price: 0.89, change: 0.03, changePercent: 3.49 },
-  { symbol: 'WKHS', name: 'Workhorse Group', price: 0.67, change: 0.02, changePercent: 3.08 },
-  { symbol: 'RIDE', name: 'Lordstown Motors', price: 0.12, change: 0.01, changePercent: 9.09 },
   { symbol: 'F', name: 'Ford Motor Company', price: 10.45, change: 0.12, changePercent: 1.16 },
   { symbol: 'GM', name: 'General Motors', price: 45.67, change: 0.34, changePercent: 0.75 },
-  { symbol: 'TM', name: 'Toyota Motor', price: 178.90, change: 1.23, changePercent: 0.69 },
-  { symbol: 'STLA', name: 'Stellantis N.V.', price: 14.56, change: -0.23, changePercent: -1.56 },
   
   // Space / Defense
   { symbol: 'RKLB', name: 'Rocket Lab USA', price: 22.45, change: 1.34, changePercent: 6.35 },
-  { symbol: 'ASTR', name: 'Astra Space', price: 0.34, change: 0.02, changePercent: 6.25 },
-  { symbol: 'RDW', name: 'Redwire Corporation', price: 8.90, change: 0.45, changePercent: 5.33 },
   { symbol: 'ASTS', name: 'AST SpaceMobile', price: 23.45, change: 1.67, changePercent: 7.67 },
   { symbol: 'LUNR', name: 'Intuitive Machines', price: 15.67, change: 0.89, changePercent: 6.02 },
   { symbol: 'PL', name: 'Planet Labs', price: 3.45, change: 0.12, changePercent: 3.60 },
-  { symbol: 'BKSY', name: 'BlackSky Technology', price: 1.23, change: 0.05, changePercent: 4.24 },
   { symbol: 'BA', name: 'Boeing Company', price: 178.90, change: 2.34, changePercent: 1.33 },
   { symbol: 'LMT', name: 'Lockheed Martin', price: 456.70, change: 3.45, changePercent: 0.76 },
   { symbol: 'RTX', name: 'RTX Corporation', price: 112.30, change: 0.89, changePercent: 0.80 },
   { symbol: 'NOC', name: 'Northrop Grumman', price: 478.90, change: 3.45, changePercent: 0.73 },
   { symbol: 'GD', name: 'General Dynamics', price: 289.50, change: 2.34, changePercent: 0.82 },
-  { symbol: 'LHX', name: 'L3Harris Technologies', price: 234.56, change: 1.89, changePercent: 0.81 },
   
   // AI / Quantum / Tech Growth
   { symbol: 'PLTR', name: 'Palantir Technologies', price: 24.80, change: 0.65, changePercent: 2.69 },
@@ -110,10 +98,7 @@ const ALL_STOCKS = [
   { symbol: 'RGTI', name: 'Rigetti Computing', price: 12.34, change: 0.89, changePercent: 7.77 },
   { symbol: 'QUBT', name: 'Quantum Computing', price: 8.90, change: 0.67, changePercent: 8.14 },
   { symbol: 'QBTS', name: 'D-Wave Quantum', price: 6.78, change: 0.45, changePercent: 7.11 },
-  { symbol: 'ARQQ', name: 'Arqit Quantum', price: 4.56, change: 0.23, changePercent: 5.31 },
   { symbol: 'PATH', name: 'UiPath Inc.', price: 14.50, change: 0.34, changePercent: 2.40 },
-  { symbol: 'DOCN', name: 'DigitalOcean', price: 34.56, change: 0.78, changePercent: 2.31 },
-  { symbol: 'GTLB', name: 'GitLab Inc.', price: 56.78, change: 1.23, changePercent: 2.21 },
   
   // Semiconductors
   { symbol: 'AMD', name: 'Advanced Micro Devices', price: 164.25, change: 3.45, changePercent: 2.15 },
@@ -128,14 +113,8 @@ const ALL_STOCKS = [
   { symbol: 'KLAC', name: 'KLA Corporation', price: 756.80, change: 8.90, changePercent: 1.19 },
   { symbol: 'AMAT', name: 'Applied Materials', price: 178.90, change: 2.34, changePercent: 1.33 },
   { symbol: 'ON', name: 'ON Semiconductor', price: 67.80, change: 1.23, changePercent: 1.85 },
-  { symbol: 'ADI', name: 'Analog Devices', price: 223.45, change: 2.67, changePercent: 1.21 },
-  { symbol: 'TXN', name: 'Texas Instruments', price: 178.90, change: 1.56, changePercent: 0.88 },
   { symbol: 'SMCI', name: 'Super Micro Computer', price: 45.60, change: 2.34, changePercent: 5.41 },
   { symbol: 'ARM', name: 'Arm Holdings', price: 156.70, change: 4.56, changePercent: 3.00 },
-  { symbol: 'WOLF', name: 'Wolfspeed Inc.', price: 12.34, change: 0.56, changePercent: 4.75 },
-  { symbol: 'CRUS', name: 'Cirrus Logic', price: 123.45, change: 2.34, changePercent: 1.93 },
-  { symbol: 'MPWR', name: 'Monolithic Power', price: 678.90, change: 12.34, changePercent: 1.85 },
-  { symbol: 'SWKS', name: 'Skyworks Solutions', price: 98.76, change: 1.23, changePercent: 1.26 },
   
   // Software / SaaS / Cloud
   { symbol: 'ADBE', name: 'Adobe Inc.', price: 478.90, change: 5.67, changePercent: 1.20 },
@@ -153,19 +132,8 @@ const ALL_STOCKS = [
   { symbol: 'U', name: 'Unity Software', price: 23.45, change: 0.67, changePercent: 2.94 },
   { symbol: 'RBLX', name: 'Roblox Corporation', price: 56.70, change: 1.23, changePercent: 2.22 },
   { symbol: 'SHOP', name: 'Shopify Inc.', price: 78.90, change: 2.34, changePercent: 3.06 },
-  { symbol: 'WDAY', name: 'Workday, Inc.', price: 234.56, change: 3.45, changePercent: 1.49 },
-  { symbol: 'SPLK', name: 'Splunk Inc.', price: 156.78, change: 1.89, changePercent: 1.22 },
   { symbol: 'PANW', name: 'Palo Alto Networks', price: 345.67, change: 5.67, changePercent: 1.67 },
-  { symbol: 'FTNT', name: 'Fortinet Inc.', price: 78.90, change: 1.23, changePercent: 1.58 },
-  { symbol: 'HUBS', name: 'HubSpot Inc.', price: 567.89, change: 8.90, changePercent: 1.59 },
-  { symbol: 'VEEV', name: 'Veeva Systems', price: 189.45, change: 2.34, changePercent: 1.25 },
   { symbol: 'ZM', name: 'Zoom Video', price: 67.89, change: 0.89, changePercent: 1.33 },
-  { symbol: 'DOCU', name: 'DocuSign Inc.', price: 56.78, change: 0.78, changePercent: 1.39 },
-  { symbol: 'BILL', name: 'Bill Holdings', price: 78.90, change: 1.23, changePercent: 1.58 },
-  { symbol: 'CFLT', name: 'Confluent Inc.', price: 28.90, change: 0.67, changePercent: 2.37 },
-  { symbol: 'ESTC', name: 'Elastic N.V.', price: 89.45, change: 1.34, changePercent: 1.52 },
-  { symbol: 'MNDY', name: 'monday.com', price: 234.56, change: 4.56, changePercent: 1.98 },
-  { symbol: 'S', name: 'SentinelOne', price: 23.45, change: 0.56, changePercent: 2.45 },
   
   // Healthcare / Biotech
   { symbol: 'HIMS', name: 'Hims & Hers Health', price: 26.80, change: 1.45, changePercent: 5.72 },
@@ -176,20 +144,8 @@ const ALL_STOCKS = [
   { symbol: 'UNH', name: 'UnitedHealth Group', price: 534.20, change: 4.56, changePercent: 0.86 },
   { symbol: 'LLY', name: 'Eli Lilly', price: 789.50, change: 12.34, changePercent: 1.59 },
   { symbol: 'ABBV', name: 'AbbVie Inc.', price: 178.90, change: 1.23, changePercent: 0.69 },
-  { symbol: 'BMY', name: 'Bristol-Myers Squibb', price: 45.60, change: 0.34, changePercent: 0.75 },
-  { symbol: 'GILD', name: 'Gilead Sciences', price: 89.70, change: 0.67, changePercent: 0.75 },
-  { symbol: 'AMGN', name: 'Amgen Inc.', price: 289.45, change: 2.34, changePercent: 0.82 },
-  { symbol: 'BIIB', name: 'Biogen Inc.', price: 234.56, change: 1.89, changePercent: 0.81 },
-  { symbol: 'REGN', name: 'Regeneron', price: 789.45, change: 8.90, changePercent: 1.14 },
-  { symbol: 'VRTX', name: 'Vertex Pharmaceuticals', price: 456.78, change: 5.67, changePercent: 1.26 },
-  { symbol: 'ISRG', name: 'Intuitive Surgical', price: 456.78, change: 4.56, changePercent: 1.01 },
-  { symbol: 'DXCM', name: 'DexCom Inc.', price: 78.90, change: 1.23, changePercent: 1.58 },
-  { symbol: 'ILMN', name: 'Illumina Inc.', price: 123.45, change: 1.89, changePercent: 1.55 },
   { symbol: 'DNA', name: 'Ginkgo Bioworks', price: 12.45, change: 0.67, changePercent: 5.68 },
   { symbol: 'CRSP', name: 'CRISPR Therapeutics', price: 56.78, change: 1.23, changePercent: 2.21 },
-  { symbol: 'BEAM', name: 'Beam Therapeutics', price: 28.90, change: 0.78, changePercent: 2.77 },
-  { symbol: 'EDIT', name: 'Editas Medicine', price: 4.56, change: 0.12, changePercent: 2.70 },
-  { symbol: 'NTLA', name: 'Intellia Therapeutics', price: 23.45, change: 0.56, changePercent: 2.45 },
   
   // Energy / Solar / Clean Energy
   { symbol: 'ENPH', name: 'Enphase Energy', price: 89.45, change: 3.21, changePercent: 3.72 },
@@ -199,16 +155,8 @@ const ALL_STOCKS = [
   { symbol: 'PLUG', name: 'Plug Power Inc.', price: 2.45, change: 0.12, changePercent: 5.15 },
   { symbol: 'CHPT', name: 'ChargePoint Holdings', price: 1.45, change: 0.05, changePercent: 3.57 },
   { symbol: 'BLNK', name: 'Blink Charging', price: 2.34, change: 0.08, changePercent: 3.54 },
-  { symbol: 'EVGO', name: 'EVgo Inc.', price: 4.56, change: 0.15, changePercent: 3.40 },
-  { symbol: 'BE', name: 'Bloom Energy', price: 12.34, change: 0.45, changePercent: 3.79 },
-  { symbol: 'STEM', name: 'Stem Inc.', price: 1.23, change: 0.04, changePercent: 3.36 },
-  { symbol: 'NEE', name: 'NextEra Energy', price: 78.90, change: 0.56, changePercent: 0.71 },
   { symbol: 'XOM', name: 'Exxon Mobil', price: 112.34, change: -0.89, changePercent: -0.79 },
   { symbol: 'CVX', name: 'Chevron Corporation', price: 156.78, change: -1.23, changePercent: -0.78 },
-  { symbol: 'COP', name: 'ConocoPhillips', price: 112.34, change: -0.78, changePercent: -0.69 },
-  { symbol: 'SLB', name: 'Schlumberger', price: 45.67, change: -0.34, changePercent: -0.74 },
-  { symbol: 'HAL', name: 'Halliburton', price: 34.56, change: -0.23, changePercent: -0.66 },
-  { symbol: 'OXY', name: 'Occidental Petroleum', price: 56.78, change: -0.45, changePercent: -0.79 },
   
   // Consumer / Retail
   { symbol: 'ELF', name: 'e.l.f. Beauty', price: 112.45, change: 3.45, changePercent: 3.17 },
@@ -224,18 +172,9 @@ const ALL_STOCKS = [
   { symbol: 'SBUX', name: 'Starbucks Corporation', price: 98.70, change: 0.87, changePercent: 0.89 },
   { symbol: 'MCD', name: "McDonald's Corporation", price: 289.70, change: 1.45, changePercent: 0.50 },
   { symbol: 'CMG', name: 'Chipotle Mexican Grill', price: 56.70, change: 0.89, changePercent: 1.60 },
-  { symbol: 'DPZ', name: "Domino's Pizza", price: 456.70, change: 3.45, changePercent: 0.76 },
-  { symbol: 'YUM', name: 'Yum! Brands', price: 134.56, change: 0.89, changePercent: 0.67 },
   { symbol: 'ETSY', name: 'Etsy, Inc.', price: 56.70, change: 1.23, changePercent: 2.22 },
-  { symbol: 'W', name: 'Wayfair Inc.', price: 45.67, change: 1.34, changePercent: 3.02 },
-  { symbol: 'CHWY', name: 'Chewy Inc.', price: 28.90, change: 0.67, changePercent: 2.37 },
   { symbol: 'PTON', name: 'Peloton Interactive', price: 5.67, change: 0.23, changePercent: 4.23 },
-  { symbol: 'GPS', name: 'Gap Inc.', price: 23.45, change: 0.45, changePercent: 1.96 },
-  { symbol: 'ANF', name: 'Abercrombie & Fitch', price: 134.56, change: 2.34, changePercent: 1.77 },
-  { symbol: 'LEVI', name: "Levi Strauss & Co.", price: 18.90, change: 0.23, changePercent: 1.23 },
   { symbol: 'CROX', name: 'Crocs Inc.', price: 112.34, change: 2.34, changePercent: 2.13 },
-  { symbol: 'SKX', name: 'Skechers U.S.A.', price: 67.89, change: 0.89, changePercent: 1.33 },
-  { symbol: 'BIRD', name: 'Allbirds Inc.', price: 0.89, change: 0.03, changePercent: 3.49 },
   
   // Streaming / Media / Entertainment
   { symbol: 'NFLX', name: 'Netflix, Inc.', price: 891.50, change: 12.30, changePercent: 1.40 },
@@ -244,13 +183,6 @@ const ALL_STOCKS = [
   { symbol: 'ROKU', name: 'Roku, Inc.', price: 65.40, change: -1.23, changePercent: -1.85 },
   { symbol: 'WBD', name: 'Warner Bros. Discovery', price: 10.45, change: 0.23, changePercent: 2.25 },
   { symbol: 'PARA', name: 'Paramount Global', price: 11.20, change: 0.15, changePercent: 1.36 },
-  { symbol: 'CMCSA', name: 'Comcast Corporation', price: 42.34, change: 0.34, changePercent: 0.81 },
-  { symbol: 'FOX', name: 'Fox Corporation', price: 45.67, change: 0.45, changePercent: 0.99 },
-  { symbol: 'FOXA', name: 'Fox Corporation Class A', price: 47.89, change: 0.56, changePercent: 1.18 },
-  { symbol: 'LYV', name: 'Live Nation', price: 123.45, change: 1.89, changePercent: 1.55 },
-  { symbol: 'MSGS', name: 'MSG Sports', price: 234.56, change: 2.34, changePercent: 1.01 },
-  { symbol: 'WWE', name: 'World Wrestling', price: 112.34, change: 1.23, changePercent: 1.11 },
-  { symbol: 'EDR', name: 'Endeavor Group', price: 28.90, change: 0.34, changePercent: 1.19 },
   
   // Social Media / Internet
   { symbol: 'SNAP', name: 'Snap Inc.', price: 11.23, change: -0.45, changePercent: -3.85 },
@@ -261,15 +193,11 @@ const ALL_STOCKS = [
   { symbol: 'LYFT', name: 'Lyft, Inc.', price: 18.45, change: 0.32, changePercent: 1.77 },
   { symbol: 'ABNB', name: 'Airbnb, Inc.', price: 145.60, change: 2.34, changePercent: 1.63 },
   { symbol: 'DASH', name: 'DoorDash, Inc.', price: 178.90, change: 3.45, changePercent: 1.97 },
-  { symbol: 'GRAB', name: 'Grab Holdings', price: 4.56, change: 0.12, changePercent: 2.70 },
   { symbol: 'BABA', name: 'Alibaba Group', price: 89.45, change: 1.23, changePercent: 1.39 },
   { symbol: 'JD', name: 'JD.com, Inc.', price: 34.50, change: 0.67, changePercent: 1.98 },
   { symbol: 'PDD', name: 'PDD Holdings', price: 112.30, change: 2.34, changePercent: 2.13 },
   { symbol: 'MELI', name: 'MercadoLibre', price: 1890.50, change: 34.56, changePercent: 1.86 },
   { symbol: 'SE', name: 'Sea Limited', price: 98.70, change: 3.45, changePercent: 3.62 },
-  { symbol: 'BIDU', name: 'Baidu Inc.', price: 89.45, change: 1.23, changePercent: 1.39 },
-  { symbol: 'NTES', name: 'NetEase Inc.', price: 98.76, change: 1.45, changePercent: 1.49 },
-  { symbol: 'TCEHY', name: 'Tencent Holdings', price: 45.67, change: 0.67, changePercent: 1.49 },
   
   // Banks / Financial
   { symbol: 'JPM', name: 'JPMorgan Chase', price: 198.70, change: 1.23, changePercent: 0.62 },
@@ -279,18 +207,10 @@ const ALL_STOCKS = [
   { symbol: 'MS', name: 'Morgan Stanley', price: 98.70, change: 0.89, changePercent: 0.91 },
   { symbol: 'C', name: 'Citigroup Inc.', price: 67.80, change: 0.45, changePercent: 0.67 },
   { symbol: 'SCHW', name: 'Charles Schwab', price: 78.90, change: 0.67, changePercent: 0.86 },
-  { symbol: 'USB', name: 'U.S. Bancorp', price: 45.67, change: 0.34, changePercent: 0.75 },
-  { symbol: 'PNC', name: 'PNC Financial', price: 178.90, change: 1.23, changePercent: 0.69 },
-  { symbol: 'TFC', name: 'Truist Financial', price: 42.34, change: 0.34, changePercent: 0.81 },
-  { symbol: 'BK', name: 'Bank of New York', price: 78.90, change: 0.56, changePercent: 0.71 },
   { symbol: 'V', name: 'Visa Inc.', price: 278.90, change: 2.34, changePercent: 0.85 },
   { symbol: 'MA', name: 'Mastercard Inc.', price: 456.70, change: 3.45, changePercent: 0.76 },
   { symbol: 'AXP', name: 'American Express', price: 234.56, change: 1.89, changePercent: 0.81 },
-  { symbol: 'COF', name: 'Capital One', price: 156.78, change: 1.23, changePercent: 0.79 },
-  { symbol: 'DFS', name: 'Discover Financial', price: 134.56, change: 1.12, changePercent: 0.84 },
-  { symbol: 'SYF', name: 'Synchrony Financial', price: 45.67, change: 0.34, changePercent: 0.75 },
   { symbol: 'BRK.B', name: 'Berkshire Hathaway B', price: 456.78, change: 2.34, changePercent: 0.51 },
-  { symbol: 'BLK', name: 'BlackRock Inc.', price: 890.12, change: 6.78, changePercent: 0.77 },
   
   // ETFs
   { symbol: 'SPY', name: 'SPDR S&P 500 ETF', price: 502.34, change: 1.23, changePercent: 0.25 },
@@ -301,36 +221,17 @@ const ALL_STOCKS = [
   { symbol: 'VTI', name: 'Vanguard Total Stock', price: 245.60, change: 1.45, changePercent: 0.59 },
   { symbol: 'ARKK', name: 'ARK Innovation ETF', price: 48.90, change: 1.23, changePercent: 2.58 },
   { symbol: 'ARKG', name: 'ARK Genomic ETF', price: 34.50, change: 0.67, changePercent: 1.98 },
-  { symbol: 'ARKW', name: 'ARK Next Gen Internet', price: 78.90, change: 1.45, changePercent: 1.87 },
-  { symbol: 'ARKF', name: 'ARK Fintech ETF', price: 28.90, change: 0.45, changePercent: 1.58 },
   { symbol: 'SOXL', name: 'Direxion Semi Bull 3X', price: 34.50, change: 1.89, changePercent: 5.79 },
-  { symbol: 'SOXS', name: 'Direxion Semi Bear 3X', price: 18.90, change: -0.89, changePercent: -4.50 },
   { symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', price: 67.80, change: 2.34, changePercent: 3.57 },
   { symbol: 'SQQQ', name: 'ProShares Short QQQ 3X', price: 8.90, change: -0.34, changePercent: -3.68 },
-  { symbol: 'SPXL', name: 'Direxion S&P Bull 3X', price: 156.78, change: 4.56, changePercent: 2.99 },
-  { symbol: 'SPXS', name: 'Direxion S&P Bear 3X', price: 8.90, change: -0.23, changePercent: -2.52 },
-  { symbol: 'UVXY', name: 'ProShares Ultra VIX', price: 23.45, change: -0.67, changePercent: -2.78 },
-  { symbol: 'VXX', name: 'iPath VIX Short-Term', price: 45.67, change: -0.89, changePercent: -1.91 },
   { symbol: 'XLF', name: 'Financial Select SPDR', price: 42.30, change: 0.34, changePercent: 0.81 },
   { symbol: 'XLK', name: 'Technology Select SPDR', price: 198.70, change: 1.87, changePercent: 0.95 },
   { symbol: 'XLE', name: 'Energy Select SPDR', price: 89.45, change: -0.67, changePercent: -0.74 },
   { symbol: 'XLV', name: 'Health Care Select SPDR', price: 145.30, change: 0.45, changePercent: 0.31 },
-  { symbol: 'XLI', name: 'Industrial Select SPDR', price: 123.45, change: 0.67, changePercent: 0.55 },
-  { symbol: 'XLY', name: 'Consumer Discret SPDR', price: 198.76, change: 1.23, changePercent: 0.62 },
-  { symbol: 'XLP', name: 'Consumer Staples SPDR', price: 78.90, change: 0.34, changePercent: 0.43 },
-  { symbol: 'XLU', name: 'Utilities Select SPDR', price: 67.89, change: 0.23, changePercent: 0.34 },
-  { symbol: 'XLB', name: 'Materials Select SPDR', price: 89.45, change: 0.45, changePercent: 0.51 },
-  { symbol: 'XLRE', name: 'Real Estate Select SPDR', price: 42.34, change: 0.12, changePercent: 0.28 },
   { symbol: 'GLD', name: 'SPDR Gold Trust', price: 189.30, change: 0.87, changePercent: 0.46 },
   { symbol: 'SLV', name: 'iShares Silver Trust', price: 21.45, change: 0.32, changePercent: 1.51 },
-  { symbol: 'USO', name: 'United States Oil Fund', price: 78.90, change: -0.56, changePercent: -0.70 },
-  { symbol: 'UNG', name: 'United States Nat Gas', price: 12.34, change: 0.23, changePercent: 1.90 },
   { symbol: 'TLT', name: 'iShares 20+ Year Treasury', price: 89.45, change: 0.23, changePercent: 0.26 },
-  { symbol: 'HYG', name: 'iShares High Yield Bond', price: 78.90, change: 0.12, changePercent: 0.15 },
-  { symbol: 'LQD', name: 'iShares Inv Grade Bond', price: 112.34, change: 0.23, changePercent: 0.20 },
   { symbol: 'EEM', name: 'iShares Emerging Markets', price: 42.34, change: 0.34, changePercent: 0.81 },
-  { symbol: 'EFA', name: 'iShares EAFE', price: 78.90, change: 0.45, changePercent: 0.57 },
-  { symbol: 'VWO', name: 'Vanguard Emerging Markets', price: 45.67, change: 0.34, changePercent: 0.75 },
   
   // Crypto
   { symbol: 'BTC', name: 'Bitcoin', price: 97543.21, change: 2345.67, changePercent: 2.46 },
@@ -344,22 +245,10 @@ const ALL_STOCKS = [
   { symbol: 'DOT', name: 'Polkadot', price: 7.45, change: 0.34, changePercent: 4.78 },
   { symbol: 'SHIB', name: 'Shiba Inu', price: 0.000023, change: 0.000001, changePercent: 4.55 },
   { symbol: 'MATIC', name: 'Polygon', price: 0.56, change: 0.03, changePercent: 5.66 },
-  { symbol: 'UNI', name: 'Uniswap', price: 12.34, change: 0.45, changePercent: 3.79 },
-  { symbol: 'ATOM', name: 'Cosmos', price: 8.90, change: 0.34, changePercent: 3.97 },
   { symbol: 'LTC', name: 'Litecoin', price: 89.45, change: 2.34, changePercent: 2.69 },
-  { symbol: 'BCH', name: 'Bitcoin Cash', price: 456.78, change: 12.34, changePercent: 2.78 },
-  { symbol: 'XLM', name: 'Stellar', price: 0.34, change: 0.02, changePercent: 6.25 },
-  { symbol: 'ALGO', name: 'Algorand', price: 0.23, change: 0.01, changePercent: 4.55 },
-  { symbol: 'VET', name: 'VeChain', price: 0.034, change: 0.002, changePercent: 6.25 },
-  { symbol: 'FIL', name: 'Filecoin', price: 5.67, change: 0.23, changePercent: 4.23 },
   { symbol: 'NEAR', name: 'NEAR Protocol', price: 5.45, change: 0.34, changePercent: 6.65 },
   { symbol: 'APT', name: 'Aptos', price: 8.90, change: 0.45, changePercent: 5.33 },
-  { symbol: 'ARB', name: 'Arbitrum', price: 0.89, change: 0.04, changePercent: 4.71 },
-  { symbol: 'OP', name: 'Optimism', price: 1.78, change: 0.08, changePercent: 4.71 },
   { symbol: 'SUI', name: 'Sui', price: 3.45, change: 0.23, changePercent: 7.14 },
-  { symbol: 'SEI', name: 'Sei', price: 0.45, change: 0.03, changePercent: 7.14 },
-  { symbol: 'INJ', name: 'Injective', price: 23.45, change: 1.56, changePercent: 7.12 },
-  { symbol: 'TIA', name: 'Celestia', price: 5.67, change: 0.34, changePercent: 6.38 },
   { symbol: 'PEPE', name: 'Pepe', price: 0.0000089, change: 0.0000005, changePercent: 5.95 },
   { symbol: 'WIF', name: 'dogwifhat', price: 1.89, change: 0.12, changePercent: 6.78 },
   { symbol: 'BONK', name: 'Bonk', price: 0.000023, change: 0.000002, changePercent: 9.52 },
@@ -371,6 +260,7 @@ const WatchlistPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
   const [watchlistStocks, setWatchlistStocks] = useState(DEFAULT_WATCHLIST);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -448,73 +338,88 @@ const WatchlistPage = () => {
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
       {/* Watchlist Panel */}
       <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
-        selectedTicker ? 'w-80' : 'flex-1 max-w-2xl'
+        isCollapsed ? 'w-16' : selectedTicker ? 'w-80' : 'flex-1 max-w-2xl'
       }`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          <div>
-            <h1 className="font-semibold text-white text-xl">Watchlist</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs px-2 py-0.5 rounded ${
+        <div className="flex items-center justify-between p-3 border-b border-gray-800">
+          {!isCollapsed ? (
+            <div className="flex-1">
+              <h1 className="font-semibold text-white text-lg">Watchlist</h1>
+              <span className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
                 marketStatus === 'open' ? 'bg-emerald-500/20 text-emerald-400' :
                 marketStatus === 'premarket' ? 'bg-blue-500/20 text-blue-400' :
                 marketStatus === 'afterhours' ? 'bg-purple-500/20 text-purple-400' :
                 'bg-gray-500/20 text-gray-400'
               }`}>
-                {marketStatus === 'open' ? 'Market Open' :
-                 marketStatus === 'premarket' ? 'Pre-Market' :
-                 marketStatus === 'afterhours' ? 'After Hours' :
-                 'Market Closed'}
+                {marketStatus === 'open' ? 'Open' :
+                 marketStatus === 'premarket' ? 'Pre' :
+                 marketStatus === 'afterhours' ? 'After' :
+                 'Closed'}
               </span>
             </div>
-          </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors text-gray-400 hover:text-white"
+            title={isCollapsed ? 'Expand watchlist' : 'Collapse watchlist'}
+          >
+            {isCollapsed ? (
+              <ChevronsRight className="w-4 h-4" strokeWidth={1.5} />
+            ) : (
+              <ChevronsLeft className="w-4 h-4" strokeWidth={1.5} />
+            )}
+          </button>
         </div>
 
-        {/* Search */}
-        <div className="p-3 border-b border-gray-800 bg-[#0a1628] relative">
-          <div className="flex items-center gap-2 bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2">
-            <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search symbol or company..."
-              className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-white">
-                <X className="w-4 h-4" strokeWidth={1.5} />
-              </button>
+        {/* Search - Hidden when collapsed */}
+        {!isCollapsed && (
+          <div className="p-3 border-b border-gray-800 bg-[#0a1628] relative">
+            <div className="flex items-center gap-2 bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2">
+              <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search symbol or company..."
+                className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-white">
+                  <X className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {searchQuery && searchResults.length > 0 && (
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-xl z-50 max-h-80 overflow-y-auto">
+                {searchResults.map((stock) => (
+                  <div 
+                    key={stock.symbol}
+                    className="flex items-center justify-between px-3 py-3 hover:bg-purple-500/20 cursor-pointer transition-colors border-b border-gray-800/50 last:border-0"
+                    onClick={() => handleAddStock(stock)}
+                  >
+                    <div className="flex-1">
+                      <span className="text-white font-semibold">{stock.symbol}</span>
+                      <span className="text-gray-400 text-sm ml-2">{stock.name}</span>
+                    </div>
+                    <Plus className="w-5 h-5 text-purple-400" strokeWidth={2} />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {searchQuery && searchResults.length === 0 && (
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-xl z-50">
+                <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                  No results for "{searchQuery}"
+                </div>
+              </div>
             )}
           </div>
-
-          {/* Search Results Dropdown */}
-          {searchQuery && searchResults.length > 0 && (
-            <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-xl z-50 max-h-80 overflow-y-auto">
-              {searchResults.map((stock) => (
-                <div 
-                  key={stock.symbol}
-                  className="flex items-center justify-between px-3 py-3 hover:bg-purple-500/20 cursor-pointer transition-colors border-b border-gray-800/50 last:border-0"
-                  onClick={() => handleAddStock(stock)}
-                >
-                  <div className="flex-1">
-                    <span className="text-white font-semibold">{stock.symbol}</span>
-                    <span className="text-gray-400 text-sm ml-2">{stock.name}</span>
-                  </div>
-                  <Plus className="w-5 h-5 text-purple-400" strokeWidth={2} />
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {searchQuery && searchResults.length === 0 && (
-            <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-xl z-50">
-              <div className="px-4 py-6 text-center text-gray-400 text-sm">
-                No results for "{searchQuery}"
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Stock List */}
         <div className="flex-1 overflow-auto">
@@ -526,56 +431,70 @@ const WatchlistPage = () => {
             return (
               <div 
                 key={stock.symbol}
-                className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors border-b border-gray-800/50 ${
+                className={`flex items-center justify-between px-3 py-2.5 cursor-pointer transition-colors border-b border-gray-800/50 ${
                   isSelected ? 'bg-purple-500/20' : 'hover:bg-[#0d1829]'
                 }`}
                 onClick={() => handleTickerClick(stock.symbol)}
               >
-                {/* Left: Symbol & Name */}
-                <div className="flex-1 min-w-0 pr-4">
-                  <div className="text-white font-semibold text-base">{stock.symbol}</div>
-                  <div className="text-gray-500 text-sm truncate">{stock.name}</div>
-                </div>
-
-                {/* Right: Price & Changes */}
-                <div className="text-right flex-shrink-0 mr-3">
-                  <div className="text-white font-semibold text-base font-mono">
-                    ${formatPrice(stock.price)}
-                  </div>
-                  
-                  <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}{(stock.change || 0).toFixed(2)} ({isPositive ? '+' : ''}{(stock.changePercent || 0).toFixed(2)}%)
-                  </div>
-                  
-                  {showExtendedHours && stock.afterHoursChange !== undefined && (
-                    <div className={`text-xs mt-0.5 ${isAfterHoursPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                      <span className="text-gray-500">{extendedLabel}:</span>{' '}
-                      {isAfterHoursPositive ? '+' : ''}{(stock.afterHoursChange || 0).toFixed(2)} ({isAfterHoursPositive ? '+' : ''}{(stock.afterHoursPercent || 0).toFixed(2)}%)
+                {isCollapsed ? (
+                  // Collapsed view - just ticker
+                  <div className="w-full text-center">
+                    <div className={`text-xs font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {stock.symbol}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  // Expanded view
+                  <>
+                    {/* Left: Symbol & Name */}
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="text-white font-semibold text-base">{stock.symbol}</div>
+                      <div className="text-gray-500 text-sm truncate">{stock.name}</div>
+                    </div>
 
-                {/* Delete Button */}
-                <button 
-                  onClick={(e) => handleRemoveStock(stock.symbol, e)}
-                  className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-500 hover:text-red-400"
-                  title="Remove from watchlist"
-                >
-                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                </button>
+                    {/* Right: Price & Changes */}
+                    <div className="text-right flex-shrink-0 mr-3">
+                      <div className="text-white font-semibold text-base font-mono">
+                        ${formatPrice(stock.price)}
+                      </div>
+                      
+                      <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {isPositive ? '+' : ''}{(stock.change || 0).toFixed(2)} ({isPositive ? '+' : ''}{(stock.changePercent || 0).toFixed(2)}%)
+                      </div>
+                      
+                      {showExtendedHours && stock.afterHoursChange !== undefined && (
+                        <div className={`text-xs mt-0.5 ${isAfterHoursPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                          <span className="text-gray-500">{extendedLabel}:</span>{' '}
+                          {isAfterHoursPositive ? '+' : ''}{(stock.afterHoursChange || 0).toFixed(2)} ({isAfterHoursPositive ? '+' : ''}{(stock.afterHoursPercent || 0).toFixed(2)}%)
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Delete Button */}
+                    <button 
+                      onClick={(e) => handleRemoveStock(stock.symbol, e)}
+                      className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-500 hover:text-red-400"
+                      title="Remove from watchlist"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
-          <span className="text-gray-400">{watchlistStocks.length} symbols</span>
-          <div className="flex items-center gap-3">
-            <span className="text-emerald-400">{watchlistStocks.filter(s => (s.change || 0) >= 0).length} ↑</span>
-            <span className="text-red-400">{watchlistStocks.filter(s => (s.change || 0) < 0).length} ↓</span>
+        {!isCollapsed && (
+          <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
+            <span className="text-gray-400">{watchlistStocks.length} symbols</span>
+            <div className="flex items-center gap-3">
+              <span className="text-emerald-400">{watchlistStocks.filter(s => (s.change || 0) >= 0).length} ↑</span>
+              <span className="text-red-400">{watchlistStocks.filter(s => (s.change || 0) < 0).length} ↓</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* TradingView Chart Panel */}
