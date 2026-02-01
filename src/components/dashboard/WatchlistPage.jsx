@@ -209,13 +209,10 @@ const WatchlistPage = ({ themeClasses }) => {
                   }`}
                 >
                   {/* Symbol & Name */}
-                  <div className="col-span-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                      <span className="text-xs font-bold text-blue-400">{stock.symbol?.slice(0, 2)}</span>
-                    </div>
+                  <div className="col-span-4 flex items-center">
                     <div>
                       <div className="text-white font-medium text-sm">${stock.symbol}</div>
-                      <div className="text-gray-500 text-xs truncate max-w-[120px]">{stock.name || stock.symbol}</div>
+                      <div className="text-gray-500 text-xs truncate max-w-[150px]">{stock.name || stock.symbol}</div>
                     </div>
                   </div>
 
