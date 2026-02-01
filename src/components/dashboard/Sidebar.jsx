@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Home, 
   Star,
@@ -50,7 +50,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       className="h-screen bg-[#0a0a0f] border-r border-white/10 flex flex-col flex-shrink-0"
     >
       {/* Logo */}
-      <div className="p-3 pb-4">
+      <div className="p-3 pb-2">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
             <Brain className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
@@ -64,9 +64,9 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
         </div>
       </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 px-2 overflow-y-auto">
-        <ul className="space-y-0.5">
+      {/* Main Navigation - Tighter spacing */}
+      <nav className="flex-1 px-2 overflow-y-auto min-h-0">
+        <ul className="space-y-px">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -75,7 +75,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
               <li key={item.id}>
                 <button
                   onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
                     isActive
                       ? 'bg-gradient-to-r from-purple-600/40 to-purple-500/30 text-white'
                       : 'text-white/50 hover:text-white/80 hover:bg-white/5'
@@ -103,20 +103,20 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
         </ul>
       </nav>
 
-      {/* Bottom Section - Fixed at bottom */}
-      <div className="px-2 pb-4 mt-auto">
+      {/* Bottom Section - Fixed height, always visible */}
+      <div className="flex-shrink-0 px-2 pb-3">
         {/* Divider */}
-        <div className="h-px bg-white/10 mx-2 mb-3" />
+        <div className="h-px bg-white/10 mx-2 mb-2" />
         
-        {/* Bottom Nav Items */}
-        <ul className="space-y-0.5 mb-3">
+        {/* Bottom Nav Items - Tighter */}
+        <ul className="space-y-px mb-2">
           {bottomItems.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.id}>
                 <button
                   onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
                     collapsed ? 'justify-center px-2' : ''
                   }`}
                   title={collapsed ? item.label : undefined}
@@ -134,12 +134,12 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
         </ul>
 
         {/* Divider */}
-        <div className="h-px bg-white/10 mx-2 mb-3" />
+        <div className="h-px bg-white/10 mx-2 mb-2" />
 
-        {/* Collapse Button - Always visible */}
+        {/* Collapse Button - Always visible with border */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white hover:bg-purple-500/20 transition-all border border-white/10 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/60 hover:text-white hover:bg-purple-500/20 transition-all border border-white/10 hover:border-purple-500/50 ${
             collapsed ? 'justify-center px-2' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
