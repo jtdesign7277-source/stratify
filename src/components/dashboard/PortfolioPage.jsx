@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Wallet, TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownLeft, 
-  RefreshCcw, Loader2, MoreHorizontal, Link2, Unlink
+  Wallet, TrendingUp, TrendingDown, Plus, 
+  RefreshCcw, Loader2, MoreHorizontal, Unlink
 } from 'lucide-react';
 import { getQuotes } from '../../services/marketData';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
@@ -188,21 +188,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
             </div>
           </div>
 
-          {/* Right - Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#0a1628] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-600 transition-colors text-sm">
-              <ArrowDownLeft className="w-4 h-4" />
-              Withdraw
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#0a1628] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-600 transition-colors text-sm">
-              <ArrowUpRight className="w-4 h-4" />
-              Deposit
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#0a1628] border border-gray-700 rounded-lg text-gray-300 hover:text-white hover:border-gray-600 transition-colors text-sm">
-              <RefreshCcw className="w-4 h-4" />
-              Convert
-            </button>
-          </div>
         </div>
       </div>
 
@@ -210,22 +195,7 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
       <div className="px-6 pb-4">
         <div className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden">
           {/* Chart Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <div className="flex items-center gap-4">
-              {['Value', 'P&L', 'Portfolio value'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setChartTab(tab.toLowerCase().replace(' ', '-'))}
-                  className={`text-sm font-medium transition-colors ${
-                    chartTab === tab.toLowerCase().replace(' ', '-')
-                      ? 'text-white'
-                      : 'text-gray-500 hover:text-gray-300'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-end px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-1">
               {timeframes.map(tf => (
                 <button
