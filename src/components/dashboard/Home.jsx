@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Shield, ArrowUpRight, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus, Wallet } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Search, Shield, ArrowUpRight, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus, Wallet, GripHorizontal } from 'lucide-react';
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState('balances');
@@ -7,6 +7,54 @@ const Home = () => {
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [connectedAccounts, setConnectedAccounts] = useState([]);
+  
+  // Resizable panels state
+  const [topPanelHeight, setTopPanelHeight] = useState(() => {
+    const saved = localStorage.getItem('stratify-home-panel-height');
+    return saved ? parseInt(saved, 10) : 320;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
+
+  // Save panel height to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-home-panel-height', topPanelHeight.toString());
+  }, [topPanelHeight]);
+
+  // Handle mouse move during drag
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging || !containerRef.current) return;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const searchBarHeight = 60; // Approximate height of search bar
+    const newHeight = e.clientY - containerRect.top - searchBarHeight;
+    
+    // Constrain between min and max heights
+    const minHeight = 150;
+    const maxHeight = containerRect.height - 200;
+    setTopPanelHeight(Math.min(maxHeight, Math.max(minHeight, newHeight)));
+  }, [isDragging]);
+
+  // Handle mouse up
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = 'auto';
+  }, []);
+
+  // Add/remove event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const tabs = [
     { id: 'balances', label: 'Balances' },
@@ -117,9 +165,9 @@ const Home = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-hidden">
+    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-hidden">
       {/* Search Bar */}
-      <div className="mb-4">
+      <div className="mb-4 flex-shrink-0">
         <div className="flex items-center gap-2 bg-[#0a1628] border border-gray-800 rounded-lg px-4 py-2.5 w-fit cursor-pointer hover:border-gray-700 transition-colors">
           <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
           <span className="text-gray-500 text-sm">Search for a market</span>
@@ -130,9 +178,12 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Connect Account Card */}
-      <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-8 mb-4">
-        <div className="flex flex-col items-center text-center">
+      {/* Connect Account Card - Resizable Top Panel */}
+      <div 
+        className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-auto flex-shrink-0"
+        style={{ height: topPanelHeight }}
+      >
+        <div className="p-8 flex flex-col items-center text-center h-full justify-center">
           {/* Premium Connection Icon */}
           <div className="mb-6 relative">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/30">
@@ -193,10 +244,23 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Tabs Section */}
-      <div className="bg-[#0a1628] border border-gray-800 rounded-xl flex-1 flex flex-col overflow-hidden">
+      {/* Resize Handle */}
+      <div 
+        className="h-4 flex items-center justify-center cursor-row-resize group flex-shrink-0 relative"
+        onMouseDown={() => setIsDragging(true)}
+      >
+        {/* Subtle line */}
+        <div className="absolute inset-x-0 top-1/2 h-px bg-gray-800 group-hover:bg-gray-700 transition-colors" />
+        {/* Drag indicator */}
+        <div className="relative z-10 flex items-center justify-center w-12 h-4 rounded bg-[#0a1628] border border-gray-800 group-hover:border-gray-600 group-hover:bg-[#0d1829] transition-all">
+          <GripHorizontal className="w-4 h-3 text-gray-600 group-hover:text-gray-400 transition-colors" strokeWidth={1.5} />
+        </div>
+      </div>
+
+      {/* Tabs Section - Bottom Panel */}
+      <div className="bg-[#0a1628] border border-gray-800 rounded-xl flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Tabs Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-1">
             {tabs.map((tab) => (
               <button
