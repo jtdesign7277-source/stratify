@@ -144,7 +144,7 @@ app.post('/api/atlas/chat', async (req, res) => {
         'Authorization': `Bearer ${GROK_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'grok-beta',
+        model: 'grok-3',
         messages: [
           { role: 'system', content: 'You are Grok, an expert AI trading strategist. Include entry/exit conditions, risk management, and Python code for backtesting. Format code in ```python blocks.' },
           { role: 'user', content: message }
