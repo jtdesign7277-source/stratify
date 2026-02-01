@@ -305,20 +305,6 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         </div>
       )}
 
-      {/* Search */}
-      <div className="mb-4">
-        <div className="flex items-center gap-2 bg-[#0a1628] border border-gray-800 rounded-lg px-4 py-2.5">
-          <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search strategies..."
-            className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
-          />
-        </div>
-      </div>
-
       {/* Folders List */}
       <div className="flex-1 overflow-auto">
         {/* System Folders */}
