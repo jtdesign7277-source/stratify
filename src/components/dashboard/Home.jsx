@@ -166,18 +166,6 @@ const Home = () => {
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-hidden">
-      {/* Search Bar */}
-      <div className="mb-4 flex-shrink-0">
-        <div className="flex items-center gap-2 bg-[#0a1628] border border-gray-800 rounded-lg px-4 py-2.5 w-fit cursor-pointer hover:border-gray-700 transition-colors">
-          <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
-          <span className="text-gray-500 text-sm">Search for a market</span>
-          <div className="flex items-center gap-1 bg-[#1a2438] px-2 py-0.5 rounded text-xs text-gray-400 ml-2">
-            <span>⌘</span>
-            <span>K</span>
-          </div>
-        </div>
-      </div>
-
       {/* Connect Account Card - Resizable Top Panel */}
       <div 
         className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-auto flex-shrink-0"
