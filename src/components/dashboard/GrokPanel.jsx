@@ -983,8 +983,8 @@ Generate a trading strategy with the following format:
                   } 
                 }}
                 placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."}
-                rows={1}
-                className="flex-1 px-2.5 py-1.5 bg-[#0d1829] rounded-lg text-[#e5e5e5] placeholder-gray-500 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
+                rows={2}
+                className="flex-1 px-2.5 py-1.5 bg-[#0d1829] rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors overflow-y-auto"
               />
               <button
                 onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify}
