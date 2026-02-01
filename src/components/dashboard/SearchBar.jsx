@@ -50,7 +50,7 @@ const TrendingIcon = () => (
   </svg>
 );
 
-export default function SearchBar({ onSelectStock }) {
+export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -298,19 +298,24 @@ export default function SearchBar({ onSelectStock }) {
                     </div>
                   </div>
                   
-                  {/* Arrow indicator */}
-                  <svg 
-                    className={`w-4 h-4 transition-all duration-150 ${
-                      index === selectedIndex 
-                        ? 'text-cyan-400 translate-x-0 opacity-100' 
-                        : 'text-gray-600 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
-                    }`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+                  {/* Add to Watchlist button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddToWatchlist?.(stock.symbol);
+                      setQuery('');
+                      setIsOpen(false);
+                    }}
+                    className={`
+                      px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150
+                      ${index === selectedIndex 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white'
+                      }
+                    `}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                    + Watchlist
+                  </button>
                 </div>
               </div>
             ))}

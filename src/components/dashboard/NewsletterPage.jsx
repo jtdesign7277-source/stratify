@@ -301,6 +301,108 @@ const ARBITRAGE_OPPORTUNITIES = [
 // Newsletter archive - newest first
 const NEWSLETTERS = [
   {
+    id: '2026-02-01',
+    date: 'February 1, 2026',
+    title: 'Bitcoin Crashes to $78K, Options Flow Signals Major Volatility Ahead',
+    content: `
+## 🔥 This Week's Hot Take
+
+**Bitcoin just cratered to $78,131** — a brutal 15% drop that caught overleveraged longs completely off-guard. Our paper account auto-bought the dip this morning. Meanwhile, the options market is going absolutely insane with TSLA and NVDA sweep activity suggesting smart money sees a major move coming.
+
+---
+
+## 📊 Unusual Options Activity
+
+### TSLA - Tesla Inc.
+- **Feb 28 $420 Calls** - 1.2M contracts swept in 30 minutes
+- Premium paid: $18.7M across multiple block trades
+- Someone knows something about the Q1 delivery numbers
+- IV rank: 78th percentile (elevated)
+
+### NVDA - NVIDIA Corp
+- **Feb 21 $1000 Calls** - Aggressive accumulation continues
+- $14.3M in call premiums before next week's earnings
+- Put/call ratio: 0.38 (extremely bullish skew)
+- Watch the $900 level as support
+
+### SPY - S&P 500 ETF
+- **Massive Feb 7 $480 Put spread** - $22M notional
+- Hedge fund protection or directional bet?
+- VIX term structure steepening (caution signal)
+- 0DTE volume hit record highs again
+
+---
+
+## 🎰 Prediction Markets Update
+
+### Polymarket Hot Markets
+
+| Market | YES Price | 7-Day Change |
+|--------|-----------|--------------|
+| Fed cuts rates in March | 18¢ | -5¢ |
+| Bitcoin $100K by March | 28¢ | -13¢ |
+| NVDA beats earnings | 72¢ | +4¢ |
+| Trump wins popular vote | 51¢ | +2¢ |
+| ETH flips BTC market cap | 8¢ | -3¢ |
+
+### Kalshi Movers
+- **Super Bowl: Chiefs win** jumped from 45¢ to 58¢
+- **LA wildfire damage >$50B** trading at 67¢ YES
+- **Tesla robotaxi 2026 launch** dropped to 22¢
+
+### Arbitrage Alert 🚨
+**NVDA Earnings Beat** shows a 4.1% spread: Polymarket 72¢ YES vs Kalshi 64¢ YES (inverted). Arb exists if you go long both YES sides and one must pay out. Estimated profit: $41 per $1000 deployed.
+
+---
+
+## 📈 Sector Watch
+
+**Winners This Week:**
+- 🟢 Defense (+5.8%) - Geopolitical tensions escalating
+- 🟢 Gold Miners (+4.9%) - Flight to safety trade
+- 🟢 Utilities (+2.3%) - Defensive rotation starting
+
+**Losers This Week:**
+- 🔴 Crypto (-18.4%) - BTC led the bloodbath
+- 🔴 High-Growth Tech (-6.2%) - Rate fears back
+- 🔴 Semiconductors (-3.7%) - Profit taking pre-earnings
+- 🔴 Homebuilders (-2.9%) - Mortgage rates ticking up
+
+---
+
+## 💡 Alpha Idea of the Week
+
+**The Post-Crash Crypto Bounce**
+
+When BTC drops >10% in a single week AND RSI hits oversold (<30) on the daily, historically it bounces 8-15% within the following 5 trading days. Current setup:
+- BTC RSI: 24 (deeply oversold)
+- Weekly drop: -15.3%
+- Similar setups: 7/9 profitable since 2023
+
+**Trade idea:** Scale into spot BTC or BITO calls here. Target: $85K-$88K bounce. Stop: Close below $75K.
+
+*Not financial advice. Crypto is volatile. Size accordingly.*
+
+---
+
+## 🗓️ Key Events Next Week
+
+- **Monday:** ISM Manufacturing PMI
+- **Tuesday:** Job Openings (JOLTS)
+- **Wednesday:** ADP Employment, NVDA Earnings 🔥
+- **Thursday:** Weekly Jobless Claims, AAPL & AMZN Earnings
+- **Friday:** Non-Farm Payrolls (big one)
+
+**Earnings to Watch:** NVDA (Wed), AAPL (Thu), AMZN (Thu), GOOGL (Thu) — the Mag 7 gauntlet begins.
+
+---
+
+*Stay sharp. Volatility is opportunity.* 📈
+
+— The Stratify Team
+    `
+  },
+  {
     id: '2026-01-28',
     date: 'January 28, 2026',
     title: 'TSLA Weekly Calls Explode, Prediction Markets Eye Fed Decision',

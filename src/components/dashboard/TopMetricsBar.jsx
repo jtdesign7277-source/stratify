@@ -317,7 +317,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         ))}
       </div>
       <div className="flex items-center gap-4 ml-4">
-        <SearchBar onSelectStock={onAddToWatchlist} />
+        <SearchBar onSelectStock={onAddToWatchlist} onAddToWatchlist={onAddToWatchlist} />
         <div className="flex items-center gap-4 pl-4 border-l border-[#1e1e2d]">
           {/* Connected Accounts */}
           {connectedBrokers.length > 0 && (
