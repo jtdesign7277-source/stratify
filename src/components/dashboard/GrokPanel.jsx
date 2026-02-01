@@ -341,13 +341,13 @@ const GrokPanel = () => {
         </div>
 
         {/* Chat */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex flex-col">
           <label className="text-gray-500 text-[10px] font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
           
-          <div className="flex-1 bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'none' }}>
-            <div className="p-1.5 space-y-1.5 h-full">
+          <div className="max-h-[300px] bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+            <div className="p-1.5 space-y-1.5">
               {messages.length === 0 && (
-                <div className="h-full flex items-center justify-center text-gray-600 text-sm">
+                <div className="py-8 flex items-center justify-center text-gray-600 text-sm">
                   Ask Grok anything about trading...
                 </div>
               )}
