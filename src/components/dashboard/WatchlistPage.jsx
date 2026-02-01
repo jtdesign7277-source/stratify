@@ -1,11 +1,60 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, TrendingUp, TrendingDown, X, RefreshCw } from 'lucide-react';
 
-const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onViewChart }) => {
+const TradingViewChart = ({ symbol }) => {
+  useEffect(() => {
+    // Clean up any existing widget
+    const container = document.getElementById('tradingview-widget-container');
+    if (container) {
+      container.innerHTML = '';
+    }
+
+    // Create the widget
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: symbol,
+      interval: 'D',
+      timezone: 'America/New_York',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      enable_publishing: false,
+      backgroundColor: 'rgba(6, 13, 24, 1)',
+      gridColor: 'rgba(0, 0, 0, 0)',
+      hide_top_toolbar: false,
+      hide_legend: false,
+      allow_symbol_change: true,
+      save_image: false,
+      calendar: false,
+      hide_volume: false,
+      support_host: 'https://www.tradingview.com'
+    });
+
+    if (container) {
+      container.appendChild(script);
+    }
+
+    return () => {
+      if (container) {
+        container.innerHTML = '';
+      }
+    };
+  }, [symbol]);
+
+  return (
+    <div className="tradingview-widget-container h-full w-full" id="tradingview-widget-container">
+      <div className="tradingview-widget-container__widget h-full w-full"></div>
+    </div>
+  );
+};
+
+const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const chartContainerRef = useRef(null);
 
   // Default watchlist if none provided
   const defaultStocks = [
@@ -20,58 +69,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   ];
 
   const stocks = watchlist.length > 0 ? watchlist : defaultStocks;
-
-  // Load TradingView widget when ticker is selected
-  useEffect(() => {
-    if (selectedTicker && chartContainerRef.current) {
-      // Clear previous chart
-      chartContainerRef.current.innerHTML = '';
-      
-      // Create TradingView widget
-      const script = document.createElement('script');
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-      script.type = 'text/javascript';
-      script.async = true;
-      script.innerHTML = JSON.stringify({
-        autosize: true,
-        symbol: selectedTicker,
-        interval: 'D',
-        timezone: 'America/New_York',
-        theme: 'dark',
-        style: '1',
-        locale: 'en',
-        backgroundColor: 'rgba(6, 13, 24, 1)',
-        gridColor: 'rgba(0, 0, 0, 0)',
-        hide_top_toolbar: false,
-        hide_legend: false,
-        allow_symbol_change: true,
-        save_image: false,
-        calendar: false,
-        hide_volume: false,
-        support_host: 'https://www.tradingview.com',
-        container_id: 'tradingview_chart',
-        // Disable gridlines
-        overrides: {
-          'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
-          'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
-        }
-      });
-      
-      const container = document.createElement('div');
-      container.className = 'tradingview-widget-container';
-      container.style.height = '100%';
-      container.style.width = '100%';
-      
-      const innerContainer = document.createElement('div');
-      innerContainer.id = 'tradingview_chart';
-      innerContainer.style.height = '100%';
-      innerContainer.style.width = '100%';
-      
-      container.appendChild(innerContainer);
-      container.appendChild(script);
-      chartContainerRef.current.appendChild(container);
-    }
-  }, [selectedTicker]);
 
   const handleTickerClick = (symbol) => {
     setSelectedTicker(symbol);
@@ -93,7 +90,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
       {/* Watchlist Panel - Compact when chart is open */}
       <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
-        selectedTicker ? 'w-64' : 'flex-1'
+        selectedTicker ? 'w-72' : 'flex-1'
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
@@ -166,8 +163,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 key={stock.symbol}
                 onClick={() => handleTickerClick(stock.symbol)}
                 className={`cursor-pointer transition-colors border-b border-gray-800/50 ${
-                  isSelected ? 'bg-purple-500/20' : 'hover:bg-[#0d1829]'
-                } ${selectedTicker ? 'px-3 py-2' : 'px-4 py-3'}`}
+                  isSelected ? 'bg-purple-500/20 border-l-2 border-l-purple-500' : 'hover:bg-[#0d1829]'
+                } ${selectedTicker ? 'px-3 py-2.5' : 'px-4 py-3'}`}
               >
                 {selectedTicker ? (
                   // Compact view
@@ -175,9 +172,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                     <div className="flex items-center gap-2">
                       <span className="text-white font-medium text-sm">${stock.symbol}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <span className="text-white text-sm font-mono">${stock.price?.toFixed(2)}</span>
-                      <span className={`text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                        isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                      }`}>
                         {isPositive ? '+' : ''}{stock.changePercent?.toFixed(2)}%
                       </span>
                     </div>
@@ -244,9 +243,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
       {/* TradingView Chart Panel */}
       {selectedTicker && (
-        <div className="flex-1 flex flex-col bg-[#060d18]">
+        <div className="flex-1 flex flex-col bg-[#060d18] min-w-0">
           {/* Chart Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-semibold text-lg">${selectedTicker}</h2>
               <span className="text-gray-400 text-sm">
@@ -254,18 +253,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => {
-                  // Force refresh chart
-                  const temp = selectedTicker;
-                  setSelectedTicker(null);
-                  setTimeout(() => setSelectedTicker(temp), 100);
-                }}
-                className="p-2 hover:bg-[#1a2438] rounded-lg transition-colors text-gray-400 hover:text-white"
-                title="Refresh chart"
-              >
-                <RefreshCw className="w-4 h-4" strokeWidth={1.5} />
-              </button>
               <button 
                 onClick={handleCloseChart}
                 className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-red-400"
@@ -276,9 +263,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             </div>
           </div>
 
-          {/* Chart Container */}
-          <div className="flex-1" ref={chartContainerRef}>
-            {/* TradingView widget loads here */}
+          {/* Chart Container - Using iframe for reliability */}
+          <div className="flex-1 min-h-0">
+            <iframe
+              key={selectedTicker}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${selectedTicker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&studies_overrides={}&overrides={"paneProperties.vertGridProperties.color":"rgba(0,0,0,0)","paneProperties.horzGridProperties.color":"rgba(0,0,0,0)","paneProperties.background":"rgba(6,13,24,1)","paneProperties.backgroundType":"solid"}&enabled_features=[]&disabled_features=[]&locale=en&utm_source=&utm_medium=widget_new&utm_campaign=chart`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
         </div>
       )}
