@@ -17,6 +17,11 @@ import StrategyBuilder from './StrategyBuilder';
 import AIChat from './AIChat';
 import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './CommandPalette';
 import Home from './Home';
+import WatchlistPage from './WatchlistPage';
+import MarketsPage from './MarketsPage';
+import PortfolioPage from './PortfolioPage';
+import HistoryPage from './HistoryPage';
+import AnalyticsPage from './AnalyticsPage';
 
 const loadDashboardState = () => {
   try {
@@ -491,10 +496,17 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           id="main-content-area" 
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
-          {/* Home View */}
-          {activeTab === 'home' ? (
-            <Home themeClasses={themeClasses} />
-          ) : (
+          {/* Tab-based Views */}
+          {activeTab === 'home' && <Home themeClasses={themeClasses} />}
+          {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} />}
+          {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
+          {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
+          {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
+          {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} />}
+          {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
+          
+          {/* Legacy section-based views (settings, newsletter, etc.) */}
+          {!['home', 'watchlist', 'strategies', 'markets', 'analytics', 'portfolio', 'history'].includes(activeTab) && (
             <>
               {/* Settings/Newsletter Overlays */}
               {activeSection === 'settings' && (

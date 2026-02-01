@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
+  Star,
+  FolderOpen,
   SlidersHorizontal, 
   Globe, 
   LineChart, 
-  Percent, 
   Wallet, 
   History, 
   HelpCircle, 
@@ -20,6 +21,8 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'watchlist', label: 'Watchlist', icon: Star },
+    { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
@@ -34,7 +37,6 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
   ];
 
   const handleTabClick = (id) => {
-    // Support both prop names for flexibility
     setActiveTab && setActiveTab(id);
     onTabChange && onTabChange(id);
     onNavigate && onNavigate(id);
