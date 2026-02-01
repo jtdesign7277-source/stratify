@@ -209,7 +209,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           className="absolute -top-10 right-0 text-gray-400 hover:text-white transition-colors z-10"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
@@ -281,7 +281,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                   className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
                   </svg>
                   Back to brokers
                 </button>

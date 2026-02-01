@@ -96,9 +96,7 @@ Would you like me to add backtesting logic or modify the entry/exit conditions?`
     <div className="flex flex-col h-full bg-[#060d18]">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-          <Brain className="w-4 h-4 text-white" strokeWidth={1.5} />
-        </div>
+        <Brain className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
         <div>
           <h2 className="text-base font-semibold text-white">Atlas AI</h2>
           <p className="text-sm text-gray-400">Strategy Builder</p>
@@ -111,9 +109,7 @@ Would you like me to add backtesting logic or modify the entry/exit conditions?`
           <div className="h-full flex flex-col justify-center">
             {/* Welcome State */}
             <div className="text-center mb-8">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-7 h-7 text-blue-400" strokeWidth={1.5} />
-              </div>
+              <Sparkles className="w-10 h-10 text-blue-400 mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-xl font-medium text-white mb-2">What strategy would you like to build?</h3>
               <p className="text-base text-gray-400">Describe your trading idea and I'll generate the code.</p>
             </div>
@@ -154,9 +150,7 @@ Would you like me to add backtesting logic or modify the entry/exit conditions?`
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
-                    <Brain className="w-4 h-4 text-white" strokeWidth={1.5} />
-                  </div>
+                  <Brain className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0 mt-1" strokeWidth={1.5} />
                 )}
                 <div
                   className={`max-w-[85%] ${
@@ -207,9 +201,7 @@ Would you like me to add backtesting logic or modify the entry/exit conditions?`
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-start"
               >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mr-3 flex-shrink-0">
-                  <Brain className="w-4 h-4 text-white" strokeWidth={1.5} />
-                </div>
+                <Brain className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" strokeWidth={1.5} />
                 <div className="flex items-center gap-1 py-3">
                   <motion.div
                     animate={{ opacity: [0.4, 1, 0.4] }}
@@ -259,7 +251,7 @@ Would you like me to add backtesting logic or modify the entry/exit conditions?`
                 : 'bg-white/10 text-gray-500 cursor-not-allowed'
             }`}
           >
-            <ArrowUp className="w-5 h-5" strokeWidth={2} />
+            <ArrowUp className="w-5 h-5" strokeWidth={1.5} />
           </button>
         </div>
         

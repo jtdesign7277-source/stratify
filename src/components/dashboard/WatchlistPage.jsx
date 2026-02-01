@@ -88,7 +88,7 @@ const WatchlistPage = ({ themeClasses }) => {
             onClick={() => setShowSearch(!showSearch)}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" strokeWidth={2} />
+            <Plus className="w-4 h-4" strokeWidth={1.5} />
             Add Symbol
           </button>
         </div>
@@ -226,9 +226,9 @@ const WatchlistPage = ({ themeClasses }) => {
                   {/* Change */}
                   <div className="col-span-2 flex items-center justify-end gap-1">
                     {isPositive ? (
-                      <TrendingUp className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2} />
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
                     ) : (
-                      <TrendingDown className="w-3.5 h-3.5 text-red-400" strokeWidth={2} />
+                      <TrendingDown className="w-3.5 h-3.5 text-red-400" strokeWidth={1.5} />
                     )}
                     <span className={`font-mono text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                       {isPositive ? '+' : ''}{typeof change === 'number' ? change.toFixed(2) : change}

@@ -52,9 +52,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       {/* Logo */}
       <div className="p-3 pb-4">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-            <Brain className="w-4 h-4 text-white" strokeWidth={1.5} />
-          </div>
+          <Brain className="w-5 h-5 text-blue-400 flex-shrink-0" strokeWidth={1.5} />
           <AnimatePresence>
             {!collapsed && (
               <motion.div

@@ -92,7 +92,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-white">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -111,7 +111,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
             >
               <div className="text-[10px] text-gray-500 mb-1 flex items-center justify-between">
                 <span>Polymarket</span>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </div>
               <div className="text-emerald-400 font-medium">{arb.polymarket.side} @ {arb.polymarket.price}¢</div>
               {amount > 0 && <div className="text-xs text-gray-400 mt-1">${yesAllocation.toFixed(2)}</div>}
@@ -124,7 +124,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
             >
               <div className="text-[10px] text-gray-500 mb-1 flex items-center justify-between">
                 <span>Kalshi</span>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </div>
               <div className="text-red-400 font-medium">{arb.kalshi.side} @ {arb.kalshi.price}¢</div>
               {amount > 0 && <div className="text-xs text-gray-400 mt-1">${noAllocation.toFixed(2)}</div>}
@@ -231,7 +231,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
           <span className="text-sm font-medium text-white">Scanner Settings</span>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -413,7 +413,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
             className={`w-4 h-4 text-gray-500 transition-transform ${activeSection === 'scanner' ? 'rotate-90' : ''}`} 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
           </svg>
           <span className={`text-xs font-medium ${activeSection === 'scanner' ? 'text-amber-400' : 'text-gray-400'}`}>Opportunities</span>
           {isScanning && (
@@ -431,8 +431,8 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
             className="p-0.5 hover:bg-amber-500/20 rounded transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-gray-500 hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
         </div>
@@ -500,7 +500,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
             className={`w-4 h-4 text-gray-500 transition-transform ${activeSection === 'openBets' ? 'rotate-90' : ''}`} 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
           </svg>
           <span className={`text-xs font-medium ${activeSection === 'openBets' ? 'text-emerald-400' : 'text-gray-400'}`}>Open Bets</span>
         </div>
@@ -582,10 +582,10 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
             className={`w-4 h-4 text-gray-500 transition-transform ${activeSection === 'history' ? 'rotate-90' : ''}`} 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
           </svg>
           <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span className={`text-xs font-medium ${activeSection === 'history' ? 'text-gray-300' : 'text-gray-500'}`}>History</span>
         </div>

@@ -46,7 +46,7 @@ const SparkleIcon = ({ className = "w-5 h-5" }) => (
 // Trending indicator
 const TrendingIcon = () => (
   <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
   </svg>
 );
 
@@ -232,7 +232,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
             className="p-1 hover:bg-white/10 rounded-full transition-colors"
           >
             <svg className="w-4 h-4 text-gray-500 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         ) : (

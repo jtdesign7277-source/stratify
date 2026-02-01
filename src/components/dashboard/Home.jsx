@@ -184,16 +184,9 @@ const Home = () => {
         style={{ height: topPanelHeight }}
       >
         <div className="p-8 flex flex-col items-center text-center h-full justify-center">
-          {/* Premium Connection Icon */}
-          <div className="mb-6 relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/30">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
-                <Link2 className="w-7 h-7 text-white" strokeWidth={1.5} />
-              </div>
-            </div>
-            {/* Decorative dots */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-400 rounded-full animate-pulse" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-75" />
+          {/* Connection Icon */}
+          <div className="mb-6">
+            <Link2 className="w-12 h-12 text-purple-400" strokeWidth={1.5} />
           </div>
 
           {/* Heading */}
@@ -219,7 +212,7 @@ const Home = () => {
                 <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg">
                   <span className="text-lg">{account.logo}</span>
                   <span className="text-green-400 text-sm font-medium">{account.name}</span>
-                  <CheckCircle className="w-4 h-4 text-green-400" strokeWidth={2} />
+                  <CheckCircle className="w-4 h-4 text-green-400" strokeWidth={1.5} />
                 </div>
               ))}
             </div>
@@ -230,15 +223,13 @@ const Home = () => {
             onClick={() => setActiveTab('connect')}
             className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" strokeWidth={2} />
+            <Plus className="w-4 h-4" strokeWidth={1.5} />
             Connect a Broker
           </button>
 
           {/* Security Badge */}
           <div className="flex items-center gap-2 text-sm mt-4">
-            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Shield className="w-3 h-3 text-green-400" strokeWidth={2} />
-            </div>
+            <Shield className="w-4 h-4 text-green-400" strokeWidth={1.5} />
             <span className="text-gray-400">Bank-level encryption • Your keys are stored securely</span>
           </div>
         </div>
@@ -274,7 +265,7 @@ const Home = () => {
                     : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
-                {tab.icon && <tab.icon className="w-3.5 h-3.5" strokeWidth={2} />}
+                {tab.icon && <tab.icon className="w-3.5 h-3.5" strokeWidth={1.5} />}
                 {tab.label}
               </button>
             ))}
@@ -301,7 +292,7 @@ const Home = () => {
                     className="text-purple-400 text-sm font-medium hover:text-purple-300 transition-colors inline-flex items-center gap-1"
                   >
                     Connect a broker
-                    <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={2} />
+                    <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
                   </button>
                 </div>
               )}
@@ -337,7 +328,7 @@ const Home = () => {
                     onClick={() => setSelectedBroker(broker)}
                     className="bg-[#0d1829] hover:bg-[#131f35] border border-gray-800 hover:border-purple-500/50 rounded-xl p-4 text-left transition-all group"
                   >
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${broker.color} flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition-transform`}>
+                    <div className="text-2xl mb-3">
                       {broker.logo}
                     </div>
                     <h4 className="text-white font-medium text-sm mb-1">{broker.name}</h4>
@@ -367,9 +358,7 @@ const Home = () => {
                   <X className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
                 </button>
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedBroker.color} flex items-center justify-center text-2xl`}>
-                    {selectedBroker.logo}
-                  </div>
+                  <span className="text-2xl">{selectedBroker.logo}</span>
                   <div>
                     <h3 className="text-white font-medium">Connect {selectedBroker.name}</h3>
                     <p className="text-gray-400 text-sm">{selectedBroker.description}</p>
@@ -380,9 +369,7 @@ const Home = () => {
               {/* Get API Keys Section */}
               <div className="bg-[#0d1829] border border-gray-800 rounded-xl p-4 mb-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                    <Key className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
-                  </div>
+                  <Key className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
                   <div className="flex-1">
                     <h4 className="text-white font-medium mb-1">Step 1: Get Your API Keys</h4>
                     <p className="text-gray-400 text-sm mb-3">
@@ -410,9 +397,7 @@ const Home = () => {
               {/* API Key Input Section */}
               <div className="bg-[#0d1829] border border-gray-800 rounded-xl p-4">
                 <div className="flex items-start gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                    <Lock className="w-5 h-5 text-purple-400" strokeWidth={1.5} />
-                  </div>
+                  <Lock className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
                   <div>
                     <h4 className="text-white font-medium mb-1">Step 2: Enter Your Credentials</h4>
                     <p className="text-gray-400 text-sm">
@@ -464,7 +449,7 @@ const Home = () => {
                           : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                       }`}
                     >
-                      <Link2 className="w-4 h-4" strokeWidth={2} />
+                      <Link2 className="w-4 h-4" strokeWidth={1.5} />
                       Connect {selectedBroker.name}
                     </button>
                   </div>

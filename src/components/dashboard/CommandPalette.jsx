@@ -490,9 +490,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
         <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e2d]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                <Keyboard size={16} className="text-cyan-400" />
-              </div>
+              <Keyboard size={20} className="text-cyan-400" strokeWidth={1.5} />
               <h2 className="text-lg font-semibold text-white">Keyboard Shortcuts</h2>
             </div>
             <button

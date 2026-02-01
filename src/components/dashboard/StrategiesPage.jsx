@@ -268,7 +268,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
           <button 
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" strokeWidth={2} />
+            <Plus className="w-4 h-4" strokeWidth={1.5} />
             Create Strategy
           </button>
         </div>

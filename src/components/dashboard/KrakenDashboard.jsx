@@ -263,7 +263,7 @@ const IndexCard = ({ title, value, change, icon, color = 'purple', onClick, acti
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
             <svg className="w-4 h-4 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
             </svg>
           </motion.div>
         )}
@@ -464,7 +464,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
             className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -649,7 +649,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
             className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -658,7 +658,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
         <div className="flex gap-3 mb-6">
           <div className="flex-1 flex items-center gap-2 bg-[#06060c] border border-[#1e1e2d] rounded-xl px-4 py-2.5">
             <svg className="w-4 h-4 text-[#6b6b80]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               value={searchTerm}
@@ -858,7 +858,7 @@ const ArbOppsPanel = ({ onClose }) => {
             className="p-2 text-[#6b6b80] hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -1457,7 +1457,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                   animate={{ rotate: chartCollapsed ? 0 : 90 }}
                   transition={{ type: "spring", stiffness: 300, damping: 25 }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
                 </motion.svg>
                 <span className="text-white font-medium">Portfolio Growth</span>
                 <div className="flex gap-2">

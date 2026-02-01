@@ -109,13 +109,9 @@ const HistoryPage = () => {
             >
               <div className="flex items-center gap-2">
                 {tx.type === 'buy' ? (
-                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2} />
-                  </div>
+                  <ArrowDownRight className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-red-400" strokeWidth={2} />
-                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-red-400" strokeWidth={1.5} />
                 )}
                 <span className={`text-sm font-medium ${tx.type === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
                   {tx.type.toUpperCase()}
