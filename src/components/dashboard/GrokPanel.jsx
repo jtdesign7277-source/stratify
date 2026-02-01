@@ -98,6 +98,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Tab system
   const [tabs, setTabs] = useState([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
@@ -113,17 +114,58 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
 
+  // Debounced ticker search using Yahoo Finance API
   useEffect(() => {
     if (!tickerSearch.trim()) {
       setSearchResults([]);
       return;
     }
+
+    // First show local results instantly
     const query = tickerSearch.toLowerCase();
-    const results = ALL_TICKERS.filter(t => 
+    const localResults = ALL_TICKERS.filter(t => 
       !selectedTickers.includes(t.symbol) &&
       (t.symbol.toLowerCase().includes(query) || t.name.toLowerCase().includes(query))
     ).slice(0, 5);
-    setSearchResults(results);
+    setSearchResults(localResults);
+
+    // Then fetch from Yahoo Finance API
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(tickerSearch)}&quotesCount=8&newsCount=0`;
+        const response = await fetch(yahooUrl);
+        const data = await response.json();
+        
+        if (data.quotes) {
+          const apiResults = data.quotes
+            .filter(q => (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'CRYPTOCURRENCY') && !selectedTickers.includes(q.symbol))
+            .slice(0, 8)
+            .map(q => ({
+              symbol: q.symbol,
+              name: q.shortname || q.longname || q.symbol,
+              exchange: q.exchDisp || q.exchange || '',
+              type: q.quoteType
+            }));
+          
+          // Merge with local results, prioritizing API results
+          const apiSymbols = new Set(apiResults.map(r => r.symbol));
+          const mergedResults = [
+            ...apiResults,
+            ...localResults.filter(r => !apiSymbols.has(r.symbol))
+          ].slice(0, 8);
+          
+          setSearchResults(mergedResults);
+        }
+      } catch (err) {
+        console.error('Ticker search error:', err);
+        // Keep local results on error
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [tickerSearch, selectedTickers]);
 
   const addTicker = (symbol) => {
@@ -592,22 +634,36 @@ Generate a trading strategy with the following format:
               </div>
               <div className="relative">
                 <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
-                  <Search className="w-4 h-4 text-gray-500" />
+                  {isSearching ? (
+                    <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4 text-gray-500" />
+                  )}
                   <input
                     type="text"
                     value={tickerSearch}
-                    onChange={(e) => setTickerSearch(e.target.value)}
-                    placeholder="Search ticker..."
+                    onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
+                    placeholder="Search any stock..."
                     className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none"
                   />
                   {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
                 </div>
                 {searchResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg z-50 overflow-hidden">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#0a1628] border border-gray-700 rounded-lg z-50 overflow-hidden shadow-xl">
                     {searchResults.map(t => (
-                      <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-3 py-2 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors">
-                        <span><span className="text-[#e5e5e5] font-medium">${t.symbol}</span> <span className="text-gray-500">{t.name}</span></span>
-                        <Plus className="w-4 h-4 text-emerald-400" />
+                      <div 
+                        key={t.symbol} 
+                        onClick={() => addTicker(t.symbol)} 
+                        className="flex items-center justify-between px-3 py-2.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[#e5e5e5] font-semibold">${t.symbol}</span>
+                          <span className="text-gray-500 truncate">{t.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {t.exchange && <span className="text-[10px] text-gray-600">{t.exchange}</span>}
+                          <Plus className="w-4 h-4 text-emerald-400" />
+                        </div>
                       </div>
                     ))}
                   </div>
