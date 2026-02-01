@@ -233,6 +233,53 @@ const GrokPanel = () => {
     }
   };
 
+  const handleStrategyModify = async () => {
+    if (!chatInput.trim() || isChatLoading || !activeTabData) return;
+    const modifyRequest = chatInput.trim();
+    setChatInput('');
+    setIsChatLoading(true);
+
+    // Build context with current strategy content
+    const contextMsg = `Current strategy code:\n${activeTabData.content}\n\nModification request: ${modifyRequest}`;
+
+    try {
+      const response = await fetch(`${API_BASE}/api/atlas/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: contextMsg }),
+      });
+      if (!response.ok) throw new Error('Failed');
+      const data = await response.json();
+      const fullContent = data.response || "Couldn't respond.";
+      
+      // Update tab with new content using typewriter effect
+      setTabs(prev => prev.map(t => 
+        t.id === activeTab ? { ...t, content: '', isTyping: true } : t
+      ));
+      
+      let idx = 0;
+      const interval = setInterval(() => {
+        idx += 10;
+        if (idx >= fullContent.length) {
+          clearInterval(interval);
+          setTabs(prev => prev.map(t => 
+            t.id === activeTab ? { ...t, content: fullContent, isTyping: false } : t
+          ));
+        } else {
+          setTabs(prev => prev.map(t => 
+            t.id === activeTab ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t
+          ));
+        }
+      }, 5);
+    } catch (e) {
+      setTabs(prev => prev.map(t => 
+        t.id === activeTab ? { ...t, content: "Error modifying strategy.", isTyping: false } : t
+      ));
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
   const copyCode = (code, index) => {
     navigator.clipboard.writeText(code);
     setCopiedIndex(index);
@@ -510,7 +557,7 @@ const GrokPanel = () => {
                           <span className="text-emerald-400 text-sm font-medium">{activeTabData.name}</span>
                           {activeTabData.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
                         </div>
-                        <div className="text-sm leading-relaxed">{renderContent(activeTabData.content, activeTab)}</div>
+                        <div className="text-base leading-relaxed">{renderContent(activeTabData.content, activeTab)}</div>
                       </div>
                     ) : (
                       <div className="py-8 flex items-center justify-center">
@@ -525,7 +572,7 @@ const GrokPanel = () => {
             </div>
 
             {/* Input area - inside the same container */}
-            {activeTab === 'chat' && (
+            {activeTab === 'chat' ? (
               <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
                 <textarea
                   value={chatInput}
@@ -537,6 +584,24 @@ const GrokPanel = () => {
                 />
                 <button
                   onClick={handleChatSend}
+                  disabled={!chatInput.trim() || isChatLoading}
+                  className={`px-3 rounded-lg transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'}`}
+                >
+                  {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStrategyModify(); } }}
+                  placeholder="Ask Grok to modify this strategy..."
+                  rows={2}
+                  className="flex-1 px-3 py-2 bg-[#0d1829] rounded-lg text-[#e5e5e5] placeholder-gray-600 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
+                />
+                <button
+                  onClick={handleStrategyModify}
                   disabled={!chatInput.trim() || isChatLoading}
                   className={`px-3 rounded-lg transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'}`}
                 >
