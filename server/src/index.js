@@ -128,6 +128,41 @@ class ${className}(Strategy):
   }
 });
 
+// Grok AI Chat Endpoint
+app.post('/api/atlas/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    const GROK_API_KEY = process.env.GROK_API_KEY;
+    if (!GROK_API_KEY) return res.status(500).json({ error: 'Grok API key not configured' });
+
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'grok-beta',
+        messages: [
+          { role: 'system', content: 'You are Grok, an expert AI trading strategist. Include entry/exit conditions, risk management, and Python code for backtesting. Format code in ```python blocks.' },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!response.ok) return res.status(response.status).json({ error: 'Grok API error' });
+
+    const data = await response.json();
+    res.json({ response: data.choices?.[0]?.message?.content || 'No response' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 Stratify API running on http://localhost:${PORT}`);
 });
