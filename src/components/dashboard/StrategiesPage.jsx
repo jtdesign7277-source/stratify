@@ -1,156 +1,357 @@
-import { useMemo, useState } from 'react';
-import FeaturedStrategies from '../strategies/FeaturedStrategies';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, FolderOpen, Folder, ChevronRight, Play, Pause, Edit3, Trash2, MoreHorizontal, Star, Zap, TrendingUp, Clock, X } from 'lucide-react';
 
-const EXPLORE_MORE = [
-  { title: 'Risk Management Tools', icon: '🛡️', accent: 'from-emerald-500/20 to-cyan-500/10' },
-  { title: 'Portfolio Analyzer', icon: '📈', accent: 'from-cyan-500/20 to-blue-500/10' },
-  { title: 'Market News', icon: '📰', accent: 'from-amber-500/20 to-orange-500/10' },
-  { title: 'Community Forums', icon: '💬', accent: 'from-purple-500/20 to-fuchsia-500/10' },
-];
+const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeployStrategy, onEditStrategy, onRemoveSavedStrategy }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [draggedStrategy, setDraggedStrategy] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
 
-const riskToneMap = {
-  low: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  medium: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  high: 'bg-red-500/15 text-red-300 border-red-500/30',
-};
+  // Folders state
+  const [folders, setFolders] = useState(() => {
+    const saved = localStorage.getItem('stratify-strategy-folders');
+    return saved ? JSON.parse(saved) : [
+      { id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' },
+      { id: 'active', name: 'Active', color: '#10B981', icon: 'play' },
+    ];
+  });
 
-const resolveRiskTone = (label = '') => {
-  const normalized = label.toLowerCase();
-  if (normalized.includes('high')) return 'high';
-  if (normalized.includes('medium')) return 'medium';
-  if (normalized.includes('low')) return 'low';
-  return 'medium';
-};
+  const [expandedFolders, setExpandedFolders] = useState({ favorites: true, active: true, uncategorized: true });
 
-const GradientOrb = ({ className }) => (
-  <div className={`absolute rounded-full blur-3xl opacity-20 ${className}`} />
-);
+  const [strategyFolders, setStrategyFolders] = useState(() => {
+    const saved = localStorage.getItem('stratify-strategy-folder-map');
+    return saved ? JSON.parse(saved) : {};
+  });
 
-export default function StrategiesPage({ savedStrategies = [], onClose }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [riskFilter, setRiskFilter] = useState('All');
-  const [assetFilter, setAssetFilter] = useState('All');
+  // Save to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-strategy-folders', JSON.stringify(folders));
+  }, [folders]);
 
-  const filteredSaved = useMemo(() => {
-    return savedStrategies.filter((strategy) => {
-      const name = strategy.name || strategy.title || 'Untitled Strategy';
-      const description = strategy.description || strategy.type || '';
-      const riskLabel = strategy.riskLevel || strategy.risk || '';
-      const tone = resolveRiskTone(riskLabel);
-      const matchesSearch =
-        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRisk = riskFilter === 'All' || tone === riskFilter.toLowerCase();
-      const assetValue = strategy.assetType || strategy.type || '';
-      const matchesAsset = assetFilter === 'All' || assetValue.toLowerCase().includes(assetFilter.toLowerCase());
-      return matchesSearch && matchesRisk && matchesAsset;
+  useEffect(() => {
+    localStorage.setItem('stratify-strategy-folder-map', JSON.stringify(strategyFolders));
+  }, [strategyFolders]);
+
+  // Default strategies if none provided
+  const defaultStrategies = [
+    { id: '1', name: 'RSI Momentum', type: 'Momentum', status: 'active', winRate: 68, trades: 142, pnl: 2340.50 },
+    { id: '2', name: 'MACD Crossover', type: 'Trend', status: 'paused', winRate: 54, trades: 89, pnl: 890.25 },
+    { id: '3', name: 'Mean Reversion SPY', type: 'Mean Reversion', status: 'active', winRate: 72, trades: 56, pnl: 1567.80 },
+    { id: '4', name: 'Breakout Scanner', type: 'Breakout', status: 'draft', winRate: 0, trades: 0, pnl: 0 },
+    { id: '5', name: 'Scalping BTC', type: 'Scalping', status: 'active', winRate: 61, trades: 234, pnl: 4521.90 },
+  ];
+
+  const strategies = savedStrategies.length > 0 ? savedStrategies : defaultStrategies;
+
+  const getStrategiesInFolder = (folderId) => {
+    if (folderId === 'active') {
+      return strategies.filter(s => s.status === 'active' || deployedStrategies.some(d => d.id === s.id));
+    }
+    if (folderId === 'uncategorized') {
+      return strategies.filter(s => !strategyFolders[s.id] && s.status !== 'active');
+    }
+    return strategies.filter(s => strategyFolders[s.id] === folderId);
+  };
+
+  const toggleFolder = (folderId) => {
+    setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
+  };
+
+  const handleDragStart = (e, strategy) => {
+    setDraggedStrategy(strategy);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, folderId) => {
+    e.preventDefault();
+    setDropTarget(folderId);
+  };
+
+  const handleDragLeave = () => {
+    setDropTarget(null);
+  };
+
+  const handleDrop = (e, folderId) => {
+    e.preventDefault();
+    if (draggedStrategy) {
+      setStrategyFolders(prev => ({
+        ...prev,
+        [draggedStrategy.id]: folderId === 'uncategorized' ? null : folderId
+      }));
+    }
+    setDraggedStrategy(null);
+    setDropTarget(null);
+  };
+
+  const createFolder = () => {
+    if (!newFolderName.trim()) return;
+    const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+    const newFolder = {
+      id: `folder-${Date.now()}`,
+      name: newFolderName.trim(),
+      color: colors[folders.length % colors.length],
+      icon: 'folder'
+    };
+    setFolders(prev => [...prev, newFolder]);
+    setExpandedFolders(prev => ({ ...prev, [newFolder.id]: true }));
+    setNewFolderName('');
+    setShowNewFolder(false);
+  };
+
+  const deleteFolder = (folderId) => {
+    setFolders(prev => prev.filter(f => f.id !== folderId));
+    setStrategyFolders(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(stratId => {
+        if (updated[stratId] === folderId) updated[stratId] = null;
+      });
+      return updated;
     });
-  }, [savedStrategies, searchTerm, riskFilter, assetFilter]);
+  };
 
-  return (
-    <div className="h-full overflow-y-auto bg-[#060d18]">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <GradientOrb className="w-[28rem] h-[28rem] bg-cyan-500 -top-48 -right-32" />
-        <GradientOrb className="w-[26rem] h-[26rem] bg-emerald-500 -bottom-44 -left-32" />
-      </div>
+  const FolderIcon = ({ icon, color }) => {
+    if (icon === 'star') return <Star className="w-4 h-4" fill={color} stroke={color} />;
+    if (icon === 'play') return <Play className="w-4 h-4" fill={color} stroke={color} />;
+    return <Folder className="w-4 h-4" stroke={color} fill={color} fillOpacity={0.2} />;
+  };
 
-      <div className="relative max-w-6xl mx-auto px-6 md:px-8 py-10">
-        <div className="flex items-start justify-between gap-6 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">Strategies</h1>
-            <p className="text-gray-500">Explore premium strategies and manage your saved playbook</p>
-          </div>
-          {onClose && (
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'bg-emerald-500/20 text-emerald-400';
+      case 'paused': return 'bg-yellow-500/20 text-yellow-400';
+      case 'draft': return 'bg-gray-500/20 text-gray-400';
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
+  };
+
+  const renderFolder = (folder, isSystem = false) => {
+    const folderStrategies = getStrategiesInFolder(folder.id);
+    const isExpanded = expandedFolders[folder.id];
+    const isDropping = dropTarget === folder.id;
+
+    return (
+      <div 
+        key={folder.id}
+        className="mb-2"
+        onDragOver={(e) => handleDragOver(e, folder.id)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, folder.id)}
+      >
+        {/* Folder Header */}
+        <button
+          onClick={() => toggleFolder(folder.id)}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            isDropping ? 'bg-purple-500/20 border border-purple-500/50' : 'bg-[#0a1628] hover:bg-[#0d1829]'
+          }`}
+        >
+          <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} strokeWidth={1.5} />
+          <FolderIcon icon={folder.icon} color={folder.color} />
+          <span className="flex-1 text-left text-white text-sm font-medium">{folder.name}</span>
+          <span className="text-xs text-gray-500 bg-[#1a2438] px-2 py-0.5 rounded">{folderStrategies.length}</span>
+          {!isSystem && (
             <button
-              onClick={onClose}
-              className="p-3 bg-[#0a1628] hover:bg-[#1a2a4a] rounded-xl transition-colors"
-              aria-label="Close Strategies"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteFolder(folder.id);
+              }}
+              className="p-1 hover:bg-red-500/20 rounded text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
             >
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
           )}
-        </div>
+        </button>
 
-        {/* Featured Strategies - Now with real data and modals */}
-        <section className="mb-12">
-          <FeaturedStrategies />
-        </section>
-
-        {/* Your Saved Strategies */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">📊</span>
-              <div>
-                <h2 className="text-xl font-semibold text-white">Your Saved Strategies</h2>
-                <p className="text-sm text-gray-500">Quick access to your personal library</p>
+        {/* Folder Content */}
+        {isExpanded && (
+          <div className="mt-1 ml-4 pl-4 border-l border-gray-800">
+            {folderStrategies.length === 0 ? (
+              <div className="py-4 text-center text-gray-500 text-sm">
+                {isDropping ? 'Drop strategy here' : 'No strategies'}
               </div>
-            </div>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto pb-4" style={{ scrollbarWidth: 'none' }}>
-            {filteredSaved.length === 0 && (
-              <div className="min-w-[240px] bg-[#0a1628] border border-white/10 rounded-2xl p-5 text-sm text-gray-500">
-                No saved strategies yet. Add your first one.
-              </div>
-            )}
-            {filteredSaved.map((strategy) => {
-              const name = strategy.name || strategy.title || 'Untitled Strategy';
-              const description = strategy.description || strategy.type || 'Custom strategy';
-              const riskLabel = strategy.riskLevel || strategy.risk || 'Medium';
-              const tone = resolveRiskTone(riskLabel);
-              return (
+            ) : (
+              folderStrategies.map((strategy) => (
                 <div
-                  key={strategy.id || name}
-                  className="min-w-[240px] bg-[#0a1628] border border-white/10 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-[0_0_24px_rgba(16,185,129,0.2)]"
+                  key={strategy.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, strategy)}
+                  className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#0a1628] transition-colors cursor-grab active:cursor-grabbing"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-base font-semibold text-white">{name}</h3>
-                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${riskToneMap[tone]}`}>
-                      {riskLabel.toString().toUpperCase()}
-                    </span>
+                  {/* Strategy Icon */}
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    strategy.status === 'active' ? 'bg-emerald-500/20' : 'bg-gray-800'
+                  }`}>
+                    {strategy.status === 'active' ? (
+                      <Zap className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
+                    ) : (
+                      <TrendingUp className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mb-4">{description}</p>
-                  <button className="text-xs font-medium text-emerald-300 hover:text-emerald-200 transition-colors">
-                    Open Strategy
-                  </button>
+
+                  {/* Strategy Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white text-sm font-medium truncate">{strategy.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getStatusColor(strategy.status)}`}>
+                        {strategy.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span>{strategy.type}</span>
+                      {strategy.winRate > 0 && <span>{strategy.winRate}% win</span>}
+                      {strategy.trades > 0 && <span>{strategy.trades} trades</span>}
+                    </div>
+                  </div>
+
+                  {/* PnL */}
+                  {strategy.pnl !== 0 && (
+                    <div className={`text-sm font-mono ${strategy.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl?.toFixed(2)}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {strategy.status === 'active' ? (
+                      <button className="p-1.5 hover:bg-yellow-500/20 rounded text-gray-400 hover:text-yellow-400" title="Pause">
+                        <Pause className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => onDeployStrategy?.(strategy)}
+                        className="p-1.5 hover:bg-emerald-500/20 rounded text-gray-400 hover:text-emerald-400" 
+                        title="Deploy"
+                      >
+                        <Play className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => onEditStrategy?.(strategy)}
+                      className="p-1.5 hover:bg-blue-500/20 rounded text-gray-400 hover:text-blue-400" 
+                      title="Edit"
+                    >
+                      <Edit3 className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                    <button 
+                      onClick={() => onRemoveSavedStrategy?.(strategy.id)}
+                      className="p-1.5 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400" 
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                  </div>
                 </div>
-              );
-            })}
-            <button className="min-w-[200px] bg-[#060d18] border border-dashed border-white/10 rounded-2xl p-5 text-sm text-gray-400 hover:text-white hover:border-cyan-500/50 transition-all duration-300 flex items-center justify-center gap-2">
-              <span className="text-lg">＋</span>
-              Add New
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Strategies</h1>
+          <p className="text-gray-400 text-sm">Manage and deploy your trading strategies</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowNewFolder(!showNewFolder)}
+            className="px-4 py-2 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
+            New Folder
+          </button>
+          <button 
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2} />
+            Create Strategy
+          </button>
+        </div>
+      </div>
+
+      {/* New Folder Input */}
+      {showNewFolder && (
+        <div className="mb-4 bg-[#0a1628] border border-gray-800 rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <Folder className="w-5 h-5 text-purple-400" strokeWidth={1.5} />
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createFolder()}
+              placeholder="Enter folder name..."
+              className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+              autoFocus
+            />
+            <button
+              onClick={createFolder}
+              disabled={!newFolderName.trim()}
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Create
+            </button>
+            <button
+              onClick={() => setShowNewFolder(false)}
+              className="p-1.5 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" strokeWidth={1.5} />
             </button>
           </div>
-        </section>
+        </div>
+      )}
 
-        {/* Explore More */}
-        <section className="mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-xl">🧩</span>
-            <div>
-              <h2 className="text-xl font-semibold text-white">Explore More</h2>
-              <p className="text-sm text-gray-500">Tools to deepen your strategy research</p>
-            </div>
-          </div>
+      {/* Search */}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 bg-[#0a1628] border border-gray-800 rounded-lg px-4 py-2.5">
+          <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search strategies..."
+            className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
+          />
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {EXPLORE_MORE.map((item) => (
-              <div
-                key={item.title}
-                className={`bg-gradient-to-br ${item.accent} border border-white/10 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-[0_0_24px_rgba(34,211,238,0.15)]`}
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#0a1628] border border-white/10 flex items-center justify-center text-lg text-white mb-4">
-                  {item.icon}
-                </div>
-                <p className="text-sm font-semibold text-white">{item.title}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Folders List */}
+      <div className="flex-1 overflow-auto">
+        {/* System Folders */}
+        {renderFolder({ id: 'active', name: 'Active Strategies', color: '#10B981', icon: 'play' }, true)}
+        {renderFolder({ id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' }, true)}
+        
+        {/* Custom Folders */}
+        {folders.filter(f => f.id !== 'favorites' && f.id !== 'active').map(folder => renderFolder(folder))}
+        
+        {/* Uncategorized */}
+        {renderFolder({ id: 'uncategorized', name: 'Uncategorized', color: '#6B7280', icon: 'folder' }, true)}
+      </div>
+
+      {/* Stats Footer */}
+      <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between text-sm">
+        <span className="text-gray-400">{strategies.length} total strategies</span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="text-gray-500">{strategies.filter(s => s.status === 'active').length} active</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+            <span className="text-gray-500">{strategies.filter(s => s.status === 'paused').length} paused</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+            <span className="text-gray-500">{strategies.filter(s => s.status === 'draft').length} drafts</span>
+          </span>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default StrategiesPage;

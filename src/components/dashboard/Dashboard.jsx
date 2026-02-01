@@ -15,6 +15,13 @@ import StrategiesPage from './StrategiesPage';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
 import AIChat from './AIChat';
+import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './CommandPalette';
+import Home from './Home';
+import WatchlistPage from './WatchlistPage';
+import MarketsPage from './MarketsPage';
+import PortfolioPage from './PortfolioPage';
+import HistoryPage from './HistoryPage';
+import AnalyticsPage from './AnalyticsPage';
 
 const loadDashboardState = () => {
   try {
@@ -90,7 +97,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
-  const [activeTab, setActiveTab] = useState('strategies');
+  const [activeTab, setActiveTab] = useState('home');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
@@ -170,6 +177,83 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       const saved = localStorage.getItem('stratify-connected-brokers');
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
+  });
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+
+  // Command palette navigation handler
+  const handleCommandNavigate = useCallback((target) => {
+    switch (target) {
+      case 'dashboard':
+      case 'watchlist':
+        setActiveSection('watchlist');
+        break;
+      case 'strategies':
+        setActiveSection('strategies');
+        break;
+      case 'builder':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, strategyBuilder: true }));
+        break;
+      case 'arbitrage':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, arbitrageScanner: true }));
+        break;
+      case 'settings':
+        setActiveSection('settings');
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  // Command palette action handler
+  const handleCommandAction = useCallback((action, data) => {
+    switch (action) {
+      case 'newStrategy':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, strategyBuilder: true }));
+        break;
+      case 'openAI':
+        setActiveSection('watchlist');
+        // Focus the AI chat input
+        setTimeout(() => {
+          const aiInput = document.querySelector('[data-ai-chat-input]');
+          aiInput?.focus();
+        }, 100);
+        break;
+      case 'runBacktest':
+        // Will trigger backtest on selected strategy
+        break;
+      case 'deployStrategy':
+        // Will deploy selected strategy
+        break;
+      case 'searchStock':
+        // Focus the search bar
+        setTimeout(() => {
+          const searchInput = document.querySelector('[data-search-input]');
+          searchInput?.focus();
+        }, 100);
+        break;
+      case 'showShortcuts':
+        setShowShortcutsModal(true);
+        break;
+      case 'editStrategy':
+        if (data) setEditingStrategy(data);
+        break;
+      case 'viewDeployed':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, deployedStrategies: true }));
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  // Command palette hook
+  const commandPalette = useCommandPalette({
+    onNavigate: handleCommandNavigate,
+    onAction: handleCommandAction,
+    onThemeToggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark'),
   });
 
   const handleStrategyGenerated = (strategy) => {
@@ -391,7 +475,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           expanded={sidebarExpanded} 
           onToggle={(val) => setSidebarExpanded(val)} 
           activeSection={activeSection} 
-          onSectionChange={setActiveSection} 
+          onSectionChange={setActiveSection}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           theme={theme} 
           themeClasses={themeClasses}
           watchlist={watchlist}
@@ -410,107 +496,121 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           id="main-content-area" 
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
-          {/* Settings/Newsletter Overlays */}
-          {activeSection === 'settings' && (
-            <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
-              <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
-          {activeSection === 'newsletter' && (
-            <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
-              <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          )}
-
-          {/* Main Content - Show StrategiesPage OR the collapsible panels */}
-          {activeSection === 'strategies' ? (
-            /* Strategies Page - shows in middle content area */
-            <div className="flex-1 overflow-hidden">
-              <StrategiesPage savedStrategies={savedStrategies} onClose={() => setActiveSection('watchlist')} />
-            </div>
-          ) : (
-            /* Panel Container - Flex column with proper distribution */
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              
-              {/* Strategy Builder Panel */}
-              <CollapsiblePanel
-                id="strategyBuilder"
-                title="Strategy Builder"
-                badge={draftStrategiesCount > 0 ? draftStrategiesCount : null}
-                badgeColor="bg-purple-500/20 text-purple-400"
-                expanded={panelStates.strategyBuilder}
-                onToggle={() => togglePanel('strategyBuilder')}
-                themeClasses={themeClasses}
-              >
-                <StrategyBuilder 
-                  strategies={strategies} 
-                  deployedStrategies={deployedStrategies}
-                  onStrategyGenerated={handleStrategyGenerated}
-                  onDeleteStrategy={handleDeleteStrategy}
-                  onDeployStrategy={handleDeployStrategy}
-                  onUpdateStrategy={handleUpdateStrategy}
-                  themeClasses={themeClasses}
-                />
-              </CollapsiblePanel>
-              {/* Divider between Strategy Builder and Arb Scanner */}
-              {panelStates.strategyBuilder && panelStates.arbitrageScanner && (
-                <PanelDivider />
+          {/* Tab-based Views */}
+          {activeTab === 'home' && <Home themeClasses={themeClasses} />}
+          {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} />}
+          {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
+          {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
+          {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
+          {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} />}
+          {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
+          
+          {/* Legacy section-based views (settings, newsletter, etc.) */}
+          {!['home', 'watchlist', 'strategies', 'markets', 'analytics', 'portfolio', 'history'].includes(activeTab) && (
+            <>
+              {/* Settings/Newsletter Overlays */}
+              {activeSection === 'settings' && (
+                <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
+                  <SettingsPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+                </div>
+              )}
+              {activeSection === 'newsletter' && (
+                <div className="absolute inset-0 z-20 bg-[#0a0a0f] overflow-hidden">
+                  <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+                </div>
               )}
 
-              {/* Arbitrage Scanner Panel */}
-              <CollapsiblePanel
-                id="arbitrageScanner"
-                title="Arbitrage Scanner"
-                badgeColor="bg-amber-500/20 text-amber-400"
-                expanded={panelStates.arbitrageScanner}
-                onToggle={() => togglePanel('arbitrageScanner')}
-                statusDot={true}
-                statusColor="amber"
-                themeClasses={themeClasses}
-              >
-                <ArbitragePanel themeClasses={themeClasses} embedded={true} />
-              </CollapsiblePanel>
+              {/* Main Content - Show StrategiesPage OR the collapsible panels */}
+              {activeSection === 'strategies' ? (
+                /* Strategies Page - shows in middle content area */
+                <div className="flex-1 overflow-hidden">
+                  <StrategiesPage savedStrategies={savedStrategies} onClose={() => setActiveSection('watchlist')} />
+                </div>
+              ) : (
+                /* Panel Container - Flex column with proper distribution */
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                  
+                  {/* Strategy Builder Panel */}
+                  <CollapsiblePanel
+                    id="strategyBuilder"
+                    title="Strategy Builder"
+                    badge={draftStrategiesCount > 0 ? draftStrategiesCount : null}
+                    badgeColor="bg-purple-500/20 text-purple-400"
+                    expanded={panelStates.strategyBuilder}
+                    onToggle={() => togglePanel('strategyBuilder')}
+                    themeClasses={themeClasses}
+                  >
+                    <StrategyBuilder 
+                      strategies={strategies} 
+                      deployedStrategies={deployedStrategies}
+                      onStrategyGenerated={handleStrategyGenerated}
+                      onDeleteStrategy={handleDeleteStrategy}
+                      onDeployStrategy={handleDeployStrategy}
+                      onUpdateStrategy={handleUpdateStrategy}
+                      themeClasses={themeClasses}
+                    />
+                  </CollapsiblePanel>
+                  {/* Divider between Strategy Builder and Arb Scanner */}
+                  {panelStates.strategyBuilder && panelStates.arbitrageScanner && (
+                    <PanelDivider />
+                  )}
 
-              {/* Divider between Arb Scanner and Deployed Strategies */}
-              {panelStates.arbitrageScanner && panelStates.deployedStrategies && (
-                <PanelDivider />
+                  {/* Arbitrage Scanner Panel */}
+                  <CollapsiblePanel
+                    id="arbitrageScanner"
+                    title="Arbitrage Scanner"
+                    badgeColor="bg-amber-500/20 text-amber-400"
+                    expanded={panelStates.arbitrageScanner}
+                    onToggle={() => togglePanel('arbitrageScanner')}
+                    statusDot={true}
+                    statusColor="amber"
+                    themeClasses={themeClasses}
+                  >
+                    <ArbitragePanel themeClasses={themeClasses} embedded={true} />
+                  </CollapsiblePanel>
+
+                  {/* Divider between Arb Scanner and Deployed Strategies */}
+                  {panelStates.arbitrageScanner && panelStates.deployedStrategies && (
+                    <PanelDivider />
+                  )}
+
+                  {/* Deployed Strategies Panel */}
+                  <CollapsiblePanel
+                    id="deployedStrategies"
+                    title="Deployed Strategies"
+                    badge={deployedStrategies.length > 0 ? `${deployedStrategies.length} active` : null}
+                    badgeColor="bg-emerald-500/20 text-emerald-400"
+                    expanded={panelStates.deployedStrategies}
+                    onToggle={() => togglePanel('deployedStrategies')}
+                    statusDot={deployedStrategies.length > 0}
+                    statusColor="emerald"
+                    themeClasses={themeClasses}
+                  >
+                    <TerminalPanel 
+                      themeClasses={themeClasses} 
+                      deployedStrategies={deployedStrategies} 
+                      embedded={true}
+                      onRemoveStrategy={(id) => {
+                        setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                        setTimeout(() => {
+                          setDeployedStrategies(prev => {
+                            if (prev.length < 2) {
+                              return [...prev, generateRandomDeployedStrategy()];
+                            }
+                            return prev;
+                          });
+                        }, RESPAWN_DELAY_MS);
+                      }}
+                    />
+                  </CollapsiblePanel>
+
+                  {/* AI Chat Panel */}
+                  <div className="mt-4 h-96">
+                    <AIChat />
+                  </div>
+                </div>
               )}
-
-              {/* Deployed Strategies Panel */}
-              <CollapsiblePanel
-                id="deployedStrategies"
-                title="Deployed Strategies"
-                badge={deployedStrategies.length > 0 ? `${deployedStrategies.length} active` : null}
-                badgeColor="bg-emerald-500/20 text-emerald-400"
-                expanded={panelStates.deployedStrategies}
-                onToggle={() => togglePanel('deployedStrategies')}
-                statusDot={deployedStrategies.length > 0}
-                statusColor="emerald"
-                themeClasses={themeClasses}
-              >
-                <TerminalPanel 
-                  themeClasses={themeClasses} 
-                  deployedStrategies={deployedStrategies} 
-                  embedded={true}
-                  onRemoveStrategy={(id) => {
-                    setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                    setTimeout(() => {
-                      setDeployedStrategies(prev => {
-                        if (prev.length < 2) {
-                          return [...prev, generateRandomDeployedStrategy()];
-                        }
-                        return prev;
-                      });
-                    }, RESPAWN_DELAY_MS);
-                  }}
-                />
-              </CollapsiblePanel>
-
-              {/* AI Chat Panel */}
-              <div className="mt-4 h-96">
-                <AIChat />
-              </div>
-            </div>
+            </>
           )}
         </div>
         
@@ -547,6 +647,24 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         onClose={() => setShowBrokerModal(false)}
         onConnect={handleConnectBroker}
         connectedBrokers={connectedBrokers}
+      />
+
+      {/* Command Palette - ⌘K to open */}
+      <CommandPalette
+        isOpen={commandPalette.isOpen}
+        onClose={commandPalette.close}
+        onNavigate={handleCommandNavigate}
+        onAction={handleCommandAction}
+        strategies={strategies}
+        deployedStrategies={deployedStrategies}
+        theme={theme}
+        onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
       />
     </div>
   );
