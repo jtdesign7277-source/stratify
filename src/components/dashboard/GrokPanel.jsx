@@ -454,92 +454,97 @@ const GrokPanel = () => {
           </>
         )}
 
-        {/* Chat / Strategy Content */}
+        {/* Chat / Strategy Content - Unified Container */}
         <div className="flex-1 flex flex-col min-h-0">
           {activeTab === 'chat' && (
             <label className="text-gray-300 text-sm font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
           )}
           
-          <div className="flex-1 bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-            <div className="p-1.5 space-y-1.5">
-              {activeTab === 'chat' ? (
-                // Chat messages
-                <>
-                  {messages.length === 0 && (
-                    <div className="py-8 flex items-center justify-center text-gray-600 text-sm">
-                      Ask Grok anything about trading...
-                    </div>
-                  )}
-                  {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[95%] rounded px-2 py-1 transition-all cursor-default ${
-                        m.role === 'user' 
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-500' 
-                          : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-800 hover:bg-[#111d2e] hover:border-gray-700'
-                      }`}>
-                        {m.role === 'assistant' && (
-                          <div className="flex items-center gap-1 mb-0.5 pb-0.5 border-b border-gray-700/50">
-                            <Zap className="w-2.5 h-2.5 text-emerald-400" />
-                            <span className="text-emerald-400 text-[9px]">Grok</span>
-                            {m.isTyping && <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
-                          </div>
-                        )}
-                        <div className="text-base leading-relaxed">{renderContent(m.content, i)}</div>
+          {/* Single unified chat box */}
+          <div className="flex-1 flex flex-col bg-[#0a1628] border border-gray-700 rounded-lg overflow-hidden">
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+              <div className="p-2 space-y-2">
+                {activeTab === 'chat' ? (
+                  // Chat messages
+                  <>
+                    {messages.length === 0 && (
+                      <div className="py-8 flex items-center justify-center text-gray-600 text-sm">
+                        Ask Grok anything about trading...
                       </div>
-                    </div>
-                  ))}
-                  {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
-                    <div className="flex justify-start">
-                      <div className="bg-[#0d1829] border border-gray-800 rounded px-2 py-1 flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
-                        <span className="text-gray-500 text-[9px]">Thinking...</span>
+                    )}
+                    {messages.map((m, i) => (
+                      <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[90%] rounded-lg px-3 py-2 transition-all cursor-default ${
+                          m.role === 'user' 
+                            ? 'bg-emerald-600 text-white' 
+                            : 'bg-[#0d1829] text-[#e5e5e5]'
+                        }`}>
+                          {m.role === 'assistant' && (
+                            <div className="flex items-center gap-1 mb-1 pb-1 border-b border-gray-700/50">
+                              <Zap className="w-2.5 h-2.5 text-emerald-400" />
+                              <span className="text-emerald-400 text-xs">Grok</span>
+                              {m.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+                            </div>
+                          )}
+                          <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                // Strategy tab content
-                <>
-                  {activeTabData?.content ? (
-                    <div className="text-[#e5e5e5]">
-                      <div className="flex items-center gap-1 mb-2 pb-1 border-b border-gray-700/50">
-                        <Zap className="w-3 h-3 text-emerald-400" />
-                        <span className="text-emerald-400 text-sm font-medium">{activeTabData.name}</span>
-                        {activeTabData.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+                    ))}
+                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
+                      <div className="flex justify-start">
+                        <div className="bg-[#0d1829] rounded-lg px-3 py-2 flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
+                          <span className="text-gray-500 text-xs">Thinking...</span>
+                        </div>
                       </div>
-                      <div className="text-base leading-relaxed">{renderContent(activeTabData.content, activeTab)}</div>
-                    </div>
-                  ) : (
-                    <div className="py-8 flex items-center justify-center">
-                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                      <span className="text-gray-500 text-sm ml-2">Generating strategy...</span>
-                    </div>
-                  )}
-                </>
-              )}
-              <div ref={messagesEndRef} />
+                    )}
+                  </>
+                ) : (
+                  // Strategy tab content
+                  <>
+                    {activeTabData?.content ? (
+                      <div className="text-[#e5e5e5]">
+                        <div className="flex items-center gap-1 mb-2 pb-1 border-b border-gray-700/50">
+                          <Zap className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400 text-sm font-medium">{activeTabData.name}</span>
+                          {activeTabData.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+                        </div>
+                        <div className="text-sm leading-relaxed">{renderContent(activeTabData.content, activeTab)}</div>
+                      </div>
+                    ) : (
+                      <div className="py-8 flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                        <span className="text-gray-500 text-sm ml-2">Generating strategy...</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
             </div>
-          </div>
 
-          {activeTab === 'chat' && (
-            <div className="flex gap-1 flex-shrink-0">
-              <textarea
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
-                placeholder="Ask Grok..."
-                rows={2}
-                className="flex-1 px-2 py-1.5 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-base resize-none focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
-              />
-              <button
-                onClick={handleChatSend}
-                disabled={!chatInput.trim() || isChatLoading}
-                className={`px-2 rounded transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600 hover:bg-gray-700'}`}
-              >
-                {isChatLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          )}
+            {/* Input area - inside the same container */}
+            {activeTab === 'chat' && (
+              <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                  placeholder="Ask Grok..."
+                  rows={2}
+                  className="flex-1 px-3 py-2 bg-[#0d1829] rounded-lg text-[#e5e5e5] placeholder-gray-600 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
+                />
+                <button
+                  onClick={handleChatSend}
+                  disabled={!chatInput.trim() || isChatLoading}
+                  className={`px-3 rounded-lg transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'}`}
+                >
+                  {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
