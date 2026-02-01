@@ -8,24 +8,85 @@ import {
 const API_BASE = 'https://atlas-api-production-5944.up.railway.app';
 
 const ALL_TICKERS = [
-  { symbol: 'AAPL', name: 'Apple' },
-  { symbol: 'MSFT', name: 'Microsoft' },
-  { symbol: 'GOOGL', name: 'Alphabet' },
-  { symbol: 'AMZN', name: 'Amazon' },
-  { symbol: 'NVDA', name: 'NVIDIA' },
-  { symbol: 'META', name: 'Meta' },
-  { symbol: 'TSLA', name: 'Tesla' },
-  { symbol: 'SPY', name: 'S&P 500 ETF' },
-  { symbol: 'QQQ', name: 'Nasdaq ETF' },
-  { symbol: 'DIA', name: 'Dow Jones ETF' },
-  { symbol: 'AMD', name: 'AMD' },
-  { symbol: 'INTC', name: 'Intel' },
-  { symbol: 'PLTR', name: 'Palantir' },
-  { symbol: 'SOFI', name: 'SoFi' },
-  { symbol: 'COIN', name: 'Coinbase' },
-  { symbol: 'SMCI', name: 'Super Micro' },
+  // Big Tech
+  { symbol: 'AAPL', name: 'Apple Inc.' },
+  { symbol: 'MSFT', name: 'Microsoft Corporation' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+  { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+  { symbol: 'META', name: 'Meta Platforms' },
+  { symbol: 'TSLA', name: 'Tesla Inc.' },
+  { symbol: 'NFLX', name: 'Netflix Inc.' },
+  { symbol: 'CRM', name: 'Salesforce Inc.' },
+  { symbol: 'ADBE', name: 'Adobe Inc.' },
+  { symbol: 'ORCL', name: 'Oracle Corporation' },
+  // ETFs
+  { symbol: 'SPY', name: 'SPDR S&P 500 ETF' },
+  { symbol: 'QQQ', name: 'Invesco QQQ Trust' },
+  { symbol: 'DIA', name: 'SPDR Dow Jones ETF' },
+  { symbol: 'IWM', name: 'iShares Russell 2000' },
+  { symbol: 'VOO', name: 'Vanguard S&P 500' },
+  { symbol: 'VTI', name: 'Vanguard Total Market' },
+  { symbol: 'ARKK', name: 'ARK Innovation ETF' },
+  // Semiconductors
+  { symbol: 'AMD', name: 'Advanced Micro Devices' },
+  { symbol: 'INTC', name: 'Intel Corporation' },
+  { symbol: 'AVGO', name: 'Broadcom Inc.' },
+  { symbol: 'QCOM', name: 'Qualcomm Inc.' },
+  { symbol: 'MU', name: 'Micron Technology' },
+  { symbol: 'SMCI', name: 'Super Micro Computer' },
   { symbol: 'ARM', name: 'Arm Holdings' },
-  { symbol: 'NFLX', name: 'Netflix' },
+  { symbol: 'TSM', name: 'Taiwan Semiconductor' },
+  { symbol: 'ASML', name: 'ASML Holding' },
+  // Finance
+  { symbol: 'JPM', name: 'JPMorgan Chase' },
+  { symbol: 'BAC', name: 'Bank of America' },
+  { symbol: 'GS', name: 'Goldman Sachs' },
+  { symbol: 'MS', name: 'Morgan Stanley' },
+  { symbol: 'V', name: 'Visa Inc.' },
+  { symbol: 'MA', name: 'Mastercard' },
+  { symbol: 'PYPL', name: 'PayPal Holdings' },
+  { symbol: 'SQ', name: 'Block Inc.' },
+  { symbol: 'COIN', name: 'Coinbase Global' },
+  { symbol: 'SOFI', name: 'SoFi Technologies' },
+  // AI & Growth
+  { symbol: 'PLTR', name: 'Palantir Technologies' },
+  { symbol: 'AI', name: 'C3.ai Inc.' },
+  { symbol: 'PATH', name: 'UiPath Inc.' },
+  { symbol: 'SNOW', name: 'Snowflake Inc.' },
+  { symbol: 'DDOG', name: 'Datadog Inc.' },
+  { symbol: 'NET', name: 'Cloudflare Inc.' },
+  { symbol: 'CRWD', name: 'CrowdStrike Holdings' },
+  { symbol: 'ZS', name: 'Zscaler Inc.' },
+  // EVs & Auto
+  { symbol: 'RIVN', name: 'Rivian Automotive' },
+  { symbol: 'LCID', name: 'Lucid Group' },
+  { symbol: 'NIO', name: 'NIO Inc.' },
+  { symbol: 'F', name: 'Ford Motor' },
+  { symbol: 'GM', name: 'General Motors' },
+  // Meme & Retail
+  { symbol: 'GME', name: 'GameStop Corp.' },
+  { symbol: 'AMC', name: 'AMC Entertainment' },
+  { symbol: 'BB', name: 'BlackBerry' },
+  // Space
+  { symbol: 'RKLB', name: 'Rocket Lab' },
+  { symbol: 'ASTS', name: 'AST SpaceMobile' },
+  { symbol: 'LUNR', name: 'Intuitive Machines' },
+  // Healthcare
+  { symbol: 'JNJ', name: 'Johnson & Johnson' },
+  { symbol: 'UNH', name: 'UnitedHealth Group' },
+  { symbol: 'PFE', name: 'Pfizer Inc.' },
+  { symbol: 'MRNA', name: 'Moderna Inc.' },
+  { symbol: 'LLY', name: 'Eli Lilly' },
+  // Other
+  { symbol: 'WMT', name: 'Walmart Inc.' },
+  { symbol: 'COST', name: 'Costco Wholesale' },
+  { symbol: 'HD', name: 'Home Depot' },
+  { symbol: 'DIS', name: 'Walt Disney' },
+  { symbol: 'BA', name: 'Boeing Company' },
+  { symbol: 'XOM', name: 'Exxon Mobil' },
+  { symbol: 'CVX', name: 'Chevron Corporation' },
+  // Crypto
   { symbol: 'BTC', name: 'Bitcoin' },
   { symbol: 'ETH', name: 'Ethereum' },
   { symbol: 'SOL', name: 'Solana' },
@@ -34,6 +95,9 @@ const ALL_TICKERS = [
   { symbol: 'ADA', name: 'Cardano' },
   { symbol: 'AVAX', name: 'Avalanche' },
   { symbol: 'LINK', name: 'Chainlink' },
+  // Cosmetics (ELF)
+  { symbol: 'ELF', name: 'e.l.f. Beauty' },
+  { symbol: 'ULTA', name: 'Ulta Beauty' },
 ];
 
 const STRATEGY_TYPES = [
@@ -114,7 +178,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
 
-  // Debounced ticker search using Yahoo Finance API
+  // Debounced ticker search using API
   useEffect(() => {
     if (!tickerSearch.trim()) {
       setSearchResults([]);
@@ -129,32 +193,55 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     ).slice(0, 5);
     setSearchResults(localResults);
 
-    // Then fetch from Yahoo Finance API
+    // Then fetch from API
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(tickerSearch)}&quotesCount=8&newsCount=0`;
-        const response = await fetch(yahooUrl);
-        const data = await response.json();
+        // Try our API first
+        let apiResults = [];
+        try {
+          const response = await fetch(`/api/stock/search?q=${encodeURIComponent(tickerSearch)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results) {
+              apiResults = data.results.slice(0, 8).map(r => ({
+                symbol: r.symbol,
+                name: r.shortname || r.longname || r.name || r.symbol,
+                exchange: r.exchDisp || r.exchange || '',
+              }));
+            }
+          }
+        } catch (e) {
+          // API failed, try Yahoo Finance directly
+        }
         
-        if (data.quotes) {
-          const apiResults = data.quotes
-            .filter(q => (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'CRYPTOCURRENCY') && !selectedTickers.includes(q.symbol))
-            .slice(0, 8)
-            .map(q => ({
-              symbol: q.symbol,
-              name: q.shortname || q.longname || q.symbol,
-              exchange: q.exchDisp || q.exchange || '',
-              type: q.quoteType
-            }));
+        // Fallback to Yahoo Finance if no API results
+        if (apiResults.length === 0) {
+          const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(tickerSearch)}&quotesCount=8&newsCount=0`;
+          const response = await fetch(yahooUrl);
+          const data = await response.json();
           
-          // Merge with local results, prioritizing API results
-          const apiSymbols = new Set(apiResults.map(r => r.symbol));
-          const mergedResults = [
-            ...apiResults,
-            ...localResults.filter(r => !apiSymbols.has(r.symbol))
-          ].slice(0, 8);
-          
+          if (data.quotes) {
+            apiResults = data.quotes
+              .filter(q => (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'CRYPTOCURRENCY'))
+              .slice(0, 8)
+              .map(q => ({
+                symbol: q.symbol,
+                name: q.shortname || q.longname || q.symbol,
+                exchange: q.exchDisp || q.exchange || '',
+              }));
+          }
+        }
+        
+        // Filter out already selected and merge
+        const filteredResults = apiResults.filter(r => !selectedTickers.includes(r.symbol));
+        const apiSymbols = new Set(filteredResults.map(r => r.symbol));
+        const mergedResults = [
+          ...filteredResults,
+          ...localResults.filter(r => !apiSymbols.has(r.symbol))
+        ].slice(0, 8);
+        
+        if (mergedResults.length > 0) {
           setSearchResults(mergedResults);
         }
       } catch (err) {
