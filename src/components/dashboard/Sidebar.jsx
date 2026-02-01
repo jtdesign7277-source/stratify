@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
   Star,
@@ -13,12 +13,28 @@ import {
   MoreHorizontal,
   ChevronsLeft,
   ChevronsRight,
-  Brain
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  Play,
+  Square,
+  Trash2,
+  Zap
 } from 'lucide-react';
 import StratifyLogo from './StratifyLogo';
 
-const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) => {
+const Sidebar = ({ 
+  activeTab = 'home', 
+  setActiveTab, 
+  onTabChange, 
+  onNavigate,
+  savedStrategies = [],
+  deployedStrategies = [],
+  onRemoveSavedStrategy
+}) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [strategiesExpanded, setStrategiesExpanded] = useState(true);
+  const [deployedExpanded, setDeployedExpanded] = useState(true);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -43,10 +59,14 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
     onNavigate && onNavigate(id);
   };
 
+  // Filter Grok-saved strategies (from GrokPanel)
+  const grokStrategies = savedStrategies.filter(s => s.code); // Has code = from Grok
+  const liveStrategies = savedStrategies.filter(s => s.deployed);
+
   return (
     <motion.div
       initial={false}
-      animate={{ width: collapsed ? 60 : 180 }}
+      animate={{ width: collapsed ? 60 : 220 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="h-full bg-[#0a0a0f] border-r border-white/10 flex flex-col flex-shrink-0"
     >
@@ -65,8 +85,8 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
         </div>
       </div>
 
-      {/* Main Navigation - Tighter spacing */}
-      <nav className="flex-1 px-2 overflow-y-auto min-h-0">
+      {/* Main Navigation */}
+      <nav className="flex-1 px-2 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'none' }}>
         <ul className="space-y-px">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -102,14 +122,99 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
             );
           })}
         </ul>
+
+        {/* Saved Strategies Section */}
+        {!collapsed && grokStrategies.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={() => setStrategiesExpanded(!strategiesExpanded)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider hover:text-white/60 transition-colors"
+            >
+              {strategiesExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              <Zap className="w-3 h-3 text-emerald-400" />
+              <span>Grok Strategies</span>
+              <span className="ml-auto text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{grokStrategies.length}</span>
+            </button>
+            
+            <AnimatePresence>
+              {strategiesExpanded && (
+                <motion.ul
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-1 space-y-px overflow-hidden"
+                >
+                  {grokStrategies.map((strategy) => (
+                    <li key={strategy.id}>
+                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${strategy.deployed ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                        <span className="flex-1 truncate">{strategy.name}</span>
+                        {strategy.deployed && (
+                          <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                            LIVE
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveSavedStrategy && onRemoveSavedStrategy(strategy.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-300 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Deployed Strategies Section */}
+        {!collapsed && liveStrategies.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={() => setDeployedExpanded(!deployedExpanded)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider hover:text-white/60 transition-colors"
+            >
+              {deployedExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              <Play className="w-3 h-3 text-emerald-400" />
+              <span>Live</span>
+              <span className="ml-auto text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded">{liveStrategies.length}</span>
+            </button>
+            
+            <AnimatePresence>
+              {deployedExpanded && (
+                <motion.ul
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-1 space-y-px overflow-hidden"
+                >
+                  {liveStrategies.map((strategy) => (
+                    <li key={strategy.id}>
+                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                        <span className="flex-1 truncate">{strategy.name}</span>
+                        <span className="text-[9px] text-emerald-400">Running</span>
+                      </div>
+                    </li>
+                  ))}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </nav>
 
-      {/* Bottom Section - Fixed height, always visible */}
+      {/* Bottom Section */}
       <div className="flex-shrink-0 px-2 pb-3">
-        {/* Divider */}
         <div className="h-px bg-white/10 mx-2 mb-2" />
         
-        {/* Bottom Nav Items - Tighter */}
         <ul className="space-y-px mb-2">
           {bottomItems.map((item) => {
             const Icon = item.icon;
@@ -134,10 +239,8 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
           })}
         </ul>
 
-        {/* Divider */}
         <div className="h-px bg-white/10 mx-2 mb-2" />
 
-        {/* Collapse Button - Always visible with border */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/60 hover:text-white hover:bg-purple-500/20 transition-all border border-white/10 hover:border-purple-500/50 ${

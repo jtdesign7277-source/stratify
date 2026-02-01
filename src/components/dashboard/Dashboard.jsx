@@ -477,6 +477,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         <Sidebar 
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          savedStrategies={savedStrategies}
+          deployedStrategies={deployedStrategies}
+          onRemoveSavedStrategy={handleRemoveSavedStrategy}
         />
         
         {/* Main Content Area - Three Collapsible Panels */}
@@ -510,7 +513,33 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
         </div>
         
-        <GrokPanel />
+        <GrokPanel 
+          onSaveStrategy={(strategy) => {
+            setSavedStrategies(prev => {
+              // Don't add if already exists
+              if (prev.some(s => s.id === strategy.id)) {
+                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy } : s);
+              }
+              return [...prev, strategy];
+            });
+          }}
+          onDeployStrategy={(strategy) => {
+            // Add to saved strategies
+            setSavedStrategies(prev => {
+              if (prev.some(s => s.id === strategy.id)) {
+                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, deployed: true } : s);
+              }
+              return [...prev, strategy];
+            });
+            // Also add to deployed strategies
+            setDeployedStrategies(prev => {
+              if (prev.some(s => s.id === strategy.id)) {
+                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, runStatus: 'running' } : s);
+              }
+              return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];
+            });
+          }}
+        />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
 

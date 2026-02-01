@@ -86,7 +86,7 @@ const parseStrategyResponse = (content) => {
   return { summary: parsed, code, raw: content };
 };
 
-const GrokPanel = () => {
+const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [tickerSearch, setTickerSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -161,13 +161,53 @@ const GrokPanel = () => {
   };
 
   const handleSave = () => {
-    console.log('Saving strategy...', activeTabData);
-    // TODO: Implement save to strategies folder
+    if (!activeTabData || activeTab === 'chat') return;
+    
+    const strategyToSave = {
+      id: activeTabData.id,
+      name: activeTabData.name,
+      code: activeTabData.parsed?.code || '',
+      content: activeTabData.content,
+      summary: activeTabData.parsed?.summary || {},
+      tickers: activeTabData.tickers || [],
+      strategyType: activeTabData.strategyType,
+      timeframe: activeTabData.timeframe,
+      deployed: false,
+      savedAt: Date.now(),
+    };
+    
+    onSaveStrategy && onSaveStrategy(strategyToSave);
+    
+    // Update tab to show saved status
+    setTabs(prev => prev.map(t => 
+      t.id === activeTab ? { ...t, saved: true } : t
+    ));
   };
 
   const handleSaveAndDeploy = () => {
-    console.log('Saving and deploying strategy...', activeTabData);
-    // TODO: Implement save and deploy
+    if (!activeTabData || activeTab === 'chat') return;
+    
+    const strategyToSave = {
+      id: activeTabData.id,
+      name: activeTabData.name,
+      code: activeTabData.parsed?.code || '',
+      content: activeTabData.content,
+      summary: activeTabData.parsed?.summary || {},
+      tickers: activeTabData.tickers || [],
+      strategyType: activeTabData.strategyType,
+      timeframe: activeTabData.timeframe,
+      deployed: true,
+      runStatus: 'running',
+      savedAt: Date.now(),
+      deployedAt: Date.now(),
+    };
+    
+    onDeployStrategy && onDeployStrategy(strategyToSave);
+    
+    // Update tab to show deployed status
+    setTabs(prev => prev.map(t => 
+      t.id === activeTab ? { ...t, saved: true, deployed: true } : t
+    ));
   };
 
   const handleChatSend = async () => {
