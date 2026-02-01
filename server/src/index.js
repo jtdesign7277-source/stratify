@@ -146,7 +146,7 @@ app.post('/api/atlas/chat', async (req, res) => {
       body: JSON.stringify({
         model: 'grok-3',
         messages: [
-          { role: 'system', content: 'You are Grok, a trading strategy AI. Be concise and direct. When asked for code, provide ONLY the Python code with minimal comments. No lengthy explanations, assumptions, limitations, or notes sections. Just working code.' },
+          { role: 'system', content: 'You are Grok, a trading strategy AI for Stratify. Be concise. When generating code, use Alpaca API for data and backtesting (alpaca-trade-api package), NOT yfinance. Provide only working Python code with minimal comments. No lengthy explanations.' },
           { role: 'user', content: message }
         ],
         temperature: 0.7,
