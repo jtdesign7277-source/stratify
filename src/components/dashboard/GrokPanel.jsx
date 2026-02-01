@@ -341,7 +341,7 @@ const GrokPanel = () => {
         </div>
 
         {/* Chat */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-[400px] overflow-hidden">
           <label className="text-gray-500 text-[10px] font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
           
           {messages.length > 0 && (
@@ -361,7 +361,7 @@ const GrokPanel = () => {
                           {m.isTyping && <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
                         </div>
                       )}
-                      <div className="text-[10px] leading-relaxed">{renderMessage(m.content, i)}</div>
+                      <div className="text-base leading-relaxed">{renderMessage(m.content, i)}</div>
                     </div>
                   </div>
                 ))}
@@ -385,7 +385,7 @@ const GrokPanel = () => {
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
               placeholder="Ask Grok..."
               rows={2}
-              className="flex-1 px-2 py-1.5 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-[11px] resize-none focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
+              className="flex-1 px-2 py-1.5 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-base resize-none focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
             />
             <button
               onClick={handleChatSend}
