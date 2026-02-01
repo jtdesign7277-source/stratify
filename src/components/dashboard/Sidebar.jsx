@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
-  Star,
-  FolderOpen,
   SlidersHorizontal, 
   Globe, 
   LineChart, 
+  Percent, 
   Wallet, 
   History, 
   HelpCircle, 
@@ -16,13 +15,11 @@ import {
   Brain
 } from 'lucide-react';
 
-const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) => {
+const Sidebar = ({ activeTab = 'home', setActiveTab, onNavigate }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'watchlist', label: 'Watchlist', icon: Star },
-    { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
@@ -38,7 +35,6 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
 
   const handleTabClick = (id) => {
     setActiveTab && setActiveTab(id);
-    onTabChange && onTabChange(id);
     onNavigate && onNavigate(id);
   };
 
@@ -52,7 +48,9 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       {/* Logo */}
       <div className="p-3 pb-4">
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-blue-400 flex-shrink-0" strokeWidth={1.5} />
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+            <Brain className="w-4 h-4 text-white" strokeWidth={1.5} />
+          </div>
           <AnimatePresence>
             {!collapsed && (
               <motion.div
@@ -71,7 +69,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 min-h-0 overflow-y-auto px-2">
+      <nav className="flex-1 px-2">
         <ul className="space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -81,7 +79,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
               <li key={item.id}>
                 <button
                   onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all ${
                     isActive
                       ? 'bg-gradient-to-r from-purple-600/40 to-purple-500/30 text-white'
                       : 'text-white/50 hover:text-white/80 hover:bg-white/5'
@@ -117,47 +115,54 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
         </ul>
       </nav>
 
-      {/* Bottom Section - Always at bottom */}
-      <div className="mt-auto p-2 space-y-0.5">
-        {bottomItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleTabClick(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
-                collapsed ? 'justify-center px-2' : ''
-              }`}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
-              <AnimatePresence>
-                {!collapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="whitespace-nowrap overflow-hidden"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          );
-        })}
+      {/* Bottom Section */}
+      <div className="px-2 pb-3">
+        {/* Divider */}
+        <div className="h-px bg-white/10 mx-2 mb-2" />
+        
+        {/* Bottom Nav Items */}
+        <ul className="space-y-0.5 mb-2">
+          {bottomItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => handleTabClick(item.id)}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
+                    collapsed ? 'justify-center px-2' : ''
+                  }`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="whitespace-nowrap overflow-hidden"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
 
         {/* Divider */}
-        <div className="border-t border-white/10 my-2" />
+        <div className="h-px bg-white/10 mx-2 mb-2" />
 
         {/* Collapse Button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
             collapsed ? 'justify-center px-2' : ''
           }`}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand' : 'Collapse'}
         >
           {collapsed ? (
             <PanelLeft className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
