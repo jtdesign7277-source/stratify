@@ -119,46 +119,36 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
         </ul>
       </nav>
 
-      {/* Bottom Section */}
-      <div className="px-2 pb-3">
-        {/* Divider */}
-        <div className="h-px bg-white/10 mx-2 mb-2" />
-        
-        {/* Bottom Nav Items */}
-        <ul className="space-y-0.5 mb-2">
-          {bottomItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
-                    collapsed ? 'justify-center px-2' : ''
-                  }`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <Icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
-                  <AnimatePresence>
-                    {!collapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="whitespace-nowrap overflow-hidden"
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* Divider */}
-        <div className="h-px bg-white/10 mx-2 mb-2" />
+      {/* Bottom Section - Always at bottom */}
+      <div className="mt-auto border-t border-white/10 p-2 space-y-0.5">
+        {bottomItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleTabClick(item.id)}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
+                collapsed ? 'justify-center px-2' : ''
+              }`}
+              title={collapsed ? item.label : undefined}
+            >
+              <Icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="whitespace-nowrap overflow-hidden"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+          );
+        })}
 
         {/* Collapse Button */}
         <button
