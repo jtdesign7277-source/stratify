@@ -47,7 +47,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       initial={false}
       animate={{ width: collapsed ? 60 : 180 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="h-screen bg-[#0a0a0f] border-r border-white/10 flex flex-col flex-shrink-0"
+      className="h-full bg-[#0a0a0f] border-r border-white/10 flex flex-col flex-shrink-0"
     >
       {/* Logo */}
       <div className="p-3 pb-2">
