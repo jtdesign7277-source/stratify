@@ -886,7 +886,7 @@ Generate a trading strategy with the following format:
             
             {/* Content area */}
             <div className="flex-1 overflow-y-auto">
-              <div className="p-3 space-y-2">
+              <div className="px-3 py-3 space-y-2">
                 {activeTab === 'chat' ? (
                   <>
                     {messages.length === 0 && (
