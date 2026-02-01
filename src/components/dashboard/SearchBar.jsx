@@ -57,6 +57,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(false);
+  const [addedSymbol, setAddedSymbol] = useState(null);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -302,19 +303,27 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onAddToWatchlist?.(stock);
-                      setQuery('');
-                      setIsOpen(false);
+                      if (onAddToWatchlist) {
+                        onAddToWatchlist(stock);
+                        setAddedSymbol(stock.symbol);
+                        setTimeout(() => {
+                          setAddedSymbol(null);
+                          setQuery('');
+                          setIsOpen(false);
+                        }, 800);
+                      }
                     }}
                     className={`
                       px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150
-                      ${index === selectedIndex 
-                        ? 'bg-emerald-500 text-white' 
-                        : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white'
+                      ${addedSymbol === stock.symbol
+                        ? 'bg-emerald-500 text-white'
+                        : index === selectedIndex 
+                          ? 'bg-emerald-500 text-white' 
+                          : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white'
                       }
                     `}
                   >
-                    + Watchlist
+                    {addedSymbol === stock.symbol ? '✓ Added' : '+ Watchlist'}
                   </button>
                 </div>
               </div>
