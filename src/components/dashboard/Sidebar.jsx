@@ -118,7 +118,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       </nav>
 
       {/* Bottom Section - Always at bottom */}
-      <div className="mt-auto border-t border-white/10 p-2 space-y-0.5">
+      <div className="mt-auto p-2 space-y-0.5">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -148,13 +148,16 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
           );
         })}
 
+        {/* Divider */}
+        <div className="border-t border-white/10 my-2" />
+
         {/* Collapse Button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
             collapsed ? 'justify-center px-2' : ''
           }`}
-          title={collapsed ? 'Expand' : 'Collapse'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
             <PanelLeft className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
