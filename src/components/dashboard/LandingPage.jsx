@@ -1,15 +1,52 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Sparkles, Zap, Play } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, Play, Check, Loader2 } from 'lucide-react';
 
 const LandingPage = ({ onEnter }) => {
   const [email, setEmail] = useState('');
   const [showIntro, setShowIntro] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // null | 'loading' | 'success' | 'error'
   const introVideoRef = useRef(null);
 
   // Video sources
-  const bgVideoSrc = '/runway-bg.mp4';            // Silent background loop
-  const introVideoSrc = '/stratify-the-drop.mp4'; // Intro with sound
+  const bgVideoSrc = '/runway-bg.mp4';
+  const introVideoSrc = '/stratify-the-drop.mp4';
+
+  // Google Sheets Apps Script URL
+  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJnY1_65FEg5yqZgMRKwxRChY1nMDqZlErSJqBMfa2JOLLp0clT4IuD7gKvZc8qCIziw/exec';
+
+  const handleWaitlistSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!email || !email.includes('@')) return;
+    
+    setSubmitStatus('loading');
+    
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          timestamp: new Date().toISOString(),
+          source: window.location.href
+        })
+      });
+      
+      setSubmitStatus('success');
+      setEmail('');
+      
+      // Reset after 3 seconds
+      setTimeout(() => setSubmitStatus(null), 3000);
+    } catch (error) {
+      console.error('Waitlist error:', error);
+      setSubmitStatus('error');
+      setTimeout(() => setSubmitStatus(null), 3000);
+    }
+  };
 
   const handleExperienceClick = () => {
     setShowIntro(true);
@@ -48,7 +85,6 @@ const LandingPage = ({ onEnter }) => {
               playsInline
             />
             
-            {/* Skip button */}
             <button
               onClick={handleSkipIntro}
               className="absolute bottom-8 right-8 px-4 py-2 text-white/50 hover:text-white text-sm transition-colors"
@@ -59,7 +95,7 @@ const LandingPage = ({ onEnter }) => {
         )}
       </AnimatePresence>
 
-      {/* ============ RUNWAY BACKGROUND VIDEO (silent loop) ============ */}
+      {/* ============ RUNWAY BACKGROUND VIDEO ============ */}
       <video
         autoPlay
         muted
@@ -71,7 +107,7 @@ const LandingPage = ({ onEnter }) => {
         <source src={bgVideoSrc} type="video/mp4" />
       </video>
 
-      {/* Gradient overlay for readability */}
+      {/* Gradient overlay */}
       <div 
         className="absolute inset-0"
         style={{
@@ -128,11 +164,12 @@ const LandingPage = ({ onEnter }) => {
             fundamentals. Let AI surface the signals that matter.
           </motion.p>
 
-          {/* Email signup */}
-          <motion.div
+          {/* Email signup form */}
+          <motion.form
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
+            onSubmit={handleWaitlistSubmit}
             className="flex items-center gap-3 mb-4"
           >
             <input
@@ -140,13 +177,36 @@ const LandingPage = ({ onEnter }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
-              className="w-80 px-5 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-colors"
+              disabled={submitStatus === 'loading' || submitStatus === 'success'}
+              className="w-80 px-5 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-colors disabled:opacity-50"
             />
-            <button className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg shadow-blue-500/25">
-              Join Waitlist
-              <ArrowRight className="w-4 h-4" />
+            <button 
+              type="submit"
+              disabled={submitStatus === 'loading' || submitStatus === 'success' || !email}
+              className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium transition-all shadow-lg ${
+                submitStatus === 'success'
+                  ? 'bg-green-500 text-white shadow-green-500/25'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400 shadow-blue-500/25'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {submitStatus === 'loading' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Joining...
+                </>
+              ) : submitStatus === 'success' ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  You're in!
+                </>
+              ) : (
+                <>
+                  Join Waitlist
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
-          </motion.div>
+          </motion.form>
 
           {/* Social proof */}
           <motion.p
@@ -162,7 +222,7 @@ const LandingPage = ({ onEnter }) => {
           {/* Divider */}
           <div className="w-96 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
 
-          {/* Experience Stratify Button - Triggers Intro Video */}
+          {/* Experience Stratify Button */}
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -170,7 +230,6 @@ const LandingPage = ({ onEnter }) => {
             onClick={handleExperienceClick}
             className="group relative mb-8"
           >
-            {/* Glow effect */}
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl opacity-30 group-hover:opacity-50 blur-lg transition-opacity" />
             
             <div className="relative flex items-center gap-4 px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/40 group-hover:border-blue-400/60 transition-all">
