@@ -583,6 +583,36 @@ Generate a trading strategy with the following format:
               </div>
             </div>
 
+            {/* Quick Strategy Templates */}
+            <div className="flex-shrink-0">
+              <label className="text-gray-300 text-sm font-medium mb-1.5 block">QUICK STRATEGIES</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, strategy: 'momentum', prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
+                  { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, strategy: 'rsi', prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
+                  { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, strategy: 'mean-rev', prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
+                  { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, strategy: 'breakout', prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
+                ].map(template => {
+                  const Icon = template.icon;
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => {
+                        setSelectedStrategy(template.strategy);
+                        setSelectedTimeframe('3m');
+                        setStrategyName(template.name);
+                        setChatInput(template.prompt);
+                      }}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80 transition-all text-left"
+                    >
+                      <Icon className="w-4 h-4 text-emerald-400 flex-shrink-0" strokeWidth={1.5} />
+                      <span className="text-sm text-[#e5e5e5]">{template.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex-shrink-0">
               <label className="text-gray-300 text-sm font-medium mb-1.5 block">STRATEGY</label>
               <div className="grid grid-cols-3 gap-1.5">
