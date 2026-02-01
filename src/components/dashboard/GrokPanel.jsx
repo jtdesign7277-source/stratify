@@ -158,6 +158,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [strategyName, setStrategyName] = useState('');
   const [selectedTimeframe, setSelectedTimeframe] = useState(null);
+  const [selectedQuickStrategy, setSelectedQuickStrategy] = useState(null);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -769,25 +770,31 @@ Generate a trading strategy with the following format:
                   { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, strategy: 'breakout', prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
                 ].map(template => {
                   const Icon = template.icon;
+                  const isSelected = selectedQuickStrategy === template.name;
                   return (
                     <button
                       key={template.id}
                       onClick={() => {
+                        setSelectedQuickStrategy(template.name);
                         setSelectedStrategy(template.strategy);
                         setSelectedTimeframe('3m');
                         // Combine ticker prefix with strategy name
-                        const prefix = getTickerPrefix(selectedTickers);
-                        setStrategyName(prefix + template.name);
+                        const ticker = selectedTickers[0] || '';
+                        setStrategyName(ticker ? `$${ticker} - ${template.name}` : template.name);
                         // Update prompt with ticker if selected
                         const tickerContext = selectedTickers.length > 0 
                           ? ` for ${selectedTickers.join(', ')}` 
                           : '';
                         setChatInput(template.prompt + tickerContext);
                       }}
-                      className="flex items-center gap-2 p-2.5 rounded-lg bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80 transition-all text-left"
+                      className={`flex items-center gap-2 p-2.5 rounded-lg transition-all text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/20 border border-emerald-500/50'
+                          : 'bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80'
+                      }`}
                     >
-                      <Icon className="w-4 h-4 text-emerald-400 flex-shrink-0" strokeWidth={1.5} />
-                      <span className="text-sm text-[#e5e5e5]">{template.name}</span>
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-emerald-400' : 'text-emerald-400'}`} strokeWidth={1.5} />
+                      <span className={`text-sm ${isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{template.name}</span>
                     </button>
                   );
                 })}
