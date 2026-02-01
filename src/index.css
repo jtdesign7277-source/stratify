@@ -36,6 +36,16 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 500;
 }
 
+/* Hide all scrollbars globally */
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Hide scrollbar but keep scroll functionality */
 .scrollbar-hide {
   -ms-overflow-style: none;

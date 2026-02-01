@@ -512,7 +512,7 @@ Generate a trading strategy with the following format:
       </div>
 
       {/* Tab Bar */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-800 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -674,7 +674,7 @@ Generate a trading strategy with the following format:
             )}
             
             {/* Content area */}
-            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex-1 overflow-y-auto">
               <div className="p-3 space-y-2">
                 {activeTab === 'chat' ? (
                   <>
