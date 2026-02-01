@@ -28,7 +28,6 @@ const VideoIntro = ({ onComplete }) => {
     >
       <video
         autoPlay
-        muted
         playsInline
         className="w-full h-full object-cover"
         onEnded={onComplete}
