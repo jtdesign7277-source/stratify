@@ -302,7 +302,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onAddToWatchlist?.(stock.symbol);
+                      onAddToWatchlist?.(stock);
                       setQuery('');
                       setIsOpen(false);
                     }}

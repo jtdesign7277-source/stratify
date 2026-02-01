@@ -405,8 +405,10 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   };
 
   const addToWatchlist = (stock) => {
-    if (!watchlist.find(s => s.symbol === stock.symbol)) {
-      setWatchlist(prev => [...prev, stock]);
+    // Handle both string (symbol) and object inputs
+    const stockObj = typeof stock === 'string' ? { symbol: stock, name: stock } : stock;
+    if (!watchlist.find(s => s.symbol === stockObj.symbol)) {
+      setWatchlist(prev => [...prev, stockObj]);
     }
   };
 
@@ -483,7 +485,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         >
           {/* Tab-based Views */}
           {activeTab === 'home' && <Home themeClasses={themeClasses} />}
-          {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} />}
+          {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
           {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
           {activeTab === 'trade' && (
             <div className="flex-1 flex items-center justify-center text-gray-500">
