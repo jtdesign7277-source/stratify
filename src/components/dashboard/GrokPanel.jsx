@@ -128,14 +128,46 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
 
   const addTicker = (symbol) => {
     if (!selectedTickers.includes(symbol)) {
-      setSelectedTickers(prev => [...prev, symbol]);
+      const newTickers = [...selectedTickers, symbol];
+      setSelectedTickers(newTickers);
+      // Auto-update strategy name with ticker prefix
+      updateStrategyNameWithTickers(newTickers);
     }
     setTickerSearch('');
     setSearchResults([]);
   };
 
   const removeTicker = (symbol) => {
-    setSelectedTickers(prev => prev.filter(s => s !== symbol));
+    const newTickers = selectedTickers.filter(s => s !== symbol);
+    setSelectedTickers(newTickers);
+    // Update strategy name when ticker removed
+    updateStrategyNameWithTickers(newTickers);
+  };
+
+  // Helper to format ticker prefix for strategy name
+  const getTickerPrefix = (tickers) => {
+    if (!tickers || tickers.length === 0) return '';
+    if (tickers.length === 1) return `$${tickers[0]} - `;
+    if (tickers.length === 2) return `$${tickers[0]}/$${tickers[1]} - `;
+    return `$${tickers[0]}+ - `;
+  };
+
+  // Update strategy name with ticker prefix, preserving any suffix
+  const updateStrategyNameWithTickers = (tickers, strategyType = null) => {
+    const prefix = getTickerPrefix(tickers);
+    
+    // Extract existing strategy type from name (after the " - ")
+    const currentName = strategyName;
+    const dashIndex = currentName.indexOf(' - ');
+    const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : '';
+    
+    if (strategyType) {
+      setStrategyName(prefix + strategyType);
+    } else if (existingSuffix) {
+      setStrategyName(prefix + existingSuffix);
+    } else if (prefix) {
+      setStrategyName(prefix);
+    }
   };
 
   const handleReset = () => {
@@ -600,8 +632,14 @@ Generate a trading strategy with the following format:
                       onClick={() => {
                         setSelectedStrategy(template.strategy);
                         setSelectedTimeframe('3m');
-                        setStrategyName(template.name);
-                        setChatInput(template.prompt);
+                        // Combine ticker prefix with strategy name
+                        const prefix = getTickerPrefix(selectedTickers);
+                        setStrategyName(prefix + template.name);
+                        // Update prompt with ticker if selected
+                        const tickerContext = selectedTickers.length > 0 
+                          ? ` for ${selectedTickers.join(', ')}` 
+                          : '';
+                        setChatInput(template.prompt + tickerContext);
                       }}
                       className="flex items-center gap-2 p-2 rounded-lg bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80 transition-all text-left"
                     >
