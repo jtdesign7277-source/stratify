@@ -104,15 +104,50 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
       setLoading(true);
       
       try {
-        const res = await fetch(`${API_URL}/api/public/search?q=${query}`, {
-          signal: abortControllerRef.current.signal
-        });
-        const data = await res.json();
+        let apiResults = [];
         
-        if (data && data.length > 0) {
-          const apiSymbols = new Set(data.map(s => s.symbol));
+        // Try our API first
+        try {
+          const res = await fetch(`${API_URL}/api/public/search?q=${query}`, {
+            signal: abortControllerRef.current.signal
+          });
+          const data = await res.json();
+          if (data && data.length > 0) {
+            apiResults = data;
+          }
+        } catch (e) {
+          // API failed, will try Yahoo fallback
+        }
+        
+        // Fallback to Yahoo Finance if no API results
+        if (apiResults.length === 0) {
+          try {
+            const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0`;
+            const yahooRes = await fetch(yahooUrl, {
+              signal: abortControllerRef.current.signal
+            });
+            const yahooData = await yahooRes.json();
+            
+            if (yahooData.quotes) {
+              apiResults = yahooData.quotes
+                .filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'CRYPTOCURRENCY')
+                .slice(0, 10)
+                .map(q => ({
+                  symbol: q.symbol,
+                  name: q.shortname || q.longname || q.symbol,
+                  exchange: q.exchDisp || q.exchange || 'N/A',
+                  sector: q.quoteType === 'ETF' ? 'ETF' : q.quoteType === 'CRYPTOCURRENCY' ? 'Crypto' : 'Stock'
+                }));
+            }
+          } catch (e) {
+            // Yahoo also failed, use local results
+          }
+        }
+        
+        if (apiResults.length > 0) {
+          const apiSymbols = new Set(apiResults.map(s => s.symbol));
           const uniqueLocal = localResults.filter(s => !apiSymbols.has(s.symbol));
-          setResults([...data.slice(0, 8), ...uniqueLocal].slice(0, 10));
+          setResults([...apiResults.slice(0, 8), ...uniqueLocal].slice(0, 10));
         }
         setIsOpen(true);
       } catch (err) {
