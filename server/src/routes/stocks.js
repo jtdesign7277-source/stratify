@@ -3,6 +3,11 @@ import { getQuotes, getBars, getAccount, getPositions } from '../services/alpaca
 
 const router = Router();
 
+// Debug route to test if new routes are deployed
+router.get('/debug', (req, res) => {
+  res.json({ status: 'v2', routes: ['account', 'positions', 'quotes', 'bars'], timestamp: new Date().toISOString() });
+});
+
 router.get('/account', async (req, res) => {
   try {
     const account = await getAccount();
