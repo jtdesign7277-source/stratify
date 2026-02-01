@@ -15,6 +15,7 @@ import {
   ChevronsRight,
   Brain
 } from 'lucide-react';
+import StratifyLogo from './StratifyLogo';
 
 const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -53,7 +54,7 @@ const Sidebar = ({ activeTab = 'home', setActiveTab, onTabChange, onNavigate }) 
       <div className="p-3 pb-2">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
-            <Brain className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
+            <StratifyLogo size={24} />
           </div>
           {!collapsed && (
             <div className="flex items-center gap-1.5 overflow-hidden">
