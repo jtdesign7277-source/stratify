@@ -3,6 +3,8 @@ import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import { useAlpacaData } from './useAlpacaData';
+import VideoOverlay from './components/dashboard/VideoOverlay';
+import { AnimatePresence } from 'framer-motion';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -1752,11 +1754,28 @@ export class TeslaEMAStrategy extends Strategy {
 
 // Main App Component
 export default function StratifyApp() {
-  const [showIntro, setShowIntro] = useState(true);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
   const { stocks, loading, error } = useAlpacaData();
 
-  // Show cinematic intro on first visit
+  // Show "Experience Stratify" overlay first
+  if (showOverlay) {
+    return (
+      <div className="fixed inset-0 bg-[#060d18]">
+        <AnimatePresence>
+          <VideoOverlay 
+            onStart={() => {
+              setShowOverlay(false);
+              setShowIntro(true);
+            }} 
+          />
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Show cinematic intro video
   if (showIntro) {
     return <VideoIntro onComplete={() => setShowIntro(false)} />;
   }
