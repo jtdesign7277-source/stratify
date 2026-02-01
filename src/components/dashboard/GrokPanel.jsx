@@ -341,42 +341,45 @@ const GrokPanel = () => {
         </div>
 
         {/* Chat */}
-        <div className="flex-1 flex flex-col min-h-[400px] overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <label className="text-gray-500 text-[10px] font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
           
-          {messages.length > 0 && (
-            <div className="flex-1 bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'none' }}>
-              <div className="p-1.5 space-y-1.5">
-                {messages.map((m, i) => (
-                  <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[95%] rounded px-2 py-1 transition-all cursor-default ${
-                      m.role === 'user' 
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-500' 
-                        : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-800 hover:bg-[#111d2e] hover:border-gray-700'
-                    }`}>
-                      {m.role === 'assistant' && (
-                        <div className="flex items-center gap-1 mb-0.5 pb-0.5 border-b border-gray-700/50">
-                          <Zap className="w-2.5 h-2.5 text-emerald-400" />
-                          <span className="text-emerald-400 text-[9px]">Grok</span>
-                          {m.isTyping && <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
-                        </div>
-                      )}
-                      <div className="text-base leading-relaxed">{renderMessage(m.content, i)}</div>
-                    </div>
+          <div className="flex-1 bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'none' }}>
+            <div className="p-1.5 space-y-1.5 h-full">
+              {messages.length === 0 && (
+                <div className="h-full flex items-center justify-center text-gray-600 text-sm">
+                  Ask Grok anything about trading...
+                </div>
+              )}
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[95%] rounded px-2 py-1 transition-all cursor-default ${
+                    m.role === 'user' 
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-500' 
+                      : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-800 hover:bg-[#111d2e] hover:border-gray-700'
+                  }`}>
+                    {m.role === 'assistant' && (
+                      <div className="flex items-center gap-1 mb-0.5 pb-0.5 border-b border-gray-700/50">
+                        <Zap className="w-2.5 h-2.5 text-emerald-400" />
+                        <span className="text-emerald-400 text-[9px]">Grok</span>
+                        {m.isTyping && <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+                      </div>
+                    )}
+                    <div className="text-base leading-relaxed">{renderMessage(m.content, i)}</div>
                   </div>
-                ))}
-                {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
-                  <div className="flex justify-start">
-                    <div className="bg-[#0d1829] border border-gray-800 rounded px-2 py-1 flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
-                      <span className="text-gray-500 text-[9px]">Thinking...</span>
-                    </div>
+                </div>
+              ))}
+              {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
+                <div className="flex justify-start">
+                  <div className="bg-[#0d1829] border border-gray-800 rounded px-2 py-1 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
+                    <span className="text-gray-500 text-[9px]">Thinking...</span>
                   </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
-          )}
+          </div>
 
           <div className="flex gap-1 flex-shrink-0">
             <textarea
