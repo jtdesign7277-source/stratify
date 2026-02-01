@@ -4,6 +4,8 @@ import {
   RefreshCcw, Loader2, MoreHorizontal, Unlink
 } from 'lucide-react';
 import { getQuotes } from '../../services/marketData';
+import PortfolioChart from './PortfolioChart';
+import PortfolioChart from './PortfolioChart';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 
 const PortfolioPage = ({ themeClasses, alpacaData }) => {
