@@ -477,6 +477,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           activeSection={activeSection} 
           onSectionChange={setActiveSection}
           activeTab={activeTab}
+          setActiveTab={setActiveTab}
           onTabChange={setActiveTab}
           theme={theme} 
           themeClasses={themeClasses}
