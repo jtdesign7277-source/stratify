@@ -222,13 +222,26 @@ const ALL_STOCKS = [
   { symbol: 'BONK', name: 'Bonk', price: 0.000023, change: 0.000002, changePercent: 9.52 },
 ];
 
-const WatchlistPage = () => {
+const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
-  const [watchlistStocks, setWatchlistStocks] = useState(DEFAULT_WATCHLIST);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Merge prop watchlist with defaults, prioritizing prop watchlist
+  const watchlistStocks = watchlist.length > 0 
+    ? watchlist.map(item => {
+        // If item is just a symbol string, find it in ALL_STOCKS or DEFAULT_WATCHLIST
+        if (typeof item === 'string') {
+          const found = ALL_STOCKS.find(s => s.symbol === item) || DEFAULT_WATCHLIST.find(s => s.symbol === item);
+          return found || { symbol: item, name: item, price: 0, change: 0, changePercent: 0 };
+        }
+        // If item is an object, merge with default data
+        const defaultData = ALL_STOCKS.find(s => s.symbol === item.symbol) || DEFAULT_WATCHLIST.find(s => s.symbol === item.symbol);
+        return { ...defaultData, ...item };
+      })
+    : DEFAULT_WATCHLIST;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -269,7 +282,10 @@ const WatchlistPage = () => {
       afterHoursPercent: (Math.random() * 0.5 - 0.25).toFixed(2) * 1
     };
     
-    setWatchlistStocks([...watchlistStocks, newStock]);
+    // Use prop callback if available
+    if (onAddToWatchlist) {
+      onAddToWatchlist(newStock);
+    }
     setSearchQuery('');
     setSearchResults([]);
   };
@@ -277,7 +293,10 @@ const WatchlistPage = () => {
   const handleRemoveStock = (symbolToRemove, e) => {
     e.stopPropagation();
     e.preventDefault();
-    setWatchlistStocks(watchlistStocks.filter(s => s.symbol !== symbolToRemove));
+    // Use prop callback if available
+    if (onRemoveFromWatchlist) {
+      onRemoveFromWatchlist(symbolToRemove);
+    }
   };
 
   const handleTickerClick = (symbol) => {
