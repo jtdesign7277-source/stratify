@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, Loader } from 'lucide-react';
+import { Search, Plus, X, Loader2 } from 'lucide-react';
 
 const API_BASE = 'https://atlas-api-production-5944.up.railway.app';
 
-// Check if market is open (9:30 AM - 4:00 PM ET, Mon-Fri)
 const getMarketStatus = () => {
   const now = new Date();
   const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -12,10 +11,10 @@ const getMarketStatus = () => {
   const day = et.getDay();
   const time = hours * 60 + minutes;
   
-  const marketOpen = 9 * 60 + 30; // 9:30 AM
-  const marketClose = 16 * 60; // 4:00 PM
-  const preMarketStart = 4 * 60; // 4:00 AM
-  const afterHoursEnd = 20 * 60; // 8:00 PM
+  const marketOpen = 9 * 60 + 30;
+  const marketClose = 16 * 60;
+  const preMarketStart = 4 * 60;
+  const afterHoursEnd = 20 * 60;
   
   if (day === 0 || day === 6) return 'closed';
   if (time >= marketOpen && time < marketClose) return 'open';
@@ -31,17 +30,16 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [isSearching, setIsSearching] = useState(false);
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
   const [localWatchlist, setLocalWatchlist] = useState([
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 259.48, change: 1.20, changePercent: 0.46, afterHoursPrice: 259.85, afterHoursChange: 0.37, afterHoursPercent: 0.14 },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 338.00, change: -0.25, changePercent: -0.07, afterHoursPrice: 337.50, afterHoursChange: -0.50, afterHoursPercent: -0.15 },
-    { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 239.30, change: -2.43, changePercent: -1.01, afterHoursPrice: 239.80, afterHoursChange: 0.50, afterHoursPercent: 0.21 },
-    { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 191.13, change: -1.38, changePercent: -0.72, afterHoursPrice: 191.50, afterHoursChange: 0.37, afterHoursPercent: 0.19 },
-    { symbol: 'META', name: 'Meta Platforms, Inc.', price: 716.50, change: -21.81, changePercent: -2.95, afterHoursPrice: 718.20, afterHoursChange: 1.70, afterHoursPercent: 0.24 },
-    { symbol: 'TSLA', name: 'Tesla, Inc.', price: 430.41, change: 13.84, changePercent: 3.32, afterHoursPrice: 428.50, afterHoursChange: -1.91, afterHoursPercent: -0.44 },
-    { symbol: 'QQQ', name: 'Invesco QQQ Trust', price: 621.87, change: -7.56, changePercent: -1.20, afterHoursPrice: 622.10, afterHoursChange: 0.23, afterHoursPercent: 0.04 },
-    { symbol: 'SOFI', name: 'SoFi Technologies', price: 22.81, change: -1.55, changePercent: -6.36, afterHoursPrice: 22.95, afterHoursChange: 0.14, afterHoursPercent: 0.61 },
+    { symbol: 'AAPL', name: 'Apple Inc.', price: 259.48, change: 1.20, changePercent: 0.46, afterHoursChange: 0.37, afterHoursPercent: 0.14 },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 338.00, change: -0.25, changePercent: -0.07, afterHoursChange: -0.50, afterHoursPercent: -0.15 },
+    { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 239.30, change: -2.43, changePercent: -1.01, afterHoursChange: 0.50, afterHoursPercent: 0.21 },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 191.13, change: -1.38, changePercent: -0.72, afterHoursChange: 0.37, afterHoursPercent: 0.19 },
+    { symbol: 'META', name: 'Meta Platforms, Inc.', price: 716.50, change: -21.81, changePercent: -2.95, afterHoursChange: 1.70, afterHoursPercent: 0.24 },
+    { symbol: 'TSLA', name: 'Tesla, Inc.', price: 430.41, change: 13.84, changePercent: 3.32, afterHoursChange: -1.91, afterHoursPercent: -0.44 },
+    { symbol: 'QQQ', name: 'Invesco QQQ Trust', price: 621.87, change: -7.56, changePercent: -1.20, afterHoursChange: 0.23, afterHoursPercent: 0.04 },
+    { symbol: 'SOFI', name: 'SoFi Technologies', price: 22.81, change: -1.55, changePercent: -6.36, afterHoursChange: 0.14, afterHoursPercent: 0.61 },
   ]);
 
-  // Update market status every minute
   useEffect(() => {
     const interval = setInterval(() => {
       setMarketStatus(getMarketStatus());
@@ -49,100 +47,75 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     return () => clearInterval(interval);
   }, []);
 
-  // Large stock database
   const allStocks = [
-    // Mag 7 + Big Tech
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 259.48, change: 1.20, changePercent: 0.46, afterHoursPrice: 259.85, afterHoursChange: 0.37, afterHoursPercent: 0.14 },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 338.00, change: -0.25, changePercent: -0.07, afterHoursPrice: 337.50, afterHoursChange: -0.50, afterHoursPercent: -0.15 },
-    { symbol: 'GOOG', name: 'Alphabet Inc. Class C', price: 339.50, change: -0.30, changePercent: -0.09, afterHoursPrice: 339.20, afterHoursChange: -0.30, afterHoursPercent: -0.09 },
-    { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 239.30, change: -2.43, changePercent: -1.01, afterHoursPrice: 239.80, afterHoursChange: 0.50, afterHoursPercent: 0.21 },
-    { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 191.13, change: -1.38, changePercent: -0.72, afterHoursPrice: 191.50, afterHoursChange: 0.37, afterHoursPercent: 0.19 },
-    { symbol: 'META', name: 'Meta Platforms, Inc.', price: 716.50, change: -21.81, changePercent: -2.95, afterHoursPrice: 718.20, afterHoursChange: 1.70, afterHoursPercent: 0.24 },
-    { symbol: 'TSLA', name: 'Tesla, Inc.', price: 430.41, change: 13.84, changePercent: 3.32, afterHoursPrice: 428.50, afterHoursChange: -1.91, afterHoursPercent: -0.44 },
-    { symbol: 'MSFT', name: 'Microsoft Corporation', price: 415.50, change: 2.35, changePercent: 0.57, afterHoursPrice: 416.20, afterHoursChange: 0.70, afterHoursPercent: 0.17 },
-    
-    // Retail Favorites
-    { symbol: 'GME', name: 'GameStop Corp.', price: 28.45, change: 1.23, changePercent: 4.52, afterHoursPrice: 28.80, afterHoursChange: 0.35, afterHoursPercent: 1.23 },
-    { symbol: 'AMC', name: 'AMC Entertainment', price: 4.85, change: 0.15, changePercent: 3.19, afterHoursPrice: 4.90, afterHoursChange: 0.05, afterHoursPercent: 1.03 },
-    { symbol: 'PLTR', name: 'Palantir Technologies', price: 24.80, change: 0.65, changePercent: 2.69, afterHoursPrice: 24.95, afterHoursChange: 0.15, afterHoursPercent: 0.60 },
-    { symbol: 'SOFI', name: 'SoFi Technologies', price: 22.81, change: -1.55, changePercent: -6.36, afterHoursPrice: 22.95, afterHoursChange: 0.14, afterHoursPercent: 0.61 },
-    { symbol: 'HOOD', name: 'Robinhood Markets', price: 18.90, change: 0.45, changePercent: 2.44, afterHoursPrice: 19.05, afterHoursChange: 0.15, afterHoursPercent: 0.79 },
-    { symbol: 'RIVN', name: 'Rivian Automotive', price: 14.25, change: -0.35, changePercent: -2.40, afterHoursPrice: 14.35, afterHoursChange: 0.10, afterHoursPercent: 0.70 },
-    { symbol: 'LCID', name: 'Lucid Group', price: 3.45, change: 0.08, changePercent: 2.37, afterHoursPrice: 3.48, afterHoursChange: 0.03, afterHoursPercent: 0.87 },
-    { symbol: 'NIO', name: 'NIO Inc.', price: 5.80, change: 0.12, changePercent: 2.11, afterHoursPrice: 5.85, afterHoursChange: 0.05, afterHoursPercent: 0.86 },
-    { symbol: 'RKLB', name: 'Rocket Lab USA', price: 22.45, change: 1.34, changePercent: 6.35, afterHoursPrice: 22.80, afterHoursChange: 0.35, afterHoursPercent: 1.56 },
-    { symbol: 'IONQ', name: 'IonQ, Inc.', price: 35.60, change: 2.45, changePercent: 7.39, afterHoursPrice: 36.10, afterHoursChange: 0.50, afterHoursPercent: 1.40 },
-    { symbol: 'MARA', name: 'Marathon Digital', price: 21.30, change: 1.56, changePercent: 7.90, afterHoursPrice: 21.60, afterHoursChange: 0.30, afterHoursPercent: 1.41 },
-    { symbol: 'RIOT', name: 'Riot Platforms', price: 12.45, change: 0.87, changePercent: 7.51, afterHoursPrice: 12.60, afterHoursChange: 0.15, afterHoursPercent: 1.20 },
-    { symbol: 'COIN', name: 'Coinbase Global', price: 265.30, change: 8.45, changePercent: 3.29, afterHoursPrice: 266.50, afterHoursChange: 1.20, afterHoursPercent: 0.45 },
-    { symbol: 'MSTR', name: 'MicroStrategy', price: 478.90, change: 23.45, changePercent: 5.15, afterHoursPrice: 482.00, afterHoursChange: 3.10, afterHoursPercent: 0.65 },
-    { symbol: 'SMCI', name: 'Super Micro Computer', price: 45.60, change: 2.34, changePercent: 5.41, afterHoursPrice: 46.20, afterHoursChange: 0.60, afterHoursPercent: 1.32 },
-    { symbol: 'ARM', name: 'Arm Holdings', price: 156.70, change: 4.56, changePercent: 3.00, afterHoursPrice: 157.50, afterHoursChange: 0.80, afterHoursPercent: 0.51 },
-    
-    // Healthcare
-    { symbol: 'HIMS', name: 'Hims & Hers Health', price: 26.80, change: 1.45, changePercent: 5.72, afterHoursPrice: 27.10, afterHoursChange: 0.30, afterHoursPercent: 1.12 },
-    { symbol: 'MRNA', name: 'Moderna, Inc.', price: 45.30, change: -1.23, changePercent: -2.64, afterHoursPrice: 45.50, afterHoursChange: 0.20, afterHoursPercent: 0.44 },
-    
-    // Software
-    { symbol: 'ADBE', name: 'Adobe Inc.', price: 478.90, change: 5.67, changePercent: 1.20, afterHoursPrice: 480.00, afterHoursChange: 1.10, afterHoursPercent: 0.23 },
-    { symbol: 'CRM', name: 'Salesforce, Inc.', price: 289.50, change: 3.45, changePercent: 1.21, afterHoursPrice: 290.20, afterHoursChange: 0.70, afterHoursPercent: 0.24 },
-    { symbol: 'SNOW', name: 'Snowflake Inc.', price: 178.90, change: -4.56, changePercent: -2.49, afterHoursPrice: 179.50, afterHoursChange: 0.60, afterHoursPercent: 0.34 },
-    { symbol: 'DDOG', name: 'Datadog, Inc.', price: 132.40, change: 3.21, changePercent: 2.49, afterHoursPrice: 133.00, afterHoursChange: 0.60, afterHoursPercent: 0.45 },
-    { symbol: 'NET', name: 'Cloudflare, Inc.', price: 98.70, change: 2.34, changePercent: 2.43, afterHoursPrice: 99.10, afterHoursChange: 0.40, afterHoursPercent: 0.41 },
-    { symbol: 'CRWD', name: 'CrowdStrike Holdings', price: 345.60, change: 5.67, changePercent: 1.67, afterHoursPrice: 346.50, afterHoursChange: 0.90, afterHoursPercent: 0.26 },
-    
-    // Energy/Solar
-    { symbol: 'ENPH', name: 'Enphase Energy', price: 89.45, change: 3.21, changePercent: 3.72, afterHoursPrice: 90.00, afterHoursChange: 0.55, afterHoursPercent: 0.61 },
-    { symbol: 'FSLR', name: 'First Solar, Inc.', price: 198.70, change: 5.67, changePercent: 2.94, afterHoursPrice: 199.50, afterHoursChange: 0.80, afterHoursPercent: 0.40 },
-    
-    // Consumer
-    { symbol: 'ELF', name: 'e.l.f. Beauty', price: 112.45, change: 3.45, changePercent: 3.17, afterHoursPrice: 113.00, afterHoursChange: 0.55, afterHoursPercent: 0.49 },
-    { symbol: 'LULU', name: 'Lululemon Athletica', price: 389.70, change: 5.67, changePercent: 1.48, afterHoursPrice: 390.50, afterHoursChange: 0.80, afterHoursPercent: 0.21 },
-    { symbol: 'NFLX', name: 'Netflix, Inc.', price: 891.50, change: 12.30, changePercent: 1.40, afterHoursPrice: 893.00, afterHoursChange: 1.50, afterHoursPercent: 0.17 },
-    { symbol: 'DIS', name: 'Walt Disney Company', price: 112.45, change: -1.20, changePercent: -1.06, afterHoursPrice: 112.80, afterHoursChange: 0.35, afterHoursPercent: 0.31 },
-    
-    // Social
-    { symbol: 'SNAP', name: 'Snap Inc.', price: 11.23, change: -0.45, changePercent: -3.85, afterHoursPrice: 11.35, afterHoursChange: 0.12, afterHoursPercent: 1.07 },
-    { symbol: 'PINS', name: 'Pinterest, Inc.', price: 32.10, change: 0.87, changePercent: 2.79, afterHoursPrice: 32.30, afterHoursChange: 0.20, afterHoursPercent: 0.62 },
-    { symbol: 'RDDT', name: 'Reddit, Inc.', price: 156.70, change: 5.67, changePercent: 3.75, afterHoursPrice: 157.50, afterHoursChange: 0.80, afterHoursPercent: 0.51 },
-    { symbol: 'UBER', name: 'Uber Technologies', price: 78.90, change: 1.20, changePercent: 1.54, afterHoursPrice: 79.20, afterHoursChange: 0.30, afterHoursPercent: 0.38 },
-    { symbol: 'ABNB', name: 'Airbnb, Inc.', price: 145.60, change: 2.34, changePercent: 1.63, afterHoursPrice: 146.00, afterHoursChange: 0.40, afterHoursPercent: 0.27 },
-    
-    // Fintech
-    { symbol: 'PYPL', name: 'PayPal Holdings', price: 68.90, change: 0.85, changePercent: 1.25, afterHoursPrice: 69.10, afterHoursChange: 0.20, afterHoursPercent: 0.29 },
-    { symbol: 'SQ', name: 'Block, Inc.', price: 78.50, change: -2.10, changePercent: -2.60, afterHoursPrice: 78.80, afterHoursChange: 0.30, afterHoursPercent: 0.38 },
-    { symbol: 'AFRM', name: 'Affirm Holdings', price: 56.70, change: 2.34, changePercent: 4.31, afterHoursPrice: 57.10, afterHoursChange: 0.40, afterHoursPercent: 0.71 },
-    
-    // Semis
-    { symbol: 'AMD', name: 'Advanced Micro Devices', price: 164.25, change: 3.45, changePercent: 2.15, afterHoursPrice: 164.80, afterHoursChange: 0.55, afterHoursPercent: 0.33 },
-    { symbol: 'INTC', name: 'Intel Corporation', price: 31.20, change: -0.45, changePercent: -1.42, afterHoursPrice: 31.35, afterHoursChange: 0.15, afterHoursPercent: 0.48 },
-    { symbol: 'MU', name: 'Micron Technology', price: 98.70, change: 2.34, changePercent: 2.43, afterHoursPrice: 99.10, afterHoursChange: 0.40, afterHoursPercent: 0.41 },
-    { symbol: 'TSM', name: 'Taiwan Semiconductor', price: 189.70, change: 3.45, changePercent: 1.85, afterHoursPrice: 190.30, afterHoursChange: 0.60, afterHoursPercent: 0.32 },
-    
-    // Banks
-    { symbol: 'JPM', name: 'JPMorgan Chase', price: 198.70, change: 1.23, changePercent: 0.62, afterHoursPrice: 199.00, afterHoursChange: 0.30, afterHoursPercent: 0.15 },
-    { symbol: 'BAC', name: 'Bank of America', price: 35.40, change: 0.23, changePercent: 0.65, afterHoursPrice: 35.50, afterHoursChange: 0.10, afterHoursPercent: 0.28 },
-    { symbol: 'GS', name: 'Goldman Sachs', price: 478.90, change: 5.67, changePercent: 1.20, afterHoursPrice: 479.80, afterHoursChange: 0.90, afterHoursPercent: 0.19 },
-    
-    // ETFs
-    { symbol: 'SPY', name: 'SPDR S&P 500 ETF', price: 502.34, change: 1.23, changePercent: 0.25, afterHoursPrice: 502.60, afterHoursChange: 0.26, afterHoursPercent: 0.05 },
-    { symbol: 'QQQ', name: 'Invesco QQQ Trust', price: 621.87, change: -7.56, changePercent: -1.20, afterHoursPrice: 622.10, afterHoursChange: 0.23, afterHoursPercent: 0.04 },
-    { symbol: 'DIA', name: 'SPDR Dow Jones ETF', price: 389.12, change: -0.87, changePercent: -0.22, afterHoursPrice: 389.30, afterHoursChange: 0.18, afterHoursPercent: 0.05 },
-    { symbol: 'IWM', name: 'iShares Russell 2000', price: 198.45, change: 1.23, changePercent: 0.62, afterHoursPrice: 198.70, afterHoursChange: 0.25, afterHoursPercent: 0.13 },
-    { symbol: 'ARKK', name: 'ARK Innovation ETF', price: 48.90, change: 1.23, changePercent: 2.58, afterHoursPrice: 49.10, afterHoursChange: 0.20, afterHoursPercent: 0.41 },
-    { symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', price: 67.80, change: 2.34, changePercent: 3.57, afterHoursPrice: 68.10, afterHoursChange: 0.30, afterHoursPercent: 0.44 },
-    
-    // Crypto
-    { symbol: 'BTC', name: 'Bitcoin', price: 97543.21, change: 2345.67, changePercent: 2.46, afterHoursPrice: 97800.00, afterHoursChange: 256.79, afterHoursPercent: 0.26 },
-    { symbol: 'ETH', name: 'Ethereum', price: 3245.89, change: -45.23, changePercent: -1.37, afterHoursPrice: 3260.00, afterHoursChange: 14.11, afterHoursPercent: 0.43 },
-    { symbol: 'SOL', name: 'Solana', price: 178.34, change: 12.45, changePercent: 7.51, afterHoursPrice: 180.00, afterHoursChange: 1.66, afterHoursPercent: 0.93 },
-    { symbol: 'XRP', name: 'XRP', price: 2.34, change: 0.12, changePercent: 5.41, afterHoursPrice: 2.36, afterHoursChange: 0.02, afterHoursPercent: 0.85 },
-    { symbol: 'DOGE', name: 'Dogecoin', price: 0.32, change: 0.02, changePercent: 6.67, afterHoursPrice: 0.325, afterHoursChange: 0.005, afterHoursPercent: 1.56 },
+    { symbol: 'AAPL', name: 'Apple Inc.', price: 259.48, change: 1.20, changePercent: 0.46 },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 338.00, change: -0.25, changePercent: -0.07 },
+    { symbol: 'GOOG', name: 'Alphabet Inc. Class C', price: 339.50, change: -0.30, changePercent: -0.09 },
+    { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 239.30, change: -2.43, changePercent: -1.01 },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 191.13, change: -1.38, changePercent: -0.72 },
+    { symbol: 'META', name: 'Meta Platforms, Inc.', price: 716.50, change: -21.81, changePercent: -2.95 },
+    { symbol: 'TSLA', name: 'Tesla, Inc.', price: 430.41, change: 13.84, changePercent: 3.32 },
+    { symbol: 'MSFT', name: 'Microsoft Corporation', price: 415.50, change: 2.35, changePercent: 0.57 },
+    { symbol: 'GME', name: 'GameStop Corp.', price: 28.45, change: 1.23, changePercent: 4.52 },
+    { symbol: 'AMC', name: 'AMC Entertainment', price: 4.85, change: 0.15, changePercent: 3.19 },
+    { symbol: 'PLTR', name: 'Palantir Technologies', price: 24.80, change: 0.65, changePercent: 2.69 },
+    { symbol: 'SOFI', name: 'SoFi Technologies', price: 22.81, change: -1.55, changePercent: -6.36 },
+    { symbol: 'HOOD', name: 'Robinhood Markets', price: 18.90, change: 0.45, changePercent: 2.44 },
+    { symbol: 'RIVN', name: 'Rivian Automotive', price: 14.25, change: -0.35, changePercent: -2.40 },
+    { symbol: 'LCID', name: 'Lucid Group', price: 3.45, change: 0.08, changePercent: 2.37 },
+    { symbol: 'NIO', name: 'NIO Inc.', price: 5.80, change: 0.12, changePercent: 2.11 },
+    { symbol: 'RKLB', name: 'Rocket Lab USA', price: 22.45, change: 1.34, changePercent: 6.35 },
+    { symbol: 'IONQ', name: 'IonQ, Inc.', price: 35.60, change: 2.45, changePercent: 7.39 },
+    { symbol: 'MARA', name: 'Marathon Digital', price: 21.30, change: 1.56, changePercent: 7.90 },
+    { symbol: 'RIOT', name: 'Riot Platforms', price: 12.45, change: 0.87, changePercent: 7.51 },
+    { symbol: 'COIN', name: 'Coinbase Global', price: 265.30, change: 8.45, changePercent: 3.29 },
+    { symbol: 'MSTR', name: 'MicroStrategy', price: 478.90, change: 23.45, changePercent: 5.15 },
+    { symbol: 'SMCI', name: 'Super Micro Computer', price: 45.60, change: 2.34, changePercent: 5.41 },
+    { symbol: 'ARM', name: 'Arm Holdings', price: 156.70, change: 4.56, changePercent: 3.00 },
+    { symbol: 'HIMS', name: 'Hims & Hers Health', price: 26.80, change: 1.45, changePercent: 5.72 },
+    { symbol: 'MRNA', name: 'Moderna, Inc.', price: 45.30, change: -1.23, changePercent: -2.64 },
+    { symbol: 'ADBE', name: 'Adobe Inc.', price: 478.90, change: 5.67, changePercent: 1.20 },
+    { symbol: 'CRM', name: 'Salesforce, Inc.', price: 289.50, change: 3.45, changePercent: 1.21 },
+    { symbol: 'SNOW', name: 'Snowflake Inc.', price: 178.90, change: -4.56, changePercent: -2.49 },
+    { symbol: 'DDOG', name: 'Datadog, Inc.', price: 132.40, change: 3.21, changePercent: 2.49 },
+    { symbol: 'NET', name: 'Cloudflare, Inc.', price: 98.70, change: 2.34, changePercent: 2.43 },
+    { symbol: 'CRWD', name: 'CrowdStrike Holdings', price: 345.60, change: 5.67, changePercent: 1.67 },
+    { symbol: 'ENPH', name: 'Enphase Energy', price: 89.45, change: 3.21, changePercent: 3.72 },
+    { symbol: 'FSLR', name: 'First Solar, Inc.', price: 198.70, change: 5.67, changePercent: 2.94 },
+    { symbol: 'ELF', name: 'e.l.f. Beauty', price: 112.45, change: 3.45, changePercent: 3.17 },
+    { symbol: 'LULU', name: 'Lululemon Athletica', price: 389.70, change: 5.67, changePercent: 1.48 },
+    { symbol: 'NFLX', name: 'Netflix, Inc.', price: 891.50, change: 12.30, changePercent: 1.40 },
+    { symbol: 'DIS', name: 'Walt Disney Company', price: 112.45, change: -1.20, changePercent: -1.06 },
+    { symbol: 'SNAP', name: 'Snap Inc.', price: 11.23, change: -0.45, changePercent: -3.85 },
+    { symbol: 'PINS', name: 'Pinterest, Inc.', price: 32.10, change: 0.87, changePercent: 2.79 },
+    { symbol: 'RDDT', name: 'Reddit, Inc.', price: 156.70, change: 5.67, changePercent: 3.75 },
+    { symbol: 'UBER', name: 'Uber Technologies', price: 78.90, change: 1.20, changePercent: 1.54 },
+    { symbol: 'ABNB', name: 'Airbnb, Inc.', price: 145.60, change: 2.34, changePercent: 1.63 },
+    { symbol: 'PYPL', name: 'PayPal Holdings', price: 68.90, change: 0.85, changePercent: 1.25 },
+    { symbol: 'SQ', name: 'Block, Inc.', price: 78.50, change: -2.10, changePercent: -2.60 },
+    { symbol: 'AFRM', name: 'Affirm Holdings', price: 56.70, change: 2.34, changePercent: 4.31 },
+    { symbol: 'AMD', name: 'Advanced Micro Devices', price: 164.25, change: 3.45, changePercent: 2.15 },
+    { symbol: 'INTC', name: 'Intel Corporation', price: 31.20, change: -0.45, changePercent: -1.42 },
+    { symbol: 'MU', name: 'Micron Technology', price: 98.70, change: 2.34, changePercent: 2.43 },
+    { symbol: 'TSM', name: 'Taiwan Semiconductor', price: 189.70, change: 3.45, changePercent: 1.85 },
+    { symbol: 'JPM', name: 'JPMorgan Chase', price: 198.70, change: 1.23, changePercent: 0.62 },
+    { symbol: 'BAC', name: 'Bank of America', price: 35.40, change: 0.23, changePercent: 0.65 },
+    { symbol: 'GS', name: 'Goldman Sachs', price: 478.90, change: 5.67, changePercent: 1.20 },
+    { symbol: 'SPY', name: 'SPDR S&P 500 ETF', price: 502.34, change: 1.23, changePercent: 0.25 },
+    { symbol: 'QQQ', name: 'Invesco QQQ Trust', price: 621.87, change: -7.56, changePercent: -1.20 },
+    { symbol: 'DIA', name: 'SPDR Dow Jones ETF', price: 389.12, change: -0.87, changePercent: -0.22 },
+    { symbol: 'IWM', name: 'iShares Russell 2000', price: 198.45, change: 1.23, changePercent: 0.62 },
+    { symbol: 'ARKK', name: 'ARK Innovation ETF', price: 48.90, change: 1.23, changePercent: 2.58 },
+    { symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', price: 67.80, change: 2.34, changePercent: 3.57 },
+    { symbol: 'BTC', name: 'Bitcoin', price: 97543.21, change: 2345.67, changePercent: 2.46 },
+    { symbol: 'ETH', name: 'Ethereum', price: 3245.89, change: -45.23, changePercent: -1.37 },
+    { symbol: 'SOL', name: 'Solana', price: 178.34, change: 12.45, changePercent: 7.51 },
+    { symbol: 'XRP', name: 'XRP', price: 2.34, change: 0.12, changePercent: 5.41 },
+    { symbol: 'DOGE', name: 'Dogecoin', price: 0.32, change: 0.02, changePercent: 6.67 },
   ];
 
   const stocks = watchlist.length > 0 ? watchlist : localWatchlist;
 
-  // Search effect
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -165,7 +138,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     if (onAddToWatchlist) {
       onAddToWatchlist(stock);
     } else {
-      setLocalWatchlist(prev => [...prev, stock]);
+      setLocalWatchlist(prev => [...prev, { ...stock, afterHoursChange: 0.15, afterHoursPercent: 0.05 }]);
     }
     setSearchQuery('');
     setSearchResults([]);
@@ -189,6 +162,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   };
 
   const formatPrice = (price) => {
+    if (!price) return '0.00';
     if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (price < 0.01) return price.toFixed(6);
     if (price < 1) return price.toFixed(4);
@@ -235,7 +209,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
               placeholder="Search symbol or company..."
               className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
             />
-            {isSearching && <Loader className="w-4 h-4 text-purple-400 animate-spin" strokeWidth={1.5} />}
+            {isSearching && <Loader2 className="w-4 h-4 text-purple-400 animate-spin" strokeWidth={1.5} />}
             {searchQuery && !isSearching && (
               <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-white">
                 <X className="w-4 h-4" strokeWidth={1.5} />
@@ -272,7 +246,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         {/* Yahoo Finance Style Stock List */}
         <div className="flex-1 overflow-auto">
           {stocks.map((stock) => {
-            const isPositive = stock.change >= 0;
+            const isPositive = (stock.change || 0) >= 0;
             const isAfterHoursPositive = (stock.afterHoursChange || 0) >= 0;
             const isSelected = selectedTicker === stock.symbol;
             
@@ -298,23 +272,20 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                   <div className="text-gray-500 text-sm truncate">{stock.name}</div>
                 </div>
 
-                {/* Right: Price & Changes (Yahoo Finance Style) */}
+                {/* Right: Price & Changes */}
                 <div className="text-right flex-shrink-0">
-                  {/* Main Price */}
                   <div className="text-white font-semibold text-base font-mono">
                     ${formatPrice(stock.price)}
                   </div>
                   
-                  {/* Day Change */}
                   <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isPositive ? '+' : ''}{stock.change?.toFixed(2)} ({isPositive ? '+' : ''}{stock.changePercent?.toFixed(2)}%)
+                    {isPositive ? '+' : ''}{(stock.change || 0).toFixed(2)} ({isPositive ? '+' : ''}{(stock.changePercent || 0).toFixed(2)}%)
                   </div>
                   
-                  {/* After Hours / Pre-Market (when market is closed) */}
-                  {showExtendedHours && stock.afterHoursPrice && (
+                  {showExtendedHours && stock.afterHoursChange !== undefined && (
                     <div className={`text-xs mt-0.5 ${isAfterHoursPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
                       <span className="text-gray-500">{extendedLabel}:</span>{' '}
-                      {isAfterHoursPositive ? '+' : ''}{stock.afterHoursChange?.toFixed(2)} ({isAfterHoursPositive ? '+' : ''}{stock.afterHoursPercent?.toFixed(2)}%)
+                      {isAfterHoursPositive ? '+' : ''}{(stock.afterHoursChange || 0).toFixed(2)} ({isAfterHoursPositive ? '+' : ''}{(stock.afterHoursPercent || 0).toFixed(2)}%)
                     </div>
                   )}
                 </div>
@@ -327,8 +298,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
           <span className="text-gray-400">{stocks.length} symbols</span>
           <div className="flex items-center gap-3">
-            <span className="text-emerald-400">{stocks.filter(s => s.change >= 0).length} ↑</span>
-            <span className="text-red-400">{stocks.filter(s => s.change < 0).length} ↓</span>
+            <span className="text-emerald-400">{stocks.filter(s => (s.change || 0) >= 0).length} ↑</span>
+            <span className="text-red-400">{stocks.filter(s => (s.change || 0) < 0).length} ↓</span>
           </div>
         </div>
       </div>
@@ -354,7 +325,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           <div className="flex-1 min-h-0">
             <iframe
               key={selectedTicker}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${selectedTicker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&studies_overrides={}&overrides={"paneProperties.vertGridProperties.color":"rgba(0,0,0,0)","paneProperties.horzGridProperties.color":"rgba(0,0,0,0)","paneProperties.background":"rgba(6,13,24,1)","paneProperties.backgroundType":"solid"}&enabled_features=[]&disabled_features=[]&locale=en`}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${selectedTicker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=en`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
             />
@@ -362,7 +333,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         </div>
       )}
 
-      {/* Show full width chart area placeholder when no ticker selected */}
       {!selectedTicker && (
         <div className="flex-1 flex items-center justify-center bg-[#060d18]">
           <div className="text-center text-gray-500">
