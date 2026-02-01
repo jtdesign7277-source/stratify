@@ -65,11 +65,16 @@ const GrokPanel = () => {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   
+  // Tab system
+  const [tabs, setTabs] = useState([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
+  const [activeTab, setActiveTab] = useState('chat');
+  const [strategyCounter, setStrategyCounter] = useState(0);
+  
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, tabs]);
 
   useEffect(() => {
     if (!tickerSearch.trim()) {
@@ -105,48 +110,126 @@ const GrokPanel = () => {
     setMessages([]);
     setChatInput('');
     setTickerSearch('');
+    setTabs([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
+    setActiveTab('chat');
+    setStrategyCounter(0);
+  };
+
+  const closeTab = (tabId) => {
+    if (tabId === 'chat') return; // Can't close main chat tab
+    setTabs(prev => prev.filter(t => t.id !== tabId));
+    if (activeTab === tabId) {
+      setActiveTab('chat');
+    }
   };
 
   const handleChatSend = async () => {
     if (!chatInput.trim() || isChatLoading) return;
     const userMsg = chatInput.trim();
     setChatInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setIsChatLoading(true);
-
-    try {
-      const response = await fetch(`${API_BASE}/api/atlas/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg }),
-      });
-      if (!response.ok) throw new Error('Failed');
-      const data = await response.json();
-      const fullContent = data.response || "Couldn't respond.";
+    
+    // Check if this should create a strategy tab
+    const isStrategyRequest = selectedTickers.length > 0 || selectedStrategy || selectedTimeframe;
+    
+    if (isStrategyRequest) {
+      // Create new strategy tab
+      const newCounter = strategyCounter + 1;
+      setStrategyCounter(newCounter);
+      const tabName = strategyName.trim() || `Strategy ${newCounter}`;
+      const tabId = `strategy-${Date.now()}`;
       
-      setMessages(prev => [...prev, { role: 'assistant', content: '', isTyping: true }]);
-      let idx = 0;
-      const interval = setInterval(() => {
-        idx += 10;
-        if (idx >= fullContent.length) {
-          clearInterval(interval);
-          setMessages(prev => {
-            const msgs = [...prev];
-            msgs[msgs.length - 1] = { role: 'assistant', content: fullContent, isTyping: false };
-            return msgs;
-          });
-        } else {
-          setMessages(prev => {
-            const msgs = [...prev];
-            msgs[msgs.length - 1] = { role: 'assistant', content: fullContent.slice(0, idx), isTyping: true };
-            return msgs;
-          });
-        }
-      }, 5);
-    } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Error.", isError: true }]);
-    } finally {
-      setIsChatLoading(false);
+      // Add new tab
+      setTabs(prev => [...prev, { id: tabId, name: tabName, content: '', isTyping: true }]);
+      setActiveTab(tabId);
+      setIsChatLoading(true);
+      
+      // Build context message
+      let contextMsg = userMsg;
+      if (selectedTickers.length > 0) {
+        contextMsg += `\n\nTickers: ${selectedTickers.join(', ')}`;
+      }
+      if (selectedStrategy) {
+        const strat = STRATEGY_TYPES.find(s => s.id === selectedStrategy);
+        contextMsg += `\nStrategy type: ${strat?.name || selectedStrategy}`;
+      }
+      if (selectedTimeframe) {
+        const tf = TIMEFRAMES.find(t => t.id === selectedTimeframe);
+        contextMsg += `\nTimeframe: ${tf?.label || selectedTimeframe}`;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}/api/atlas/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: contextMsg }),
+        });
+        if (!response.ok) throw new Error('Failed');
+        const data = await response.json();
+        const fullContent = data.response || "Couldn't respond.";
+        
+        // Typewriter effect for strategy tab
+        let idx = 0;
+        const interval = setInterval(() => {
+          idx += 10;
+          if (idx >= fullContent.length) {
+            clearInterval(interval);
+            setTabs(prev => prev.map(t => 
+              t.id === tabId ? { ...t, content: fullContent, isTyping: false } : t
+            ));
+          } else {
+            setTabs(prev => prev.map(t => 
+              t.id === tabId ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t
+            ));
+          }
+        }, 5);
+      } catch (e) {
+        setTabs(prev => prev.map(t => 
+          t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t
+        ));
+      } finally {
+        setIsChatLoading(false);
+        // Clear selections after creating strategy
+        setStrategyName('');
+      }
+    } else {
+      // Regular chat message
+      setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+      setIsChatLoading(true);
+
+      try {
+        const response = await fetch(`${API_BASE}/api/atlas/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMsg }),
+        });
+        if (!response.ok) throw new Error('Failed');
+        const data = await response.json();
+        const fullContent = data.response || "Couldn't respond.";
+        
+        setMessages(prev => [...prev, { role: 'assistant', content: '', isTyping: true }]);
+        let idx = 0;
+        const interval = setInterval(() => {
+          idx += 10;
+          if (idx >= fullContent.length) {
+            clearInterval(interval);
+            setMessages(prev => {
+              const msgs = [...prev];
+              msgs[msgs.length - 1] = { role: 'assistant', content: fullContent, isTyping: false };
+              return msgs;
+            });
+          } else {
+            setMessages(prev => {
+              const msgs = [...prev];
+              msgs[msgs.length - 1] = { role: 'assistant', content: fullContent.slice(0, idx), isTyping: true };
+              return msgs;
+            });
+          }
+        }, 5);
+      } catch (e) {
+        setMessages(prev => [...prev, { role: 'assistant', content: "Error.", isError: true }]);
+      } finally {
+        setIsChatLoading(false);
+      }
     }
   };
 
@@ -156,7 +239,7 @@ const GrokPanel = () => {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const renderMessage = (content, msgIdx) => {
+  const renderContent = (content, msgIdx) => {
     const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
     const parts = [];
     let last = 0, match;
@@ -186,6 +269,8 @@ const GrokPanel = () => {
       return <span key={i} className="whitespace-pre-wrap">{p.content}</span>;
     });
   };
+
+  const activeTabData = tabs.find(t => t.id === activeTab);
 
   // Collapsed view
   if (isCollapsed) {
@@ -229,175 +314,232 @@ const GrokPanel = () => {
         </div>
       </div>
 
+      {/* Tab Bar */}
+      <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-gray-800 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                : 'bg-[#0d1829] text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-[#e5e5e5]'
+            }`}
+          >
+            {tab.name}
+            {tab.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}
+            {tab.id !== 'chat' && (
+              <X 
+                className="w-3 h-3 hover:text-white ml-0.5" 
+                onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Content - fits page, no scroll */}
       <div className="flex-1 p-2.5 flex flex-col gap-2.5 overflow-hidden">
         
-        {/* Ticker */}
-        <div className="flex-shrink-0">
-          <label className="text-gray-300 text-sm font-medium mb-1 block">TICKER</label>
-          <div className="flex flex-wrap gap-1 mb-1.5">
-            {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
-              <button
-                key={s}
-                onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
-                className={`px-2 py-0.5 rounded text-sm font-medium transition-all ${
-                  selectedTickers.includes(s)
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                    : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80'
-                }`}
-              >
-                ${s}
-              </button>
-            ))}
-          </div>
-          <div className="relative">
-            <div className="flex items-center gap-1 bg-[#0d1829] border border-gray-700 rounded px-2 py-1 hover:border-gray-600 transition-colors">
-              <Search className="w-3 h-3 text-gray-600" />
-              <input
-                type="text"
-                value={tickerSearch}
-                onChange={(e) => setTickerSearch(e.target.value)}
-                placeholder="Search ticker..."
-                className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-600 text-sm outline-none"
-              />
-              {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-3 h-3 text-gray-500 hover:text-white" /></button>}
-            </div>
-            {searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-0.5 bg-[#0d1829] border border-gray-700 rounded z-50">
-                {searchResults.map(t => (
-                  <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-2 py-1 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors">
-                    <span><span className="text-[#e5e5e5]">${t.symbol}</span> <span className="text-gray-500">{t.name}</span></span>
-                    <Plus className="w-3 h-3 text-emerald-400" />
-                  </div>
+        {/* Only show config options on Chat tab */}
+        {activeTab === 'chat' && (
+          <>
+            {/* Ticker */}
+            <div className="flex-shrink-0">
+              <label className="text-gray-300 text-sm font-medium mb-1 block">TICKER</label>
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
+                    className={`px-2 py-0.5 rounded text-sm font-medium transition-all ${
+                      selectedTickers.includes(s)
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                        : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80'
+                    }`}
+                  >
+                    ${s}
+                  </button>
                 ))}
               </div>
-            )}
-          </div>
-          {selectedTickers.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {selectedTickers.filter(s => !['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].includes(s)).map(s => (
-                <span key={s} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded text-sm">
-                  ${s}<button onClick={() => removeTicker(s)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Strategy */}
-        <div className="flex-shrink-0">
-          <label className="text-gray-300 text-sm font-medium mb-1 block">STRATEGY</label>
-          <div className="grid grid-cols-3 gap-1">
-            {STRATEGY_TYPES.map(s => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)}
-                  className={`p-1.5 rounded text-center transition-all hover:bg-[#0d1829]/80 ${
-                    selectedStrategy === s.id
-                      ? 'bg-emerald-500/20 border border-emerald-500/50'
-                      : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600'
-                  }`}
-                >
-                  <Icon className={`w-3 h-3 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
-                  <span className={`text-sm block mt-0.5 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Timeframe */}
-        <div className="flex-shrink-0">
-          <label className="text-gray-300 text-sm font-medium mb-1 block">TIMEFRAME</label>
-          <div className="flex gap-1">
-            {TIMEFRAMES.map(tf => (
-              <button
-                key={tf.id}
-                onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
-                className={`flex-1 py-1 rounded text-sm font-medium transition-all hover:bg-[#0d1829]/80 ${
-                  selectedTimeframe === tf.id
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                    : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                {tf.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Name */}
-        <div className="flex-shrink-0">
-          <label className="text-gray-300 text-sm font-medium mb-1 block">NAME</label>
-          <input
-            type="text"
-            value={strategyName}
-            onChange={(e) => setStrategyName(e.target.value)}
-            placeholder="Strategy name..."
-            className="w-full px-2 py-1 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-sm focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
-          />
-        </div>
-
-        {/* Chat */}
-        <div className="flex flex-col">
-          <label className="text-gray-300 text-sm font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
-          
-          <div className="max-h-[300px] bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-            <div className="p-1.5 space-y-1.5">
-              {messages.length === 0 && (
-                <div className="py-8 flex items-center justify-center text-gray-600 text-sm">
-                  Ask Grok anything about trading...
+              <div className="relative">
+                <div className="flex items-center gap-1 bg-[#0d1829] border border-gray-700 rounded px-2 py-1 hover:border-gray-600 transition-colors">
+                  <Search className="w-3 h-3 text-gray-600" />
+                  <input
+                    type="text"
+                    value={tickerSearch}
+                    onChange={(e) => setTickerSearch(e.target.value)}
+                    placeholder="Search ticker..."
+                    className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-600 text-sm outline-none"
+                  />
+                  {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-3 h-3 text-gray-500 hover:text-white" /></button>}
+                </div>
+                {searchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-0.5 bg-[#0d1829] border border-gray-700 rounded z-50">
+                    {searchResults.map(t => (
+                      <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-2 py-1 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors">
+                        <span><span className="text-[#e5e5e5]">${t.symbol}</span> <span className="text-gray-500">{t.name}</span></span>
+                        <Plus className="w-3 h-3 text-emerald-400" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedTickers.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {selectedTickers.filter(s => !['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].includes(s)).map(s => (
+                    <span key={s} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded text-sm">
+                      ${s}<button onClick={() => removeTicker(s)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
+                    </span>
+                  ))}
                 </div>
               )}
-              {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[95%] rounded px-2 py-1 transition-all cursor-default ${
-                    m.role === 'user' 
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-500' 
-                      : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-800 hover:bg-[#111d2e] hover:border-gray-700'
-                  }`}>
-                    {m.role === 'assistant' && (
-                      <div className="flex items-center gap-1 mb-0.5 pb-0.5 border-b border-gray-700/50">
-                        <Zap className="w-2.5 h-2.5 text-emerald-400" />
-                        <span className="text-emerald-400 text-[9px]">Grok</span>
-                        {m.isTyping && <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+            </div>
+
+            {/* Strategy */}
+            <div className="flex-shrink-0">
+              <label className="text-gray-300 text-sm font-medium mb-1 block">STRATEGY</label>
+              <div className="grid grid-cols-3 gap-1">
+                {STRATEGY_TYPES.map(s => {
+                  const Icon = s.icon;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)}
+                      className={`p-1.5 rounded text-center transition-all hover:bg-[#0d1829]/80 ${
+                        selectedStrategy === s.id
+                          ? 'bg-emerald-500/20 border border-emerald-500/50'
+                          : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600'
+                      }`}
+                    >
+                      <Icon className={`w-3 h-3 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
+                      <span className={`text-sm block mt-0.5 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Timeframe */}
+            <div className="flex-shrink-0">
+              <label className="text-gray-300 text-sm font-medium mb-1 block">TIMEFRAME</label>
+              <div className="flex gap-1">
+                {TIMEFRAMES.map(tf => (
+                  <button
+                    key={tf.id}
+                    onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
+                    className={`flex-1 py-1 rounded text-sm font-medium transition-all hover:bg-[#0d1829]/80 ${
+                      selectedTimeframe === tf.id
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                        : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
+                    }`}
+                  >
+                    {tf.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Name */}
+            <div className="flex-shrink-0">
+              <label className="text-gray-300 text-sm font-medium mb-1 block">NAME</label>
+              <input
+                type="text"
+                value={strategyName}
+                onChange={(e) => setStrategyName(e.target.value)}
+                placeholder="Strategy name..."
+                className="w-full px-2 py-1 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-sm focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
+              />
+            </div>
+          </>
+        )}
+
+        {/* Chat / Strategy Content */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {activeTab === 'chat' && (
+            <label className="text-gray-300 text-sm font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
+          )}
+          
+          <div className="flex-1 bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+            <div className="p-1.5 space-y-1.5">
+              {activeTab === 'chat' ? (
+                // Chat messages
+                <>
+                  {messages.length === 0 && (
+                    <div className="py-8 flex items-center justify-center text-gray-600 text-sm">
+                      Ask Grok anything about trading...
+                    </div>
+                  )}
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[95%] rounded px-2 py-1 transition-all cursor-default ${
+                        m.role === 'user' 
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-500' 
+                          : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-800 hover:bg-[#111d2e] hover:border-gray-700'
+                      }`}>
+                        {m.role === 'assistant' && (
+                          <div className="flex items-center gap-1 mb-0.5 pb-0.5 border-b border-gray-700/50">
+                            <Zap className="w-2.5 h-2.5 text-emerald-400" />
+                            <span className="text-emerald-400 text-[9px]">Grok</span>
+                            {m.isTyping && <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+                          </div>
+                        )}
+                        <div className="text-base leading-relaxed">{renderContent(m.content, i)}</div>
                       </div>
-                    )}
-                    <div className="text-base leading-relaxed">{renderMessage(m.content, i)}</div>
-                  </div>
-                </div>
-              ))}
-              {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
-                <div className="flex justify-start">
-                  <div className="bg-[#0d1829] border border-gray-800 rounded px-2 py-1 flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
-                    <span className="text-gray-500 text-[9px]">Thinking...</span>
-                  </div>
-                </div>
+                    </div>
+                  ))}
+                  {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
+                    <div className="flex justify-start">
+                      <div className="bg-[#0d1829] border border-gray-800 rounded px-2 py-1 flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />
+                        <span className="text-gray-500 text-[9px]">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                // Strategy tab content
+                <>
+                  {activeTabData?.content ? (
+                    <div className="text-[#e5e5e5]">
+                      <div className="flex items-center gap-1 mb-2 pb-1 border-b border-gray-700/50">
+                        <Zap className="w-3 h-3 text-emerald-400" />
+                        <span className="text-emerald-400 text-sm font-medium">{activeTabData.name}</span>
+                        {activeTabData.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
+                      </div>
+                      <div className="text-base leading-relaxed">{renderContent(activeTabData.content, activeTab)}</div>
+                    </div>
+                  ) : (
+                    <div className="py-8 flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                      <span className="text-gray-500 text-sm ml-2">Generating strategy...</span>
+                    </div>
+                  )}
+                </>
               )}
               <div ref={messagesEndRef} />
             </div>
           </div>
 
-          <div className="flex gap-1 flex-shrink-0">
-            <textarea
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
-              placeholder="Ask Grok..."
-              rows={2}
-              className="flex-1 px-2 py-1.5 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-base resize-none focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
-            />
-            <button
-              onClick={handleChatSend}
-              disabled={!chatInput.trim() || isChatLoading}
-              className={`px-2 rounded transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600 hover:bg-gray-700'}`}
-            >
-              {isChatLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </button>
-          </div>
+          {activeTab === 'chat' && (
+            <div className="flex gap-1 flex-shrink-0">
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                placeholder="Ask Grok..."
+                rows={2}
+                className="flex-1 px-2 py-1.5 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-base resize-none focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
+              />
+              <button
+                onClick={handleChatSend}
+                disabled={!chatInput.trim() || isChatLoading}
+                className={`px-2 rounded transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600 hover:bg-gray-700'}`}
+              >
+                {isChatLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
