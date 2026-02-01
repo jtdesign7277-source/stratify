@@ -146,7 +146,7 @@ app.post('/api/atlas/chat', async (req, res) => {
       body: JSON.stringify({
         model: 'grok-3',
         messages: [
-          { role: 'system', content: 'You are Grok, an expert AI trading strategist. Include entry/exit conditions, risk management, and Python code for backtesting. Format code in ```python blocks.' },
+          { role: 'system', content: 'You are Grok, a trading strategy AI. Be concise and direct. When asked for code, provide ONLY the Python code with minimal comments. No lengthy explanations, assumptions, limitations, or notes sections. Just working code.' },
           { role: 'user', content: message }
         ],
         temperature: 0.7,
