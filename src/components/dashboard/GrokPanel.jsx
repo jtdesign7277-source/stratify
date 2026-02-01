@@ -234,13 +234,13 @@ const GrokPanel = () => {
         
         {/* Ticker */}
         <div className="flex-shrink-0">
-          <label className="text-gray-500 text-[10px] font-medium mb-1 block">TICKER</label>
+          <label className="text-gray-300 text-sm font-medium mb-1 block">TICKER</label>
           <div className="flex flex-wrap gap-1 mb-1.5">
             {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
               <button
                 key={s}
                 onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                className={`px-2 py-0.5 rounded text-sm font-medium transition-all ${
                   selectedTickers.includes(s)
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                     : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80'
@@ -258,14 +258,14 @@ const GrokPanel = () => {
                 value={tickerSearch}
                 onChange={(e) => setTickerSearch(e.target.value)}
                 placeholder="Search ticker..."
-                className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-600 text-[11px] outline-none"
+                className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-600 text-sm outline-none"
               />
               {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-3 h-3 text-gray-500 hover:text-white" /></button>}
             </div>
             {searchResults.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-0.5 bg-[#0d1829] border border-gray-700 rounded z-50">
                 {searchResults.map(t => (
-                  <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-2 py-1 hover:bg-emerald-500/10 cursor-pointer text-[11px] transition-colors">
+                  <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-2 py-1 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors">
                     <span><span className="text-[#e5e5e5]">${t.symbol}</span> <span className="text-gray-500">{t.name}</span></span>
                     <Plus className="w-3 h-3 text-emerald-400" />
                   </div>
@@ -276,7 +276,7 @@ const GrokPanel = () => {
           {selectedTickers.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {selectedTickers.filter(s => !['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].includes(s)).map(s => (
-                <span key={s} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded text-[10px]">
+                <span key={s} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded text-sm">
                   ${s}<button onClick={() => removeTicker(s)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
                 </span>
               ))}
@@ -286,7 +286,7 @@ const GrokPanel = () => {
 
         {/* Strategy */}
         <div className="flex-shrink-0">
-          <label className="text-gray-500 text-[10px] font-medium mb-1 block">STRATEGY</label>
+          <label className="text-gray-300 text-sm font-medium mb-1 block">STRATEGY</label>
           <div className="grid grid-cols-3 gap-1">
             {STRATEGY_TYPES.map(s => {
               const Icon = s.icon;
@@ -301,7 +301,7 @@ const GrokPanel = () => {
                   }`}
                 >
                   <Icon className={`w-3 h-3 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
-                  <span className={`text-[9px] block mt-0.5 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
+                  <span className={`text-sm block mt-0.5 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
                 </button>
               );
             })}
@@ -310,13 +310,13 @@ const GrokPanel = () => {
 
         {/* Timeframe */}
         <div className="flex-shrink-0">
-          <label className="text-gray-500 text-[10px] font-medium mb-1 block">TIMEFRAME</label>
+          <label className="text-gray-300 text-sm font-medium mb-1 block">TIMEFRAME</label>
           <div className="flex gap-1">
             {TIMEFRAMES.map(tf => (
               <button
                 key={tf.id}
                 onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
-                className={`flex-1 py-1 rounded text-[11px] font-medium transition-all hover:bg-[#0d1829]/80 ${
+                className={`flex-1 py-1 rounded text-sm font-medium transition-all hover:bg-[#0d1829]/80 ${
                   selectedTimeframe === tf.id
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                     : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
@@ -330,19 +330,19 @@ const GrokPanel = () => {
 
         {/* Name */}
         <div className="flex-shrink-0">
-          <label className="text-gray-500 text-[10px] font-medium mb-1 block">NAME</label>
+          <label className="text-gray-300 text-sm font-medium mb-1 block">NAME</label>
           <input
             type="text"
             value={strategyName}
             onChange={(e) => setStrategyName(e.target.value)}
             placeholder="Strategy name..."
-            className="w-full px-2 py-1 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-[11px] focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
+            className="w-full px-2 py-1 bg-[#0d1829] border border-gray-700 rounded text-[#e5e5e5] placeholder-gray-600 text-sm focus:outline-none focus:border-emerald-500 hover:border-gray-600 transition-colors"
           />
         </div>
 
         {/* Chat */}
         <div className="flex flex-col">
-          <label className="text-gray-500 text-[10px] font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
+          <label className="text-gray-300 text-sm font-medium mb-1 block flex-shrink-0">GROK CHAT</label>
           
           <div className="max-h-[300px] bg-[#0a1628] border border-gray-700 rounded mb-1.5 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
             <div className="p-1.5 space-y-1.5">
