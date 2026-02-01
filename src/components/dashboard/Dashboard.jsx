@@ -15,6 +15,7 @@ import StrategiesPage from './StrategiesPage';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
 import AIChat from './AIChat';
+import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './CommandPalette';
 
 const loadDashboardState = () => {
   try {
@@ -170,6 +171,83 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       const saved = localStorage.getItem('stratify-connected-brokers');
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
+  });
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+
+  // Command palette navigation handler
+  const handleCommandNavigate = useCallback((target) => {
+    switch (target) {
+      case 'dashboard':
+      case 'watchlist':
+        setActiveSection('watchlist');
+        break;
+      case 'strategies':
+        setActiveSection('strategies');
+        break;
+      case 'builder':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, strategyBuilder: true }));
+        break;
+      case 'arbitrage':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, arbitrageScanner: true }));
+        break;
+      case 'settings':
+        setActiveSection('settings');
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  // Command palette action handler
+  const handleCommandAction = useCallback((action, data) => {
+    switch (action) {
+      case 'newStrategy':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, strategyBuilder: true }));
+        break;
+      case 'openAI':
+        setActiveSection('watchlist');
+        // Focus the AI chat input
+        setTimeout(() => {
+          const aiInput = document.querySelector('[data-ai-chat-input]');
+          aiInput?.focus();
+        }, 100);
+        break;
+      case 'runBacktest':
+        // Will trigger backtest on selected strategy
+        break;
+      case 'deployStrategy':
+        // Will deploy selected strategy
+        break;
+      case 'searchStock':
+        // Focus the search bar
+        setTimeout(() => {
+          const searchInput = document.querySelector('[data-search-input]');
+          searchInput?.focus();
+        }, 100);
+        break;
+      case 'showShortcuts':
+        setShowShortcutsModal(true);
+        break;
+      case 'editStrategy':
+        if (data) setEditingStrategy(data);
+        break;
+      case 'viewDeployed':
+        setActiveSection('watchlist');
+        setPanelStates(prev => ({ ...prev, deployedStrategies: true }));
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  // Command palette hook
+  const commandPalette = useCommandPalette({
+    onNavigate: handleCommandNavigate,
+    onAction: handleCommandAction,
+    onThemeToggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark'),
   });
 
   const handleStrategyGenerated = (strategy) => {
@@ -547,6 +625,24 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         onClose={() => setShowBrokerModal(false)}
         onConnect={handleConnectBroker}
         connectedBrokers={connectedBrokers}
+      />
+
+      {/* Command Palette - ⌘K to open */}
+      <CommandPalette
+        isOpen={commandPalette.isOpen}
+        onClose={commandPalette.close}
+        onNavigate={handleCommandNavigate}
+        onAction={handleCommandAction}
+        strategies={strategies}
+        deployedStrategies={deployedStrategies}
+        theme={theme}
+        onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
       />
     </div>
   );
