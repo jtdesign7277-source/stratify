@@ -364,56 +364,6 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
           </button>
         </div>
 
-        {/* Holdings Table (if connected) */}
-        {holdings.length > 0 && (
-          <div className="mt-6 bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-white font-medium">Holdings</h3>
-              <span className="text-gray-500 text-sm">{holdings.length} positions</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-sm text-gray-500 border-b border-gray-800">
-                    <th className="text-left px-4 py-3 font-medium">Asset</th>
-                    <th className="text-right px-4 py-3 font-medium">Shares</th>
-                    <th className="text-right px-4 py-3 font-medium">Avg Cost</th>
-                    <th className="text-right px-4 py-3 font-medium">Price</th>
-                    <th className="text-right px-4 py-3 font-medium">Value</th>
-                    <th className="text-right px-4 py-3 font-medium">P/L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {holdings.map((holding) => {
-                    const priceData = prices[holding.symbol] || {};
-                    const currentPrice = holding.currentPrice || priceData.price || holding.avgCost;
-                    const value = holding.marketValue || (currentPrice * holding.shares);
-                    const pl = holding.unrealizedPL || (value - (holding.avgCost * holding.shares));
-                    const plPercent = holding.unrealizedPLPercent || (holding.avgCost > 0 ? ((currentPrice - holding.avgCost) / holding.avgCost) * 100 : 0);
-                    const isPositive = pl >= 0;
-                    
-                    return (
-                      <tr key={holding.symbol} className="border-b border-gray-800/50 hover:bg-[#0d1829] transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="text-white font-medium">{holding.symbol}</div>
-                          <div className="text-gray-500 text-sm">{holding.name}</div>
-                        </td>
-                        <td className="px-4 py-3 text-right text-white">{holding.shares}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">{formatCurrency(holding.avgCost)}</td>
-                        <td className="px-4 py-3 text-right text-white">{formatCurrency(currentPrice)}</td>
-                        <td className="px-4 py-3 text-right text-white font-medium">{formatCurrency(value)}</td>
-                        <td className={`px-4 py-3 text-right ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          <div>{isPositive ? '+' : ''}{formatCurrency(pl)}</div>
-                          <div className="text-sm">{isPositive ? '+' : ''}{plPercent.toFixed(2)}%</div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Broker Connect Modal */}
