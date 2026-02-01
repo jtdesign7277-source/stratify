@@ -503,7 +503,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               </div>
             </div>
           )}
-          {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} />}
+          {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} alpacaData={alpacaData} />}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
         </div>
         
