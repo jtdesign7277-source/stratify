@@ -14,7 +14,7 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const timeframes = ['1W', '1M', '3M', '6M', '1Y', 'All'];
+  const timeframes = ['1D', '1W', '1M', '3M', '6M', '1Y', 'All'];
 
   const getDaysForTimeframe = (tf) => {
     switch (tf) {
