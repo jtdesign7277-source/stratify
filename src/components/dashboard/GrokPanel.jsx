@@ -8,7 +8,6 @@ import {
 const API_BASE = 'https://atlas-api-production-5944.up.railway.app';
 
 const ALL_TICKERS = [
-  // Big Tech
   { symbol: 'AAPL', name: 'Apple Inc.' },
   { symbol: 'MSFT', name: 'Microsoft Corporation' },
   { symbol: 'GOOGL', name: 'Alphabet Inc.' },
@@ -20,7 +19,6 @@ const ALL_TICKERS = [
   { symbol: 'CRM', name: 'Salesforce Inc.' },
   { symbol: 'ADBE', name: 'Adobe Inc.' },
   { symbol: 'ORCL', name: 'Oracle Corporation' },
-  // ETFs
   { symbol: 'SPY', name: 'SPDR S&P 500 ETF' },
   { symbol: 'QQQ', name: 'Invesco QQQ Trust' },
   { symbol: 'DIA', name: 'SPDR Dow Jones ETF' },
@@ -28,7 +26,6 @@ const ALL_TICKERS = [
   { symbol: 'VOO', name: 'Vanguard S&P 500' },
   { symbol: 'VTI', name: 'Vanguard Total Market' },
   { symbol: 'ARKK', name: 'ARK Innovation ETF' },
-  // Semiconductors
   { symbol: 'AMD', name: 'Advanced Micro Devices' },
   { symbol: 'INTC', name: 'Intel Corporation' },
   { symbol: 'AVGO', name: 'Broadcom Inc.' },
@@ -38,7 +35,6 @@ const ALL_TICKERS = [
   { symbol: 'ARM', name: 'Arm Holdings' },
   { symbol: 'TSM', name: 'Taiwan Semiconductor' },
   { symbol: 'ASML', name: 'ASML Holding' },
-  // Finance
   { symbol: 'JPM', name: 'JPMorgan Chase' },
   { symbol: 'BAC', name: 'Bank of America' },
   { symbol: 'GS', name: 'Goldman Sachs' },
@@ -49,7 +45,6 @@ const ALL_TICKERS = [
   { symbol: 'SQ', name: 'Block Inc.' },
   { symbol: 'COIN', name: 'Coinbase Global' },
   { symbol: 'SOFI', name: 'SoFi Technologies' },
-  // AI & Growth
   { symbol: 'PLTR', name: 'Palantir Technologies' },
   { symbol: 'AI', name: 'C3.ai Inc.' },
   { symbol: 'PATH', name: 'UiPath Inc.' },
@@ -58,27 +53,22 @@ const ALL_TICKERS = [
   { symbol: 'NET', name: 'Cloudflare Inc.' },
   { symbol: 'CRWD', name: 'CrowdStrike Holdings' },
   { symbol: 'ZS', name: 'Zscaler Inc.' },
-  // EVs & Auto
   { symbol: 'RIVN', name: 'Rivian Automotive' },
   { symbol: 'LCID', name: 'Lucid Group' },
   { symbol: 'NIO', name: 'NIO Inc.' },
   { symbol: 'F', name: 'Ford Motor' },
   { symbol: 'GM', name: 'General Motors' },
-  // Meme & Retail
   { symbol: 'GME', name: 'GameStop Corp.' },
   { symbol: 'AMC', name: 'AMC Entertainment' },
   { symbol: 'BB', name: 'BlackBerry' },
-  // Space
   { symbol: 'RKLB', name: 'Rocket Lab' },
   { symbol: 'ASTS', name: 'AST SpaceMobile' },
   { symbol: 'LUNR', name: 'Intuitive Machines' },
-  // Healthcare
   { symbol: 'JNJ', name: 'Johnson & Johnson' },
   { symbol: 'UNH', name: 'UnitedHealth Group' },
   { symbol: 'PFE', name: 'Pfizer Inc.' },
   { symbol: 'MRNA', name: 'Moderna Inc.' },
   { symbol: 'LLY', name: 'Eli Lilly' },
-  // Other
   { symbol: 'WMT', name: 'Walmart Inc.' },
   { symbol: 'COST', name: 'Costco Wholesale' },
   { symbol: 'HD', name: 'Home Depot' },
@@ -86,7 +76,6 @@ const ALL_TICKERS = [
   { symbol: 'BA', name: 'Boeing Company' },
   { symbol: 'XOM', name: 'Exxon Mobil' },
   { symbol: 'CVX', name: 'Chevron Corporation' },
-  // Crypto
   { symbol: 'BTC', name: 'Bitcoin' },
   { symbol: 'ETH', name: 'Ethereum' },
   { symbol: 'SOL', name: 'Solana' },
@@ -95,7 +84,6 @@ const ALL_TICKERS = [
   { symbol: 'ADA', name: 'Cardano' },
   { symbol: 'AVAX', name: 'Avalanche' },
   { symbol: 'LINK', name: 'Chainlink' },
-  // Cosmetics (ELF)
   { symbol: 'ELF', name: 'e.l.f. Beauty' },
   { symbol: 'ULTA', name: 'Ulta Beauty' },
 ];
@@ -116,15 +104,11 @@ const TIMEFRAMES = [
   { id: '1y', label: '1Y' },
 ];
 
-// Parse Grok response into summary and code
 const parseStrategyResponse = (content) => {
   const codeMatch = content.match(/```python\n([\s\S]*?)```/);
   const code = codeMatch ? codeMatch[1].trim() : '';
-  
-  // Extract summary (everything before the code block, or parse structured data)
   let summary = content.split('```')[0].trim();
   
-  // Try to parse structured summary
   const parsed = {
     ticker: '',
     entry: '',
@@ -134,7 +118,6 @@ const parseStrategyResponse = (content) => {
     description: summary
   };
   
-  // Look for common patterns
   const tickerMatch = summary.match(/Ticker[s]?:\s*([^\n]+)/i);
   const entryMatch = summary.match(/Entry[^:]*:\s*([^\n]+)/i);
   const exitMatch = summary.match(/Exit[^:]*:\s*([^\n]+)/i);
@@ -165,28 +148,24 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   
-  // Tab system
   const [tabs, setTabs] = useState([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
   const [activeTab, setActiveTab] = useState('chat');
   const [strategyCounter, setStrategyCounter] = useState(0);
-  
-  // Sub-tab for strategy tabs (strategy vs code)
   const [activeSubTab, setActiveSubTab] = useState('strategy');
   
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
 
-  // Debounced ticker search using API
   useEffect(() => {
     if (!tickerSearch.trim()) {
       setSearchResults([]);
       return;
     }
 
-    // First show local results instantly
     const query = tickerSearch.toLowerCase();
     const localResults = ALL_TICKERS.filter(t => 
       !selectedTickers.includes(t.symbol) &&
@@ -194,11 +173,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     ).slice(0, 5);
     setSearchResults(localResults);
 
-    // Then fetch from API
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // Try our API first
         let apiResults = [];
         try {
           const response = await fetch(`/api/stock/search?q=${encodeURIComponent(tickerSearch)}`);
@@ -212,11 +189,8 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               }));
             }
           }
-        } catch (e) {
-          // API failed, try Yahoo Finance directly
-        }
+        } catch (e) {}
         
-        // Fallback to Yahoo Finance if no API results
         if (apiResults.length === 0) {
           const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(tickerSearch)}&quotesCount=8&newsCount=0`;
           const response = await fetch(yahooUrl);
@@ -234,7 +208,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
           }
         }
         
-        // Filter out already selected and merge
         const filteredResults = apiResults.filter(r => !selectedTickers.includes(r.symbol));
         const apiSymbols = new Set(filteredResults.map(r => r.symbol));
         const mergedResults = [
@@ -247,7 +220,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
         }
       } catch (err) {
         console.error('Ticker search error:', err);
-        // Keep local results on error
       } finally {
         setIsSearching(false);
       }
@@ -260,7 +232,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     if (!selectedTickers.includes(symbol)) {
       const newTickers = [...selectedTickers, symbol];
       setSelectedTickers(newTickers);
-      // Auto-update strategy name with ticker prefix
       updateStrategyNameWithTickers(newTickers);
     }
     setTickerSearch('');
@@ -270,11 +241,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const removeTicker = (symbol) => {
     const newTickers = selectedTickers.filter(s => s !== symbol);
     setSelectedTickers(newTickers);
-    // Update strategy name when ticker removed
     updateStrategyNameWithTickers(newTickers);
   };
 
-  // Helper to format ticker prefix for strategy name
   const getTickerPrefix = (tickers) => {
     if (!tickers || tickers.length === 0) return '';
     if (tickers.length === 1) return `$${tickers[0]} - `;
@@ -282,11 +251,8 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     return `$${tickers[0]}+ - `;
   };
 
-  // Update strategy name with ticker prefix, preserving any suffix
   const updateStrategyNameWithTickers = (tickers, strategyType = null) => {
     const prefix = getTickerPrefix(tickers);
-    
-    // Extract existing strategy type from name (after the " - ")
     const currentName = strategyName;
     const dashIndex = currentName.indexOf(' - ');
     const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : '';
@@ -312,6 +278,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     setActiveTab('chat');
     setStrategyCounter(0);
     setActiveSubTab('strategy');
+    setSelectedQuickStrategy(null);
   };
 
   const closeTab = (tabId) => {
@@ -339,8 +306,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     };
     
     onSaveStrategy && onSaveStrategy(strategyToSave);
-    
-    // Update tab to show saved status
     setTabs(prev => prev.map(t => 
       t.id === activeTab ? { ...t, saved: true } : t
     ));
@@ -365,8 +330,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     };
     
     onDeployStrategy && onDeployStrategy(strategyToSave);
-    
-    // Update tab to show deployed status
     setTabs(prev => prev.map(t => 
       t.id === activeTab ? { ...t, saved: true, deployed: true } : t
     ));
@@ -399,7 +362,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
       setActiveSubTab('strategy');
       setIsChatLoading(true);
       
-      // Build context message with structured output request
       let contextMsg = `${userMsg}
 
 Generate a trading strategy with the following format:
@@ -456,6 +418,7 @@ Generate a trading strategy with the following format:
       } finally {
         setIsChatLoading(false);
         setStrategyName('');
+        setSelectedQuickStrategy(null);
       }
     } else {
       setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
@@ -550,19 +513,17 @@ Generate a trading strategy with the following format:
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const renderCode = (code, key) => {
-    return (
-      <div className="rounded-lg border border-gray-700 overflow-hidden">
-        <div className="flex justify-between items-center px-3 py-1.5 bg-[#0a1628] border-b border-gray-700">
-          <span className="text-sm text-gray-400 font-mono">python</span>
-          <button onClick={() => copyCode(code, key)} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
-            {copiedIndex === key ? <><Check className="w-3.5 h-3.5 text-emerald-400"/> Copied</> : <><Copy className="w-3.5 h-3.5"/> Copy</>}
-          </button>
-        </div>
-        <pre className="p-3 bg-[#060d18] overflow-x-auto text-sm text-gray-300 font-mono leading-relaxed">{code}</pre>
+  const renderCode = (code, key) => (
+    <div className="rounded-lg border border-gray-700 overflow-hidden">
+      <div className="flex justify-between items-center px-3 py-1.5 bg-[#0a1628] border-b border-gray-700">
+        <span className="text-xs text-gray-400 font-mono">python</span>
+        <button onClick={() => copyCode(code, key)} className="text-xs text-gray-400 hover:text-white flex items-center gap-1">
+          {copiedIndex === key ? <><Check className="w-3 h-3 text-emerald-400"/> Copied</> : <><Copy className="w-3 h-3"/> Copy</>}
+        </button>
       </div>
-    );
-  };
+      <pre className="p-3 bg-[#060d18] overflow-x-auto text-xs text-gray-300 font-mono leading-relaxed max-h-64 overflow-y-auto">{code}</pre>
+    </div>
+  );
 
   const renderContent = (content, msgIdx) => {
     const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
@@ -591,39 +552,33 @@ Generate a trading strategy with the following format:
     }
     
     return (
-      <div className="space-y-3">
-        {parsed.ticker && (
-          <div>
-            <label className="text-gray-400 text-sm font-medium">Ticker(s)</label>
-            <div className="text-[#e5e5e5] text-base mt-0.5">{parsed.ticker}</div>
-          </div>
-        )}
+      <div className="space-y-4">
         {parsed.entry && (
           <div>
-            <label className="text-gray-400 text-sm font-medium">Entry Condition</label>
-            <div className="text-[#e5e5e5] text-base mt-0.5">{parsed.entry}</div>
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Entry Condition</label>
+            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.entry}</div>
           </div>
         )}
         {parsed.exit && (
           <div>
-            <label className="text-gray-400 text-sm font-medium">Exit Condition</label>
-            <div className="text-[#e5e5e5] text-base mt-0.5">{parsed.exit}</div>
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Exit Condition</label>
+            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.exit}</div>
           </div>
         )}
         {parsed.stopLoss && (
           <div>
-            <label className="text-gray-400 text-sm font-medium">Stop Loss</label>
-            <div className="text-[#e5e5e5] text-base mt-0.5">{parsed.stopLoss}</div>
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Stop Loss</label>
+            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.stopLoss}</div>
           </div>
         )}
         {parsed.positionSize && (
           <div>
-            <label className="text-gray-400 text-sm font-medium">Position Size</label>
-            <div className="text-[#e5e5e5] text-base mt-0.5">{parsed.positionSize}</div>
+            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Position Size</label>
+            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.positionSize}</div>
           </div>
         )}
-        {!parsed.ticker && !parsed.entry && parsed.description && (
-          <div className="text-[#e5e5e5] text-base whitespace-pre-wrap">{parsed.description}</div>
+        {!parsed.entry && parsed.description && (
+          <div className="text-[#e5e5e5] text-sm whitespace-pre-wrap leading-relaxed">{parsed.description}</div>
         )}
       </div>
     );
@@ -635,10 +590,7 @@ Generate a trading strategy with the following format:
   if (isCollapsed) {
     return (
       <div className="w-10 h-full bg-[#060d18] border-l border-gray-800 flex flex-col items-center py-2">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white"
-        >
+        <button onClick={() => setIsCollapsed(false)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white">
           <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
         </button>
         <div className="mt-2 p-1 bg-emerald-500/20 rounded">
@@ -649,8 +601,8 @@ Generate a trading strategy with the following format:
   }
 
   return (
-    <div className="w-96 h-full bg-[#060d18] border-l border-gray-800 flex flex-col overflow-hidden">
-      {/* Header */}
+    <div className="w-96 h-full bg-[#060d18] border-l border-gray-800 flex flex-col">
+      {/* Header - Fixed */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-emerald-500/20 rounded">
@@ -660,11 +612,7 @@ Generate a trading strategy with the following format:
           <span className="text-gray-500 text-sm">xAI</span>
         </div>
         <div className="flex items-center gap-1">
-          <button 
-            onClick={handleReset} 
-            className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white"
-            title="Reset"
-          >
+          <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset">
             <RotateCcw className="w-4 h-4" strokeWidth={1.5} />
           </button>
           <button onClick={() => setIsCollapsed(true)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white">
@@ -673,7 +621,7 @@ Generate a trading strategy with the following format:
         </div>
       </div>
 
-      {/* Tab Bar */}
+      {/* Tab Bar - Fixed */}
       <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
         {tabs.map(tab => (
           <button
@@ -688,313 +636,303 @@ Generate a trading strategy with the following format:
             {tab.name}
             {tab.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />}
             {tab.id !== 'chat' && (
-              <X 
-                className="w-3.5 h-3.5 hover:text-white" 
-                onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
-              />
+              <X className="w-3.5 h-3.5 hover:text-white" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} />
             )}
           </button>
         ))}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 p-3 flex flex-col gap-3 min-h-0">
+      {/* Main Content Area - Scrollable */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         
-        {/* Config options - Chat tab only */}
+        {/* Chat Tab Content */}
         {activeTab === 'chat' && (
-          <>
-            <div className="flex-shrink-0">
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
-                  <button
-                    key={s}
-                    onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                      selectedTickers.includes(s)
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30'
-                    }`}
-                  >
-                    ${s}
-                  </button>
-                ))}
-              </div>
-              <div className="relative">
-                <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
-                  {isSearching ? (
-                    <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4 text-gray-500" />
-                  )}
-                  <input
-                    type="text"
-                    value={tickerSearch}
-                    onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
-                    placeholder="Search any stock..."
-                    className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none"
-                  />
-                  {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Config Section - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {/* Ticker Selection */}
+              <div>
+                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        selectedTickers.includes(s)
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                          : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30'
+                      }`}
+                    >
+                      ${s}
+                    </button>
+                  ))}
                 </div>
-                {searchResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#0a1628] border border-gray-700 rounded-lg z-50 overflow-hidden shadow-xl">
-                    {searchResults.map(t => (
-                      <div 
-                        key={t.symbol} 
-                        onClick={() => addTicker(t.symbol)} 
-                        className="flex items-center justify-between px-3 py-2.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[#e5e5e5] font-semibold">${t.symbol}</span>
-                          <span className="text-gray-500 truncate">{t.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {t.exchange && <span className="text-[10px] text-gray-600">{t.exchange}</span>}
-                          <Plus className="w-4 h-4 text-emerald-400" />
-                        </div>
-                      </div>
-                    ))}
+                <div className="relative">
+                  <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
+                    {isSearching ? <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /> : <Search className="w-4 h-4 text-gray-500" />}
+                    <input
+                      type="text"
+                      value={tickerSearch}
+                      onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
+                      placeholder="Search any stock..."
+                      className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none"
+                    />
+                    {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
                   </div>
-                )}
+                  {searchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#0a1628] border border-gray-700 rounded-lg z-50 overflow-hidden shadow-xl">
+                      {searchResults.map(t => (
+                        <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-3 py-2.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[#e5e5e5] font-semibold">${t.symbol}</span>
+                            <span className="text-gray-500 truncate">{t.name}</span>
+                          </div>
+                          <Plus className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Quick Strategy Templates */}
-            <div className="flex-shrink-0">
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
-                  { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
-                  { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
-                  { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
-                ].map(template => {
-                  const Icon = template.icon;
-                  const isSelected = selectedQuickStrategy === template.name;
-                  return (
+              {/* Quick Strategies */}
+              <div>
+                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
+                    { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
+                    { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
+                    { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
+                  ].map(template => {
+                    const Icon = template.icon;
+                    const isSelected = selectedQuickStrategy === template.name;
+                    return (
+                      <button
+                        key={template.id}
+                        onClick={() => {
+                          setSelectedQuickStrategy(template.name);
+                          const ticker = selectedTickers[0] || '';
+                          setStrategyName(ticker ? `$${ticker} - ${template.name}` : template.name);
+                          const tickerContext = selectedTickers.length > 0 ? ` for ${selectedTickers.join(', ')}` : '';
+                          setChatInput(template.prompt + tickerContext);
+                        }}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg transition-all text-left ${
+                          isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 text-emerald-400 flex-shrink-0" strokeWidth={1.5} />
+                        <span className={`text-sm ${isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{template.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Strategy Types */}
+              <div>
+                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {STRATEGY_TYPES.map(s => {
+                    const Icon = s.icon;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)}
+                        className={`p-2 rounded-lg text-center transition-all ${
+                          selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
+                        <span className={`text-xs block mt-1 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Timeframe */}
+              <div>
+                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
+                <div className="flex gap-1.5">
+                  {TIMEFRAMES.map(tf => (
                     <button
-                      key={template.id}
-                      onClick={() => {
-                        setSelectedQuickStrategy(template.name);
-                        // Set strategy name with ticker prefix
-                        const ticker = selectedTickers[0] || '';
-                        setStrategyName(ticker ? `$${ticker} - ${template.name}` : template.name);
-                        // Pre-fill prompt with ticker context
-                        const tickerContext = selectedTickers.length > 0 
-                          ? ` for ${selectedTickers.join(', ')}` 
-                          : '';
-                        setChatInput(template.prompt + tickerContext);
-                      }}
-                      className={`flex items-center gap-2 p-2.5 rounded-lg transition-all text-left ${
-                        isSelected
-                          ? 'bg-emerald-500/20 border border-emerald-500/50'
-                          : 'bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80'
+                      key={tf.id}
+                      onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
+                      className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-emerald-400' : 'text-emerald-400'}`} strokeWidth={1.5} />
-                      <span className={`text-sm ${isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{template.name}</span>
+                      {tf.label}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="flex-shrink-0">
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {STRATEGY_TYPES.map(s => {
-                  const Icon = s.icon;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)}
-                      className={`p-2 rounded-lg text-center transition-all ${
-                        selectedStrategy === s.id
-                          ? 'bg-emerald-500/20 border border-emerald-500/50'
-                          : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
-                      <span className={`text-sm block mt-1 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
-                    </button>
-                  );
-                })}
+              {/* Strategy Name */}
+              <div>
+                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
+                <input
+                  type="text"
+                  value={strategyName}
+                  onChange={(e) => setStrategyName(e.target.value)}
+                  placeholder="Strategy name..."
+                  className="w-full px-3 py-2 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                />
               </div>
-            </div>
 
-            <div className="flex-shrink-0">
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
-              <div className="flex gap-1.5">
-                {TIMEFRAMES.map(tf => (
-                  <button
-                    key={tf.id}
-                    onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
-                    className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      selectedTimeframe === tf.id
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                        : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
-                    }`}
-                  >
-                    {tf.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-shrink-0">
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
-              <input
-                type="text"
-                value={strategyName}
-                onChange={(e) => setStrategyName(e.target.value)}
-                placeholder="Strategy name..."
-                className="w-full px-3 py-2 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-              />
-            </div>
-          </>
-        )}
-
-        {/* Chat / Strategy Content */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {activeTab === 'chat' && (
-            <label className="text-gray-300 text-xs font-semibold mb-1.5 block flex-shrink-0">GROK CHAT</label>
-          )}
-          
-          {/* Unified container */}
-          <div className="flex-1 flex flex-col bg-[#0a1628] border border-gray-700 rounded-lg">
-            
-            {/* Sub-tabs for strategy */}
-            {isStrategyTab && (
-              <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-700 flex-shrink-0 -mt-px">
-                <button
-                  onClick={() => setActiveSubTab('strategy')}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                    activeSubTab === 'strategy'
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'text-gray-400 hover:text-[#e5e5e5]'
-                  }`}
-                >
-                  Strategy
-                </button>
-                <button
-                  onClick={() => setActiveSubTab('code')}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                    activeSubTab === 'code'
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'text-gray-400 hover:text-[#e5e5e5]'
-                  }`}
-                >
-                  Code
-                </button>
-              </div>
-            )}
-            
-            {/* Content area */}
-            <div className="flex-1 overflow-y-auto border-0 outline-none min-h-0">
-              <div className="px-3 py-2 space-y-2">
-                {activeTab === 'chat' ? (
-                  <>
-                    {messages.map((m, i) => (
-                      <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[90%] rounded-lg px-3 py-2 ${
-                          m.role === 'user' 
-                            ? 'bg-emerald-600 text-white' 
-                            : 'bg-[#0d1829] text-[#e5e5e5]'
-                        }`}>
-                          {m.role === 'assistant' && (
-                            <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-gray-700/50">
-                              <Zap className="w-3 h-3 text-emerald-400" />
-                              <span className="text-emerald-400 text-sm">Grok</span>
-                              {m.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse ml-auto" />}
-                            </div>
-                          )}
-                          <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
-                        </div>
-                      </div>
-                    ))}
-                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
-                      <div className="flex justify-start">
-                        <div className="bg-[#0d1829] rounded-lg px-3 py-2 flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                          <span className="text-gray-500 text-sm">Thinking...</span>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {activeTabData?.isTyping ? (
-                      <div className="py-8 flex items-center justify-center">
-                        <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
-                        <span className="text-gray-500 text-sm ml-2">Generating strategy...</span>
-                      </div>
-                    ) : activeTabData?.content ? (
-                      <div className="text-[#e5e5e5]">
-                        {activeSubTab === 'strategy' ? (
-                          renderStrategySummary(activeTabData)
-                        ) : (
-                          activeTabData.parsed?.code ? (
-                            renderCode(activeTabData.parsed.code, activeTab)
-                          ) : (
-                            <div className="text-gray-500 text-sm">No code found</div>
-                          )
+              {/* Chat Messages */}
+              {messages.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-gray-700">
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[90%] rounded-lg px-3 py-2 ${
+                        m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#0d1829] text-[#e5e5e5]'
+                      }`}>
+                        {m.role === 'assistant' && (
+                          <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-gray-700/50">
+                            <Zap className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400 text-xs">Grok</span>
+                          </div>
                         )}
+                        <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
                       </div>
-                    ) : (
-                      <div className="py-8 flex items-center justify-center text-gray-500 text-sm">
-                        No content
+                    </div>
+                  ))}
+                  {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
+                    <div className="flex justify-start">
+                      <div className="bg-[#0d1829] rounded-lg px-3 py-2 flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                        <span className="text-gray-500 text-sm">Thinking...</span>
                       </div>
-                    )}
-                  </>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Action buttons for strategy tabs */}
-            {isStrategyTab && !activeTabData?.isTyping && activeTabData?.content && (
-              <div className="flex gap-2 px-3 py-2 border-t border-gray-700 flex-shrink-0">
+            {/* Chat Input - Fixed at bottom */}
+            <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#060d18]">
+              <div className="flex gap-2 items-end bg-[#0a1628] border border-gray-700 rounded-lg p-2">
+                <textarea
+                  ref={inputRef}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                  placeholder="Describe your strategy..."
+                  rows={1}
+                  className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none min-h-[36px] max-h-[100px] py-2 px-1"
+                  style={{ height: 'auto' }}
+                  onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
+                />
                 <button
-                  onClick={handleSave}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[#0d1829] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"
+                  onClick={handleChatSend}
+                  disabled={!chatInput.trim() || isChatLoading}
+                  className={`p-2 rounded-lg transition-all flex-shrink-0 ${
+                    chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'
+                  }`}
                 >
-                  <Save className="w-4 h-4" />
-                  Save
-                </button>
-                <button
-                  onClick={handleSaveAndDeploy}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
-                >
-                  <Play className="w-4 h-4" />
-                  Save & Deploy
+                  {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
               </div>
-            )}
-
-            {/* Input area */}
-            <div className="flex gap-2 p-3 flex-1">
-              <textarea
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { 
-                  if (e.key === 'Enter' && !e.shiftKey) { 
-                    e.preventDefault(); 
-                    activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); 
-                  } 
-                }}
-                placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."}
-                className="flex-1 px-3 py-2 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none transition-colors overflow-y-auto"
-              />
-              <button
-                onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify}
-                disabled={!chatInput.trim() || isChatLoading}
-                className={`px-3 rounded-lg transition-all ${chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'}`}
-              >
-                {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Strategy Tab Content */}
+        {isStrategyTab && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Sub-tabs */}
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-800 flex-shrink-0">
+              <button
+                onClick={() => setActiveSubTab('strategy')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]'
+                }`}
+              >
+                Strategy
+              </button>
+              <button
+                onClick={() => setActiveSubTab('code')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]'
+                }`}
+              >
+                Code
+              </button>
+            </div>
+
+            {/* Strategy Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-3">
+              {activeTabData?.isTyping ? (
+                /* Clean Generating State */
+                <div className="flex flex-col items-center justify-center h-full py-12">
+                  <div className="relative mb-4">
+                    <div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+                    <Zap className="w-5 h-5 text-emerald-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <span className="text-[#e5e5e5] font-medium">Generating strategy...</span>
+                  <span className="text-gray-500 text-sm mt-1">This may take a few seconds</span>
+                </div>
+              ) : activeTabData?.content ? (
+                <div className="text-[#e5e5e5]">
+                  {activeSubTab === 'strategy' ? renderStrategySummary(activeTabData) : (
+                    activeTabData.parsed?.code ? renderCode(activeTabData.parsed.code, activeTab) : <div className="text-gray-500 text-sm">No code found</div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">No content</div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Action Buttons - Fixed at bottom (only when content ready) */}
+            {!activeTabData?.isTyping && activeTabData?.content && (
+              <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#060d18]">
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={handleSave}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium bg-[#0d1829] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </button>
+                  <button
+                    onClick={handleSaveAndDeploy}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    Save & Deploy
+                  </button>
+                </div>
+                {/* Modify Input */}
+                <div className="flex gap-2 items-end bg-[#0a1628] border border-gray-700 rounded-lg p-2">
+                  <textarea
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStrategyModify(); } }}
+                    placeholder="Ask Grok to modify this strategy..."
+                    rows={1}
+                    className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none min-h-[36px] max-h-[100px] py-2 px-1"
+                    style={{ height: 'auto' }}
+                    onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
+                  />
+                  <button
+                    onClick={handleStrategyModify}
+                    disabled={!chatInput.trim() || isChatLoading}
+                    className={`p-2 rounded-lg transition-all flex-shrink-0 ${
+                      chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'
+                    }`}
+                  >
+                    {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
