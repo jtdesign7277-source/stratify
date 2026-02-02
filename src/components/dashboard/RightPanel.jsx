@@ -20,6 +20,14 @@ const RefreshIcon = ({ className }) => (
   </svg>
 );
 
+// Send Icon
+const SendIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 2L11 13" />
+    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+  </svg>
+);
+
 // Strategy templates
 const strategyTemplates = [
   { id: 'momentum', name: 'Momentum', icon: '📈', desc: 'MA crossover trend following' },
@@ -38,6 +46,14 @@ const stockTickers = [
 // Crypto
 const cryptoTickers = [
   'BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'LINK', 'ADA', 'AVAX', 'DOT'
+];
+
+// Starter prompts for chat
+const starterPrompts = [
+  { label: 'RSI Reversal', prompt: 'Buy when RSI drops below 30, sell when it goes above 70' },
+  { label: 'MA Crossover', prompt: 'Buy when 20-day MA crosses above 50-day MA, sell on cross below' },
+  { label: 'Breakout', prompt: 'Buy when price breaks above 20-day high with volume spike' },
+  { label: 'Mean Reversion', prompt: 'Buy when price is 2 standard deviations below 20-day mean' },
 ];
 
 // Typewriter Streaming Component
@@ -139,10 +155,59 @@ const EditableCodeBlock = ({ code, name, onCodeChange }) => {
   );
 };
 
+// Chat Message Component
+const ChatMessage = ({ message, isUser, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="flex gap-2 mb-3">
+        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <BrainIcon className="w-3.5 h-3.5 text-white" />
+        </div>
+        <div className="flex-1 bg-[#0a1628] rounded-lg p-3 border border-blue-500/20">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs text-gray-400">Thinking...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex gap-2 mb-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+        isUser ? 'bg-gray-600' : 'bg-blue-600'
+      }`}>
+        {isUser ? (
+          <span className="text-xs text-white">U</span>
+        ) : (
+          <BrainIcon className="w-3.5 h-3.5 text-white" />
+        )}
+      </div>
+      <div className={`flex-1 max-w-[85%] rounded-lg p-3 ${
+        isUser 
+          ? 'bg-blue-600/20 border border-blue-500/30' 
+          : 'bg-[#0a1628] border border-blue-500/20'
+      }`}>
+        <p className="text-sm text-gray-200 whitespace-pre-wrap">{message.content}</p>
+        {message.strategy && (
+          <div className="mt-2 p-2 bg-[#060d18] rounded border border-emerald-500/20">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="text-xs font-medium text-emerald-400">Strategy Ready</span>
+            </div>
+            <p className="text-xs text-gray-400">{message.strategy.name} for ${message.strategy.ticker}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Main Component
 export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar }) {
   const [expanded, setExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState('quick'); // quick | custom | results
+  const [activeTab, setActiveTab] = useState('quick'); // quick | chat | results
   
   // Quick Build State
   const [selectedTicker, setSelectedTicker] = useState('');
@@ -152,17 +217,22 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   
   // Backtest timeframe options
   const timeframeOptions = [
-    { id: '1m', label: '1 Month', months: 1 },
-    { id: '3m', label: '3 Months', months: 3 },
-    { id: '6m', label: '6 Months', months: 6 },
-    { id: '9m', label: '9 Months', months: 9 },
-    { id: '1y', label: '1 Year', months: 12 },
+    { id: '1m', label: '1M', fullLabel: '1 Month', months: 1 },
+    { id: '3m', label: '3M', fullLabel: '3 Months', months: 3 },
+    { id: '6m', label: '6M', fullLabel: '6 Months', months: 6 },
+    { id: '9m', label: '9M', fullLabel: '9 Months', months: 9 },
+    { id: '1y', label: '1Y', fullLabel: '1 Year', months: 12 },
   ];
   
-  // Custom AI State
-  const [customTicker, setCustomTicker] = useState('');
-  const [customName, setCustomName] = useState('');
-  const [customPrompt, setCustomPrompt] = useState('');
+  // Chat State
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatTicker, setChatTicker] = useState('');
+  const [chatStrategyName, setChatStrategyName] = useState('');
+  const [chatTimeframe, setChatTimeframe] = useState('6m');
+  const [isThinking, setIsThinking] = useState(false);
+  const messagesEndRef = useRef(null);
+  const chatInputRef = useRef(null);
   
   // Generation State
   const [isGenerating, setIsGenerating] = useState(false);
@@ -170,6 +240,11 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   const [generatedStrategy, setGeneratedStrategy] = useState(null);
   const [editableCode, setEditableCode] = useState('');
   const [resultMessage, setResultMessage] = useState('');
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isThinking]);
 
   // Handle ticker select (toggle)
   const handleTickerSelect = (ticker) => {
@@ -203,9 +278,11 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     setSelectedTemplate(null);
     setStrategyName('');
     setBacktestTimeframe('');
-    setCustomTicker('');
-    setCustomName('');
-    setCustomPrompt('');
+    setMessages([]);
+    setChatInput('');
+    setChatTicker('');
+    setChatStrategyName('');
+    setChatTimeframe('6m');
     setGeneratedStrategy(null);
     setEditableCode('');
     setStreamingText('');
@@ -217,22 +294,88 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   const handleQuickGenerate = async () => {
     if (!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe) return;
     
-    const selectedTimeframe = timeframeOptions.find(tf => tf.id === backtestTimeframe);
-    const timeframeLabel = selectedTimeframe?.label || '6 Months';
+    const selectedTimeframeObj = timeframeOptions.find(tf => tf.id === backtestTimeframe);
+    const timeframeLabel = selectedTimeframeObj?.fullLabel || '6 Months';
     
     const prompt = `Create a ${selectedTemplate.name} trading strategy called "${strategyName}" for $${selectedTicker}. ${selectedTemplate.desc}. Backtest period: ${timeframeLabel}.`;
     await generateStrategy(prompt, strategyName, selectedTicker, timeframeLabel);
   };
 
-  // Generate from Custom AI
-  const handleCustomGenerate = async () => {
-    if (!customTicker || !customName || !customPrompt || !backtestTimeframe) return;
-    
-    const selectedTimeframe = timeframeOptions.find(tf => tf.id === backtestTimeframe);
-    const timeframeLabel = selectedTimeframe?.label || '6 Months';
-    
-    const prompt = `Create a trading strategy called "${customName}" for $${customTicker}. ${customPrompt}. Backtest period: ${timeframeLabel}.`;
-    await generateStrategy(prompt, customName, customTicker, timeframeLabel);
+  // Handle chat submit
+  const handleChatSubmit = async (e) => {
+    e?.preventDefault();
+    if (!chatInput.trim() || !chatTicker.trim() || !chatStrategyName.trim()) return;
+
+    const userMessage = chatInput.trim();
+    const ticker = chatTicker.toUpperCase();
+    const name = chatStrategyName;
+    const selectedTimeframeObj = timeframeOptions.find(tf => tf.id === chatTimeframe);
+    const timeframeLabel = selectedTimeframeObj?.fullLabel || '6 Months';
+
+    // Add user message to chat
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatInput('');
+    setIsThinking(true);
+
+    try {
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const prompt = `Create a trading strategy called "${name}" for $${ticker}. ${userMessage}. Backtest period: ${timeframeLabel}.`;
+      
+      const response = await fetch(`${backendUrl}/api/claude`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: prompt, strategy_name: name })
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const data = await response.json();
+
+      let code = data.code || '';
+      let responseText = data.response || '';
+
+      if (!code && responseText) {
+        const match = responseText.match(/```(?:python)?\n([\s\S]*?)```/);
+        if (match) code = match[1].trim();
+      }
+
+      if (!code) {
+        code = generateDefaultCode(name, ticker);
+      }
+
+      const strategy = { 
+        id: Date.now(), 
+        name, 
+        ticker, 
+        code, 
+        status: 'draft', 
+        backtestPeriod: timeframeLabel 
+      };
+
+      // Add AI response to chat
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `I've created your "${name}" strategy for $${ticker}. The strategy uses ${userMessage.toLowerCase().includes('rsi') ? 'RSI signals' : userMessage.toLowerCase().includes('ma') ? 'moving average crossovers' : 'your specified conditions'} with a ${timeframeLabel} backtest period.\n\nClick "View Results" to see the code and make any edits before saving.`,
+        strategy: { name, ticker }
+      }]);
+
+      setGeneratedStrategy(strategy);
+      setEditableCode(code);
+
+    } catch (err) {
+      console.error('Chat API Error:', err);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Sorry, I encountered an error generating your strategy. Please try again.`
+      }]);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  // Handle starter prompt click
+  const handleStarterPrompt = (prompt) => {
+    setChatInput(prompt);
+    chatInputRef.current?.focus();
   };
 
   // Core generate function with typewriter streaming
@@ -398,13 +541,12 @@ if __name__ == "__main__":
   return (
     <div className="flex flex-col bg-[#060d18] border-l border-blue-500/20 h-full" style={{ width }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-blue-500/20">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-blue-500/20 flex-shrink-0">
         <div className="flex items-center gap-2">
           <BrainIcon className="w-6 h-6 text-blue-400" />
           <span className="text-sm font-semibold text-white">Atlas AI</span>
         </div>
         <div className="flex gap-1">
-          {/* Refresh Button - Always visible */}
           <button onClick={handleReset} className="p-1.5 hover:bg-blue-500/10 rounded" title="Start Fresh">
             <RefreshIcon className="w-4 h-4 text-gray-400 hover:text-blue-400" />
           </button>
@@ -417,10 +559,10 @@ if __name__ == "__main__":
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-blue-500/20">
+      <div className="flex border-b border-blue-500/20 flex-shrink-0">
         {[
           { id: 'quick', label: 'Quick Build' },
-          { id: 'custom', label: 'AI Chat' },
+          { id: 'chat', label: 'AI Chat' },
           { id: 'results', label: 'Results' }
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -431,21 +573,24 @@ if __name__ == "__main__":
             {activeTab === tab.id && (
               <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
             )}
+            {tab.id === 'results' && generatedStrategy && (
+              <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+            )}
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
           {/* Quick Build Tab */}
           {activeTab === 'quick' && (
             <motion.div key="quick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-3 h-full flex flex-col">
+              className="p-3 h-full flex flex-col overflow-y-auto">
               
               {/* Ticker Selection */}
               <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Select Ticker (click again to deselect)</label>
+                <label className="text-xs text-gray-400 mb-1.5 block">Select Ticker</label>
                 <div className="grid grid-cols-5 gap-1">
                   {stockTickers.map(t => (
                     <button key={t} onClick={() => handleTickerSelect(t)}
@@ -479,7 +624,7 @@ if __name__ == "__main__":
 
               {/* Strategy Templates */}
               <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Type (click again to deselect)</label>
+                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Type</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {strategyTemplates.map(s => (
                     <button key={s.id} onClick={() => handleTemplateSelect(s)}
@@ -534,7 +679,7 @@ if __name__ == "__main__":
               <button
                 onClick={handleQuickGenerate}
                 disabled={!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe}
-                className={`mt-auto py-2.5 rounded text-sm font-semibold transition-all ${
+                className={`mt-auto py-2.5 rounded text-sm font-semibold transition-all flex-shrink-0 ${
                   selectedTicker && selectedTemplate && strategyName && backtestTimeframe
                     ? 'bg-blue-600 text-white hover:bg-blue-500'
                     : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
@@ -544,61 +689,50 @@ if __name__ == "__main__":
             </motion.div>
           )}
 
-          {/* Custom AI Tab */}
-          {activeTab === 'custom' && (
-            <motion.div key="custom" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-3 h-full flex flex-col">
+          {/* AI Chat Tab - Claude-style layout */}
+          {activeTab === 'chat' && (
+            <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="h-full flex flex-col">
               
-              {/* Ticker Input */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Ticker Symbol</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-medium">$</span>
-                  <input
-                    type="text"
-                    value={customTicker}
-                    onChange={(e) => setCustomTicker(e.target.value.toUpperCase())}
-                    placeholder="AAPL"
-                    className="w-full pl-7 pr-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                  />
+              {/* Fixed Header - Config inputs */}
+              <div className="p-3 border-b border-blue-500/20 flex-shrink-0 space-y-2">
+                <div className="flex gap-2">
+                  {/* Ticker */}
+                  <div className="flex-1">
+                    <label className="text-[10px] text-gray-500 mb-1 block">TICKER</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-400 text-xs">$</span>
+                      <input
+                        type="text"
+                        value={chatTicker}
+                        onChange={(e) => setChatTicker(e.target.value.toUpperCase())}
+                        placeholder="AAPL"
+                        className="w-full pl-5 pr-2 py-1.5 bg-[#0a1628] border border-blue-500/20 rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  {/* Strategy Name */}
+                  <div className="flex-[2]">
+                    <label className="text-[10px] text-gray-500 mb-1 block">NAME</label>
+                    <input
+                      type="text"
+                      value={chatStrategyName}
+                      onChange={(e) => setChatStrategyName(e.target.value)}
+                      placeholder="My Strategy"
+                      className="w-full px-2 py-1.5 bg-[#0a1628] border border-blue-500/20 rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              {/* Strategy Name */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Name</label>
-                <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="My Custom Strategy"
-                  className="w-full px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Chat/Describe */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Describe Your Strategy</label>
-                <textarea
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Example: Buy when RSI drops below 30 and price is above the 200-day moving average. Sell when RSI goes above 70. Use a 5% stop loss..."
-                  className="w-full h-[100px] px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
-
-              {/* Backtest Timeframe */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Backtest Timeframe</label>
-                <div className="grid grid-cols-5 gap-1.5">
+                {/* Timeframe row */}
+                <div className="flex gap-1">
                   {timeframeOptions.map(tf => (
                     <button
                       key={tf.id}
-                      onClick={() => setBacktestTimeframe(backtestTimeframe === tf.id ? '' : tf.id)}
-                      className={`py-2 px-1 rounded text-xs font-medium transition-all ${
-                        backtestTimeframe === tf.id
-                          ? 'bg-blue-600 text-white border border-blue-500'
-                          : 'bg-[#0a1628] text-gray-400 border border-blue-500/20 hover:border-blue-500/50'
+                      onClick={() => setChatTimeframe(tf.id)}
+                      className={`flex-1 py-1 rounded text-[10px] font-medium transition-all ${
+                        chatTimeframe === tf.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-[#0a1628] text-gray-400 hover:text-gray-300'
                       }`}
                     >
                       {tf.label}
@@ -607,17 +741,72 @@ if __name__ == "__main__":
                 </div>
               </div>
 
-              {/* Generate Button */}
-              <button
-                onClick={handleCustomGenerate}
-                disabled={!customTicker || !customName || !customPrompt || !backtestTimeframe}
-                className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  customTicker && customName && customPrompt && backtestTimeframe
-                    ? 'bg-transparent text-blue-400 border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.7)] hover:border-blue-400 hover:text-blue-300'
-                    : 'bg-[#0a1628] text-gray-500 border-2 border-gray-700 cursor-not-allowed'
-                }`}>
-                Generate with AI →
-              </button>
+              {/* Scrollable Chat Area */}
+              <div className="flex-1 overflow-y-auto p-3">
+                {messages.length === 0 ? (
+                  // Empty state with starter prompts
+                  <div className="h-full flex flex-col items-center justify-center">
+                    <BrainIcon className="w-10 h-10 text-blue-400/30 mb-3" />
+                    <p className="text-sm text-gray-400 mb-1">Describe your strategy</p>
+                    <p className="text-xs text-gray-500 mb-4">Try a starter prompt:</p>
+                    <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
+                      {starterPrompts.map((sp, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleStarterPrompt(sp.prompt)}
+                          className="p-2 text-left bg-[#0a1628] border border-blue-500/20 rounded hover:border-blue-500/50 transition-colors"
+                        >
+                          <span className="text-[10px] text-blue-400 block mb-0.5">{sp.label}</span>
+                          <span className="text-[10px] text-gray-500 line-clamp-2">{sp.prompt}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  // Chat messages
+                  <div>
+                    {messages.map((msg, i) => (
+                      <ChatMessage key={i} message={msg} isUser={msg.role === 'user'} />
+                    ))}
+                    {isThinking && <ChatMessage isLoading />}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+
+              {/* Fixed Footer - Input */}
+              <div className="p-3 border-t border-blue-500/20 flex-shrink-0">
+                {generatedStrategy && (
+                  <button
+                    onClick={() => setActiveTab('results')}
+                    className="w-full mb-2 py-2 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium border border-emerald-500/30 hover:bg-emerald-600/30 transition-colors"
+                  >
+                    View Results →
+                  </button>
+                )}
+                <form onSubmit={handleChatSubmit} className="flex gap-2">
+                  <input
+                    ref={chatInputRef}
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={chatTicker && chatStrategyName ? "Describe your strategy..." : "Enter ticker & name first..."}
+                    disabled={!chatTicker || !chatStrategyName}
+                    className="flex-1 px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!chatInput.trim() || !chatTicker || !chatStrategyName || isThinking}
+                    className={`px-3 py-2 rounded transition-all ${
+                      chatInput.trim() && chatTicker && chatStrategyName && !isThinking
+                        ? 'bg-blue-600 text-white hover:bg-blue-500'
+                        : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <SendIcon className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
             </motion.div>
           )}
 
@@ -627,11 +816,11 @@ if __name__ == "__main__":
               className="p-3 h-full flex flex-col">
               
               {isGenerating ? (
-                <TypewriterStream strategyName={strategyName || customName} streamingText={streamingText} />
+                <TypewriterStream strategyName={strategyName || chatStrategyName} streamingText={streamingText} />
               ) : generatedStrategy ? (
                 <div className="flex flex-col h-full">
                   {/* Status Message - Compact */}
-                  <div className={`mb-2 p-2 rounded-lg ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'} border`}>
+                  <div className={`mb-2 p-2 rounded-lg flex-shrink-0 ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'} border`}>
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${generatedStrategy.status === 'deployed' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                       <span className={`text-xs font-medium ${generatedStrategy.status === 'deployed' ? 'text-emerald-400' : 'text-amber-400'}`}>
