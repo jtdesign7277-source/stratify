@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const getMarketStatus = () => {
@@ -78,76 +78,10 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'HOOD', name: 'Robinhood Markets, Inc.' },
 ];
 
-// Hidden TradingView ticker component to fetch price
-const TradingViewTicker = ({ symbol, onPriceUpdate }) => {
-  const containerRef = useRef(null);
-  
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    // Clear previous widget
-    containerRef.current.innerHTML = '';
-    
-    // Create TradingView Ticker Widget
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      symbol: symbol,
-      width: "100%",
-      height: "100%",
-      colorTheme: "dark",
-      isTransparent: true,
-      locale: "en"
-    });
-    
-    containerRef.current.appendChild(script);
-    
-    // Poll the widget for price data
-    const checkForPrice = setInterval(() => {
-      const priceEl = containerRef.current?.querySelector('.tv-single-quote__price');
-      const changeEl = containerRef.current?.querySelector('.tv-single-quote__change-value');
-      const percentEl = containerRef.current?.querySelector('.tv-single-quote__change-percent');
-      
-      if (priceEl) {
-        const priceText = priceEl.textContent?.replace(/[^0-9.]/g, '');
-        const price = parseFloat(priceText);
-        
-        let change = 0;
-        let changePercent = 0;
-        
-        if (changeEl) {
-          change = parseFloat(changeEl.textContent?.replace(/[^0-9.-]/g, '') || 0);
-        }
-        if (percentEl) {
-          changePercent = parseFloat(percentEl.textContent?.replace(/[^0-9.-]/g, '') || 0);
-        }
-        
-        if (price > 0) {
-          onPriceUpdate(symbol, { price, change, changePercent });
-        }
-      }
-    }, 1000);
-    
-    return () => {
-      clearInterval(checkForPrice);
-    };
-  }, [symbol, onPriceUpdate]);
-  
-  return (
-    <div 
-      ref={containerRef} 
-      style={{ 
-        position: 'absolute', 
-        left: '-9999px', 
-        width: '300px', 
-        height: '80px',
-        opacity: 0,
-        pointerEvents: 'none'
-      }} 
-    />
-  );
-};
+// Alpaca API credentials - using paper trading
+const ALPACA_KEY = 'PK3D2TL4D0QXEMNY8SAV';
+const ALPACA_SECRET = 'lvMxgWdF1pNt8P9gT3phaFGHc2xPGDLMCNhBN0Ie';
+const ALPACA_DATA_URL = 'https://data.alpaca.markets/v2';
 
 const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
@@ -156,17 +90,98 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [quotes, setQuotes] = useState({});
+  const [loading, setLoading] = useState(true);
   
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
     : DEFAULT_WATCHLIST;
 
-  const handlePriceUpdate = (symbol, data) => {
-    setQuotes(prev => ({
-      ...prev,
-      [symbol]: data
-    }));
-  };
+  // Fetch quotes from Alpaca
+  const fetchQuotes = useCallback(async () => {
+    if (stocks.length === 0) return;
+    
+    const symbols = stocks.map(s => s.symbol).join(',');
+    
+    try {
+      // Fetch latest trades for all symbols at once
+      const tradesRes = await fetch(
+        `${ALPACA_DATA_URL}/stocks/trades/latest?symbols=${symbols}`,
+        {
+          headers: {
+            'APCA-API-KEY-ID': ALPACA_KEY,
+            'APCA-API-SECRET-KEY': ALPACA_SECRET,
+          },
+        }
+      );
+      
+      if (!tradesRes.ok) {
+        console.error('Alpaca trades API error:', tradesRes.status);
+        return;
+      }
+      
+      const tradesData = await tradesRes.json();
+      
+      // Fetch previous day bars for change calculation
+      const barsRes = await fetch(
+        `${ALPACA_DATA_URL}/stocks/bars?symbols=${symbols}&timeframe=1Day&limit=2`,
+        {
+          headers: {
+            'APCA-API-KEY-ID': ALPACA_KEY,
+            'APCA-API-SECRET-KEY': ALPACA_SECRET,
+          },
+        }
+      );
+      
+      let barsData = {};
+      if (barsRes.ok) {
+        barsData = await barsRes.json();
+      }
+      
+      // Build quotes object
+      const newQuotes = {};
+      
+      for (const symbol of stocks.map(s => s.symbol)) {
+        const trade = tradesData.trades?.[symbol];
+        const bars = barsData.bars?.[symbol] || [];
+        
+        if (trade) {
+          const currentPrice = trade.p;
+          let prevClose = currentPrice;
+          
+          // Get previous close from bars
+          if (bars.length >= 2) {
+            prevClose = bars[bars.length - 2].c;
+          } else if (bars.length === 1) {
+            prevClose = bars[0].o; // Use open if only one bar
+          }
+          
+          const change = currentPrice - prevClose;
+          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+          
+          newQuotes[symbol] = {
+            price: currentPrice,
+            change: change,
+            changePercent: changePercent,
+            volume: trade.s || 0,
+          };
+        }
+      }
+      
+      setQuotes(newQuotes);
+      setLoading(false);
+      
+    } catch (err) {
+      console.error('Error fetching quotes:', err);
+      setLoading(false);
+    }
+  }, [stocks]);
+
+  // Fetch on mount and every 10 seconds
+  useEffect(() => {
+    fetchQuotes();
+    const interval = setInterval(fetchQuotes, 10000);
+    return () => clearInterval(interval);
+  }, [fetchQuotes]);
 
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
@@ -214,17 +229,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   return (
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
-      
-      {/* Hidden TradingView widgets for each stock */}
-      <div style={{ position: 'absolute', left: '-9999px', opacity: 0 }}>
-        {stocks.map(stock => (
-          <TradingViewTicker 
-            key={stock.symbol} 
-            symbol={stock.symbol} 
-            onPriceUpdate={handlePriceUpdate}
-          />
-        ))}
-      </div>
       
       {/* Watchlist Panel */}
       <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
@@ -300,6 +304,13 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
         {/* Stock List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
+          {loading && stocks.length > 0 && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
+            </div>
+          )}
+          
           {stocks.map((stock) => {
             const quote = quotes[stock.symbol] || {};
             const price = quote.price || 0;
@@ -360,7 +371,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         {!isCollapsed && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
             <span className="text-gray-400">{stocks.length} symbols</span>
-            <span className="text-blue-400">TradingView Data</span>
+            <span className="text-blue-400">Alpaca Data</span>
           </div>
         )}
       </div>
