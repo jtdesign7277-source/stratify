@@ -36,8 +36,8 @@ export async function getSnapshots(symbols = SYMBOLS) {
     console.log('📸 Raw snapshots keys:', Object.keys(snapshots || {}));
     
     return symbols.map((symbol, index) => {
-      // Handle both Map and Object responses from Alpaca
-      const snapshot = snapshots.get ? snapshots.get(symbol) : snapshots[symbol];
+      // Alpaca returns Array indexed by position, not by symbol name
+      const snapshot = Array.isArray(snapshots) ? snapshots[index] : (snapshots.get ? snapshots.get(symbol) : snapshots[symbol]);
       
       // DEBUG: Log first symbol's snapshot structure
       if (index === 0) {
