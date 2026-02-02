@@ -273,9 +273,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
   useEffect(() => {
     const loadHistory = async () => {
-      if (!selectedTicker || !candleSeriesRef.current) return;
+      const symbolToLoad = selectedTicker || defaultSymbol;
+      if (!symbolToLoad || !candleSeriesRef.current) return;
       setChartStatus({ state: 'loading', message: '' });
-      const history = await getHistory(selectedTicker, '1mo', '30m');
+      const history = await getHistory(symbolToLoad, '1mo', '30m');
       const series = candleSeriesRef.current;
 
       if (!history || !Array.isArray(history.data) || history.data.length === 0) {
@@ -306,7 +307,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     };
 
     loadHistory();
-  }, [selectedTicker]);
+  }, [selectedTicker, defaultSymbol]);
 
   return (
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
