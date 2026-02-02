@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, RotateCcw, Save, Play
 } from 'lucide-react';
 
-const API_BASE = 'https://atlas-api-production-5944.up.railway.app';
+const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const ALL_TICKERS = [
   { symbol: 'AAPL', name: 'Apple Inc.' },

@@ -777,7 +777,7 @@ const ArbOppsPanel = ({ onClose }) => {
     setLoading(true);
     setError(null);
     try {
-      const backendUrl = import.meta.env.VITE_API_URL || 'https://atlas-api-production-5944.up.railway.app';
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://stratify-backend-production-3ebd.up.railway.app';
       const response = await fetch(`${backendUrl}/api/v1/kalshi/arbitrage?limit=20`);
       
       if (!response.ok) {

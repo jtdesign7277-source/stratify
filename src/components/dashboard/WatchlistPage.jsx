@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
-const API_URL = 'https://atlas-api-production-5944.up.railway.app';
+const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const getMarketStatus = () => {
   const now = new Date();

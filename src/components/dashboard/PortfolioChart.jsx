@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { createChart, AreaSeries } from 'lightweight-charts';
 
-const API_URL = 'https://atlas-api-production-5944.up.railway.app';
+const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' }) => {
   const chartContainerRef = useRef(null);
