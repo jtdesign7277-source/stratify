@@ -325,3 +325,122 @@ app.get('/api/public/trending', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ============ PORTFOLIO HISTORY ============
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PORTFOLIO_FILE = path.join(__dirname, '../data/portfolio_history.json');
+
+// Ensure data directory exists
+const dataDir = path.join(__dirname, '../data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Load portfolio history
+const loadPortfolioHistory = () => {
+  try {
+    if (fs.existsSync(PORTFOLIO_FILE)) {
+      return JSON.parse(fs.readFileSync(PORTFOLIO_FILE, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Error loading portfolio history:', e);
+  }
+  return [];
+};
+
+// Save portfolio history
+const savePortfolioHistory = (history) => {
+  fs.writeFileSync(PORTFOLIO_FILE, JSON.stringify(history, null, 2));
+};
+
+// POST /api/portfolio/snapshot - Save daily snapshot
+app.post('/api/portfolio/snapshot', (req, res) => {
+  try {
+    const { totalValue, dailyPnL, accounts } = req.body;
+    
+    if (totalValue === undefined) {
+      return res.status(400).json({ error: 'totalValue is required' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const history = loadPortfolioHistory();
+    
+    // Check if we already have a snapshot for today
+    const existingIndex = history.findIndex(h => h.date === today);
+    
+    const snapshot = {
+      date: today,
+      timestamp: new Date().toISOString(),
+      totalValue: parseFloat(totalValue),
+      dailyPnL: parseFloat(dailyPnL) || 0,
+      accounts: accounts || [],
+    };
+
+    if (existingIndex >= 0) {
+      // Update existing snapshot
+      history[existingIndex] = snapshot;
+    } else {
+      // Add new snapshot
+      history.push(snapshot);
+    }
+
+    // Sort by date
+    history.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    savePortfolioHistory(history);
+    
+    res.json({ success: true, snapshot });
+  } catch (error) {
+    console.error('Error saving portfolio snapshot:', error);
+    res.status(500).json({ error: 'Failed to save snapshot' });
+  }
+});
+
+// GET /api/portfolio/history - Get historical data
+app.get('/api/portfolio/history', (req, res) => {
+  try {
+    const { days = 365 } = req.query;
+    const history = loadPortfolioHistory();
+    
+    // Filter to requested days
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - parseInt(days));
+    
+    const filtered = history.filter(h => new Date(h.date) >= cutoff);
+    
+    // Calculate stats
+    const latestValue = filtered.length > 0 ? filtered[filtered.length - 1].totalValue : 0;
+    const firstValue = filtered.length > 0 ? filtered[0].totalValue : 0;
+    const totalChange = latestValue - firstValue;
+    const totalChangePercent = firstValue > 0 ? (totalChange / firstValue) * 100 : 0;
+
+    res.json({
+      history: filtered,
+      stats: {
+        latestValue,
+        firstValue,
+        totalChange,
+        totalChangePercent,
+        dataPoints: filtered.length,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching portfolio history:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// DELETE /api/portfolio/history - Clear history (for testing)
+app.delete('/api/portfolio/history', (req, res) => {
+  try {
+    savePortfolioHistory([]);
+    res.json({ success: true, message: 'History cleared' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to clear history' });
+  }
+});
