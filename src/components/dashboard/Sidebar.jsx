@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
-  Star,
   FolderOpen,
   SlidersHorizontal, 
   Globe, 
@@ -53,7 +52,6 @@ const Sidebar = ({
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'watchlist', label: 'Watchlist', icon: Star },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },

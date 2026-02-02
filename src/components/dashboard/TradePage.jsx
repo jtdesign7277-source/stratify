@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { createChart } from 'lightweight-charts';
+import { getHistory } from '../../services/marketData';
 
 const API_URL = 'https://atlas-api-production-5944.up.railway.app';
 
@@ -69,34 +71,29 @@ const STOCK_DATABASE = [
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
 ];
 
-const DEFAULT_WATCHLIST = [
-  { symbol: 'AAPL', name: 'Apple Inc.' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-  { symbol: 'AMZN', name: 'Amazon.com, Inc.' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-  { symbol: 'META', name: 'Meta Platforms, Inc.' },
-  { symbol: 'TSLA', name: 'Tesla, Inc.' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation' },
-  { symbol: 'HOOD', name: 'Robinhood Markets, Inc.' },
-];
-
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState(true);
+  const [chartStatus, setChartStatus] = useState({ state: 'idle', message: '' });
 
   const [orderSide, setOrderSide] = useState('buy');
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '' });
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
+  const candleSeriesRef = useRef(null);
   
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
-    : DEFAULT_WATCHLIST;
+    : [];
+  const defaultSymbol = stocks[0]?.symbol || 'SPY';
 
   const selectedQuote = selectedTicker ? quotes[selectedTicker] : null;
   const orderQtyNumber = useMemo(() => {
@@ -176,6 +173,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     setSearchResults(filtered);
   }, [searchQuery, stocks]);
 
+  useEffect(() => {
+    if (!selectedTicker || !stocks.find(s => s.symbol === selectedTicker)) {
+      setSelectedTicker(defaultSymbol);
+    }
+  }, [defaultSymbol, selectedTicker, stocks]);
+
   const handleAddStock = (stock) => {
     if (onAddToWatchlist) {
       onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
@@ -222,6 +225,88 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   };
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
+
+  useEffect(() => {
+    if (!chartContainerRef.current || chartRef.current) return;
+
+    const chart = createChart(chartContainerRef.current, {
+      autoSize: true,
+      layout: {
+        background: { color: '#060d18' },
+        textColor: '#9aa4b2',
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { visible: false },
+      },
+      rightPriceScale: { borderVisible: false },
+      timeScale: { borderVisible: false },
+      crosshair: {
+        vertLine: { visible: false },
+        horzLine: { visible: false },
+      },
+    });
+
+    const series = chart.addCandlestickSeries({
+      upColor: '#34d399',
+      downColor: '#f87171',
+      borderVisible: false,
+      wickUpColor: '#34d399',
+      wickDownColor: '#f87171',
+    });
+
+    chartRef.current = chart;
+    candleSeriesRef.current = series;
+
+    const observer = new ResizeObserver(() => {
+      chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+    });
+    observer.observe(chartContainerRef.current);
+
+    return () => {
+      observer.disconnect();
+      chart.remove();
+      chartRef.current = null;
+      candleSeriesRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!selectedTicker || !candleSeriesRef.current) return;
+      setChartStatus({ state: 'loading', message: '' });
+      const history = await getHistory(selectedTicker, '1mo', '30m');
+      const series = candleSeriesRef.current;
+
+      if (!history || !Array.isArray(history.data) || history.data.length === 0) {
+        series.setData([]);
+        setChartStatus({ state: 'empty', message: 'No chart data available.' });
+        return;
+      }
+
+      const mapped = history.data
+        .map((bar) => {
+          const time = bar?.time ? Math.floor(new Date(bar.time).getTime() / 1000) : null;
+          if (!time || [bar.open, bar.high, bar.low, bar.close].some(v => typeof v !== 'number')) {
+            return null;
+          }
+          return { time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
+        })
+        .filter(Boolean);
+
+      if (mapped.length === 0) {
+        series.setData([]);
+        setChartStatus({ state: 'empty', message: 'No chart data available.' });
+        return;
+      }
+
+      series.setData(mapped);
+      chartRef.current?.timeScale().fitContent();
+      setChartStatus({ state: 'ready', message: '' });
+    };
+
+    loadHistory();
+  }, [selectedTicker]);
 
   return (
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
@@ -308,6 +393,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             </div>
           )}
           
+          {stocks.length === 0 && !loading && (
+            <div className="px-4 py-6 text-center text-gray-500 text-sm">
+              Watchlist is empty. Search to add symbols.
+            </div>
+          )}
+
           {stocks.map((stock) => {
             const quote = quotes[stock.symbol] || {};
             const price = quote.price || 0;
@@ -374,126 +465,140 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       </div>
 
       {/* TradingView Chart + Trade Panel */}
-      {selectedTicker && (
-        <div className="flex-1 flex flex-col bg-[#060d18] min-w-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <div className="flex items-center gap-3">
-              <h2 className="text-white font-bold text-lg">${selectedTicker}</h2>
-              <span className="text-gray-400 text-sm">{STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || stocks.find(s => s.symbol === selectedTicker)?.name}</span>
-            </div>
-            <button onClick={() => setSelectedTicker(null)} className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-400">
-              <X className="w-4 h-4" />
-            </button>
+      <div className="flex-1 flex flex-col bg-[#060d18] min-w-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <h2 className="text-white font-bold text-lg">${selectedTicker || defaultSymbol}</h2>
+            <span className="text-gray-400 text-sm">
+              {STOCK_DATABASE.find(s => s.symbol === (selectedTicker || defaultSymbol))?.name ||
+                stocks.find(s => s.symbol === (selectedTicker || defaultSymbol))?.name ||
+                'S&P 500 ETF'}
+            </span>
           </div>
-          <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
-            <div className="flex-1 min-h-[360px]">
-              <iframe
-                key={selectedTicker}
-                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${selectedTicker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en`}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                allowFullScreen
-              />
+          <div className="flex items-center gap-3">
+            {!isTradePanelOpen && (
+              <button
+                onClick={() => setIsTradePanelOpen(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0d1829] border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+              >
+                Trade
+              </button>
+            )}
+            <div className="text-xs text-gray-500">
+              {chartStatus.state === 'loading' && 'Loading chart...'}
+              {chartStatus.state === 'empty' && chartStatus.message}
             </div>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
+          <div className="flex-1 min-h-[360px] relative">
+            <div ref={chartContainerRef} className="absolute inset-0" />
+          </div>
 
-            <div className="w-full xl:w-80 border-t xl:border-t-0 xl:border-l border-gray-800 bg-[#0d1829]">
-              <div className="p-4 border-b border-gray-800">
+          <div
+            className={`bg-[#0d1829] overflow-hidden transition-all duration-300 ease-in-out ${
+              isTradePanelOpen
+                ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-gray-800 w-full xl:w-80'
+                : 'opacity-0 max-h-0 xl:max-h-none border-transparent w-full xl:w-0 pointer-events-none translate-y-2 xl:translate-y-0 xl:translate-x-3'
+            }`}
+          >
+            <div className="p-4 border-b border-gray-800 flex items-start justify-between">
+              <div>
                 <h3 className="text-white font-semibold text-base">Trade Execution</h3>
                 <p className="text-gray-400 text-xs mt-1">Place a market or limit order.</p>
               </div>
+              <button
+                onClick={() => setIsTradePanelOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors"
+                aria-label="Collapse trade panel"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </div>
 
-              <div className="p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setOrderSide('buy')}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
-                      orderSide === 'buy'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                        : 'bg-[#060d18] text-gray-400 border-gray-700 hover:text-white'
-                    }`}
-                  >
-                    Buy
-                  </button>
-                  <button
-                    onClick={() => setOrderSide('sell')}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
-                      orderSide === 'sell'
-                        ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                        : 'bg-[#060d18] text-gray-400 border-gray-700 hover:text-white'
-                    }`}
-                  >
-                    Sell
-                  </button>
-                </div>
-
-                <div>
-                  <label className="text-xs text-gray-400">Quantity</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={orderQty}
-                    onChange={(e) => setOrderQty(e.target.value)}
-                    className="mt-1 w-full bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-gray-400">Order Type</label>
-                  <select
-                    value={orderType}
-                    onChange={(e) => setOrderType(e.target.value)}
-                    className="mt-1 w-full bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
-                  >
-                    <option value="market">Market</option>
-                    <option value="limit">Limit</option>
-                  </select>
-                </div>
-
-                <div className="rounded-lg border border-gray-800 bg-[#060d18] p-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>Est. Total</span>
-                    <span className="text-white font-semibold">
-                      {estimatedTotal > 0 ? `$${formatPrice(estimatedTotal)}` : '...'}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-2">
-                    Based on {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : 'current'} price.
-                  </div>
-                </div>
-
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={handlePlaceOrder}
-                  disabled={!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting'}
-                  className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  onClick={() => setOrderSide('buy')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
                     orderSide === 'buy'
-                      ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                      : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                      : 'bg-[#060d18] text-gray-400 border-gray-700 hover:text-white'
+                  }`}
                 >
-                  {orderStatus.state === 'submitting' ? 'Placing Order...' : 'Place Order'}
+                  Buy
                 </button>
-
-                {orderStatus.state !== 'idle' && (
-                  <div className={`text-xs ${
-                    orderStatus.state === 'success' ? 'text-emerald-400' : 'text-red-400'
-                  }`}>
-                    {orderStatus.message}
-                  </div>
-                )}
+                <button
+                  onClick={() => setOrderSide('sell')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
+                    orderSide === 'sell'
+                      ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                      : 'bg-[#060d18] text-gray-400 border-gray-700 hover:text-white'
+                  }`}
+                >
+                  Sell
+                </button>
               </div>
+
+              <div>
+                <label className="text-xs text-gray-400">Quantity</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={orderQty}
+                  onChange={(e) => setOrderQty(e.target.value)}
+                  className="mt-1 w-full bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400">Order Type</label>
+                <select
+                  value={orderType}
+                  onChange={(e) => setOrderType(e.target.value)}
+                  className="mt-1 w-full bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
+                >
+                  <option value="market">Market</option>
+                  <option value="limit">Limit</option>
+                </select>
+              </div>
+
+              <div className="rounded-lg border border-gray-800 bg-[#060d18] p-3">
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>Est. Total</span>
+                  <span className="text-white font-semibold">
+                    {estimatedTotal > 0 ? `$${formatPrice(estimatedTotal)}` : '...'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-gray-500 mt-2">
+                  Based on {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : 'current'} price.
+                </div>
+              </div>
+
+              <button
+                onClick={handlePlaceOrder}
+                disabled={!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting'}
+                className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  orderSide === 'buy'
+                    ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {orderStatus.state === 'submitting' ? 'Placing Order...' : 'Place Order'}
+              </button>
+
+              {orderStatus.state !== 'idle' && (
+                <div className={`text-xs ${
+                  orderStatus.state === 'success' ? 'text-emerald-400' : 'text-red-400'
+                }`}>
+                  {orderStatus.message}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
-
-      {!selectedTicker && (
-        <div className="flex-1 flex items-center justify-center bg-[#060d18]">
-          <div className="text-center text-gray-500">
-            <p className="text-lg">Select a ticker to view chart</p>
-            <p className="text-sm mt-1">Click any symbol from your watchlist</p>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
