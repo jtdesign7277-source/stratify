@@ -425,7 +425,7 @@ Generate a trading strategy with the following format:
       }
       
       try {
-        const response = await fetch(`${API_BASE}/api/atlas/chat`, {
+        const response = await fetch(`${API_BASE}/api/v1/chat/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: contextMsg }),
@@ -462,7 +462,7 @@ Generate a trading strategy with the following format:
       setIsChatLoading(true);
 
       try {
-        const response = await fetch(`${API_BASE}/api/atlas/chat`, {
+        const response = await fetch(`${API_BASE}/api/v1/chat/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMsg }),
@@ -507,7 +507,7 @@ Generate a trading strategy with the following format:
     const contextMsg = `Current strategy:\n${activeTabData.content}\n\nModification request: ${modifyRequest}\n\nProvide the updated strategy in the same format (summary fields + Python code).`;
 
     try {
-      const response = await fetch(`${API_BASE}/api/atlas/chat`, {
+      const response = await fetch(`${API_BASE}/api/v1/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: contextMsg }),
