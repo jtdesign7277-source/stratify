@@ -46,6 +46,7 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
   
   const netLiquidity = hasRealData ? account.equity : mockData.netLiq;
   const buyingPower = hasRealData ? (account.buying_power ?? 0) : mockData.buyingPower;
+  const cash = hasRealData ? (account.cash ?? 0) : mockData.buyingPower * 0.5;
   const dailyPnL = hasRealData ? (account.daily_pnl ?? 0) : mockData.dailyPnL;
 
   const holdings = useMemo(() => {
@@ -188,15 +189,19 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Total value</span>
+                  <span className="text-gray-400 text-sm">Portfolio</span>
                   <span className="text-white font-medium">{formatCurrency(portfolioData.totalValue)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Available balance</span>
+                  <span className="text-gray-400 text-sm">Buying Power</span>
                   <span className="text-white font-medium">{formatCurrency(buyingPower)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Today's P&L</span>
+                  <span className="text-gray-400 text-sm">Cash</span>
+                  <span className="text-white font-medium">{formatCurrency(cash)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Daily Change</span>
                   <span className={`font-medium ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {portfolioData.todayChange >= 0 ? '+' : ''}{formatCurrency(portfolioData.todayChange)}
                   </span>
@@ -230,11 +235,11 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Total value</span>
+                  <span className="text-gray-400 text-sm">Portfolio</span>
                   <span className="text-white font-medium">{formatCurrency(broker.value || 0)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Available balance</span>
+                  <span className="text-gray-400 text-sm">Buying Power</span>
                   <span className="text-white font-medium">{formatCurrency(broker.available || 0)}</span>
                 </div>
               </div>
