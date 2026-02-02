@@ -24,6 +24,7 @@ import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
 import TradePage from './TradePage';
+import DemoPanel from './DemoPanel';
 
 const loadDashboardState = () => {
   try {
@@ -497,14 +498,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
-          {activeTab === 'atlas' && (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-white mb-2">Atlas AI</h2>
-                <p>AI assistant coming soon</p>
-              </div>
-            </div>
-          )}
+          {activeTab === 'atlas' && <DemoPanel />}
           {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} alpacaData={alpacaData} />}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
         </div>
