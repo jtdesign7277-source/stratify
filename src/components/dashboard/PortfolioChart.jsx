@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { createChart, AreaSeries } from 'lightweight-charts';
 
-const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
+const API_URL = 'https://atlas-api-production-5944.up.railway.app';
+
+const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const seriesRef = useRef(null);
@@ -9,10 +11,70 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
   const [currentValue, setCurrentValue] = useState(initialValue);
   const [changeAmount, setChangeAmount] = useState(0);
   const [changePercent, setChangePercent] = useState(0);
+  const [historyData, setHistoryData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const timeframes = ['1W', '1M', '3M', '6M', '1Y', 'All'];
 
-  const generateData = (days) => {
+  const getDaysForTimeframe = (tf) => {
+    switch (tf) {
+      case '1W': return 7;
+      case '1M': return 30;
+      case '3M': return 90;
+      case '6M': return 180;
+      case '1Y': return 365;
+      case 'All': return 9999;
+      default: return 30;
+    }
+  };
+
+  // Fetch history from API
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/portfolio/history?days=730`);
+      const data = await res.json();
+      if (data.history && data.history.length > 0) {
+        setHistoryData(data.history);
+        return data.history;
+      }
+    } catch (err) {
+      console.error('Error fetching portfolio history:', err);
+    }
+    return [];
+  };
+
+  // Save snapshot on load (once per day)
+  useEffect(() => {
+    const saveSnapshot = async () => {
+      const lastSave = localStorage.getItem('lastPortfolioSnapshot');
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (lastSave !== today && initialValue > 0) {
+        try {
+          await fetch(`${API_URL}/api/portfolio/snapshot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              totalValue: initialValue,
+              dailyPnL: 0,
+              accounts: ['alpaca'],
+            }),
+          });
+          localStorage.setItem('lastPortfolioSnapshot', today);
+          console.log('Portfolio snapshot saved');
+        } catch (err) {
+          console.error('Error saving snapshot:', err);
+        }
+      }
+    };
+
+    if (initialValue > 0) {
+      saveSnapshot();
+    }
+  }, [initialValue]);
+
+  // Generate mock data if no history
+  const generateMockData = (days) => {
     const data = [];
     let value = initialValue * 0.85;
     const now = new Date();
@@ -30,18 +92,23 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
     return data;
   };
 
-  const getDaysForTimeframe = (tf) => {
-    switch (tf) {
-      case '1W': return 7;
-      case '1M': return 30;
-      case '3M': return 90;
-      case '6M': return 180;
-      case '1Y': return 365;
-      case 'All': return 730;
-      default: return 30;
-    }
-  };
+  // Load data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      const history = await fetchHistory();
+      setLoading(false);
+      
+      if (history.length === 0) {
+        // Use mock data if no history yet
+        const mockData = generateMockData(getDaysForTimeframe(selectedTimeframe));
+        setHistoryData(mockData.map(d => ({ date: d.time, totalValue: d.value })));
+      }
+    };
+    loadData();
+  }, []);
 
+  // Build chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -86,14 +153,26 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
     chartRef.current = chart;
     seriesRef.current = areaSeries;
 
+    // Filter data by timeframe
     const days = getDaysForTimeframe(selectedTimeframe);
-    const data = generateData(days);
-    areaSeries.setData(data);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    let filteredData = historyData
+      .filter(h => new Date(h.date) >= cutoff)
+      .map(h => ({ time: h.date, value: h.totalValue }));
+
+    // If no real data, generate mock
+    if (filteredData.length === 0) {
+      filteredData = generateMockData(days);
+    }
+
+    areaSeries.setData(filteredData);
     chart.timeScale().fitContent();
 
-    if (data.length > 0) {
-      const lastValue = data[data.length - 1].value;
-      const firstValue = data[0].value;
+    if (filteredData.length > 0) {
+      const lastValue = filteredData[filteredData.length - 1].value;
+      const firstValue = filteredData[0].value;
       setCurrentValue(lastValue);
       setChangeAmount(lastValue - firstValue);
       setChangePercent(((lastValue - firstValue) / firstValue) * 100);
@@ -105,8 +184,8 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
         if (value) {
           setCurrentValue(value.value);
         }
-      } else if (data.length > 0) {
-        setCurrentValue(data[data.length - 1].value);
+      } else if (filteredData.length > 0) {
+        setCurrentValue(filteredData[filteredData.length - 1].value);
       }
     });
 
@@ -122,7 +201,7 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [selectedTimeframe, initialValue]);
+  }, [selectedTimeframe, historyData, initialValue]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
@@ -141,6 +220,9 @@ const PortfolioChart = ({ initialValue = 126093, className = '' }) => {
           <div className="text-3xl font-bold text-white">{formatCurrency(currentValue)}</div>
           <div className={`text-sm ${changeAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {changeAmount >= 0 ? '+' : ''}{formatCurrency(changeAmount)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
+            <span className="text-gray-500 ml-1">
+              {historyData.length > 1 ? `· ${historyData.length} days tracked` : '· Demo data'}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-1">
