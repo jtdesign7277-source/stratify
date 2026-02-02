@@ -11,10 +11,18 @@ import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, close
 
 dotenv.config();
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI (optional)
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  try {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  } catch (error) {
+    console.warn('OpenAI initialization failed; continuing without it.', error.message);
+    openai = null;
+  }
+} else {
+  console.warn('OPENAI_API_KEY not set; OpenAI features disabled.');
+}
 
 // Initialize Yahoo Finance
 const yahooFinance = new YahooFinance();
