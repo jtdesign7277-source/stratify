@@ -56,7 +56,7 @@ const Sidebar = ({
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
-    { id: 'atlas', label: 'Atlas AI', icon: Brain, isNew: true },
+    { id: 'atlas', label: 'Demo', icon: Brain, isNew: true, labelClass: 'text-[#1a365d]' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
   ];
@@ -117,7 +117,7 @@ const Sidebar = ({
                   />
                   {!collapsed && (
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="whitespace-nowrap">{item.label}</span>
+                      <span className={`whitespace-nowrap ${item.labelClass || ''}`}>{item.label}</span>
                       {item.isNew && (
                         <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 rounded">
                           New
