@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const getMarketStatus = () => {
@@ -16,7 +16,6 @@ const getMarketStatus = () => {
   return 'closed';
 };
 
-// Stock database for search
 const STOCK_DATABASE = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
   { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ' },
@@ -44,38 +43,21 @@ const STOCK_DATABASE = [
   { symbol: 'UBER', name: 'Uber Technologies', exchange: 'NYSE' },
   { symbol: 'ABNB', name: 'Airbnb, Inc.', exchange: 'NASDAQ' },
   { symbol: 'SQ', name: 'Block, Inc.', exchange: 'NYSE' },
-  { symbol: 'SHOP', name: 'Shopify Inc.', exchange: 'NYSE' },
-  { symbol: 'SNAP', name: 'Snap Inc.', exchange: 'NYSE' },
-  { symbol: 'ROKU', name: 'Roku, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'ZM', name: 'Zoom Video', exchange: 'NASDAQ' },
   { symbol: 'CRWD', name: 'CrowdStrike Holdings', exchange: 'NASDAQ' },
   { symbol: 'GME', name: 'GameStop Corp.', exchange: 'NYSE' },
   { symbol: 'AMC', name: 'AMC Entertainment', exchange: 'NYSE' },
   { symbol: 'RIVN', name: 'Rivian Automotive', exchange: 'NASDAQ' },
   { symbol: 'NIO', name: 'NIO Inc.', exchange: 'NYSE' },
   { symbol: 'F', name: 'Ford Motor Company', exchange: 'NYSE' },
-  { symbol: 'GM', name: 'General Motors', exchange: 'NYSE' },
   { symbol: 'XOM', name: 'Exxon Mobil Corp.', exchange: 'NYSE' },
   { symbol: 'JNJ', name: 'Johnson & Johnson', exchange: 'NYSE' },
-  { symbol: 'PFE', name: 'Pfizer Inc.', exchange: 'NYSE' },
-  { symbol: 'MRNA', name: 'Moderna, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'LLY', name: 'Eli Lilly and Company', exchange: 'NYSE' },
   { symbol: 'WMT', name: 'Walmart Inc.', exchange: 'NYSE' },
-  { symbol: 'COST', name: 'Costco Wholesale', exchange: 'NASDAQ' },
   { symbol: 'HD', name: 'Home Depot', exchange: 'NYSE' },
   { symbol: 'BA', name: 'Boeing Company', exchange: 'NYSE' },
-  { symbol: 'CAT', name: 'Caterpillar Inc.', exchange: 'NYSE' },
   { symbol: 'AVGO', name: 'Broadcom Inc.', exchange: 'NASDAQ' },
-  { symbol: 'QCOM', name: 'Qualcomm Inc.', exchange: 'NASDAQ' },
-  { symbol: 'MU', name: 'Micron Technology', exchange: 'NASDAQ' },
-  { symbol: 'AMAT', name: 'Applied Materials', exchange: 'NASDAQ' },
-  { symbol: 'TSM', name: 'Taiwan Semiconductor', exchange: 'NYSE' },
-  { symbol: 'ORCL', name: 'Oracle Corporation', exchange: 'NYSE' },
   { symbol: 'CRM', name: 'Salesforce, Inc.', exchange: 'NYSE' },
   { symbol: 'ADBE', name: 'Adobe Inc.', exchange: 'NASDAQ' },
-  { symbol: 'NOW', name: 'ServiceNow, Inc.', exchange: 'NYSE' },
   { symbol: 'PANW', name: 'Palo Alto Networks', exchange: 'NASDAQ' },
-  { symbol: 'DDOG', name: 'Datadog, Inc.', exchange: 'NASDAQ' },
   { symbol: 'SNOW', name: 'Snowflake Inc.', exchange: 'NYSE' },
   { symbol: 'NET', name: 'Cloudflare, Inc.', exchange: 'NYSE' },
   { symbol: 'HIMS', name: 'Hims & Hers Health', exchange: 'NYSE' },
@@ -83,7 +65,6 @@ const STOCK_DATABASE = [
   { symbol: 'SMCI', name: 'Super Micro Computer', exchange: 'NASDAQ' },
   { symbol: 'ARM', name: 'Arm Holdings', exchange: 'NASDAQ' },
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
-  { symbol: 'IONQ', name: 'IonQ, Inc.', exchange: 'NYSE' },
 ];
 
 const DEFAULT_WATCHLIST = [
@@ -97,6 +78,77 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'HOOD', name: 'Robinhood Markets, Inc.' },
 ];
 
+// Hidden TradingView ticker component to fetch price
+const TradingViewTicker = ({ symbol, onPriceUpdate }) => {
+  const containerRef = useRef(null);
+  
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    // Clear previous widget
+    containerRef.current.innerHTML = '';
+    
+    // Create TradingView Ticker Widget
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      symbol: symbol,
+      width: "100%",
+      height: "100%",
+      colorTheme: "dark",
+      isTransparent: true,
+      locale: "en"
+    });
+    
+    containerRef.current.appendChild(script);
+    
+    // Poll the widget for price data
+    const checkForPrice = setInterval(() => {
+      const priceEl = containerRef.current?.querySelector('.tv-single-quote__price');
+      const changeEl = containerRef.current?.querySelector('.tv-single-quote__change-value');
+      const percentEl = containerRef.current?.querySelector('.tv-single-quote__change-percent');
+      
+      if (priceEl) {
+        const priceText = priceEl.textContent?.replace(/[^0-9.]/g, '');
+        const price = parseFloat(priceText);
+        
+        let change = 0;
+        let changePercent = 0;
+        
+        if (changeEl) {
+          change = parseFloat(changeEl.textContent?.replace(/[^0-9.-]/g, '') || 0);
+        }
+        if (percentEl) {
+          changePercent = parseFloat(percentEl.textContent?.replace(/[^0-9.-]/g, '') || 0);
+        }
+        
+        if (price > 0) {
+          onPriceUpdate(symbol, { price, change, changePercent });
+        }
+      }
+    }, 1000);
+    
+    return () => {
+      clearInterval(checkForPrice);
+    };
+  }, [symbol, onPriceUpdate]);
+  
+  return (
+    <div 
+      ref={containerRef} 
+      style={{ 
+        position: 'absolute', 
+        left: '-9999px', 
+        width: '300px', 
+        height: '80px',
+        opacity: 0,
+        pointerEvents: 'none'
+      }} 
+    />
+  );
+};
+
 const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,102 +156,17 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [quotes, setQuotes] = useState({});
-  const [loading, setLoading] = useState(true);
-  const widgetContainerRef = useRef(null);
   
-  // Use prop watchlist or defaults
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
     : DEFAULT_WATCHLIST;
 
-  // Use TradingView's data widget to get real-time prices
-  useEffect(() => {
-    const loadTradingViewData = () => {
-      const symbols = stocks.map(s => s.symbol);
-      
-      // Create hidden TradingView widgets to fetch data
-      symbols.forEach(symbol => {
-        // Use TradingView's mini chart widget which includes price data
-        const script = document.createElement('script');
-        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-        script.async = true;
-        script.innerHTML = JSON.stringify({
-          symbol: symbol,
-          width: 1,
-          height: 1,
-          locale: "en",
-          dateRange: "1D",
-          colorTheme: "dark",
-          isTransparent: true,
-          autosize: false,
-          largeChartUrl: ""
-        });
-        
-        // Listen for TradingView postMessage events
-        const handleMessage = (event) => {
-          if (event.data && typeof event.data === 'string') {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.name === 'quoteUpdate' && data.data) {
-                setQuotes(prev => ({
-                  ...prev,
-                  [data.data.symbol]: {
-                    price: data.data.lp,
-                    change: data.data.ch,
-                    changePercent: data.data.chp,
-                  }
-                }));
-              }
-            } catch (e) {}
-          }
-        };
-        
-        window.addEventListener('message', handleMessage);
-      });
-    };
-
-    // Fallback: Use Yahoo Finance v8 API (free)
-    const fetchQuotes = async () => {
-      setLoading(true);
-      const results = {};
-      
-      await Promise.all(
-        stocks.map(async (stock) => {
-          try {
-            const res = await fetch(
-              `https://query1.finance.yahoo.com/v8/finance/chart/${stock.symbol}?interval=1d&range=1d`
-            );
-            if (!res.ok) return;
-            const data = await res.json();
-            const result = data.chart?.result?.[0];
-            if (!result) return;
-            
-            const meta = result.meta;
-            const price = meta.regularMarketPrice || 0;
-            const prevClose = meta.chartPreviousClose || meta.previousClose || price;
-            const change = price - prevClose;
-            const changePercent = prevClose ? (change / prevClose) * 100 : 0;
-            
-            results[stock.symbol] = {
-              price,
-              change,
-              changePercent,
-              name: meta.shortName || meta.longName || stock.name,
-            };
-          } catch (err) {
-            console.error('Quote error:', stock.symbol, err);
-          }
-        })
-      );
-      
-      setQuotes(results);
-      setLoading(false);
-    };
-
-    fetchQuotes();
-    const interval = setInterval(fetchQuotes, 30000);
-    return () => clearInterval(interval);
-  }, [stocks.map(s => s.symbol).join(',')]);
+  const handlePriceUpdate = (symbol, data) => {
+    setQuotes(prev => ({
+      ...prev,
+      [symbol]: data
+    }));
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
@@ -221,7 +188,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     setSearchResults(filtered);
   }, [searchQuery, stocks]);
 
-  const handleAddStock = async (stock) => {
+  const handleAddStock = (stock) => {
     if (onAddToWatchlist) {
       onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
     }
@@ -238,7 +205,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   };
 
   const formatPrice = (price) => {
-    if (!price) return '—';
+    if (!price || price === 0) return '...';
     return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -247,6 +214,17 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   return (
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+      
+      {/* Hidden TradingView widgets for each stock */}
+      <div style={{ position: 'absolute', left: '-9999px', opacity: 0 }}>
+        {stocks.map(stock => (
+          <TradingViewTicker 
+            key={stock.symbol} 
+            symbol={stock.symbol} 
+            onPriceUpdate={handlePriceUpdate}
+          />
+        ))}
+      </div>
       
       {/* Watchlist Panel */}
       <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
@@ -291,7 +269,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
               )}
             </div>
             
-            {/* Search Results */}
             {searchQuery && searchResults.length > 0 && (
               <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
                 {searchResults.map((stock) => (
@@ -323,10 +300,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
         {/* Stock List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
-          {loading && Object.keys(quotes).length === 0 && (
-            <div className="p-4 text-center text-gray-500">Loading prices...</div>
-          )}
-          
           {stocks.map((stock) => {
             const quote = quotes[stock.symbol] || {};
             const price = quote.price || 0;
@@ -334,7 +307,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             const changePercent = quote.changePercent || 0;
             const isPositive = change >= 0;
             const isSelected = selectedTicker === stock.symbol;
-            const name = quote.name || stock.name || stock.symbol;
+            const stockInfo = STOCK_DATABASE.find(s => s.symbol === stock.symbol);
+            const name = stockInfo?.name || stock.name || stock.symbol;
             
             return (
               <div 
@@ -347,7 +321,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">${stock.symbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
                       {price > 0 ? `$${formatPrice(price)}` : '...'}
                     </div>
                   </div>
@@ -360,7 +334,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
                     <div className="text-right flex-shrink-0 mr-3">
                       <div className="text-white font-semibold text-base font-mono">
-                        {price > 0 ? `$${formatPrice(price)}` : '—'}
+                        {price > 0 ? `$${formatPrice(price)}` : '...'}
                       </div>
                       {price > 0 && (
                         <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -386,10 +360,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         {!isCollapsed && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
             <span className="text-gray-400">{stocks.length} symbols</span>
-            <div className="flex items-center gap-3">
-              <span className="text-emerald-400">{stocks.filter(s => (quotes[s.symbol]?.change || 0) >= 0).length} ↑</span>
-              <span className="text-red-400">{stocks.filter(s => (quotes[s.symbol]?.change || 0) < 0).length} ↓</span>
-            </div>
+            <span className="text-blue-400">TradingView Data</span>
           </div>
         )}
       </div>
@@ -400,7 +371,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-bold text-lg">${selectedTicker}</h2>
-              <span className="text-gray-400 text-sm">{quotes[selectedTicker]?.name || stocks.find(s => s.symbol === selectedTicker)?.name}</span>
+              <span className="text-gray-400 text-sm">{STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || stocks.find(s => s.symbol === selectedTicker)?.name}</span>
             </div>
             <button onClick={() => setSelectedTicker(null)} className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-400">
               <X className="w-4 h-4" />
