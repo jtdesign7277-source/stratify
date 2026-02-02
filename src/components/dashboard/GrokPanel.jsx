@@ -816,7 +816,7 @@ Generate a trading strategy with the following format:
             {/* Chat Input - Fixed at bottom */}
             <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#060d18]">
               <div className="flex gap-2 items-end bg-[#0a1628] border border-gray-700 rounded-lg p-2">
-                <textarea
+                <textarea rows={3}
                   ref={inputRef}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
@@ -909,7 +909,7 @@ Generate a trading strategy with the following format:
                 </div>
                 {/* Modify Input */}
                 <div className="flex gap-2 items-end bg-[#0a1628] border border-gray-700 rounded-lg p-2">
-                  <textarea
+                  <textarea rows={3}
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStrategyModify(); } }}
