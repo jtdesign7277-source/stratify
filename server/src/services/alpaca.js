@@ -12,7 +12,7 @@ export async function getQuotes() {
   try {
     const quotes = await alpaca.getLatestQuotes(SYMBOLS);
     return SYMBOLS.map((symbol) => {
-      const quote = quotes.get(symbol);
+      const quote = quotes.get ? quotes.get(symbol) : quotes[symbol];
       return {
         symbol,
         askPrice: quote?.AskPrice || 0,
@@ -26,13 +26,14 @@ export async function getQuotes() {
   }
 }
 
-// NEW: Get snapshots with previous close for change calculation
+// Get snapshots with previous close for change calculation
 export async function getSnapshots(symbols = SYMBOLS) {
   try {
     const snapshots = await alpaca.getSnapshots(symbols);
     
     return symbols.map((symbol) => {
-      const snapshot = snapshots[symbol];
+      // Handle both Map and Object responses from Alpaca
+      const snapshot = snapshots.get ? snapshots.get(symbol) : snapshots[symbol];
       if (!snapshot) {
         return { symbol, price: 0, prevClose: 0, change: 0, changePercent: 0 };
       }
@@ -64,7 +65,7 @@ export async function getSnapshots(symbols = SYMBOLS) {
   }
 }
 
-// NEW: Get single snapshot
+// Get single snapshot
 export async function getSnapshot(symbol) {
   try {
     const snapshots = await getSnapshots([symbol.toUpperCase()]);
