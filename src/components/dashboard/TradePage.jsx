@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
-import { createChart, CandlestickSeries } from 'lightweight-charts';
-import { getHistory } from '../../services/marketData';
 
 const API_URL = 'https://atlas-api-production-5944.up.railway.app';
 
@@ -80,15 +78,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState(true);
-  const [chartStatus, setChartStatus] = useState({ state: 'idle', message: '' });
-
   const [orderSide, setOrderSide] = useState('buy');
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '' });
-  const chartContainerRef = useRef(null);
-  const chartRef = useRef(null);
-  const candleSeriesRef = useRef(null);
   
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
@@ -225,89 +218,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   };
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
-
-  useEffect(() => {
-    if (!chartContainerRef.current || chartRef.current) return;
-
-    const chart = createChart(chartContainerRef.current, {
-      autoSize: true,
-      layout: {
-        background: { color: '#060d18' },
-        textColor: '#9aa4b2',
-      },
-      grid: {
-        vertLines: { visible: false },
-        horzLines: { visible: false },
-      },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false },
-      crosshair: {
-        vertLine: { visible: false },
-        horzLine: { visible: false },
-      },
-    });
-
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#34d399',
-      downColor: '#f87171',
-      borderVisible: false,
-      wickUpColor: '#34d399',
-      wickDownColor: '#f87171',
-    });
-
-    chartRef.current = chart;
-    candleSeriesRef.current = series;
-
-    const observer = new ResizeObserver(() => {
-      chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-    });
-    observer.observe(chartContainerRef.current);
-
-    return () => {
-      observer.disconnect();
-      chart.remove();
-      chartRef.current = null;
-      candleSeriesRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const loadHistory = async () => {
-      const symbolToLoad = selectedTicker || defaultSymbol;
-      if (!symbolToLoad || !candleSeriesRef.current) return;
-      setChartStatus({ state: 'loading', message: '' });
-      const history = await getHistory(symbolToLoad, '1mo', '30m');
-      const series = candleSeriesRef.current;
-
-      if (!history || !Array.isArray(history.data) || history.data.length === 0) {
-        series.setData([]);
-        setChartStatus({ state: 'empty', message: 'No chart data available.' });
-        return;
-      }
-
-      const mapped = history.data
-        .map((bar) => {
-          const time = bar?.time ? Math.floor(new Date(bar.time).getTime() / 1000) : null;
-          if (!time || [bar.open, bar.high, bar.low, bar.close].some(v => typeof v !== 'number')) {
-            return null;
-          }
-          return { time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
-        })
-        .filter(Boolean);
-
-      if (mapped.length === 0) {
-        series.setData([]);
-        setChartStatus({ state: 'empty', message: 'No chart data available.' });
-        return;
-      }
-
-      series.setData(mapped);
-      chartRef.current?.timeScale().fitContent();
-      setChartStatus({ state: 'ready', message: '' });
-    };
-
-    loadHistory();
-  }, [selectedTicker, defaultSymbol]);
 
   return (
     <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
@@ -485,15 +395,16 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 Trade
               </button>
             )}
-            <div className="text-xs text-gray-500">
-              {chartStatus.state === 'loading' && 'Loading chart...'}
-              {chartStatus.state === 'empty' && chartStatus.message}
-            </div>
           </div>
         </div>
         <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
           <div className="flex-1 min-h-[360px] relative">
-            <div ref={chartContainerRef} className="absolute inset-0" />
+            <iframe
+              key={selectedTicker || defaultSymbol}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${selectedTicker || defaultSymbol}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0d1829&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allowFullScreen
+            />
           </div>
 
           <div
