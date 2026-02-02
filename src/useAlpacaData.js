@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getQuotes, getQuote, getAlpacaBars, getTrending, getAlpacaAccount, getAlpacaPositions } from './services/marketData';
+import { getQuotes, getQuote, getSnapshots, getAlpacaBars, getTrending, getAlpacaAccount, getAlpacaPositions } from './services/marketData';
 
 // Default watchlist symbols
 const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'];
@@ -78,20 +78,19 @@ export function useWatchlist(symbols = DEFAULT_SYMBOLS) {
 
   const fetchWatchlist = useCallback(async () => {
     try {
-      const quotes = await getQuotes(symbols);
-      setStocks(quotes.map(q => ({
-        symbol: q.symbol,
-        name: q.name || q.symbol,
-        price: q.price || 0,
-        change: q.change || 0,
-        changePercent: q.changePercent || 0,
-        prevClose: q.prevClose,
-        open: q.open,
-        dayHigh: q.dayHigh,
-        dayLow: q.dayLow,
-        volume: q.volume,
-        marketCap: q.marketCap,
-        marketState: q.marketState,
+      // Use Alpaca snapshots for real-time data with change %
+      const snapshots = await getSnapshots(symbols);
+      setStocks(snapshots.map(s => ({
+        symbol: s.symbol,
+        name: s.symbol, // Alpaca doesn't return name, use symbol
+        price: s.price || 0,
+        change: s.change || 0,
+        changePercent: s.changePercent || 0,
+        prevClose: s.prevClose,
+        open: s.open,
+        high: s.high,
+        low: s.low,
+        volume: s.volume,
       })));
       setError(null);
     } catch (err) {

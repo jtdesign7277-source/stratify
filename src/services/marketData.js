@@ -87,6 +87,29 @@ export async function getAlpacaBars() {
   }
 }
 
+// Get Alpaca snapshot with change data (single symbol)
+export async function getSnapshot(symbol) {
+  try {
+    const response = await fetch(`${API_BASE}/api/snapshot/${symbol}`);
+    if (!response.ok) throw new Error('Failed to fetch snapshot');
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching snapshot for ${symbol}:`, error);
+    return null;
+  }
+}
+
+// Get Alpaca snapshots for multiple symbols
+export async function getSnapshots(symbols) {
+  const snapshots = await Promise.all(
+    symbols.map(async (symbol) => {
+      const snapshot = await getSnapshot(symbol);
+      return snapshot;
+    })
+  );
+  return snapshots.filter(s => s !== null);
+}
+
 // Get Alpaca account data (equity, buying power, etc.)
 export async function getAlpacaAccount() {
   try {
