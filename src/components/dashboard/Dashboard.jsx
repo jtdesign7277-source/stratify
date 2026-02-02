@@ -23,6 +23,7 @@ import MarketsPage from './MarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
+import TradePage from './TradePage';
 
 const loadDashboardState = () => {
   try {
@@ -492,12 +493,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
           {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
           {activeTab === 'trade' && (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-white mb-2">Trade</h2>
-                <p>Trading interface coming soon</p>
-              </div>
-            </div>
+            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
