@@ -82,7 +82,6 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
             className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 hover:border-zinc-600/50 transition-colors cursor-pointer"
             onClick={() => onViewChart && onViewChart(stock)}
           >
-            {/* Top row: Symbol/Name and Price/Change */}
             <div className="flex items-start justify-between mb-2">
               <div>
                 <span className="font-bold text-white">{stock.symbol}</span>
@@ -100,32 +99,17 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
                       ) : (
                         <TrendDownIcon className="w-3 h-3" />
                       )}
-                      <span>
-                        {change >= 0 ? '+' : ''}{change.toFixed(2)} ({changePercent.toFixed(2)}%)
-                      </span>
+                      <span>{change >= 0 ? '+' : ''}{changePercent.toFixed(2)}%</span>
                     </div>
                   </>
                 )}
               </div>
             </div>
-            
-            {/* Bottom row: Volume and Remove button */}
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-700/30">
-              <div className="flex gap-3 text-xs text-zinc-500">
-                {volume && <span>Vol: {formatNumber(volume)}</span>}
+            {volume && (
+              <div className="text-xs text-zinc-500">
+                Vol: {formatNumber(volume)}
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onRemove(stock.symbol);
-                }}
-                className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
-              >
-                Remove
-              </button>
-            </div>
+            )}
           </div>
         );
       })}
