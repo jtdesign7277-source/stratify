@@ -16,7 +16,7 @@ export default function AIChat() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/claude', {
+      const res = await fetch('https://atlas-api-production-5944.up.railway.app/api/claude', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage }),

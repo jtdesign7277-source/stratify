@@ -318,7 +318,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     setIsThinking(true);
 
     try {
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://atlas-api-production-5944.up.railway.app';
       const prompt = `Create a trading strategy called "${name}" for $${ticker}. ${userMessage}. Backtest period: ${timeframeLabel}.`;
       
       const response = await fetch(`${backendUrl}/api/claude`, {
@@ -424,7 +424,7 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     }, 400);
     
     try {
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://atlas-api-production-5944.up.railway.app';
       const response = await fetch(`${backendUrl}/api/claude`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
