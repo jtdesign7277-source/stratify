@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getQuotes, getBars, getAccount, getPositions } from '../services/alpaca.js';
+import { getQuotes, getBars, getSnapshots, getAccount, getPositions } from '../services/alpaca.js';
 
 const router = Router();
 
@@ -37,8 +37,9 @@ router.get('/quotes', async (req, res) => {
 
 router.get('/bars', async (req, res) => {
   try {
-    const bars = await getBars();
-    res.json(bars);
+    // Use snapshots for real-time data with change %
+    const snapshots = await getSnapshots();
+    res.json(snapshots);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
