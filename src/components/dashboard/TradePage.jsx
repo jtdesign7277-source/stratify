@@ -605,3 +605,4 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 };
 
 export default TradePage;
+// v1770073772
