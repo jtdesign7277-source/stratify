@@ -1,5 +1,5 @@
 // Market Data Service - connects to Stratify backend
-const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+const API_BASE = 'https://atlas-api-production-5944.up.railway.app';
 
 // Fetch a single stock quote
 export async function getQuote(symbol) {
