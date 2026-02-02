@@ -128,3 +128,119 @@ export function startAlpacaStream(onData) {
     }
   }, 5000);
 }
+// ==================== TRADE EXECUTION ====================
+
+export async function submitOrder({ symbol, qty, side, type = 'market', limitPrice = null, stopPrice = null }) {
+  try {
+    const orderParams = {
+      symbol: symbol.toUpperCase(),
+      qty: Math.abs(qty),
+      side: side.toLowerCase(), // 'buy' or 'sell'
+      type: type.toLowerCase(), // 'market', 'limit', 'stop', 'stop_limit'
+      time_in_force: 'day',
+    };
+
+    if (type === 'limit' && limitPrice) {
+      orderParams.limit_price = limitPrice;
+    }
+    if ((type === 'stop' || type === 'stop_limit') && stopPrice) {
+      orderParams.stop_price = stopPrice;
+    }
+
+    console.log('📤 Submitting order:', orderParams);
+    const order = await alpaca.createOrder(orderParams);
+    
+    return {
+      success: true,
+      orderId: order.id,
+      clientOrderId: order.client_order_id,
+      symbol: order.symbol,
+      qty: order.qty,
+      side: order.side,
+      type: order.type,
+      status: order.status,
+      filledQty: order.filled_qty,
+      filledAvgPrice: order.filled_avg_price,
+      createdAt: order.created_at,
+    };
+  } catch (error) {
+    console.error('Error submitting order:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getOrder(orderId) {
+  try {
+    const order = await alpaca.getOrder(orderId);
+    return {
+      orderId: order.id,
+      symbol: order.symbol,
+      qty: order.qty,
+      side: order.side,
+      type: order.type,
+      status: order.status,
+      filledQty: order.filled_qty,
+      filledAvgPrice: order.filled_avg_price,
+      createdAt: order.created_at,
+      filledAt: order.filled_at,
+    };
+  } catch (error) {
+    console.error('Error getting order:', error.message);
+    throw error;
+  }
+}
+
+export async function cancelOrder(orderId) {
+  try {
+    await alpaca.cancelOrder(orderId);
+    return { success: true, orderId };
+  } catch (error) {
+    console.error('Error canceling order:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getOrders(status = 'open') {
+  try {
+    const orders = await alpaca.getOrders({ status });
+    return orders.map(order => ({
+      orderId: order.id,
+      symbol: order.symbol,
+      qty: order.qty,
+      side: order.side,
+      type: order.type,
+      status: order.status,
+      filledQty: order.filled_qty,
+      filledAvgPrice: order.filled_avg_price,
+      createdAt: order.created_at,
+    }));
+  } catch (error) {
+    console.error('Error getting orders:', error.message);
+    throw error;
+  }
+}
+
+export async function closePosition(symbol) {
+  try {
+    const result = await alpaca.closePosition(symbol.toUpperCase());
+    return { success: true, symbol, result };
+  } catch (error) {
+    console.error('Error closing position:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getLatestPrice(symbol) {
+  try {
+    const quote = await alpaca.getLatestQuote(symbol.toUpperCase());
+    return {
+      symbol: symbol.toUpperCase(),
+      askPrice: quote.AskPrice,
+      bidPrice: quote.BidPrice,
+      price: quote.AskPrice || quote.BidPrice,
+    };
+  } catch (error) {
+    console.error('Error getting latest price:', error.message);
+    throw error;
+  }
+}

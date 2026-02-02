@@ -7,7 +7,7 @@ import OpenAI from 'openai';
 import stocksRouter from './routes/stocks.js';
 import chatRouter from './routes/chat.js';
 import kalshiRouter from './routes/kalshi.js';
-import { startAlpacaStream } from './services/alpaca.js';
+import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice } from './services/alpaca.js';
 
 dotenv.config();
 
@@ -442,5 +442,81 @@ app.delete('/api/portfolio/history', (req, res) => {
     res.json({ success: true, message: 'History cleared' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to clear history' });
+  }
+});
+
+// ==================== TRADE EXECUTION ENDPOINTS ====================
+
+// Execute a trade
+app.post('/api/trades/execute', async (req, res) => {
+  try {
+    const { symbol, qty, side, type = 'market', limitPrice, stopPrice } = req.body;
+    
+    if (!symbol || !qty || !side) {
+      return res.status(400).json({ error: 'symbol, qty, and side are required' });
+    }
+    
+    // Get current price for confirmation
+    const priceData = await getLatestPrice(symbol);
+    const result = await submitOrder({ symbol, qty, side, type, limitPrice, stopPrice });
+    
+    res.json({
+      ...result,
+      estimatedPrice: priceData.price,
+    });
+  } catch (error) {
+    console.error('Trade execution error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get order status
+app.get('/api/trades/order/:orderId', async (req, res) => {
+  try {
+    const order = await getOrder(req.params.orderId);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancel order
+app.delete('/api/trades/order/:orderId', async (req, res) => {
+  try {
+    const result = await cancelOrder(req.params.orderId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all orders
+app.get('/api/trades/orders', async (req, res) => {
+  try {
+    const { status = 'all' } = req.query;
+    const orders = await getOrders(status);
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Close position
+app.post('/api/trades/close/:symbol', async (req, res) => {
+  try {
+    const result = await closePosition(req.params.symbol);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get price quote
+app.get('/api/trades/quote/:symbol', async (req, res) => {
+  try {
+    const price = await getLatestPrice(req.params.symbol);
+    res.json(price);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
