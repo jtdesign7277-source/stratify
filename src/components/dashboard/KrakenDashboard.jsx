@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // Import ALL existing working components
 import Sidebar from './Sidebar';
+import WatchlistPage from './WatchlistPage';
 import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
@@ -1641,6 +1642,25 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
             )}
           </AnimatePresence>
         </div>
+
+          {/* Watchlist Full Page Overlay */}
+          <AnimatePresence>
+            {activeSection === 'watchlist' && (
+              <motion.div 
+                className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <WatchlistPage 
+                  watchlist={watchlist}
+                  onAddToWatchlist={addToWatchlist}
+                  onRemoveFromWatchlist={removeFromWatchlist}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
       </div>
       
       {/* Right Panel - Uses existing RightPanel (Atlas AI) */}
