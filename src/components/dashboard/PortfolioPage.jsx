@@ -167,7 +167,7 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(hasRealData) && (
+          {(hasRealData || true) && (
             <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
