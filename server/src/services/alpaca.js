@@ -26,26 +26,37 @@ export async function getQuotes() {
   }
 }
 
-// Get snapshots with previous close for change calculation
+// NEW: Get snapshots with previous close for change calculation
 export async function getSnapshots(symbols = SYMBOLS) {
   try {
     const snapshots = await alpaca.getSnapshots(symbols);
+    
     return symbols.map((symbol) => {
       const snapshot = snapshots.get(symbol);
       if (!snapshot) {
         return { symbol, price: 0, prevClose: 0, change: 0, changePercent: 0 };
       }
-
+      
       const latestTrade = snapshot.LatestTrade;
       const dailyBar = snapshot.DailyBar;
       const prevDailyBar = snapshot.PrevDailyBar;
-
+      
       const currentPrice = latestTrade?.Price || dailyBar?.ClosePrice || 0;
       const prevClose = prevDailyBar?.ClosePrice || dailyBar?.OpenPrice || currentPrice;
       const change = currentPrice - prevClose;
       const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-
-      return { symbol, price: currentPrice, prevClose, change, changePercent };
+      
+      return {
+        symbol,
+        price: currentPrice,
+        prevClose,
+        change,
+        changePercent,
+        open: dailyBar?.OpenPrice || 0,
+        high: dailyBar?.HighPrice || 0,
+        low: dailyBar?.LowPrice || 0,
+        volume: dailyBar?.Volume || 0,
+      };
     });
   } catch (error) {
     console.error('Error fetching snapshots:', error.message);
@@ -53,6 +64,7 @@ export async function getSnapshots(symbols = SYMBOLS) {
   }
 }
 
+// NEW: Get single snapshot
 export async function getSnapshot(symbol) {
   try {
     const snapshots = await getSnapshots([symbol.toUpperCase()]);
@@ -165,6 +177,7 @@ export function startAlpacaStream(onData) {
     }
   }, 5000);
 }
+
 // ==================== TRADE EXECUTION ====================
 
 export async function submitOrder({ symbol, qty, side, type = 'market', limitPrice = null, stopPrice = null }) {
@@ -172,8 +185,8 @@ export async function submitOrder({ symbol, qty, side, type = 'market', limitPri
     const orderParams = {
       symbol: symbol.toUpperCase(),
       qty: Math.abs(qty),
-      side: side.toLowerCase(), // 'buy' or 'sell'
-      type: type.toLowerCase(), // 'market', 'limit', 'stop', 'stop_limit'
+      side: side.toLowerCase(),
+      type: type.toLowerCase(),
       time_in_force: 'day',
     };
 
