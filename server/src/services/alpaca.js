@@ -26,6 +26,43 @@ export async function getQuotes() {
   }
 }
 
+// Get snapshots with previous close for change calculation
+export async function getSnapshots(symbols = SYMBOLS) {
+  try {
+    const snapshots = await alpaca.getSnapshots(symbols);
+    return symbols.map((symbol) => {
+      const snapshot = snapshots.get(symbol);
+      if (!snapshot) {
+        return { symbol, price: 0, prevClose: 0, change: 0, changePercent: 0 };
+      }
+
+      const latestTrade = snapshot.LatestTrade;
+      const dailyBar = snapshot.DailyBar;
+      const prevDailyBar = snapshot.PrevDailyBar;
+
+      const currentPrice = latestTrade?.Price || dailyBar?.ClosePrice || 0;
+      const prevClose = prevDailyBar?.ClosePrice || dailyBar?.OpenPrice || currentPrice;
+      const change = currentPrice - prevClose;
+      const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+
+      return { symbol, price: currentPrice, prevClose, change, changePercent };
+    });
+  } catch (error) {
+    console.error('Error fetching snapshots:', error.message);
+    throw error;
+  }
+}
+
+export async function getSnapshot(symbol) {
+  try {
+    const snapshots = await getSnapshots([symbol.toUpperCase()]);
+    return snapshots[0] || null;
+  } catch (error) {
+    console.error('Error fetching snapshot:', error.message);
+    throw error;
+  }
+}
+
 export async function getBars() {
   try {
     const response = await alpaca.getMultiBarsV2(SYMBOLS, {

@@ -529,3 +529,14 @@ app.get('/api/trades/quote/:symbol', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Get snapshot with change data
+app.get('/api/snapshot/:symbol', async (req, res) => {
+  try {
+    const { getSnapshot } = await import('./services/alpaca.js');
+    const data = await getSnapshot(req.params.symbol);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
