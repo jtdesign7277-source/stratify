@@ -50,7 +50,7 @@ app.post('/api/v1/chat/', async (req, res) => {
         'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'grok-beta',
+        model: 'grok-3',
         messages: [
           {
             role: 'system',
@@ -128,7 +128,7 @@ For general questions, just respond conversationally.`
       code,
       strategy_name: strategy_name || null,
       trade: tradeResult,
-      model: 'grok-beta',
+      model: 'grok-3',
     });
 
   } catch (error) {
