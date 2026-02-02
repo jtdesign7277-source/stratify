@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
@@ -8,7 +8,6 @@ import {
   LineChart, 
   Wallet, 
   History, 
-  HelpCircle, 
   MoreHorizontal,
   ChevronsLeft,
   ChevronsRight,
@@ -18,9 +17,7 @@ import {
   Play,
   Square,
   Trash2,
-  Zap,
-  MessageCircle,
-  Mail
+  Zap
 } from 'lucide-react';
 import StratifyLogo from './StratifyLogo';
 
@@ -36,19 +33,6 @@ const Sidebar = ({
   const [collapsed, setCollapsed] = useState(false);
   const [strategiesExpanded, setStrategiesExpanded] = useState(true);
   const [deployedExpanded, setDeployedExpanded] = useState(true);
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
-  const helpMenuRef = useRef(null);
-
-  // Close help menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (helpMenuRef.current && !helpMenuRef.current.contains(e.target)) {
-        setHelpMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -224,59 +208,6 @@ const Sidebar = ({
         <div className="h-px bg-white/10 mx-2 mb-2" />
         
         <ul className="space-y-px mb-2">
-          {/* Help button with floating menu */}
-          <li className="relative" ref={helpMenuRef}>
-            <button
-              onClick={() => setHelpMenuOpen(!helpMenuOpen)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
-                collapsed ? 'justify-center px-2' : ''
-              }`}
-              title={collapsed ? 'Help' : undefined}
-            >
-              <HelpCircle className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
-              {!collapsed && (
-                <span className="whitespace-nowrap overflow-hidden">Help</span>
-              )}
-            </button>
-            
-            {/* Floating Help Menu */}
-            <AnimatePresence>
-              {helpMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute bottom-full left-0 mb-2 w-56 bg-[#1a1a24] border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-50"
-                >
-                  <div className="py-2">
-                    <button
-                      onClick={() => {
-                        setHelpMenuOpen(false);
-                        // TODO: Open chat widget
-                        window.open('https://discord.com/invite/clawd', '_blank');
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-[14px] text-white/80 hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      <MessageCircle className="w-5 h-5 text-white/60" strokeWidth={1.5} />
-                      <span>Chat with us</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setHelpMenuOpen(false);
-                        window.open('mailto:support@stratify.trade', '_blank');
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-[14px] text-white/80 hover:text-white hover:bg-white/5 transition-all"
-                    >
-                      <Mail className="w-5 h-5 text-white/60" strokeWidth={1.5} />
-                      <span>Contact support</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </li>
-          
           {/* More info button */}
           <li>
             <button
