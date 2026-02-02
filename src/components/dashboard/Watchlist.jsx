@@ -28,7 +28,7 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
   const fetchQuote = useCallback(async (symbol) => {
     setLoading(prev => ({ ...prev, [symbol]: true }));
     try {
-      const res = await fetch(`/api/stock/${symbol}`);
+      const res = await fetch(`https://atlas-api-production-5944.up.railway.app/api/public/quote/${symbol}`);
       const data = await res.json();
       if (data.stock) {
         setQuotes(prev => ({ ...prev, [symbol]: data.stock }));
