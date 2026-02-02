@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
+const API_URL = 'https://atlas-api-production-5944.up.railway.app';
+
 const getMarketStatus = () => {
   const now = new Date();
   const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -78,11 +80,6 @@ const DEFAULT_WATCHLIST = [
   { symbol: 'HOOD', name: 'Robinhood Markets, Inc.' },
 ];
 
-// Alpaca API credentials - using paper trading
-const ALPACA_KEY = 'PK3D2TL4D0QXEMNY8SAV';
-const ALPACA_SECRET = 'lvMxgWdF1pNt8P9gT3phaFGHc2xPGDLMCNhBN0Ie';
-const ALPACA_DATA_URL = 'https://data.alpaca.markets/v2';
-
 const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,104 +88,66 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState(true);
+  const [prevCloses, setPrevCloses] = useState({});
   
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
     : DEFAULT_WATCHLIST;
 
-  // Fetch quotes from Alpaca
-  const fetchQuotes = useCallback(async () => {
-    if (stocks.length === 0) return;
-    
-    const symbols = stocks.map(s => s.symbol).join(',');
-    
+  // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
+  const fetchQuote = useCallback(async (symbol) => {
     try {
-      // Fetch latest trades for all symbols at once
-      const tradesRes = await fetch(
-        `${ALPACA_DATA_URL}/stocks/trades/latest?symbols=${symbols}`,
-        {
-          headers: {
-            'APCA-API-KEY-ID': ALPACA_KEY,
-            'APCA-API-SECRET-KEY': ALPACA_SECRET,
-          },
-        }
-      );
-      
-      if (!tradesRes.ok) {
-        console.error('Alpaca trades API error:', tradesRes.status);
-        return;
-      }
-      
-      const tradesData = await tradesRes.json();
-      
-      // Fetch previous day bars for change calculation
-      const barsRes = await fetch(
-        `${ALPACA_DATA_URL}/stocks/bars?symbols=${symbols}&timeframe=1Day&limit=2`,
-        {
-          headers: {
-            'APCA-API-KEY-ID': ALPACA_KEY,
-            'APCA-API-SECRET-KEY': ALPACA_SECRET,
-          },
-        }
-      );
-      
-      let barsData = {};
-      if (barsRes.ok) {
-        barsData = await barsRes.json();
-      }
-      
-      // Build quotes object
-      const newQuotes = {};
-      
-      for (const symbol of stocks.map(s => s.symbol)) {
-        const trade = tradesData.trades?.[symbol];
-        const bars = barsData.bars?.[symbol] || [];
-        
-        if (trade) {
-          const currentPrice = trade.p;
-          let prevClose = currentPrice;
-          
-          // Get previous close from bars
-          if (bars.length >= 2) {
-            prevClose = bars[bars.length - 2].c;
-          } else if (bars.length === 1) {
-            prevClose = bars[0].o; // Use open if only one bar
-          }
-          
-          const change = currentPrice - prevClose;
-          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-          
-          newQuotes[symbol] = {
-            price: currentPrice,
-            change: change,
-            changePercent: changePercent,
-            volume: trade.s || 0,
-          };
-        }
-      }
-      
-      setQuotes(newQuotes);
-      setLoading(false);
-      
+      const res = await fetch(`${API_URL}/api/trades/quote/${symbol}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
     } catch (err) {
-      console.error('Error fetching quotes:', err);
-      setLoading(false);
+      console.error('Quote fetch error:', symbol, err);
+      return null;
     }
-  }, [stocks]);
+  }, []);
 
-  // Fetch on mount and every 10 seconds
+  // Fetch all quotes
   useEffect(() => {
-    fetchQuotes();
-    const interval = setInterval(fetchQuotes, 10000);
+    const fetchAllQuotes = async () => {
+      setLoading(true);
+      const results = {};
+      
+      await Promise.all(
+        stocks.map(async (stock) => {
+          const quote = await fetchQuote(stock.symbol);
+          if (quote && quote.price) {
+            // Store previous close for change calculation (use current as fallback)
+            const prevClose = prevCloses[stock.symbol] || quote.price;
+            const change = quote.price - prevClose;
+            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+            
+            results[stock.symbol] = {
+              price: quote.price,
+              change: change,
+              changePercent: changePercent,
+              askPrice: quote.askPrice,
+              bidPrice: quote.bidPrice,
+            };
+          }
+        })
+      );
+      
+      setQuotes(results);
+      setLoading(false);
+    };
+    
+    fetchAllQuotes();
+    const interval = setInterval(fetchAllQuotes, 10000); // Refresh every 10s
     return () => clearInterval(interval);
-  }, [fetchQuotes]);
+  }, [stocks.map(s => s.symbol).join(','), fetchQuote]);
 
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Local search
+  // Local search from STOCK_DATABASE
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -304,7 +263,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
         {/* Stock List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
-          {loading && stocks.length > 0 && (
+          {loading && Object.keys(quotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
