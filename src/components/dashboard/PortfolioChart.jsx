@@ -73,20 +73,26 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
     }
   }, [initialValue]);
 
-  // Generate mock data if no history
+  // Generate mock data if no history - ends at real initialValue
   const generateMockData = (days) => {
     const data = [];
-    let value = initialValue * 0.85;
     const now = new Date();
-    
+    const startValue = initialValue * 0.92; // Start 8% lower
+    const endValue = initialValue; // End at real current value
+
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const change = (Math.random() - 0.45) * (value * 0.02);
-      value = Math.max(value + change, initialValue * 0.5);
+
+      // Linear interpolation with decreasing noise toward end
+      const progress = (days - i) / days;
+      const baseValue = startValue + (endValue - startValue) * progress;
+      const noise = (Math.random() - 0.5) * initialValue * 0.015;
+      const value = baseValue + noise * (1 - progress * 0.9);
+
       data.push({
         time: date.toISOString().split('T')[0],
-        value: value,
+        value: i === 0 ? endValue : value, // Force last point to exact value
       });
     }
     return data;
