@@ -31,9 +31,19 @@ export async function getSnapshots(symbols = SYMBOLS) {
   try {
     const snapshots = await alpaca.getSnapshots(symbols);
     
-    return symbols.map((symbol) => {
+    // DEBUG: Log raw response structure
+    console.log('📸 Raw snapshots type:', typeof snapshots, snapshots?.constructor?.name);
+    console.log('📸 Raw snapshots keys:', Object.keys(snapshots || {}));
+    
+    return symbols.map((symbol, index) => {
       // Handle both Map and Object responses from Alpaca
       const snapshot = snapshots.get ? snapshots.get(symbol) : snapshots[symbol];
+      
+      // DEBUG: Log first symbol's snapshot structure
+      if (index === 0) {
+        console.log(`📸 Snapshot for ${symbol}:`, JSON.stringify(snapshot, null, 2));
+      }
+      
       if (!snapshot) {
         return { symbol, price: 0, prevClose: 0, change: 0, changePercent: 0 };
       }
