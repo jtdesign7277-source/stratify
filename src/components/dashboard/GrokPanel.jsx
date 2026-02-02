@@ -108,28 +108,17 @@ const parseStrategyResponse = (content) => {
   const codeMatch = content.match(/```python\n([\s\S]*?)```/);
   const code = codeMatch ? codeMatch[1].trim() : '';
   let summary = content.split('```')[0].trim();
-  
-  const parsed = {
-    ticker: '',
-    entry: '',
-    exit: '',
-    stopLoss: '',
-    positionSize: '',
-    description: summary
-  };
-  
+  const parsed = { ticker: '', entry: '', exit: '', stopLoss: '', positionSize: '', description: summary };
   const tickerMatch = summary.match(/Ticker[s]?:\s*([^\n]+)/i);
   const entryMatch = summary.match(/Entry[^:]*:\s*([^\n]+)/i);
   const exitMatch = summary.match(/Exit[^:]*:\s*([^\n]+)/i);
   const stopMatch = summary.match(/Stop[^:]*:\s*([^\n]+)/i);
   const positionMatch = summary.match(/Position[^:]*:\s*([^\n]+)/i);
-  
   if (tickerMatch) parsed.ticker = tickerMatch[1].trim();
   if (entryMatch) parsed.entry = entryMatch[1].trim();
   if (exitMatch) parsed.exit = exitMatch[1].trim();
   if (stopMatch) parsed.stopLoss = stopMatch[1].trim();
   if (positionMatch) parsed.positionSize = positionMatch[1].trim();
-  
   return { summary: parsed, code, raw: content };
 };
 
@@ -147,381 +136,136 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
-  
   const [tabs, setTabs] = useState([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
   const [activeTab, setActiveTab] = useState('chat');
   const [strategyCounter, setStrategyCounter] = useState(0);
   const [activeSubTab, setActiveSubTab] = useState('strategy');
-  
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+    }
+  }, [chatInput]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
 
   useEffect(() => {
-    if (!tickerSearch.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
+    if (!tickerSearch.trim()) { setSearchResults([]); return; }
     const query = tickerSearch.toLowerCase();
-    const localResults = ALL_TICKERS.filter(t => 
-      !selectedTickers.includes(t.symbol) &&
-      (t.symbol.toLowerCase().includes(query) || t.name.toLowerCase().includes(query))
-    ).slice(0, 5);
+    const localResults = ALL_TICKERS.filter(t => !selectedTickers.includes(t.symbol) && (t.symbol.toLowerCase().includes(query) || t.name.toLowerCase().includes(query))).slice(0, 5);
     setSearchResults(localResults);
-
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
         let apiResults = [];
         try {
-          const response = await fetch(`/api/stock/search?q=${encodeURIComponent(tickerSearch)}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results) {
-              apiResults = data.results.slice(0, 8).map(r => ({
-                symbol: r.symbol,
-                name: r.shortname || r.longname || r.name || r.symbol,
-                exchange: r.exchDisp || r.exchange || '',
-              }));
-            }
-          }
+          const response = await fetch('/api/stock/search?q=' + encodeURIComponent(tickerSearch));
+          if (response.ok) { const data = await response.json(); if (data.results) { apiResults = data.results.slice(0, 8).map(r => ({ symbol: r.symbol, name: r.shortname || r.longname || r.name || r.symbol, exchange: r.exchDisp || r.exchange || '' })); } }
         } catch (e) {}
-        
         if (apiResults.length === 0) {
-          const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(tickerSearch)}&quotesCount=8&newsCount=0`;
+          const yahooUrl = 'https://query1.finance.yahoo.com/v1/finance/search?q=' + encodeURIComponent(tickerSearch) + '&quotesCount=8&newsCount=0';
           const response = await fetch(yahooUrl);
           const data = await response.json();
-          
-          if (data.quotes) {
-            apiResults = data.quotes
-              .filter(q => (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'CRYPTOCURRENCY'))
-              .slice(0, 8)
-              .map(q => ({
-                symbol: q.symbol,
-                name: q.shortname || q.longname || q.symbol,
-                exchange: q.exchDisp || q.exchange || '',
-              }));
-          }
+          if (data.quotes) { apiResults = data.quotes.filter(q => (q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'CRYPTOCURRENCY')).slice(0, 8).map(q => ({ symbol: q.symbol, name: q.shortname || q.longname || q.symbol, exchange: q.exchDisp || q.exchange || '' })); }
         }
-        
         const filteredResults = apiResults.filter(r => !selectedTickers.includes(r.symbol));
         const apiSymbols = new Set(filteredResults.map(r => r.symbol));
-        const mergedResults = [
-          ...filteredResults,
-          ...localResults.filter(r => !apiSymbols.has(r.symbol))
-        ].slice(0, 8);
-        
-        if (mergedResults.length > 0) {
-          setSearchResults(mergedResults);
-        }
-      } catch (err) {
-        console.error('Ticker search error:', err);
-      } finally {
-        setIsSearching(false);
-      }
+        const mergedResults = [...filteredResults, ...localResults.filter(r => !apiSymbols.has(r.symbol))].slice(0, 8);
+        if (mergedResults.length > 0) { setSearchResults(mergedResults); }
+      } catch (err) { console.error('Ticker search error:', err); }
+      finally { setIsSearching(false); }
     }, 300);
-
     return () => clearTimeout(timer);
   }, [tickerSearch, selectedTickers]);
 
-  const addTicker = (symbol) => {
-    if (!selectedTickers.includes(symbol)) {
-      const newTickers = [...selectedTickers, symbol];
-      setSelectedTickers(newTickers);
-      updateStrategyNameWithTickers(newTickers);
-    }
-    setTickerSearch('');
-    setSearchResults([]);
-  };
+  const addTicker = (symbol) => { if (!selectedTickers.includes(symbol)) { const newTickers = [...selectedTickers, symbol]; setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); } setTickerSearch(''); setSearchResults([]); };
+  const removeTicker = (symbol) => { const newTickers = selectedTickers.filter(s => s !== symbol); setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); };
+  const getTickerPrefix = (tickers) => { if (!tickers || tickers.length === 0) return ''; if (tickers.length === 1) return '$' + tickers[0] + ' - '; if (tickers.length === 2) return '$' + tickers[0] + '/$' + tickers[1] + ' - '; return '$' + tickers[0] + '+ - '; };
+  const updateStrategyNameWithTickers = (tickers, strategyType = null) => { const prefix = getTickerPrefix(tickers); const currentName = strategyName; const dashIndex = currentName.indexOf(' - '); const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : ''; if (strategyType) { setStrategyName(prefix + strategyType); } else if (existingSuffix) { setStrategyName(prefix + existingSuffix); } else if (prefix) { setStrategyName(prefix); } };
+  const handleReset = () => { setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
+  const closeTab = (tabId) => { if (tabId === 'chat') return; setTabs(prev => prev.filter(t => t.id !== tabId)); if (activeTab === tabId) { setActiveTab('chat'); } };
 
-  const removeTicker = (symbol) => {
-    const newTickers = selectedTickers.filter(s => s !== symbol);
-    setSelectedTickers(newTickers);
-    updateStrategyNameWithTickers(newTickers);
-  };
-
-  const getTickerPrefix = (tickers) => {
-    if (!tickers || tickers.length === 0) return '';
-    if (tickers.length === 1) return `$${tickers[0]} - `;
-    if (tickers.length === 2) return `$${tickers[0]}/$${tickers[1]} - `;
-    return `$${tickers[0]}+ - `;
-  };
-
-  const updateStrategyNameWithTickers = (tickers, strategyType = null) => {
-    const prefix = getTickerPrefix(tickers);
-    const currentName = strategyName;
-    const dashIndex = currentName.indexOf(' - ');
-    const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : '';
-    
-    if (strategyType) {
-      setStrategyName(prefix + strategyType);
-    } else if (existingSuffix) {
-      setStrategyName(prefix + existingSuffix);
-    } else if (prefix) {
-      setStrategyName(prefix);
-    }
-  };
-
-  const handleReset = () => {
-    setSelectedTickers([]);
-    setSelectedStrategy(null);
-    setStrategyName('');
-    setSelectedTimeframe(null);
-    setMessages([]);
-    setChatInput('');
-    setTickerSearch('');
-    setTabs([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
-    setActiveTab('chat');
-    setStrategyCounter(0);
-    setActiveSubTab('strategy');
-    setSelectedQuickStrategy(null);
-  };
-
-  const closeTab = (tabId) => {
-    if (tabId === 'chat') return;
-    setTabs(prev => prev.filter(t => t.id !== tabId));
-    if (activeTab === tabId) {
-      setActiveTab('chat');
-    }
-  };
-
-  const handleSave = () => {
-    if (!activeTabData || activeTab === 'chat') return;
-    
-    const strategyToSave = {
-      id: activeTabData.id,
-      name: activeTabData.name,
-      code: activeTabData.parsed?.code || '',
-      content: activeTabData.content,
-      summary: activeTabData.parsed?.summary || {},
-      tickers: activeTabData.tickers || [],
-      strategyType: activeTabData.strategyType,
-      timeframe: activeTabData.timeframe,
-      deployed: false,
-      savedAt: Date.now(),
-    };
-    
-    onSaveStrategy && onSaveStrategy(strategyToSave);
-    setTabs(prev => prev.map(t => 
-      t.id === activeTab ? { ...t, saved: true } : t
-    ));
-  };
-
-  const handleSaveAndDeploy = () => {
-    if (!activeTabData || activeTab === 'chat') return;
-    
-    const strategyToSave = {
-      id: activeTabData.id,
-      name: activeTabData.name,
-      code: activeTabData.parsed?.code || '',
-      content: activeTabData.content,
-      summary: activeTabData.parsed?.summary || {},
-      tickers: activeTabData.tickers || [],
-      strategyType: activeTabData.strategyType,
-      timeframe: activeTabData.timeframe,
-      deployed: true,
-      runStatus: 'running',
-      savedAt: Date.now(),
-      deployedAt: Date.now(),
-    };
-    
-    onDeployStrategy && onDeployStrategy(strategyToSave);
-    setTabs(prev => prev.map(t => 
-      t.id === activeTab ? { ...t, saved: true, deployed: true } : t
-    ));
-  };
+  const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
+  const handleSaveAndDeploy = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: true, runStatus: 'running', savedAt: Date.now(), deployedAt: Date.now() }; onDeployStrategy && onDeployStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true, deployed: true } : t)); };
 
   const handleChatSend = async () => {
     if (!chatInput.trim() || isChatLoading) return;
     const userMsg = chatInput.trim();
     setChatInput('');
-    
     const isStrategyRequest = selectedTickers.length > 0 || selectedStrategy || selectedTimeframe;
-    
     if (isStrategyRequest) {
       const newCounter = strategyCounter + 1;
       setStrategyCounter(newCounter);
-      const tabName = strategyName.trim() || `Strategy ${newCounter}`;
-      const tabId = `strategy-${Date.now()}`;
-      
-      setTabs(prev => [...prev, { 
-        id: tabId, 
-        name: tabName, 
-        content: '', 
-        parsed: null,
-        isTyping: true,
-        tickers: [...selectedTickers],
-        strategyType: selectedStrategy,
-        timeframe: selectedTimeframe
-      }]);
+      const tabName = strategyName.trim() || 'Strategy ' + newCounter;
+      const tabId = 'strategy-' + Date.now();
+      setTabs(prev => [...prev, { id: tabId, name: tabName, content: '', parsed: null, isTyping: true, tickers: [...selectedTickers], strategyType: selectedStrategy, timeframe: selectedTimeframe }]);
       setActiveTab(tabId);
       setActiveSubTab('strategy');
       setIsChatLoading(true);
-      
-      let contextMsg = `${userMsg}
-
-Generate a trading strategy with the following format:
-1. First provide a brief summary with these fields:
-   - Ticker(s): [symbols]
-   - Entry Condition: [when to enter]
-   - Exit Condition: [when to exit]
-   - Stop Loss: [stop loss rule]
-   - Position Size: [position sizing]
-
-2. Then provide the Python code using Alpaca API.`;
-      
-      if (selectedTickers.length > 0) {
-        contextMsg += `\n\nTickers: ${selectedTickers.join(', ')}`;
-      }
-      if (selectedStrategy) {
-        const strat = STRATEGY_TYPES.find(s => s.id === selectedStrategy);
-        contextMsg += `\nStrategy type: ${strat?.name || selectedStrategy}`;
-      }
-      if (selectedTimeframe) {
-        const tf = TIMEFRAMES.find(t => t.id === selectedTimeframe);
-        contextMsg += `\nTimeframe: ${tf?.label || selectedTimeframe}`;
-      }
-      
+      let contextMsg = userMsg + '\n\nGenerate a trading strategy with the following format:\n1. First provide a brief summary with these fields:\n   - Ticker(s): [symbols]\n   - Entry Condition: [when to enter]\n   - Exit Condition: [when to exit]\n   - Stop Loss: [stop loss rule]\n   - Position Size: [position sizing]\n\n2. Then provide the Python code using Alpaca API.';
+      if (selectedTickers.length > 0) { contextMsg += '\n\nTickers: ' + selectedTickers.join(', '); }
+      if (selectedStrategy) { const strat = STRATEGY_TYPES.find(s => s.id === selectedStrategy); contextMsg += '\nStrategy type: ' + (strat?.name || selectedStrategy); }
+      if (selectedTimeframe) { const tf = TIMEFRAMES.find(t => t.id === selectedTimeframe); contextMsg += '\nTimeframe: ' + (tf?.label || selectedTimeframe); }
       try {
-        const response = await fetch(`${API_BASE}/api/v1/chat/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: contextMsg }),
-        });
+        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg }) });
         if (!response.ok) throw new Error('Failed');
         const data = await response.json();
         const fullContent = data.response || "Couldn't respond.";
-        
         let idx = 0;
-        const interval = setInterval(() => {
-          idx += 10;
-          if (idx >= fullContent.length) {
-            clearInterval(interval);
-            const parsed = parseStrategyResponse(fullContent);
-            setTabs(prev => prev.map(t => 
-              t.id === tabId ? { ...t, content: fullContent, parsed, isTyping: false } : t
-            ));
-          } else {
-            setTabs(prev => prev.map(t => 
-              t.id === tabId ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t
-            ));
-          }
-        }, 5);
-      } catch (e) {
-        setTabs(prev => prev.map(t => 
-          t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t
-        ));
-      } finally {
-        setIsChatLoading(false);
-        setStrategyName('');
-        setSelectedQuickStrategy(null);
-      }
+        const interval = setInterval(() => { idx += 10; if (idx >= fullContent.length) { clearInterval(interval); const parsed = parseStrategyResponse(fullContent); setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: fullContent, parsed, isTyping: false } : t)); } else { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t)); } }, 5);
+      } catch (e) { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t)); }
+      finally { setIsChatLoading(false); setStrategyName(''); setSelectedQuickStrategy(null); }
     } else {
       setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
       setIsChatLoading(true);
-
       try {
-        const response = await fetch(`${API_BASE}/api/v1/chat/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMsg }),
-        });
+        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg }) });
         if (!response.ok) throw new Error('Failed');
         const data = await response.json();
         const fullContent = data.response || "Couldn't respond.";
-        
         setMessages(prev => [...prev, { role: 'assistant', content: '', isTyping: true }]);
         let idx = 0;
-        const interval = setInterval(() => {
-          idx += 10;
-          if (idx >= fullContent.length) {
-            clearInterval(interval);
-            setMessages(prev => {
-              const msgs = [...prev];
-              msgs[msgs.length - 1] = { role: 'assistant', content: fullContent, isTyping: false };
-              return msgs;
-            });
-          } else {
-            setMessages(prev => {
-              const msgs = [...prev];
-              msgs[msgs.length - 1] = { role: 'assistant', content: fullContent.slice(0, idx), isTyping: true };
-              return msgs;
-            });
-          }
-        }, 5);
-      } catch (e) {
-        setMessages(prev => [...prev, { role: 'assistant', content: "Error.", isError: true }]);
-      } finally {
-        setIsChatLoading(false);
-      }
+        const interval = setInterval(() => { idx += 10; if (idx >= fullContent.length) { clearInterval(interval); setMessages(prev => { const msgs = [...prev]; msgs[msgs.length - 1] = { role: 'assistant', content: fullContent, isTyping: false }; return msgs; }); } else { setMessages(prev => { const msgs = [...prev]; msgs[msgs.length - 1] = { role: 'assistant', content: fullContent.slice(0, idx), isTyping: true }; return msgs; }); } }, 5);
+      } catch (e) { setMessages(prev => [...prev, { role: 'assistant', content: "Error.", isError: true }]); }
+      finally { setIsChatLoading(false); }
     }
   };
 
   const handleStrategyModify = async () => {
+    const activeTabData = tabs.find(t => t.id === activeTab);
     if (!chatInput.trim() || isChatLoading || !activeTabData) return;
     const modifyRequest = chatInput.trim();
     setChatInput('');
     setIsChatLoading(true);
-
-    const contextMsg = `Current strategy:\n${activeTabData.content}\n\nModification request: ${modifyRequest}\n\nProvide the updated strategy in the same format (summary fields + Python code).`;
-
+    const contextMsg = 'Current strategy:\n' + activeTabData.content + '\n\nModification request: ' + modifyRequest + '\n\nProvide the updated strategy in the same format (summary fields + Python code).';
     try {
-      const response = await fetch(`${API_BASE}/api/v1/chat/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: contextMsg }),
-      });
+      const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg }) });
       if (!response.ok) throw new Error('Failed');
       const data = await response.json();
       const fullContent = data.response || "Couldn't respond.";
-      
-      setTabs(prev => prev.map(t => 
-        t.id === activeTab ? { ...t, content: '', parsed: null, isTyping: true } : t
-      ));
-      
+      setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: '', parsed: null, isTyping: true } : t));
       let idx = 0;
-      const interval = setInterval(() => {
-        idx += 10;
-        if (idx >= fullContent.length) {
-          clearInterval(interval);
-          const parsed = parseStrategyResponse(fullContent);
-          setTabs(prev => prev.map(t => 
-            t.id === activeTab ? { ...t, content: fullContent, parsed, isTyping: false } : t
-          ));
-        } else {
-          setTabs(prev => prev.map(t => 
-            t.id === activeTab ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t
-          ));
-        }
-      }, 5);
-    } catch (e) {
-      setTabs(prev => prev.map(t => 
-        t.id === activeTab ? { ...t, content: "Error modifying strategy.", isTyping: false } : t
-      ));
-    } finally {
-      setIsChatLoading(false);
-    }
+      const interval = setInterval(() => { idx += 10; if (idx >= fullContent.length) { clearInterval(interval); const parsed = parseStrategyResponse(fullContent); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: fullContent, parsed, isTyping: false } : t)); } else { setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t)); } }, 5);
+    } catch (e) { setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: "Error modifying strategy.", isTyping: false } : t)); }
+    finally { setIsChatLoading(false); }
   };
 
-  const copyCode = (code, index) => {
-    navigator.clipboard.writeText(code);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
-  };
+  const copyCode = (code, index) => { navigator.clipboard.writeText(code); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); };
 
   const renderCode = (code, key) => (
     <div className="rounded-lg border border-gray-700 overflow-hidden">
       <div className="flex justify-between items-center px-3 py-1.5 bg-[#0a1628] border-b border-gray-700">
-        <span className="text-xs text-gray-400 font-mono">python</span>
-        <button onClick={() => copyCode(code, key)} className="text-xs text-gray-400 hover:text-white flex items-center gap-1">
-          {copiedIndex === key ? <><Check className="w-3 h-3 text-emerald-400"/> Copied</> : <><Copy className="w-3 h-3"/> Copy</>}
+        <span className="text-sm text-gray-400 font-mono">python</span>
+        <button onClick={() => copyCode(code, key)} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
+          {copiedIndex === key ? <><Check className="w-3.5 h-3.5 text-emerald-400"/> Copied</> : <><Copy className="w-3.5 h-3.5"/> Copy</>}
         </button>
       </div>
-      <pre className="p-3 bg-[#060d18] overflow-x-auto text-xs text-gray-300 font-mono leading-relaxed max-h-64 overflow-y-auto">{code}</pre>
+      <pre className="p-3 bg-[#060d18] overflow-x-auto text-sm text-gray-300 font-mono leading-relaxed">{code}</pre>
     </div>
   );
 
@@ -529,57 +273,23 @@ Generate a trading strategy with the following format:
     const codeRegex = /```(\w+)?\n([\s\S]*?)```/g;
     const parts = [];
     let last = 0, match;
-    while ((match = codeRegex.exec(content)) !== null) {
-      if (match.index > last) parts.push({ type: 'text', content: content.slice(last, match.index) });
-      parts.push({ type: 'code', lang: match[1] || 'python', content: match[2].trim() });
-      last = match.index + match[0].length;
-    }
+    while ((match = codeRegex.exec(content)) !== null) { if (match.index > last) parts.push({ type: 'text', content: content.slice(last, match.index) }); parts.push({ type: 'code', lang: match[1] || 'python', content: match[2].trim() }); last = match.index + match[0].length; }
     if (last < content.length) parts.push({ type: 'text', content: content.slice(last) });
     if (!parts.length) parts.push({ type: 'text', content });
-
-    return parts.map((p, i) => {
-      if (p.type === 'code') {
-        return <div key={i} className="my-2">{renderCode(p.content, `${msgIdx}-${i}`)}</div>;
-      }
-      return <span key={i} className="whitespace-pre-wrap">{p.content}</span>;
-    });
+    return parts.map((p, i) => { if (p.type === 'code') { return <div key={i} className="my-2">{renderCode(p.content, msgIdx + '-' + i)}</div>; } return <span key={i} className="whitespace-pre-wrap">{p.content}</span>; });
   };
 
   const renderStrategySummary = (tab) => {
     const parsed = tab.parsed?.summary;
-    if (!parsed) {
-      return <div className="text-gray-400 text-sm">Parsing strategy...</div>;
-    }
-    
+    if (!parsed) return <div className="text-gray-400 text-sm">Parsing strategy...</div>;
     return (
-      <div className="space-y-4">
-        {parsed.entry && (
-          <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Entry Condition</label>
-            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.entry}</div>
-          </div>
-        )}
-        {parsed.exit && (
-          <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Exit Condition</label>
-            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.exit}</div>
-          </div>
-        )}
-        {parsed.stopLoss && (
-          <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Stop Loss</label>
-            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.stopLoss}</div>
-          </div>
-        )}
-        {parsed.positionSize && (
-          <div>
-            <label className="text-gray-500 text-xs font-medium uppercase tracking-wide">Position Size</label>
-            <div className="text-[#e5e5e5] text-sm mt-1 leading-relaxed">{parsed.positionSize}</div>
-          </div>
-        )}
-        {!parsed.entry && parsed.description && (
-          <div className="text-[#e5e5e5] text-sm whitespace-pre-wrap leading-relaxed">{parsed.description}</div>
-        )}
+      <div className="space-y-3">
+        {parsed.ticker && <div><label className="text-gray-400 text-sm font-medium">Ticker(s)</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.ticker}</div></div>}
+        {parsed.entry && <div><label className="text-gray-400 text-sm font-medium">Entry Condition</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.entry}</div></div>}
+        {parsed.exit && <div><label className="text-gray-400 text-sm font-medium">Exit Condition</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.exit}</div></div>}
+        {parsed.stopLoss && <div><label className="text-gray-400 text-sm font-medium">Stop Loss</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.stopLoss}</div></div>}
+        {parsed.positionSize && <div><label className="text-gray-400 text-sm font-medium">Position Size</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.positionSize}</div></div>}
+        {!parsed.ticker && !parsed.entry && parsed.description && <div className="text-[#e5e5e5] text-base whitespace-pre-wrap">{parsed.description}</div>}
       </div>
     );
   };
@@ -590,349 +300,155 @@ Generate a trading strategy with the following format:
   if (isCollapsed) {
     return (
       <div className="w-10 h-full bg-[#060d18] border-l border-gray-800 flex flex-col items-center py-2">
-        <button onClick={() => setIsCollapsed(false)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white">
-          <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
-        </button>
-        <div className="mt-2 p-1 bg-emerald-500/20 rounded">
-          <Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} />
-        </div>
+        <button onClick={() => setIsCollapsed(false)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white"><ChevronLeft className="w-4 h-4" strokeWidth={1.5} /></button>
+        <div className="mt-2 p-1 bg-emerald-500/20 rounded"><Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} /></div>
       </div>
     );
   }
 
   return (
-    <div className="w-96 h-full bg-[#060d18] border-l border-gray-800 flex flex-col">
-      {/* Header - Fixed */}
+    <div className="w-96 h-full bg-[#060d18] border-l border-gray-800 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-emerald-500/20 rounded">
-            <Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} />
-          </div>
+          <div className="p-1.5 bg-emerald-500/20 rounded"><Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} /></div>
           <span className="text-[#e5e5e5] font-medium text-base">Grok</span>
           <span className="text-gray-500 text-sm">xAI</span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset">
-            <RotateCcw className="w-4 h-4" strokeWidth={1.5} />
-          </button>
-          <button onClick={() => setIsCollapsed(true)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white">
-            <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
-          </button>
+          <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-4 h-4" strokeWidth={1.5} /></button>
+          <button onClick={() => setIsCollapsed(true)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white"><ChevronRight className="w-4 h-4" strokeWidth={1.5} /></button>
         </div>
       </div>
 
-      {/* Tab Bar - Fixed */}
       <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
         {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id); if (tab.id !== 'chat') setActiveSubTab('strategy'); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                : 'bg-[#0d1829] text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-[#e5e5e5]'
-            }`}
-          >
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id !== 'chat') setActiveSubTab('strategy'); }} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ' + (activeTab === tab.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#0d1829] text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-[#e5e5e5]')}>
             {tab.name}
             {tab.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />}
-            {tab.id !== 'chat' && (
-              <X className="w-3.5 h-3.5 hover:text-white" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} />
-            )}
+            {tab.id !== 'chat' && <X className="w-3.5 h-3.5 hover:text-white" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} />}
           </button>
         ))}
       </div>
 
-      {/* Main Content Area - Scrollable */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        
-        {/* Chat Tab Content */}
+      <div className="flex-1 p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
         {activeTab === 'chat' && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Config Section - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {/* Ticker Selection */}
-              <div>
-                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
-                    <button
-                      key={s}
-                      onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
-                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                        selectedTickers.includes(s)
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                          : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30'
-                      }`}
-                    >
-                      ${s}
-                    </button>
-                  ))}
+          <div className="flex-shrink-0 space-y-3 overflow-y-auto">
+            <div>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
+                  <button key={s} onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)} className={'px-3 py-1 rounded-lg text-sm font-medium transition-all ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30')}>${s}</button>
+                ))}
+              </div>
+              <div className="relative">
+                <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
+                  {isSearching ? <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /> : <Search className="w-4 h-4 text-gray-500" />}
+                  <input type="text" value={tickerSearch} onChange={(e) => setTickerSearch(e.target.value.toUpperCase())} placeholder="Search any stock..." className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none" />
+                  {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
                 </div>
-                <div className="relative">
-                  <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
-                    {isSearching ? <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /> : <Search className="w-4 h-4 text-gray-500" />}
-                    <input
-                      type="text"
-                      value={tickerSearch}
-                      onChange={(e) => setTickerSearch(e.target.value.toUpperCase())}
-                      placeholder="Search any stock..."
-                      className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none"
-                    />
-                    {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
+                {searchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#0a1628] border border-gray-700 rounded-lg z-50 overflow-hidden shadow-xl">
+                    {searchResults.map(t => (
+                      <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-3 py-2.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0">
+                        <div className="flex items-center gap-2 min-w-0"><span className="text-[#e5e5e5] font-semibold">${t.symbol}</span><span className="text-gray-500 truncate">{t.name}</span></div>
+                        <div className="flex items-center gap-2 flex-shrink-0">{t.exchange && <span className="text-[10px] text-gray-600">{t.exchange}</span>}<Plus className="w-4 h-4 text-emerald-400" /></div>
+                      </div>
+                    ))}
                   </div>
-                  {searchResults.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#0a1628] border border-gray-700 rounded-lg z-50 overflow-hidden shadow-xl">
-                      {searchResults.map(t => (
-                        <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-3 py-2.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-[#e5e5e5] font-semibold">${t.symbol}</span>
-                            <span className="text-gray-500 truncate">{t.name}</span>
-                          </div>
-                          <Plus className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-
-              {/* Quick Strategies */}
-              <div>
-                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
-                    { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
-                    { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
-                    { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
-                  ].map(template => {
-                    const Icon = template.icon;
-                    const isSelected = selectedQuickStrategy === template.name;
-                    return (
-                      <button
-                        key={template.id}
-                        onClick={() => {
-                          setSelectedQuickStrategy(template.name);
-                          const ticker = selectedTickers[0] || '';
-                          setStrategyName(ticker ? `$${ticker} - ${template.name}` : template.name);
-                          const tickerContext = selectedTickers.length > 0 ? ` for ${selectedTickers.join(', ')}` : '';
-                          setChatInput(template.prompt + tickerContext);
-                        }}
-                        className={`flex items-center gap-2 p-2.5 rounded-lg transition-all text-left ${
-                          isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4 text-emerald-400 flex-shrink-0" strokeWidth={1.5} />
-                        <span className={`text-sm ${isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{template.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Strategy Types */}
-              <div>
-                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {STRATEGY_TYPES.map(s => {
-                    const Icon = s.icon;
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)}
-                        className={`p-2 rounded-lg text-center transition-all ${
-                          selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600'
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 mx-auto ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500'}`} strokeWidth={1.5} />
-                        <span className={`text-xs block mt-1 ${selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]'}`}>{s.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Timeframe */}
-              <div>
-                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
-                <div className="flex gap-1.5">
-                  {TIMEFRAMES.map(tf => (
-                    <button
-                      key={tf.id}
-                      onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)}
-                      className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                        selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600'
-                      }`}
-                    >
-                      {tf.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Strategy Name */}
-              <div>
-                <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
-                <input
-                  type="text"
-                  value={strategyName}
-                  onChange={(e) => setStrategyName(e.target.value)}
-                  placeholder="Strategy name..."
-                  className="w-full px-3 py-2 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                />
-              </div>
-
-              {/* Chat Messages */}
-              {messages.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-gray-700">
-                  {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[90%] rounded-lg px-3 py-2 ${
-                        m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#0d1829] text-[#e5e5e5]'
-                      }`}>
-                        {m.role === 'assistant' && (
-                          <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-gray-700/50">
-                            <Zap className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400 text-xs">Grok</span>
-                          </div>
-                        )}
-                        <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {isChatLoading && messages[messages.length - 1]?.role === 'user' && (
-                    <div className="flex justify-start">
-                      <div className="bg-[#0d1829] rounded-lg px-3 py-2 flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                        <span className="text-gray-500 text-sm">Thinking...</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div ref={messagesEndRef} />
             </div>
-
-            {/* Chat Input - Fixed at bottom */}
-            <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#060d18]">
-              <div className="flex gap-2 items-end bg-[#0a1628] border border-gray-700 rounded-lg p-2">
-                <textarea rows={3}
-                  ref={inputRef}
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
-                  placeholder="Describe your strategy..."
-                  rows={1}
-                  className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none min-h-[36px] max-h-[100px] py-2 px-1"
-                  style={{ height: 'auto' }}
-                  onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
-                />
-                <button
-                  onClick={handleChatSend}
-                  disabled={!chatInput.trim() || isChatLoading}
-                  className={`p-2 rounded-lg transition-all flex-shrink-0 ${
-                    chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'
-                  }`}
-                >
-                  {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </button>
+            <div>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
+                  { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
+                  { id: 'vwap-bounce', name: 'VWAP Bounce', icon: Activity, prompt: 'Create a VWAP bounce strategy. Buy when price touches VWAP from above and bounces, with stop loss below VWAP.' },
+                  { id: 'breakout-hunter', name: 'Breakout Hunter', icon: Rocket, prompt: 'Create a breakout strategy. Buy when price breaks above recent resistance with volume confirmation, stop loss at breakout level.' },
+                ].map(template => {
+                  const Icon = template.icon;
+                  const isSelected = selectedQuickStrategy === template.name;
+                  return (
+                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2 p-2.5 rounded-lg transition-all text-left ' + (isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#0d1829] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#0d1829]/80')}>
+                      <Icon className={'w-4 h-4 flex-shrink-0 text-emerald-400'} strokeWidth={1.5} />
+                      <span className={'text-sm ' + (isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{template.name}</span>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+            <div>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {STRATEGY_TYPES.map(s => { const Icon = s.icon; return (
+                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-2 rounded-lg text-center transition-all ' + (selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#0d1829] border border-gray-700 hover:border-gray-600')}>
+                    <Icon className={'w-4 h-4 mx-auto ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500')} strokeWidth={1.5} />
+                    <span className={'text-sm block mt-1 ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{s.name}</span>
+                  </button>
+                ); })}
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
+              <div className="flex gap-1.5">
+                {TIMEFRAMES.map(tf => (
+                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#0d1829] text-[#e5e5e5] border border-gray-700 hover:border-gray-600')}>{tf.label}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
+              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-3 py-2 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
           </div>
         )}
 
-        {/* Strategy Tab Content */}
-        {isStrategyTab && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Sub-tabs */}
-            <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-800 flex-shrink-0">
-              <button
-                onClick={() => setActiveSubTab('strategy')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]'
-                }`}
-              >
-                Strategy
-              </button>
-              <button
-                onClick={() => setActiveSubTab('code')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]'
-                }`}
-              >
-                Code
-              </button>
-            </div>
-
-            {/* Strategy Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-3">
-              {activeTabData?.isTyping ? (
-                /* Clean Generating State */
-                <div className="flex flex-col items-center justify-center h-full py-12">
-                  <div className="relative mb-4">
-                    <div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-                    <Zap className="w-5 h-5 text-emerald-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                  </div>
-                  <span className="text-[#e5e5e5] font-medium">Generating strategy...</span>
-                  <span className="text-gray-500 text-sm mt-1">This may take a few seconds</span>
-                </div>
-              ) : activeTabData?.content ? (
-                <div className="text-[#e5e5e5]">
-                  {activeSubTab === 'strategy' ? renderStrategySummary(activeTabData) : (
-                    activeTabData.parsed?.code ? renderCode(activeTabData.parsed.code, activeTab) : <div className="text-gray-500 text-sm">No code found</div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">No content</div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Action Buttons - Fixed at bottom (only when content ready) */}
-            {!activeTabData?.isTyping && activeTabData?.content && (
-              <div className="flex-shrink-0 p-3 border-t border-gray-800 bg-[#060d18]">
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={handleSave}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium bg-[#0d1829] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save
-                  </button>
-                  <button
-                    onClick={handleSaveAndDeploy}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"
-                  >
-                    <Play className="w-4 h-4" />
-                    Save & Deploy
-                  </button>
-                </div>
-                {/* Modify Input */}
-                <div className="flex gap-2 items-end bg-[#0a1628] border border-gray-700 rounded-lg p-2">
-                  <textarea rows={3}
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStrategyModify(); } }}
-                    placeholder="Ask Grok to modify this strategy..."
-                    rows={1}
-                    className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none min-h-[36px] max-h-[100px] py-2 px-1"
-                    style={{ height: 'auto' }}
-                    onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
-                  />
-                  <button
-                    onClick={handleStrategyModify}
-                    disabled={!chatInput.trim() || isChatLoading}
-                    className={`p-2 rounded-lg transition-all flex-shrink-0 ${
-                      chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600'
-                    }`}
-                  >
-                    {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  </button>
-                </div>
+        <div className="flex-1 flex flex-col min-h-0">
+          {activeTab === 'chat' && <label className="text-gray-300 text-xs font-semibold mb-1.5 block flex-shrink-0">GROK CHAT</label>}
+          <div className="flex-1 flex flex-col bg-[#0a1628] border border-gray-700 rounded-lg overflow-hidden">
+            {isStrategyTab && (
+              <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-700 flex-shrink-0">
+                <button onClick={() => setActiveSubTab('strategy')} className={'px-3 py-1 rounded text-sm font-medium transition-all ' + (activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Strategy</button>
+                <button onClick={() => setActiveSubTab('code')} className={'px-3 py-1 rounded text-sm font-medium transition-all ' + (activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Code</button>
               </div>
             )}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="px-3 py-2 space-y-2">
+                {activeTab === 'chat' ? (
+                  <>
+                    {messages.map((m, i) => (
+                      <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                        <div className={'max-w-[90%] rounded-lg px-3 py-2 ' + (m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#0d1829] text-[#e5e5e5]')}>
+                          {m.role === 'assistant' && <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-gray-700/50"><Zap className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400 text-sm">Grok</span>{m.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse ml-auto" />}</div>}
+                          <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && <div className="flex justify-start"><div className="bg-[#0d1829] rounded-lg px-3 py-2 flex items-center gap-2"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span className="text-gray-500 text-sm">Thinking...</span></div></div>}
+                  </>
+                ) : (
+                  <>
+                    {activeTabData?.isTyping ? <div className="py-8 flex items-center justify-center"><Loader2 className="w-5 h-5 text-emerald-400 animate-spin" /><span className="text-gray-500 text-sm ml-2">Generating strategy...</span></div>
+                    : activeTabData?.content ? <div className="text-[#e5e5e5]">{activeSubTab === 'strategy' ? renderStrategySummary(activeTabData) : (activeTabData.parsed?.code ? renderCode(activeTabData.parsed.code, activeTab) : <div className="text-gray-500 text-sm">No code found</div>)}</div>
+                    : <div className="py-8 flex items-center justify-center text-gray-500 text-sm">No content</div>}
+                  </>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+            {isStrategyTab && !activeTabData?.isTyping && activeTabData?.content && (
+              <div className="flex gap-2 px-3 py-2 border-t border-gray-700 flex-shrink-0">
+                <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[#0d1829] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
+                <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
+              </div>
+            )}
+            <div className="flex gap-2 p-3 border-t border-gray-700 flex-shrink-0">
+              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."} className="flex-1 px-3 py-2 bg-[#0d1829] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 transition-colors overflow-hidden" style={{ minHeight: '60px', maxHeight: '120px' }} />
+              <button onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify} disabled={!chatInput.trim() || isChatLoading} className={'px-3 self-end rounded-lg transition-all h-10 ' + (chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600')}>{isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
