@@ -32,7 +32,7 @@ export async function getSnapshots(symbols = SYMBOLS) {
     const snapshots = await alpaca.getSnapshots(symbols);
     
     return symbols.map((symbol) => {
-      const snapshot = snapshots.get(symbol);
+      const snapshot = snapshots[symbol];
       if (!snapshot) {
         return { symbol, price: 0, prevClose: 0, change: 0, changePercent: 0 };
       }
