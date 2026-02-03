@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Send, Loader2, Copy, Check, Zap, Search, X, Plus,
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
-  ChevronLeft, ChevronRight, RotateCcw, Save, Play
+  ChevronsLeft, ChevronsRight, RotateCcw, Save, Play
 } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
@@ -300,7 +300,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   if (isCollapsed) {
     return (
       <div className="w-10 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col items-center py-2">
-        <button onClick={() => setIsCollapsed(false)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white"><ChevronLeft className="w-4 h-4" strokeWidth={1.5} /></button>
+        <button onClick={() => setIsCollapsed(false)} className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"><ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
         <div className="mt-2 p-1 bg-emerald-500/20 rounded"><Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} /></div>
       </div>
     );
@@ -311,7 +311,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
       <div className="flex items-center justify-end px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-1">
           <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-4 h-4" strokeWidth={1.5} /></button>
-          <button onClick={() => setIsCollapsed(true)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white"><ChevronRight className="w-4 h-4" strokeWidth={1.5} /></button>
+          <button onClick={() => setIsCollapsed(true)} className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"><ChevronsRight className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
         </div>
       </div>
 
