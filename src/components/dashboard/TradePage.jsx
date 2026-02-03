@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import BreakingNewsBanner from './BreakingNewsBanner';
+import TickerTape from './TickerTape';
 import useBreakingNews from '../../hooks/useBreakingNews';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
@@ -69,7 +70,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '' });
-  const { breakingNews, isVisible: isBreakingNewsVisible, triggerBreakingNews, dismissBreakingNews } = useBreakingNews();
+  const {
+    breakingNews,
+    isVisible: isBreakingNewsVisible,
+    status: breakingNewsStatus,
+    triggerBreakingNews,
+    dismissBreakingNews,
+  } = useBreakingNews();
   
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
@@ -82,6 +89,26 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }, [orderQty]);
   const estimatedTotal = selectedQuote?.price ? selectedQuote.price * orderQtyNumber : 0;
+  const tickerTapeText = useMemo(() => {
+    if (!breakingNews?.headline) return '';
+    const normalizedHeadline = breakingNews.headline.replace(/^⚡\\s*/, '');
+    const changeValue = typeof breakingNews.tickerChange === 'number'
+      ? breakingNews.tickerChange
+      : Number(breakingNews.tickerChange || 0);
+    const changeSign = changeValue > 0 ? '+' : changeValue < 0 ? '' : '';
+    const formattedChange = Number.isFinite(changeValue) ? `${changeSign}${changeValue.toFixed(2)}%` : '';
+    const tickerMove = breakingNews.tickerSymbol
+      ? `$${breakingNews.tickerSymbol} ${formattedChange}`.trim()
+      : '';
+    const segments = [
+      `⚡ BREAKING: ${normalizedHeadline}`,
+      tickerMove,
+      'Fed announces rate cut',
+      '$NVDA earnings beat...',
+    ].filter(Boolean);
+
+    return segments.join(' │ ');
+  }, [breakingNews]);
 
   // Fetch quote snapshot via Railway backend
   const fetchSnapshot = useCallback(async (symbol) => {
@@ -218,7 +245,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
   return (
     <div className="flex-1 flex h-full bg-[#0d0d12] overflow-hidden">
-      <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .ticker-tape-track { height: 100%; display: flex; align-items: center; overflow: hidden; }
+        .ticker-tape-content { display: inline-flex; align-items: center; white-space: nowrap; animation: ticker-scroll 18s linear infinite; }
+        .ticker-tape-content span { padding-right: 3rem; }
+        @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      `}</style>
       
       {/* Watchlist Panel */}
       <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
@@ -245,6 +278,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   isLive={breakingNews.isLive}
                   onDismiss={dismissBreakingNews}
                 />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="popLayout">
+            {!isBreakingNewsVisible && breakingNewsStatus === 'dismissed' && (
+              <motion.div
+                key="breaking-news-ticker"
+                layout
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                <TickerTape text={tickerTapeText} />
               </motion.div>
             )}
           </AnimatePresence>

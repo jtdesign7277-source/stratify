@@ -5,6 +5,7 @@ const AUTO_DISMISS_MS = 30000;
 const useBreakingNews = () => {
   const [breakingNews, setBreakingNews] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [status, setStatus] = useState('idle');
   const dismissTimerRef = useRef(null);
 
   const clearTimer = useCallback(() => {
@@ -16,12 +17,14 @@ const useBreakingNews = () => {
 
   const dismissBreakingNews = useCallback(() => {
     setIsVisible(false);
+    setStatus('dismissed');
     clearTimer();
   }, [clearTimer]);
 
   const triggerBreakingNews = useCallback((news) => {
     setBreakingNews(news);
     setIsVisible(true);
+    setStatus('visible');
   }, []);
 
   useEffect(() => {
@@ -30,6 +33,7 @@ const useBreakingNews = () => {
     clearTimer();
     dismissTimerRef.current = setTimeout(() => {
       setIsVisible(false);
+      setStatus('dismissed');
     }, AUTO_DISMISS_MS);
 
     return clearTimer;
@@ -40,6 +44,7 @@ const useBreakingNews = () => {
   return {
     breakingNews,
     isVisible,
+    status,
     triggerBreakingNews,
     dismissBreakingNews,
   };
