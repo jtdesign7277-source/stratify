@@ -94,7 +94,7 @@ const DemoPanel = () => {
   }, []);
 
   useEffect(() => {
-    const INTRO_DURATION = 8000;
+    const INTRO_DURATION = 9000;
     const FADE_DURATION = 1200;
     const FADE_START = INTRO_DURATION - FADE_DURATION;
     const canvas = confettiCanvasRef.current;
@@ -108,7 +108,7 @@ const DemoPanel = () => {
 
     if (audioRef.current) {
       const audio = audioRef.current;
-      audio.currentTime = 2;
+      audio.currentTime = 4;
       audio.volume = 0.85;
       audio.play().catch(() => {});
       fadeTimeoutRef.current = setTimeout(() => {
@@ -128,7 +128,7 @@ const DemoPanel = () => {
     if (confettiInstanceRef.current) {
       const colors = ['#10b981', '#34d399', '#22c55e', '#86efac', '#059669'];
       confettiIntervalRef.current = setInterval(() => {
-        const particleCount = 56;
+        const particleCount = 35;
         const baseConfig = {
           particleCount,
           spread: 85,
@@ -159,7 +159,7 @@ const DemoPanel = () => {
             origin: { x: Math.random() * 0.6 + 0.2, y: 0.95 },
           });
         }
-      }, 120);
+      }, 180);
     }
 
     introTimeoutRef.current = setTimeout(() => {
@@ -218,7 +218,7 @@ const DemoPanel = () => {
     []
   );
 
-  const introScaleDuration = introComplete ? 0.01 : 8;
+  const introScaleDuration = introComplete ? 0.01 : 9;
 
   return (
     <div className="relative flex-1 h-full overflow-y-auto bg-[#0d0d12] text-white">
