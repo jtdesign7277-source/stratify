@@ -311,36 +311,33 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
           <svg
-            className="h-6 w-20"
-            viewBox="0 0 140 32"
+            className="h-6 w-6"
+            viewBox="0 0 64 28"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            aria-label="Grok"
+            aria-label="Grok logo"
             role="img"
           >
             <defs>
-              <linearGradient id="grok-logo-gradient" x1="0" y1="0" x2="140" y2="0" gradientUnits="userSpaceOnUse">
+              <linearGradient id="grok-eye-gradient" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
                 <stop offset="0" stopColor="#10b981" />
-                <stop offset="0.55" stopColor="#22d3ee" />
+                <stop offset="0.5" stopColor="#22d3ee" />
                 <stop offset="1" stopColor="#7dd3fc" />
               </linearGradient>
-              <filter id="grok-logo-glow" x="-20%" y="-50%" width="140%" height="200%">
-                <feDropShadow dx="0" dy="0" stdDeviation="2.4" floodColor="#22d3ee" floodOpacity="0.35" />
-                <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#10b981" floodOpacity="0.25" />
+              <filter id="grok-eye-glow" x="-30%" y="-60%" width="160%" height="220%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor="#22d3ee" floodOpacity="0.45" />
+                <feDropShadow dx="0" dy="0" stdDeviation="5.5" floodColor="#10b981" floodOpacity="0.25" />
               </filter>
             </defs>
-            <g filter="url(#grok-logo-glow)">
-              <text
-                x="4"
-                y="23"
-                fill="url(#grok-logo-gradient)"
-                fontFamily="Sora, Space Grotesk, SF Pro Display, sans-serif"
-                fontSize="22"
-                fontWeight="600"
-                letterSpacing="0.8"
-              >
-                Grok
-              </text>
+            <g filter="url(#grok-eye-glow)">
+              <path
+                d="M2 14C8 5 20 1 32 1C44 1 56 5 62 14C56 23 44 27 32 27C20 27 8 23 2 14Z
+                   M10 14C15 8.5 23 6 32 6C41 6 49 8.5 54 14C49 19.5 41 22 32 22C23 22 15 19.5 10 14Z"
+                fill="url(#grok-eye-gradient)"
+                fillRule="evenodd"
+                clipRule="evenodd"
+              />
+              <circle cx="32" cy="14" r="3.2" fill="url(#grok-eye-gradient)" />
             </g>
           </svg>
         </div>
