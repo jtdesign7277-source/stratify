@@ -62,6 +62,13 @@ const LandingPage = ({ onEnter }) => {
               ref={introVideoRef}
               src={introVideoSrc}
               className="w-full h-full object-cover"
+              style={{
+                imageRendering: 'crisp-edges',
+                WebkitImageRendering: '-webkit-optimize-contrast',
+                transform: 'translateZ(0)',
+                willChange: 'transform',
+                backfaceVisibility: 'hidden'
+              }}
               onEnded={handleIntroEnd}
               playsInline
             />
@@ -83,7 +90,13 @@ const LandingPage = ({ onEnter }) => {
           loop
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: 'brightness(0.6)' }}
+          style={{
+            imageRendering: 'crisp-edges',
+            WebkitImageRendering: '-webkit-optimize-contrast',
+            transform: 'translateZ(0)',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden'
+          }}
         >
           <source src={bgVideoSrc} type="video/mp4" />
         </video>
