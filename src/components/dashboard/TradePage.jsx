@@ -247,15 +247,15 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const collapseToggle = (
     <button
       onClick={() => setIsCollapsed(!isCollapsed)}
-      className={`p-1.5 rounded-lg text-gray-400 hover:text-white transition-all duration-300 ${
-        isCollapsed
-          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/30 shadow-[0_0_12px_rgba(16,185,129,0.45),0_0_22px_rgba(34,211,238,0.35)] animate-pulse'
-          : 'hover:bg-gray-700/50 hover:border hover:border-emerald-400/30 hover:shadow-[0_0_10px_rgba(16,185,129,0.35),0_0_18px_rgba(34,211,238,0.25)] border border-transparent'
-      }`}
+      className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"
       aria-label={isCollapsed ? 'Expand watchlist panel' : 'Collapse watchlist panel'}
       type="button"
     >
-      {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+      {isCollapsed ? (
+        <ChevronsRight className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+      ) : (
+        <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+      )}
     </button>
   );
 
@@ -274,66 +274,67 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         isCollapsed ? 'w-20' : selectedTicker ? 'w-96' : 'flex-1 max-w-xl'
       }`}>
         {/* Header */}
-        <div className="border-b border-gray-800">
-          <AnimatePresence mode="popLayout">
-            {showBreakingBanner && (
-              <motion.div
-                key="breaking-news-banner"
-                layout
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-                className="px-4 pt-3 pb-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <BreakingNewsBanner
-                      headline={breakingNews.headline}
-                      tickerSymbol={breakingNews.tickerSymbol}
-                      tickerChange={breakingNews.tickerChange}
-                      newsUrl={breakingNews.newsUrl}
-                      isLive={breakingNews.isLive}
-                      onDismiss={dismissBreakingNews}
-                    />
+        <div className="border-b border-gray-800 relative">
+          <div className="pr-10">
+            <AnimatePresence mode="popLayout">
+              {showBreakingBanner && (
+                <motion.div
+                  key="breaking-news-banner"
+                  layout
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+                  className="px-4 pt-3 pb-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <BreakingNewsBanner
+                        headline={breakingNews.headline}
+                        tickerSymbol={breakingNews.tickerSymbol}
+                        tickerChange={breakingNews.tickerChange}
+                        newsUrl={breakingNews.newsUrl}
+                        isLive={breakingNews.isLive}
+                        onDismiss={dismissBreakingNews}
+                      />
+                    </div>
                   </div>
-                  {collapseToggle}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <AnimatePresence mode="popLayout">
-            {showTickerTape && (
+            <AnimatePresence mode="popLayout">
+              {showTickerTape && (
+                <motion.div
+                  key="breaking-news-ticker"
+                  layout
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+                  className="px-3 py-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <TickerTape text={tickerTapeText} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {!showBreakingBanner && !showTickerTape && (
               <motion.div
-                key="breaking-news-ticker"
                 layout
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
                 className="px-3 py-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <TickerTape text={tickerTapeText} />
-                  </div>
-                  {collapseToggle}
-                </div>
-              </motion.div>
+                animate={{ opacity: isBreakingNewsVisible ? 0.6 : 1, y: isBreakingNewsVisible ? 2 : 0 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              />
             )}
-          </AnimatePresence>
-
-          {!showBreakingBanner && !showTickerTape && (
-            <motion.div
-              layout
-              className="flex items-center justify-end px-3 py-2"
-              animate={{ opacity: isBreakingNewsVisible ? 0.6 : 1, y: isBreakingNewsVisible ? 2 : 0 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-            >
-              {collapseToggle}
-            </motion.div>
-          )}
+          </div>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {collapseToggle}
+          </div>
         </div>
 
         {/* Search */}
