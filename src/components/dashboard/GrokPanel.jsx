@@ -311,26 +311,37 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
           <svg
-            className="h-5 w-14"
-            viewBox="0 0 56 20"
+            className="h-6 w-20"
+            viewBox="0 0 140 32"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            aria-label="xAI"
+            aria-label="Grok"
+            role="img"
           >
-            <path
-              d="M4 3L16 17M16 3L4 17"
-              stroke="#e5e5e5"
-              strokeWidth="2.6"
-              strokeLinecap="square"
-              strokeLinejoin="miter"
-            />
-            <path
-              d="M22 17L28.5 3L35 17M24.8 11H32.2M35 17V3L42.5 3V17"
-              stroke="#e5e5e5"
-              strokeWidth="2.6"
-              strokeLinecap="square"
-              strokeLinejoin="miter"
-            />
+            <defs>
+              <linearGradient id="grok-logo-gradient" x1="0" y1="0" x2="140" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor="#10b981" />
+                <stop offset="0.55" stopColor="#22d3ee" />
+                <stop offset="1" stopColor="#7dd3fc" />
+              </linearGradient>
+              <filter id="grok-logo-glow" x="-20%" y="-50%" width="140%" height="200%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.4" floodColor="#22d3ee" floodOpacity="0.35" />
+                <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#10b981" floodOpacity="0.25" />
+              </filter>
+            </defs>
+            <g filter="url(#grok-logo-glow)">
+              <text
+                x="4"
+                y="23"
+                fill="url(#grok-logo-gradient)"
+                fontFamily="Sora, Space Grotesk, SF Pro Display, sans-serif"
+                fontSize="22"
+                fontWeight="600"
+                letterSpacing="0.8"
+              >
+                Grok
+              </text>
+            </g>
           </svg>
         </div>
         <div className="flex items-center gap-1">
