@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Shield, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus } from 'lucide-react';
 
-const Home = () => {
+const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
-  const [connectedAccounts, setConnectedAccounts] = useState([]);
   const [isConnectOpen, setIsConnectOpen] = useState(true);
 
   const brokers = [
@@ -103,12 +102,12 @@ const Home = () => {
 
   const handleConnect = () => {
     if (apiKey && secretKey && selectedBroker) {
-      setConnectedAccounts([...connectedAccounts, {
+      onBrokerConnect({
         ...selectedBroker,
         connected: true,
         maskedKey: `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`,
         balance: 0
-      }]);
+      });
       setSelectedBroker(null);
       setApiKey('');
       setSecretKey('');
@@ -116,17 +115,15 @@ const Home = () => {
     }
   };
 
-  const handleDisconnect = (brokerId, index) => {
-    setConnectedAccounts((prev) => prev.filter((account, idx) => (
-      account.id !== brokerId || idx !== index
-    )));
+  const handleDisconnect = (brokerId) => {
+    onBrokerDisconnect(brokerId);
   };
 
   const openApiPage = (url) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const totalBalance = connectedAccounts.reduce((sum, account) => sum + (account.balance || 0), 0);
+  const totalBalance = connectedBrokers.reduce((sum, account) => sum + (account.balance || 0), 0);
   const formattedBalance = totalBalance.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -140,7 +137,7 @@ const Home = () => {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                {connectedAccounts.length > 0 ? (
+                {connectedBrokers.length > 0 ? (
                   <>
                     <CheckCircle className="w-4 h-4 text-green-400" strokeWidth={1.5} />
                     <span className="text-white text-sm font-medium">Broker connected</span>
@@ -152,7 +149,7 @@ const Home = () => {
                   </>
                 )}
               </div>
-              {connectedAccounts.length > 0 ? (
+              {connectedBrokers.length > 0 ? (
                 <div className="text-gray-400 text-sm mt-1">
                   Total balance: ${formattedBalance}
                 </div>
@@ -163,7 +160,7 @@ const Home = () => {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {connectedAccounts.length === 0 && (
+              {connectedBrokers.length === 0 && (
                 <button
                   onClick={() => {
                     setIsConnectOpen(true);
@@ -355,7 +352,7 @@ const Home = () => {
           )}
 
           {/* Connected Accounts */}
-          {!isConnectOpen && connectedAccounts.length > 0 && (
+          {!isConnectOpen && connectedBrokers.length > 0 && (
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -375,9 +372,9 @@ const Home = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {connectedAccounts.map((account, index) => (
+                {connectedBrokers.map((account) => (
                   <div
-                    key={`${account.id}-${index}`}
+                    key={account.id}
                     className="bg-[#111118] border border-gray-800 rounded-xl p-4 flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -396,7 +393,7 @@ const Home = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleDisconnect(account.id, index)}
+                      onClick={() => handleDisconnect(account.id)}
                       className="px-3 py-1.5 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-xs font-medium transition-colors"
                     >
                       Disconnect

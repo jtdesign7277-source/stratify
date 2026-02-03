@@ -7,12 +7,11 @@ import { getQuotes } from '../../services/marketData';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 import PortfolioChart from './PortfolioChart';
 
-const PortfolioPage = ({ themeClasses, alpacaData }) => {
+const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   const [prices, setPrices] = useState({});
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
-  const [connectedBrokers, setConnectedBrokers] = useState([]);
 
   const [mockData, setMockData] = useState({
     netLiq: 125840.00,
@@ -136,12 +135,12 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
   };
 
   const handleBrokerConnect = (broker) => {
-    setConnectedBrokers(prev => [...prev, broker]);
+    onBrokerConnect(broker);
     setShowBrokerModal(false);
   };
 
   const handleDisconnectBroker = (brokerId) => {
-    setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId));
+    onBrokerDisconnect(brokerId);
   };
 
   const totalConnectedValue = connectedBrokers.reduce((sum, b) => sum + (b.value || 0), 0) + portfolioData.totalValue;

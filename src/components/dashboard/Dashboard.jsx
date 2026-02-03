@@ -490,7 +490,14 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
           {/* Tab-based Views */}
-          {activeTab === 'home' && <Home themeClasses={themeClasses} />}
+          {activeTab === 'home' && (
+            <Home
+              themeClasses={themeClasses}
+              connectedBrokers={connectedBrokers}
+              onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
+              onBrokerDisconnect={(brokerId) => setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId))}
+            />
+          )}
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
           {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
           {activeTab === 'trade' && (
@@ -499,7 +506,15 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
           {activeTab === 'atlas' && <DemoPanel />}
-          {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} alpacaData={alpacaData} />}
+          {activeTab === 'portfolio' && (
+            <PortfolioPage
+              themeClasses={themeClasses}
+              alpacaData={alpacaData}
+              connectedBrokers={connectedBrokers}
+              onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
+              onBrokerDisconnect={(brokerId) => setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId))}
+            />
+          )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
         </div>
         
