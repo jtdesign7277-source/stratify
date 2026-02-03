@@ -310,9 +310,28 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-emerald-500/20 rounded"><Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} /></div>
-          <span className="text-[#e5e5e5] font-medium text-base">Grok</span>
-          <span className="text-gray-500 text-sm">xAI</span>
+          <svg
+            className="h-5 w-14"
+            viewBox="0 0 56 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-label="xAI"
+          >
+            <path
+              d="M4 3L16 17M16 3L4 17"
+              stroke="#e5e5e5"
+              strokeWidth="2.6"
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+            />
+            <path
+              d="M22 17L28.5 3L35 17M24.8 11H32.2M35 17V3L42.5 3V17"
+              stroke="#e5e5e5"
+              strokeWidth="2.6"
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+            />
+          </svg>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-4 h-4" strokeWidth={1.5} /></button>
