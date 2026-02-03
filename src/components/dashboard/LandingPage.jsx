@@ -224,26 +224,85 @@ const LandingPage = ({ onEnter }) => {
             Explore the full app without signing up
           </motion.p>
 
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.7 }}
-            className="flex items-center gap-20"
-          >
-            <div className="text-center">
-              <div className="text-4xl font-light bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-1">501+</div>
-              <div className="text-white/40 text-sm tracking-wide">Beta Waitlist</div>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center gap-2 text-4xl font-light text-purple-400 mb-1">
-                <Zap className="w-6 h-6" strokeWidth={1.5} />
-                Instant
-              </div>
-              <div className="text-white/40 text-sm tracking-wide">Strategy Deployment</div>
-            </div>
-          </motion.div>
         </div>
+
+        {/* ============ INFO SECTION ============ */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="relative px-8 pb-24 pt-6 bg-[#060d18]"
+        >
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-white/30 text-xs tracking-[0.3em] uppercase mb-4">
+                The Signal Stack
+              </p>
+              <h2 className="text-3xl md:text-4xl font-light text-white mb-4">
+                Turn market noise into deployable strategies
+              </h2>
+              <p className="text-white/50 text-base md:text-lg max-w-2xl mx-auto">
+                Stratify blends technicals, sentiment, and fundamentals into a single workflow so you can
+                discover, validate, and deploy faster.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3 mb-14">
+              {[
+                {
+                  title: 'Signal Fusion',
+                  body: 'Combine technical setups with macro and sentiment context in one view.',
+                  icon: <LineChart className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
+                },
+                {
+                  title: 'AI Strategy Builder',
+                  body: 'Describe your edge and get production-ready code in seconds.',
+                  icon: <Sparkles className="w-5 h-5 text-cyan-400" strokeWidth={1.5} />
+                },
+                {
+                  title: 'Always-On Execution',
+                  body: 'Deploy to paper or live trading with safety checks baked in.',
+                  icon: <Shield className="w-5 h-5 text-purple-400" strokeWidth={1.5} />
+                }
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-4">
+                    {item.icon}
+                  </div>
+                  <h3 className="text-white text-lg font-medium mb-2">{item.title}</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">{item.body}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Stats below video */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto"
+            >
+              <div className="flex flex-col items-center justify-center text-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-8 py-6">
+                <div className="text-4xl font-light bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  501+
+                </div>
+                <div className="text-white/40 text-sm tracking-wide">Beta Waitlist</div>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-8 py-6">
+                <div className="flex items-center justify-center gap-2 text-4xl font-light text-purple-400">
+                  <Zap className="w-6 h-6" strokeWidth={1.5} />
+                  Instant
+                </div>
+                <div className="text-white/40 text-sm tracking-wide">Strategy Deployment</div>
+              </div>
+            </motion.div>
+          </div>
+        </motion.section>
 
         {/* ============ INTEGRATIONS SECTION ============ */}
         <motion.section
