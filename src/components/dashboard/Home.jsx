@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
-import { Shield, ArrowUpRight, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus } from 'lucide-react';
+import { Shield, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus } from 'lucide-react';
 
 const Home = () => {
-  const [activeTab, setActiveTab] = useState('balances');
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [connectedAccounts, setConnectedAccounts] = useState([]);
   const [isConnectOpen, setIsConnectOpen] = useState(true);
-
-  const tabs = [
-    { id: 'balances', label: 'Balances' },
-    { id: 'open-orders', label: 'Open orders' },
-    { id: 'conditional-orders', label: 'Conditional orders' }
-  ];
 
   const brokers = [
     {
@@ -119,7 +112,6 @@ const Home = () => {
       setSelectedBroker(null);
       setApiKey('');
       setSecretKey('');
-      setActiveTab('balances');
       setIsConnectOpen(false);
     }
   };
@@ -181,25 +173,6 @@ const Home = () => {
                 <Settings2 className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Tabs Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
-          <div className="flex items-center gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  activeTab === tab.id
-                    ? 'bg-[#1a2438] text-white'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -374,46 +347,6 @@ const Home = () => {
               )}
             </div>
           )}
-
-          {/* Balances Tab */}
-          {activeTab === 'balances' && (
-            <div className="flex-1 flex items-center justify-center h-full min-h-[200px]">
-              {connectedAccounts.length > 0 ? (
-                <div className="text-center">
-                  <span className="text-gray-400 text-sm">Connected accounts: {connectedAccounts.length}</span>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <span className="text-gray-400 text-sm">No broker connected. </span>
-                  <button
-                    onClick={() => {
-                      setIsConnectOpen(true);
-                      setSelectedBroker(null);
-                    }}
-                    className="text-emerald-400 text-sm font-medium hover:text-emerald-300 transition-colors inline-flex items-center gap-1"
-                  >
-                    Connect
-                    <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Open Orders Tab */}
-          {activeTab === 'open-orders' && (
-            <div className="flex-1 flex items-center justify-center h-full min-h-[200px]">
-              <div className="text-gray-400 text-sm">No open orders</div>
-            </div>
-          )}
-
-          {/* Conditional Orders Tab */}
-          {activeTab === 'conditional-orders' && (
-            <div className="flex-1 flex items-center justify-center h-full min-h-[200px]">
-              <div className="text-gray-400 text-sm">No conditional orders</div>
-            </div>
-          )}
-
         </div>
       </div>
     </div>
