@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Home, 
   FolderOpen,
   SlidersHorizontal, 
@@ -19,7 +19,6 @@ import {
   Trash2,
   Zap
 } from 'lucide-react';
-import StratifyLogo from './StratifyLogo';
 
 const Sidebar = ({ 
   activeTab = 'home', 
@@ -62,23 +61,18 @@ const Sidebar = ({
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="h-full bg-[#0d0d12] border-r border-white/10 flex flex-col flex-shrink-0"
     >
-      {/* Logo */}
+      {/* Branding */}
       <div className="p-3 pb-2">
-        <div className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500/10 via-white/5 to-emerald-400/5 backdrop-blur border border-emerald-400/20 px-2.5 py-2 shadow-[0_0_18px_rgba(16,185,129,0.18)]">
-          <div className="w-7 h-7 flex items-center justify-center flex-shrink-0 rounded-lg bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.35)] ring-1 ring-emerald-300/30">
-            <StratifyLogo size={24} />
+        {!collapsed && (
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <span className="font-semibold text-sm whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-100 to-white drop-shadow-[0_1px_8px_rgba(16,185,129,0.35)]">
+              Stratify
+            </span>
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold text-[#0b0b10] rounded bg-gradient-to-r from-emerald-300 via-amber-300 to-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.35)] ring-1 ring-amber-200/50">
+              PRO
+            </span>
           </div>
-          {!collapsed && (
-            <div className="flex items-center gap-1.5 overflow-hidden">
-              <span className="font-semibold text-sm whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-100 to-white drop-shadow-[0_1px_8px_rgba(16,185,129,0.35)]">
-                Stratify
-              </span>
-              <span className="px-1.5 py-0.5 text-[10px] font-semibold text-[#0b0b10] rounded bg-gradient-to-r from-emerald-300 via-amber-300 to-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.35)] ring-1 ring-amber-200/50">
-                PRO
-              </span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Main Navigation */}
