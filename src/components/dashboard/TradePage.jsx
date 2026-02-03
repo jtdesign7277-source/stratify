@@ -257,7 +257,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           >
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-white"
+              className={`p-1.5 rounded-lg text-gray-400 hover:text-white transition-all duration-300 ${
+                isCollapsed
+                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/30 shadow-[0_0_12px_rgba(16,185,129,0.45),0_0_22px_rgba(34,211,238,0.35)] animate-pulse'
+                  : 'hover:bg-gray-700/50 hover:border hover:border-emerald-400/30 hover:shadow-[0_0_10px_rgba(16,185,129,0.35),0_0_18px_rgba(34,211,238,0.25)] border border-transparent'
+              }`}
             >
               {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
             </button>
