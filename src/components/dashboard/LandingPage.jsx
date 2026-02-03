@@ -351,17 +351,15 @@ const LandingPage = ({ onEnter }) => {
               ].map((partner) => (
                 <div
                   key={partner.name}
-                  className="group flex items-center justify-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-5 text-white/70 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                  className="group flex items-center justify-center gap-4 px-2 py-3 text-white/70 transition-all"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-                    <img
-                      src={partner.logo}
-                      alt={partner.name}
-                      className="h-6 w-6 object-contain opacity-80 transition-opacity group-hover:opacity-100"
-                      loading="lazy"
-                    />
-                  </div>
-                  <span className="text-sm font-semibold tracking-[0.1em] uppercase text-white/60 group-hover:text-white">
+                  <img
+                    src={partner.logo}
+                    alt={partner.name}
+                    className="h-6 w-6 object-contain opacity-70 transition-opacity group-hover:opacity-100"
+                    loading="lazy"
+                  />
+                  <span className="text-sm font-semibold tracking-[0.12em] uppercase text-white/60 group-hover:text-white">
                     {partner.name}
                   </span>
                 </div>
