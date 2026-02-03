@@ -250,7 +250,7 @@ const PaymentModal = ({ plan, onClose, onComplete }) => {
               value={cardNumber}
               onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim())}
               placeholder="1234 5678 9012 3456"
-              className="w-full px-4 py-3.5 bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
+              className="w-full px-4 py-3.5 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
             />
           </div>
           
@@ -262,7 +262,7 @@ const PaymentModal = ({ plan, onClose, onComplete }) => {
                 value={expiry}
                 onChange={(e) => setExpiry(e.target.value.replace(/\D/g, '').slice(0, 4).replace(/(.{2})/, '$1/'))}
                 placeholder="MM/YY"
-                className="w-full px-4 py-3.5 bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
+                className="w-full px-4 py-3.5 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
               />
             </div>
             <div>
@@ -272,12 +272,12 @@ const PaymentModal = ({ plan, onClose, onComplete }) => {
                 value={cvc}
                 onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="123"
-                className="w-full px-4 py-3.5 bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
+                className="w-full px-4 py-3.5 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
               />
             </div>
           </div>
           
-          <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl p-4 space-y-3">
+          <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-xl p-4 space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Stratify {selectedPlan?.name}</span>
               <span className="text-white">${selectedPlan?.price}.00/mo</span>
@@ -485,7 +485,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
         <div className="flex items-center gap-6">
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-0.5">
-              <div className="relative w-full h-full rounded-[14px] bg-[#0a0a0f] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+              <div className="relative w-full h-full rounded-[14px] bg-[#0d0d12] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
                 {user.avatar === 'brain' ? (
                   <AtlasBrainIcon />
                 ) : user.avatar ? (
@@ -536,7 +536,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
             />
           </div>
           <div>
@@ -545,7 +545,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
             />
           </div>
         </div>
@@ -659,7 +659,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
   // Sub-views
   if (activeView === 'billing') {
     return (
-      <div className="h-full overflow-y-auto bg-[#0a0a0f] p-8">
+      <div className="h-full overflow-y-auto bg-[#0d0d12] p-8">
         <div className="max-w-4xl mx-auto">
           <BillingView 
             onClose={() => setActiveView('main')} 
@@ -673,7 +673,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
   if (activeView === 'account') {
     return (
-      <div className="h-full overflow-y-auto bg-[#0a0a0f] p-8">
+      <div className="h-full overflow-y-auto bg-[#0d0d12] p-8">
         <div className="max-w-3xl mx-auto">
           <input
             ref={fileInputRef}
@@ -698,7 +698,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
   // Main settings view
   return (
-    <div className="h-full overflow-y-auto bg-[#0a0a0f]">
+    <div className="h-full overflow-y-auto bg-[#0d0d12]">
       <input
         ref={fileInputRef}
         type="file"
@@ -739,7 +739,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
             {/* Avatar */}
             <div className="relative group">
               <div className="w-28 h-28 rounded-3xl border border-[#2a2a3d] bg-[#12121a]">
-                <div className="relative w-full h-full rounded-3xl bg-[#0a0a0f] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+                <div className="relative w-full h-full rounded-3xl bg-[#0d0d12] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
                   {user.avatar === 'brain' ? (
                     <AtlasBrainIcon />
                   ) : user.avatar ? (

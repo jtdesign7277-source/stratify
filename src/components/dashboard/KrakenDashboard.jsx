@@ -446,7 +446,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="overflow-hidden border-b border-[#1e1e2d]"
     >
-      <div className="p-6 bg-[#0a0a10] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+      <div className="p-6 bg-[#0d0d12] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -631,7 +631,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="overflow-hidden border-b border-[#1e1e2d]"
     >
-      <div className="p-6 bg-[#0a0a10] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="p-6 bg-[#0d0d12] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -834,7 +834,7 @@ const ArbOppsPanel = ({ onClose }) => {
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="overflow-hidden border-b border-[#1e1e2d]"
     >
-      <div className="p-6 bg-[#0a0a10] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="p-6 bg-[#0d0d12] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -951,7 +951,7 @@ const ArbOppsPanel = ({ onClose }) => {
               
               <div className="grid grid-cols-3 gap-4">
                 {/* Polymarket */}
-                <div className="bg-[#0a0a10] rounded-lg p-3">
+                <div className="bg-[#0d0d12] rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-5 h-5 rounded bg-purple-500/20 flex items-center justify-center">
                       <span className="text-[10px] font-bold text-purple-400">P</span>
@@ -963,7 +963,7 @@ const ArbOppsPanel = ({ onClose }) => {
                 </div>
                 
                 {/* Kalshi */}
-                <div className="bg-[#0a0a10] rounded-lg p-3">
+                <div className="bg-[#0d0d12] rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center">
                       <span className="text-[10px] font-bold text-emerald-400">K</span>
@@ -1292,7 +1292,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   // Kraken theme classes
   const themeClasses = {
     bg: 'bg-[#06060c]',
-    surface: 'bg-[#0a0a10]',
+    surface: 'bg-[#0d0d12]',
     surfaceElevated: 'bg-[#12121a]',
     border: 'border-[#1e1e2d]',
     text: 'text-[#e0e0e6]',

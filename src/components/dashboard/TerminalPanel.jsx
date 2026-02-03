@@ -116,10 +116,10 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
   const isPositiveTotal = totals.pnl >= 0;
 
   const content = (
-    <div className="h-full flex flex-col bg-[#0a0a0f]">
+    <div className="h-full flex flex-col bg-[#0d0d12]">
       {/* Premium Summary Bar */}
       {activeStrategies.length > 0 && (
-        <div className="flex items-center justify-end gap-6 px-4 py-3 border-b border-[#1e1e2d] bg-gradient-to-r from-[#0f0f14] to-[#0a0a0f]">
+        <div className="flex items-center justify-end gap-6 px-4 py-3 border-b border-[#1e1e2d] bg-gradient-to-r from-[#0f0f14] to-[#0d0d12]">
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-gray-500 uppercase tracking-wider">Total P&L:</span>
             <span className={`font-bold tabular-nums ${isPositiveTotal ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -240,7 +240,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
   if (embedded) return content;
 
   return (
-    <div className="flex flex-col bg-[#0a0a0f] border-t border-[#1e1e2d] h-full">
+    <div className="flex flex-col bg-[#0d0d12] border-t border-[#1e1e2d] h-full">
       <div className="h-10 flex items-center justify-between px-4 border-b border-[#1e1e2d] bg-[#0f0f14]">
         <div className="flex items-center gap-3">
           <div className="relative">

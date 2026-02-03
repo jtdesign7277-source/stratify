@@ -439,8 +439,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   }, [isDragging]);
 
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#0a0a0f]',
-    surface: 'bg-[#0a0a0f]',
+    bg: 'bg-[#0d0d12]',
+    surface: 'bg-[#0d0d12]',
     surfaceElevated: 'bg-[#0f0f14]',
     border: 'border-[#1e1e2d]',
     text: 'text-white',

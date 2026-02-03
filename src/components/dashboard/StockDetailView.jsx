@@ -65,7 +65,7 @@ export default function StockDetailView({ symbol, stockName, onClose, themeClass
   const tvSymbol = `NASDAQ:${symbol}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0d0d12]">
       {/* Minimal Header */}
       <div className="flex items-center px-4 py-2 border-b border-white/10">
         <button 

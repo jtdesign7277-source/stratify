@@ -281,7 +281,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
       
       {/* Premium Dropdown */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full mt-3 w-[420px] bg-[#0a0a0f] border border-[#1e1e2d] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
+        <div className="absolute top-full mt-3 w-[420px] bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
           {/* Header */}
           <div className="px-4 py-3 border-b border-[#1e1e2d] flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -386,7 +386,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
 
       {/* No results state */}
       {isOpen && query.length > 0 && results.length === 0 && !loading && (
-        <div className="absolute top-full mt-3 w-[420px] bg-[#0a0a0f] border border-[#1e1e2d] rounded-2xl shadow-2xl z-50 p-8 text-center">
+        <div className="absolute top-full mt-3 w-[420px] bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl shadow-2xl z-50 p-8 text-center">
           <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-[#1e1e2d] flex items-center justify-center">
             <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

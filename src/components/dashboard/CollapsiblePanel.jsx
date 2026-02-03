@@ -97,7 +97,7 @@ export default function CollapsiblePanel({
           transition: 'max-height 0.3s ease-out, opacity 0.2s ease-out'
         }}
       >
-        <div className="h-full overflow-y-auto scrollbar-hide bg-[#0a0a0f]" style={{ scrollbarWidth: 'none' }}>
+        <div className="h-full overflow-y-auto scrollbar-hide bg-[#0d0d12]" style={{ scrollbarWidth: 'none' }}>
           {children}
         </div>
       </div>

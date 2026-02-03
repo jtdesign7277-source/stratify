@@ -440,7 +440,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Arbitrage Scanner Content */}
       {activeSection === 'scanner' && (
-        <div className="max-h-64 overflow-y-auto bg-[#0a0a0f] scrollbar-hide">
+        <div className="max-h-64 overflow-y-auto bg-[#0d0d12] scrollbar-hide">
           {/* Settings Summary */}
           <div className="px-3 py-1.5 border-b border-[#1e1e2d] text-[10px] text-gray-600 flex justify-between">
             <span>Sharpe ≥ {settings.minSharpe} • Spread ≥ {settings.minSpread}%</span>
@@ -513,7 +513,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Open Bets Content */}
       {activeSection === 'openBets' && (
-        <div className="bg-[#0a0a0f] max-h-48 overflow-y-auto scrollbar-hide">
+        <div className="bg-[#0d0d12] max-h-48 overflow-y-auto scrollbar-hide">
           {openBets.length === 0 ? (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">No open bets</div>
           ) : (
@@ -594,7 +594,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* History Content */}
       {activeSection === 'history' && (
-        <div className="bg-[#0a0a0f] max-h-48 overflow-y-auto scrollbar-hide">
+        <div className="bg-[#0d0d12] max-h-48 overflow-y-auto scrollbar-hide">
           {betHistory.length === 0 ? (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">No bet history</div>
           ) : (

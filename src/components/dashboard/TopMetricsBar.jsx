@@ -41,7 +41,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-[#0a0a0f] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
+    <div className="absolute right-0 top-full mt-2 w-80 bg-[#0d0d12] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center justify-between">
         <div className="flex items-center gap-2">

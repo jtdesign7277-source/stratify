@@ -36,7 +36,7 @@ const formatPercent = (num) => {
 
 // Metric Card Component
 const MetricCard = ({ label, value, subValue, color = 'cyan', tooltip }) => (
-  <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-3 hover:border-[#2a2a3d] transition-all group relative">
+  <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-3 hover:border-[#2a2a3d] transition-all group relative">
     <div className="flex items-center gap-1 mb-1">
       <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{label}</span>
       {tooltip && (
@@ -102,7 +102,7 @@ const CodeEditor = ({ code, onChange, readOnly = false }) => {
   const lines = code?.split('\n') || [''];
   
   return (
-    <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg overflow-hidden font-mono text-xs">
+    <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg overflow-hidden font-mono text-xs">
       <div className="flex items-center justify-between px-3 py-2 bg-[#12121a] border-b border-[#1e1e2d]">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500/60"></div>
@@ -112,7 +112,7 @@ const CodeEditor = ({ code, onChange, readOnly = false }) => {
         <span className="text-[10px] text-gray-500">strategy.py</span>
       </div>
       <div className="flex max-h-64 overflow-auto scrollbar-hide">
-        <div className="py-3 px-2 bg-[#0a0a0f] border-r border-[#1e1e2d] select-none">
+        <div className="py-3 px-2 bg-[#0d0d12] border-r border-[#1e1e2d] select-none">
           {lines.map((_, i) => (
             <div key={i} className="text-gray-600 text-right pr-2 leading-5">{i + 1}</div>
           ))}
@@ -165,7 +165,7 @@ const ConditionBuilder = ({ conditions = [], onChange }) => {
       {mode === 'visual' ? (
         <div className="space-y-2">
           {/* Entry Conditions */}
-          <div className="bg-[#0a0a0f] border border-emerald-500/30 rounded-lg p-3">
+          <div className="bg-[#0d0d12] border border-emerald-500/30 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
               <span className="text-xs font-medium text-emerald-400">Entry Conditions</span>
@@ -199,7 +199,7 @@ const ConditionBuilder = ({ conditions = [], onChange }) => {
           </div>
 
           {/* Exit Conditions */}
-          <div className="bg-[#0a0a0f] border border-red-500/30 rounded-lg p-3">
+          <div className="bg-[#0d0d12] border border-red-500/30 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-red-500"></div>
               <span className="text-xs font-medium text-red-400">Exit Conditions</span>
@@ -265,7 +265,7 @@ const EquityCurve = ({ data = [] }) => {
   }, [data]);
 
   return (
-    <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4">
+    <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-gray-400 font-medium">Equity Curve</span>
         <div className="flex items-center gap-3 text-[10px]">
@@ -345,7 +345,7 @@ const SliderInput = ({ label, value, onChange, min, max, step = 1, unit = '', to
                 onChange(clampNumber(parsed, min, max));
               }
             }}
-            className="w-20 bg-[#0a0a0f] border border-[#1e1e2d] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-cyan-500 outline-none"
+            className="w-20 bg-[#0d0d12] border border-[#1e1e2d] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-cyan-500 outline-none"
           />
           <span className="text-[10px] text-gray-500">{unit}</span>
         </div>
@@ -616,7 +616,7 @@ export default function StrategyBuilder({
             </div>
 
             {/* Version History */}
-            <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
               <h3 className="text-sm font-medium text-white mb-3">Version History</h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-3 p-2 bg-[#12121a] rounded">
@@ -651,7 +651,7 @@ export default function StrategyBuilder({
             <h3 className="text-sm font-medium text-white mb-4">Execution Settings</h3>
             
             {/* Order Types */}
-            <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
               <h4 className="text-xs text-gray-400 mb-3">Order Type</h4>
               <div className="grid grid-cols-3 gap-2">
                 {['Market', 'Limit', 'Stop-Limit'].map(type => (
@@ -666,7 +666,7 @@ export default function StrategyBuilder({
             </div>
 
             {/* Timing Rules */}
-            <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
               <h4 className="text-xs text-gray-400 mb-3">Trading Hours</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -689,7 +689,7 @@ export default function StrategyBuilder({
             </div>
 
             {/* Position Sizing */}
-            <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
+            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
               <h4 className="text-xs text-gray-400">Position Sizing</h4>
               <SliderInput 
                 label="Position Size" 
@@ -739,7 +739,7 @@ export default function StrategyBuilder({
 
             {/* Risk Parameters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
+              <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
                 <SliderInput 
                   label="Stop Loss" 
                   value={riskParams.stopLoss} 
@@ -765,7 +765,7 @@ export default function StrategyBuilder({
                 />
               </div>
 
-              <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
+              <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
                 <SliderInput 
                   label="Max Drawdown" 
                   value={riskParams.maxDrawdown} 
@@ -878,7 +878,7 @@ export default function StrategyBuilder({
             </div>
 
             {/* Parameter Grid */}
-            <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
               <h4 className="text-xs text-gray-400 mb-3">Parameters to Optimize</h4>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex items-center gap-2 text-xs text-gray-300">
@@ -902,7 +902,7 @@ export default function StrategyBuilder({
 
             {/* Optimization Results */}
             {optimizeResults.length > 0 && (
-              <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-lg overflow-hidden">
+              <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg overflow-hidden">
                 <div className="px-4 py-2 bg-[#12121a] border-b border-[#1e1e2d]">
                   <span className="text-xs text-gray-400">Top Parameter Combinations</span>
                 </div>
@@ -934,7 +934,7 @@ export default function StrategyBuilder({
             {/* Deployment Flow */}
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                selectedStrategy?.status === 'draft' ? 'border-gray-500 bg-gray-500/10' : 'border-[#1e1e2d] bg-[#0a0a0f]'
+                selectedStrategy?.status === 'draft' ? 'border-gray-500 bg-gray-500/10' : 'border-[#1e1e2d] bg-[#0d0d12]'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   selectedStrategy?.status === 'draft' ? 'bg-gray-500 text-white' : 'bg-gray-700 text-gray-500'
@@ -945,7 +945,7 @@ export default function StrategyBuilder({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
               </svg>
               <div className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                selectedStrategy?.status === 'paper' ? 'border-amber-500 bg-amber-500/10' : 'border-[#1e1e2d] bg-[#0a0a0f]'
+                selectedStrategy?.status === 'paper' ? 'border-amber-500 bg-amber-500/10' : 'border-[#1e1e2d] bg-[#0d0d12]'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   selectedStrategy?.status === 'paper' ? 'bg-amber-500 text-black' : 'bg-gray-700 text-gray-500'
@@ -956,7 +956,7 @@ export default function StrategyBuilder({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
               </svg>
               <div className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                selectedStrategy?.status === 'deployed' ? 'border-emerald-500 bg-emerald-500/10' : 'border-[#1e1e2d] bg-[#0a0a0f]'
+                selectedStrategy?.status === 'deployed' ? 'border-emerald-500 bg-emerald-500/10' : 'border-[#1e1e2d] bg-[#0d0d12]'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   selectedStrategy?.status === 'deployed' ? 'bg-emerald-500 text-black' : 'bg-gray-700 text-gray-500'
@@ -970,7 +970,7 @@ export default function StrategyBuilder({
               <button
                 onClick={() => handleDeploy('paper')}
                 disabled={selectedStrategy?.status === 'deployed'}
-                className="flex flex-col items-center gap-3 p-6 bg-[#0a0a0f] border border-amber-500/30 rounded-lg hover:bg-amber-500/5 hover:border-amber-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-col items-center gap-3 p-6 bg-[#0d0d12] border border-amber-500/30 rounded-lg hover:bg-amber-500/5 hover:border-amber-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
                   <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -986,7 +986,7 @@ export default function StrategyBuilder({
               <button
                 onClick={() => handleDeploy('live')}
                 disabled={selectedStrategy?.status !== 'paper' && selectedStrategy?.status !== 'draft'}
-                className="flex flex-col items-center gap-3 p-6 bg-[#0a0a0f] border border-emerald-500/30 rounded-lg hover:bg-emerald-500/5 hover:border-emerald-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-col items-center gap-3 p-6 bg-[#0d0d12] border border-emerald-500/30 rounded-lg hover:bg-emerald-500/5 hover:border-emerald-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1029,7 +1029,7 @@ export default function StrategyBuilder({
 
   // ============== MAIN RENDER ==============
   return (
-    <div className="flex h-full bg-[#0a0a0f] text-white overflow-hidden">
+    <div className="flex h-full bg-[#0d0d12] text-white overflow-hidden">
       {/* Left Sidebar - Strategy Library */}
       <div className={`flex flex-col border-r border-[#1e1e2d] transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-56'}`}>
         {/* Sidebar Header */}

@@ -251,7 +251,7 @@ export default function CommandPalette({
         className="fixed left-1/2 top-[15%] -translate-x-1/2 w-full max-w-xl z-[101]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
           {/* Search Input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1e1e2d]">
             <Search size={18} className="text-gray-500" />
@@ -487,7 +487,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-[101]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[#0a0a0f] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e2d]">
             <div className="flex items-center gap-3">
               <Keyboard size={20} className="text-cyan-400" strokeWidth={1.5} />
