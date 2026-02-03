@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import BreakingNewsBanner from './BreakingNewsBanner';
+import useBreakingNews from '../../hooks/useBreakingNews';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -82,6 +85,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '' });
+  const { breakingNews, isVisible: isBreakingNewsVisible, triggerBreakingNews, dismissBreakingNews } = useBreakingNews();
   
   const stocks = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
@@ -172,6 +176,20 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     }
   }, [defaultSymbol, selectedTicker, stocks]);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      triggerBreakingNews({
+        headline: '⚡ SpaceX acquiring xAI for $50B',
+        tickerSymbol: 'TSLA',
+        tickerChange: 12,
+        newsUrl: 'https://example.com/breaking-news',
+        isLive: true,
+      });
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [triggerBreakingNews]);
+
   const handleAddStock = (stock) => {
     if (onAddToWatchlist) {
       onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
@@ -228,23 +246,53 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         isCollapsed ? 'w-20' : selectedTicker ? 'w-96' : 'flex-1 max-w-xl'
       }`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          {!isCollapsed && (
-            <div className="flex-1">
-              <h1 className="font-semibold text-white text-xl">Trade</h1>
-              <span className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
-                marketStatus === 'open' ? 'bg-emerald-500/20 text-emerald-400' :
-                marketStatus === 'premarket' ? 'bg-emerald-500/20 text-emerald-400' :
-                marketStatus === 'afterhours' ? 'bg-emerald-500/20 text-emerald-400' :
-                'bg-gray-500/20 text-gray-400'
-              }`}>
-                {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' : marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
-              </span>
-            </div>
-          )}
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-white">
-            {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
-          </button>
+        <div className="border-b border-gray-800">
+          <AnimatePresence mode="popLayout">
+            {!isCollapsed && isBreakingNewsVisible && breakingNews && (
+              <motion.div
+                key="breaking-news-banner"
+                layout
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+                className="px-4 pt-3"
+              >
+                <BreakingNewsBanner
+                  headline={breakingNews.headline}
+                  tickerSymbol={breakingNews.tickerSymbol}
+                  tickerChange={breakingNews.tickerChange}
+                  newsUrl={breakingNews.newsUrl}
+                  isLive={breakingNews.isLive}
+                  onDismiss={dismissBreakingNews}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.div
+            layout
+            className="flex items-center justify-between p-4"
+            animate={{ opacity: isBreakingNewsVisible ? 0.45 : 1, y: isBreakingNewsVisible ? 4 : 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          >
+            {!isCollapsed && (
+              <div className="flex-1">
+                <h1 className="font-semibold text-white text-xl">Trade</h1>
+                <span className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
+                  marketStatus === 'open' ? 'bg-emerald-500/20 text-emerald-400' :
+                  marketStatus === 'premarket' ? 'bg-emerald-500/20 text-emerald-400' :
+                  marketStatus === 'afterhours' ? 'bg-emerald-500/20 text-emerald-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' : marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
+                </span>
+              </div>
+            )}
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-white">
+              {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+            </button>
+          </motion.div>
         </div>
 
         {/* Search */}
