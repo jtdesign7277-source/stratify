@@ -317,40 +317,42 @@ const LandingPage = ({ onEnter }) => {
               Powered By Industry Leaders
             </p>
             
-            <div className="flex items-center justify-center gap-16 flex-wrap">
-              {/* Alpaca */}
-              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity">
-                <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                  <span className="text-yellow-400 font-bold text-lg">A</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {[
+                {
+                  name: 'Alpaca',
+                  logo: '/logos/alpaca.svg'
+                },
+                {
+                  name: 'Anthropic',
+                  logo: '/logos/anthropic.svg'
+                },
+                {
+                  name: 'Vercel',
+                  logo: 'https://assets.vercel.com/image/upload/front/assets/design/vercel-triangle-black.svg'
+                },
+                {
+                  name: 'Railway',
+                  logo: '/logos/railway.svg'
+                }
+              ].map((partner) => (
+                <div
+                  key={partner.name}
+                  className="group flex items-center justify-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-5 text-white/70 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                    <img
+                      src={partner.logo}
+                      alt={partner.name}
+                      className="h-6 w-6 object-contain opacity-80 transition-opacity group-hover:opacity-100"
+                      loading="lazy"
+                    />
+                  </div>
+                  <span className="text-sm font-semibold tracking-[0.1em] uppercase text-white/60 group-hover:text-white">
+                    {partner.name}
+                  </span>
                 </div>
-                <span className="text-white/70 font-medium">Alpaca</span>
-              </div>
-              
-              {/* Anthropic */}
-              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-orange-400" strokeWidth={1.5} />
-                </div>
-                <span className="text-white/70 font-medium">Anthropic</span>
-              </div>
-              
-              {/* Vercel */}
-              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity">
-                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L2 19.5h20L12 2z" />
-                  </svg>
-                </div>
-                <span className="text-white/70 font-medium">Vercel</span>
-              </div>
-              
-              {/* Railway */}
-              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <Rocket className="w-5 h-5 text-purple-400" strokeWidth={1.5} />
-                </div>
-                <span className="text-white/70 font-medium">Railway</span>
-              </div>
+              ))}
             </div>
           </div>
         </motion.section>
