@@ -64,15 +64,15 @@ const MarketsPage = ({ themeClasses }) => {
   }, []);
 
   const MarketCard = ({ title, data, icon: Icon, showSymbol = true }) => (
-    <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
+    <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
       <div className="flex items-center gap-2 mb-4">
-        <Icon className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
+        <Icon className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
         <h3 className="text-white font-medium">{title}</h3>
       </div>
       <div className="space-y-3">
         {loading && data.length === 0 ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+            <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
           </div>
         ) : data.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-4">No data available</p>
@@ -125,7 +125,7 @@ const MarketsPage = ({ themeClasses }) => {
   ].map(s => ({ ...s, changePercent: s.change }));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-semibold text-white">Markets</h1>

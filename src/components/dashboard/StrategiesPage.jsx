@@ -142,7 +142,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         <button
           onClick={() => toggleFolder(folder.id)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-            isDropping ? 'bg-purple-500/20 border border-purple-500/50' : 'bg-[#0a1628] hover:bg-[#0d1829]'
+            isDropping ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] hover:bg-white/5'
           }`}
         >
           <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} strokeWidth={1.5} />
@@ -175,7 +175,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                   key={strategy.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, strategy)}
-                  className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#0a1628] transition-colors cursor-grab active:cursor-grabbing"
+                  className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing"
                 >
                   {/* Strategy Icon */}
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -227,7 +227,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                     )}
                     <button 
                       onClick={() => onEditStrategy?.(strategy)}
-                      className="p-1.5 hover:bg-blue-500/20 rounded text-gray-400 hover:text-blue-400" 
+                      className="p-1.5 hover:bg-emerald-500/20 rounded text-gray-400 hover:text-emerald-400" 
                       title="Edit"
                     >
                       <Edit3 className="w-4 h-4" strokeWidth={1.5} />
@@ -250,7 +250,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -270,9 +270,9 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
 
       {/* New Folder Input */}
       {showNewFolder && (
-        <div className="mb-4 bg-[#0a1628] border border-gray-800 rounded-xl p-4">
+        <div className="mb-4 bg-[#111118] border border-gray-800 rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <Folder className="w-5 h-5 text-purple-400" strokeWidth={1.5} />
+            <Folder className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
             <input
               type="text"
               value={newFolderName}
@@ -285,7 +285,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
             <button
               onClick={createFolder}
               disabled={!newFolderName.trim()}
-              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Create
             </button>

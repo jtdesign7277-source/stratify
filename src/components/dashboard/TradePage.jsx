@@ -220,7 +220,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
   return (
-    <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
+    <div className="flex-1 flex h-full bg-[#0d0d12] overflow-hidden">
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
       {/* Watchlist Panel */}
@@ -234,8 +234,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               <h1 className="font-semibold text-white text-xl">Trade</h1>
               <span className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
                 marketStatus === 'open' ? 'bg-emerald-500/20 text-emerald-400' :
-                marketStatus === 'premarket' ? 'bg-blue-500/20 text-blue-400' :
-                marketStatus === 'afterhours' ? 'bg-purple-500/20 text-purple-400' :
+                marketStatus === 'premarket' ? 'bg-emerald-500/20 text-emerald-400' :
+                marketStatus === 'afterhours' ? 'bg-emerald-500/20 text-emerald-400' :
                 'bg-gray-500/20 text-gray-400'
               }`}>
                 {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' : marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
@@ -250,7 +250,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         {/* Search */}
         {!isCollapsed && (
           <div className="p-3 border-b border-gray-800 relative">
-            <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2.5">
+            <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-3 py-2.5">
               <Search className="w-4 h-4 text-gray-500" />
               <input
                 type="text"
@@ -267,7 +267,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             </div>
             
             {searchQuery && searchResults.length > 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111118] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
                 {searchResults.map((stock) => (
                   <div 
                     key={stock.symbol}
@@ -288,7 +288,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             )}
 
             {searchQuery && searchResults.length === 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg p-4 text-center text-gray-400 text-sm z-50">
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111118] border border-gray-700 rounded-lg p-4 text-center text-gray-400 text-sm z-50">
                 No results for "{searchQuery}"
               </div>
             )}
@@ -299,7 +299,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
           {loading && Object.keys(quotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
             </div>
           )}
@@ -324,7 +324,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               <div 
                 key={stock.symbol}
                 className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
-                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#0d1829]'
+                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => setSelectedTicker(stock.symbol)}
               >
@@ -370,13 +370,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         {!isCollapsed && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
             <span className="text-gray-400">{stocks.length} symbols</span>
-            <span className="text-blue-400">Alpaca Data</span>
+            <span className="text-emerald-400">Alpaca Data</span>
           </div>
         )}
       </div>
 
       {/* TradingView Chart + Trade Panel */}
-      <div className="flex-1 flex flex-col bg-[#060d18] min-w-0">
+      <div className="flex-1 flex flex-col bg-[#0d0d12] min-w-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <h2 className="text-white font-bold text-lg">${selectedTicker || defaultSymbol}</h2>
@@ -390,7 +390,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             {!isTradePanelOpen && (
               <button
                 onClick={() => setIsTradePanelOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0d1829] border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#111118] border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
               >
                 Trade
               </button>
@@ -401,14 +401,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           <div className="flex-1 min-h-[360px] relative">
             <iframe
               key={selectedTicker || defaultSymbol}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${selectedTicker || defaultSymbol}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0d1829&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${selectedTicker || defaultSymbol}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=111118&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
             />
           </div>
 
           <div
-            className={`bg-[#0d1829] overflow-hidden transition-all duration-300 ease-in-out ${
+            className={`bg-[#111118] overflow-hidden transition-all duration-300 ease-in-out ${
               isTradePanelOpen
                 ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-gray-800 w-full xl:w-80'
                 : 'opacity-0 max-h-0 xl:max-h-none border-transparent w-full xl:w-0 pointer-events-none translate-y-2 xl:translate-y-0 xl:translate-x-3'

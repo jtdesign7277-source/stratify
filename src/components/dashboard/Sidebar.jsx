@@ -123,8 +123,13 @@ const Sidebar = ({
               className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider bg-white/5 backdrop-blur rounded-lg border border-white/10 hover:text-white/60 transition-all duration-200 hover:-translate-y-0.5"
             >
               {strategiesExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              <Zap className="w-3 h-3 text-emerald-400" />
-              <span>Grok Strategies</span>
+              <Zap className="w-3 h-3 text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+              <span className="flex items-center gap-1">
+                <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                  Grok
+                </span>
+                <span className="text-white/40">Strategies</span>
+              </span>
               <span className="ml-auto text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{grokStrategies.length}</span>
             </button>
             

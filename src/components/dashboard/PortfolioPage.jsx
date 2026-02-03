@@ -147,9 +147,9 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
   const totalConnectedValue = connectedBrokers.reduce((sum, b) => sum + (b.value || 0), 0) + portfolioData.totalValue;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#060d18] overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] overflow-auto">
       <div className="px-6 pt-6 pb-4">
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl overflow-hidden p-4">
+        <div className="bg-[#111118] border border-gray-800 rounded-xl overflow-hidden p-4">
           <PortfolioChart initialValue={totalConnectedValue} />
         </div>
       </div>
@@ -169,7 +169,7 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(hasRealData || true) && (
-            <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+            <div className="bg-[#111118] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
@@ -211,7 +211,7 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
           )}
 
           {connectedBrokers.map(broker => (
-            <div key={broker.id} className="bg-[#0a1628] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+            <div key={broker.id} className="bg-[#111118] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
@@ -248,10 +248,10 @@ const PortfolioPage = ({ themeClasses, alpacaData }) => {
 
           <button
             onClick={() => setShowBrokerModal(true)}
-            className="bg-[#0a1628] border border-dashed border-gray-700 rounded-xl p-4 hover:border-purple-500/50 hover:bg-[#0a1628]/80 transition-all flex flex-col items-center justify-center min-h-[160px] group"
+            className="bg-[#111118] border border-dashed border-gray-700 rounded-xl p-4 hover:border-emerald-500/50 hover:bg-white/5 transition-all flex flex-col items-center justify-center min-h-[160px] group"
           >
-            <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-3 group-hover:bg-purple-500/30 transition-colors">
-              <Plus className="w-6 h-6 text-purple-400" />
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
+              <Plus className="w-6 h-6 text-emerald-400" />
             </div>
             <div className="text-white font-medium mb-1">Connect a Broker</div>
             <div className="text-gray-500 text-sm text-center">Link your accounts for unified tracking</div>

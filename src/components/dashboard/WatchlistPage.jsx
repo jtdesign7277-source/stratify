@@ -186,7 +186,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
   return (
-    <div className="flex-1 flex h-full bg-[#060d18] overflow-hidden">
+    <div className="flex-1 flex h-full bg-[#0d0d12] overflow-hidden">
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
       {/* Watchlist Panel */}
@@ -337,7 +337,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
       {/* TradingView Chart */}
       {selectedTicker && (
-        <div className="flex-1 flex flex-col bg-[#060d18] min-w-0">
+        <div className="flex-1 flex flex-col bg-[#0d0d12] min-w-0">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-bold text-lg">${selectedTicker}</h2>
@@ -359,7 +359,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       )}
 
       {!selectedTicker && (
-        <div className="flex-1 flex items-center justify-center bg-[#060d18]">
+        <div className="flex-1 flex items-center justify-center bg-[#0d0d12]">
           <div className="text-center text-gray-500">
             <p className="text-lg">Select a ticker to view chart</p>
             <p className="text-sm mt-1">Click any symbol from your watchlist</p>

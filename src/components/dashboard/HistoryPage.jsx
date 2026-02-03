@@ -26,7 +26,7 @@ const HistoryPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -47,15 +47,15 @@ const HistoryPage = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
           <div className="text-gray-400 text-sm mb-1">Total Trades</div>
           <div className="text-xl font-bold text-white">{stats.totalTrades}</div>
         </div>
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
           <div className="text-gray-400 text-sm mb-1">Buy Volume</div>
           <div className="text-xl font-bold text-emerald-400">${stats.buyVolume.toLocaleString()}</div>
         </div>
-        <div className="bg-[#0a1628] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
           <div className="text-gray-400 text-sm mb-1">Sell Volume</div>
           <div className="text-xl font-bold text-red-400">${stats.sellVolume.toLocaleString()}</div>
         </div>
@@ -63,14 +63,14 @@ const HistoryPage = () => {
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-1 bg-[#0a1628] border border-gray-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-[#111118] border border-gray-800 rounded-lg p-1">
           {['all', 'buy', 'sell'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 filter === f 
-                  ? 'bg-purple-600 text-white' 
+                  ? 'bg-emerald-500 text-white' 
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -78,7 +78,7 @@ const HistoryPage = () => {
             </button>
           ))}
         </div>
-        <div className="flex-1 flex items-center gap-2 bg-[#0a1628] border border-gray-800 rounded-lg px-3 py-2">
+        <div className="flex-1 flex items-center gap-2 bg-[#111118] border border-gray-800 rounded-lg px-3 py-2">
           <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
           <input
             type="text"
@@ -89,7 +89,7 @@ const HistoryPage = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-[#0a1628] border border-gray-800 rounded-xl flex-1 overflow-hidden flex flex-col">
+      <div className="bg-[#111118] border border-gray-800 rounded-xl flex-1 overflow-hidden flex flex-col">
         <div className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-gray-800 text-xs text-gray-500 font-medium">
           <div>Type</div>
           <div>Symbol</div>
@@ -105,7 +105,7 @@ const HistoryPage = () => {
           {filteredTransactions.map((tx) => (
             <div 
               key={tx.id} 
-              className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-gray-800/50 hover:bg-[#0d1829] transition-colors"
+              className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-gray-800/50 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-2">
                 {tx.type === 'buy' ? (
