@@ -62,8 +62,8 @@ const Sidebar = ({
       className="h-full bg-[#0d0d12] border-r border-white/10 flex flex-col flex-shrink-0"
     >
       {/* Main Navigation */}
-      <nav className="flex-1 px-2 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'none' }}>
-        <ul className="space-y-px">
+      <nav className="flex-1 px-2 overflow-y-auto min-h-0 flex flex-col" style={{ scrollbarWidth: 'none' }}>
+        <ul className="flex flex-col flex-1 justify-evenly space-y-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -72,7 +72,7 @@ const Sidebar = ({
               <li key={item.id}>
                 <button
                   onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 min-h-[36px] rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
                       ? 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20'
                       : 'text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent'
