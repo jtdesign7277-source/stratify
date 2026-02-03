@@ -6,21 +6,6 @@ import useBreakingNews from '../../hooks/useBreakingNews';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
-const getMarketStatus = () => {
-  const now = new Date();
-  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const hours = et.getHours();
-  const minutes = et.getMinutes();
-  const day = et.getDay();
-  const time = hours * 60 + minutes;
-  
-  if (day === 0 || day === 6) return 'closed';
-  if (time >= 570 && time < 960) return 'open';
-  if (time >= 240 && time < 570) return 'premarket';
-  if (time >= 960 && time < 1200) return 'afterhours';
-  return 'closed';
-};
-
 const STOCK_DATABASE = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
   { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ' },
@@ -76,7 +61,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [marketStatus, setMarketStatus] = useState(getMarketStatus());
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [quotes, setQuotes] = useState({});
@@ -149,11 +133,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     const interval = setInterval(fetchAllQuotes, 10000); // Refresh every 10s
     return () => clearInterval(interval);
   }, [stocks.map(s => s.symbol).join(','), fetchSnapshot]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Local search from STOCK_DATABASE
   useEffect(() => {
@@ -272,24 +251,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
           <motion.div
             layout
-            className="flex items-center justify-between p-4"
-            animate={{ opacity: isBreakingNewsVisible ? 0.45 : 1, y: isBreakingNewsVisible ? 4 : 0 }}
+            className="flex items-center justify-end px-3 py-2"
+            animate={{ opacity: isBreakingNewsVisible ? 0.6 : 1, y: isBreakingNewsVisible ? 2 : 0 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
           >
-            {!isCollapsed && (
-              <div className="flex-1">
-                <h1 className="font-semibold text-white text-xl">Trade</h1>
-                <span className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
-                  marketStatus === 'open' ? 'bg-emerald-500/20 text-emerald-400' :
-                  marketStatus === 'premarket' ? 'bg-emerald-500/20 text-emerald-400' :
-                  marketStatus === 'afterhours' ? 'bg-emerald-500/20 text-emerald-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' : marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
-                </span>
-              </div>
-            )}
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-white">
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 hover:bg-gray-700/50 rounded-lg text-gray-400 hover:text-white"
+            >
               {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
             </button>
           </motion.div>
