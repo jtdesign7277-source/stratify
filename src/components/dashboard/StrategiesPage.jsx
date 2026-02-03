@@ -14,10 +14,11 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
     return saved ? JSON.parse(saved) : [
       { id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' },
       { id: 'active', name: 'Active', color: '#10B981', icon: 'play' },
+      { id: 'grok', name: 'Grok Strategies', color: '#10B981', icon: 'zap' },
     ];
   });
 
-  const [expandedFolders, setExpandedFolders] = useState({ favorites: false, active: false, uncategorized: false });
+  const [expandedFolders, setExpandedFolders] = useState({ favorites: false, active: false, grok: false, uncategorized: false });
 
   const [strategyFolders, setStrategyFolders] = useState(() => {
     const saved = localStorage.getItem('stratify-strategy-folder-map');
@@ -48,8 +49,11 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
     if (folderId === 'active') {
       return strategies.filter(s => s.status === 'active' || deployedStrategies.some(d => d.id === s.id));
     }
+    if (folderId === 'grok') {
+      return strategies.filter(s => s.code); // Grok strategies have code property
+    }
     if (folderId === 'uncategorized') {
-      return strategies.filter(s => !strategyFolders[s.id] && s.status !== 'active');
+      return strategies.filter(s => !strategyFolders[s.id] && s.status !== 'active' && !s.code);
     }
     return strategies.filter(s => strategyFolders[s.id] === folderId);
   };
@@ -113,6 +117,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
   const FolderIcon = ({ icon, color }) => {
     if (icon === 'star') return <Star className="w-4 h-4" fill={color} stroke={color} />;
     if (icon === 'play') return <Play className="w-4 h-4" fill={color} stroke={color} />;
+    if (icon === 'zap') return <Zap className="w-4 h-4" fill={color} stroke={color} />;
     return <Folder className="w-4 h-4" stroke={color} fill={color} fillOpacity={0.2} />;
   };
 

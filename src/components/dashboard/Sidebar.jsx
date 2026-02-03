@@ -101,61 +101,6 @@ const Sidebar = ({
           })}
         </ul>
 
-        {/* Saved Strategies Section */}
-        {!collapsed && grokStrategies.length > 0 && (
-          <div className="mt-4">
-            <button
-              onClick={() => setStrategiesExpanded(!strategiesExpanded)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider bg-white/5 backdrop-blur rounded-lg border border-white/10 hover:text-white/60 transition-all duration-200 hover:-translate-y-0.5"
-            >
-              {strategiesExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              <Zap className="w-3 h-3 text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-              <span className="flex items-center gap-1">
-                <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                  Grok
-                </span>
-                <span className="text-white/40">Strategies</span>
-              </span>
-              <span className="ml-auto text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{grokStrategies.length}</span>
-            </button>
-            
-            <AnimatePresence>
-              {strategiesExpanded && (
-                <motion.ul
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="mt-1 space-y-px overflow-hidden"
-                >
-                  {grokStrategies.map((strategy) => (
-                    <li key={strategy.id}>
-                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${strategy.deployed ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-                        <span className="flex-1 truncate">{strategy.name}</span>
-                        {strategy.deployed && (
-                          <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
-                            LIVE
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveSavedStrategy && onRemoveSavedStrategy(strategy.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-300 transition-all"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </motion.ul>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
         {/* Deployed Strategies Section */}
         {!collapsed && liveStrategies.length > 0 && (
           <div className="mt-4">
