@@ -330,7 +330,7 @@ const LandingPage = ({ onEnter }) => {
               Powered By Industry Leaders
             </p>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {[
                 {
                   name: 'Alpaca',
@@ -351,15 +351,15 @@ const LandingPage = ({ onEnter }) => {
               ].map((partner) => (
                 <div
                   key={partner.name}
-                  className="group flex items-center justify-center gap-4 px-2 py-3 text-white/70 transition-all"
+                  className="group flex items-center justify-center gap-5 px-2 py-4 text-white/70 transition-all"
                 >
                   <img
                     src={partner.logo}
                     alt={partner.name}
-                    className="h-6 w-6 object-contain opacity-70 transition-opacity group-hover:opacity-100"
+                    className="h-12 w-12 object-contain opacity-80 transition-opacity group-hover:opacity-100"
                     loading="lazy"
                   />
-                  <span className="text-sm font-semibold tracking-[0.12em] uppercase text-white/60 group-hover:text-white">
+                  <span className="text-lg font-semibold tracking-[0.16em] uppercase text-white/60 group-hover:text-white">
                     {partner.name}
                   </span>
                 </div>
