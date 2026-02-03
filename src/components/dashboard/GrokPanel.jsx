@@ -308,39 +308,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
 
   return (
     <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <svg
-            className="h-6 w-6"
-            viewBox="0 0 64 28"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-label="Grok logo"
-            role="img"
-          >
-            <defs>
-              <linearGradient id="grok-eye-gradient" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stopColor="#10b981" />
-                <stop offset="0.5" stopColor="#22d3ee" />
-                <stop offset="1" stopColor="#7dd3fc" />
-              </linearGradient>
-              <filter id="grok-eye-glow" x="-30%" y="-60%" width="160%" height="220%">
-                <feDropShadow dx="0" dy="0" stdDeviation="2.2" floodColor="#22d3ee" floodOpacity="0.45" />
-                <feDropShadow dx="0" dy="0" stdDeviation="5.5" floodColor="#10b981" floodOpacity="0.25" />
-              </filter>
-            </defs>
-            <g filter="url(#grok-eye-glow)">
-              <path
-                d="M2 14C8 5 20 1 32 1C44 1 56 5 62 14C56 23 44 27 32 27C20 27 8 23 2 14Z
-                   M10 14C15 8.5 23 6 32 6C41 6 49 8.5 54 14C49 19.5 41 22 32 22C23 22 15 19.5 10 14Z"
-                fill="url(#grok-eye-gradient)"
-                fillRule="evenodd"
-                clipRule="evenodd"
-              />
-              <circle cx="32" cy="14" r="3.2" fill="url(#grok-eye-gradient)" />
-            </g>
-          </svg>
-        </div>
+      <div className="flex items-center justify-end px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-1">
           <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-4 h-4" strokeWidth={1.5} /></button>
           <button onClick={() => setIsCollapsed(true)} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-white"><ChevronRight className="w-4 h-4" strokeWidth={1.5} /></button>
@@ -447,7 +415,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                     {messages.map((m, i) => (
                       <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
                         <div className={'max-w-[90%] rounded-lg px-2 py-1.5 ' + (m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#111118] text-[#e5e5e5]')}>
-                          {m.role === 'assistant' && <div className="flex items-center gap-1 mb-1 pb-1 border-b border-gray-700/50"><Zap className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400 text-xs">Grok</span>{m.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse ml-auto" />}</div>}
+                          {m.role === 'assistant' && m.isTyping && <div className="flex items-center gap-1 mb-1"><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" /></div>}
                           <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
                         </div>
                       </div>
