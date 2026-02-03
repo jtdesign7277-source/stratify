@@ -164,12 +164,7 @@ const Home = () => {
                   className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" strokeWidth={1.5} />
-                  <span className="flex items-center gap-1">
-                    <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                      Connect
-                    </span>
-                    <span className="text-white/60">a Broker</span>
-                  </span>
+                  Connect a Broker
                 </button>
               )}
               <button className="p-2 hover:bg-[#1a2438] rounded-lg transition-colors">
