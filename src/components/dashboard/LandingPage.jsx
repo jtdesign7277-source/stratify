@@ -330,7 +330,7 @@ const LandingPage = ({ onEnter }) => {
               Powered By Industry Leaders
             </p>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
                   name: 'Alpaca',
@@ -339,10 +339,6 @@ const LandingPage = ({ onEnter }) => {
                 {
                   name: 'Anthropic',
                   logo: '/logos/anthropic.svg'
-                },
-                {
-                  name: 'Vercel',
-                  logo: 'https://assets.vercel.com/image/upload/front/assets/design/vercel-triangle-black.svg'
                 },
                 {
                   name: 'Railway',
