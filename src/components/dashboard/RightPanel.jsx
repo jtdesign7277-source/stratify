@@ -62,33 +62,33 @@ const TypewriterStream = ({ strategyName, streamingText }) => {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-2 mb-3 px-1">
-        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-        <span className="text-sm font-medium text-white">Generating: {strategyName}</span>
+        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
+        <span className="text-sm font-semibold text-white/90 tracking-wide">Generating: {strategyName}</span>
       </div>
       
       {/* Streaming Text Area */}
-      <div className="flex-1 bg-[#0a1220] rounded-lg border border-blue-500/20 p-3 overflow-auto">
-        <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">
+      <div className="flex-1 bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] rounded-xl border border-white/10 p-3 overflow-auto shadow-[0_0_24px_rgba(59,130,246,0.12)] backdrop-blur-sm">
+        <pre className="text-xs text-gray-200 font-mono whitespace-pre-wrap">
           {streamingText}
           <motion.span
             animate={{ opacity: [1, 0] }}
             transition={{ duration: 0.5, repeat: Infinity }}
-            className="inline-block w-2 h-4 bg-blue-400 ml-0.5"
+            className="inline-block w-2 h-4 bg-emerald-400 ml-0.5"
           />
         </pre>
       </div>
       
       {/* Progress indicator */}
       <div className="mt-3 flex items-center gap-2">
-        <div className="flex-1 h-1 bg-[#0a1628] rounded-full overflow-hidden">
+        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden border border-white/10">
           <motion.div
             initial={{ width: '0%' }}
             animate={{ width: '100%' }}
             transition={{ duration: 8, ease: 'linear' }}
-            className="h-full bg-gradient-to-r from-blue-600 to-cyan-400"
+            className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-emerald-300"
           />
         </div>
-        <span className="text-[10px] text-gray-500">Building...</span>
+        <span className="text-[10px] text-gray-400">Building...</span>
       </div>
     </div>
   );
@@ -110,24 +110,24 @@ const EditableCodeBlock = ({ code, name, onCodeChange }) => {
   }, [isEditing]);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0a1220] rounded-lg border border-blue-500/20 overflow-hidden">
+    <div className="flex-1 flex flex-col bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] rounded-xl border border-white/10 overflow-hidden shadow-[0_0_24px_rgba(16,185,129,0.08)] backdrop-blur-sm">
       {/* Header */}
-      <div className="flex justify-between items-center px-3 py-2 border-b border-blue-500/20 flex-shrink-0">
-        <span className="text-xs text-gray-400">{name}.py</span>
+      <div className="flex justify-between items-center px-3 py-2 border-b border-white/10 flex-shrink-0 bg-white/5">
+        <span className="text-xs text-gray-300">{name}.py</span>
         <div className="flex items-center gap-3">
           {isEditing ? (
-            <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">✏️ Editing...</span>
+            <span className="text-[10px] text-emerald-300 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/30">✏️ Editing...</span>
           ) : (
             <button 
               onClick={handleClick}
-              className="text-[10px] text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded hover:bg-blue-400/20"
+              className="text-[10px] text-emerald-300 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/30 hover:bg-emerald-400/20 transition-colors"
             >
               Click to Edit
             </button>
           )}
           <button 
             onClick={() => navigator.clipboard.writeText(code)} 
-            className="text-xs text-blue-400 hover:text-blue-300"
+            className="text-xs text-emerald-300 hover:text-emerald-200 transition-colors"
           >
             Copy
           </button>
@@ -142,11 +142,11 @@ const EditableCodeBlock = ({ code, name, onCodeChange }) => {
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
             onBlur={() => setIsEditing(false)}
-            className="w-full h-full p-3 text-xs text-gray-300 bg-[#0a1220] font-mono resize-none focus:outline-none"
+            className="w-full h-full p-3 text-xs text-gray-200 bg-transparent font-mono resize-none focus:outline-none"
             spellCheck={false}
           />
         ) : (
-          <pre className="w-full h-full p-3 text-xs text-gray-300 font-mono overflow-auto cursor-text hover:bg-blue-500/5">
+          <pre className="w-full h-full p-3 text-xs text-gray-200 font-mono overflow-auto cursor-text hover:bg-white/5 transition-colors">
             {code}
           </pre>
         )}
@@ -160,13 +160,13 @@ const ChatMessage = ({ message, isUser, isLoading }) => {
   if (isLoading) {
     return (
       <div className="flex gap-2 mb-3">
-        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-          <BrainIcon className="w-3.5 h-3.5 text-white" />
+        <div className="w-6 h-6 rounded-full bg-emerald-500/80 flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(16,185,129,0.45)]">
+          <BrainIcon className="w-3.5 h-3.5 text-white/90" />
         </div>
-        <div className="flex-1 bg-[#0a1628] rounded-lg p-3 border border-blue-500/20">
+        <div className="flex-1 bg-white/5 rounded-xl p-3 border border-white/10 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs text-gray-400">Thinking...</span>
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-gray-300">Thinking...</span>
           </div>
         </div>
       </div>
@@ -175,28 +175,28 @@ const ChatMessage = ({ message, isUser, isLoading }) => {
 
   return (
     <div className={`flex gap-2 mb-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-        isUser ? 'bg-gray-600' : 'bg-blue-600'
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.25)] ${
+        isUser ? 'bg-white/10 border border-white/10' : 'bg-emerald-500/80'
       }`}>
         {isUser ? (
-          <span className="text-xs text-white">U</span>
+          <span className="text-xs text-white/80">U</span>
         ) : (
-          <BrainIcon className="w-3.5 h-3.5 text-white" />
+          <BrainIcon className="w-3.5 h-3.5 text-white/90" />
         )}
       </div>
-      <div className={`flex-1 max-w-[85%] rounded-lg p-3 ${
+      <div className={`flex-1 max-w-[85%] rounded-xl p-3 border backdrop-blur-sm ${
         isUser 
-          ? 'bg-blue-600/20 border border-blue-500/30' 
-          : 'bg-[#0a1628] border border-blue-500/20'
+          ? 'bg-white/10 border-white/20' 
+          : 'bg-white/5 border-white/10 shadow-[0_0_18px_rgba(16,185,129,0.08)]'
       }`}>
-        <p className="text-sm text-gray-200 whitespace-pre-wrap">{message.content}</p>
+        <p className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">{message.content}</p>
         {message.strategy && (
-          <div className="mt-2 p-2 bg-[#060d18] rounded border border-emerald-500/20">
+          <div className="mt-2 p-2 bg-emerald-500/10 rounded border border-emerald-400/30">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-medium text-emerald-400">Strategy Ready</span>
             </div>
-            <p className="text-xs text-gray-400">{message.strategy.name} for ${message.strategy.ticker}</p>
+            <p className="text-xs text-gray-300">{message.strategy.name} for ${message.strategy.ticker}</p>
           </div>
         )}
       </div>
@@ -531,27 +531,27 @@ if __name__ == "__main__":
   if (!expanded) {
     return (
       <div onClick={() => setExpanded(true)}
-        className="w-12 flex flex-col items-center py-4 gap-3 bg-[#060d18] border-l border-blue-500/20 cursor-pointer hover:bg-[#0a1628]">
-        <BrainIcon className="w-6 h-6 text-blue-400" />
-        <span className="text-[10px] text-gray-500" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
+        className="w-12 flex flex-col items-center py-4 gap-3 bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
+        <BrainIcon className="w-6 h-6 text-emerald-400" />
+        <span className="text-[10px] text-gray-500 tracking-widest" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col bg-[#060d18] border-l border-blue-500/20 h-full" style={{ width }}>
+    <div className="flex flex-col bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-blue-500/20 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <BrainIcon className="w-6 h-6 text-blue-400" />
-          <span className="text-sm font-semibold text-white">Atlas AI</span>
+          <BrainIcon className="w-6 h-6 text-emerald-400" />
+          <span className="text-sm font-semibold text-white/90 tracking-wide">Atlas AI</span>
         </div>
         <div className="flex gap-1">
-          <button onClick={handleReset} className="p-1.5 hover:bg-blue-500/10 rounded" title="Start Fresh">
-            <RefreshIcon className="w-4 h-4 text-gray-400 hover:text-blue-400" />
+          <button onClick={handleReset} className="p-1.5 hover:bg-white/10 rounded transition-colors" title="Start Fresh">
+            <RefreshIcon className="w-4 h-4 text-gray-300 hover:text-emerald-300" />
           </button>
-          <button onClick={() => setExpanded(false)} className="p-1.5 hover:bg-blue-500/10 rounded">
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={() => setExpanded(false)} className="p-1.5 hover:bg-white/10 rounded transition-colors">
+            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -559,22 +559,22 @@ if __name__ == "__main__":
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-blue-500/20 flex-shrink-0">
+      <div className="flex border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         {[
           { id: 'quick', label: 'Quick Build' },
           { id: 'chat', label: 'AI Chat' },
           { id: 'results', label: 'Results' }
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2 text-xs font-medium transition-colors relative ${
-              activeTab === tab.id ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'
+            className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors relative ${
+              activeTab === tab.id ? 'text-emerald-300' : 'text-gray-500 hover:text-gray-300'
             }`}>
             {tab.label}
             {activeTab === tab.id && (
-              <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+              <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
             )}
             {tab.id === 'results' && generatedStrategy && (
-              <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+              <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
             )}
           </button>
         ))}
@@ -586,18 +586,18 @@ if __name__ == "__main__":
           {/* Quick Build Tab */}
           {activeTab === 'quick' && (
             <motion.div key="quick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-3 h-full flex flex-col overflow-y-auto">
+              className="p-4 h-full flex flex-col overflow-y-auto">
               
               {/* Ticker Selection */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Select Ticker</label>
-                <div className="grid grid-cols-5 gap-1">
+              <div className="mb-4">
+                <label className="text-[11px] text-gray-400 mb-2 block uppercase tracking-widest">Select Ticker</label>
+                <div className="grid grid-cols-5 gap-2">
                   {stockTickers.map(t => (
                     <button key={t} onClick={() => handleTickerSelect(t)}
-                      className={`py-1.5 rounded text-xs font-medium transition-all ${
+                      className={`py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 ${
                         selectedTicker === t 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-[#0a1628] text-gray-300 border border-blue-500/20 hover:border-blue-500/50'
+                          ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.18)]' 
+                          : 'bg-white/5 text-gray-300 border border-white/10 hover:border-emerald-400/40 hover:text-emerald-100'
                       }`}>
                       ${t}
                     </button>
@@ -606,15 +606,15 @@ if __name__ == "__main__":
               </div>
 
               {/* Crypto */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Crypto</label>
-                <div className="grid grid-cols-5 gap-1">
+              <div className="mb-4">
+                <label className="text-[11px] text-gray-400 mb-2 block uppercase tracking-widest">Crypto</label>
+                <div className="grid grid-cols-5 gap-2">
                   {cryptoTickers.slice(0, 10).map(t => (
                     <button key={t} onClick={() => handleTickerSelect(t)}
-                      className={`py-1.5 rounded text-xs font-medium transition-all ${
+                      className={`py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 ${
                         selectedTicker === t 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-[#0a1628] text-gray-300 border border-blue-500/20 hover:border-blue-500/50'
+                          ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.18)]' 
+                          : 'bg-white/5 text-gray-300 border border-white/10 hover:border-emerald-400/40 hover:text-emerald-100'
                       }`}>
                       ${t}
                     </button>
@@ -623,50 +623,50 @@ if __name__ == "__main__":
               </div>
 
               {/* Strategy Templates */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Type</label>
-                <div className="grid grid-cols-3 gap-1.5">
+              <div className="mb-4">
+                <label className="text-[11px] text-gray-400 mb-2 block uppercase tracking-widest">Strategy Type</label>
+                <div className="grid grid-cols-3 gap-2">
                   {strategyTemplates.map(s => (
                     <button key={s.id} onClick={() => handleTemplateSelect(s)}
-                      className={`p-2 rounded text-left transition-all ${
+                      className={`p-3 rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 border ${
                         selectedTemplate?.id === s.id
-                          ? 'bg-blue-600/20 border-blue-500'
-                          : 'bg-[#0a1628] border-blue-500/20 hover:border-blue-500/50'
-                      } border`}>
-                      <div className="flex items-center gap-1.5 mb-0.5">
+                          ? 'bg-emerald-500/15 border-emerald-400/40 shadow-[0_0_18px_rgba(16,185,129,0.16)]'
+                          : 'bg-white/5 border-white/10 hover:border-emerald-400/40'
+                      }`}>
+                      <div className="flex items-center gap-1.5 mb-1">
                         <span>{s.icon}</span>
-                        <span className="text-xs font-medium text-white">{s.name}</span>
+                        <span className="text-xs font-semibold text-white/90">{s.name}</span>
                       </div>
-                      <p className="text-[10px] text-gray-500 line-clamp-1">{s.desc}</p>
+                      <p className="text-[10px] text-gray-400 line-clamp-1">{s.desc}</p>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Strategy Name */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Strategy Name</label>
+              <div className="mb-4">
+                <label className="text-[11px] text-gray-400 mb-2 block uppercase tracking-widest">Strategy Name</label>
                 <input
                   type="text"
                   value={strategyName}
                   onChange={(e) => setStrategyName(e.target.value)}
                   placeholder="Name your strategy..."
-                  className="w-full px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white/90 placeholder-gray-500 focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
                 />
               </div>
 
               {/* Backtest Timeframe */}
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1.5 block">Backtest Timeframe</label>
-                <div className="grid grid-cols-5 gap-1.5">
+              <div className="mb-4">
+                <label className="text-[11px] text-gray-400 mb-2 block uppercase tracking-widest">Backtest Timeframe</label>
+                <div className="grid grid-cols-5 gap-2">
                   {timeframeOptions.map(tf => (
                     <button
                       key={tf.id}
                       onClick={() => setBacktestTimeframe(backtestTimeframe === tf.id ? '' : tf.id)}
-                      className={`py-2 px-1 rounded text-xs font-medium transition-all ${
+                      className={`py-2 px-1 rounded-lg text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 ${
                         backtestTimeframe === tf.id
-                          ? 'bg-blue-600 text-white border border-blue-500'
-                          : 'bg-[#0a1628] text-gray-400 border border-blue-500/20 hover:border-blue-500/50'
+                          ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 shadow-[0_0_14px_rgba(16,185,129,0.16)]'
+                          : 'bg-white/5 text-gray-400 border border-white/10 hover:border-emerald-400/40 hover:text-emerald-100'
                       }`}
                     >
                       {tf.label}
@@ -679,10 +679,10 @@ if __name__ == "__main__":
               <button
                 onClick={handleQuickGenerate}
                 disabled={!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe}
-                className={`mt-auto py-2.5 rounded text-sm font-semibold transition-all flex-shrink-0 ${
+                className={`mt-auto py-3 rounded-lg text-sm font-semibold tracking-wide transition-all duration-200 flex-shrink-0 ${
                   selectedTicker && selectedTemplate && strategyName && backtestTimeframe
-                    ? 'bg-blue-600 text-white hover:bg-blue-500'
-                    : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 text-[#0b0b12] shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
+                    : 'bg-white/5 text-gray-500 cursor-not-allowed'
                 }`}>
                 Generate Strategy →
               </button>
@@ -695,44 +695,44 @@ if __name__ == "__main__":
               className="h-full flex flex-col">
               
               {/* Fixed Header - Config inputs */}
-              <div className="p-3 border-b border-blue-500/20 flex-shrink-0 space-y-2">
+              <div className="p-4 border-b border-white/10 flex-shrink-0 space-y-3 bg-white/5 backdrop-blur-md">
                 <div className="flex gap-2">
                   {/* Ticker */}
                   <div className="flex-1">
-                    <label className="text-[10px] text-gray-500 mb-1 block">TICKER</label>
+                    <label className="text-[10px] text-gray-400 mb-1 block tracking-widest">TICKER</label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-400 text-xs">$</span>
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-300 text-xs">$</span>
                       <input
                         type="text"
                         value={chatTicker}
                         onChange={(e) => setChatTicker(e.target.value.toUpperCase())}
                         placeholder="AAPL"
-                        className="w-full pl-5 pr-2 py-1.5 bg-[#0a1628] border border-blue-500/20 rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                        className="w-full pl-5 pr-2 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white/90 placeholder-gray-500 focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
                       />
                     </div>
                   </div>
                   {/* Strategy Name */}
                   <div className="flex-[2]">
-                    <label className="text-[10px] text-gray-500 mb-1 block">NAME</label>
+                    <label className="text-[10px] text-gray-400 mb-1 block tracking-widest">NAME</label>
                     <input
                       type="text"
                       value={chatStrategyName}
                       onChange={(e) => setChatStrategyName(e.target.value)}
                       placeholder="My Strategy"
-                      className="w-full px-2 py-1.5 bg-[#0a1628] border border-blue-500/20 rounded text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                      className="w-full px-2 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white/90 placeholder-gray-500 focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-500/20 transition-colors"
                     />
                   </div>
                 </div>
                 {/* Timeframe row */}
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   {timeframeOptions.map(tf => (
                     <button
                       key={tf.id}
                       onClick={() => setChatTimeframe(tf.id)}
-                      className={`flex-1 py-1 rounded text-[10px] font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all duration-200 hover:-translate-y-0.5 ${
                         chatTimeframe === tf.id
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-[#0a1628] text-gray-400 hover:text-gray-300'
+                          ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 shadow-[0_0_12px_rgba(16,185,129,0.14)]'
+                          : 'bg-white/5 text-gray-400 border border-white/10 hover:text-emerald-100 hover:border-emerald-400/40'
                       }`}
                     >
                       {tf.label}
@@ -742,22 +742,24 @@ if __name__ == "__main__":
               </div>
 
               {/* Scrollable Chat Area */}
-              <div className="flex-1 overflow-y-auto p-3">
+              <div className="flex-1 overflow-y-auto p-4">
                 {messages.length === 0 ? (
                   // Empty state with starter prompts
-                  <div className="h-full flex flex-col items-center justify-center">
-                    <BrainIcon className="w-10 h-10 text-blue-400/30 mb-3" />
-                    <p className="text-sm text-gray-400 mb-1">Describe your strategy</p>
+                  <div className="h-full flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 flex items-center justify-center shadow-[0_0_18px_rgba(16,185,129,0.18)] mb-3">
+                      <BrainIcon className="w-6 h-6 text-emerald-300/80" />
+                    </div>
+                    <p className="text-sm text-gray-300 mb-1 font-medium">Describe your strategy</p>
                     <p className="text-xs text-gray-500 mb-4">Try a starter prompt:</p>
-                    <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
+                    <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
                       {starterPrompts.map((sp, i) => (
                         <button
                           key={i}
                           onClick={() => handleStarterPrompt(sp.prompt)}
-                          className="p-2 text-left bg-[#0a1628] border border-blue-500/20 rounded hover:border-blue-500/50 transition-colors"
+                          className="p-3 text-left bg-white/5 border border-white/10 rounded-xl hover:border-emerald-400/40 hover:-translate-y-0.5 transition-all duration-200"
                         >
-                          <span className="text-[10px] text-blue-400 block mb-0.5">{sp.label}</span>
-                          <span className="text-[10px] text-gray-500 line-clamp-2">{sp.prompt}</span>
+                          <span className="text-[10px] text-emerald-300 block mb-1 tracking-wide">{sp.label}</span>
+                          <span className="text-[10px] text-gray-400 line-clamp-2">{sp.prompt}</span>
                         </button>
                       ))}
                     </div>
@@ -775,11 +777,11 @@ if __name__ == "__main__":
               </div>
 
               {/* Fixed Footer - Input */}
-              <div className="p-3 border-t border-blue-500/20 flex-shrink-0">
+              <div className="p-4 border-t border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
                 {generatedStrategy && (
                   <button
                     onClick={() => setActiveTab('results')}
-                    className="w-full mb-2 py-2 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium border border-emerald-500/30 hover:bg-emerald-600/30 transition-colors"
+                    className="w-full mb-3 py-2.5 rounded-lg bg-emerald-500/20 text-emerald-200 text-xs font-semibold border border-emerald-400/30 hover:bg-emerald-500/30 transition-all duration-200 hover:-translate-y-0.5"
                   >
                     View Results →
                   </button>
@@ -792,15 +794,15 @@ if __name__ == "__main__":
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder={chatTicker && chatStrategyName ? "Describe your strategy..." : "Enter ticker & name first..."}
                     disabled={!chatTicker || !chatStrategyName}
-                    className="flex-1 px-3 py-2 bg-[#0a1628] border border-blue-500/20 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                    className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white/90 placeholder-gray-500 focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-500/20 disabled:opacity-50 transition-colors"
                   />
                   <button
                     type="submit"
                     disabled={!chatInput.trim() || !chatTicker || !chatStrategyName || isThinking}
-                    className={`px-3 py-2 rounded transition-all ${
+                    className={`px-3 py-2.5 rounded-lg transition-all duration-200 ${
                       chatInput.trim() && chatTicker && chatStrategyName && !isThinking
-                        ? 'bg-blue-600 text-white hover:bg-blue-500'
-                        : 'bg-[#0a1628] text-gray-500 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-emerald-500 to-cyan-400 text-[#0b0b12] shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
+                        : 'bg-white/5 text-gray-500 cursor-not-allowed'
                     }`}
                   >
                     <SendIcon className="w-4 h-4" />
@@ -813,17 +815,17 @@ if __name__ == "__main__":
           {/* Results Tab */}
           {activeTab === 'results' && (
             <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-3 h-full flex flex-col">
+              className="p-4 h-full flex flex-col">
               
               {isGenerating ? (
                 <TypewriterStream strategyName={strategyName || chatStrategyName} streamingText={streamingText} />
               ) : generatedStrategy ? (
                 <div className="flex flex-col h-full">
                   {/* Status Message - Compact */}
-                  <div className={`mb-2 p-2 rounded-lg flex-shrink-0 ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'} border`}>
+                  <div className={`mb-3 p-3 rounded-xl flex-shrink-0 border backdrop-blur-sm ${generatedStrategy.status === 'deployed' ? 'bg-emerald-500/10 border-emerald-400/30' : 'bg-amber-500/10 border-amber-400/30'}`}>
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${generatedStrategy.status === 'deployed' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                      <span className={`text-xs font-medium ${generatedStrategy.status === 'deployed' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      <span className={`text-xs font-semibold tracking-wide ${generatedStrategy.status === 'deployed' ? 'text-emerald-300' : 'text-amber-300'}`}>
                         {generatedStrategy.status === 'deployed' ? 'Deployed ✓' : 'Click code to edit'}
                       </span>
                     </div>
@@ -837,26 +839,26 @@ if __name__ == "__main__":
                   />
 
                   {/* Actions - Fixed at bottom */}
-                  <div className="flex gap-2 mt-2 flex-shrink-0">
+                  <div className="flex gap-2 mt-3 flex-shrink-0">
                     {generatedStrategy.status !== 'deployed' ? (
                       <>
                         <button onClick={handleSaveAndDeploy}
-                          className="flex-1 py-2.5 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500">
+                          className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 text-[#0b0b12] text-sm font-semibold shadow-[0_0_20px_rgba(16,185,129,0.22)] hover:-translate-y-0.5 transition-all duration-200">
                           Save & Deploy
                         </button>
                         <button onClick={handleSaveOnly}
-                          className="flex-1 py-2.5 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
+                          className="flex-1 py-2.5 rounded-lg bg-white/5 text-gray-200 text-sm font-semibold border border-white/10 hover:border-emerald-400/40 hover:-translate-y-0.5 transition-all duration-200">
                           Save
                         </button>
                       </>
                     ) : (
                       <>
                         <button onClick={() => navigator.clipboard.writeText(editableCode)}
-                          className="flex-1 py-2.5 rounded bg-blue-600 text-white text-sm font-medium hover:bg-blue-500">
+                          className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-400 text-[#0b0b12] text-sm font-semibold shadow-[0_0_20px_rgba(16,185,129,0.22)] hover:-translate-y-0.5 transition-all duration-200">
                           Copy Code
                         </button>
                         <button onClick={handleReset}
-                          className="flex-1 py-2.5 rounded bg-[#0a1628] text-gray-300 text-sm font-medium border border-blue-500/20 hover:border-blue-500/50">
+                          className="flex-1 py-2.5 rounded-lg bg-white/5 text-gray-200 text-sm font-semibold border border-white/10 hover:border-emerald-400/40 hover:-translate-y-0.5 transition-all duration-200">
                           New Strategy
                         </button>
                       </>
@@ -865,8 +867,8 @@ if __name__ == "__main__":
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <BrainIcon className="w-12 h-12 text-blue-400/50 mb-3" />
-                  <p className="text-sm text-gray-400 mb-1">No results yet</p>
+                  <BrainIcon className="w-12 h-12 text-emerald-300/50 mb-3" />
+                  <p className="text-sm text-gray-300 mb-1">No results yet</p>
                   <p className="text-xs text-gray-500">Build a strategy to see results here</p>
                 </div>
               )}
