@@ -531,7 +531,7 @@ if __name__ == "__main__":
   if (!expanded) {
     return (
       <div onClick={() => setExpanded(true)}
-        className="w-12 flex flex-col items-center py-4 gap-3 bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
+        className="w-12 flex flex-col items-center py-4 gap-3 bg-[#0d0d12] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
         <BrainIcon className="w-6 h-6 text-emerald-400" />
         <span className="text-[10px] text-gray-500 tracking-widest" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
       </div>
@@ -539,7 +539,7 @@ if __name__ == "__main__":
   }
 
   return (
-    <div className="flex flex-col bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width }}>
+    <div className="flex flex-col bg-[#0d0d12] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
