@@ -30,8 +30,8 @@ const Sidebar = ({
   onRemoveSavedStrategy
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const [strategiesExpanded, setStrategiesExpanded] = useState(true);
-  const [deployedExpanded, setDeployedExpanded] = useState(true);
+  const [strategiesExpanded, setStrategiesExpanded] = useState(false);
+  const [deployedExpanded, setDeployedExpanded] = useState(false);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
