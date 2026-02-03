@@ -128,7 +128,7 @@ const DemoPanel = () => {
     if (confettiInstanceRef.current) {
       const colors = ['#10b981', '#34d399', '#22c55e', '#86efac', '#059669'];
       confettiIntervalRef.current = setInterval(() => {
-        const particleCount = 35;
+        const particleCount = 24;
         const baseConfig = {
           particleCount,
           spread: 85,
@@ -159,7 +159,7 @@ const DemoPanel = () => {
             origin: { x: Math.random() * 0.6 + 0.2, y: 0.95 },
           });
         }
-      }, 180);
+      }, 220);
     }
 
     introTimeoutRef.current = setTimeout(() => {
@@ -222,6 +222,13 @@ const DemoPanel = () => {
 
   return (
     <div className="relative flex-1 h-full overflow-y-auto bg-[#0d0d12] text-white">
+      <style>{`
+        @keyframes sb-shine {
+          0% { transform: translateX(-140%); }
+          55% { transform: translateX(140%); }
+          100% { transform: translateX(140%); }
+        }
+      `}</style>
       <AnimatePresence>
         {!introComplete && showConfetti && (
           <motion.div
@@ -299,6 +306,28 @@ const DemoPanel = () => {
                     <div className="mt-2 text-lg font-semibold">{stat.value}</div>
                   </div>
                 ))}
+              </div>
+              <div className="relative overflow-hidden rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-[#121420] via-[#0b0c12] to-[#05060a] p-5 shadow-[0_0_35px_rgba(16,185,129,0.18)] before:absolute before:-inset-y-8 before:-left-1/2 before:w-[180%] before:bg-[linear-gradient(120deg,transparent,rgba(252,211,77,0.28),rgba(16,185,129,0.35),transparent)] before:opacity-70 before:mix-blend-screen before:animate-[sb-shine_6s_ease-in-out_infinite]">
+                <div className="relative z-10 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[0.6rem] font-semibold uppercase tracking-[0.5em] text-emerald-300/70">
+                      Exclusive Event Badge
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold tracking-[0.18em] text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-100 to-amber-200">
+                      SUPER BOWL LX
+                    </div>
+                    <div className="mt-1 text-xs font-semibold uppercase tracking-[0.35em] text-amber-200/80">
+                      FEBRUARY 9, 2026
+                    </div>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/40 bg-amber-400/10 text-2xl shadow-[0_0_20px_rgba(252,211,77,0.25)]">
+                    🏈
+                  </div>
+                </div>
+                <div className="relative z-10 mt-4 flex items-center gap-2 text-xs text-emerald-200/70">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+                  Premium access unlocked for game day trading.
+                </div>
               </div>
             </div>
           </div>
