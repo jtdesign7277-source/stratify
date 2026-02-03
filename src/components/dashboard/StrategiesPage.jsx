@@ -17,7 +17,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
     ];
   });
 
-  const [expandedFolders, setExpandedFolders] = useState({ favorites: true, active: true, uncategorized: true });
+  const [expandedFolders, setExpandedFolders] = useState({ favorites: false, active: false, uncategorized: false });
 
   const [strategyFolders, setStrategyFolders] = useState(() => {
     const saved = localStorage.getItem('stratify-strategy-folder-map');
