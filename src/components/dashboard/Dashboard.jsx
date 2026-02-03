@@ -25,6 +25,7 @@ import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
 import TradePage from './TradePage';
 import DemoPanel from './DemoPanel';
+import StrategyTemplatesGallery from './StrategyTemplatesGallery';
 
 const loadDashboardState = () => {
   try {
@@ -516,6 +517,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             />
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
+          {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={() => setActiveTab('strategies')} />}
         </div>
         
         <GrokPanel 

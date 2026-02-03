@@ -7,3 +7,4 @@ export { default as StatusBar } from './StatusBar';
 export { default as TerminalPanel } from './TerminalPanel';
 export { default as StockDetailView } from './StockDetailView';
 export { default as CommandPalette, useCommandPalette, KeyboardShortcutsModal } from './CommandPalette';
+export { default as StrategyTemplatesGallery } from './StrategyTemplatesGallery';
