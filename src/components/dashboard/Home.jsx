@@ -116,6 +116,12 @@ const Home = () => {
     }
   };
 
+  const handleDisconnect = (brokerId, index) => {
+    setConnectedAccounts((prev) => prev.filter((account, idx) => (
+      account.id !== brokerId || idx !== index
+    )));
+  };
+
   const openApiPage = (url) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -345,6 +351,59 @@ const Home = () => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Connected Accounts */}
+          {!isConnectOpen && connectedAccounts.length > 0 && (
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-white font-medium mb-1">Connected Brokers</h3>
+                  <p className="text-gray-400 text-sm">Manage your connected brokerage accounts.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsConnectOpen(true);
+                    setSelectedBroker(null);
+                  }}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" strokeWidth={1.5} />
+                  Add Another Broker
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {connectedAccounts.map((account, index) => (
+                  <div
+                    key={`${account.id}-${index}`}
+                    className="bg-[#111118] border border-gray-800 rounded-xl p-4 flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="text-2xl">{account.logo}</div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-white font-medium text-sm truncate">{account.name}</h4>
+                          <span className="inline-flex items-center gap-1 text-emerald-400 text-xs">
+                            <CheckCircle className="w-3.5 h-3.5" strokeWidth={1.5} />
+                            Connected
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs font-mono mt-1">
+                          API Key: {account.maskedKey}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDisconnect(account.id, index)}
+                      className="px-3 py-1.5 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
