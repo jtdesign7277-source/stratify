@@ -221,7 +221,11 @@ const DemoPanel = () => {
   const introScaleDuration = introComplete ? 0.01 : 9;
 
   return (
-    <div className="relative flex-1 h-full overflow-hidden bg-[#0d0d12] text-white">
+    <div
+      className={`relative flex-1 h-full bg-[#0d0d12] text-white ${
+        introComplete ? 'overflow-y-auto' : 'overflow-hidden'
+      }`}
+    >
       <style>{`
         @keyframes sb-shine {
           0% { transform: translateX(-140%); }
