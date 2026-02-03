@@ -61,20 +61,6 @@ const Sidebar = ({
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="h-full bg-[#0d0d12] border-r border-white/10 flex flex-col flex-shrink-0"
     >
-      {/* Branding */}
-      <div className="p-3 pb-2">
-        {!collapsed && (
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            <span className="font-semibold text-sm whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-100 to-white drop-shadow-[0_1px_8px_rgba(16,185,129,0.35)]">
-              Stratify
-            </span>
-            <span className="px-1.5 py-0.5 text-[10px] font-semibold text-[#0b0b10] rounded bg-gradient-to-r from-emerald-300 via-amber-300 to-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.35)] ring-1 ring-amber-200/50">
-              PRO
-            </span>
-          </div>
-        )}
-      </div>
-
       {/* Main Navigation */}
       <nav className="flex-1 px-2 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'none' }}>
         <ul className="space-y-px">
