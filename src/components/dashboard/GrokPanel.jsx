@@ -315,16 +315,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id !== 'chat') setActiveSubTab('strategy'); }} className={'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ' + (activeTab === tab.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-[#e5e5e5]')}>
-            {tab.name}
-            {tab.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />}
-            {tab.id !== 'chat' && <X className="w-3.5 h-3.5 hover:text-white" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} />}
-          </button>
-        ))}
-      </div>
-
       <div className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-hidden">
         {activeTab === 'chat' && (
           <div className="flex-shrink-0 space-y-2 overflow-y-auto">
