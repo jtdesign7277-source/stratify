@@ -56,6 +56,8 @@ const DemoPanel = () => {
   const confettiInstanceRef = useRef(null);
   const introTimeoutRef = useRef(null);
   const confettiIntervalRef = useRef(null);
+  const fadeTimeoutRef = useRef(null);
+  const fadeAnimationRef = useRef(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -83,10 +85,18 @@ const DemoPanel = () => {
     if (confettiIntervalRef.current) {
       clearInterval(confettiIntervalRef.current);
     }
+    if (fadeTimeoutRef.current) {
+      clearTimeout(fadeTimeoutRef.current);
+    }
+    if (fadeAnimationRef.current) {
+      cancelAnimationFrame(fadeAnimationRef.current);
+    }
   }, []);
 
   useEffect(() => {
     const INTRO_DURATION = 8000;
+    const FADE_DURATION = 1200;
+    const FADE_START = INTRO_DURATION - FADE_DURATION;
     const canvas = confettiCanvasRef.current;
 
     if (canvas && !confettiInstanceRef.current) {
@@ -97,9 +107,22 @@ const DemoPanel = () => {
     }
 
     if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.volume = 0.85;
-      audioRef.current.play().catch(() => {});
+      const audio = audioRef.current;
+      audio.currentTime = 2;
+      audio.volume = 0.85;
+      audio.play().catch(() => {});
+      fadeTimeoutRef.current = setTimeout(() => {
+        const startVolume = audio.volume;
+        const fadeStart = performance.now();
+        const fadeStep = (now) => {
+          const progress = Math.min((now - fadeStart) / FADE_DURATION, 1);
+          audio.volume = Math.max(0, startVolume * (1 - progress));
+          if (progress < 1) {
+            fadeAnimationRef.current = requestAnimationFrame(fadeStep);
+          }
+        };
+        fadeAnimationRef.current = requestAnimationFrame(fadeStep);
+      }, FADE_START);
     }
 
     if (confettiInstanceRef.current) {
@@ -149,6 +172,12 @@ const DemoPanel = () => {
       }
       if (confettiIntervalRef.current) {
         clearInterval(confettiIntervalRef.current);
+      }
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+      }
+      if (fadeAnimationRef.current) {
+        cancelAnimationFrame(fadeAnimationRef.current);
       }
       if (audioRef.current) {
         audioRef.current.pause();
