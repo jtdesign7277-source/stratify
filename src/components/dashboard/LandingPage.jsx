@@ -356,10 +356,10 @@ const LandingPage = ({ onEnter }) => {
                   <img
                     src={partner.logo}
                     alt={partner.name}
-                    className="h-12 w-12 object-contain opacity-80 transition-opacity group-hover:opacity-100"
+                    className="h-24 w-24 object-contain opacity-80 transition-opacity group-hover:opacity-100"
                     loading="lazy"
                   />
-                  <span className="text-lg font-semibold tracking-[0.16em] uppercase text-white/60 group-hover:text-white">
+                  <span className="text-3xl font-semibold tracking-[0.16em] uppercase text-white/60 group-hover:text-white">
                     {partner.name}
                   </span>
                 </div>
