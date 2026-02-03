@@ -136,7 +136,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [tabs, setTabs] = useState([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]);
+  const [tabs, setTabs] = useState([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]);
   const [activeTab, setActiveTab] = useState('chat');
   const [strategyCounter, setStrategyCounter] = useState(0);
   const [activeSubTab, setActiveSubTab] = useState('strategy');
@@ -187,7 +187,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const removeTicker = (symbol) => { const newTickers = selectedTickers.filter(s => s !== symbol); setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); };
   const getTickerPrefix = (tickers) => { if (!tickers || tickers.length === 0) return ''; if (tickers.length === 1) return '$' + tickers[0] + ' - '; if (tickers.length === 2) return '$' + tickers[0] + '/$' + tickers[1] + ' - '; return '$' + tickers[0] + '+ - '; };
   const updateStrategyNameWithTickers = (tickers, strategyType = null) => { const prefix = getTickerPrefix(tickers); const currentName = strategyName; const dashIndex = currentName.indexOf(' - '); const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : ''; if (strategyType) { setStrategyName(prefix + strategyType); } else if (existingSuffix) { setStrategyName(prefix + existingSuffix); } else if (prefix) { setStrategyName(prefix); } };
-  const handleReset = () => { setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Chat', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
+  const handleReset = () => { setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
   const closeTab = (tabId) => { if (tabId === 'chat') return; setTabs(prev => prev.filter(t => t.id !== tabId)); if (activeTab === tabId) { setActiveTab('chat'); } };
 
   const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
@@ -308,7 +308,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
 
   return (
     <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800 flex-shrink-0">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-emerald-500/20 rounded"><Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} /></div>
           <span className="text-[#e5e5e5] font-medium text-base">Grok</span>
@@ -320,9 +320,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-800 flex-shrink-0 overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id !== 'chat') setActiveSubTab('strategy'); }} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ' + (activeTab === tab.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-[#e5e5e5]')}>
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id !== 'chat') setActiveSubTab('strategy'); }} className={'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ' + (activeTab === tab.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-[#e5e5e5]')}>
             {tab.name}
             {tab.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />}
             {tab.id !== 'chat' && <X className="w-3.5 h-3.5 hover:text-white" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} />}
@@ -330,18 +330,18 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
         ))}
       </div>
 
-      <div className="flex-1 p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
+      <div className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-hidden">
         {activeTab === 'chat' && (
-          <div className="flex-shrink-0 space-y-3 overflow-y-auto">
+          <div className="flex-shrink-0 space-y-2 overflow-y-auto">
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="flex flex-wrap gap-1 mb-1.5">
                 {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
-                  <button key={s} onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)} className={'px-3 py-1 rounded-lg text-sm font-medium transition-all ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30')}>${s}</button>
+                  <button key={s} onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)} className={'px-2 py-0.5 rounded-lg text-xs font-medium transition-all ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30')}>${s}</button>
                 ))}
               </div>
               <div className="relative">
-                <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-3 py-2 hover:border-gray-600 transition-colors">
+                <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-2 py-1.5 hover:border-gray-600 transition-colors">
                   {isSearching ? <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /> : <Search className="w-4 h-4 text-gray-500" />}
                   <input type="text" value={tickerSearch} onChange={(e) => setTickerSearch(e.target.value.toUpperCase())} placeholder="Search any stock..." className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none" />
                   {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
@@ -349,7 +349,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                 {searchResults.length > 0 && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0d12] border border-gray-700 rounded-lg z-50 overflow-hidden shadow-xl">
                     {searchResults.map(t => (
-                      <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-3 py-2.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0">
+                      <div key={t.symbol} onClick={() => addTicker(t.symbol)} className="flex items-center justify-between px-2 py-1.5 hover:bg-emerald-500/10 cursor-pointer text-sm transition-colors border-b border-gray-800/50 last:border-0">
                         <div className="flex items-center gap-2 min-w-0"><span className="text-[#e5e5e5] font-semibold">${t.symbol}</span><span className="text-gray-500 truncate">{t.name}</span></div>
                         <div className="flex items-center gap-2 flex-shrink-0">{t.exchange && <span className="text-[10px] text-gray-600">{t.exchange}</span>}<Plus className="w-4 h-4 text-emerald-400" /></div>
                       </div>
@@ -360,7 +360,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
             </div>
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-1">
                 {[
                   { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
                   { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
@@ -370,9 +370,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                   const Icon = template.icon;
                   const isSelected = selectedQuickStrategy === template.name;
                   return (
-                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2 p-2.5 rounded-lg transition-all text-left ' + (isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#111118]/80')}>
+                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2 p-2 rounded-lg transition-all text-left ' + (isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#111118]/80')}>
                       <Icon className={'w-4 h-4 flex-shrink-0 text-emerald-400'} strokeWidth={1.5} />
-                      <span className={'text-sm ' + (isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{template.name}</span>
+                      <span className={'text-xs ' + (isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{template.name}</span>
                     </button>
                   );
                 })}
@@ -380,26 +380,26 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
             </div>
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-3 gap-1">
                 {STRATEGY_TYPES.map(s => { const Icon = s.icon; return (
-                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-2 rounded-lg text-center transition-all ' + (selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-gray-600')}>
+                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-1.5 rounded-lg text-center transition-all ' + (selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-gray-600')}>
                     <Icon className={'w-4 h-4 mx-auto ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500')} strokeWidth={1.5} />
-                    <span className={'text-sm block mt-1 ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{s.name}</span>
+                    <span className={'text-xs block mt-1 ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{s.name}</span>
                   </button>
                 ); })}
               </div>
             </div>
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1">
                 {TIMEFRAMES.map(tf => (
-                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-gray-600')}>{tf.label}</button>
+                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1 rounded-lg text-xs font-medium transition-all ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-gray-600')}>{tf.label}</button>
                 ))}
               </div>
             </div>
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
-              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-3 py-2 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
           </div>
         )}
@@ -408,24 +408,24 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
           {activeTab === 'chat' && <label className="text-gray-300 text-xs font-semibold mb-1.5 block flex-shrink-0">GROK CHAT</label>}
           <div className="flex-1 flex flex-col bg-[#0d0d12] border border-gray-700 rounded-lg overflow-hidden">
             {isStrategyTab && (
-              <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-700 flex-shrink-0">
-                <button onClick={() => setActiveSubTab('strategy')} className={'px-3 py-1 rounded text-sm font-medium transition-all ' + (activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Strategy</button>
-                <button onClick={() => setActiveSubTab('code')} className={'px-3 py-1 rounded text-sm font-medium transition-all ' + (activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Code</button>
+              <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-700 flex-shrink-0">
+                <button onClick={() => setActiveSubTab('strategy')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Strategy</button>
+                <button onClick={() => setActiveSubTab('code')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Code</button>
               </div>
             )}
             <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="px-3 py-2 space-y-2">
+              <div className="px-2 py-1.5 space-y-2">
                 {activeTab === 'chat' ? (
                   <>
                     {messages.map((m, i) => (
                       <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                        <div className={'max-w-[90%] rounded-lg px-3 py-2 ' + (m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#111118] text-[#e5e5e5]')}>
-                          {m.role === 'assistant' && <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-gray-700/50"><Zap className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400 text-sm">Grok</span>{m.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse ml-auto" />}</div>}
+                        <div className={'max-w-[90%] rounded-lg px-2 py-1.5 ' + (m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#111118] text-[#e5e5e5]')}>
+                          {m.role === 'assistant' && <div className="flex items-center gap-1 mb-1 pb-1 border-b border-gray-700/50"><Zap className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400 text-xs">Grok</span>{m.isTyping && <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse ml-auto" />}</div>}
                           <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
                         </div>
                       </div>
                     ))}
-                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && <div className="flex justify-start"><div className="bg-[#111118] rounded-lg px-3 py-2 flex items-center gap-2"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span className="text-gray-500 text-sm">Thinking...</span></div></div>}
+                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && <div className="flex justify-start"><div className="bg-[#111118] rounded-lg px-2 py-1.5 flex items-center gap-2"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span className="text-gray-500 text-sm">Thinking...</span></div></div>}
                   </>
                 ) : (
                   <>
@@ -438,14 +438,14 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               </div>
             </div>
             {isStrategyTab && !activeTabData?.isTyping && activeTabData?.content && (
-              <div className="flex gap-2 px-3 py-2 border-t border-gray-700 flex-shrink-0">
-                <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[#111118] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
-                <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
+              <div className="flex gap-2 px-2 py-1.5 border-t border-gray-700 flex-shrink-0">
+                <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
+                <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
               </div>
             )}
-            <div className="flex gap-2 p-3 border-t border-gray-700 flex-shrink-0">
-              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."} className="flex-1 px-3 py-2 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 transition-colors overflow-hidden" style={{ minHeight: '60px', maxHeight: '120px' }} />
-              <button onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify} disabled={!chatInput.trim() || isChatLoading} className={'px-3 self-end rounded-lg transition-all h-10 ' + (chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600')}>{isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
+            <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
+              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."} className="flex-1 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 transition-colors overflow-hidden" style={{ minHeight: '52px', maxHeight: '120px' }} />
+              <button onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify} disabled={!chatInput.trim() || isChatLoading} className={'px-2 self-end rounded-lg transition-all h-9 ' + (chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600')}>{isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
             </div>
           </div>
         </div>
