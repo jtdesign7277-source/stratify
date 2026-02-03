@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, ChevronRight, PlayCircle, Sparkles } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 const seedStrategies = [
   {
@@ -47,6 +48,14 @@ const DemoPanel = () => {
   const [balance, setBalance] = useState(100000);
   const [pnl, setPnl] = useState(3245.18);
   const [pnlDelta, setPnlDelta] = useState(0);
+  const [introComplete, setIntroComplete] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(true);
+
+  const audioRef = useRef(null);
+  const confettiCanvasRef = useRef(null);
+  const confettiInstanceRef = useRef(null);
+  const introTimeoutRef = useRef(null);
+  const confettiIntervalRef = useRef(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -58,6 +67,73 @@ const DemoPanel = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const endIntro = useCallback(() => {
+    setIntroComplete(true);
+    setShowConfetti(false);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    if (introTimeoutRef.current) {
+      clearTimeout(introTimeoutRef.current);
+    }
+    if (confettiIntervalRef.current) {
+      clearInterval(confettiIntervalRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    const INTRO_DURATION = 6000;
+    const canvas = confettiCanvasRef.current;
+
+    if (canvas && !confettiInstanceRef.current) {
+      confettiInstanceRef.current = confetti.create(canvas, {
+        resize: true,
+        useWorker: true,
+      });
+    }
+
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 0.85;
+      audioRef.current.play().catch(() => {});
+    }
+
+    if (confettiInstanceRef.current) {
+      const colors = ['#10b981', '#34d399', '#22c55e', '#86efac', '#059669'];
+      confettiIntervalRef.current = setInterval(() => {
+        confettiInstanceRef.current({
+          particleCount: 18,
+          angle: 90,
+          spread: 75,
+          startVelocity: 55,
+          gravity: 1.2,
+          ticks: 200,
+          origin: { x: Math.random() * 0.6 + 0.2, y: 1 },
+          colors,
+        });
+      }, 240);
+    }
+
+    introTimeoutRef.current = setTimeout(() => {
+      endIntro();
+    }, INTRO_DURATION);
+
+    return () => {
+      if (introTimeoutRef.current) {
+        clearTimeout(introTimeoutRef.current);
+      }
+      if (confettiIntervalRef.current) {
+        clearInterval(confettiIntervalRef.current);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [endIntro]);
 
   const handleDeploy = (strategyId) => {
     if (deployingId) return;
@@ -92,9 +168,42 @@ const DemoPanel = () => {
     []
   );
 
+  const introScaleDuration = introComplete ? 0.01 : 6;
+
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-[#0d0d12] text-white">
-      <div className="px-8 py-8 space-y-8">
+    <div className="relative flex-1 h-full overflow-y-auto bg-[#0d0d12] text-white">
+      <AnimatePresence>
+        {!introComplete && showConfetti && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="pointer-events-none absolute inset-0 z-20"
+          >
+            <canvas ref={confettiCanvasRef} className="h-full w-full" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!introComplete && (
+        <button
+          type="button"
+          onClick={endIntro}
+          className="absolute right-6 top-6 z-30 inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200 transition hover:border-emerald-300 hover:text-white"
+        >
+          Skip Intro
+        </button>
+      )}
+
+      <audio ref={audioRef} src="/green-intro.mp3" preload="auto" />
+
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0.35 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: introScaleDuration, ease: [0.22, 1, 0.36, 1] }}
+        className="px-8 py-8 space-y-8"
+      >
         {/* Hero */}
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#141424] via-[#0f1017] to-[#0b0b12] p-10">
           <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.28),transparent_55%)]" />
@@ -275,7 +384,7 @@ const DemoPanel = () => {
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
