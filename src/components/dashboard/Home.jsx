@@ -95,6 +95,16 @@ const Home = () => {
       apiUrl: 'https://robinhood.com/account/settings',
       docsUrl: 'https://robinhood.com/us/en/support/',
       features: ['Stocks', 'Crypto', 'Options']
+    },
+    {
+      id: 'kalshi',
+      name: 'Kalshi',
+      logo: '🎯',
+      color: 'from-purple-500 to-purple-600',
+      description: 'CFTC-regulated event contracts',
+      apiUrl: 'https://kalshi.com/api',
+      docsUrl: 'https://trading-api.readme.io/reference/getting-started',
+      features: ['Events', 'Politics', 'Economics']
     }
   ];
 
