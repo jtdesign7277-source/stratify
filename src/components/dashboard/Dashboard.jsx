@@ -15,6 +15,7 @@ import SettingsPage from './SettingsPage';
 import StrategiesPage from './StrategiesPage';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
+import StrategyTemplatesGallery from './StrategyTemplatesGallery';
 import AIChat from './AIChat';
 import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './CommandPalette';
 import Home from './Home';
@@ -463,6 +464,60 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
   const draftStrategiesCount = strategies.filter(s => s.status !== 'deployed').length;
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return <Home themeClasses={themeClasses} />;
+      case 'watchlist':
+        return (
+          <WatchlistPage
+            themeClasses={themeClasses}
+            watchlist={watchlist}
+            onAddToWatchlist={addToWatchlist}
+            onRemoveFromWatchlist={removeFromWatchlist}
+          />
+        );
+      case 'strategies':
+        return <StrategiesPage themeClasses={themeClasses} />;
+      case 'templates':
+        return (
+          <StrategyTemplatesGallery
+            onSelectTemplate={(template) => {
+              // load template into strategy builder and switch to builder tab
+              setActiveTab('builder');
+            }}
+          />
+        );
+      case 'trade':
+        return (
+          <TradePage
+            watchlist={watchlist}
+            onAddToWatchlist={addToWatchlist}
+            onRemoveFromWatchlist={removeFromWatchlist}
+          />
+        );
+      case 'markets':
+        return <MarketsPage themeClasses={themeClasses} />;
+      case 'analytics':
+        return <AnalyticsPage themeClasses={themeClasses} />;
+      case 'atlas':
+        return (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-white mb-2">Atlas AI</h2>
+              <p>AI assistant coming soon</p>
+            </div>
+          </div>
+        );
+      case 'portfolio':
+        return <PortfolioPage themeClasses={themeClasses} alpacaData={alpacaData} />;
+      case 'history':
+        return <HistoryPage themeClasses={themeClasses} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <TopMetricsBar 
@@ -489,24 +544,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
           {/* Tab-based Views */}
-          {activeTab === 'home' && <Home themeClasses={themeClasses} />}
-          {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
-          {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
-          {activeTab === 'trade' && (
-            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />
-          )}
-          {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
-          {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
-          {activeTab === 'atlas' && (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-white mb-2">Atlas AI</h2>
-                <p>AI assistant coming soon</p>
-              </div>
-            </div>
-          )}
-          {activeTab === 'portfolio' && <PortfolioPage themeClasses={themeClasses} alpacaData={alpacaData} />}
-          {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
+          {renderContent()}
         </div>
         
         <GrokPanel 

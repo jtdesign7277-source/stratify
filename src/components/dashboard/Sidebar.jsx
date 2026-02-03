@@ -13,6 +13,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Brain,
+  Layout,
   ChevronDown,
   ChevronRight,
   Play,
@@ -53,6 +54,7 @@ const Sidebar = ({
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
+    { id: 'templates', label: 'Templates', icon: Layout },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
