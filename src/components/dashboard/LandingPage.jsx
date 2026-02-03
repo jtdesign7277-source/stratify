@@ -334,7 +334,7 @@ const LandingPage = ({ onEnter }) => {
               {[
                 {
                   name: 'Alpaca',
-                  logo: '/logos/alpaca.svg'
+                  logo: '/logos/alpaca.png'
                 },
                 {
                   name: 'Anthropic',
