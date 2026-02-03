@@ -7,7 +7,7 @@ const Home = () => {
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [connectedAccounts, setConnectedAccounts] = useState([]);
-  const [isConnectOpen, setIsConnectOpen] = useState(false);
+  const [isConnectOpen, setIsConnectOpen] = useState(true);
 
   const tabs = [
     { id: 'balances', label: 'Balances' },
