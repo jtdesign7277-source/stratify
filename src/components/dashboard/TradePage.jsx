@@ -242,6 +242,22 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   };
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
+  const showBreakingBanner = !isCollapsed && isBreakingNewsVisible && breakingNews;
+  const showTickerTape = !isCollapsed && !isBreakingNewsVisible && breakingNewsStatus === 'dismissed';
+  const collapseToggle = (
+    <button
+      onClick={() => setIsCollapsed(!isCollapsed)}
+      className={`p-1.5 rounded-lg text-gray-400 hover:text-white transition-all duration-300 ${
+        isCollapsed
+          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/30 shadow-[0_0_12px_rgba(16,185,129,0.45),0_0_22px_rgba(34,211,238,0.35)] animate-pulse'
+          : 'hover:bg-gray-700/50 hover:border hover:border-emerald-400/30 hover:shadow-[0_0_10px_rgba(16,185,129,0.35),0_0_18px_rgba(34,211,238,0.25)] border border-transparent'
+      }`}
+      aria-label={isCollapsed ? 'Expand watchlist panel' : 'Collapse watchlist panel'}
+      type="button"
+    >
+      {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+    </button>
+  );
 
   return (
     <div className="flex-1 flex h-full bg-[#0d0d12] overflow-hidden">
@@ -260,7 +276,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         {/* Header */}
         <div className="border-b border-gray-800">
           <AnimatePresence mode="popLayout">
-            {!isCollapsed && isBreakingNewsVisible && breakingNews && (
+            {showBreakingBanner && (
               <motion.div
                 key="breaking-news-banner"
                 layout
@@ -268,22 +284,27 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-                className="px-4 pt-3"
+                className="px-4 pt-3 pb-2"
               >
-                <BreakingNewsBanner
-                  headline={breakingNews.headline}
-                  tickerSymbol={breakingNews.tickerSymbol}
-                  tickerChange={breakingNews.tickerChange}
-                  newsUrl={breakingNews.newsUrl}
-                  isLive={breakingNews.isLive}
-                  onDismiss={dismissBreakingNews}
-                />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <BreakingNewsBanner
+                      headline={breakingNews.headline}
+                      tickerSymbol={breakingNews.tickerSymbol}
+                      tickerChange={breakingNews.tickerChange}
+                      newsUrl={breakingNews.newsUrl}
+                      isLive={breakingNews.isLive}
+                      onDismiss={dismissBreakingNews}
+                    />
+                  </div>
+                  {collapseToggle}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           <AnimatePresence mode="popLayout">
-            {!isBreakingNewsVisible && breakingNewsStatus === 'dismissed' && (
+            {showTickerTape && (
               <motion.div
                 key="breaking-news-ticker"
                 layout
@@ -291,29 +312,28 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+                className="px-3 py-2"
               >
-                <TickerTape text={tickerTapeText} />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <TickerTape text={tickerTapeText} />
+                  </div>
+                  {collapseToggle}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <motion.div
-            layout
-            className="flex items-center justify-end px-3 py-2"
-            animate={{ opacity: isBreakingNewsVisible ? 0.6 : 1, y: isBreakingNewsVisible ? 2 : 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`p-1.5 rounded-lg text-gray-400 hover:text-white transition-all duration-300 ${
-                isCollapsed
-                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/30 shadow-[0_0_12px_rgba(16,185,129,0.45),0_0_22px_rgba(34,211,238,0.35)] animate-pulse'
-                  : 'hover:bg-gray-700/50 hover:border hover:border-emerald-400/30 hover:shadow-[0_0_10px_rgba(16,185,129,0.35),0_0_18px_rgba(34,211,238,0.25)] border border-transparent'
-              }`}
+          {!showBreakingBanner && !showTickerTape && (
+            <motion.div
+              layout
+              className="flex items-center justify-end px-3 py-2"
+              animate={{ opacity: isBreakingNewsVisible ? 0.6 : 1, y: isBreakingNewsVisible ? 2 : 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
             >
-              {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
-            </button>
-          </motion.div>
+              {collapseToggle}
+            </motion.div>
+          )}
         </div>
 
         {/* Search */}
