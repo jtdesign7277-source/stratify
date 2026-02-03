@@ -60,11 +60,11 @@ const Sidebar = ({
       initial={false}
       animate={{ width: collapsed ? 60 : 220 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="h-full bg-[#0a0a0f] border-r border-white/10 flex flex-col flex-shrink-0"
+      className="h-full bg-[#0d0d12] border-r border-white/10 flex flex-col flex-shrink-0"
     >
       {/* Logo */}
       <div className="p-3 pb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-xl bg-white/5 backdrop-blur border border-white/10 px-2.5 py-2">
           <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
             <StratifyLogo size={24} />
           </div>
@@ -88,15 +88,15 @@ const Sidebar = ({
               <li key={item.id}>
                 <button
                   onClick={() => handleTabClick(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
-                      ? 'bg-gradient-to-r from-purple-600/40 to-purple-500/30 text-white'
-                      : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                      ? 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20'
+                      : 'text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent'
                   } ${collapsed ? 'justify-center px-2' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
                   <Icon 
-                    className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-white' : ''}`} 
+                    className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-emerald-300' : ''}`} 
                     strokeWidth={1.5} 
                   />
                   {!collapsed && (
@@ -120,7 +120,7 @@ const Sidebar = ({
           <div className="mt-4">
             <button
               onClick={() => setStrategiesExpanded(!strategiesExpanded)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider hover:text-white/60 transition-colors"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider bg-white/5 backdrop-blur rounded-lg border border-white/10 hover:text-white/60 transition-all duration-200 hover:-translate-y-0.5"
             >
               {strategiesExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               <Zap className="w-3 h-3 text-emerald-400" />
@@ -139,7 +139,7 @@ const Sidebar = ({
                 >
                   {grokStrategies.map((strategy) => (
                     <li key={strategy.id}>
-                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${strategy.deployed ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                         <span className="flex-1 truncate">{strategy.name}</span>
                         {strategy.deployed && (
@@ -170,7 +170,7 @@ const Sidebar = ({
           <div className="mt-4">
             <button
               onClick={() => setDeployedExpanded(!deployedExpanded)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider hover:text-white/60 transition-colors"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider bg-white/5 backdrop-blur rounded-lg border border-white/10 hover:text-white/60 transition-all duration-200 hover:-translate-y-0.5"
             >
               {deployedExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               <Play className="w-3 h-3 text-emerald-400" />
@@ -189,7 +189,7 @@ const Sidebar = ({
                 >
                   {liveStrategies.map((strategy) => (
                     <li key={strategy.id}>
-                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
                         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
                         <span className="flex-1 truncate">{strategy.name}</span>
                         <span className="text-[9px] text-emerald-400">Running</span>
@@ -212,7 +212,7 @@ const Sidebar = ({
           <li>
             <button
               onClick={() => handleTabClick('more')}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-all ${
+              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-white/50 hover:text-white/80 hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 ${
                 collapsed ? 'justify-center px-2' : ''
               }`}
               title={collapsed ? 'More info' : undefined}
@@ -229,7 +229,7 @@ const Sidebar = ({
 
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/60 hover:text-white hover:bg-purple-500/20 transition-all border border-white/10 hover:border-purple-500/50 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide text-white/60 hover:text-white hover:bg-emerald-500/10 transition-all duration-200 hover:-translate-y-0.5 border border-white/10 hover:border-emerald-400/40 ${
             collapsed ? 'justify-center px-2' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
