@@ -104,6 +104,14 @@ const TIMEFRAMES = [
   { id: '1y', label: '1Y' },
 ];
 
+const CHART_TIMEFRAMES = [
+  { id: '5min', label: '5m' },
+  { id: '15min', label: '15m' },
+  { id: '30min', label: '30m' },
+  { id: '1hr', label: '1H' },
+  { id: '4hr', label: '4H' },
+];
+
 const parseStrategyResponse = (content) => {
   const codeMatch = content.match(/```python\n([\s\S]*?)```/);
   const code = codeMatch ? codeMatch[1].trim() : '';
@@ -130,6 +138,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [strategyName, setStrategyName] = useState('');
   const [selectedTimeframe, setSelectedTimeframe] = useState(null);
+  const [selectedChartTimeframe, setSelectedChartTimeframe] = useState(null);
   const [selectedQuickStrategy, setSelectedQuickStrategy] = useState(null);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -379,6 +388,14 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               <div className="flex gap-1">
                 {TIMEFRAMES.map(tf => (
                   <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-[#111118] text-[#e5e5e5] border border-gray-800 hover:border-emerald-500/50 hover:bg-white/5')}>{tf.label}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">CHART</label>
+              <div className="flex gap-1">
+                {CHART_TIMEFRAMES.map(tf => (
+                  <button key={tf.id} onClick={() => setSelectedChartTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 ' + (selectedChartTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-[#111118] text-[#e5e5e5] border border-gray-800 hover:border-emerald-500/50 hover:bg-white/5')}>{tf.label}</button>
                 ))}
               </div>
             </div>
