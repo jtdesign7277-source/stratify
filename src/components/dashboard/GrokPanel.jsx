@@ -23,13 +23,13 @@ const GrokLoadingOverlay = ({ isVisible }) => (
           loop
           muted
           playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm"
+          className="absolute inset-0 w-full h-full object-cover opacity-50"
         >
           <source src="/videos/atlas-analyzing.mp4" type="video/mp4" />
         </video>
         
         {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-black/40" />
         
         {/* Centered content */}
         <div className="relative z-10 flex flex-col items-center">

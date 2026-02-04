@@ -155,8 +155,12 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         >
           <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} strokeWidth={1.5} />
           <FolderIcon icon={folder.icon} color={folder.color} />
-          <span className="flex-1 text-left text-white text-sm font-medium">{folder.name}</span>
-          <span className="text-xs text-gray-500 bg-[#1a2438] px-2 py-0.5 rounded min-w-[28px] text-center">{folderStrategies.length}</span>
+          <span className="flex-1 flex items-center justify-between">
+            <span className="text-left text-white text-sm font-medium">{folder.name}</span>
+            <span className="ml-auto text-xs text-gray-500 bg-[#1a2438] px-2 py-0.5 rounded min-w-[28px] text-center">
+              {folderStrategies.length}
+            </span>
+          </span>
           {!isSystem && (
             <button
               onClick={(e) => {
