@@ -36,6 +36,7 @@ const Sidebar = ({
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
+    { id: 'active', label: 'Active', icon: Play, badge: 4 },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'templates', label: 'Templates', icon: Layout },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
@@ -88,6 +89,11 @@ const Sidebar = ({
                   {!collapsed && (
                     <div className="flex items-center gap-2 overflow-hidden">
                       <span className={`whitespace-nowrap ${item.labelClass || ''}`}>{item.label}</span>
+                      {item.badge && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500/30 text-emerald-300 rounded-full min-w-[18px] text-center">
+                          {item.badge}
+                        </span>
+                      )}
                       {item.isNew && (
                         <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 rounded">
                           New
