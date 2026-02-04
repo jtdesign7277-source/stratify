@@ -62,13 +62,6 @@ const LandingPage = ({ onEnter }) => {
               ref={introVideoRef}
               src={introVideoSrc}
               className="w-full h-full object-cover"
-              style={{
-                imageRendering: 'crisp-edges',
-                WebkitImageRendering: '-webkit-optimize-contrast',
-                transform: 'translateZ(0)',
-                willChange: 'transform',
-                backfaceVisibility: 'hidden'
-              }}
               onEnded={handleIntroEnd}
               playsInline
             />
@@ -90,13 +83,7 @@ const LandingPage = ({ onEnter }) => {
           loop
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            imageRendering: 'crisp-edges',
-            WebkitImageRendering: '-webkit-optimize-contrast',
-            transform: 'translateZ(0)',
-            willChange: 'transform',
-            backfaceVisibility: 'hidden'
-          }}
+          style={{ filter: 'brightness(0.6)' }}
         >
           <source src={bgVideoSrc} type="video/mp4" />
         </video>
@@ -330,15 +317,19 @@ const LandingPage = ({ onEnter }) => {
               Powered By Industry Leaders
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {[
                 {
                   name: 'Alpaca',
-                  logo: '/logos/alpaca.svg'
+                  logo: '/logos/alpaca.png'
                 },
                 {
                   name: 'Anthropic',
                   logo: '/logos/anthropic.svg'
+                },
+                {
+                  name: 'Vercel',
+                  logo: 'https://assets.vercel.com/image/upload/front/assets/design/vercel-triangle-black.svg'
                 },
                 {
                   name: 'Railway',
@@ -352,9 +343,12 @@ const LandingPage = ({ onEnter }) => {
                   <img
                     src={partner.logo}
                     alt={partner.name}
-                    className="h-16 w-auto object-contain opacity-70 transition-opacity group-hover:opacity-100"
+                    className="h-12 w-12 object-contain opacity-80 transition-opacity group-hover:opacity-100"
                     loading="lazy"
                   />
+                  <span className="text-lg font-semibold tracking-[0.16em] uppercase text-white/60 group-hover:text-white">
+                    {partner.name}
+                  </span>
                 </div>
               ))}
             </div>
