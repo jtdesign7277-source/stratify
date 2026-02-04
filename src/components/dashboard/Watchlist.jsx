@@ -12,6 +12,14 @@ const TrendDownIcon = ({ className }) => (
   </svg>
 );
 
+const CRYPTO_LIST = [
+  { symbol: 'BTC', name: 'Bitcoin' },
+  { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'XRP', name: 'XRP' },
+  { symbol: 'DOGE', name: 'Dogecoin' },
+];
+
 const formatNumber = (num) => {
   if (!num) return null;
   if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
@@ -77,7 +85,11 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
   };
 
   const stockItems = stocks.filter(stock => !isCryptoAsset(stock));
-  const cryptoItems = stocks.filter(isCryptoAsset);
+  const cryptoItems = CRYPTO_LIST.map(crypto => ({
+    ...crypto,
+    isCrypto: true,
+    assetType: 'crypto',
+  }));
   const visibleItems = activeTab === 'crypto' ? cryptoItems : stockItems;
   const emptyMessage = activeTab === 'crypto' ? 'No crypto in watchlist' : 'No stocks in watchlist';
 
