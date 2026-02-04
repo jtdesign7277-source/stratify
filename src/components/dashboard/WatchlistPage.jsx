@@ -18,6 +18,14 @@ const getMarketStatus = () => {
   return 'closed';
 };
 
+const formatCryptoSymbol = (symbol) => {
+  if (!symbol) return symbol;
+  const normalized = symbol.toUpperCase();
+  if (normalized.includes(':')) return normalized;
+  if (normalized.endsWith('USD')) return `CRYPTO:${normalized}`;
+  return `CRYPTO:${normalized}USD`;
+};
+
 const STOCK_DATABASE = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
   { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ' },
@@ -82,6 +90,7 @@ const DEFAULT_WATCHLIST = [
 
 const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
+  const [activeTab, setActiveTab] = useState('stocks');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [marketStatus, setMarketStatus] = useState(getMarketStatus());
@@ -90,9 +99,34 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [loading, setLoading] = useState(true);
   const [prevCloses, setPrevCloses] = useState({});
   
-  const stocks = watchlist.length > 0 
+  const normalizedWatchlist = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
     : DEFAULT_WATCHLIST;
+
+  const isCryptoItem = (item) => {
+    const exchange = typeof item?.exchange === 'string' ? item.exchange.toUpperCase() : '';
+    const sector = typeof item?.sector === 'string' ? item.sector.toLowerCase() : '';
+    return exchange === 'CRYPTO' || sector === 'crypto';
+  };
+
+  const activeWatchlist = normalizedWatchlist.filter((item) => (
+    activeTab === 'crypto' ? isCryptoItem(item) : !isCryptoItem(item)
+  ));
+
+  const activeSymbols = activeWatchlist.map(s => s.symbol).join(',');
+  const selectedItem = normalizedWatchlist.find(s => s.symbol === selectedTicker);
+  const selectedIsCrypto = selectedItem ? isCryptoItem(selectedItem) : false;
+  const chartSymbol = selectedTicker
+    ? (selectedIsCrypto ? formatCryptoSymbol(selectedTicker) : selectedTicker)
+    : null;
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (!selectedTicker) return;
+    if ((tab === 'crypto' && !selectedIsCrypto) || (tab === 'stocks' && selectedIsCrypto)) {
+      setSelectedTicker(null);
+    }
+  };
 
   // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
   const fetchQuote = useCallback(async (symbol) => {
@@ -114,7 +148,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       const results = {};
       
       await Promise.all(
-        stocks.map(async (stock) => {
+        activeWatchlist.map(async (stock) => {
           const quote = await fetchQuote(stock.symbol);
           if (quote && quote.price) {
             // Store previous close for change calculation (use current as fallback)
@@ -140,7 +174,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     fetchAllQuotes();
     const interval = setInterval(fetchAllQuotes, 10000); // Refresh every 10s
     return () => clearInterval(interval);
-  }, [stocks.map(s => s.symbol).join(','), fetchQuote]);
+  }, [activeSymbols, fetchQuote]);
 
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
@@ -154,13 +188,13 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       return;
     }
     const query = searchQuery.toLowerCase();
-    const existingSymbols = stocks.map(s => s.symbol);
+    const existingSymbols = normalizedWatchlist.map(s => s.symbol);
     const filtered = STOCK_DATABASE.filter(s => 
       !existingSymbols.includes(s.symbol) &&
       (s.symbol.toLowerCase().includes(query) || s.name.toLowerCase().includes(query))
     ).slice(0, 10);
     setSearchResults(filtered);
-  }, [searchQuery, stocks]);
+  }, [searchQuery, normalizedWatchlist]);
 
   const handleAddStock = (stock) => {
     if (onAddToWatchlist) {
@@ -231,6 +265,31 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 </button>
               )}
             </div>
+
+            <div className="mt-3 flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => handleTabChange('stocks')}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  activeTab === 'stocks'
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Stocks
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange('crypto')}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  activeTab === 'crypto'
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Crypto
+              </button>
+            </div>
             
             {searchQuery && searchResults.length > 0 && (
               <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
@@ -270,7 +329,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             </div>
           )}
           
-          {stocks.map((stock) => {
+          {activeWatchlist.map((stock) => {
             const quote = quotes[stock.symbol] || {};
             const price = quote.price || 0;
             const change = quote.change || 0;
@@ -329,7 +388,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         {/* Footer */}
         {!isCollapsed && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
-            <span className="text-gray-400">{stocks.length} symbols</span>
+            <span className="text-gray-400">{activeWatchlist.length} symbols</span>
             <span className="text-blue-400">Alpaca Data</span>
           </div>
         )}
@@ -341,7 +400,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-bold text-lg">${selectedTicker}</h2>
-              <span className="text-gray-400 text-sm">{STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || stocks.find(s => s.symbol === selectedTicker)?.name}</span>
+              <span className="text-gray-400 text-sm">{STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || normalizedWatchlist.find(s => s.symbol === selectedTicker)?.name}</span>
             </div>
             <button onClick={() => setSelectedTicker(null)} className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-400">
               <X className="w-4 h-4" />
@@ -349,8 +408,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           </div>
           <div className="flex-1 min-h-0">
             <iframe
-              key={selectedTicker}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${selectedTicker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en`}
+              key={chartSymbol || selectedTicker}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${chartSymbol || selectedTicker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
             />
