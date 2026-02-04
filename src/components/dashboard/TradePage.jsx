@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import TickerTape from './TickerTape';
 import useBreakingNews from '../../hooks/useBreakingNews';
+import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -58,13 +59,10 @@ const STOCK_DATABASE = [
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
 ];
 
-const CRYPTO_LIST = [
-  { symbol: 'BTC', name: 'Bitcoin', exchange: 'CRYPTO' },
-  { symbol: 'ETH', name: 'Ethereum', exchange: 'CRYPTO' },
-  { symbol: 'SOL', name: 'Solana', exchange: 'CRYPTO' },
-  { symbol: 'XRP', name: 'XRP', exchange: 'CRYPTO' },
-  { symbol: 'DOGE', name: 'Dogecoin', exchange: 'CRYPTO' },
-];
+const CRYPTO_LIST = TOP_CRYPTO_BY_MARKET_CAP.map((crypto) => ({
+  ...crypto,
+  exchange: 'CRYPTO',
+}));
 
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);

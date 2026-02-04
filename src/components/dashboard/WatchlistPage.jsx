@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -98,6 +99,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState(true);
   const [prevCloses, setPrevCloses] = useState({});
+  const [cryptoList, setCryptoList] = useState(TOP_CRYPTO_BY_MARKET_CAP);
+  const [cryptoLoading, setCryptoLoading] = useState(false);
+  const [cryptoFetched, setCryptoFetched] = useState(false);
   
   const normalizedWatchlist = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
@@ -109,16 +113,21 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     return exchange === 'CRYPTO' || sector === 'crypto';
   };
 
-  const activeWatchlist = normalizedWatchlist.filter((item) => (
-    activeTab === 'crypto' ? isCryptoItem(item) : !isCryptoItem(item)
-  ));
+  const stockWatchlist = normalizedWatchlist.filter((item) => !isCryptoItem(item));
+  const activeWatchlist = activeTab === 'stocks' ? stockWatchlist : [];
 
   const activeSymbols = activeWatchlist.map(s => s.symbol).join(',');
-  const selectedItem = normalizedWatchlist.find(s => s.symbol === selectedTicker);
-  const selectedIsCrypto = selectedItem ? isCryptoItem(selectedItem) : false;
+  const selectedStock = normalizedWatchlist.find(s => s.symbol === selectedTicker);
+  const selectedCrypto = cryptoList.find(crypto => crypto.symbol === selectedTicker);
+  const selectedIsCrypto = Boolean(selectedCrypto) || (selectedStock ? isCryptoItem(selectedStock) : false);
   const chartSymbol = selectedTicker
     ? (selectedIsCrypto ? formatCryptoSymbol(selectedTicker) : selectedTicker)
     : null;
+  const selectedName = selectedIsCrypto
+    ? (selectedCrypto?.name || selectedTicker)
+    : (STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || normalizedWatchlist.find(s => s.symbol === selectedTicker)?.name || selectedTicker);
+  const footerCount = activeTab === 'crypto' ? cryptoList.length : activeWatchlist.length;
+  const footerLabel = activeTab === 'crypto' ? 'Market Cap' : 'Alpaca Data';
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -127,6 +136,37 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       setSelectedTicker(null);
     }
   };
+
+  const fetchCryptoList = useCallback(async () => {
+    setCryptoLoading(true);
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false');
+      if (!res.ok) throw new Error('Failed to fetch crypto list');
+      const data = await res.json();
+      const mapped = Array.isArray(data)
+        ? data
+          .map((coin) => ({
+            symbol: String(coin.symbol || '').toUpperCase(),
+            name: coin.name || String(coin.symbol || '').toUpperCase(),
+          }))
+          .filter((coin) => coin.symbol)
+        : [];
+      if (mapped.length) {
+        setCryptoList(mapped.slice(0, 20));
+      }
+    } catch (err) {
+      console.error('Crypto list fetch error:', err);
+    } finally {
+      setCryptoLoading(false);
+      setCryptoFetched(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'crypto' && !cryptoFetched) {
+      fetchCryptoList();
+    }
+  }, [activeTab, cryptoFetched, fetchCryptoList]);
 
   // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
   const fetchQuote = useCallback(async (symbol) => {
@@ -143,6 +183,10 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
   // Fetch all quotes
   useEffect(() => {
+    if (activeTab !== 'stocks') {
+      setLoading(false);
+      return;
+    }
     const fetchAllQuotes = async () => {
       setLoading(true);
       const results = {};
@@ -174,7 +218,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     fetchAllQuotes();
     const interval = setInterval(fetchAllQuotes, 10000); // Refresh every 10s
     return () => clearInterval(interval);
-  }, [activeSymbols, fetchQuote]);
+  }, [activeTab, activeSymbols, fetchQuote]);
 
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
@@ -320,16 +364,59 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           </div>
         )}
 
-        {/* Stock List */}
+        {/* Stock/Crypto List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
-          {loading && Object.keys(quotes).length === 0 && (
+          {activeTab === 'stocks' && loading && Object.keys(quotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
             </div>
           )}
-          
-          {activeWatchlist.map((stock) => {
+
+          {activeTab === 'crypto' && cryptoLoading && cryptoList.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <span className="ml-3 text-gray-400 text-sm">Loading top 20 crypto...</span>
+            </div>
+          )}
+
+          {activeTab === 'crypto' && !cryptoLoading && cryptoList.length === 0 && (
+            <div className="px-4 py-6 text-center text-gray-500 text-sm">
+              No crypto data available.
+            </div>
+          )}
+
+          {activeTab === 'crypto' && cryptoList.map((crypto) => {
+            const isSelected = selectedTicker === crypto.symbol;
+            return (
+              <div 
+                key={crypto.symbol}
+                className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
+                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#0d1829]'
+                } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
+                onClick={() => setSelectedTicker(crypto.symbol)}
+              >
+                {isCollapsed ? (
+                  <div className="w-full text-center">
+                    <div className="text-white text-xs font-bold">{crypto.symbol}</div>
+                    <div className="text-[10px] font-medium mt-0.5 text-gray-500">CRYPTO</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="text-white font-bold text-base">{crypto.symbol}</div>
+                      <div className="text-gray-500 text-sm truncate">{crypto.name}</div>
+                    </div>
+                    <div className="text-right flex-shrink-0 mr-3">
+                      <div className="text-emerald-400 text-xs font-medium">CRYPTO</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {activeTab === 'stocks' && activeWatchlist.map((stock) => {
             const quote = quotes[stock.symbol] || {};
             const price = quote.price || 0;
             const change = quote.change || 0;
@@ -388,8 +475,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         {/* Footer */}
         {!isCollapsed && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
-            <span className="text-gray-400">{activeWatchlist.length} symbols</span>
-            <span className="text-blue-400">Alpaca Data</span>
+            <span className="text-gray-400">{footerCount} symbols</span>
+            <span className="text-blue-400">{footerLabel}</span>
           </div>
         )}
       </div>
@@ -400,7 +487,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-bold text-lg">${selectedTicker}</h2>
-              <span className="text-gray-400 text-sm">{STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || normalizedWatchlist.find(s => s.symbol === selectedTicker)?.name}</span>
+              <span className="text-gray-400 text-sm">{selectedName}</span>
             </div>
             <button onClick={() => setSelectedTicker(null)} className="p-2 hover:bg-red-500/20 rounded-lg text-gray-400 hover:text-red-400">
               <X className="w-4 h-4" />
