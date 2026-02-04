@@ -1,9 +1,64 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Loader2, Copy, Check, Zap, Search, X, Plus,
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
   ChevronsLeft, ChevronsRight, RotateCcw, Save, Play
 } from 'lucide-react';
+
+// Cinematic loading overlay component
+const GrokLoadingOverlay = ({ isVisible }) => (
+  <AnimatePresence>
+    {isVisible && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
+        className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden rounded-lg"
+      >
+        {/* Video background */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/videos/atlas-analyzing.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/60" />
+        
+        {/* Centered content */}
+        <div className="relative z-10 flex flex-col items-center">
+          <p className="text-white text-xl font-medium animate-pulse mb-4">
+            Grok is analyzing the markets...
+          </p>
+          {/* Animated dots */}
+          <div className="flex gap-1.5">
+            <motion.span
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+              className="w-2.5 h-2.5 bg-emerald-400 rounded-full"
+            />
+            <motion.span
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+              className="w-2.5 h-2.5 bg-emerald-400 rounded-full"
+            />
+            <motion.span
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+              className="w-2.5 h-2.5 bg-emerald-400 rounded-full"
+            />
+          </div>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -315,8 +370,14 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     );
   }
 
+  // Show loading overlay when generating a strategy (not during regular chat)
+  const isGeneratingStrategy = activeTab !== 'chat' && (isChatLoading || activeTabData?.isTyping);
+
   return (
-    <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden">
+    <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden relative">
+      {/* Cinematic loading overlay */}
+      <GrokLoadingOverlay isVisible={isGeneratingStrategy} />
+      
       <div className="flex items-center justify-end px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-1">
           <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-4 h-4" strokeWidth={1.5} /></button>
