@@ -7,6 +7,7 @@ import OpenAI from 'openai';
 import stocksRouter from './routes/stocks.js';
 import chatRouter from './routes/chat.js';
 import kalshiRouter from './routes/kalshi.js';
+import strategiesRouter from './routes/strategies.js';
 import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice } from './services/alpaca.js';
 
 dotenv.config();
@@ -36,6 +37,7 @@ app.use(express.json());
 app.use('/api/stocks', stocksRouter);
 app.use('/api/v1/kalshi', kalshiRouter);
 app.use('/api/claude', chatRouter);
+app.use('/api/strategies', strategiesRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
