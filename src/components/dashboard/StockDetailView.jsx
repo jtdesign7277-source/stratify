@@ -61,8 +61,15 @@ const TradingViewAdvancedChart = ({ symbol, theme = 'dark' }) => {
   return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
 };
 
-export default function StockDetailView({ symbol, stockName, onClose, themeClasses }) {
-  const tvSymbol = `NASDAQ:${symbol}`;
+const resolveTradingViewSymbol = ({ symbol, chartSymbol }) => {
+  if (chartSymbol) return chartSymbol;
+  if (!symbol) return '';
+  if (symbol.includes(':')) return symbol;
+  return `NASDAQ:${symbol}`;
+};
+
+export default function StockDetailView({ symbol, stockName, onClose, themeClasses, chartSymbol }) {
+  const tvSymbol = resolveTradingViewSymbol({ symbol, chartSymbol });
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0d0d12]">

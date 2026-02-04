@@ -1682,6 +1682,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         <StockDetailView 
           symbol={selectedStock.symbol}
           stockName={selectedStock.name}
+          chartSymbol={selectedStock.chartSymbol}
           onClose={() => setSelectedStock(null)}
           themeClasses={themeClasses}
         />

@@ -1,64 +1,152 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Send, Loader2, Copy, Check, Zap, Search, X, Plus,
+  Send, Loader2, Copy, Check, Zap, Search, X, Plus, Brain,
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
   ChevronsLeft, ChevronsRight, RotateCcw, Save, Play
 } from 'lucide-react';
 
-// Cinematic loading overlay component
-const GrokLoadingOverlay = ({ isVisible }) => (
-  <AnimatePresence>
-    {isVisible && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.4 }}
-        className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden rounded-lg"
-      >
-        {/* Video background */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-50"
+const GROK_LOADING_STEPS = ['Analyzing', 'Building', 'Testing'];
+
+// Premium loading overlay component
+const GrokLoadingOverlay = ({ isVisible }) => {
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    if (!isVisible) { setActiveStep(0); return; }
+    const interval = setInterval(() => {
+      setActiveStep((prev) => (prev + 1) % GROK_LOADING_STEPS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isVisible]);
+
+  const particles = [
+    { top: '18%', left: '20%', size: '6px', delay: '0s', duration: '9s' },
+    { top: '28%', left: '72%', size: '4px', delay: '1s', duration: '8s' },
+    { top: '42%', left: '35%', size: '5px', delay: '2s', duration: '10s' },
+    { top: '55%', left: '62%', size: '3px', delay: '0.5s', duration: '7.5s' },
+    { top: '68%', left: '28%', size: '4px', delay: '1.5s', duration: '9.5s' },
+    { top: '74%', left: '78%', size: '5px', delay: '2.5s', duration: '11s' },
+  ];
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35 }}
+          className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden rounded-lg bg-[#0a0a0f]"
         >
-          <source src="/videos/atlas-analyzing.mp4" type="video/mp4" />
-        </video>
-        
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/40" />
-        
-        {/* Centered content */}
-        <div className="relative z-10 flex flex-col items-center">
-          <p className="text-white text-xl font-medium animate-pulse mb-4">
-            Grok is analyzing the markets...
-          </p>
-          {/* Animated dots */}
-          <div className="flex gap-1.5">
-            <motion.span
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
-              className="w-2.5 h-2.5 bg-emerald-400 rounded-full"
+          <style>{`
+            @keyframes grokPulse {
+              0%, 100% { opacity: 0.35; transform: scale(1); }
+              50% { opacity: 0.6; transform: scale(1.03); }
+            }
+            @keyframes grokDrift {
+              0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.35; }
+              50% { transform: translate3d(10px, -12px, 0); opacity: 0.7; }
+            }
+            @keyframes grokGrid {
+              0%, 100% { background-position: 0 0, 40px 40px; opacity: 0.2; }
+              50% { background-position: 30px -20px, -20px 30px; opacity: 0.35; }
+            }
+          `}</style>
+
+          {/* Subtle neural network background */}
+          <div className="absolute inset-0">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(16,185,129,0.18), transparent 45%), radial-gradient(circle at 80% 30%, rgba(16,185,129,0.12), transparent 45%), radial-gradient(circle at 55% 80%, rgba(16,185,129,0.1), transparent 50%)',
+                animation: 'grokPulse 12s ease-in-out infinite',
+              }}
             />
-            <motion.span
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
-              className="w-2.5 h-2.5 bg-emerald-400 rounded-full"
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: 'linear-gradient(120deg, rgba(16,185,129,0.08) 0%, transparent 60%), linear-gradient(300deg, rgba(16,185,129,0.06) 0%, transparent 60%)',
+                animation: 'grokGrid 14s ease-in-out infinite',
+              }}
             />
-            <motion.span
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
-              className="w-2.5 h-2.5 bg-emerald-400 rounded-full"
-            />
+            {particles.map((p, idx) => (
+              <div
+                key={idx}
+                className="absolute rounded-full bg-emerald-400/40 blur-sm"
+                style={{
+                  top: p.top,
+                  left: p.left,
+                  width: p.size,
+                  height: p.size,
+                  animation: `grokDrift ${p.duration} ease-in-out infinite`,
+                  animationDelay: p.delay,
+                }}
+              />
+            ))}
           </div>
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+
+          {/* Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.05 }}
+            className="relative z-10 flex flex-col items-center text-center px-6"
+          >
+            <motion.div
+              animate={{ scale: [1, 1.08, 1], opacity: [0.85, 1, 0.85] }}
+              transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+              className="mb-3 flex items-center justify-center"
+            >
+              <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_18px_rgba(16,185,129,0.25)]">
+                <Brain className="w-5 h-5 text-emerald-300" strokeWidth={1.6} />
+              </div>
+            </motion.div>
+
+            <h3 className="text-lg text-[#f2f2f5] font-semibold tracking-wide">
+              Grok is building your strategy...
+            </h3>
+
+            <div className="mt-3 flex items-center gap-1 text-[11px] uppercase tracking-[0.2em]">
+              {GROK_LOADING_STEPS.map((step, idx) => (
+                <div key={step} className="flex items-center">
+                  <div className="relative px-2 py-1">
+                    <span className={idx === activeStep ? 'text-emerald-300' : 'text-gray-500'}>
+                      {step}
+                    </span>
+                    {idx === activeStep && (
+                      <motion.span
+                        layoutId="grok-step-highlight"
+                        className="absolute -bottom-1 left-1/2 h-1 w-6 -translate-x-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_12px_rgba(16,185,129,0.6)]"
+                      />
+                    )}
+                  </div>
+                  {idx < GROK_LOADING_STEPS.length - 1 && (
+                    <span className="text-gray-600 text-[10px] mx-1">{'>'}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Animated progress dots */}
+            <div className="mt-4 flex items-center gap-2">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <motion.span
+                  key={idx}
+                  animate={{ opacity: [0.25, 1, 0.25], scale: [0.9, 1.15, 0.9] }}
+                  transition={{ duration: 1.6, repeat: Infinity, delay: idx * 0.15 }}
+                  className="w-2 h-2 rounded-full bg-emerald-400/90"
+                />
+              ))}
+            </div>
+          </motion.div>
+
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0f]/30 to-[#0a0a0f]/80" />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -371,12 +459,12 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   }
 
   // Show loading overlay when generating a strategy (not during regular chat)
-  const isGeneratingStrategy = activeTab !== 'chat' && (isChatLoading || activeTabData?.isTyping);
+  const isGenerating = activeTab !== 'chat' && (isChatLoading || activeTabData?.isTyping);
 
   return (
     <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden relative">
-      {/* Cinematic loading overlay */}
-      <GrokLoadingOverlay isVisible={isGeneratingStrategy} />
+      {/* Premium loading overlay */}
+      <GrokLoadingOverlay isVisible={isGenerating} />
       
       <div className="flex items-center justify-end px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-1">

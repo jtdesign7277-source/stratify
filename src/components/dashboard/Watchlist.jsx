@@ -21,9 +21,30 @@ const formatNumber = (num) => {
   return num.toString();
 };
 
-export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses, compact = false }) {
+const isCryptoAsset = (stock) => {
+  if (!stock) return false;
+  if (stock.isCrypto) return true;
+  const exchange = String(stock.exchange || '').toLowerCase();
+  const sector = String(stock.sector || '').toLowerCase();
+  const assetType = String(stock.assetType || stock.type || '').toLowerCase();
+  const symbol = String(stock.symbol || '').toUpperCase();
+  return exchange.includes('crypto') || sector.includes('crypto') || assetType.includes('crypto') || symbol.includes('-USD');
+};
+
+const buildCryptoChartSymbol = (symbol) => {
+  const raw = String(symbol || '').toUpperCase().trim();
+  if (!raw) return null;
+  if (raw.includes(':')) return raw;
+  const sanitized = raw.replace(/[^A-Z0-9]/g, '');
+  if (!sanitized) return null;
+  const normalized = sanitized.endsWith('USD') ? sanitized : `${sanitized}USD`;
+  return `CRYPTO:${normalized}`;
+};
+
+export default function Watchlist({ stocks = [], onRemove, onViewChart, themeClasses, compact = false }) {
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState({});
+  const [activeTab, setActiveTab] = useState('stocks');
 
   const fetchQuote = useCallback(async (symbol) => {
     setLoading(prev => ({ ...prev, [symbol]: true }));
@@ -55,17 +76,52 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
     return 'text-zinc-400';
   };
 
-  if (stocks.length === 0) {
-    return (
-      <div className="px-4 py-6 text-center text-zinc-500 text-sm">
-        No stocks in watchlist
-      </div>
-    );
-  }
+  const stockItems = stocks.filter(stock => !isCryptoAsset(stock));
+  const cryptoItems = stocks.filter(isCryptoAsset);
+  const visibleItems = activeTab === 'crypto' ? cryptoItems : stockItems;
+  const emptyMessage = activeTab === 'crypto' ? 'No crypto in watchlist' : 'No stocks in watchlist';
+
+  const handleViewChart = (stock) => {
+    if (!onViewChart) return;
+    if (isCryptoAsset(stock)) {
+      const chartSymbol = buildCryptoChartSymbol(stock.symbol);
+      onViewChart({
+        ...stock,
+        chartSymbol: chartSymbol || stock.chartSymbol,
+        assetType: stock.assetType || 'crypto',
+        isCrypto: true,
+      });
+      return;
+    }
+    onViewChart(stock);
+  };
 
   return (
     <div className="px-3 pb-3 space-y-2">
-      {stocks.map(stock => {
+      <div className="pt-3">
+        <div className="flex items-center gap-1 p-1 rounded-lg border border-zinc-700/50 bg-zinc-800/40">
+          {['stocks', 'crypto'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                activeTab === tab
+                  ? 'bg-zinc-900 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {tab === 'stocks' ? 'Stocks' : 'Crypto'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {visibleItems.length === 0 && (
+        <div className="px-4 py-6 text-center text-zinc-500 text-sm">
+          {emptyMessage}
+        </div>
+      )}
+      {visibleItems.map(stock => {
         const quote = quotes[stock.symbol] || {};
         const isLoading = loading[stock.symbol];
         const hasData = quote.price !== undefined;
@@ -80,7 +136,7 @@ export default function Watchlist({ stocks, onRemove, onViewChart, themeClasses,
           <div 
             key={stock.symbol} 
             className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 hover:border-zinc-600/50 transition-colors cursor-pointer"
-            onClick={() => onViewChart && onViewChart(stock)}
+            onClick={() => handleViewChart(stock)}
           >
             <div className="flex items-start justify-between mb-2">
               <div>
