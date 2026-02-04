@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { Share2 } from 'lucide-react';
+import { PnLShareCard } from './PnLShareCard';
 
 const strategiesSeed = [
   {
@@ -74,6 +76,8 @@ const ActiveTrades = () => {
   const [totalPnl, setTotalPnl] = useState(4823.12);
   const [pnlDelta, setPnlDelta] = useState(0);
   const [strategies, setStrategies] = useState(strategiesSeed);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [selectedStrategy, setSelectedStrategy] = useState(null);
   const confettiCanvasRef = useRef(null);
   const confettiInstanceRef = useRef(null);
 
@@ -307,12 +311,31 @@ const ActiveTrades = () => {
                       </div>
                       <div className="mt-1 text-lg font-semibold">{strategy.name}</div>
                     </div>
-                    <div
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
-                        statusStyles[strategy.status]
-                      }`}
-                    >
-                      {strategy.status}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedStrategy({
+                            strategyName: strategy.name,
+                            pnlAmount: strategy.pnl,
+                            pnlPercent: strategy.pnlPct,
+                            winRate: 67,
+                            totalTrades: 28,
+                            chartData: strategy.spark,
+                          });
+                          setShareOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/50 transition-all"
+                        title="Share P&L"
+                      >
+                        <Share2 className="w-4 h-4 text-gray-400 hover:text-emerald-400" />
+                      </button>
+                      <div
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
+                          statusStyles[strategy.status]
+                        }`}
+                      >
+                        {strategy.status}
+                      </div>
                     </div>
                   </div>
 
@@ -388,6 +411,12 @@ const ActiveTrades = () => {
           })}
         </div>
       </motion.div>
+      
+      <PnLShareCard 
+        isOpen={shareOpen} 
+        onClose={() => setShareOpen(false)} 
+        strategyData={selectedStrategy} 
+      />
     </div>
   );
 };
