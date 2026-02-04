@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Share2 } from 'lucide-react';
@@ -23,101 +23,62 @@ const statusStyles = {
 const formatMoney = (value) =>
   `${value >= 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// Determine pulse health based on P&L % and heat
-const getPulseHealth = (pnlPct, heat) => {
+// Determine signal strength based on P&L % and heat
+const getSignalHealth = (pnlPct, heat) => {
   if (pnlPct >= 2 && heat < 80) return 'PRINTING';
   if (pnlPct < 0 && heat > 85) return 'DANGER';
   if (pnlPct < 0 || heat > 80) return 'STRUGGLING';
   return 'NEUTRAL';
 };
 
-const pulseConfig = {
-  PRINTING: {
-    color: '#10b981',
-    glowColor: 'rgba(16, 185, 129, 0.6)',
-    speed: 1.2,
-    ripple: true,
-  },
-  NEUTRAL: {
-    color: '#06b6d4',
-    glowColor: 'rgba(6, 182, 212, 0.4)',
-    speed: 2.5,
-    ripple: false,
-  },
-  STRUGGLING: {
-    color: '#f59e0b',
-    glowColor: 'rgba(245, 158, 11, 0.5)',
-    speed: 1.8,
-    ripple: false,
-  },
-  DANGER: {
-    color: '#ef4444',
-    glowColor: 'rgba(239, 68, 68, 0.6)',
-    speed: 0.6,
-    ripple: true,
-  },
+const signalConfig = {
+  PRINTING: { bars: 5, color: '#10b981', animation: 'shimmer' },
+  NEUTRAL: { bars: 3, color: '#06b6d4', animation: 'none' },
+  STRUGGLING: { bars: 2, color: '#f59e0b', animation: 'none' },
+  DANGER: { bars: 1, color: '#ef4444', animation: 'blink' },
 };
 
-// Pulse Ring Component
-const PulseRing = ({ health, size = 48 }) => {
-  const config = pulseConfig[health];
-  const r = size / 2 - 4;
-
+// Signal Bars Component (like phone signal strength)
+const SignalBars = ({ health }) => {
+  const config = signalConfig[health];
+  const barHeights = [6, 10, 14, 18, 22];
+  
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      {/* Outer ripple for PRINTING and DANGER */}
-      {config.ripple && (
-        <>
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ border: `2px solid ${config.color}` }}
-            animate={{ scale: [1, 1.6, 1.6], opacity: [0.6, 0, 0] }}
-            transition={{ duration: config.speed, repeat: Infinity, ease: 'easeOut' }}
-          />
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ border: `2px solid ${config.color}` }}
-            animate={{ scale: [1, 1.4, 1.4], opacity: [0.4, 0, 0] }}
-            transition={{ duration: config.speed, repeat: Infinity, ease: 'easeOut', delay: config.speed / 2 }}
-          />
-        </>
-      )}
-      
-      {/* Main ring */}
-      <svg viewBox={`0 0 ${size} ${size}`} className="absolute inset-0">
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={config.color}
-          strokeWidth="3"
-          strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 8px ${config.glowColor})` }}
-          animate={{
-            opacity: config.ripple ? [0.9, 1, 0.9] : [0.6, 0.9, 0.6],
-            scale: config.ripple ? [1, 1.02, 1] : [0.98, 1.02, 0.98],
-          }}
-          transition={{ duration: config.speed, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </svg>
-
-      {/* Center dot */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{
-          width: 8,
-          height: 8,
-          backgroundColor: config.color,
-          top: '50%',
-          left: '50%',
-          marginLeft: -4,
-          marginTop: -4,
-          boxShadow: `0 0 12px ${config.glowColor}`,
-        }}
-        animate={{ scale: [1, 1.3, 1], opacity: [0.8, 1, 0.8] }}
-        transition={{ duration: config.speed * 0.8, repeat: Infinity, ease: 'easeInOut' }}
-      />
+    <div className="flex items-end gap-[3px] h-6">
+      {barHeights.map((height, i) => {
+        const isLit = i < config.bars;
+        const barStyle = {
+          width: 4,
+          height,
+          borderRadius: 2,
+          backgroundColor: isLit ? config.color : '#1e1e2d',
+          boxShadow: isLit ? `0 0 8px ${config.color}80` : 'none',
+        };
+        
+        if (isLit && config.animation === 'shimmer') {
+          return (
+            <motion.div
+              key={i}
+              style={barStyle}
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+            />
+          );
+        }
+        
+        if (isLit && config.animation === 'blink') {
+          return (
+            <motion.div
+              key={i}
+              style={barStyle}
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 0.5, repeat: Infinity }}
+            />
+          );
+        }
+        
+        return <div key={i} style={barStyle} />;
+      })}
     </div>
   );
 };
@@ -173,17 +134,13 @@ const ActiveTrades = () => {
   const pnlAccent = totalPnl >= 0 ? 'text-emerald-500' : 'text-red-500';
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0f] text-white">
+    <div className="relative h-screen bg-[#0a0a0f] text-white overflow-hidden flex flex-col">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_50%)]" />
       <canvas ref={confettiCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="relative z-10 px-5 py-5"
-      >
+      <div className="relative z-10 px-5 py-4 flex flex-col flex-1">
         {/* Compact Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-400/70">Total P&L</div>
             <AnimatePresence mode="popLayout">
@@ -204,11 +161,11 @@ const ActiveTrades = () => {
           </div>
         </div>
 
-        {/* Strategy Cards Grid - 2x3 */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        {/* Strategy Cards Grid - 3x2, fills remaining space */}
+        <div className="grid grid-cols-3 grid-rows-2 gap-3 flex-1">
           {strategies.map((strategy, index) => {
             const isProfitable = strategy.pnl >= 0;
-            const health = getPulseHealth(strategy.pnlPct, strategy.heat);
+            const health = getSignalHealth(strategy.pnlPct, strategy.heat);
 
             return (
               <motion.div
@@ -217,14 +174,14 @@ const ActiveTrades = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.04, duration: 0.3 }}
                 whileHover={{ y: -2, scale: 1.01 }}
-                className="rounded-xl border border-[#1e1e2d] bg-[#0f0f16] p-4 hover:border-emerald-500/30 transition-all"
+                className="rounded-xl border border-[#1e1e2d] bg-[#0f0f16] p-3 hover:border-emerald-500/30 transition-all flex flex-col"
               >
                 {/* Row 1: Ticker + Status + Share */}
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-500">
                     {strategy.symbol}
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
                         setSelectedStrategy({
@@ -237,9 +194,9 @@ const ActiveTrades = () => {
                         });
                         setShareOpen(true);
                       }}
-                      className="p-1 rounded hover:bg-white/10 transition-colors"
+                      className="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center group"
                     >
-                      <Share2 className="w-3 h-3 text-gray-500 hover:text-emerald-400" />
+                      <Share2 className="w-4 h-4 text-gray-400 group-hover:text-emerald-400" />
                     </button>
                     <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusStyles[strategy.status]}`}>
                       {strategy.status}
@@ -252,12 +209,12 @@ const ActiveTrades = () => {
                   {strategy.name}
                 </div>
 
-                {/* Row 3: P&L + Pulse Ring */}
-                <div className="flex items-center justify-between mb-2">
+                {/* Row 3: P&L + Signal Bars */}
+                <div className="flex items-center justify-between mb-2 flex-1">
                   <div className={`text-xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
                     {formatMoney(strategy.pnl)}
                   </div>
-                  <PulseRing health={health} size={44} />
+                  <SignalBars health={health} />
                 </div>
 
                 {/* Row 4: Stats inline */}
@@ -273,7 +230,7 @@ const ActiveTrades = () => {
             );
           })}
         </div>
-      </motion.div>
+      </div>
 
       <PnLShareCard
         isOpen={shareOpen}
