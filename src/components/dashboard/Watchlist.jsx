@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
+const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
+
 const TrendUpIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
@@ -20,6 +22,17 @@ const formatNumber = (num) => {
   if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
   if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
   return num.toString();
+};
+
+const formatCryptoPrice = (price) => {
+  if (!Number.isFinite(price)) return '...';
+  if (price >= 1) {
+    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (price >= 0.01) {
+    return price.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  }
+  return price.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 8 });
 };
 
 const isCryptoAsset = (stock) => {
@@ -42,9 +55,22 @@ const buildCryptoChartSymbol = (symbol) => {
   return `CRYPTO:${normalized}`;
 };
 
+const buildCryptoInstrumentName = (symbol) => `${String(symbol || '').toUpperCase()}_USD`;
+
+const resolveCryptoChangePercent = (changeRaw, price) => {
+  if (!Number.isFinite(changeRaw)) return null;
+  if (Math.abs(changeRaw) <= 1) return changeRaw * 100;
+  if (Number.isFinite(price) && price !== 0) {
+    return (changeRaw / price) * 100;
+  }
+  return changeRaw;
+};
+
 export default function Watchlist({ stocks = [], onRemove, onViewChart, themeClasses, compact = false }) {
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState({});
+  const [cryptoQuotes, setCryptoQuotes] = useState({});
+  const [cryptoLoading, setCryptoLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('stocks');
 
   const fetchQuote = useCallback(async (symbol) => {
@@ -70,6 +96,53 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
     }, 30000);
     return () => clearInterval(interval);
   }, [stocks, fetchQuote]);
+
+  const fetchCryptoQuote = useCallback(async (symbol) => {
+    try {
+      const instrumentName = buildCryptoInstrumentName(symbol);
+      const res = await fetch(`${CRYPTO_API_BASE}?instrument_name=${instrumentName}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const ticker = data?.result?.data?.[0];
+      if (!ticker) return null;
+      const price = Number(ticker.a);
+      const changeRaw = Number(ticker.c);
+      const changePercent = resolveCryptoChangePercent(changeRaw, price);
+      return { price, changePercent };
+    } catch (err) {
+      console.error('Crypto quote fetch error:', symbol, err);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'crypto') return undefined;
+    let isMounted = true;
+
+    const fetchAllCryptoQuotes = async () => {
+      setCryptoLoading(true);
+      const results = {};
+      await Promise.all(
+        TOP_CRYPTO_BY_MARKET_CAP.map(async (crypto) => {
+          const quote = await fetchCryptoQuote(crypto.symbol);
+          if (quote) {
+            results[crypto.symbol] = quote;
+          }
+        })
+      );
+      if (isMounted) {
+        setCryptoQuotes(results);
+        setCryptoLoading(false);
+      }
+    };
+
+    fetchAllCryptoQuotes();
+    const interval = setInterval(fetchAllCryptoQuotes, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeTab, fetchCryptoQuote]);
 
   const getChangeColor = (change) => {
     if (change > 0) return 'text-emerald-400';
@@ -127,15 +200,19 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
         </div>
       )}
       {visibleItems.map(stock => {
-        const quote = quotes[stock.symbol] || {};
-        const isLoading = loading[stock.symbol];
-        const hasData = quote.price !== undefined;
+        const isCrypto = isCryptoAsset(stock);
+        const quote = isCrypto ? (cryptoQuotes[stock.symbol] || {}) : (quotes[stock.symbol] || {});
+        const isLoading = isCrypto ? (cryptoLoading && !quote.price) : loading[stock.symbol];
+        const hasData = isCrypto ? Number.isFinite(quote.price) : quote.price !== undefined;
         
-        const price = quote.price || stock.price || 0;
-        const change = quote.change || stock.change || 0;
-        const changePercent = quote.changePercent || stock.changePercent || 0;
-        const volume = quote.volume || stock.volume;
-        const companyName = quote.name || stock.name || '';
+        const price = isCrypto ? quote.price : (quote.price || stock.price || 0);
+        const change = isCrypto ? (quote.changePercent ?? 0) : (quote.change || stock.change || 0);
+        const changePercent = isCrypto ? quote.changePercent : (quote.changePercent || stock.changePercent || 0);
+        const changePercentDisplay = isCrypto
+          ? (Number.isFinite(changePercent) ? changePercent : null)
+          : changePercent;
+        const volume = isCrypto ? null : (quote.volume || stock.volume);
+        const companyName = isCrypto ? stock.name : (quote.name || stock.name || '');
         
         return (
           <div 
@@ -153,15 +230,19 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                   <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-400 rounded-full animate-spin" />
                 ) : (
                   <>
-                    <p className="font-semibold text-white">${price.toFixed(2)}</p>
-                    <div className={`flex items-center justify-end gap-1 text-xs ${getChangeColor(change)}`}>
-                      {change >= 0 ? (
-                        <TrendUpIcon className="w-3 h-3" />
-                      ) : (
-                        <TrendDownIcon className="w-3 h-3" />
-                      )}
-                      <span>{change >= 0 ? '+' : ''}{changePercent.toFixed(2)}%</span>
-                    </div>
+                    <p className="font-semibold text-white">
+                      ${isCrypto ? formatCryptoPrice(price) : Number(price || 0).toFixed(2)}
+                    </p>
+                    {changePercentDisplay !== null && (
+                      <div className={`flex items-center justify-end gap-1 text-xs ${getChangeColor(change)}`}>
+                        {change >= 0 ? (
+                          <TrendUpIcon className="w-3 h-3" />
+                        ) : (
+                          <TrendDownIcon className="w-3 h-3" />
+                        )}
+                        <span>{change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -169,6 +250,11 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
             {volume && (
               <div className="text-xs text-zinc-500">
                 Vol: {formatNumber(volume)}
+              </div>
+            )}
+            {!volume && isCrypto && changePercentDisplay !== null && (
+              <div className="text-xs text-zinc-500">
+                24h: {change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%
               </div>
             )}
           </div>

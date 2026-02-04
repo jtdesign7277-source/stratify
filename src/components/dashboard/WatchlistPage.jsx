@@ -3,6 +3,7 @@ import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-rea
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
 
 const getMarketStatus = () => {
   const now = new Date();
@@ -25,6 +26,28 @@ const formatCryptoSymbol = (symbol) => {
   if (normalized.includes(':')) return normalized;
   if (normalized.endsWith('USD')) return `CRYPTO:${normalized}`;
   return `CRYPTO:${normalized}USD`;
+};
+
+const buildCryptoInstrumentName = (symbol) => `${String(symbol || '').toUpperCase()}_USD`;
+
+const formatCryptoPrice = (price) => {
+  if (!Number.isFinite(price)) return '...';
+  if (price >= 1) {
+    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (price >= 0.01) {
+    return price.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  }
+  return price.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 8 });
+};
+
+const resolveCryptoChangePercent = (changeRaw, price) => {
+  if (!Number.isFinite(changeRaw)) return null;
+  if (Math.abs(changeRaw) <= 1) return changeRaw * 100;
+  if (Number.isFinite(price) && price !== 0) {
+    return (changeRaw / price) * 100;
+  }
+  return changeRaw;
 };
 
 const STOCK_DATABASE = [
@@ -99,9 +122,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState(true);
   const [prevCloses, setPrevCloses] = useState({});
-  const [cryptoList, setCryptoList] = useState(TOP_CRYPTO_BY_MARKET_CAP);
+  const [cryptoQuotes, setCryptoQuotes] = useState({});
   const [cryptoLoading, setCryptoLoading] = useState(false);
-  const [cryptoFetched, setCryptoFetched] = useState(false);
+  const cryptoList = TOP_CRYPTO_BY_MARKET_CAP;
   
   const normalizedWatchlist = watchlist.length > 0 
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
@@ -127,7 +150,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     ? (selectedCrypto?.name || selectedTicker)
     : (STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || normalizedWatchlist.find(s => s.symbol === selectedTicker)?.name || selectedTicker);
   const footerCount = activeTab === 'crypto' ? cryptoList.length : activeWatchlist.length;
-  const footerLabel = activeTab === 'crypto' ? 'Market Cap' : 'Alpaca Data';
+  const footerLabel = activeTab === 'crypto' ? 'Crypto.com API' : 'Alpaca Data';
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -137,36 +160,52 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     }
   };
 
-  const fetchCryptoList = useCallback(async () => {
-    setCryptoLoading(true);
+  const fetchCryptoQuote = useCallback(async (symbol) => {
     try {
-      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false');
-      if (!res.ok) throw new Error('Failed to fetch crypto list');
+      const instrumentName = buildCryptoInstrumentName(symbol);
+      const res = await fetch(`${CRYPTO_API_BASE}?instrument_name=${instrumentName}`);
+      if (!res.ok) return null;
       const data = await res.json();
-      const mapped = Array.isArray(data)
-        ? data
-          .map((coin) => ({
-            symbol: String(coin.symbol || '').toUpperCase(),
-            name: coin.name || String(coin.symbol || '').toUpperCase(),
-          }))
-          .filter((coin) => coin.symbol)
-        : [];
-      if (mapped.length) {
-        setCryptoList(mapped.slice(0, 20));
-      }
+      const ticker = data?.result?.data?.[0];
+      if (!ticker) return null;
+      const price = Number(ticker.a);
+      const changeRaw = Number(ticker.c);
+      const changePercent = resolveCryptoChangePercent(changeRaw, price);
+      return { price, changePercent };
     } catch (err) {
-      console.error('Crypto list fetch error:', err);
-    } finally {
-      setCryptoLoading(false);
-      setCryptoFetched(true);
+      console.error('Crypto quote fetch error:', symbol, err);
+      return null;
     }
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'crypto' && !cryptoFetched) {
-      fetchCryptoList();
-    }
-  }, [activeTab, cryptoFetched, fetchCryptoList]);
+    if (activeTab !== 'crypto') return undefined;
+    let isMounted = true;
+
+    const fetchAllCryptoQuotes = async () => {
+      setCryptoLoading(true);
+      const results = {};
+      await Promise.all(
+        cryptoList.map(async (crypto) => {
+          const quote = await fetchCryptoQuote(crypto.symbol);
+          if (quote) {
+            results[crypto.symbol] = quote;
+          }
+        })
+      );
+      if (isMounted) {
+        setCryptoQuotes(results);
+        setCryptoLoading(false);
+      }
+    };
+
+    fetchAllCryptoQuotes();
+    const interval = setInterval(fetchAllCryptoQuotes, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeTab, cryptoList, fetchCryptoQuote]);
 
   // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
   const fetchQuote = useCallback(async (symbol) => {
@@ -373,14 +412,14 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             </div>
           )}
 
-          {activeTab === 'crypto' && cryptoLoading && cryptoList.length === 0 && (
+          {activeTab === 'crypto' && cryptoLoading && Object.keys(cryptoQuotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading top 20 crypto...</span>
             </div>
           )}
 
-          {activeTab === 'crypto' && !cryptoLoading && cryptoList.length === 0 && (
+          {activeTab === 'crypto' && !cryptoLoading && Object.keys(cryptoQuotes).length === 0 && (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">
               No crypto data available.
             </div>
@@ -388,6 +427,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
           {activeTab === 'crypto' && cryptoList.map((crypto) => {
             const isSelected = selectedTicker === crypto.symbol;
+            const quote = cryptoQuotes[crypto.symbol] || {};
+            const price = Number(quote.price);
+            const changePercent = Number.isFinite(quote.changePercent) ? quote.changePercent : null;
+            const isPositive = changePercent !== null ? changePercent >= 0 : true;
+
             return (
               <div 
                 key={crypto.symbol}
@@ -399,7 +443,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">{crypto.symbol}</div>
-                    <div className="text-[10px] font-medium mt-0.5 text-gray-500">CRYPTO</div>
+                    <div className={`text-[10px] font-medium mt-0.5 ${Number.isFinite(price) ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                      {Number.isFinite(price) ? `$${formatCryptoPrice(price)}` : '...'}
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -408,7 +454,14 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                       <div className="text-gray-500 text-sm truncate">{crypto.name}</div>
                     </div>
                     <div className="text-right flex-shrink-0 mr-3">
-                      <div className="text-emerald-400 text-xs font-medium">CRYPTO</div>
+                      <div className="text-white font-semibold text-base font-mono">
+                        {Number.isFinite(price) ? `$${formatCryptoPrice(price)}` : '...'}
+                      </div>
+                      {changePercent !== null && (
+                        <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
