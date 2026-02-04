@@ -58,8 +58,17 @@ const STOCK_DATABASE = [
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
 ];
 
+const CRYPTO_LIST = [
+  { symbol: 'BTC', name: 'Bitcoin', exchange: 'CRYPTO' },
+  { symbol: 'ETH', name: 'Ethereum', exchange: 'CRYPTO' },
+  { symbol: 'SOL', name: 'Solana', exchange: 'CRYPTO' },
+  { symbol: 'XRP', name: 'XRP', exchange: 'CRYPTO' },
+  { symbol: 'DOGE', name: 'Dogecoin', exchange: 'CRYPTO' },
+];
+
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [selectedTicker, setSelectedTicker] = useState(null);
+  const [activeTab, setActiveTab] = useState('stocks');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -385,22 +394,86 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           </div>
         )}
 
-        {/* Stock List */}
+        {/* Tab Switcher */}
+        {!isCollapsed && (
+          <div className="px-3 pb-3">
+            <div className="flex items-center gap-1 p-1 rounded-lg border border-gray-700 bg-[#111118]">
+              <button
+                type="button"
+                onClick={() => setActiveTab('stocks')}
+                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  activeTab === 'stocks'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Stocks
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('crypto')}
+                className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  activeTab === 'crypto'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Crypto
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Stock/Crypto List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
-          {loading && Object.keys(quotes).length === 0 && (
+          {activeTab === 'stocks' && loading && Object.keys(quotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
             </div>
           )}
           
-          {stocks.length === 0 && !loading && (
+          {activeTab === 'stocks' && stocks.length === 0 && !loading && (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">
               Watchlist is empty. Search to add symbols.
             </div>
           )}
 
-          {stocks.map((stock) => {
+          {/* Crypto List */}
+          {activeTab === 'crypto' && CRYPTO_LIST.map((crypto) => {
+            const cryptoSymbol = `CRYPTO:${crypto.symbol}USD`;
+            const isSelected = selectedTicker === cryptoSymbol;
+            
+            return (
+              <div 
+                key={crypto.symbol}
+                className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
+                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
+                } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
+                onClick={() => setSelectedTicker(cryptoSymbol)}
+              >
+                {isCollapsed ? (
+                  <div className="w-full text-center">
+                    <div className="text-white text-xs font-bold">{crypto.symbol}</div>
+                    <div className="text-[10px] font-medium mt-0.5 text-gray-500">CRYPTO</div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0 pr-4">
+                      <div className="text-white font-bold text-base">{crypto.symbol}</div>
+                      <div className="text-gray-500 text-sm truncate">{crypto.name}</div>
+                    </div>
+                    <div className="text-right flex-shrink-0 mr-3">
+                      <div className="text-emerald-400 text-xs font-medium">CRYPTO</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Stock List */}
+          {activeTab === 'stocks' && stocks.map((stock) => {
             const quote = quotes[stock.symbol] || {};
             const price = quote.price || 0;
             const change = quote.change || 0;
