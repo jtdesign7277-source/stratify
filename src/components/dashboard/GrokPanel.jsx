@@ -355,7 +355,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                   const Icon = template.icon;
                   const isSelected = selectedQuickStrategy === template.name;
                   return (
-                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2 p-2 rounded-lg transition-all text-left ' + (isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#111118]/80')}>
+                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2 p-2 rounded-lg transition-all duration-200 hover:-translate-y-0.5 text-left ' + (isSelected ? 'bg-emerald-500/20 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-[#111118] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#111118]/80')}>
                       <Icon className={'w-4 h-4 flex-shrink-0 text-emerald-400'} strokeWidth={1.5} />
                       <span className={'text-xs ' + (isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{template.name}</span>
                     </button>
@@ -367,7 +367,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
               <div className="grid grid-cols-3 gap-1">
                 {STRATEGY_TYPES.map(s => { const Icon = s.icon; return (
-                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-1.5 rounded-lg text-center transition-all ' + (selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-gray-600')}>
+                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-1.5 rounded-lg text-center transition-all duration-200 hover:-translate-y-0.5 ' + (selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-[#111118] border border-gray-700 hover:border-gray-600')}>
                     <Icon className={'w-4 h-4 mx-auto ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500')} strokeWidth={1.5} />
                     <span className={'text-xs block mt-1 ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{s.name}</span>
                   </button>
@@ -378,7 +378,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
               <div className="flex gap-1">
                 {TIMEFRAMES.map(tf => (
-                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1 rounded-lg text-xs font-medium transition-all ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-gray-600')}>{tf.label}</button>
+                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-gray-600')}>{tf.label}</button>
                 ))}
               </div>
             </div>
