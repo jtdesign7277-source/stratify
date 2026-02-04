@@ -126,40 +126,37 @@ const DemoPanel = () => {
     }
 
     if (confettiInstanceRef.current) {
-      const colors = ['#10b981', '#34d399', '#22c55e', '#86efac', '#059669'];
+      const colors = ['#10b981', '#34d399', '#facc15', '#22c55e'];
       confettiIntervalRef.current = setInterval(() => {
-        const particleCount = 24;
-        const baseConfig = {
-          particleCount,
-          spread: 85,
-          startVelocity: 65,
-          gravity: 1.1,
-          ticks: 220,
+        // Falling confetti from top-left
+        confettiInstanceRef.current({
+          particleCount: 40,
+          spread: 75,
+          startVelocity: 55,
+          origin: { x: 0.2, y: 0.2 },
           colors,
-        };
-
-        confettiInstanceRef.current({
-          ...baseConfig,
-          angle: 90,
-          origin: { x: Math.random() * 0.4 + 0.3, y: 1 },
         });
 
+        // Falling confetti from top-right
         confettiInstanceRef.current({
-          ...baseConfig,
-          angle: Math.random() > 0.5 ? 75 : 105,
-          origin: { x: Math.random() * 0.25 + (Math.random() > 0.5 ? 0.05 : 0.7), y: 1 },
+          particleCount: 40,
+          spread: 75,
+          startVelocity: 55,
+          origin: { x: 0.8, y: 0.2 },
+          colors,
         });
 
-        if (Math.random() > 0.6) {
+        // Random center burst occasionally
+        if (Math.random() > 0.5) {
           confettiInstanceRef.current({
-            ...baseConfig,
-            angle: 90,
-            spread: 110,
-            startVelocity: 75,
-            origin: { x: Math.random() * 0.6 + 0.2, y: 0.95 },
+            particleCount: 30,
+            spread: 90,
+            startVelocity: 50,
+            origin: { x: 0.5, y: 0.15 },
+            colors,
           });
         }
-      }, 220);
+      }, 350);
     }
 
     introTimeoutRef.current = setTimeout(() => {
