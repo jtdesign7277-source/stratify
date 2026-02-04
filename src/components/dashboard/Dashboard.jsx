@@ -501,7 +501,19 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             />
           )}
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
-          {activeTab === 'strategies' && <StrategiesPage themeClasses={themeClasses} />}
+          {activeTab === 'strategies' && (
+            <StrategiesPage 
+              themeClasses={themeClasses}
+              savedStrategies={savedStrategies}
+              deployedStrategies={deployedStrategies}
+              onDeployStrategy={handleDeployStrategy}
+              onEditStrategy={(strategy) => {
+                setActiveTab('builder');
+                // Could add edit logic here
+              }}
+              onRemoveSavedStrategy={handleRemoveSavedStrategy}
+            />
+          )}
           {activeTab === 'trade' && (
             <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />
           )}
