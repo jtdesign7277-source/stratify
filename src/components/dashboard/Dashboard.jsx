@@ -169,7 +169,15 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [savedStrategies, setSavedStrategies] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-saved-strategies');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) return JSON.parse(saved);
+      // Default sample strategies
+      return [
+        { id: 'sample-1', name: 'Golden Cross NVDA', type: 'Momentum', status: 'active', winRate: 68, trades: 42, pnl: 2847.50, folderId: 'favorites' },
+        { id: 'sample-2', name: 'RSI Reversal SPY', type: 'Mean Reversion', status: 'paused', winRate: 54, trades: 156, pnl: 1234.00, folderId: 'active' },
+        { id: 'sample-3', name: 'VWAP Bounce QQQ', type: 'Scalping', status: 'active', winRate: 72, trades: 89, pnl: 956.25, folderId: 'grok' },
+        { id: 'sample-4', name: 'Breakout Hunter TSLA', type: 'Breakout', status: 'paused', winRate: 45, trades: 23, pnl: -312.00, folderId: 'favorites' },
+        { id: 'sample-5', name: 'MACD Crossover AAPL', type: 'Trend', status: 'active', winRate: 61, trades: 67, pnl: 1567.80, folderId: 'grok' },
+      ];
     } catch { return []; }
   });
   const [demoState, setDemoState] = useState('idle');

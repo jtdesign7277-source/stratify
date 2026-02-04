@@ -50,12 +50,15 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
       return strategies.filter(s => s.status === 'active' || deployedStrategies.some(d => d.id === s.id));
     }
     if (folderId === 'grok') {
-      return strategies.filter(s => s.code); // Grok strategies have code property
+      return strategies.filter(s => s.code || strategyFolders[s.id] === 'grok' || s.folderId === 'grok');
+    }
+    if (folderId === 'favorites') {
+      return strategies.filter(s => strategyFolders[s.id] === 'favorites' || s.folderId === 'favorites');
     }
     if (folderId === 'uncategorized') {
-      return strategies.filter(s => !strategyFolders[s.id] && s.status !== 'active' && !s.code);
+      return strategies.filter(s => !strategyFolders[s.id] && !s.folderId && s.status !== 'active' && !s.code);
     }
-    return strategies.filter(s => strategyFolders[s.id] === folderId);
+    return strategies.filter(s => strategyFolders[s.id] === folderId || s.folderId === folderId);
   };
 
   const toggleFolder = (folderId) => {
@@ -210,8 +213,11 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
 
                   {/* PnL */}
                   {strategy.pnl !== 0 && (
-                    <div className={`text-sm font-mono ${strategy.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl?.toFixed(2)}
+                    <div className="text-sm font-mono flex items-center">
+                      <span className="text-emerald-400">$</span>
+                      <span className={strategy.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        {strategy.pnl >= 0 ? '+' : ''}{Math.abs(strategy.pnl)?.toFixed(2)}
+                      </span>
                     </div>
                   )}
 
