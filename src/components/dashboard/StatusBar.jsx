@@ -1,3 +1,5 @@
+import MarketStatusIndicator from './MarketStatusIndicator';
+
 export default function StatusBar({ connectionStatus, theme, themeClasses, onOpenNewsletter }) {
   const statusConfig = {
     connected: { color: 'bg-emerald-500', textColor: 'text-emerald-400' },
@@ -30,6 +32,7 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
           <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-[10px] font-mono text-gray-500 border border-[#2a2a3d]">⌘K</kbd>
           <span className="text-gray-600">Command palette</span>
         </span>
+        <MarketStatusIndicator compact />
         <span className={`text-xs ${themeClasses.textMuted}`}>{currentTime}</span>
         <span className={`text-xs ${themeClasses.textMuted}`}>Build 1.0.0</span>
         <span className={`text-xs ${themeClasses.textMuted}`}>MARKET DATA POWERED BY <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ALPACA</a></span>
