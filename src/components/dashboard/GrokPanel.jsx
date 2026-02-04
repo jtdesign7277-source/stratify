@@ -344,8 +344,8 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               </div>
             </div>
             <div>
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">QUICK STRATEGIES</label>
-              <div className="grid grid-cols-2 gap-1">
+              <label className="text-gray-400 text-[10px] font-semibold mb-2 block tracking-widest uppercase">QUICK STRATEGIES</label>
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'golden-cross', name: 'Golden Cross', icon: TrendingUp, prompt: 'Create a Golden Cross strategy using SMA 50/200 crossover. Buy when SMA50 crosses above SMA200, sell when it crosses below.' },
                   { id: 'rsi-reversal', name: 'RSI Reversal', icon: BarChart3, prompt: 'Create an RSI reversal strategy. Buy when RSI drops below 30 (oversold), sell when RSI rises above 70 (overbought).' },
@@ -355,36 +355,40 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                   const Icon = template.icon;
                   const isSelected = selectedQuickStrategy === template.name;
                   return (
-                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2 p-2 rounded-lg transition-all text-left ' + (isSelected ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-emerald-500/30 hover:bg-[#111118]/80')}>
-                      <Icon className={'w-4 h-4 flex-shrink-0 text-emerald-400'} strokeWidth={1.5} />
-                      <span className={'text-xs ' + (isSelected ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{template.name}</span>
+                    <button key={template.id} onClick={() => { setSelectedQuickStrategy(template.name); const ticker = selectedTickers[0] || ''; setStrategyName(ticker ? '$' + ticker + ' - ' + template.name : template.name); const tickerContext = selectedTickers.length > 0 ? ' for ' + selectedTickers.join(', ') : ''; setChatInput(template.prompt + tickerContext); }} className={'flex items-center gap-2.5 p-3 rounded-xl transition-all duration-200 text-left hover:-translate-y-0.5 ' + (isSelected ? 'bg-emerald-500/15 border border-emerald-400/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'bg-[#0f0f16] border border-[#1e1e2d] hover:border-emerald-400/40 hover:shadow-[0_0_15px_rgba(16,185,129,0.1)]')}>
+                      <div className={'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ' + (isSelected ? 'bg-emerald-500/20' : 'bg-[#1a1a24]')}>
+                        <Icon className={'w-4 h-4 ' + (isSelected ? 'text-emerald-400' : 'text-gray-400')} strokeWidth={1.5} />
+                      </div>
+                      <span className={'text-xs font-medium ' + (isSelected ? 'text-emerald-300' : 'text-white/90')}>{template.name}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
             <div>
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">STRATEGY</label>
-              <div className="grid grid-cols-3 gap-1">
+              <label className="text-gray-400 text-[10px] font-semibold mb-2 block tracking-widest uppercase">STRATEGY</label>
+              <div className="grid grid-cols-3 gap-2">
                 {STRATEGY_TYPES.map(s => { const Icon = s.icon; return (
-                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-1.5 rounded-lg text-center transition-all ' + (selectedStrategy === s.id ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] border border-gray-700 hover:border-gray-600')}>
-                    <Icon className={'w-4 h-4 mx-auto ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-500')} strokeWidth={1.5} />
-                    <span className={'text-xs block mt-1 ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-[#e5e5e5]')}>{s.name}</span>
+                  <button key={s.id} onClick={() => setSelectedStrategy(prev => prev === s.id ? null : s.id)} className={'p-3 rounded-xl text-center transition-all duration-200 hover:-translate-y-0.5 ' + (selectedStrategy === s.id ? 'bg-emerald-500/15 border border-emerald-400/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'bg-[#0f0f16] border border-[#1e1e2d] hover:border-emerald-400/40')}>
+                    <div className={'w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5 ' + (selectedStrategy === s.id ? 'bg-emerald-500/20' : 'bg-[#1a1a24]')}>
+                      <Icon className={'w-4 h-4 ' + (selectedStrategy === s.id ? 'text-emerald-400' : 'text-gray-400')} strokeWidth={1.5} />
+                    </div>
+                    <span className={'text-xs font-medium ' + (selectedStrategy === s.id ? 'text-emerald-300' : 'text-white/90')}>{s.name}</span>
                   </button>
                 ); })}
               </div>
             </div>
             <div>
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TIMEFRAME</label>
-              <div className="flex gap-1">
+              <label className="text-gray-400 text-[10px] font-semibold mb-2 block tracking-widest uppercase">TIMEFRAME</label>
+              <div className="flex gap-2">
                 {TIMEFRAMES.map(tf => (
-                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-1 rounded-lg text-xs font-medium transition-all ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-gray-600')}>{tf.label}</button>
+                  <button key={tf.id} onClick={() => setSelectedTimeframe(prev => prev === tf.id ? null : tf.id)} className={'flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 ' + (selectedTimeframe === tf.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 shadow-[0_0_14px_rgba(16,185,129,0.12)]' : 'bg-[#0f0f16] text-white/80 border border-[#1e1e2d] hover:border-emerald-400/40')}>{tf.label}</button>
                 ))}
               </div>
             </div>
             <div>
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
-              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+              <label className="text-gray-400 text-[10px] font-semibold mb-2 block tracking-widest uppercase">NAME</label>
+              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-3 py-2.5 bg-[#0f0f16] border border-[#1e1e2d] rounded-xl text-white/90 placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-500/20 transition-all" />
             </div>
           </div>
         )}
