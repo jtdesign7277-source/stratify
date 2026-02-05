@@ -287,6 +287,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [messages, setMessages] = useState([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isAwaitingFirstToken, setIsAwaitingFirstToken] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [tabs, setTabs] = useState([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]);
@@ -368,8 +369,54 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const removeTicker = (symbol) => { const newTickers = selectedTickers.filter(s => s !== symbol); setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); };
   const getTickerPrefix = (tickers) => { if (!tickers || tickers.length === 0) return ''; if (tickers.length === 1) return '$' + tickers[0] + ' - '; if (tickers.length === 2) return '$' + tickers[0] + '/$' + tickers[1] + ' - '; return '$' + tickers[0] + '+ - '; };
   const updateStrategyNameWithTickers = (tickers, strategyType = null) => { const prefix = getTickerPrefix(tickers); const currentName = strategyName; const dashIndex = currentName.indexOf(' - '); const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : ''; if (strategyType) { setStrategyName(prefix + strategyType); } else if (existingSuffix) { setStrategyName(prefix + existingSuffix); } else if (prefix) { setStrategyName(prefix); } };
-  const handleReset = () => { if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; } setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
+  const handleReset = () => { if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; } setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); setIsAwaitingFirstToken(false); };
   const closeTab = (tabId) => { if (tabId === 'chat') return; setTabs(prev => prev.filter(t => t.id !== tabId)); if (activeTab === tabId) { setActiveTab('chat'); } };
+
+  const streamGrokResponse = async (response, { onDelta, onDone, onFirstToken }) => {
+    if (!response.body) throw new Error('No response body');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let sawFirstToken = false;
+
+    const handleData = (data) => {
+      if (data === '[DONE]') {
+        onDone && onDone();
+        return true;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(data);
+      } catch (err) {
+        return false;
+      }
+      const delta = parsed?.choices?.[0]?.delta?.content;
+      if (delta) {
+        if (!sawFirstToken) {
+          sawFirstToken = true;
+          onFirstToken && onFirstToken();
+        }
+        onDelta && onDelta(delta);
+      }
+      return false;
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.replace(/^data:\s*/, '');
+        if (handleData(data)) return;
+      }
+    }
+
+    onDone && onDone();
+  };
 
   const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
   const handleSaveAndDeploy = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: true, runStatus: 'running', savedAt: Date.now(), deployedAt: Date.now() }; onDeployStrategy && onDeployStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true, deployed: true } : t)); };
@@ -388,32 +435,75 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
       setActiveTab(tabId);
       setActiveSubTab('strategy');
       setIsChatLoading(true);
+      setIsAwaitingFirstToken(true);
       let contextMsg = userMsg + '\n\nGenerate a trading strategy with the following format:\n1. First provide a brief summary with these fields:\n   - Ticker(s): [symbols]\n   - Entry Condition: [when to enter]\n   - Exit Condition: [when to exit]\n   - Stop Loss: [stop loss rule]\n   - Position Size: [position sizing]\n\n2. Then provide the Python code using Alpaca API.';
       if (selectedTickers.length > 0) { contextMsg += '\n\nTickers: ' + selectedTickers.join(', '); }
       if (selectedStrategy) { const strat = STRATEGY_TYPES.find(s => s.id === selectedStrategy); contextMsg += '\nStrategy type: ' + (strat?.name || selectedStrategy); }
       if (selectedTimeframe) { const tf = TIMEFRAMES.find(t => t.id === selectedTimeframe); contextMsg += '\nTimeframe: ' + (tf?.label || selectedTimeframe); }
       try {
-        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg }) });
+        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg, stream: true }) });
         if (!response.ok) throw new Error('Failed');
-        const data = await response.json();
-        const fullContent = data.response || "Couldn't respond.";
-        let idx = 0;
-        const interval = setInterval(() => { idx += 10; if (idx >= fullContent.length) { clearInterval(interval); const parsed = parseStrategyResponse(fullContent); setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: fullContent, parsed, isTyping: false } : t)); } else { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t)); } }, 5);
+        let accumulated = '';
+        await streamGrokResponse(response, {
+          onFirstToken: () => setIsAwaitingFirstToken(false),
+          onDelta: (delta) => {
+            accumulated += delta;
+            setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: accumulated, parsed: null, isTyping: true } : t));
+          },
+          onDone: () => {
+            const finalContent = accumulated || "Couldn't respond.";
+            const parsed = parseStrategyResponse(finalContent);
+            setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: finalContent, parsed, isTyping: false } : t));
+          },
+        });
       } catch (e) { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t)); }
-      finally { setIsChatLoading(false); setStrategyName(''); setSelectedQuickStrategy(null); }
+      finally { setIsChatLoading(false); setIsAwaitingFirstToken(false); setStrategyName(''); setSelectedQuickStrategy(null); }
     } else {
-      setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+      setMessages(prev => [...prev, { role: 'user', content: userMsg }, { role: 'assistant', content: '', isTyping: true }]);
       setIsChatLoading(true);
+      setIsAwaitingFirstToken(true);
       try {
-        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg }) });
+        const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg, stream: true }) });
         if (!response.ok) throw new Error('Failed');
-        const data = await response.json();
-        const fullContent = data.response || "Couldn't respond.";
-        setMessages(prev => [...prev, { role: 'assistant', content: '', isTyping: true }]);
-        let idx = 0;
-        const interval = setInterval(() => { idx += 10; if (idx >= fullContent.length) { clearInterval(interval); setMessages(prev => { const msgs = [...prev]; msgs[msgs.length - 1] = { role: 'assistant', content: fullContent, isTyping: false }; return msgs; }); } else { setMessages(prev => { const msgs = [...prev]; msgs[msgs.length - 1] = { role: 'assistant', content: fullContent.slice(0, idx), isTyping: true }; return msgs; }); } }, 5);
-      } catch (e) { setMessages(prev => [...prev, { role: 'assistant', content: "Error.", isError: true }]); }
-      finally { setIsChatLoading(false); }
+        let accumulated = '';
+        await streamGrokResponse(response, {
+          onFirstToken: () => setIsAwaitingFirstToken(false),
+          onDelta: (delta) => {
+            accumulated += delta;
+            setMessages(prev => {
+              const msgs = [...prev];
+              const lastIndex = msgs.length - 1;
+              if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+                msgs[lastIndex] = { ...msgs[lastIndex], content: accumulated, isTyping: true };
+              }
+              return msgs;
+            });
+          },
+          onDone: () => {
+            const finalContent = accumulated || "Couldn't respond.";
+            setMessages(prev => {
+              const msgs = [...prev];
+              const lastIndex = msgs.length - 1;
+              if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+                msgs[lastIndex] = { ...msgs[lastIndex], content: finalContent, isTyping: false };
+              }
+              return msgs;
+            });
+          },
+        });
+      } catch (e) {
+        setMessages(prev => {
+          const msgs = [...prev];
+          const lastIndex = msgs.length - 1;
+          if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+            msgs[lastIndex] = { role: 'assistant', content: 'Error.', isError: true, isTyping: false };
+          } else {
+            msgs.push({ role: 'assistant', content: 'Error.', isError: true });
+          }
+          return msgs;
+        });
+      }
+      finally { setIsChatLoading(false); setIsAwaitingFirstToken(false); }
     }
   };
 
@@ -423,17 +513,27 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     const modifyRequest = chatInput.trim();
     setChatInput('');
     setIsChatLoading(true);
+    setIsAwaitingFirstToken(true);
     const contextMsg = 'Current strategy:\n' + activeTabData.content + '\n\nModification request: ' + modifyRequest + '\n\nProvide the updated strategy in the same format (summary fields + Python code).';
     try {
-      const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg }) });
-      if (!response.ok) throw new Error('Failed');
-      const data = await response.json();
-      const fullContent = data.response || "Couldn't respond.";
       setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: '', parsed: null, isTyping: true } : t));
-      let idx = 0;
-      const interval = setInterval(() => { idx += 10; if (idx >= fullContent.length) { clearInterval(interval); const parsed = parseStrategyResponse(fullContent); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: fullContent, parsed, isTyping: false } : t)); } else { setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: fullContent.slice(0, idx), isTyping: true } : t)); } }, 5);
+      const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: contextMsg, stream: true }) });
+      if (!response.ok) throw new Error('Failed');
+      let accumulated = '';
+      await streamGrokResponse(response, {
+        onFirstToken: () => setIsAwaitingFirstToken(false),
+        onDelta: (delta) => {
+          accumulated += delta;
+          setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: accumulated, parsed: null, isTyping: true } : t));
+        },
+        onDone: () => {
+          const finalContent = accumulated || "Couldn't respond.";
+          const parsed = parseStrategyResponse(finalContent);
+          setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: finalContent, parsed, isTyping: false } : t));
+        },
+      });
     } catch (e) { setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, content: "Error modifying strategy.", isTyping: false } : t)); }
-    finally { setIsChatLoading(false); }
+    finally { setIsChatLoading(false); setIsAwaitingFirstToken(false); }
   };
 
   const copyCode = (code, index) => { navigator.clipboard.writeText(code); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); };
@@ -604,7 +704,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                         </div>
                       </div>
                     ))}
-                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && <div className="flex justify-start"><div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span>Thinking...</span></div></div>}
+                    {isAwaitingFirstToken && <div className="flex justify-start"><div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span>Grok is typing...</span></div></div>}
                   </>
                 ) : (
                   <>

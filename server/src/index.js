@@ -47,25 +47,20 @@ app.get('/api/health', (req, res) => {
 // Atlas AI Chat Endpoint - Powered by Grok xAI with Trade Execution
 app.post('/api/v1/chat/', async (req, res) => {
   try {
-    const { message, strategy_name } = req.body;
+    const { message, strategy_name, stream } = req.body;
+    const shouldStream = stream === true;
     
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
     // Call Grok xAI API
-    const grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'grok-3',
-        messages: [
-          {
-            role: 'system',
-            content: `You are Atlas, an AI trading assistant for Stratify. You can:
+    const requestBody = {
+      model: 'grok-3',
+      messages: [
+        {
+          role: 'system',
+          content: `You are Atlas, an AI trading assistant for Stratify. You can:
 1. Generate Python trading strategies when asked
 2. Execute trades when users say things like "buy 10 shares of AAPL" or "sell TSLA"
 3. Answer questions about trading and markets
@@ -76,19 +71,53 @@ For trade requests, respond with a trade block like:
 \`\`\`
 
 For strategy requests, respond with Python code in \`\`\`python blocks.
-For general questions, just respond conversationally.`
-          },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
+For general questions, just respond conversationally.
+Be extremely concise. Maximum 2-3 sentences per response unless asked for more detail.`
+        },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    };
+
+    if (shouldStream) {
+      requestBody.stream = true;
+    }
+
+    const grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
     });
 
     if (!grokResponse.ok) {
       const err = await grokResponse.text();
       console.error('Grok API error:', err);
       throw new Error('Grok API request failed');
+    }
+
+    if (shouldStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      if (res.flushHeaders) res.flushHeaders();
+
+      if (!grokResponse.body) {
+        res.end();
+        return;
+      }
+
+      const reader = grokResponse.body.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) res.write(Buffer.from(value));
+      }
+      res.end();
+      return;
     }
 
     const grokData = await grokResponse.json();
@@ -151,32 +180,60 @@ For general questions, just respond conversationally.`
 // Grok AI Chat Endpoint
 app.post('/api/atlas/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, stream } = req.body;
+    const shouldStream = stream === true;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     const GROK_API_KEY = process.env.GROK_API_KEY;
     if (!GROK_API_KEY) return res.status(500).json({ error: 'Grok API key not configured' });
 
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    const requestBody = {
+      model: 'grok-3',
+      messages: [
+        { role: 'system', content: 'You are Grok, a trading strategy AI for Stratify. Be concise. When generating code, use Alpaca API for data and backtesting (alpaca-trade-api package), NOT yfinance. Provide only working Python code with minimal comments. No lengthy explanations. Be extremely concise. Maximum 2-3 sentences per response unless asked for more detail.' },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    };
+
+    if (shouldStream) {
+      requestBody.stream = true;
+    }
+
+    const grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${GROK_API_KEY}`
       },
-      body: JSON.stringify({
-        model: 'grok-3',
-        messages: [
-          { role: 'system', content: 'You are Grok, a trading strategy AI for Stratify. Be concise. When generating code, use Alpaca API for data and backtesting (alpaca-trade-api package), NOT yfinance. Provide only working Python code with minimal comments. No lengthy explanations.' },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 2048,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
-    if (!response.ok) return res.status(response.status).json({ error: 'Grok API error' });
+    if (!grokResponse.ok) return res.status(grokResponse.status).json({ error: 'Grok API error' });
 
-    const data = await response.json();
+    if (shouldStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      if (res.flushHeaders) res.flushHeaders();
+
+      if (!grokResponse.body) {
+        res.end();
+        return;
+      }
+
+      const reader = grokResponse.body.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) res.write(Buffer.from(value));
+      }
+      res.end();
+      return;
+    }
+
+    const data = await grokResponse.json();
     res.json({ response: data.choices?.[0]?.message?.content || 'No response' });
   } catch (error) {
     res.status(500).json({ error: error.message });
