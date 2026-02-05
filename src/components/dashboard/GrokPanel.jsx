@@ -618,6 +618,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
             </div>
             {isStrategyTab && !activeTabData?.isTyping && activeTabData?.content && (
               <div className="flex gap-2 px-2 py-1.5 border-t border-gray-700 flex-shrink-0">
+                <button onClick={handleReset} className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-white transition-colors" title="Start Over"><RotateCcw className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} /></button>
                 <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
                 <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
               </div>
