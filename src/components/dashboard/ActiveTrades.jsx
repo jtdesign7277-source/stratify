@@ -161,8 +161,8 @@ const ActiveTrades = () => {
           </div>
         </div>
 
-        {/* Strategy Cards Grid - 3x2, fills remaining space */}
-        <div className="grid grid-cols-3 grid-rows-2 gap-3 flex-1">
+        {/* Strategy Cards Grid - Compact 3-column layout */}
+        <div className="grid grid-cols-3 gap-2.5">
           {strategies.map((strategy, index) => {
             const isProfitable = strategy.pnl >= 0;
             const health = getSignalHealth(strategy.pnlPct, strategy.heat);
@@ -174,14 +174,14 @@ const ActiveTrades = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.04, duration: 0.3 }}
                 whileHover={{ y: -2, scale: 1.01 }}
-                className="rounded-xl border border-[#1e1e2d] bg-[#0f0f16] p-3 hover:border-emerald-500/30 transition-all flex flex-col"
+                className="rounded-lg border border-[#1e1e2d] bg-[#0f0f16] p-2.5 hover:border-emerald-500/30 transition-all"
               >
                 {/* Row 1: Ticker + Status + Share */}
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-500">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                     {strategy.symbol}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
                         setSelectedStrategy({
@@ -194,31 +194,31 @@ const ActiveTrades = () => {
                         });
                         setShareOpen(true);
                       }}
-                      className="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center group"
+                      className="w-6 h-6 rounded bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center justify-center group"
                     >
-                      <Share2 className="w-4 h-4 text-gray-400 group-hover:text-emerald-400" />
+                      <Share2 className="w-3 h-3 text-gray-400 group-hover:text-emerald-400" />
                     </button>
-                    <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusStyles[strategy.status]}`}>
+                    <span className={`text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusStyles[strategy.status]}`}>
                       {strategy.status}
                     </span>
                   </div>
                 </div>
 
                 {/* Row 2: Strategy Name */}
-                <div className="text-sm font-semibold text-white mb-2 truncate">
+                <div className="text-xs font-semibold text-white mb-1.5 truncate">
                   {strategy.name}
                 </div>
 
                 {/* Row 3: P&L + Signal Bars */}
-                <div className="flex items-center justify-between mb-2 flex-1">
-                  <div className={`text-xl font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className={`text-base font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
                     {formatMoney(strategy.pnl)}
                   </div>
                   <SignalBars health={health} />
                 </div>
 
                 {/* Row 4: Stats inline */}
-                <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center justify-between text-[9px]">
                   <span className={isProfitable ? 'text-emerald-300' : 'text-red-300'}>
                     {strategy.pnlPct > 0 ? '+' : ''}{strategy.pnlPct}% today
                   </span>
