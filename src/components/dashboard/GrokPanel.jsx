@@ -284,7 +284,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState(null);
   const [selectedChartTimeframe, setSelectedChartTimeframe] = useState(null);
   const [selectedQuickStrategy, setSelectedQuickStrategy] = useState(null);
-  const [messages, setMessages] = useState([{ role: 'assistant', content: GROK_WELCOME_MESSAGE, isIntro: true }]);
+  const [messages, setMessages] = useState([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -294,6 +294,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [strategyCounter, setStrategyCounter] = useState(0);
   const [activeSubTab, setActiveSubTab] = useState('strategy');
   const messagesEndRef = useRef(null);
+  const introTypingRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -306,6 +307,33 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
+
+  useEffect(() => {
+    const introIndex = messages.findIndex(m => m.isIntro);
+    if (introIndex === -1) return;
+    const introMsg = messages[introIndex];
+    if (!introMsg?.isTyping || introMsg.content) return;
+    if (introTypingRef.current) return;
+    let idx = 0;
+    introTypingRef.current = setInterval(() => {
+      idx += 10;
+      setMessages(prev => {
+        const next = [...prev];
+        const current = next[introIndex];
+        if (!current || !current.isIntro) {
+          if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; }
+          return prev;
+        }
+        if (idx >= GROK_WELCOME_MESSAGE.length) {
+          if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; }
+          next[introIndex] = { ...current, content: GROK_WELCOME_MESSAGE, isTyping: false };
+          return next;
+        }
+        next[introIndex] = { ...current, content: GROK_WELCOME_MESSAGE.slice(0, idx), isTyping: true };
+        return next;
+      });
+    }, 5);
+  }, [messages]);
 
   useEffect(() => {
     if (!tickerSearch.trim()) { setSearchResults([]); return; }
@@ -340,7 +368,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const removeTicker = (symbol) => { const newTickers = selectedTickers.filter(s => s !== symbol); setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); };
   const getTickerPrefix = (tickers) => { if (!tickers || tickers.length === 0) return ''; if (tickers.length === 1) return '$' + tickers[0] + ' - '; if (tickers.length === 2) return '$' + tickers[0] + '/$' + tickers[1] + ' - '; return '$' + tickers[0] + '+ - '; };
   const updateStrategyNameWithTickers = (tickers, strategyType = null) => { const prefix = getTickerPrefix(tickers); const currentName = strategyName; const dashIndex = currentName.indexOf(' - '); const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : ''; if (strategyType) { setStrategyName(prefix + strategyType); } else if (existingSuffix) { setStrategyName(prefix + existingSuffix); } else if (prefix) { setStrategyName(prefix); } };
-  const handleReset = () => { setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: GROK_WELCOME_MESSAGE, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
+  const handleReset = () => { if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; } setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
   const closeTab = (tabId) => { if (tabId === 'chat') return; setTabs(prev => prev.filter(t => t.id !== tabId)); if (activeTab === tabId) { setActiveTab('chat'); } };
 
   const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
@@ -569,14 +597,14 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                 {activeTab === 'chat' ? (
                   <>
                     {messages.map((m, i) => (
-                      <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
-                        <div className={'max-w-[90%] rounded-lg px-2 py-1.5 ' + (m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#111118] text-[#e5e5e5]')}>
+                      <div key={i} className="flex justify-start">
+                        <div className="max-w-[90%] text-left">
                           {m.role === 'assistant' && m.isTyping && <div className="flex items-center gap-1 mb-1"><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" /></div>}
-                          <div className={'text-sm leading-relaxed' + (m.isIntro ? ' text-blue-400' : '')}>{renderContent(m.content, i)}</div>
+                          <div className={'text-sm leading-relaxed ' + (m.role === 'assistant' ? 'text-blue-400' : 'text-white/80')}>{renderContent(m.content, i)}</div>
                         </div>
                       </div>
                     ))}
-                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && <div className="flex justify-start"><div className="bg-[#111118] rounded-lg px-2 py-1.5 flex items-center gap-2"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span className="text-gray-500 text-sm">Thinking...</span></div></div>}
+                    {isChatLoading && messages[messages.length - 1]?.role === 'user' && <div className="flex justify-start"><div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span>Thinking...</span></div></div>}
                   </>
                 ) : (
                   <>
