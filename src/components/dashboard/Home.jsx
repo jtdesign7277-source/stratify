@@ -6,6 +6,9 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [isConnectOpen, setIsConnectOpen] = useState(true);
+  // Home Active CTA style: matches the sidebar active "Home" tab look.
+  const homeActiveButtonClass = 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 border border-emerald-400/30 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]';
+  const homeActiveButtonHover = 'hover:from-emerald-500/40 hover:via-emerald-400/30 hover:to-emerald-500/20 hover:border-emerald-400/50';
 
   const brokers = [
     {
@@ -166,7 +169,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
                     setIsConnectOpen(true);
                     setSelectedBroker(null);
                   }}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${homeActiveButtonClass} ${homeActiveButtonHover}`}
                 >
                   <Plus className="w-4 h-4" strokeWidth={1.5} />
                   Connect a Broker
@@ -263,7 +266,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => openApiPage(selectedBroker.apiUrl)}
-                            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${homeActiveButtonClass} ${homeActiveButtonHover}`}
                           >
                             <ExternalLink className="w-4 h-4" strokeWidth={1.5} />
                             Open {selectedBroker.name} API Settings
@@ -330,7 +333,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
                           disabled={!apiKey || !secretKey}
                           className={`w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
                             apiKey && secretKey
-                              ? 'bg-gradient-to-r from-emerald-500 to-cyan-400 hover:from-emerald-600 hover:to-cyan-300 text-white'
+                              ? `${homeActiveButtonClass} ${homeActiveButtonHover}`
                               : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           }`}
                         >
