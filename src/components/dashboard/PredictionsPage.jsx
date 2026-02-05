@@ -44,9 +44,10 @@ const MarketCard = ({ market }) => {
   const noVolume = Number.isFinite(market.noVolume) ? market.noVolume : volume - yesVolume;
   const category = inferCategory(market);
   const tagStyle = CATEGORY_STYLES[category] || CATEGORY_STYLES.Other;
+  const marketId = market.ticker || market.id;
 
   return (
-    <div className="rounded-xl border border-[#1f2633] bg-[#101722] p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/40 hover:bg-[#121b2b]">
+    <div className="rounded-xl border border-[#1b2432] bg-[#0a1628] p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/40 hover:bg-[#0d1a31]">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Kalshi</div>
@@ -69,7 +70,7 @@ const MarketCard = ({ market }) => {
       </div>
 
       <div className="mt-3">
-        <div className="h-2 rounded-full overflow-hidden border border-[#1f2633] bg-[#0b111b] flex">
+        <div className="h-2 rounded-full overflow-hidden border border-[#1f2633] bg-[#060d18] flex">
           <div className="h-full bg-emerald-400" style={{ width: `${Math.max(0, Math.min(100, yesPercent))}%` }} />
           <div className="h-full bg-red-400" style={{ width: `${Math.max(0, 100 - Math.min(100, yesPercent))}%` }} />
         </div>
@@ -78,6 +79,15 @@ const MarketCard = ({ market }) => {
           <span>{market.closeTime ? 'Closes ' + new Date(market.closeTime).toLocaleDateString() : 'Live'}</span>
         </div>
       </div>
+
+      <a
+        href={marketId ? `https://kalshi.com/markets/${marketId}` : 'https://kalshi.com/markets'}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500/40 bg-gradient-to-r from-blue-500/15 via-cyan-500/10 to-blue-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-blue-100 transition-all hover:border-blue-400 hover:shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-blue-500/20"
+      >
+        Trade on Kalshi →
+      </a>
     </div>
   );
 };
@@ -127,13 +137,13 @@ const PredictionsPage = () => {
   }, [markets, category]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
-            <h1 className="text-xl font-semibold text-white">Kalshi Predictions</h1>
-          </div>
+    <div className="flex-1 flex flex-col h-full bg-[#060d18] p-4 overflow-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
+              <h1 className="text-xl font-semibold text-white">Kalshi Predictions</h1>
+            </div>
           <p className="text-sm text-gray-400 mt-1">
             {loading ? 'Updating live markets...' : lastUpdate ? `Updated ${lastUpdate.toLocaleTimeString()}` : 'Live prediction markets'}
           </p>
@@ -173,7 +183,7 @@ const PredictionsPage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {loading && markets.length === 0 ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-[#1f2633] bg-[#101722] p-3 animate-pulse">
+            <div key={i} className="rounded-xl border border-[#1b2432] bg-[#0a1628] p-3 animate-pulse">
               <div className="h-3 bg-white/10 rounded w-2/3 mb-2" />
               <div className="h-4 bg-white/10 rounded w-4/5" />
               <div className="mt-3 h-14 bg-white/5 rounded" />
