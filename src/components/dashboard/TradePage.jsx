@@ -59,20 +59,126 @@ const STOCK_DATABASE = [
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
 ];
 
-const CRYPTO_LIST = TOP_CRYPTO_BY_MARKET_CAP.map((crypto) => ({
-  ...crypto,
+const CRYPTO_DATABASE = TOP_CRYPTO_BY_MARKET_CAP.map((crypto) => ({
+  symbol: `${crypto.symbol}-USD`,
+  name: crypto.name,
+  displaySymbol: crypto.symbol,
   exchange: 'CRYPTO',
 }));
 
+const DEFAULT_CRYPTO_WATCHLIST = (() => {
+  const primary = CRYPTO_DATABASE.filter((crypto) =>
+    ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD'].includes(crypto.symbol)
+  );
+  return primary.length > 0 ? primary : CRYPTO_DATABASE.slice(0, 5);
+})();
+
+const CRYPTO_TV_MAP = {
+  BTC: 'COINBASE:BTCUSD',
+  'BTC-USD': 'COINBASE:BTCUSD',
+  ETH: 'COINBASE:ETHUSD',
+  'ETH-USD': 'COINBASE:ETHUSD',
+  SOL: 'COINBASE:SOLUSD',
+  'SOL-USD': 'COINBASE:SOLUSD',
+  XRP: 'COINBASE:XRPUSD',
+  'XRP-USD': 'COINBASE:XRPUSD',
+  DOGE: 'COINBASE:DOGEUSD',
+  'DOGE-USD': 'COINBASE:DOGEUSD',
+  ADA: 'COINBASE:ADAUSD',
+  'ADA-USD': 'COINBASE:ADAUSD',
+  AVAX: 'COINBASE:AVAXUSD',
+  'AVAX-USD': 'COINBASE:AVAXUSD',
+  LINK: 'COINBASE:LINKUSD',
+  'LINK-USD': 'COINBASE:LINKUSD',
+  MATIC: 'COINBASE:MATICUSD',
+  'MATIC-USD': 'COINBASE:MATICUSD',
+};
+
+const normalizeWatchlistItem = (item) => (typeof item === 'string' ? { symbol: item, name: item } : item);
+
+const getCryptoDisplaySymbol = (symbol) => {
+  if (!symbol) return '';
+  const normalized = symbol.includes(':') ? symbol.split(':')[1] : symbol;
+  if (CRYPTO_TV_MAP[normalized]) return normalized.replace('-USD', '').replace('USD', '');
+  if (normalized.includes('-')) return normalized.split('-')[0];
+  if (normalized.includes('/')) return normalized.split('/')[0];
+  if (normalized.endsWith('USDT')) return normalized.slice(0, -4);
+  if (normalized.endsWith('USD')) return normalized.slice(0, -3);
+  return normalized;
+};
+
+const normalizeCryptoQuoteSymbol = (symbol) => {
+  if (!symbol) return symbol;
+  let normalized = symbol.includes(':') ? symbol.split(':')[1] : symbol;
+  if (normalized.includes('-') || normalized.includes('/')) return normalized;
+  if (normalized.endsWith('USDT')) normalized = normalized.slice(0, -4);
+  if (normalized.endsWith('USD')) normalized = normalized.slice(0, -3);
+  return `${normalized}-USD`;
+};
+
+const getTradingViewSymbol = (symbol, market) => {
+  if (!symbol) return symbol;
+  if (symbol.includes(':')) return symbol;
+  if (market === 'crypto') {
+    if (CRYPTO_TV_MAP[symbol]) return CRYPTO_TV_MAP[symbol];
+    const base = getCryptoDisplaySymbol(symbol);
+    return base ? `COINBASE:${base}USD` : symbol;
+  }
+  return symbol;
+};
+
+const toNumber = (value) => {
+  if (typeof value === 'number') return value;
+  if (value == null) return NaN;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const buildQuote = (quote) => {
+  if (!quote) return null;
+  const price = toNumber(quote.price);
+  if (!Number.isFinite(price)) return null;
+  const prevClose = toNumber(quote.prevClose ?? quote.previousClose ?? quote.prev_close);
+  const fallbackPrevClose = Number.isFinite(prevClose) ? prevClose : price;
+  const rawChange = toNumber(quote.change);
+  const change = Number.isFinite(rawChange) ? rawChange : price - fallbackPrevClose;
+  const rawChangePercent = toNumber(quote.changePercent ?? quote.change_percent);
+  const changePercent = Number.isFinite(rawChangePercent)
+    ? rawChangePercent
+    : fallbackPrevClose > 0
+      ? (change / fallbackPrevClose) * 100
+      : 0;
+  return {
+    price,
+    change,
+    changePercent,
+    open: toNumber(quote.open),
+    high: toNumber(quote.high),
+    low: toNumber(quote.low),
+    volume: toNumber(quote.volume),
+  };
+};
+
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
-  const [selectedTicker, setSelectedTicker] = useState(null);
-  const [activeTab, setActiveTab] = useState('stocks');
+  const [activeMarket, setActiveMarket] = useState('equity');
+  const [selectedEquity, setSelectedEquity] = useState(null);
+  const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
-  const [quotes, setQuotes] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [equityQuotes, setEquityQuotes] = useState({});
+  const [cryptoQuotes, setCryptoQuotes] = useState({});
+  const [equityLoading, setEquityLoading] = useState(true);
+  const [cryptoLoading, setCryptoLoading] = useState(true);
+  const [cryptoWatchlist, setCryptoWatchlist] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-crypto-watchlist');
+      return saved ? JSON.parse(saved).map(normalizeWatchlistItem) : DEFAULT_CRYPTO_WATCHLIST;
+    } catch {
+      return DEFAULT_CRYPTO_WATCHLIST;
+    }
+  });
   const [orderSide, setOrderSide] = useState('buy');
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
@@ -85,12 +191,33 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     dismissBreakingNews,
   } = useBreakingNews();
   
-  const stocks = watchlist.length > 0 
-    ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
-    : [];
-  const defaultSymbol = stocks[0]?.symbol || 'SPY';
-
-  const selectedQuote = selectedTicker ? quotes[selectedTicker] : null;
+  const equityStocks = useMemo(() => (
+    watchlist.length > 0 ? watchlist.map(normalizeWatchlistItem) : []
+  ), [watchlist]);
+  const cryptoStocks = useMemo(() => (
+    cryptoWatchlist.length > 0 ? cryptoWatchlist.map(normalizeWatchlistItem) : []
+  ), [cryptoWatchlist]);
+  const activeWatchlist = activeMarket === 'crypto' ? cryptoStocks : equityStocks;
+  const activeDatabase = activeMarket === 'crypto' ? CRYPTO_DATABASE : STOCK_DATABASE;
+  const defaultEquitySymbol = equityStocks[0]?.symbol || 'SPY';
+  const defaultCryptoSymbol = cryptoStocks[0]?.symbol || 'BTC-USD';
+  const selectedTicker = activeMarket === 'crypto' ? (selectedCrypto || defaultCryptoSymbol) : (selectedEquity || defaultEquitySymbol);
+  const activeQuotes = activeMarket === 'crypto' ? cryptoQuotes : equityQuotes;
+  const selectedQuote = selectedTicker ? activeQuotes[selectedTicker] : null;
+  const activeLoading = activeMarket === 'crypto' ? cryptoLoading : equityLoading;
+  const selectedDisplaySymbol = activeMarket === 'crypto' ? getCryptoDisplaySymbol(selectedTicker) : selectedTicker;
+  const selectedName = useMemo(() => {
+    if (!selectedTicker) return '';
+    if (activeMarket === 'crypto') {
+      return CRYPTO_DATABASE.find(s => s.symbol === selectedTicker || s.displaySymbol === selectedTicker)?.name
+        || cryptoStocks.find(s => s.symbol === selectedTicker)?.name
+        || selectedTicker;
+    }
+    return STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name
+      || equityStocks.find(s => s.symbol === selectedTicker)?.name
+      || 'S&P 500 ETF';
+  }, [activeMarket, cryptoStocks, equityStocks, selectedTicker]);
+  const chartSymbol = useMemo(() => getTradingViewSymbol(selectedTicker, activeMarket), [selectedTicker, activeMarket]);
   const orderQtyNumber = useMemo(() => {
     const parsed = parseFloat(orderQty);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -123,71 +250,115 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       const res = await fetch(`${API_URL}/api/snapshot/${symbol}`);
       if (!res.ok) return null;
       const data = await res.json();
-      return data;
+      return buildQuote(data);
     } catch (err) {
       console.error('Snapshot fetch error:', symbol, err);
       return null;
     }
   }, []);
 
-  // Fetch all quotes
+  const fetchCryptoQuote = useCallback(async (symbol) => {
+    try {
+      const normalizedSymbol = normalizeCryptoQuoteSymbol(symbol);
+      const res = await fetch(`${API_URL}/api/public/quote/${encodeURIComponent(normalizedSymbol)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return buildQuote(data);
+    } catch (err) {
+      console.error('Crypto quote fetch error:', symbol, err);
+      return null;
+    }
+  }, []);
+
+  const equitySymbolsKey = useMemo(() => equityStocks.map(s => s.symbol).join(','), [equityStocks]);
+  const cryptoSymbolsKey = useMemo(() => cryptoStocks.map(s => s.symbol).join(','), [cryptoStocks]);
+
+  // Fetch equity quotes
   useEffect(() => {
-    const fetchAllQuotes = async () => {
-      setLoading(true);
+    const fetchEquityQuotes = async () => {
+      setEquityLoading(true);
       const results = {};
-      
       await Promise.all(
-        stocks.map(async (stock) => {
+        equityStocks.map(async (stock) => {
           const quote = await fetchSnapshot(stock.symbol);
           if (quote && quote.price) {
-            const prevClose = typeof quote.prevClose === 'number' ? quote.prevClose : quote.price;
-            const change = typeof quote.change === 'number' ? quote.change : quote.price - prevClose;
-            const changePercent = typeof quote.changePercent === 'number'
-              ? quote.changePercent
-              : (prevClose > 0 ? (change / prevClose) * 100 : 0);
-            
-            results[stock.symbol] = {
-              price: quote.price,
-              change,
-              changePercent,
-              open: quote.open,
-              high: quote.high,
-              low: quote.low,
-              volume: quote.volume,
-            };
+            results[stock.symbol] = quote;
           }
         })
       );
-      
-      setQuotes(results);
-      setLoading(false);
+      setEquityQuotes(results);
+      setEquityLoading(false);
     };
-    
-    fetchAllQuotes();
-    const interval = setInterval(fetchAllQuotes, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
-  }, [stocks.map(s => s.symbol).join(','), fetchSnapshot]);
 
-  // Local search from STOCK_DATABASE
+    fetchEquityQuotes();
+    const interval = setInterval(fetchEquityQuotes, 10000);
+    return () => clearInterval(interval);
+  }, [equitySymbolsKey, fetchSnapshot]);
+
+  // Fetch crypto quotes
+  useEffect(() => {
+    const fetchCryptoQuotes = async () => {
+      setCryptoLoading(true);
+      const results = {};
+      await Promise.all(
+        cryptoStocks.map(async (stock) => {
+          const quote = await fetchCryptoQuote(stock.symbol);
+          if (quote && quote.price) {
+            results[stock.symbol] = quote;
+          }
+        })
+      );
+      setCryptoQuotes(results);
+      setCryptoLoading(false);
+    };
+
+    fetchCryptoQuotes();
+    const interval = setInterval(fetchCryptoQuotes, 10000);
+    return () => clearInterval(interval);
+  }, [cryptoSymbolsKey, fetchCryptoQuote]);
+
+  useEffect(() => {
+    localStorage.setItem('stratify-crypto-watchlist', JSON.stringify(cryptoWatchlist));
+  }, [cryptoWatchlist]);
+
+  useEffect(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+  }, [activeMarket]);
+
+  // Local search from active database
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       return;
     }
     const query = searchQuery.toLowerCase();
-    const existingSymbols = stocks.map(s => s.symbol);
-    const filtered = STOCK_DATABASE.filter(s => 
-      !existingSymbols.includes(s.symbol) &&
-      (s.symbol.toLowerCase().includes(query) || s.name.toLowerCase().includes(query))
-    ).slice(0, 10);
+    const existingSymbols = activeWatchlist.map(s => s.symbol);
+    const filtered = activeDatabase.filter(s => {
+      if (existingSymbols.includes(s.symbol)) return false;
+      const symbolMatch = s.symbol.toLowerCase().includes(query);
+      const nameMatch = s.name.toLowerCase().includes(query);
+      const displayMatch = s.displaySymbol ? s.displaySymbol.toLowerCase().includes(query) : false;
+      return symbolMatch || nameMatch || displayMatch;
+    }).slice(0, 10);
     setSearchResults(filtered);
-  }, [searchQuery, stocks]);
+  }, [searchQuery, activeDatabase, activeWatchlist]);
 
   useEffect(() => {
-    if (!selectedTicker || !stocks.find(s => s.symbol === selectedTicker)) {
-      setSelectedTicker(defaultSymbol);
+    if (activeMarket === 'equity') {
+      if (!selectedEquity || !equityStocks.find(s => s.symbol === selectedEquity)) {
+        setSelectedEquity(defaultEquitySymbol);
+      }
     }
-  }, [defaultSymbol, selectedTicker, stocks]);
+  }, [activeMarket, defaultEquitySymbol, equityStocks, selectedEquity]);
+
+  useEffect(() => {
+    if (activeMarket === 'crypto') {
+      if (!selectedCrypto || !cryptoStocks.find(s => s.symbol === selectedCrypto)) {
+        setSelectedCrypto(defaultCryptoSymbol);
+      }
+    }
+  }, [activeMarket, defaultCryptoSymbol, cryptoStocks, selectedCrypto]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -204,7 +375,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   }, [triggerBreakingNews]);
 
   const handleAddStock = (stock) => {
-    if (onAddToWatchlist) {
+    if (activeMarket === 'crypto') {
+      setCryptoWatchlist(prev => {
+        if (prev.some(s => s.symbol === stock.symbol)) return prev;
+        return [...prev, { symbol: stock.symbol, name: stock.name, displaySymbol: stock.displaySymbol }];
+      });
+    } else if (onAddToWatchlist) {
       onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
     }
     setSearchQuery('');
@@ -214,10 +390,20 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const handleRemoveStock = (symbol, e) => {
     e.stopPropagation();
     e.preventDefault();
-    if (onRemoveFromWatchlist) {
+    if (activeMarket === 'crypto') {
+      setCryptoWatchlist(prev => prev.filter(s => s.symbol !== symbol));
+    } else if (onRemoveFromWatchlist) {
       onRemoveFromWatchlist(symbol);
     }
   };
+
+  const handleSelectSymbol = useCallback((symbol) => {
+    if (activeMarket === 'crypto') {
+      setSelectedCrypto(symbol);
+    } else {
+      setSelectedEquity(symbol);
+    }
+  }, [activeMarket]);
 
   const handlePlaceOrder = async () => {
     if (!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting') return;
@@ -353,7 +539,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search symbol or company..."
+                placeholder={activeMarket === 'crypto' ? 'Search coin or token...' : 'Search symbol or company...'}
                 className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               />
               {searchQuery && (
@@ -365,22 +551,30 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             
             {searchQuery && searchResults.length > 0 && (
               <div className="absolute left-3 right-3 top-full mt-1 bg-[#111118] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
-                {searchResults.map((stock) => (
-                  <div 
-                    key={stock.symbol}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-gray-800/50 last:border-0 transition-colors"
-                    onClick={() => handleAddStock(stock)}
-                  >
-                    <div className="flex-1">
-                      <span className="text-white font-bold text-base">${stock.symbol}</span>
-                      <span className="text-gray-400 text-sm ml-3">{stock.name}</span>
+                {searchResults.map((stock) => {
+                  const displaySymbol = activeMarket === 'crypto'
+                    ? (stock.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
+                    : stock.symbol;
+                  const exchangeLabel = stock.exchange || (activeMarket === 'crypto' ? 'CRYPTO' : '');
+                  return (
+                    <div 
+                      key={stock.symbol}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-gray-800/50 last:border-0 transition-colors"
+                      onClick={() => handleAddStock(stock)}
+                    >
+                      <div className="flex-1">
+                        <span className="text-white font-bold text-base">${displaySymbol}</span>
+                        <span className="text-gray-400 text-sm ml-3">{stock.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {exchangeLabel && (
+                          <span className="text-gray-500 text-xs">{exchangeLabel}</span>
+                        )}
+                        <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500 text-xs">{stock.exchange}</span>
-                      <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -398,21 +592,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             <div className="flex items-center gap-1 p-1 rounded-lg border border-gray-700 bg-[#111118]">
               <button
                 type="button"
-                onClick={() => setActiveTab('stocks')}
+                onClick={() => setActiveMarket('equity')}
                 className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  activeTab === 'stocks'
+                  activeMarket === 'equity'
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                Stocks
+                Equity
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('crypto')}
+                onClick={() => setActiveMarket('crypto')}
                 className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  activeTab === 'crypto'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  activeMarket === 'crypto'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -424,62 +618,33 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
         {/* Stock/Crypto List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
-          {activeTab === 'stocks' && loading && Object.keys(quotes).length === 0 && (
+          {activeLoading && Object.keys(activeQuotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
             </div>
           )}
           
-          {activeTab === 'stocks' && stocks.length === 0 && !loading && (
+          {activeWatchlist.length === 0 && !activeLoading && (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">
               Watchlist is empty. Search to add symbols.
             </div>
           )}
 
-          {/* Crypto List */}
-          {activeTab === 'crypto' && CRYPTO_LIST.map((crypto) => {
-            const cryptoSymbol = `CRYPTO:${crypto.symbol}USD`;
-            const isSelected = selectedTicker === cryptoSymbol;
-            
-            return (
-              <div 
-                key={crypto.symbol}
-                className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
-                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
-                } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
-                onClick={() => setSelectedTicker(cryptoSymbol)}
-              >
-                {isCollapsed ? (
-                  <div className="w-full text-center">
-                    <div className="text-white text-xs font-bold">{crypto.symbol}</div>
-                    <div className="text-[10px] font-medium mt-0.5 text-gray-500">CRYPTO</div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-w-0 pr-4">
-                      <div className="text-white font-bold text-base">{crypto.symbol}</div>
-                      <div className="text-gray-500 text-sm truncate">{crypto.name}</div>
-                    </div>
-                    <div className="text-right flex-shrink-0 mr-3">
-                      <div className="text-emerald-400 text-xs font-medium">CRYPTO</div>
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Stock List */}
-          {activeTab === 'stocks' && stocks.map((stock) => {
-            const quote = quotes[stock.symbol] || {};
+          {activeWatchlist.map((stock) => {
+            const quote = activeQuotes[stock.symbol] || {};
             const price = quote.price || 0;
             const change = quote.change || 0;
             const changePercent = quote.changePercent || 0;
             const isPositive = change >= 0;
             const isSelected = selectedTicker === stock.symbol;
-            const stockInfo = STOCK_DATABASE.find(s => s.symbol === stock.symbol);
-            const name = stockInfo?.name || stock.name || stock.symbol;
+            const stockInfo = activeMarket === 'crypto'
+              ? CRYPTO_DATABASE.find(s => s.symbol === stock.symbol || s.displaySymbol === stock.symbol)
+              : STOCK_DATABASE.find(s => s.symbol === stock.symbol);
+            const displaySymbol = activeMarket === 'crypto'
+              ? (stock.displaySymbol || stockInfo?.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
+              : stock.symbol;
+            const name = stockInfo?.name || stock.name || displaySymbol;
             
             return (
               <div 
@@ -487,11 +652,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
-                onClick={() => setSelectedTicker(stock.symbol)}
+                onClick={() => handleSelectSymbol(stock.symbol)}
               >
                 {isCollapsed ? (
                   <div className="w-full text-center">
-                    <div className="text-white text-xs font-bold">${stock.symbol}</div>
+                    <div className="text-white text-xs font-bold">${displaySymbol}</div>
                     <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
                       {price > 0 ? `$${formatPrice(price)}` : '...'}
                     </div>
@@ -499,7 +664,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 ) : (
                   <>
                     <div className="flex-1 min-w-0 pr-4">
-                      <div className="text-white font-bold text-base">${stock.symbol}</div>
+                      <div className="text-white font-bold text-base">${displaySymbol}</div>
                       <div className="text-gray-500 text-sm truncate">{name}</div>
                     </div>
 
@@ -530,8 +695,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         {/* Footer */}
         {!isCollapsed && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
-            <span className="text-gray-400">{stocks.length} symbols</span>
-            <span className="text-emerald-400">Alpaca Data</span>
+            <span className="text-gray-400">{activeWatchlist.length} symbols</span>
+            <span className={activeMarket === 'crypto' ? 'text-amber-400' : 'text-emerald-400'}>
+              {activeMarket === 'crypto' ? 'Crypto Data' : 'Alpaca Data'}
+            </span>
           </div>
         )}
       </div>
@@ -540,11 +707,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       <div className="flex-1 flex flex-col bg-[#0d0d12] min-w-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <div className="flex items-center gap-3">
-            <h2 className="text-white font-bold text-lg">${selectedTicker || defaultSymbol}</h2>
-            <span className="text-gray-400 text-sm">
-              {STOCK_DATABASE.find(s => s.symbol === (selectedTicker || defaultSymbol))?.name ||
-                stocks.find(s => s.symbol === (selectedTicker || defaultSymbol))?.name ||
-                'S&P 500 ETF'}
+            <h2 className="text-white font-bold text-lg">${selectedDisplaySymbol}</h2>
+            <span className="text-gray-400 text-sm">{selectedName}</span>
+            <span className={`text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border ${
+              activeMarket === 'crypto'
+                ? 'border-amber-500/40 text-amber-300 bg-amber-500/10'
+                : 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'
+            }`}>
+              {activeMarket === 'crypto' ? 'Crypto' : 'Equity'}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -561,8 +731,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
           <div className="flex-1 min-h-[360px] relative">
             <iframe
-              key={selectedTicker || defaultSymbol}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${selectedTicker || defaultSymbol}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=111118&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
+              key={chartSymbol}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${chartSymbol}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=111118&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
             />
