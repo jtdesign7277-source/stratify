@@ -13,54 +13,55 @@ const strategiesSeed = [
   { id: 'amzn', symbol: 'AMZN', name: 'AMZN Swing', status: 'Scaling', pnl: 1247.55, pnlPct: 2.1, heat: 55 },
 ];
 
+// Completed trades with entry and exit prices
 const tradesByStrategy = {
   nvda: [
-    { id: 'nvda-1', timestamp: '2026-02-05T15:42:00', action: 'BUY', price: 689.25, qty: 30, pnl: 142.5 },
-    { id: 'nvda-2', timestamp: '2026-02-05T14:18:00', action: 'SELL', price: 694.8, qty: 20, pnl: 96.2 },
-    { id: 'nvda-3', timestamp: '2026-02-05T13:05:00', action: 'BUY', price: 681.1, qty: 25, pnl: -58.75 },
-    { id: 'nvda-4', timestamp: '2026-02-05T11:44:00', action: 'SELL', price: 687.4, qty: 18, pnl: 72.4 },
-    { id: 'nvda-5', timestamp: '2026-02-04T15:12:00', action: 'BUY', price: 672.3, qty: 40, pnl: 126.9 },
-    { id: 'nvda-6', timestamp: '2026-02-04T13:36:00', action: 'SELL', price: 666.9, qty: 24, pnl: -41.2 },
+    { id: 'nvda-1', timestamp: '2026-02-05T15:42:00', qty: 30, entryPrice: 684.50, exitPrice: 689.25, pnl: 142.5 },
+    { id: 'nvda-2', timestamp: '2026-02-05T14:18:00', qty: 20, entryPrice: 689.90, exitPrice: 694.80, pnl: 98.0 },
+    { id: 'nvda-3', timestamp: '2026-02-05T13:05:00', qty: 25, entryPrice: 683.45, exitPrice: 681.10, pnl: -58.75 },
+    { id: 'nvda-4', timestamp: '2026-02-05T11:44:00', qty: 18, entryPrice: 683.38, exitPrice: 687.40, pnl: 72.4 },
+    { id: 'nvda-5', timestamp: '2026-02-04T15:12:00', qty: 40, entryPrice: 669.13, exitPrice: 672.30, pnl: 126.9 },
+    { id: 'nvda-6', timestamp: '2026-02-04T13:36:00', qty: 24, entryPrice: 668.62, exitPrice: 666.90, pnl: -41.2 },
   ],
   aapl: [
-    { id: 'aapl-1', timestamp: '2026-02-05T15:20:00', action: 'SELL', price: 196.44, qty: 120, pnl: 88.2 },
-    { id: 'aapl-2', timestamp: '2026-02-05T14:02:00', action: 'BUY', price: 195.1, qty: 150, pnl: -34.5 },
-    { id: 'aapl-3', timestamp: '2026-02-05T12:50:00', action: 'SELL', price: 197.2, qty: 90, pnl: 52.1 },
-    { id: 'aapl-4', timestamp: '2026-02-05T11:15:00', action: 'BUY', price: 194.8, qty: 110, pnl: 26.7 },
-    { id: 'aapl-5', timestamp: '2026-02-04T15:05:00', action: 'SELL', price: 198.05, qty: 80, pnl: -21.9 },
-    { id: 'aapl-6', timestamp: '2026-02-04T13:22:00', action: 'BUY', price: 193.6, qty: 140, pnl: 41.3 },
+    { id: 'aapl-1', timestamp: '2026-02-05T15:20:00', qty: 120, entryPrice: 195.70, exitPrice: 196.44, pnl: 88.2 },
+    { id: 'aapl-2', timestamp: '2026-02-05T14:02:00', qty: 150, entryPrice: 195.33, exitPrice: 195.10, pnl: -34.5 },
+    { id: 'aapl-3', timestamp: '2026-02-05T12:50:00', qty: 90, entryPrice: 196.62, exitPrice: 197.20, pnl: 52.1 },
+    { id: 'aapl-4', timestamp: '2026-02-05T11:15:00', qty: 110, entryPrice: 194.56, exitPrice: 194.80, pnl: 26.7 },
+    { id: 'aapl-5', timestamp: '2026-02-04T15:05:00', qty: 80, entryPrice: 198.32, exitPrice: 198.05, pnl: -21.9 },
+    { id: 'aapl-6', timestamp: '2026-02-04T13:22:00', qty: 140, entryPrice: 193.31, exitPrice: 193.60, pnl: 41.3 },
   ],
   tsla: [
-    { id: 'tsla-1', timestamp: '2026-02-05T15:48:00', action: 'BUY', price: 236.8, qty: 60, pnl: -95.4 },
-    { id: 'tsla-2', timestamp: '2026-02-05T14:27:00', action: 'SELL', price: 238.6, qty: 45, pnl: 42.8 },
-    { id: 'tsla-3', timestamp: '2026-02-05T13:02:00', action: 'SELL', price: 235.1, qty: 50, pnl: -64.9 },
-    { id: 'tsla-4', timestamp: '2026-02-05T11:36:00', action: 'BUY', price: 232.4, qty: 70, pnl: 31.2 },
-    { id: 'tsla-5', timestamp: '2026-02-04T15:28:00', action: 'SELL', price: 239.9, qty: 40, pnl: -78.6 },
-    { id: 'tsla-6', timestamp: '2026-02-04T12:54:00', action: 'BUY', price: 231.7, qty: 65, pnl: 58.3 },
+    { id: 'tsla-1', timestamp: '2026-02-05T15:48:00', qty: 60, entryPrice: 238.39, exitPrice: 236.80, pnl: -95.4 },
+    { id: 'tsla-2', timestamp: '2026-02-05T14:27:00', qty: 45, entryPrice: 237.65, exitPrice: 238.60, pnl: 42.8 },
+    { id: 'tsla-3', timestamp: '2026-02-05T13:02:00', qty: 50, entryPrice: 236.40, exitPrice: 235.10, pnl: -64.9 },
+    { id: 'tsla-4', timestamp: '2026-02-05T11:36:00', qty: 70, entryPrice: 231.95, exitPrice: 232.40, pnl: 31.2 },
+    { id: 'tsla-5', timestamp: '2026-02-04T15:28:00', qty: 40, entryPrice: 241.87, exitPrice: 239.90, pnl: -78.6 },
+    { id: 'tsla-6', timestamp: '2026-02-04T12:54:00', qty: 65, entryPrice: 230.80, exitPrice: 231.70, pnl: 58.3 },
   ],
   spy: [
-    { id: 'spy-1', timestamp: '2026-02-05T15:31:00', action: 'BUY', price: 497.12, qty: 80, pnl: 44.8 },
-    { id: 'spy-2', timestamp: '2026-02-05T14:10:00', action: 'SELL', price: 498.6, qty: 75, pnl: -22.4 },
-    { id: 'spy-3', timestamp: '2026-02-05T12:45:00', action: 'BUY', price: 496.4, qty: 90, pnl: 38.7 },
-    { id: 'spy-4', timestamp: '2026-02-05T11:05:00', action: 'SELL', price: 497.9, qty: 70, pnl: 12.2 },
-    { id: 'spy-5', timestamp: '2026-02-04T15:18:00', action: 'BUY', price: 495.6, qty: 85, pnl: -18.1 },
-    { id: 'spy-6', timestamp: '2026-02-04T13:40:00', action: 'SELL', price: 496.8, qty: 65, pnl: 26.5 },
+    { id: 'spy-1', timestamp: '2026-02-05T15:31:00', qty: 80, entryPrice: 496.56, exitPrice: 497.12, pnl: 44.8 },
+    { id: 'spy-2', timestamp: '2026-02-05T14:10:00', qty: 75, entryPrice: 498.90, exitPrice: 498.60, pnl: -22.4 },
+    { id: 'spy-3', timestamp: '2026-02-05T12:45:00', qty: 90, entryPrice: 495.97, exitPrice: 496.40, pnl: 38.7 },
+    { id: 'spy-4', timestamp: '2026-02-05T11:05:00', qty: 70, entryPrice: 497.73, exitPrice: 497.90, pnl: 12.2 },
+    { id: 'spy-5', timestamp: '2026-02-04T15:18:00', qty: 85, entryPrice: 495.81, exitPrice: 495.60, pnl: -18.1 },
+    { id: 'spy-6', timestamp: '2026-02-04T13:40:00', qty: 65, entryPrice: 496.39, exitPrice: 496.80, pnl: 26.5 },
   ],
   meta: [
-    { id: 'meta-1', timestamp: '2026-02-05T15:52:00', action: 'SELL', price: 411.8, qty: 55, pnl: 74.6 },
-    { id: 'meta-2', timestamp: '2026-02-05T14:33:00', action: 'BUY', price: 409.2, qty: 60, pnl: -28.7 },
-    { id: 'meta-3', timestamp: '2026-02-05T13:18:00', action: 'SELL', price: 412.6, qty: 48, pnl: 61.1 },
-    { id: 'meta-4', timestamp: '2026-02-05T11:58:00', action: 'BUY', price: 408.7, qty: 62, pnl: 36.9 },
-    { id: 'meta-5', timestamp: '2026-02-04T15:22:00', action: 'SELL', price: 413.1, qty: 50, pnl: -19.3 },
-    { id: 'meta-6', timestamp: '2026-02-04T12:30:00', action: 'BUY', price: 406.4, qty: 68, pnl: 52.8 },
+    { id: 'meta-1', timestamp: '2026-02-05T15:52:00', qty: 55, entryPrice: 410.44, exitPrice: 411.80, pnl: 74.6 },
+    { id: 'meta-2', timestamp: '2026-02-05T14:33:00', qty: 60, entryPrice: 409.68, exitPrice: 409.20, pnl: -28.7 },
+    { id: 'meta-3', timestamp: '2026-02-05T13:18:00', qty: 48, entryPrice: 411.33, exitPrice: 412.60, pnl: 61.1 },
+    { id: 'meta-4', timestamp: '2026-02-05T11:58:00', qty: 62, entryPrice: 408.11, exitPrice: 408.70, pnl: 36.9 },
+    { id: 'meta-5', timestamp: '2026-02-04T15:22:00', qty: 50, entryPrice: 413.49, exitPrice: 413.10, pnl: -19.3 },
+    { id: 'meta-6', timestamp: '2026-02-04T12:30:00', qty: 68, entryPrice: 405.62, exitPrice: 406.40, pnl: 52.8 },
   ],
   amzn: [
-    { id: 'amzn-1', timestamp: '2026-02-05T15:38:00', action: 'BUY', price: 178.32, qty: 140, pnl: 62.4 },
-    { id: 'amzn-2', timestamp: '2026-02-05T14:14:00', action: 'SELL', price: 179.1, qty: 120, pnl: 48.3 },
-    { id: 'amzn-3', timestamp: '2026-02-05T13:03:00', action: 'BUY', price: 177.6, qty: 160, pnl: -33.6 },
-    { id: 'amzn-4', timestamp: '2026-02-05T11:41:00', action: 'SELL', price: 178.9, qty: 110, pnl: 27.1 },
-    { id: 'amzn-5', timestamp: '2026-02-04T15:08:00', action: 'BUY', price: 176.2, qty: 150, pnl: 51.5 },
-    { id: 'amzn-6', timestamp: '2026-02-04T13:14:00', action: 'SELL', price: 175.6, qty: 130, pnl: -24.9 },
+    { id: 'amzn-1', timestamp: '2026-02-05T15:38:00', qty: 140, entryPrice: 177.88, exitPrice: 178.32, pnl: 62.4 },
+    { id: 'amzn-2', timestamp: '2026-02-05T14:14:00', qty: 120, entryPrice: 178.70, exitPrice: 179.10, pnl: 48.3 },
+    { id: 'amzn-3', timestamp: '2026-02-05T13:03:00', qty: 160, entryPrice: 177.81, exitPrice: 177.60, pnl: -33.6 },
+    { id: 'amzn-4', timestamp: '2026-02-05T11:41:00', qty: 110, entryPrice: 178.65, exitPrice: 178.90, pnl: 27.1 },
+    { id: 'amzn-5', timestamp: '2026-02-04T15:08:00', qty: 150, entryPrice: 175.86, exitPrice: 176.20, pnl: 51.5 },
+    { id: 'amzn-6', timestamp: '2026-02-04T13:14:00', qty: 130, entryPrice: 175.79, exitPrice: 175.60, pnl: -24.9 },
   ],
 };
 
@@ -350,31 +351,38 @@ const ActiveTrades = () => {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4 space-y-2.5">
+              <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4 space-y-3">
                 {activeTrades.map((trade) => {
                   const pnlColor = trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-                  const actionColor = trade.action === 'BUY' ? 'text-emerald-300' : 'text-red-300';
+                  const isProfit = trade.pnl >= 0;
 
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] p-3 transition hover:border-emerald-500/30 hover:shadow-[0_0_18px_rgba(16,185,129,0.08)]"
+                      className="rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] p-4 transition hover:border-emerald-500/30 hover:shadow-[0_0_18px_rgba(16,185,129,0.08)]"
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-semibold text-white">{formatTimestamp(trade.timestamp)}</div>
-                          <div className={`mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${actionColor}`}>
-                            {trade.action}
-                          </div>
+                      {/* Header: Date + P&L */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-sm font-semibold text-white">{formatTimestamp(trade.timestamp)}</div>
+                        <div className={`text-base font-bold ${pnlColor}`}>{formatMoney(trade.pnl)}</div>
+                      </div>
+                      
+                      {/* Entry / Exit prices */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1e1e2d] p-2.5">
+                          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Entry</div>
+                          <div className="text-sm font-semibold text-white">{formatPrice(trade.entryPrice)}</div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-xs font-semibold ${pnlColor}`}>{formatMoney(trade.pnl)}</div>
-                          <div className="text-[10px] text-gray-500">P&amp;L</div>
+                        <div className="text-gray-500">→</div>
+                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1e1e2d] p-2.5">
+                          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Exit</div>
+                          <div className={`text-sm font-semibold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>{formatPrice(trade.exitPrice)}</div>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
-                        <span>Price {formatPrice(trade.price)}</span>
-                        <span>Qty {trade.qty}</span>
+                      
+                      {/* Qty */}
+                      <div className="text-xs text-gray-400">
+                        Quantity: <span className="text-white font-medium">{trade.qty} shares</span>
                       </div>
                     </div>
                   );
