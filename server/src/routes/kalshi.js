@@ -1,132 +1,148 @@
-/**
- * Kalshi API Routes
- * Endpoints for prediction market data
- */
 import express from 'express';
-import { getKalshiMarkets, getKalshiEvents, getArbitrageOpportunities, kalshiClient } from '../services/kalshi.js';
 
 const router = express.Router();
 
 const toPercent = (value) => {
-  if (value === null || value === undefined) return null;
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
   return num <= 1 ? num * 100 : num;
 };
 
-const buildMarketFeed = (market) => {
-  const yesPercent = toPercent(market.kalshi?.yes);
-  const noPercent = toPercent(market.kalshi?.no) ?? (yesPercent != null ? 100 - yesPercent : null);
-  const volume = Number(market.kalshi?.volume || 0);
-  const yesVolume = yesPercent != null ? (volume * (yesPercent / 100)) : 0;
-  const noVolume = volume - yesVolume;
+const buildMarketFeed = (markets, { category, limit } = {}) => {
+  const normalized = (markets || []).map((market) => {
+    const yesRaw = market?.yes_ask ?? market?.last_price;
+    const noRaw = market?.no_ask;
+    const yesPercent = toPercent(yesRaw);
+    const noPercent = toPercent(
+      noRaw ?? (Number.isFinite(yesPercent) ? 100 - yesPercent : null)
+    );
+    const volume = Number(market?.volume || 0);
+    const safeYesPercent = Number.isFinite(yesPercent) ? yesPercent : 50;
+    const yesVolume = Number.isFinite(volume) ? volume * (safeYesPercent / 100) : 0;
+    const noVolume = Number.isFinite(volume) ? volume - yesVolume : 0;
+    const hasLiveFlag = market
+      && (Object.prototype.hasOwnProperty.call(market, 'is_live')
+        || Object.prototype.hasOwnProperty.call(market, 'event_live')
+        || Object.prototype.hasOwnProperty.call(market, 'live')
+        || Object.prototype.hasOwnProperty.call(market, 'in_play')
+        || Object.prototype.hasOwnProperty.call(market, 'inPlay'));
+    let liveFlags = null;
+    if (hasLiveFlag) {
+      const isLive = Boolean(market?.is_live)
+        || Boolean(market?.event_live)
+        || Boolean(market?.live)
+        || Boolean(market?.in_play)
+        || Boolean(market?.inPlay);
+      liveFlags = {
+        is_live: isLive,
+        live: isLive,
+        in_play: Boolean(market?.in_play ?? market?.inPlay),
+        event_live: Boolean(market?.event_live)
+      };
+    }
+
+    return {
+      id: market?.ticker || '',
+      title: market?.title || market?.ticker || '',
+      ticker: market?.ticker || '',
+      category: market?.category || 'Other',
+      yesPercent: Number.isFinite(yesPercent) ? yesPercent : null,
+      noPercent: Number.isFinite(noPercent) ? noPercent : null,
+      yesVolume,
+      noVolume,
+      volume,
+      closeTime: market?.close_time || market?.expiration_time || null,
+      status: market?.status || 'open',
+      ...(liveFlags || {})
+    };
+  });
+
+  let filtered = normalized;
+  if (category && category !== 'All') {
+    filtered = normalized.filter((market) => market.category === category);
+  }
+  if (Number.isFinite(limit) && limit > 0) {
+    filtered = filtered.slice(0, limit);
+  }
 
   return {
-    id: market.id,
-    title: market.event || market.id,
-    ticker: market.id,
-    category: market.category || 'Other',
-    yesPercent,
-    noPercent,
-    yesVolume,
-    noVolume,
-    volume,
-    closeTime: market.expiry,
-    status: market.status || 'open',
+    markets: filtered,
+    count: filtered.length
   };
 };
 
-// Get live Kalshi markets
 router.get('/markets', async (req, res) => {
-  try {
-    const requestedLimit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const fetchLimit = Math.min(Math.max(requestedLimit * 2, requestedLimit), 200);
-    const category = req.query.category;
-    
-    let markets = await getKalshiMarkets(fetchLimit);
-    
-    if (category && category !== 'All') {
-      markets = markets.filter(m => 
-        m.category?.toLowerCase().includes(category.toLowerCase())
-      );
+  const apiKey = process.env.KALSHI_API_KEY;
+  const apiSecret = process.env.KALSHI_API_SECRET;
+
+  if (!apiKey || !apiSecret) {
+    return res.status(500).json({
+      error: 'KALSHI_API_KEY and KALSHI_API_SECRET must be set'
+    });
+  }
+
+  const url = new URL('https://trading-api.kalshi.com/trade-api/v2/markets');
+  const rawLimit = Array.isArray(req.query?.limit) ? req.query.limit[0] : req.query?.limit;
+  const parsedLimit = Number(rawLimit);
+  const requestedLimit = Number.isFinite(parsedLimit) && parsedLimit > 0
+    ? Math.min(200, Math.floor(parsedLimit))
+    : 100;
+  const fetchLimit = Math.min(200, requestedLimit * 2);
+
+  const rawStatus = Array.isArray(req.query?.status) ? req.query.status[0] : req.query?.status;
+  const status = rawStatus ? String(rawStatus) : 'open';
+
+  url.searchParams.set('limit', String(fetchLimit));
+  url.searchParams.set('status', status);
+
+  for (const [key, value] of Object.entries(req.query || {})) {
+    if (key === 'limit' || key === 'category' || key === 'status') continue;
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        if (entry !== undefined && entry !== null) {
+          url.searchParams.append(key, String(entry));
+        }
+      });
+    } else if (value !== undefined && value !== null) {
+      url.searchParams.append(key, String(value));
     }
-
-    const feed = markets
-      .map(buildMarketFeed)
-      .sort((a, b) => (b.volume || 0) - (a.volume || 0));
-
-    res.json({
-      success: true,
-      count: feed.slice(0, requestedLimit).length,
-      markets: feed.slice(0, requestedLimit)
-    });
-  } catch (error) {
-    console.error('Error fetching markets:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Error fetching Kalshi markets' 
-    });
   }
-});
 
-// Get Kalshi events
-router.get('/events', async (req, res) => {
+  const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+
+  let response;
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 30, 100);
-    const events = await getKalshiEvents(limit);
-    
-    res.json({
-      success: true,
-      count: events.length,
-      events
+    response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Basic ${auth}`
+      }
     });
   } catch (error) {
-    console.error('Error fetching events:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Error fetching Kalshi events' 
-    });
+    return res.status(502).json({ error: 'Upstream request failed' });
   }
-});
 
-// Get arbitrage opportunities
-router.get('/arbitrage', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-    const opportunities = await getArbitrageOpportunities(limit);
-    
-    res.json({
-      success: true,
-      count: opportunities.length,
-      opportunities
-    });
-  } catch (error) {
-    console.error('Error calculating arbitrage:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Error calculating arbitrage opportunities' 
-    });
+  if (!response.ok) {
+    const text = await response.text();
+    return res.status(response.status).send(text);
   }
-});
 
-// Health check for Kalshi connection
-router.get('/health', async (req, res) => {
   try {
-    const markets = await kalshiClient.getMarkets(1);
-    const connected = markets.length > 0;
-    
-    res.json({
+    const data = await response.json();
+    const rawCategory = Array.isArray(req.query?.category)
+      ? req.query.category[0]
+      : req.query?.category;
+    const category = rawCategory ? String(rawCategory) : null;
+    const { markets, count } = buildMarketFeed(data?.markets, {
+      category,
+      limit: requestedLimit
+    });
+    return res.json({
       success: true,
-      kalshi_connected: connected,
-      api_key_set: !!kalshiClient.apiKey,
-      private_key_loaded: !!kalshiClient.privateKey
+      count,
+      markets
     });
   } catch (error) {
-    res.json({
-      success: false,
-      error: error.message,
-      kalshi_connected: false
-    });
+    return res.status(502).json({ error: 'Invalid JSON from upstream' });
   }
 });
 
