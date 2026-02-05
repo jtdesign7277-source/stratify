@@ -690,6 +690,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-700 flex-shrink-0">
                 <button onClick={() => setActiveSubTab('strategy')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Strategy</button>
                 <button onClick={() => setActiveSubTab('code')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Code</button>
+                <button onClick={handleReset} className="ml-auto p-1 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Start Over"><RotateCcw className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} /></button>
               </div>
             )}
             <div className="flex-1 overflow-y-auto min-h-0">
@@ -718,7 +719,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
             </div>
             {isStrategyTab && !activeTabData?.isTyping && activeTabData?.content && (
               <div className="flex gap-2 px-2 py-1.5 border-t border-gray-700 flex-shrink-0">
-                <button onClick={handleReset} className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-white transition-colors" title="Start Over"><RotateCcw className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} /></button>
                 <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
                 <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
               </div>
