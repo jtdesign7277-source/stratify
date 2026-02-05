@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Shield, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus } from 'lucide-react';
+import { useToast } from '../ui/Toast';
 
 const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [isConnectOpen, setIsConnectOpen] = useState(true);
+  const toast = useToast();
   // Home Active CTA style: matches the sidebar active "Home" tab look.
   const homeActiveButtonClass = 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 border border-emerald-400/30 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]';
   const homeActiveButtonHover = 'hover:from-emerald-500/40 hover:via-emerald-400/30 hover:to-emerald-500/20 hover:border-emerald-400/50';
@@ -116,6 +118,9 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
         maskedKey: `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`,
         balance: 0
       });
+      toast.success(`${selectedBroker.name} connected successfully`, {
+        title: 'Broker Connected',
+      });
       setSelectedBroker(null);
       setApiKey('');
       setSecretKey('');
@@ -124,7 +129,11 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   };
 
   const handleDisconnect = (brokerId) => {
+    const broker = connectedBrokers.find(b => b.id === brokerId);
     onBrokerDisconnect(brokerId);
+    toast.info(`${broker?.name || 'Broker'} disconnected`, {
+      title: 'Broker Disconnected',
+    });
   };
 
   const openApiPage = (url) => {

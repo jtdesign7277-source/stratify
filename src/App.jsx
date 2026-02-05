@@ -4,6 +4,7 @@ import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import { useAlpacaData } from './useAlpacaData';
+import { ToastProvider } from './components/ui/Toast';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -974,8 +975,16 @@ export default function StratifyApp() {
 
   // Landing page with runway-bg video background + Experience Stratify intro
   if (currentPage === 'landing') {
-    return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
+    return (
+      <ToastProvider>
+        <LandingPage onEnter={() => setCurrentPage('dashboard')} />
+      </ToastProvider>
+    );
   }
 
-  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: positions.length > 0 ? positions : stocks, account: account || { equity: 0, cash: 0, buying_power: 0 } }} />;
+  return (
+    <ToastProvider>
+      <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: positions.length > 0 ? positions : stocks, account: account || { equity: 0, cash: 0, buying_power: 0 } }} />
+    </ToastProvider>
+  );
 }

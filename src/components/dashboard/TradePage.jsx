@@ -5,6 +5,7 @@ import BreakingNewsBanner from './BreakingNewsBanner';
 import TickerTape from './TickerTape';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
+import { useToast } from '../ui/Toast';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -174,6 +175,7 @@ const buildQuote = (quote) => {
 };
 
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
+  const toast = useToast();
   const [activeMarket, setActiveMarket] = useState('equity');
   const [selectedEquity, setSelectedEquity] = useState(null);
   const [selectedCrypto, setSelectedCrypto] = useState(null);
@@ -451,8 +453,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         throw new Error(text || 'Order failed');
       }
       setOrderStatus({ state: 'success', message: 'Order placed successfully.' });
+      toast.success(`${orderSide === 'buy' ? 'Bought' : 'Sold'} ${orderQtyNumber} ${selectedTicker}`, {
+        title: 'Order Executed',
+      });
     } catch (err) {
       setOrderStatus({ state: 'error', message: err?.message || 'Order failed.' });
+      toast.error(err?.message || 'Order failed', {
+        title: 'Order Failed',
+      });
     }
   };
 
