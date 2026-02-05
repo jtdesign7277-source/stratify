@@ -480,11 +480,17 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
               <div className="flex flex-wrap gap-1 mb-1.5">
                 {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
-                  <button key={s} onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)} className={'px-2 py-0.5 rounded-lg text-xs font-medium transition-all ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30')}>${s}</button>
+                  <button
+                    key={s}
+                    onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
+                    className={'px-2 py-0.5 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/50 hover:bg-white/5')}
+                  >
+                    ${s}
+                  </button>
                 ))}
               </div>
               <div className="relative">
-                <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-2 py-1.5 hover:border-gray-600 transition-colors">
+                <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-2 py-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-white/5">
                   {isSearching ? <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /> : <Search className="w-4 h-4 text-gray-500" />}
                   <input type="text" value={tickerSearch} onChange={(e) => setTickerSearch(e.target.value.toUpperCase())} placeholder="Search any stock..." className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none" />
                   {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
@@ -550,7 +556,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
             </div>
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
-              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
+              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 hover:border-emerald-500/50 hover:bg-white/5 transition-colors" />
             </div>
           </div>
         )}
@@ -595,7 +601,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               </div>
             )}
             <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
-              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? "Hey there! How can I help you today? Whether you need assistance with generating a trading strategy, executing a trade, or have questions about the markets, I'm here to help." : "Ask Grok to modify this strategy..."} className="flex-1 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-blue-400 text-sm resize-none focus:outline-none focus:border-emerald-500/50 transition-colors overflow-hidden" style={{ minHeight: '52px', maxHeight: '120px' }} />
+              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."} className="flex-1 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 hover:border-emerald-500/50 hover:bg-white/5 transition-colors overflow-hidden" style={{ minHeight: '52px', maxHeight: '120px' }} />
               <button onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify} disabled={!chatInput.trim() || isChatLoading} className={'px-2 self-end rounded-lg transition-all h-9 ' + (chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600')}>{isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
             </div>
           </div>

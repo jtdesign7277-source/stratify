@@ -323,6 +323,39 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     setSavedStrategies(prev => prev.filter(s => s.id !== strategyId));
   };
 
+  const handleSelectTemplate = (template) => {
+    if (!template) return;
+    const winRate = parseFloat(template.metrics?.winRate) || 0;
+    const templateStrategy = {
+      id: template.id,
+      name: template.name,
+      type: template.category || 'Template',
+      status: 'draft',
+      winRate,
+      trades: 0,
+      pnl: 0,
+      description: template.description,
+      folderId: 'stratify-templates',
+      templateId: template.id,
+      source: 'template',
+      savedAt: Date.now(),
+    };
+
+    setSavedStrategies(prev => {
+      const existing = prev.find(s => s.id === templateStrategy.id);
+      if (existing) {
+        return prev.map(s =>
+          s.id === templateStrategy.id
+            ? { ...templateStrategy, ...s, folderId: 'stratify-templates' }
+            : s
+        );
+      }
+      return [...prev, templateStrategy];
+    });
+
+    setActiveTab('strategies');
+  };
+
   const handleDeployStrategy = (strategy) => {
     const nextStatus = strategy.status === 'paper' ? 'paper' : 'deployed';
 
@@ -543,7 +576,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             />
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
-          {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={() => setActiveTab('strategies')} />}
+          {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={handleSelectTemplate} />}
           {activeTab === 'active' && <ActiveTrades />}
         </div>
         

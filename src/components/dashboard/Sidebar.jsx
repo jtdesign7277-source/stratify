@@ -115,8 +115,12 @@ const Sidebar = ({
               onClick={() => setDeployedExpanded(!deployedExpanded)}
               className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider bg-white/5 backdrop-blur rounded-lg border border-white/10 hover:text-white/60 transition-all duration-200 hover:-translate-y-0.5"
             >
-              {deployedExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              <Play className="w-3 h-3 text-emerald-400" />
+              {deployedExpanded ? (
+                <ChevronDown className="w-3 h-3" strokeWidth={1.5} />
+              ) : (
+                <ChevronRight className="w-3 h-3" strokeWidth={1.5} />
+              )}
+              <Play className="w-3 h-3 text-emerald-400" strokeWidth={1.5} />
               <span>Live</span>
               <span className="ml-auto text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded">{liveStrategies.length}</span>
             </button>

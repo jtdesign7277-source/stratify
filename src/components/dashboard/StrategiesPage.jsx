@@ -18,7 +18,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
     ];
   });
 
-  const [expandedFolders, setExpandedFolders] = useState({ favorites: false, active: false, grok: false, uncategorized: false });
+  const [expandedFolders, setExpandedFolders] = useState({ 'stratify-templates': false, favorites: false, active: false, grok: false, uncategorized: false });
 
   const [strategyFolders, setStrategyFolders] = useState(() => {
     const saved = localStorage.getItem('stratify-strategy-folder-map');
@@ -51,6 +51,9 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
     }
     if (folderId === 'grok') {
       return strategies.filter(s => s.code || strategyFolders[s.id] === 'grok' || s.folderId === 'grok');
+    }
+    if (folderId === 'stratify-templates') {
+      return strategies.filter(s => strategyFolders[s.id] === 'stratify-templates' || s.folderId === 'stratify-templates');
     }
     if (folderId === 'favorites') {
       return strategies.filter(s => strategyFolders[s.id] === 'favorites' || s.folderId === 'favorites');
@@ -118,10 +121,10 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
   };
 
   const FolderIcon = ({ icon, color }) => {
-    if (icon === 'star') return <Star className="w-4 h-4" fill={color} stroke={color} />;
-    if (icon === 'play') return <Play className="w-4 h-4" fill={color} stroke={color} />;
-    if (icon === 'zap') return <Zap className="w-4 h-4" fill={color} stroke={color} />;
-    return <Folder className="w-4 h-4" stroke={color} fill={color} fillOpacity={0.2} />;
+    if (icon === 'star') return <Star className="w-4 h-4" fill="none" stroke={color} strokeWidth={1.5} />;
+    if (icon === 'play') return <Play className="w-4 h-4" fill="none" stroke={color} strokeWidth={1.5} />;
+    if (icon === 'zap') return <Zap className="w-4 h-4" fill="none" stroke={color} strokeWidth={1.5} />;
+    return <Folder className="w-4 h-4" stroke={color} fill={color} fillOpacity={0.2} strokeWidth={1.5} />;
   };
 
   const getStatusColor = (status) => {
@@ -315,11 +318,12 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
       {/* Folders List */}
       <div className="flex-1 overflow-auto">
         {/* System Folders */}
+        {renderFolder({ id: 'stratify-templates', name: 'STRATIFY', color: '#EF4444', icon: 'zap' }, true)}
         {renderFolder({ id: 'active', name: 'Active Strategies', color: '#10B981', icon: 'play' }, true)}
         {renderFolder({ id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' }, true)}
         
         {/* Custom Folders */}
-        {folders.filter(f => f.id !== 'favorites' && f.id !== 'active').map(folder => renderFolder(folder))}
+        {folders.filter(f => f.id !== 'favorites' && f.id !== 'active' && f.id !== 'stratify-templates').map(folder => renderFolder(folder))}
         
         {/* Uncategorized */}
         {renderFolder({ id: 'uncategorized', name: 'Uncategorized', color: '#6B7280', icon: 'folder' }, true)}

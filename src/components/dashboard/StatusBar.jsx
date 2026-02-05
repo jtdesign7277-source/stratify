@@ -9,7 +9,7 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
 
   const status = statusConfig[connectionStatus] || statusConfig.disconnected;
   const now = new Date();
-  const currentTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const currentTime = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
     <div className={`h-7 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border}`}>
