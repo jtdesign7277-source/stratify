@@ -4,6 +4,8 @@ import confetti from 'canvas-confetti';
 import { Share2, X } from 'lucide-react';
 import { PnLShareCard } from './PnLShareCard';
 
+const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+
 const strategiesSeed = [
   { id: 'nvda', symbol: 'NVDA', name: 'NVDA Momentum', status: 'Live', pnl: 1824.32, pnlPct: 2.8, heat: 88 },
   { id: 'aapl', symbol: 'AAPL', name: 'AAPL Mean Revert', status: 'Scaling', pnl: 642.15, pnlPct: 1.2, heat: 61 },
@@ -152,8 +154,41 @@ const ActiveTrades = () => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradePanelStrategy, setTradePanelStrategy] = useState(null);
+  const [livePrices, setLivePrices] = useState({});
   const confettiCanvasRef = useRef(null);
   const confettiInstanceRef = useRef(null);
+
+  // Fetch live prices for all symbols
+  useEffect(() => {
+    const fetchPrices = async () => {
+      const symbols = strategiesSeed.map(s => s.symbol);
+      const prices = {};
+      
+      await Promise.all(
+        symbols.map(async (symbol) => {
+          try {
+            const res = await fetch(`${API_URL}/api/public/quote/${symbol}`);
+            if (res.ok) {
+              const data = await res.json();
+              prices[symbol] = {
+                price: data.price || data.regularMarketPrice || data.lastPrice,
+                change: data.change || data.regularMarketChange,
+                changePercent: data.changePercent || data.regularMarketChangePercent,
+              };
+            }
+          } catch (err) {
+            console.error(`Failed to fetch ${symbol}:`, err);
+          }
+        })
+      );
+      
+      setLivePrices(prices);
+    };
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -286,9 +321,16 @@ const ActiveTrades = () => {
                   </div>
                 </div>
 
-                {/* Row 2: Strategy Name */}
-                <div className="text-xs font-semibold text-white mb-1.5 truncate">
-                  {strategy.name}
+                {/* Row 2: Strategy Name + Live Price */}
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="text-xs font-semibold text-white truncate">
+                    {strategy.name}
+                  </div>
+                  {livePrices[strategy.symbol] && (
+                    <div className="text-xs font-mono text-gray-300">
+                      ${livePrices[strategy.symbol].price?.toFixed(2)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Row 3: P&L + Signal Bars */}
