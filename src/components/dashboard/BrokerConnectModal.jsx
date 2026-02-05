@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { validateKalshiCredentials, setKalshiCredentials } from '../../lib/kalshi';
 
 // Broker logos as simple icons
 const BrokerIcon = ({ broker, className = "w-8 h-8" }) => {
@@ -173,25 +174,58 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
     ? brokers 
     : brokers.filter(b => b.category === filter);
 
+  const [connectError, setConnectError] = useState('');
+
   const handleConnect = async () => {
     if (!apiKey || !secretKey) return;
     
     setConnecting(true);
-    // Simulate connection
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    setConnectError('');
     
-    onConnect({
-      id: selectedBroker.id,
-      name: selectedBroker.name,
-      apiKey: apiKey.slice(0, 8) + '...',
-      connectedAt: Date.now(),
-      status: 'connected'
-    });
-    
-    setConnecting(false);
-    setSelectedBroker(null);
-    setApiKey('');
-    setSecretKey('');
+    try {
+      // Special handling for Kalshi - validate credentials and get balance
+      if (selectedBroker.id === 'kalshi') {
+        const result = await validateKalshiCredentials(apiKey, secretKey);
+        
+        if (!result.valid) {
+          setConnectError(result.error || 'Invalid credentials');
+          setConnecting(false);
+          return;
+        }
+        
+        // Credentials are valid - store them
+        setKalshiCredentials(apiKey, secretKey);
+        
+        onConnect({
+          id: selectedBroker.id,
+          name: selectedBroker.name,
+          apiKey: apiKey.slice(0, 8) + '...',
+          connectedAt: Date.now(),
+          status: 'connected',
+          balance: result.balance,
+          availableBalance: result.availableBalance,
+        });
+      } else {
+        // For other brokers, simulate connection (TODO: implement each)
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        onConnect({
+          id: selectedBroker.id,
+          name: selectedBroker.name,
+          apiKey: apiKey.slice(0, 8) + '...',
+          connectedAt: Date.now(),
+          status: 'connected'
+        });
+      }
+      
+      setConnecting(false);
+      setSelectedBroker(null);
+      setApiKey('');
+      setSecretKey('');
+    } catch (error) {
+      setConnectError(error.message || 'Connection failed');
+      setConnecting(false);
+    }
   };
 
   const isConnected = (brokerId) => connectedBrokers.some(b => b.id === brokerId);
@@ -323,6 +357,22 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                     <strong>🔒 Secure:</strong> Your keys are encrypted and stored locally. We never have access to your funds.
                   </p>
                 </div>
+
+                {connectError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                    <p className="text-xs text-red-400">
+                      <strong>❌ Error:</strong> {connectError}
+                    </p>
+                  </div>
+                )}
+
+                {selectedBroker?.id === 'kalshi' && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                    <p className="text-xs text-amber-300">
+                      <strong>📝 Note:</strong> For Kalshi, paste your full Private Key (PEM format) in the Secret Key field.
+                    </p>
+                  </div>
+                )}
 
                 <button
                   onClick={handleConnect}

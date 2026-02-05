@@ -507,6 +507,9 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               connectedBrokers={connectedBrokers}
               onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
               onBrokerDisconnect={(brokerId) => setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId))}
+              onBrokerUpdate={(brokerId, updates) => setConnectedBrokers(prev => 
+                prev.map(b => b.id === brokerId ? { ...b, ...updates } : b)
+              )}
             />
           )}
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}

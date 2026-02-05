@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Shield, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Shield, Settings2, Link2, X, ExternalLink, Key, Lock, CheckCircle, Plus, RefreshCw } from 'lucide-react';
+import { getKalshiBalance, hasKalshiCredentials } from '../../lib/kalshi';
 
-const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
+const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerUpdate }) => {
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
@@ -126,6 +127,28 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   const handleDisconnect = (brokerId) => {
     onBrokerDisconnect(brokerId);
   };
+
+  const [refreshingBalance, setRefreshingBalance] = useState(null);
+
+  const handleRefreshBalance = useCallback(async (brokerId) => {
+    if (brokerId === 'kalshi' && hasKalshiCredentials()) {
+      setRefreshingBalance(brokerId);
+      try {
+        const balanceData = await getKalshiBalance();
+        // Update the broker with new balance
+        if (onBrokerUpdate) {
+          onBrokerUpdate(brokerId, {
+            balance: balanceData.balance,
+            availableBalance: balanceData.availableBalance,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to refresh Kalshi balance:', error);
+      } finally {
+        setRefreshingBalance(null);
+      }
+    }
+  }, [onBrokerUpdate]);
 
   const openApiPage = (url) => {
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -406,6 +429,23 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
                         <div className="text-gray-500 text-xs font-mono mt-1">
                           API Key: {account.maskedKey}
                         </div>
+                        {account.balance !== undefined && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-emerald-400 text-sm font-semibold">
+                              Balance: ${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            {account.id === 'kalshi' && (
+                              <button
+                                onClick={() => handleRefreshBalance(account.id)}
+                                disabled={refreshingBalance === account.id}
+                                className="text-gray-400 hover:text-emerald-400 transition-colors"
+                                title="Refresh balance"
+                              >
+                                <RefreshCw className={`w-3.5 h-3.5 ${refreshingBalance === account.id ? 'animate-spin' : ''}`} />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button
