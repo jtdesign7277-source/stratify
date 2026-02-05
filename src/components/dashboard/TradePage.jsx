@@ -107,6 +107,24 @@ const getCryptoDisplaySymbol = (symbol) => {
   return normalized;
 };
 
+const getTradingViewSymbol = (symbol, market) => {
+  if (!symbol) return symbol;
+  if (symbol.includes(':')) {
+    if (market === 'crypto') {
+      const normalized = symbol.split(':')[1] || symbol;
+      const base = getCryptoDisplaySymbol(normalized);
+      return base ? `COINBASE:${base}USD` : symbol;
+    }
+    return symbol;
+  }
+  if (market === 'crypto') {
+    if (CRYPTO_TV_MAP[symbol]) return CRYPTO_TV_MAP[symbol];
+    const base = getCryptoDisplaySymbol(symbol);
+    return base ? `COINBASE:${base}USD` : symbol;
+  }
+  return symbol;
+};
+
 const normalizeCryptoQuoteSymbol = (symbol) => {
   if (!symbol) return symbol;
   let normalized = symbol.includes(':') ? symbol.split(':')[1] : symbol;
@@ -116,15 +134,11 @@ const normalizeCryptoQuoteSymbol = (symbol) => {
   return `${normalized}-USD`;
 };
 
-const getTradingViewSymbol = (symbol, market) => {
-  if (!symbol) return symbol;
-  if (symbol.includes(':')) return symbol;
-  if (market === 'crypto') {
-    if (CRYPTO_TV_MAP[symbol]) return CRYPTO_TV_MAP[symbol];
-    const base = getCryptoDisplaySymbol(symbol);
-    return base ? `COINBASE:${base}USD` : symbol;
-  }
-  return symbol;
+const normalizeCryptoWatchlistItem = (item) => {
+  const normalized = normalizeWatchlistItem(item);
+  const normalizedSymbol = normalizeCryptoQuoteSymbol(normalized.symbol);
+  const displaySymbol = normalized.displaySymbol || getCryptoDisplaySymbol(normalizedSymbol);
+  return { ...normalized, symbol: normalizedSymbol, displaySymbol };
 };
 
 const toNumber = (value) => {
@@ -174,9 +188,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [cryptoWatchlist, setCryptoWatchlist] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-crypto-watchlist');
-      return saved ? JSON.parse(saved).map(normalizeWatchlistItem) : DEFAULT_CRYPTO_WATCHLIST;
+      return saved
+        ? JSON.parse(saved).map(normalizeCryptoWatchlistItem)
+        : DEFAULT_CRYPTO_WATCHLIST.map(normalizeCryptoWatchlistItem);
     } catch {
-      return DEFAULT_CRYPTO_WATCHLIST;
+      return DEFAULT_CRYPTO_WATCHLIST.map(normalizeCryptoWatchlistItem);
     }
   });
   const [orderSide, setOrderSide] = useState('buy');
@@ -247,7 +263,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   // Fetch quote snapshot via Railway backend
   const fetchSnapshot = useCallback(async (symbol) => {
     try {
-      const res = await fetch(`${API_URL}/api/snapshot/${symbol}`);
+      const url = new URL(`${API_URL}/api/snapshot/${encodeURIComponent(symbol)}`);
+      url.searchParams.set('t', Date.now());
+      const res = await fetch(url.toString(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (!res.ok) return null;
       const data = await res.json();
       return buildQuote(data);
@@ -260,7 +281,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const fetchCryptoQuote = useCallback(async (symbol) => {
     try {
       const normalizedSymbol = normalizeCryptoQuoteSymbol(symbol);
-      const res = await fetch(`${API_URL}/api/public/quote/${encodeURIComponent(normalizedSymbol)}`);
+      const url = new URL(`${API_URL}/api/public/quote/${encodeURIComponent(normalizedSymbol)}`);
+      url.searchParams.set('t', Date.now());
+      const res = await fetch(url.toString(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (!res.ok) return null;
       const data = await res.json();
       return buildQuote(data);
@@ -376,9 +402,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
   const handleAddStock = (stock) => {
     if (activeMarket === 'crypto') {
+      const normalizedStock = normalizeCryptoWatchlistItem(stock);
       setCryptoWatchlist(prev => {
-        if (prev.some(s => s.symbol === stock.symbol)) return prev;
-        return [...prev, { symbol: stock.symbol, name: stock.name, displaySymbol: stock.displaySymbol }];
+        if (prev.some(s => s.symbol === normalizedStock.symbol)) return prev;
+        return [...prev, normalizedStock];
       });
     } else if (onAddToWatchlist) {
       onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
