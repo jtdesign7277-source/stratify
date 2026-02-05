@@ -325,10 +325,10 @@ const ActiveTrades = () => {
               onClick={() => setTradePanelOpen(false)}
             />
             <motion.aside
-              className="fixed right-0 top-0 z-50 h-full w-full sm:w-[420px] bg-[#0f0f16] border-l border-[#1e1e2d] shadow-[0_0_45px_rgba(0,0,0,0.6)] flex flex-col"
-              initial={{ x: '100%' }}
+              className="fixed left-0 top-0 z-50 h-full w-full sm:w-[420px] bg-[#0f0f16] border-r border-[#1e1e2d] shadow-[0_0_45px_rgba(0,0,0,0.6)] flex flex-col"
+              initial={{ x: '-100%' }}
               animate={{ x: 0 }}
-              exit={{ x: '100%' }}
+              exit={{ x: '-100%' }}
               transition={{ type: 'spring', stiffness: 260, damping: 32 }}
             >
               <div className="px-5 pt-5 pb-4 border-b border-[#1e1e2d] bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_60%)]">
