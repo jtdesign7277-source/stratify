@@ -35,7 +35,7 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
         <MarketStatusIndicator compact />
         <span className={`text-xs ${themeClasses.textMuted}`}>{currentTime}</span>
         <span className={`text-xs ${themeClasses.textMuted}`}>Build 1.0.0</span>
-        <span className={`text-xs ${themeClasses.textMuted}`}>MARKET DATA POWERED BY <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ALPACA</a></span>
+        <span className={`text-xs ${themeClasses.textMuted}`}>MARKET DATA POWERED BY <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">ALPACA</a></span>
       </div>
     </div>
   );
