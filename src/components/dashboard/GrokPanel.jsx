@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 const GROK_LOADING_STEPS = ['Analyzing', 'Building', 'Testing'];
+const GROK_WELCOME_MESSAGE = "Hey there! How can I help you today? Whether you need assistance with generating a trading strategy, executing a trade, or have questions about the markets, I'm here to help.";
 
 // Premium loading overlay component
 const GrokLoadingOverlay = ({ isVisible }) => {
@@ -283,7 +284,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState(null);
   const [selectedChartTimeframe, setSelectedChartTimeframe] = useState(null);
   const [selectedQuickStrategy, setSelectedQuickStrategy] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([{ role: 'assistant', content: GROK_WELCOME_MESSAGE, isIntro: true }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -339,7 +340,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const removeTicker = (symbol) => { const newTickers = selectedTickers.filter(s => s !== symbol); setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); };
   const getTickerPrefix = (tickers) => { if (!tickers || tickers.length === 0) return ''; if (tickers.length === 1) return '$' + tickers[0] + ' - '; if (tickers.length === 2) return '$' + tickers[0] + '/$' + tickers[1] + ' - '; return '$' + tickers[0] + '+ - '; };
   const updateStrategyNameWithTickers = (tickers, strategyType = null) => { const prefix = getTickerPrefix(tickers); const currentName = strategyName; const dashIndex = currentName.indexOf(' - '); const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : ''; if (strategyType) { setStrategyName(prefix + strategyType); } else if (existingSuffix) { setStrategyName(prefix + existingSuffix); } else if (prefix) { setStrategyName(prefix); } };
-  const handleReset = () => { setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
+  const handleReset = () => { setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: GROK_WELCOME_MESSAGE, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); };
   const closeTab = (tabId) => { if (tabId === 'chat') return; setTabs(prev => prev.filter(t => t.id !== tabId)); if (activeTab === tabId) { setActiveTab('chat'); } };
 
   const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
@@ -465,32 +466,25 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     <div className="w-96 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden relative">
       {/* Premium loading overlay */}
       <GrokLoadingOverlay isVisible={isGenerating} />
-      
-      <div className="flex items-center justify-end px-3 py-1.5 border-b border-gray-800 flex-shrink-0">
-        <div className="flex items-center gap-1">
-          <button onClick={handleReset} className="p-1.5 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-4 h-4" strokeWidth={1.5} /></button>
-          <button onClick={() => setIsCollapsed(true)} className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"><ChevronsRight className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
-        </div>
-      </div>
 
-      <div className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-hidden">
+      <div className="flex-1 p-2 flex flex-col gap-1 min-h-0 overflow-hidden">
         {activeTab === 'chat' && (
           <div className="flex-shrink-0 space-y-2 overflow-y-auto">
             <div>
-              <label className="text-gray-300 text-xs font-semibold mb-1.5 block">TICKER</label>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-gray-300 text-xs font-semibold">TICKER</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={handleReset} className="p-1 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Reset"><RotateCcw className="w-3.5 h-3.5" strokeWidth={1.6} /></button>
+                  <button onClick={() => setIsCollapsed(true)} className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none" title="Collapse"><ChevronsRight className="w-3.5 h-3.5 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-1 mb-1.5">
                 {['QQQ', 'SPY', 'TSLA', 'NVDA', 'BTC'].map(s => (
-                  <button
-                    key={s}
-                    onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)}
-                    className={'px-2 py-0.5 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/50 hover:bg-white/5')}
-                  >
-                    ${s}
-                  </button>
+                  <button key={s} onClick={() => selectedTickers.includes(s) ? removeTicker(s) : addTicker(s)} className={'px-2 py-0.5 rounded-lg text-xs font-medium transition-all ' + (selectedTickers.includes(s) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[#111118] text-[#e5e5e5] border border-gray-700 hover:border-emerald-500/30')}>${s}</button>
                 ))}
               </div>
               <div className="relative">
-                <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-2 py-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-white/5">
+                <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-2 py-1.5 hover:border-gray-600 transition-colors">
                   {isSearching ? <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /> : <Search className="w-4 h-4 text-gray-500" />}
                   <input type="text" value={tickerSearch} onChange={(e) => setTickerSearch(e.target.value.toUpperCase())} placeholder="Search any stock..." className="flex-1 bg-transparent text-[#e5e5e5] placeholder-gray-500 text-sm outline-none" />
                   {tickerSearch && <button onClick={() => setTickerSearch('')}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>}
@@ -556,7 +550,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
             </div>
             <div>
               <label className="text-gray-300 text-xs font-semibold mb-1.5 block">NAME</label>
-              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 hover:border-emerald-500/50 hover:bg-white/5 transition-colors" />
+              <input type="text" value={strategyName} onChange={(e) => setStrategyName(e.target.value)} placeholder="Strategy name..." className="w-full px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
           </div>
         )}
@@ -578,7 +572,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
                       <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
                         <div className={'max-w-[90%] rounded-lg px-2 py-1.5 ' + (m.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-[#111118] text-[#e5e5e5]')}>
                           {m.role === 'assistant' && m.isTyping && <div className="flex items-center gap-1 mb-1"><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" /></div>}
-                          <div className="text-sm leading-relaxed">{renderContent(m.content, i)}</div>
+                          <div className={'text-sm leading-relaxed' + (m.isIntro ? ' text-blue-400' : '')}>{renderContent(m.content, i)}</div>
                         </div>
                       </div>
                     ))}
@@ -601,7 +595,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
               </div>
             )}
             <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
-              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? "Ask Grok..." : "Ask Grok to modify this strategy..."} className="flex-1 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 hover:border-emerald-500/50 hover:bg-white/5 transition-colors overflow-hidden" style={{ minHeight: '52px', maxHeight: '120px' }} />
+              <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? 'Ask Grok...' : "Ask Grok to modify this strategy..."} className="flex-1 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 transition-colors overflow-hidden" style={{ minHeight: '52px', maxHeight: '120px' }} />
               <button onClick={activeTab === 'chat' ? handleChatSend : handleStrategyModify} disabled={!chatInput.trim() || isChatLoading} className={'px-2 self-end rounded-lg transition-all h-9 ' + (chatInput.trim() && !isChatLoading ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gray-800 text-gray-600')}>{isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
             </div>
           </div>
