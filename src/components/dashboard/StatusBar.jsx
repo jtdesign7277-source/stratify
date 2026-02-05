@@ -1,6 +1,19 @@
+import { useState, useEffect } from 'react';
 import MarketStatusIndicator from './MarketStatusIndicator';
 
 export default function StatusBar({ connectionStatus, theme, themeClasses, onOpenNewsletter }) {
+  const [currentTime, setCurrentTime] = useState('');
+  
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const statusConfig = {
     connected: { color: 'bg-emerald-500', textColor: 'text-emerald-400' },
     connecting: { color: 'bg-yellow-500', textColor: 'text-yellow-400' },
@@ -8,8 +21,6 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
   };
 
   const status = statusConfig[connectionStatus] || statusConfig.disconnected;
-  const now = new Date();
-  const currentTime = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
   return (
     <div className={`h-7 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-t ${themeClasses.border}`}>
