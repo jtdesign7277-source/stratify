@@ -38,24 +38,34 @@ const formatDateKey = (date) => {
   return date.toISOString().split('T')[0];
 };
 
-const getMinutesFromMidnight = (date) => {
-  return date.getHours() * 60 + date.getMinutes();
+const getSecondsFromMidnight = (date) => {
+  return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
 };
 
-const formatCountdown = (minutes) => {
-  if (minutes <= 0) return '0m';
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+const formatCountdown = (totalSeconds) => {
+  if (totalSeconds <= 0) return '0s';
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
   if (hours > 0) {
-    return `${hours}h ${mins}m`;
+    return `${hours}h ${mins}m ${secs}s`;
   }
-  return `${mins}m`;
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  }
+  return `${secs}s`;
 };
 
 const getMarketState = (etDate) => {
   const day = etDate.getDay();
-  const minutes = getMinutesFromMidnight(etDate);
+  const seconds = getSecondsFromMidnight(etDate);
   const dateKey = formatDateKey(etDate);
+  
+  // Convert market hours to seconds
+  const preMarketOpenSec = MARKET_HOURS.preMarketOpen * 60;
+  const regularOpenSec = MARKET_HOURS.regularOpen * 60;
+  const regularCloseSec = MARKET_HOURS.regularClose * 60;
+  const afterHoursCloseSec = MARKET_HOURS.afterHoursClose * 60;
   
   // Check if it's a holiday
   if (HOLIDAYS_2026[dateKey]) {
@@ -82,11 +92,11 @@ const getMarketState = (etDate) => {
   
   // Check for early close days
   const earlyClose = EARLY_CLOSES_2026[dateKey];
-  const closeTime = earlyClose ? earlyClose.closeTime : MARKET_HOURS.regularClose;
+  const closeTimeSec = earlyClose ? earlyClose.closeTime * 60 : regularCloseSec;
   
   // Pre-market: 4:00 AM - 9:30 AM
-  if (minutes >= MARKET_HOURS.preMarketOpen && minutes < MARKET_HOURS.regularOpen) {
-    const countdown = MARKET_HOURS.regularOpen - minutes;
+  if (seconds >= preMarketOpenSec && seconds < regularOpenSec) {
+    const countdown = regularOpenSec - seconds;
     return {
       status: 'premarket',
       label: 'Pre-Market',
@@ -97,8 +107,8 @@ const getMarketState = (etDate) => {
   }
   
   // Regular hours: 9:30 AM - 4:00 PM (or early close)
-  if (minutes >= MARKET_HOURS.regularOpen && minutes < closeTime) {
-    const countdown = closeTime - minutes;
+  if (seconds >= regularOpenSec && seconds < closeTimeSec) {
+    const countdown = closeTimeSec - seconds;
     return {
       status: 'open',
       label: earlyClose ? `Open (Early Close)` : 'Market Open',
@@ -109,8 +119,8 @@ const getMarketState = (etDate) => {
   }
   
   // After-hours: 4:00 PM - 8:00 PM (only if not early close day)
-  if (!earlyClose && minutes >= MARKET_HOURS.regularClose && minutes < MARKET_HOURS.afterHoursClose) {
-    const countdown = MARKET_HOURS.afterHoursClose - minutes;
+  if (!earlyClose && seconds >= regularCloseSec && seconds < afterHoursCloseSec) {
+    const countdown = afterHoursCloseSec - seconds;
     return {
       status: 'afterhours',
       label: 'After-Hours',
@@ -121,12 +131,12 @@ const getMarketState = (etDate) => {
   }
   
   // Closed (before pre-market or after after-hours)
-  let nextOpenMinutes;
-  if (minutes < MARKET_HOURS.preMarketOpen) {
-    nextOpenMinutes = MARKET_HOURS.preMarketOpen - minutes;
+  let nextOpenSeconds;
+  if (seconds < preMarketOpenSec) {
+    nextOpenSeconds = preMarketOpenSec - seconds;
   } else {
     // After market close, next pre-market is tomorrow
-    nextOpenMinutes = (24 * 60 - minutes) + MARKET_HOURS.preMarketOpen;
+    nextOpenSeconds = (24 * 3600 - seconds) + preMarketOpenSec;
   }
   
   return {
@@ -134,7 +144,7 @@ const getMarketState = (etDate) => {
     label: 'Market Closed',
     color: 'gray',
     nextEvent: 'Pre-market opens',
-    countdown: nextOpenMinutes,
+    countdown: nextOpenSeconds,
   };
 };
 
