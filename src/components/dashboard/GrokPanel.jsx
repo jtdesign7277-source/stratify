@@ -297,6 +297,8 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const messagesEndRef = useRef(null);
   const introTypingRef = useRef(null);
   const inputRef = useRef(null);
+  const chatTypewriterRef = useRef(null);
+  const chatBufferRef = useRef('');
 
   useEffect(() => {
     if (inputRef.current) {
@@ -317,7 +319,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
     if (introTypingRef.current) return;
     let idx = 0;
     introTypingRef.current = setInterval(() => {
-      idx += 10;
+      idx += 1;
       setMessages(prev => {
         const next = [...prev];
         const current = next[introIndex];
@@ -333,7 +335,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
         next[introIndex] = { ...current, content: GROK_WELCOME_MESSAGE.slice(0, idx), isTyping: true };
         return next;
       });
-    }, 5);
+    }, 15);
   }, [messages]);
 
   useEffect(() => {
@@ -369,7 +371,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   const removeTicker = (symbol) => { const newTickers = selectedTickers.filter(s => s !== symbol); setSelectedTickers(newTickers); updateStrategyNameWithTickers(newTickers); };
   const getTickerPrefix = (tickers) => { if (!tickers || tickers.length === 0) return ''; if (tickers.length === 1) return '$' + tickers[0] + ' - '; if (tickers.length === 2) return '$' + tickers[0] + '/$' + tickers[1] + ' - '; return '$' + tickers[0] + '+ - '; };
   const updateStrategyNameWithTickers = (tickers, strategyType = null) => { const prefix = getTickerPrefix(tickers); const currentName = strategyName; const dashIndex = currentName.indexOf(' - '); const existingSuffix = dashIndex > -1 ? currentName.slice(dashIndex + 3) : ''; if (strategyType) { setStrategyName(prefix + strategyType); } else if (existingSuffix) { setStrategyName(prefix + existingSuffix); } else if (prefix) { setStrategyName(prefix); } };
-  const handleReset = () => { if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; } setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); setIsAwaitingFirstToken(false); };
+  const handleReset = () => { if (introTypingRef.current) { clearInterval(introTypingRef.current); introTypingRef.current = null; } if (chatTypewriterRef.current) { clearInterval(chatTypewriterRef.current); chatTypewriterRef.current = null; } chatBufferRef.current = ''; setSelectedTickers([]); setSelectedStrategy(null); setStrategyName(''); setSelectedTimeframe(null); setMessages([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]); setChatInput(''); setTickerSearch(''); setTabs([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]); setActiveTab('chat'); setStrategyCounter(0); setActiveSubTab('strategy'); setSelectedQuickStrategy(null); setIsAwaitingFirstToken(false); };
   const closeTab = (tabId) => { if (tabId === 'chat') return; setTabs(prev => prev.filter(t => t.id !== tabId)); if (activeTab === tabId) { setActiveTab('chat'); } };
 
   const streamGrokResponse = async (response, { onDelta, onDone, onFirstToken }) => {
@@ -462,36 +464,55 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
       setMessages(prev => [...prev, { role: 'user', content: userMsg }, { role: 'assistant', content: '', isTyping: true }]);
       setIsChatLoading(true);
       setIsAwaitingFirstToken(true);
+      chatBufferRef.current = '';
+      let displayedLength = 0;
+      let streamDone = false;
+      
+      // Start typewriter interval
+      if (chatTypewriterRef.current) clearInterval(chatTypewriterRef.current);
+      chatTypewriterRef.current = setInterval(() => {
+        if (displayedLength < chatBufferRef.current.length) {
+          displayedLength += 1;
+          const displayed = chatBufferRef.current.slice(0, displayedLength);
+          setMessages(prev => {
+            const msgs = [...prev];
+            const lastIndex = msgs.length - 1;
+            if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+              msgs[lastIndex] = { ...msgs[lastIndex], content: displayed, isTyping: true };
+            }
+            return msgs;
+          });
+        } else if (streamDone && displayedLength >= chatBufferRef.current.length) {
+          clearInterval(chatTypewriterRef.current);
+          chatTypewriterRef.current = null;
+          const finalContent = chatBufferRef.current || "Couldn't respond.";
+          setMessages(prev => {
+            const msgs = [...prev];
+            const lastIndex = msgs.length - 1;
+            if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+              msgs[lastIndex] = { ...msgs[lastIndex], content: finalContent, isTyping: false };
+            }
+            return msgs;
+          });
+          setIsChatLoading(false);
+          setIsAwaitingFirstToken(false);
+        }
+      }, 12);
+      
       try {
         const response = await fetch(API_BASE + '/api/v1/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg, stream: true }) });
         if (!response.ok) throw new Error('Failed');
-        let accumulated = '';
         await streamGrokResponse(response, {
           onFirstToken: () => setIsAwaitingFirstToken(false),
           onDelta: (delta) => {
-            accumulated += delta;
-            setMessages(prev => {
-              const msgs = [...prev];
-              const lastIndex = msgs.length - 1;
-              if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
-                msgs[lastIndex] = { ...msgs[lastIndex], content: accumulated, isTyping: true };
-              }
-              return msgs;
-            });
+            chatBufferRef.current += delta;
           },
           onDone: () => {
-            const finalContent = accumulated || "Couldn't respond.";
-            setMessages(prev => {
-              const msgs = [...prev];
-              const lastIndex = msgs.length - 1;
-              if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
-                msgs[lastIndex] = { ...msgs[lastIndex], content: finalContent, isTyping: false };
-              }
-              return msgs;
-            });
+            streamDone = true;
           },
         });
       } catch (e) {
+        if (chatTypewriterRef.current) { clearInterval(chatTypewriterRef.current); chatTypewriterRef.current = null; }
         setMessages(prev => {
           const msgs = [...prev];
           const lastIndex = msgs.length - 1;
@@ -502,8 +523,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
           }
           return msgs;
         });
+        setIsChatLoading(false);
+        setIsAwaitingFirstToken(false);
       }
-      finally { setIsChatLoading(false); setIsAwaitingFirstToken(false); }
     }
   };
 
