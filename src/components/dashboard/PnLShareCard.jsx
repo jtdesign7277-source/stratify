@@ -46,70 +46,73 @@ const CardSparkline = ({ data, color = '#10b981', height = 60 }) => {
 const ShareCardContent = ({ data, variant = 'default' }) => {
   const isPositive = data.pnl >= 0;
   const pnlColor = isPositive ? '#10b981' : '#ef4444';
-  
+  const avgPerTrade = data.trades ? data.pnl / data.trades : 0;
+  const range = Math.max(...data.chartData) - Math.min(...data.chartData);
+
   const variants = {
     default: {
-      bg: 'from-[#060d18] via-[#0a1628] to-[#0d1a2d]',
-      accent: 'from-emerald-500 to-cyan-500',
-      glow: 'rgba(16, 185, 129, 0.15)'
+      bg: 'from-[#0b1220] via-[#0a172a] to-[#0d1e35]',
+      accent: 'from-emerald-400 to-cyan-400',
+      glow: 'rgba(16, 185, 129, 0.18)'
     },
     fire: {
-      bg: 'from-[#1a0a0a] via-[#2d1010] to-[#1a0505]',
+      bg: 'from-[#1b0b0b] via-[#281010] to-[#1a0a0a]',
       accent: 'from-orange-500 to-red-500',
-      glow: 'rgba(249, 115, 22, 0.2)'
+      glow: 'rgba(249, 115, 22, 0.22)'
     },
     superbowl: {
-      bg: 'from-[#0a1a0a] via-[#0d2818] to-[#051a10]',
+      bg: 'from-[#0a1a12] via-[#0d2418] to-[#0a1d14]',
       accent: 'from-emerald-400 to-green-500',
-      glow: 'rgba(16, 185, 129, 0.2)'
+      glow: 'rgba(16, 185, 129, 0.22)'
     },
     whale: {
-      bg: 'from-[#0a0a1a] via-[#101028] to-[#05051a]',
+      bg: 'from-[#0b0d1f] via-[#11162c] to-[#0b1024]',
       accent: 'from-blue-500 to-purple-500',
-      glow: 'rgba(99, 102, 241, 0.2)'
+      glow: 'rgba(99, 102, 241, 0.22)'
     }
   };
-  
+
   const v = variants[variant] || variants.default;
-  
+
   return (
-    <div 
-      className={`relative w-[400px] h-[500px] bg-gradient-to-br ${v.bg} rounded-2xl overflow-hidden`}
+    <div
+      className={`relative w-[420px] h-[520px] rounded-2xl overflow-hidden bg-gradient-to-br ${v.bg}`}
       style={{ fontFamily: "'SF Pro Display', -apple-system, sans-serif" }}
     >
       {/* Background effects */}
       <div className="absolute inset-0">
-        {/* Grid pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
+        <div
+          className="absolute inset-0 opacity-[0.04]"
           style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '20px 20px'
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)`,
+            backgroundSize: '18px 18px'
           }}
         />
-        {/* Glow effect */}
-        <div 
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full blur-[100px]"
+        <div
+          className="absolute -top-12 right-0 w-40 h-40 rounded-full blur-[90px]"
           style={{ backgroundColor: v.glow }}
         />
-        {/* Corner accents */}
-        <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${v.accent} opacity-10 blur-2xl`} />
-        <div className={`absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr ${v.accent} opacity-10 blur-2xl`} />
+        <div
+          className="absolute -bottom-10 left-0 w-40 h-40 rounded-full blur-[90px]"
+          style={{ backgroundColor: v.glow }}
+        />
       </div>
-      
-      {/* Content */}
-      <div className="relative h-full flex flex-col p-6">
+
+      <div className="relative h-full flex flex-col p-5">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${v.accent} flex items-center justify-center`}>
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <span className="text-white font-semibold tracking-tight">Stratify</span>
+            <div>
+              <div className="text-white font-semibold leading-tight">Stratify</div>
+              <div className="text-[10px] text-white/50 uppercase tracking-widest">Share Card</div>
+            </div>
           </div>
           {data.badge && (
-            <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${v.accent} text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1`}>
+            <div className={`px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-semibold text-white uppercase tracking-wider flex items-center gap-1 border border-white/10`}>
               {data.badge === 'superbowl' && <Trophy className="w-3 h-3" />}
               {data.badge === 'streak' && <Flame className="w-3 h-3" />}
               {data.badge === 'whale' && <Sparkles className="w-3 h-3" />}
@@ -117,62 +120,67 @@ const ShareCardContent = ({ data, variant = 'default' }) => {
             </div>
           )}
         </div>
-        
+
         {/* Strategy info */}
-        <div className="mb-2">
-          <span className="text-xs text-white/40 tracking-wider">{data.ticker}</span>
+        <div className="mt-4">
+          <span className="text-xs text-white/45 tracking-wider">{data.ticker}</span>
+          <h2 className="text-2xl font-bold text-white leading-tight mt-1">{data.strategyName}</h2>
+          <p className="text-xs text-white/50 mt-1">{data.timeframe}</p>
         </div>
-        <h2 className="text-2xl font-bold text-white mb-1">{data.strategyName}</h2>
-        <p className="text-sm text-white/50 mb-6">{data.timeframe}</p>
-        
-        {/* Main P&L */}
-        <div className="flex-1 flex flex-col justify-center">
-          <div className="text-center mb-4">
-            <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Total Return</div>
-            <div 
-              className="text-6xl font-bold tracking-tight"
-              style={{ color: pnlColor }}
-            >
+
+        {/* Main numbers */}
+        <div className="mt-4 grid grid-cols-[1.3fr_1fr] gap-4 items-start">
+          <div>
+            <div className="text-[10px] text-white/45 uppercase tracking-wider mb-2">Total Return</div>
+            <div className="text-5xl font-bold tracking-tight" style={{ color: pnlColor }}>
               {isPositive ? '+' : ''}{data.pnlPercent}%
             </div>
-            <div className="text-xl text-white/60 mt-2">
+            <div className="text-sm text-white/60 mt-2">
               {isPositive ? '+' : '-'}${Math.abs(data.pnl).toLocaleString()}
             </div>
           </div>
-          
-          {/* Chart */}
-          <div className="h-16 -mx-2 mb-6">
-            <CardSparkline data={data.chartData} color={pnlColor} />
-          </div>
-          
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white/[0.05] backdrop-blur rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-white">{data.winRate}%</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-wider">Win Rate</div>
+          <div className="space-y-2 text-xs bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-white/50">Win rate</span>
+              <span className="text-white font-semibold">{data.winRate}%</span>
             </div>
-            <div className="bg-white/[0.05] backdrop-blur rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-white">{data.trades}</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-wider">Trades</div>
+            <div className="flex items-center justify-between">
+              <span className="text-white/50">Trades</span>
+              <span className="text-white font-semibold">{data.trades}</span>
             </div>
-            <div className="bg-white/[0.05] backdrop-blur rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-white">{data.sharpe}</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-wider">Sharpe</div>
+            <div className="flex items-center justify-between">
+              <span className="text-white/50">Sharpe</span>
+              <span className="text-white font-semibold">{data.sharpe}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-white/50">Avg/Trade</span>
+              <span className="text-white font-semibold">
+                {avgPerTrade >= 0 ? '+' : '-'}${Math.abs(avgPerTrade).toFixed(0)}
+              </span>
             </div>
           </div>
         </div>
-        
+
+        {/* Chart */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[10px] text-white/40 uppercase tracking-widest mb-2">
+            <span>Equity Curve</span>
+            <span>Range {range.toFixed(1)}</span>
+          </div>
+          <div className="h-20 bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2">
+            <CardSparkline data={data.chartData} color={pnlColor} height={56} />
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2">
+        <div className="mt-auto pt-4 border-t border-white/[0.08] flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white">
               {data.username?.charAt(0).toUpperCase() || 'S'}
             </div>
-            <span className="text-sm text-white/60">@{data.username || 'trader'}</span>
+            <span className="text-xs text-white/60 truncate">@{data.username || 'trader'}</span>
           </div>
-          <div className="text-[10px] text-white/30">
-            stratify.app
-          </div>
+          <span className="text-[10px] text-white/30">stratify.app</span>
         </div>
       </div>
     </div>
