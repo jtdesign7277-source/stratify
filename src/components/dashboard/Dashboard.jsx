@@ -20,6 +20,7 @@ import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './Com
 import Home from './Home';
 import WatchlistPage from './WatchlistPage';
 import MarketsPage from './MarketsPage';
+import PredictionsPage from './PredictionsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
@@ -526,6 +527,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
             <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
+          {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
           {activeTab === 'atlas' && <DemoPanel />}
           {activeTab === 'portfolio' && (

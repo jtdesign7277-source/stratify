@@ -7,24 +7,58 @@ import { getKalshiMarkets, getKalshiEvents, getArbitrageOpportunities, kalshiCli
 
 const router = express.Router();
 
+const toPercent = (value) => {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return num <= 1 ? num * 100 : num;
+};
+
+const buildMarketFeed = (market) => {
+  const yesPercent = toPercent(market.kalshi?.yes);
+  const noPercent = toPercent(market.kalshi?.no) ?? (yesPercent != null ? 100 - yesPercent : null);
+  const volume = Number(market.kalshi?.volume || 0);
+  const yesVolume = yesPercent != null ? (volume * (yesPercent / 100)) : 0;
+  const noVolume = volume - yesVolume;
+
+  return {
+    id: market.id,
+    title: market.event || market.id,
+    ticker: market.id,
+    category: market.category || 'Other',
+    yesPercent,
+    noPercent,
+    yesVolume,
+    noVolume,
+    volume,
+    closeTime: market.expiry,
+    status: market.status || 'open',
+  };
+};
+
 // Get live Kalshi markets
 router.get('/markets', async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const requestedLimit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const fetchLimit = Math.min(Math.max(requestedLimit * 2, requestedLimit), 200);
     const category = req.query.category;
     
-    let markets = await getKalshiMarkets(limit);
+    let markets = await getKalshiMarkets(fetchLimit);
     
     if (category && category !== 'All') {
       markets = markets.filter(m => 
         m.category?.toLowerCase().includes(category.toLowerCase())
       );
     }
-    
+
+    const feed = markets
+      .map(buildMarketFeed)
+      .sort((a, b) => (b.volume || 0) - (a.volume || 0));
+
     res.json({
       success: true,
-      count: markets.length,
-      markets
+      count: feed.slice(0, requestedLimit).length,
+      markets: feed.slice(0, requestedLimit)
     });
   } catch (error) {
     console.error('Error fetching markets:', error);

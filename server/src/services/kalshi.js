@@ -35,9 +35,16 @@ class KalshiClient {
         } catch {}
       }
       
-      // Try from environment variable (base64 encoded)
+      // Try from environment variable (raw PEM or base64 encoded)
+      if (process.env.KALSHI_API_SECRET) {
+        const secret = process.env.KALSHI_API_SECRET.trim();
+        if (secret.includes('BEGIN')) return secret;
+        return Buffer.from(secret, 'base64').toString('utf8');
+      }
       if (process.env.KALSHI_PRIVATE_KEY) {
-        return Buffer.from(process.env.KALSHI_PRIVATE_KEY, 'base64').toString('utf8');
+        const secret = process.env.KALSHI_PRIVATE_KEY.trim();
+        if (secret.includes('BEGIN')) return secret;
+        return Buffer.from(secret, 'base64').toString('utf8');
       }
       
       console.warn('Kalshi private key not found');
@@ -55,7 +62,12 @@ class KalshiClient {
       const message = `${timestamp}${method}${path}`;
       const sign = crypto.createSign('RSA-SHA256');
       sign.update(message);
-      return sign.sign(this.privateKey, 'base64');
+      sign.end();
+      return sign.sign({
+        key: this.privateKey,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      }, 'base64');
     } catch (error) {
       console.error('Error signing request:', error);
       return '';
@@ -66,13 +78,20 @@ class KalshiClient {
     const timestamp = Date.now().toString();
     const signature = this.signRequest(timestamp, method, path);
     
-    return {
-      'KALSHI-ACCESS-KEY': this.apiKey || '',
-      'KALSHI-ACCESS-SIGNATURE': signature,
-      'KALSHI-ACCESS-TIMESTAMP': timestamp,
+    const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     };
+
+    if (this.apiKey) {
+      headers['KALSHI-ACCESS-KEY'] = this.apiKey;
+    }
+    if (signature) {
+      headers['KALSHI-ACCESS-SIGNATURE'] = signature;
+      headers['KALSHI-ACCESS-TIMESTAMP'] = timestamp;
+    }
+
+    return headers;
   }
 
   async getMarkets(limit = 100, status = 'open') {
@@ -80,11 +99,9 @@ class KalshiClient {
     const url = `${this.baseUrl}${path}`;
     
     try {
-      const headers = this.getHeaders('GET', path);
-      const response = await fetch(url, { 
-        headers,
-        timeout: 10000 
-      });
+      const signPath = new URL(url).pathname;
+      const headers = this.privateKey ? this.getHeaders('GET', signPath) : { 'Accept': 'application/json' };
+      const response = await fetch(url, { headers, timeout: 10000 });
       
       if (response.ok) {
         const data = await response.json();
@@ -104,11 +121,9 @@ class KalshiClient {
     const url = `${this.baseUrl}${path}`;
     
     try {
-      const headers = this.getHeaders('GET', path);
-      const response = await fetch(url, { 
-        headers,
-        timeout: 10000 
-      });
+      const signPath = new URL(url).pathname;
+      const headers = this.privateKey ? this.getHeaders('GET', signPath) : { 'Accept': 'application/json' };
+      const response = await fetch(url, { headers, timeout: 10000 });
       
       if (response.ok) {
         const data = await response.json();

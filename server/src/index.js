@@ -36,6 +36,7 @@ app.use(express.json());
 
 app.use('/api/stocks', stocksRouter);
 app.use('/api/v1/kalshi', kalshiRouter);
+app.use('/api/kalshi', kalshiRouter);
 app.use('/api/claude', chatRouter);
 app.use('/api/strategies', strategiesRouter);
 
