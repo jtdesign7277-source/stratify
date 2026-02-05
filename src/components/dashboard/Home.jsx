@@ -9,6 +9,11 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
   // Home Active CTA style: matches the sidebar active "Home" tab look.
   const homeActiveButtonClass = 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 border border-emerald-400/30 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]';
   const homeActiveButtonHover = 'hover:from-emerald-500/40 hover:via-emerald-400/30 hover:to-emerald-500/20 hover:border-emerald-400/50';
+  // Home Disabled CTA style: same treatment with the existing blue palette.
+  const homeDisabledButtonClass = 'bg-gradient-to-r from-[#162235] via-[#1b273a] to-[#162235] border border-[#25344d] text-[#8fa1b8] shadow-[0_0_12px_rgba(37,52,77,0.35)]';
+  // Alpaca Active CTA style: same treatment, but keep the existing blue palette.
+  const alpacaActiveButtonClass = 'bg-gradient-to-r from-[#1a2438] via-[#243048] to-[#1a2438] border border-[#2b3b57] text-white shadow-[0_0_12px_rgba(43,59,87,0.4)]';
+  const alpacaActiveButtonHover = 'hover:from-[#22304a] hover:via-[#2a3956] hover:to-[#22304a] hover:border-[#3a4f72]';
 
   const brokers = [
     {
@@ -273,7 +278,11 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
                           </button>
                           <button
                             onClick={() => openApiPage(selectedBroker.docsUrl)}
-                            className="px-4 py-2 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                              selectedBroker?.id === 'alpaca'
+                                ? `${alpacaActiveButtonClass} ${alpacaActiveButtonHover}`
+                                : 'bg-[#1a2438] hover:bg-[#243048] text-gray-300'
+                            }`}
                           >
                             View Documentation
                           </button>
@@ -333,8 +342,12 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
                           disabled={!apiKey || !secretKey}
                           className={`w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
                             apiKey && secretKey
-                              ? `${homeActiveButtonClass} ${homeActiveButtonHover}`
-                              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                              ? selectedBroker?.id === 'alpaca'
+                                ? `${alpacaActiveButtonClass} ${alpacaActiveButtonHover}`
+                                : `${homeActiveButtonClass} ${homeActiveButtonHover}`
+                              : selectedBroker?.id === 'alpaca'
+                                ? `${alpacaActiveButtonClass} cursor-not-allowed`
+                                : `${homeDisabledButtonClass} cursor-not-allowed`
                           }`}
                         >
                           <Link2 className="w-4 h-4" strokeWidth={1.5} />
