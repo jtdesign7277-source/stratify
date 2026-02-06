@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
+import LiveAlertsTicker from './LiveAlertsTicker';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import GrokPanel from './GrokPanel';
@@ -519,6 +520,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         onLogout={() => setCurrentPage('landing')} 
         connectedBrokers={connectedBrokers} 
       />
+      <LiveAlertsTicker />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           activeTab={activeTab}

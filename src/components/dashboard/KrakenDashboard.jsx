@@ -13,7 +13,6 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
-import LiveAlertsTicker from './LiveAlertsTicker';
 import { StrategyDetailModal, STRATEGIES } from '../strategies/FeaturedStrategies';
 
 // ============================================
@@ -1360,9 +1359,6 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               </div>
             </div>
           </div>
-          
-          {/* Live Alerts Ticker */}
-          <LiveAlertsTicker />
           
           {/* Index Cards Row */}
           <div className="px-6 py-4 flex gap-4 overflow-x-auto">
