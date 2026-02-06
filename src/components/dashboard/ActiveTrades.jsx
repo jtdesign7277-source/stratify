@@ -456,7 +456,7 @@ const ActiveTrades = ({ setActiveTab }) => {
                         <span className="text-gray-400">
                           Quantity: <span className="text-white font-medium">{trade.qty} shares</span>
                         </span>
-                        <button
+                        <motion.button
                           onClick={(e) => {
                             e.stopPropagation();
                             // Store symbol and navigate to trade page
@@ -468,10 +468,12 @@ const ActiveTrades = ({ setActiveTab }) => {
                               window.open(`https://www.tradingview.com/chart/?symbol=${tradePanelStrategy.symbol}`, '_blank');
                             }
                           }}
-                          className="text-[10px] font-semibold uppercase tracking-wider text-sky-400 hover:text-sky-300 hover:underline transition"
+                          animate={{ opacity: [0.85, 1, 0.85] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className="text-xs font-bold tracking-wide text-sky-400 hover:text-sky-300 hover:underline transition"
                         >
-                          {tradePanelStrategy.symbol} ↗
-                        </button>
+                          ${tradePanelStrategy.symbol} ↗
+                        </motion.button>
                       </div>
                     </div>
                   );
