@@ -1,45 +1,90 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createChart, ColorType } from 'lightweight-charts';
 import { 
   Share2, Download, Twitter, Copy, Check, TrendingUp, 
   TrendingDown, Zap, Trophy, Flame, Target, ChevronRight,
   X, Sparkles
 } from 'lucide-react';
 
-// Mini sparkline for the card
-const CardSparkline = ({ data, color = '#10b981', height = 60 }) => {
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * 100;
-    const y = 100 - ((val - min) / range) * 100;
-    return `${x},${y}`;
-  }).join(' ');
-  
-  return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full" style={{ height }}>
-      <defs>
-        <linearGradient id="sparkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon 
-        points={`0,100 ${points} 100,100`} 
-        fill="url(#sparkGrad)"
-      />
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2.5"
-        vectorEffect="non-scaling-stroke"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+// TradingView Lightweight Charts equity curve
+const EquityCurve = ({ data, color = '#00C853', height = 80 }) => {
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    if (!chartContainerRef.current || !data || data.length === 0) return;
+
+    // Create chart
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      height: height,
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: '#9AA0A6',
+        fontSize: 10,
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { color: '#5f6368', style: 2 },
+      },
+      crosshair: {
+        mode: 0, // No crosshair
+      },
+      rightPriceScale: {
+        visible: false,
+      },
+      timeScale: {
+        visible: false,
+        borderVisible: false,
+      },
+      handleScroll: false,
+      handleScale: false,
+    });
+
+    // Convert simple array to time series data
+    const baseTime = new Date('2026-02-01').getTime() / 1000;
+    const chartData = data.map((value, index) => ({
+      time: baseTime + (index * 86400), // Each point is a day
+      value: value,
+    }));
+
+    // Add area series
+    const areaSeries = chart.addAreaSeries({
+      lineColor: color,
+      topColor: `${color}40`,
+      bottomColor: `${color}05`,
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+
+    areaSeries.setData(chartData);
+    chart.timeScale().fitContent();
+
+    chartRef.current = chart;
+
+    // Handle resize
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({ 
+          width: chartContainerRef.current.clientWidth 
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
+    };
+  }, [data, color, height]);
+
+  return <div ref={chartContainerRef} style={{ height }} />;
 };
 
 // Stat cell component for dense data display
@@ -148,14 +193,14 @@ const ShareCardContent = ({ data, variant = 'default' }) => {
           <StatCell label="Volume" value={formatNumber(data.volume)} />
         </div>
 
-        {/* Chart */}
+        {/* Chart - TradingView Lightweight Charts */}
         <div className="mt-3">
           <div className="flex items-center justify-between text-[10px] text-[#9AA0A6] uppercase tracking-widest mb-2">
             <span>Equity Curve</span>
             <span>Range {range.toFixed(1)}</span>
           </div>
-          <div className="h-20 bg-[#303134] border border-[#5f6368]/60 rounded-xl px-2 py-1">
-            <CardSparkline data={data.chartData} color={pnlColor} height={80} />
+          <div className="h-20 bg-[#303134] border border-[#5f6368]/60 rounded-xl px-2 py-1 overflow-hidden">
+            <EquityCurve data={data.chartData} color={pnlColor} height={72} />
           </div>
         </div>
 
