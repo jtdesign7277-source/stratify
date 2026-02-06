@@ -175,7 +175,16 @@ const buildQuote = (quote) => {
 
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
-  const [selectedEquity, setSelectedEquity] = useState(null);
+  const [selectedEquity, setSelectedEquity] = useState(() => {
+    // Check if coming from Active trades with a symbol
+    const chartSymbol = localStorage.getItem('stratify_chart_symbol');
+    if (chartSymbol) {
+      localStorage.removeItem('stratify_chart_symbol'); // Clear after reading
+      const stock = EQUITY_LIST.find(s => s.symbol === chartSymbol);
+      return stock || { symbol: chartSymbol, name: chartSymbol, exchange: 'NASDAQ' };
+    }
+    return null;
+  });
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);

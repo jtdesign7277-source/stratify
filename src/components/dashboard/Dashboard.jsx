@@ -577,7 +577,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
           {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={handleSelectTemplate} />}
-          {activeTab === 'active' && <ActiveTrades />}
+          {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} />}
         </div>
         
         <GrokPanel 

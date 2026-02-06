@@ -146,7 +146,7 @@ const SignalBars = ({ health }) => {
   );
 };
 
-const ActiveTrades = () => {
+const ActiveTrades = ({ setActiveTab }) => {
   const [totalPnl, setTotalPnl] = useState(4823.12);
   const [pnlDelta, setPnlDelta] = useState(0);
   const [strategies, setStrategies] = useState(strategiesSeed);
@@ -459,7 +459,14 @@ const ActiveTrades = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.open(`https://www.tradingview.com/chart/?symbol=${tradePanelStrategy.symbol}`, '_blank');
+                            // Store symbol and navigate to trade page
+                            localStorage.setItem('stratify_chart_symbol', tradePanelStrategy.symbol);
+                            if (setActiveTab) {
+                              setActiveTab('trade');
+                            } else {
+                              // Fallback to TradingView if no navigation available
+                              window.open(`https://www.tradingview.com/chart/?symbol=${tradePanelStrategy.symbol}`, '_blank');
+                            }
                           }}
                           className="text-[10px] font-semibold uppercase tracking-wider text-sky-400 hover:text-sky-300 hover:underline transition"
                         >
