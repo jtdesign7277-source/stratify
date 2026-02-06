@@ -6,6 +6,35 @@ import { PnLShareCard } from './PnLShareCard';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
+// Floating TradingView mini chart preview
+const ChartPreview = ({ symbol, position }) => {
+  const tvSymbol = `NASDAQ:${symbol}`;
+  return (
+    <div 
+      className="fixed z-[100] bg-[#131722] border border-[#2a2e39] rounded-lg shadow-2xl overflow-hidden pointer-events-none"
+      style={{ 
+        top: Math.max(10, Math.min(position.y, window.innerHeight - 260)),
+        left: Math.min(position.x + 20, window.innerWidth - 360),
+        width: 340,
+        height: 220
+      }}
+    >
+      <div className="px-3 py-2 border-b border-[#2a2e39] flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="text-sm text-white font-medium">{symbol}</span>
+        <span className="text-xs text-gray-500">Live Chart</span>
+      </div>
+      <iframe
+        src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_widget&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=0&hideideas=1&hide_top_toolbar=1&hide_legend=1&allow_symbol_change=0`}
+        className="w-full"
+        style={{ height: 180 }}
+        frameBorder="0"
+        allowTransparency="true"
+      />
+    </div>
+  );
+};
+
 const strategiesSeed = [
   { id: 'nvda', symbol: 'NVDA', name: 'NVDA Momentum', status: 'Live', pnl: 1824.32, pnlPct: 2.8, heat: 88 },
   { id: 'aapl', symbol: 'AAPL', name: 'AAPL Mean Revert', status: 'Scaling', pnl: 642.15, pnlPct: 1.2, heat: 61 },
@@ -157,6 +186,8 @@ const ActiveTrades = ({ setActiveTab }) => {
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradePanelStrategy, setTradePanelStrategy] = useState(null);
   const [livePrices, setLivePrices] = useState({});
+  const [hoverPreview, setHoverPreview] = useState(null);
+  const hoverTimeout = useRef(null);
   const confettiCanvasRef = useRef(null);
   const confettiInstanceRef = useRef(null);
 
@@ -296,6 +327,20 @@ const ActiveTrades = ({ setActiveTab }) => {
                     setTradePanelStrategy(strategy);
                     setTradePanelOpen(true);
                   }
+                }}
+                onMouseEnter={(e) => {
+                  clearTimeout(hoverTimeout.current);
+                  hoverTimeout.current = setTimeout(() => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoverPreview({
+                      symbol: strategy.symbol,
+                      position: { x: rect.right, y: rect.top }
+                    });
+                  }, 500);
+                }}
+                onMouseLeave={() => {
+                  clearTimeout(hoverTimeout.current);
+                  setHoverPreview(null);
                 }}
                 role="button"
                 tabIndex={0}
@@ -501,6 +546,14 @@ const ActiveTrades = ({ setActiveTab }) => {
         onClose={() => setShareOpen(false)}
         strategyData={selectedStrategy}
       />
+
+      {/* Floating TradingView Preview on hover */}
+      {hoverPreview && (
+        <ChartPreview 
+          symbol={hoverPreview.symbol}
+          position={hoverPreview.position}
+        />
+      )}
     </div>
   );
 };
