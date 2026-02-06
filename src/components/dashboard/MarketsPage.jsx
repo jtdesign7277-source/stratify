@@ -3,36 +3,39 @@ import { TrendingUp, TrendingDown, Globe, BarChart3, Activity, RefreshCw, Loader
 import { getQuotes, getTrending } from '../../services/marketData';
 
 // Floating TradingView mini chart preview
-const ChartPreview = ({ symbol, position, onClose }) => {
+const ChartPreview = ({ symbol, position }) => {
   const getTradingViewSymbol = (sym) => {
-    // Convert symbols to TradingView format
+    if (!sym) return 'AAPL';
     if (sym.startsWith('^')) {
-      const indexMap = { '^GSPC': 'SPX', '^DJI': 'DJI', '^IXIC': 'IXIC', '^RUT': 'RUT' };
-      return indexMap[sym] || sym.replace('^', '');
+      const indexMap = { '^GSPC': 'FOREXCOM:SPXUSD', '^DJI': 'FOREXCOM:DJI', '^IXIC': 'NASDAQ:NDX', '^RUT': 'AMEX:IWM' };
+      return indexMap[sym] || 'FOREXCOM:SPXUSD';
     }
-    if (sym.includes('-USD')) return `CRYPTO:${sym.replace('-USD', 'USD')}`;
-    return sym;
+    if (sym.includes('-USD')) return `BINANCE:${sym.replace('-USD', 'USDT')}`;
+    return `NASDAQ:${sym}`;
   };
 
   const tvSymbol = getTradingViewSymbol(symbol);
 
   return (
     <div 
-      className="fixed z-50 bg-[#1a1a24] border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
+      className="fixed z-50 bg-[#131722] border border-[#2a2e39] rounded-lg shadow-2xl overflow-hidden pointer-events-none"
       style={{ 
-        top: Math.min(position.y, window.innerHeight - 220),
-        left: Math.min(position.x + 20, window.innerWidth - 320),
-        width: 300,
-        height: 200
+        top: Math.max(10, Math.min(position.y - 100, window.innerHeight - 260)),
+        left: Math.min(position.x + 30, window.innerWidth - 360),
+        width: 340,
+        height: 240
       }}
-      onMouseLeave={onClose}
     >
+      <div className="p-2 border-b border-[#2a2e39] flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="text-xs text-gray-400 font-medium">{symbol}</span>
+      </div>
       <iframe
-        src={`https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22${encodeURIComponent(tvSymbol)}%22%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22100%25%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%2C%22largeChartUrl%22%3A%22%22%7D`}
-        className="w-full h-full"
+        src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_widget&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=0&hideideas=1&hide_top_toolbar=1&hide_legend=1&allow_symbol_change=0&container_id=tv_widget`}
+        className="w-full"
+        style={{ height: 200 }}
         frameBorder="0"
         allowTransparency="true"
-        scrolling="no"
       />
     </div>
   );
@@ -130,13 +133,13 @@ const MarketsPage = ({ themeClasses }) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setHoverPreview({
                       symbol: item.symbol,
-                      position: { x: rect.right, y: rect.top }
+                      position: { x: rect.right, y: rect.top + rect.height / 2 }
                     });
-                  }, 300);
+                  }, 400);
                 }}
                 onMouseLeave={() => {
                   clearTimeout(hoverTimeout.current);
-                  setTimeout(() => setHoverPreview(null), 100);
+                  setHoverPreview(null);
                 }}
               >
                 <div>
@@ -211,7 +214,6 @@ const MarketsPage = ({ themeClasses }) => {
         <ChartPreview 
           symbol={hoverPreview.symbol}
           position={hoverPreview.position}
-          onClose={() => setHoverPreview(null)}
         />
       )}
     </div>
