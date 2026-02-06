@@ -696,6 +696,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 onDragStart={(e) => {
                   e.dataTransfer.setData('text/plain', stock.symbol);
                   e.dataTransfer.effectAllowed = 'copy';
+                  // Create small drag preview
+                  const dragEl = document.createElement('div');
+                  dragEl.textContent = stock.symbol;
+                  dragEl.style.cssText = 'position:absolute;top:-1000px;padding:4px 8px;background:#10b981;color:#000;font-size:11px;font-weight:600;border-radius:4px;';
+                  document.body.appendChild(dragEl);
+                  e.dataTransfer.setDragImage(dragEl, 30, 12);
+                  setTimeout(() => document.body.removeChild(dragEl), 0);
                 }}
                 className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
