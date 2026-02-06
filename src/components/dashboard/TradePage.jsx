@@ -187,10 +187,18 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [watchlistSize, setWatchlistSize] = useState('medium'); // 'small', 'medium', 'large'
+  // Watchlist states: 'open' (default 384px) → 'small' (280px) → 'closed' (80px) → 'open'...
+  const [watchlistState, setWatchlistState] = useState('open');
   
-  const sizeWidths = { small: 280, medium: 384, large: 500 };
+  const stateWidths = { open: 384, small: 280, closed: 80 };
+  
+  const cycleWatchlistState = () => {
+    setWatchlistState(prev => {
+      if (prev === 'open') return 'small';
+      if (prev === 'small') return 'closed';
+      return 'open';
+    });
+  };
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [equityQuotes, setEquityQuotes] = useState({});
   const [cryptoQuotes, setCryptoQuotes] = useState({});
@@ -453,41 +461,32 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   };
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
-  const showBreakingBanner = !isCollapsed && isBreakingNewsVisible && breakingNews;
+  const showBreakingBanner = watchlistState !== 'closed' && isBreakingNewsVisible && breakingNews;
   // Ticker tape removed per user request
   const collapseToggle = (
-    <div className="flex items-center gap-1">
-      {!isCollapsed && (
-        <div className="flex items-center gap-0.5 mr-1">
-          {['small', 'medium', 'large'].map((size) => (
-            <button
-              key={size}
-              onClick={() => setWatchlistSize(size)}
-              className={`w-5 h-4 rounded text-[8px] font-bold transition-colors ${
-                watchlistSize === size 
-                  ? 'bg-emerald-500 text-black' 
-                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-              }`}
-              title={`${size} width`}
-            >
-              {size[0].toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"
-        aria-label={isCollapsed ? 'Expand watchlist panel' : 'Collapse watchlist panel'}
-        type="button"
-      >
-        {isCollapsed ? (
-          <ChevronsRight className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
-        ) : (
-          <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
-        )}
-      </button>
-    </div>
+    <button
+      onClick={cycleWatchlistState}
+      className="flex items-center gap-0.5 p-1 hover:bg-gray-800 rounded transition-colors focus:outline-none"
+      aria-label="Resize watchlist"
+      type="button"
+    >
+      {/* First chevron - lit when open or small */}
+      <ChevronsLeft 
+        className={`w-5 h-5 transition-all duration-200 ${
+          watchlistState !== 'closed' 
+            ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.7)]' 
+            : 'text-gray-600'
+        }`}
+      />
+      {/* Second chevron - lit only when open */}
+      <ChevronsLeft 
+        className={`w-5 h-5 -ml-3 transition-all duration-200 ${
+          watchlistState === 'open' 
+            ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.7)]' 
+            : 'text-gray-600'
+        }`}
+      />
+    </button>
   );
 
   return (
@@ -503,7 +502,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       {/* Watchlist Panel */}
       <div 
         className="flex flex-col border-r border-gray-800 flex-shrink-0 transition-all duration-300 ease-out"
-        style={{ width: isCollapsed ? 80 : sizeWidths[watchlistSize] }}
+        style={{ width: stateWidths[watchlistState] }}
       >
         {/* Header */}
         <div className="border-b border-gray-800 relative">
@@ -550,7 +549,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         </div>
 
         {/* Search */}
-        {!isCollapsed && (
+        {watchlistState !== 'closed' && (
           <div className="p-3 border-b border-gray-800 relative">
             <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-3 py-2.5">
               <Search className="w-4 h-4 text-gray-500" />
@@ -606,7 +605,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         )}
 
         {/* Tab Switcher */}
-        {!isCollapsed && (
+        {watchlistState !== 'closed' && (
           <div className="px-3 pb-3">
             <div className="flex items-center gap-1 p-1 rounded-lg border border-gray-700 bg-[#111118]">
               <button
@@ -670,10 +669,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 key={stock.symbol}
                 className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
-                } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
+                } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => handleSelectSymbol(stock.symbol)}
               >
-                {isCollapsed ? (
+                {watchlistState === 'closed' ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">${displaySymbol}</div>
                     <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
@@ -712,7 +711,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         </div>
 
         {/* Footer */}
-        {!isCollapsed && (
+        {watchlistState !== 'closed' && (
           <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
             <span className="text-gray-400">{activeWatchlist.length} symbols</span>
             <span className={activeMarket === 'crypto' ? 'text-amber-400' : 'text-emerald-400'}>
