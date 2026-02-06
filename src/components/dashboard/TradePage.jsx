@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, GripVertical } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import useBreakingNews from '../../hooks/useBreakingNews';
@@ -188,43 +188,9 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [watchlistWidth, setWatchlistWidth] = useState(384);
-  const resizeRef = useRef(null);
-
-  // Simple resize handler
-  useEffect(() => {
-    const resizer = resizeRef.current;
-    if (!resizer) return;
-
-    let startX = 0;
-    let startWidth = 0;
-
-    const onMouseDown = (e) => {
-      startX = e.pageX;
-      startWidth = watchlistWidth;
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-      document.body.style.cursor = 'ew-resize';
-      document.body.style.userSelect = 'none';
-    };
-
-    const onMouseMove = (e) => {
-      const newWidth = startWidth + (e.pageX - startX);
-      if (newWidth >= 200 && newWidth <= 600) {
-        setWatchlistWidth(newWidth);
-      }
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    resizer.addEventListener('mousedown', onMouseDown);
-    return () => resizer.removeEventListener('mousedown', onMouseDown);
-  }, [watchlistWidth]);
+  const [watchlistSize, setWatchlistSize] = useState('medium'); // 'small', 'medium', 'large'
+  
+  const sizeWidths = { small: 280, medium: 384, large: 500 };
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [equityQuotes, setEquityQuotes] = useState({});
   const [cryptoQuotes, setCryptoQuotes] = useState({});
@@ -490,18 +456,38 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const showBreakingBanner = !isCollapsed && isBreakingNewsVisible && breakingNews;
   // Ticker tape removed per user request
   const collapseToggle = (
-    <button
-      onClick={() => setIsCollapsed(!isCollapsed)}
-      className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"
-      aria-label={isCollapsed ? 'Expand watchlist panel' : 'Collapse watchlist panel'}
-      type="button"
-    >
-      {isCollapsed ? (
-        <ChevronsRight className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
-      ) : (
-        <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+    <div className="flex items-center gap-1">
+      {!isCollapsed && (
+        <div className="flex items-center gap-0.5 mr-1">
+          {['small', 'medium', 'large'].map((size) => (
+            <button
+              key={size}
+              onClick={() => setWatchlistSize(size)}
+              className={`w-5 h-4 rounded text-[8px] font-bold transition-colors ${
+                watchlistSize === size 
+                  ? 'bg-emerald-500 text-black' 
+                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+              }`}
+              title={`${size} width`}
+            >
+              {size[0].toUpperCase()}
+            </button>
+          ))}
+        </div>
       )}
-    </button>
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors focus:outline-none"
+        aria-label={isCollapsed ? 'Expand watchlist panel' : 'Collapse watchlist panel'}
+        type="button"
+      >
+        {isCollapsed ? (
+          <ChevronsRight className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+        ) : (
+          <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+        )}
+      </button>
+    </div>
   );
 
   return (
@@ -514,18 +500,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       `}</style>
       
-      {/* Watchlist Panel - Resizable */}
+      {/* Watchlist Panel */}
       <div 
-        className="flex flex-col border-r border-gray-800 relative flex-shrink-0"
-        style={{ width: isCollapsed ? 80 : watchlistWidth }}
+        className="flex flex-col border-r border-gray-800 flex-shrink-0 transition-all duration-300 ease-out"
+        style={{ width: isCollapsed ? 80 : sizeWidths[watchlistSize] }}
       >
-        {/* Resize Handle */}
-        {!isCollapsed && (
-          <div
-            ref={resizeRef}
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize z-20 hover:bg-emerald-500 bg-gray-700"
-          />
-        )}
         {/* Header */}
         <div className="border-b border-gray-800 relative">
           <div className="pr-10">
