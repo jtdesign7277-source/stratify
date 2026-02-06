@@ -187,6 +187,38 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  
+  // Mini tabs - pinned tickers for quick access
+  const [pinnedTabs, setPinnedTabs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-pinned-tabs');
+      return saved ? JSON.parse(saved) : ['NVDA', 'TSLA', 'AAPL'];
+    } catch { return ['NVDA', 'TSLA', 'AAPL']; }
+  });
+  const [dragOverTabs, setDragOverTabs] = useState(false);
+
+  // Save pinned tabs to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-pinned-tabs', JSON.stringify(pinnedTabs));
+  }, [pinnedTabs]);
+
+  const addPinnedTab = (symbol) => {
+    if (!pinnedTabs.includes(symbol) && pinnedTabs.length < 5) {
+      setPinnedTabs([...pinnedTabs, symbol]);
+    }
+  };
+
+  const removePinnedTab = (symbol) => {
+    setPinnedTabs(pinnedTabs.filter(s => s !== symbol));
+  };
+
+  const handleTabDrop = (e) => {
+    e.preventDefault();
+    const symbol = e.dataTransfer.getData('text/plain');
+    if (symbol) addPinnedTab(symbol);
+    setDragOverTabs(false);
+  };
+
   // Watchlist states: 'open' (default 384px) → 'small' (280px) → 'closed' (80px) → 'open'...
   const [watchlistState, setWatchlistState] = useState('open');
   
@@ -497,41 +529,43 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       >
         {/* Header */}
         <div className="border-b border-gray-800 relative">
-          <div className="pr-10">
-            <AnimatePresence mode="popLayout">
-              {showBreakingBanner && (
-                <motion.div
-                  key="breaking-news-banner"
-                  layout
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-                  className="px-4 pt-3 pb-2"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <BreakingNewsBanner
-                        headline={breakingNews.headline}
-                        tickerSymbol={breakingNews.tickerSymbol}
-                        tickerChange={breakingNews.tickerChange}
-                        newsUrl={breakingNews.newsUrl}
-                        isLive={breakingNews.isLive}
-                        onDismiss={dismissBreakingNews}
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {!showBreakingBanner && (
-              <motion.div
-                layout
-                className="px-3 py-2"
-                animate={{ opacity: isBreakingNewsVisible ? 0.6 : 1, y: isBreakingNewsVisible ? 2 : 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-              />
+          {/* Mini Tabs - Drag tickers here */}
+          <div 
+            className={`flex-1 px-2 py-2 flex items-center gap-1 overflow-x-auto scrollbar-hide ${
+              dragOverTabs ? 'bg-emerald-500/10 border-emerald-500/30' : ''
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDragOverTabs(true); }}
+            onDragLeave={() => setDragOverTabs(false)}
+            onDrop={handleTabDrop}
+          >
+            {pinnedTabs.map((symbol) => (
+              <button
+                key={symbol}
+                onClick={() => {
+                  if (activeMarket === 'crypto') setSelectedCrypto(symbol);
+                  else setSelectedEquity(symbol);
+                }}
+                className={`group flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                  selectedTicker === symbol
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-white'
+                }`}
+              >
+                <span>{symbol}</span>
+                <X 
+                  className="w-3 h-3 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); removePinnedTab(symbol); }}
+                />
+              </button>
+            ))}
+            {pinnedTabs.length < 5 && (
+              <div className={`px-2 py-1 rounded border border-dashed text-xs transition-colors ${
+                dragOverTabs 
+                  ? 'border-emerald-500 text-emerald-400' 
+                  : 'border-gray-700 text-gray-600'
+              }`}>
+                {dragOverTabs ? 'Drop here' : '+ Drag'}
+              </div>
             )}
           </div>
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -658,6 +692,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             return (
               <div 
                 key={stock.symbol}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', stock.symbol);
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                 } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'}`}
