@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, GripVertical } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import BreakingNewsBanner from './BreakingNewsBanner';
-import TickerTape from './TickerTape';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
@@ -189,6 +188,41 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [watchlistWidth, setWatchlistWidth] = useState(384); // Default 384px (w-96)
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  // Handle watchlist resize
+  const handleResizeStart = useCallback((e) => {
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startWidth.current = watchlistWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [watchlistWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing.current) return;
+      const delta = e.clientX - startX.current;
+      const newWidth = Math.min(Math.max(startWidth.current + delta, 200), 600);
+      setWatchlistWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [equityQuotes, setEquityQuotes] = useState({});
   const [cryptoQuotes, setCryptoQuotes] = useState({});
@@ -248,26 +282,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }, [orderQty]);
   const estimatedTotal = selectedQuote?.price ? selectedQuote.price * orderQtyNumber : 0;
-  const tickerTapeText = useMemo(() => {
-    if (!breakingNews?.headline) return '';
-    const normalizedHeadline = breakingNews.headline.replace(/^⚡\\s*/, '');
-    const changeValue = typeof breakingNews.tickerChange === 'number'
-      ? breakingNews.tickerChange
-      : Number(breakingNews.tickerChange || 0);
-    const changeSign = changeValue > 0 ? '+' : changeValue < 0 ? '' : '';
-    const formattedChange = Number.isFinite(changeValue) ? `${changeSign}${changeValue.toFixed(2)}%` : '';
-    const tickerMove = breakingNews.tickerSymbol
-      ? `$${breakingNews.tickerSymbol} ${formattedChange}`.trim()
-      : '';
-    const segments = [
-      `⚡ BREAKING: ${normalizedHeadline}`,
-      tickerMove,
-      'Fed announces rate cut',
-      '$NVDA earnings beat...',
-    ].filter(Boolean);
-
-    return segments.join(' │ ');
-  }, [breakingNews]);
 
   // Fetch quote snapshot via Railway backend
   const fetchSnapshot = useCallback(async (symbol) => {
@@ -472,7 +486,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
   const showBreakingBanner = !isCollapsed && isBreakingNewsVisible && breakingNews;
-  const showTickerTape = !isCollapsed && !isBreakingNewsVisible && breakingNewsStatus === 'dismissed';
+  // Ticker tape removed per user request
   const collapseToggle = (
     <button
       onClick={() => setIsCollapsed(!isCollapsed)}
@@ -498,10 +512,22 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       `}</style>
       
-      {/* Watchlist Panel */}
-      <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
-        isCollapsed ? 'w-20' : selectedTicker ? 'w-96' : 'flex-1 max-w-xl'
-      }`}>
+      {/* Watchlist Panel - Resizable */}
+      <div 
+        className="flex flex-col border-r border-gray-800 relative"
+        style={{ width: isCollapsed ? 80 : watchlistWidth, transition: isResizing.current ? 'none' : 'width 0.3s' }}
+      >
+        {/* Resize Handle */}
+        {!isCollapsed && (
+          <div
+            onMouseDown={handleResizeStart}
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-emerald-500/50 active:bg-emerald-500 z-10 group"
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <GripVertical className="w-3 h-3 text-gray-500" />
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="border-b border-gray-800 relative">
           <div className="pr-10">
@@ -532,27 +558,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               )}
             </AnimatePresence>
 
-            <AnimatePresence mode="popLayout">
-              {showTickerTape && (
-                <motion.div
-                  key="breaking-news-ticker"
-                  layout
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
-                  className="px-3 py-2"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <TickerTape text={tickerTapeText} />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {!showBreakingBanner && !showTickerTape && (
+            {!showBreakingBanner && (
               <motion.div
                 layout
                 className="px-3 py-2"
