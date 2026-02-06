@@ -451,9 +451,20 @@ const ActiveTrades = () => {
                         </div>
                       </div>
                       
-                      {/* Qty */}
-                      <div className="text-xs text-gray-400">
-                        Quantity: <span className="text-white font-medium">{trade.qty} shares</span>
+                      {/* Qty + Ticker */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-400">
+                          Quantity: <span className="text-white font-medium">{trade.qty} shares</span>
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`https://www.tradingview.com/chart/?symbol=${tradePanelStrategy.symbol}`, '_blank');
+                          }}
+                          className="text-[10px] font-semibold uppercase tracking-wider text-sky-400 hover:text-sky-300 hover:underline transition"
+                        >
+                          {tradePanelStrategy.symbol} ↗
+                        </button>
                       </div>
                     </div>
                   );
