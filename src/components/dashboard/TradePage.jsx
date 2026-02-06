@@ -466,22 +466,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const collapseToggle = (
     <button
       onClick={cycleWatchlistState}
-      className="flex items-center gap-0.5 p-1 hover:bg-gray-800 rounded transition-colors focus:outline-none"
+      className="p-1 hover:bg-gray-800 rounded transition-colors focus:outline-none"
       aria-label="Resize watchlist"
       type="button"
     >
-      {/* First chevron - lit when open or small */}
       <ChevronsLeft 
         className={`w-5 h-5 transition-all duration-200 ${
           watchlistState !== 'closed' 
-            ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.7)]' 
-            : 'text-gray-600'
-        }`}
-      />
-      {/* Second chevron - lit only when open */}
-      <ChevronsLeft 
-        className={`w-5 h-5 -ml-3 transition-all duration-200 ${
-          watchlistState === 'open' 
             ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.7)]' 
             : 'text-gray-600'
         }`}
