@@ -230,6 +230,13 @@ const ActiveTrades = () => {
   }, [pnlDelta, totalPnl]);
 
   const pnlAccent = totalPnl >= 0 ? 'text-emerald-500' : 'text-red-500';
+  
+  // Get live strategy data (updates in real-time)
+  const liveStrategyData = useMemo(() => {
+    if (!tradePanelStrategy) return null;
+    return strategies.find(s => s.id === tradePanelStrategy.id) || tradePanelStrategy;
+  }, [tradePanelStrategy, strategies]);
+  
   const activeTrades = useMemo(() => {
     if (!tradePanelStrategy) return [];
     const trades = tradesByStrategy[tradePanelStrategy.id] || [];
@@ -373,23 +380,45 @@ const ActiveTrades = () => {
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', stiffness: 260, damping: 32 }}
             >
-              <div className="px-5 pt-5 pb-4 border-b border-[#1e1e2d] bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_60%)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-400/70">
-                      {tradePanelStrategy.symbol} Trades
+              {/* Sticky Header - stays fixed while scrolling */}
+              <div className="flex-shrink-0 border-b border-[#1e1e2d] bg-[#0f0f16]">
+                {/* Top row: Title + Close */}
+                <div className="px-5 pt-5 pb-3 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_60%)]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-400/70">
+                        {tradePanelStrategy.symbol} Trades
+                      </div>
+                      <div className="text-lg font-semibold text-white">{tradePanelStrategy.name}</div>
                     </div>
-                    <div className="text-lg font-semibold text-white">{tradePanelStrategy.name}</div>
-                    <div className="mt-1 text-[11px] text-gray-400">
-                      Most recent executions first. Scroll for older fills.
-                    </div>
+                    <button
+                      onClick={() => setTradePanelOpen(false)}
+                      className="w-9 h-9 rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] hover:border-emerald-500/40 hover:bg-emerald-500/10 transition flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-gray-400 hover:text-emerald-300" fill="none" strokeWidth={1.5} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setTradePanelOpen(false)}
-                    className="w-9 h-9 rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] hover:border-emerald-500/40 hover:bg-emerald-500/10 transition flex items-center justify-center"
-                  >
-                    <X className="w-4 h-4 text-gray-400 hover:text-emerald-300" fill="none" strokeWidth={1.5} />
-                  </button>
+                </div>
+                
+                {/* P&L Summary - Live updating */}
+                <div className="px-5 py-3 bg-[#0a0a0f] border-t border-[#1e1e2d]">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Strategy P&L</div>
+                  <div className="flex items-baseline gap-3">
+                    <AnimatePresence mode="popLayout">
+                      <motion.div
+                        key={liveStrategyData?.pnl?.toFixed(0)}
+                        initial={{ y: 6, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -6, opacity: 0 }}
+                        className={`text-2xl font-bold ${liveStrategyData?.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                      >
+                        {formatMoney(liveStrategyData?.pnl || 0)}
+                      </motion.div>
+                    </AnimatePresence>
+                    <span className={`text-sm font-medium ${liveStrategyData?.pnlPct >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {liveStrategyData?.pnlPct > 0 ? '+' : ''}{liveStrategyData?.pnlPct}%
+                    </span>
+                  </div>
                 </div>
               </div>
 
