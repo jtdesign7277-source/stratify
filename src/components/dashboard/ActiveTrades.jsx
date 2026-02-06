@@ -403,7 +403,7 @@ const ActiveTrades = () => {
                 {/* P&L Summary - Live updating */}
                 <div className="px-5 py-3 bg-[#0a0a0f] border-t border-[#1e1e2d]">
                   <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Total Return</div>
-                  <div className="flex items-baseline gap-3">
+                  <div className="flex items-baseline gap-5">
                     <AnimatePresence mode="popLayout">
                       <motion.div
                         key={liveStrategyData?.pnl?.toFixed(0)}
