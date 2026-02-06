@@ -42,77 +42,68 @@ const CardSparkline = ({ data, color = '#10b981', height = 60 }) => {
   );
 };
 
+// Stat cell component for dense data display
+const StatCell = ({ label, value }) => (
+  <div className="rounded-lg bg-[#303134] border border-[#5f6368]/60 px-2.5 py-2">
+    <div className="text-[10px] text-[#9AA0A6] uppercase tracking-wider">{label}</div>
+    <div className="text-[12px] text-[#E8EAED] font-semibold mt-1">{value}</div>
+  </div>
+);
+
 // The actual share card that gets rendered/exported
 const ShareCardContent = ({ data, variant = 'default' }) => {
   const isPositive = data.pnl >= 0;
-  const pnlColor = isPositive ? '#10b981' : '#ef4444';
+  const pnlColor = isPositive ? '#00C853' : '#F44336';
+  const glowColor = isPositive ? 'rgba(0, 200, 83, 0.45)' : 'rgba(244, 67, 54, 0.45)';
   const avgPerTrade = data.trades ? data.pnl / data.trades : 0;
   const range = Math.max(...data.chartData) - Math.min(...data.chartData);
 
-  const variants = {
-    default: {
-      bg: 'from-[#0b1220] via-[#0a172a] to-[#0d1e35]',
-      accent: 'from-emerald-400 to-cyan-400',
-      glow: 'rgba(16, 185, 129, 0.18)'
-    },
-    fire: {
-      bg: 'from-[#1b0b0b] via-[#281010] to-[#1a0a0a]',
-      accent: 'from-orange-500 to-red-500',
-      glow: 'rgba(249, 115, 22, 0.22)'
-    },
-    superbowl: {
-      bg: 'from-[#0a1a12] via-[#0d2418] to-[#0a1d14]',
-      accent: 'from-emerald-400 to-green-500',
-      glow: 'rgba(16, 185, 129, 0.22)'
-    },
-    whale: {
-      bg: 'from-[#0b0d1f] via-[#11162c] to-[#0b1024]',
-      accent: 'from-blue-500 to-purple-500',
-      glow: 'rgba(99, 102, 241, 0.22)'
-    }
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    const sign = value >= 0 ? '+' : '-';
+    return `${sign}$${Math.abs(value).toLocaleString()}`;
   };
 
-  const v = variants[variant] || variants.default;
+  const formatNumber = (value) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    return value.toLocaleString();
+  };
 
   return (
     <div
-      className={`relative w-[420px] h-[520px] rounded-2xl overflow-hidden bg-gradient-to-br ${v.bg}`}
-      style={{ fontFamily: "'SF Pro Display', -apple-system, sans-serif" }}
+      className="relative w-[420px] h-[520px] rounded-2xl overflow-hidden border border-[#5f6368]/70"
+      style={{ fontFamily: "'SF Pro Display', -apple-system, sans-serif", backgroundColor: '#202124' }}
     >
-      {/* Background effects */}
-      <div className="absolute inset-0">
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)`,
-            backgroundSize: '18px 18px'
-          }}
-        />
-        <div
-          className="absolute -top-12 right-0 w-40 h-40 rounded-full blur-[90px]"
-          style={{ backgroundColor: v.glow }}
-        />
-        <div
-          className="absolute -bottom-10 left-0 w-40 h-40 rounded-full blur-[90px]"
-          style={{ backgroundColor: v.glow }}
-        />
-      </div>
+      <style>{`
+        @keyframes pnlGlow {
+          0%, 100% { box-shadow: 0 0 0 1px #5f6368, 0 0 14px ${glowColor}; }
+          50% { box-shadow: 0 0 0 1px #5f6368, 0 0 24px ${glowColor}; }
+        }
+      `}</style>
+      <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ animation: 'pnlGlow 3.8s ease-in-out infinite' }} />
+      <div
+        className="absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+                           linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)`,
+          backgroundSize: '20px 20px'
+        }}
+      />
 
       <div className="relative h-full flex flex-col p-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${v.accent} flex items-center justify-center`}>
-              <Zap className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-[#303134] border border-[#5f6368]/60 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-[#00C853]" />
             </div>
             <div>
-              <div className="text-white font-semibold leading-tight">Stratify</div>
-              <div className="text-[10px] text-white/50 uppercase tracking-widest">Share Card</div>
+              <div className="text-[#E8EAED] font-semibold leading-tight">Stratify</div>
+              <div className="text-[10px] text-[#9AA0A6] uppercase tracking-widest">Share Card</div>
             </div>
           </div>
           {data.badge && (
-            <div className={`px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-semibold text-white uppercase tracking-wider flex items-center gap-1 border border-white/10`}>
+            <div className="px-2.5 py-1 rounded-full bg-[#303134] text-[10px] font-semibold text-[#E8EAED] uppercase tracking-wider flex items-center gap-1 border border-[#5f6368]/60">
               {data.badge === 'superbowl' && <Trophy className="w-3 h-3" />}
               {data.badge === 'streak' && <Flame className="w-3 h-3" />}
               {data.badge === 'whale' && <Sparkles className="w-3 h-3" />}
@@ -123,64 +114,60 @@ const ShareCardContent = ({ data, variant = 'default' }) => {
 
         {/* Strategy info */}
         <div className="mt-4">
-          <span className="text-xs text-white/45 tracking-wider">{data.ticker}</span>
-          <h2 className="text-2xl font-bold text-white leading-tight mt-1">{data.strategyName}</h2>
-          <p className="text-xs text-white/50 mt-1">{data.timeframe}</p>
+          <span className="text-xs text-[#9AA0A6] tracking-wider">{data.ticker}</span>
+          <h2 className="text-2xl font-bold text-[#E8EAED] leading-tight mt-1">{data.strategyName}</h2>
+          <p className="text-xs text-[#9AA0A6] mt-1">{data.timeframe}</p>
         </div>
 
         {/* Main numbers */}
-        <div className="mt-4 grid grid-cols-[1.3fr_1fr] gap-4 items-start">
+        <div className="mt-4 grid grid-cols-[1.25fr_1fr] gap-3 items-start">
           <div>
-            <div className="text-[10px] text-white/45 uppercase tracking-wider mb-2">Total Return</div>
+            <div className="text-[10px] text-[#9AA0A6] uppercase tracking-wider mb-2">Total Return</div>
             <div className="text-5xl font-bold tracking-tight" style={{ color: pnlColor }}>
               {isPositive ? '+' : ''}{data.pnlPercent}%
             </div>
-            <div className="text-sm text-white/60 mt-2">
+            <div className="text-sm text-[#9AA0A6] mt-2">
               {isPositive ? '+' : '-'}${Math.abs(data.pnl).toLocaleString()}
             </div>
           </div>
-          <div className="space-y-2 text-xs bg-white/[0.04] border border-white/[0.08] rounded-xl p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-white/50">Win rate</span>
-              <span className="text-white font-semibold">{data.winRate}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-white/50">Trades</span>
-              <span className="text-white font-semibold">{data.trades}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-white/50">Sharpe</span>
-              <span className="text-white font-semibold">{data.sharpe}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-white/50">Avg/Trade</span>
-              <span className="text-white font-semibold">
-                {avgPerTrade >= 0 ? '+' : '-'}${Math.abs(avgPerTrade).toFixed(0)}
-              </span>
-            </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <StatCell label="Win rate" value={`${data.winRate}%`} />
+            <StatCell label="Trades" value={formatNumber(data.trades)} />
+            <StatCell label="Sharpe" value={data.sharpe ?? '—'} />
+            <StatCell label="Avg/Trade" value={formatCurrency(avgPerTrade)} />
           </div>
         </div>
 
+        {/* Dense stats row */}
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <StatCell label="Max DD" value={data.maxDrawdown ? `-${data.maxDrawdown}%` : '—'} />
+          <StatCell label="Profit Factor" value={data.profitFactor ?? '—'} />
+          <StatCell label="Best Trade" value={formatCurrency(data.bestTrade)} />
+          <StatCell label="Worst Trade" value={formatCurrency(data.worstTrade)} />
+          <StatCell label="Avg Hold" value={data.avgHoldTime ?? '—'} />
+          <StatCell label="Volume" value={formatNumber(data.volume)} />
+        </div>
+
         {/* Chart */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-[10px] text-white/40 uppercase tracking-widest mb-2">
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[10px] text-[#9AA0A6] uppercase tracking-widest mb-2">
             <span>Equity Curve</span>
             <span>Range {range.toFixed(1)}</span>
           </div>
-          <div className="h-20 bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2">
-            <CardSparkline data={data.chartData} color={pnlColor} height={56} />
+          <div className="h-20 bg-[#303134] border border-[#5f6368]/60 rounded-xl px-2 py-1">
+            <CardSparkline data={data.chartData} color={pnlColor} height={80} />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-auto pt-4 border-t border-white/[0.08] flex items-center justify-between">
+        <div className="mt-auto pt-4 border-t border-[#5f6368]/50 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white">
+            <div className="w-6 h-6 rounded-full bg-[#303134] border border-[#5f6368]/60 flex items-center justify-center text-[10px] font-bold text-[#E8EAED]">
               {data.username?.charAt(0).toUpperCase() || 'S'}
             </div>
-            <span className="text-xs text-white/60 truncate">@{data.username || 'trader'}</span>
+            <span className="text-xs text-[#9AA0A6] truncate">@{data.username || 'trader'}</span>
           </div>
-          <span className="text-[10px] text-white/30">stratify.app</span>
+          <span className="text-[10px] text-[#9AA0A6]">stratify.app</span>
         </div>
       </div>
     </div>
@@ -204,6 +191,12 @@ const PnLShareCard = ({ isOpen, onClose, strategyData }) => {
     winRate: 67,
     trades: 84,
     sharpe: 2.1,
+    maxDrawdown: 4.2,
+    profitFactor: 2.8,
+    bestTrade: 423,
+    worstTrade: -187,
+    avgHoldTime: '2h 14m',
+    volume: 847250,
     chartData: [100, 102, 98, 105, 108, 104, 112, 115, 118, 120, 117, 124],
     username: 'trader_mike',
     badge: 'superbowl',
@@ -242,11 +235,11 @@ const PnLShareCard = ({ isOpen, onClose, strategyData }) => {
       />
       
       {/* Modal */}
-      <div className="relative bg-[#0a1628] border border-white/10 rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-[#202124] border border-[#5f6368] rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
+          className="absolute top-4 right-4 p-2 rounded-lg hover:bg-[#303134] transition-colors"
         >
           <X className="w-5 h-5 text-white/60" />
         </button>
@@ -376,6 +369,12 @@ const ShareCardDemo = () => {
     winRate: 67,
     trades: 84,
     sharpe: 2.1,
+    maxDrawdown: 4.2,
+    profitFactor: 2.8,
+    bestTrade: 423,
+    worstTrade: -187,
+    avgHoldTime: '2h 14m',
+    volume: 847250,
     chartData: [100, 102, 98, 105, 108, 104, 112, 115, 118, 120, 117, 124],
     username: 'trader_mike',
     badge: 'superbowl',
