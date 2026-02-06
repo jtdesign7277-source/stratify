@@ -94,16 +94,18 @@ const getSignalHealth = (pnlPct, heat) => {
   return 'NEUTRAL';
 };
 
-const signalConfig = {
-  PRINTING: { bars: 5, color: '#10b981', animation: 'shimmer' },
-  NEUTRAL: { bars: 3, color: '#06b6d4', animation: 'none' },
-  STRUGGLING: { bars: 2, color: '#f59e0b', animation: 'none' },
-  DANGER: { bars: 1, color: '#ef4444', animation: 'blink' },
-};
-
-// Signal Bars Component (like phone signal strength)
-const SignalBars = ({ health }) => {
-  const config = signalConfig[health];
+// Signal Bars Component - based on heat percentage
+const SignalBars = ({ heat }) => {
+  // Determine bars and color based on heat
+  const getBarsAndColor = (heat) => {
+    if (heat >= 80) return { bars: 5, color: '#10b981', animation: 'shimmer' }; // Green, full bars
+    if (heat >= 60) return { bars: 4, color: '#10b981', animation: 'none' };    // Green
+    if (heat >= 40) return { bars: 3, color: '#fbbf24', animation: 'none' };    // Amber
+    if (heat >= 20) return { bars: 2, color: '#f59e0b', animation: 'none' };    // Orange
+    return { bars: 1, color: '#ef4444', animation: 'blink' };                    // Red, low bars
+  };
+  
+  const config = getBarsAndColor(heat);
   const barHeights = [6, 10, 14, 18, 22];
   
   return (
@@ -345,7 +347,7 @@ const ActiveTrades = ({ setActiveTab }) => {
                   <div className={`text-base font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
                     {formatMoney(strategy.pnl)}
                   </div>
-                  <SignalBars health={health} />
+                  <SignalBars heat={strategy.heat} />
                 </div>
 
                 {/* Row 4: Stats inline */}
@@ -353,7 +355,7 @@ const ActiveTrades = ({ setActiveTab }) => {
                   <span className={isProfitable ? 'text-emerald-300' : 'text-red-300'}>
                     {strategy.pnlPct > 0 ? '+' : ''}{strategy.pnlPct}% today
                   </span>
-                  <span className={strategy.heat > 75 ? 'text-amber-300' : 'text-gray-400'}>
+                  <span className={strategy.heat >= 60 ? 'text-emerald-400' : strategy.heat >= 30 ? 'text-amber-300' : 'text-red-400'}>
                     Heat {strategy.heat}%
                   </span>
                 </div>
