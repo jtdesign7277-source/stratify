@@ -402,7 +402,7 @@ const ActiveTrades = () => {
                 
                 {/* P&L Summary - Live updating */}
                 <div className="px-5 py-3 bg-[#0a0a0f] border-t border-[#1e1e2d]">
-                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Strategy P&L</div>
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Total Return</div>
                   <div className="flex items-baseline gap-3">
                     <AnimatePresence mode="popLayout">
                       <motion.div
@@ -416,7 +416,7 @@ const ActiveTrades = () => {
                       </motion.div>
                     </AnimatePresence>
                     <span className={`text-sm font-medium ${liveStrategyData?.pnlPct >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-                      {liveStrategyData?.pnlPct > 0 ? '+' : ''}{liveStrategyData?.pnlPct}%
+                      ({liveStrategyData?.pnlPct >= 0 ? '+' : ''}{liveStrategyData?.pnlPct}%)
                     </span>
                   </div>
                 </div>
