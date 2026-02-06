@@ -11,7 +11,11 @@ const mockNews = [
 ];
 
 const LiveAlertsTicker = () => {
-  const [alerts, setAlerts] = useState([]);
+  const [alerts, setAlerts] = useState([
+    { id: 1, symbol: 'NVDA', pnl: 48.90, price: 171.88, type: 'trade' },
+    { id: 2, symbol: 'TSLA', pnl: -23.40, price: 245.30, type: 'trade' },
+    { id: 3, symbol: 'META', pnl: 127.50, price: 542.15, type: 'trade' },
+  ]);
   const [news] = useState(mockNews);
 
   // Fetch recent filled orders from Alpaca
@@ -64,8 +68,6 @@ const LiveAlertsTicker = () => {
       color: '#8ab4f8'
     }))
   ];
-
-  if (allItems.length === 0) return null;
 
   return (
     <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1e1e2d]">
