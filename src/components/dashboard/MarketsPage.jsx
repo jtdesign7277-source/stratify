@@ -1,6 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Globe, BarChart3, Activity, RefreshCw, Loader2 } from 'lucide-react';
 import { getQuotes, getTrending } from '../../services/marketData';
+
+// Floating TradingView mini chart preview
+const ChartPreview = ({ symbol, position, onClose }) => {
+  const getTradingViewSymbol = (sym) => {
+    // Convert symbols to TradingView format
+    if (sym.startsWith('^')) {
+      const indexMap = { '^GSPC': 'SPX', '^DJI': 'DJI', '^IXIC': 'IXIC', '^RUT': 'RUT' };
+      return indexMap[sym] || sym.replace('^', '');
+    }
+    if (sym.includes('-USD')) return `CRYPTO:${sym.replace('-USD', 'USD')}`;
+    return sym;
+  };
+
+  const tvSymbol = getTradingViewSymbol(symbol);
+
+  return (
+    <div 
+      className="fixed z-50 bg-[#1a1a24] border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
+      style={{ 
+        top: Math.min(position.y, window.innerHeight - 220),
+        left: Math.min(position.x + 20, window.innerWidth - 320),
+        width: 300,
+        height: 200
+      }}
+      onMouseLeave={onClose}
+    >
+      <iframe
+        src={`https://s.tradingview.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22${encodeURIComponent(tvSymbol)}%22%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22100%25%22%2C%22dateRange%22%3A%221D%22%2C%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%2C%22largeChartUrl%22%3A%22%22%7D`}
+        className="w-full h-full"
+        frameBorder="0"
+        allowTransparency="true"
+        scrolling="no"
+      />
+    </div>
+  );
+};
 
 const MarketsPage = ({ themeClasses }) => {
   const [indices, setIndices] = useState([]);
@@ -8,6 +44,8 @@ const MarketsPage = ({ themeClasses }) => {
   const [trending, setTrending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [hoverPreview, setHoverPreview] = useState(null);
+  const hoverTimeout = useRef(null);
 
   const INDEX_SYMBOLS = ['^GSPC', '^DJI', '^IXIC', '^RUT'];
   const CRYPTO_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD'];
@@ -85,7 +123,21 @@ const MarketsPage = ({ themeClasses }) => {
             return (
               <div
                 key={item.symbol || item.name || idx}
-                className="flex items-center justify-between py-2 border-b border-gray-800/50 last:border-0"
+                className="flex items-center justify-between py-2 border-b border-gray-800/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors"
+                onMouseEnter={(e) => {
+                  clearTimeout(hoverTimeout.current);
+                  hoverTimeout.current = setTimeout(() => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoverPreview({
+                      symbol: item.symbol,
+                      position: { x: rect.right, y: rect.top }
+                    });
+                  }, 300);
+                }}
+                onMouseLeave={() => {
+                  clearTimeout(hoverTimeout.current);
+                  setTimeout(() => setHoverPreview(null), 100);
+                }}
               >
                 <div>
                   <div className="text-white text-sm font-medium">
@@ -153,6 +205,15 @@ const MarketsPage = ({ themeClasses }) => {
       <div className="mt-4">
         <MarketCard title="Sectors" data={sectors} icon={BarChart3} showSymbol={false} />
       </div>
+
+      {/* Floating TradingView Preview */}
+      {hoverPreview && (
+        <ChartPreview 
+          symbol={hoverPreview.symbol}
+          position={hoverPreview.position}
+          onClose={() => setHoverPreview(null)}
+        />
+      )}
     </div>
   );
 };
