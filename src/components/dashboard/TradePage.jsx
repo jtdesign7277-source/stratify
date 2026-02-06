@@ -188,45 +188,43 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [watchlistWidth, setWatchlistWidth] = useState(384); // Default 384px (w-96)
-  const startX = useRef(0);
-  const startWidth = useRef(0);
+  const [watchlistWidth, setWatchlistWidth] = useState(384);
+  const resizeRef = useRef(null);
 
-  // Handle watchlist resize
-  const [isDragging, setIsDragging] = useState(false);
-  
-  const handleResizeStart = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(true);
-    startX.current = e.clientX;
-    startWidth.current = watchlistWidth;
-  }, [watchlistWidth]);
-
+  // Simple resize handler
   useEffect(() => {
-    if (!isDragging) return;
-    
-    const handleMouseMove = (e) => {
-      const delta = e.clientX - startX.current;
-      const newWidth = Math.min(Math.max(startWidth.current + delta, 200), 600);
-      setWatchlistWidth(newWidth);
+    const resizer = resizeRef.current;
+    if (!resizer) return;
+
+    let startX = 0;
+    let startWidth = 0;
+
+    const onMouseDown = (e) => {
+      startX = e.pageX;
+      startWidth = watchlistWidth;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
     };
 
-    const handleMouseUp = () => {
-      setIsDragging(false);
+    const onMouseMove = (e) => {
+      const newWidth = startWidth + (e.pageX - startX);
+      if (newWidth >= 200 && newWidth <= 600) {
+        setWatchlistWidth(newWidth);
+      }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [isDragging]);
+
+    resizer.addEventListener('mousedown', onMouseDown);
+    return () => resizer.removeEventListener('mousedown', onMouseDown);
+  }, [watchlistWidth]);
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
   const [equityQuotes, setEquityQuotes] = useState({});
   const [cryptoQuotes, setCryptoQuotes] = useState({});
@@ -518,17 +516,15 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       
       {/* Watchlist Panel - Resizable */}
       <div 
-        className="flex flex-col border-r border-gray-800 relative"
-        style={{ width: isCollapsed ? 80 : watchlistWidth, transition: isDragging ? 'none' : 'width 0.2s ease-out' }}
+        className="flex flex-col border-r border-gray-800 relative flex-shrink-0"
+        style={{ width: isCollapsed ? 80 : watchlistWidth }}
       >
-        {/* Resize Handle - Wide grab area */}
+        {/* Resize Handle */}
         {!isCollapsed && (
           <div
-            onMouseDown={handleResizeStart}
-            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize z-20 flex items-center justify-center group"
-          >
-            <div className="w-1 h-full bg-transparent group-hover:bg-emerald-500/60 group-active:bg-emerald-500 transition-colors" />
-          </div>
+            ref={resizeRef}
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize z-20 hover:bg-emerald-500 bg-gray-700"
+          />
         )}
         {/* Header */}
         <div className="border-b border-gray-800 relative">
