@@ -311,12 +311,22 @@ const ActiveTrades = ({ setActiveTab }) => {
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedStrategy({
+                          ticker: strategy.symbol,
                           strategyName: strategy.name,
-                          pnlAmount: strategy.pnl,
+                          timeframe: 'Feb 1 - Feb 5, 2026',
+                          pnl: strategy.pnl,
                           pnlPercent: strategy.pnlPct,
                           winRate: 67,
-                          totalTrades: 28,
-                          chartData: [100, 102, 98, 105, 108, 104, 112],
+                          trades: 28,
+                          sharpe: 1.8,
+                          maxDrawdown: 3.2,
+                          profitFactor: 2.4,
+                          bestTrade: Math.abs(strategy.pnl * 0.3),
+                          worstTrade: -Math.abs(strategy.pnl * 0.15),
+                          avgHoldTime: '1h 42m',
+                          volume: Math.floor(Math.random() * 500000) + 100000,
+                          chartData: [100, 102, 98, 105, 108, 104, 112, 115, 118, 120, 117, 124],
+                          username: 'jeff_trades',
                         });
                         setShareOpen(true);
                       }}
