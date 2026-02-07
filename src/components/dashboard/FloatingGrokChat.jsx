@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Loader2, X, Zap, GripVertical } from 'lucide-react';
+import { Send, Loader2, X, Zap, GripVertical, Minus } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -23,6 +23,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
   const [size, setSize] = useState({ width: 380, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   
   const messagesEndRef = useRef(null);
   const typingIntervalRef = useRef(null);
@@ -195,6 +196,33 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  // Minimized state - small floating bar
+  if (isMinimized) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="fixed z-[9999] cursor-pointer"
+        style={{ left: position.x, top: position.y }}
+        onClick={() => setIsMinimized(false)}
+      >
+        <div 
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-emerald-500/30 bg-[#1a1a1f]/95 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(16,185,129,0.15)] hover:border-emerald-500/50 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_30px_rgba(16,185,129,0.25)] transition-all duration-200"
+        >
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+            <Zap className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2} />
+          </div>
+          <span className="text-white font-medium text-sm">Grok</span>
+          {messages.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+              {messages.length}
+            </span>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <AnimatePresence>
       <motion.div
@@ -228,14 +256,26 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
               <span className="text-emerald-400/60 text-xs ml-2">AI Assistant</span>
             </div>
           </div>
-          <button
-            type="button"
-            data-no-drag
-            onClick={handleClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
-          >
-            <X className="w-4 h-4" strokeWidth={2} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              data-no-drag
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-gray-400 hover:text-amber-400 transition-all duration-200"
+              title="Minimize"
+            >
+              <Minus className="w-4 h-4" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              data-no-drag
+              onClick={handleClose}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
+              title="Close"
+            >
+              <X className="w-4 h-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         {/* Messages - NO SCROLLBAR */}
