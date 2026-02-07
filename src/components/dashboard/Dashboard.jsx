@@ -197,7 +197,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   });
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
-  const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(true); // DEBUG: start open
+  const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
 
   // Command palette navigation handler
   const handleCommandNavigate = useCallback((target) => {
