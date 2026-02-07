@@ -204,7 +204,7 @@ AGENT INSTRUCTIONS:
 7. git add . && git commit -m "feat: Legend challenge system" && git push
 ═══════════════════════════════════════════════════════════════
 */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, X, Search } from "lucide-react";
 import { PnLShareCard } from "./PnLShareCard";
 
@@ -436,20 +436,48 @@ const UserProfileModal = ({ user, onClose, onCopy }) => {
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT — renders inside your existing center panel
 // ═══════════════════════════════════════════════════════════════
+const STORAGE_KEY = "stratify-challenge-portfolio";
+const loadSavedPortfolio = () => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch { return null; } };
+const saveChallengePortfolio = (p) => { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); };
+
 export default function ChallengeLeaderboard({ isPaid = true }) {
   const [period, setPeriod] = useState("weekly");
   const [view, setView] = useState("leaderboard"); // leaderboard | myPortfolio | enter | history | feed
-  const [selectedPicks, setSelectedPicks] = useState(DEFAULT_PICKS);
+  const [selectedPicks, setSelectedPicks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showShareCard, setShowShareCard] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const [activePortfolio, setActivePortfolio] = useState(() => loadSavedPortfolio());
+  const [editingAmount, setEditingAmount] = useState(null); // sym being edited
 
-  const myVal = MY_HOLDINGS.reduce((s,h)=>s+h.curPrice*h.shares,0) + MY_CASH;
+  // Simulate price drift for active portfolio
+  const [priceDrift, setPriceDrift] = useState({});
+  useEffect(() => {
+    if (!activePortfolio) return;
+    const interval = setInterval(() => {
+      setPriceDrift(prev => {
+        const next = { ...prev };
+        activePortfolio.holdings.forEach(h => {
+          const cur = next[h.sym] || 0;
+          next[h.sym] = cur + (Math.random() - 0.47) * getPrice(h.sym) * 0.001;
+        });
+        return next;
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [activePortfolio]);
+
+  const getLivePrice = (sym) => getPrice(sym) + (priceDrift[sym] || 0);
+
+  // Compute My Portfolio values from active portfolio
+  const myHoldings = activePortfolio?.holdings || MY_HOLDINGS;
+  const myCash = activePortfolio ? activePortfolio.cash : MY_CASH;
+  const myVal = myHoldings.reduce((s,h) => s + getLivePrice(h.sym) * h.shares, 0) + myCash;
   const myPnl = myVal - START_VAL;
   const myPct = (myPnl/START_VAL)*100;
-  const deployed = START_VAL - MY_CASH;
+  const deployed = START_VAL - myCash;
   const budgetUsed = selectedPicks.reduce((s,p)=>s+p.amount,0);
   const remaining = START_VAL - budgetUsed;
   const searchResults = useMemo(() => {
@@ -460,16 +488,44 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
   }, [searchQuery, selectedPicks]);
 
   const addPick = (sym) => {
-    if (selectedPicks.length >= 10) return;
-    const amt = Math.max(MIN_POSITION, Math.min(remaining, 10000));
-    if (amt < MIN_POSITION) { setValidationError("Not enough budget"); return; }
-    setSelectedPicks([...selectedPicks, { sym, amount: amt }]);
+    if (selectedPicks.length >= 10) { setValidationError("Maximum 10 picks"); return; }
+    if (selectedPicks.some(p => p.sym === sym)) { setValidationError(`$${sym} already added`); return; }
+    setSelectedPicks([...selectedPicks, { sym, amount: MIN_POSITION }]);
     setSearchQuery(""); setShowSearch(false); setValidationError("");
+    setEditingAmount(sym);
   };
-  const removePick = (sym) => setSelectedPicks(selectedPicks.filter(p=>p.sym!==sym));
+  const removePick = (sym) => { setSelectedPicks(selectedPicks.filter(p=>p.sym!==sym)); setValidationError(""); };
+  const updatePickAmount = (sym, rawVal) => {
+    const val = rawVal.replace(/[^0-9]/g, "");
+    const num = parseInt(val, 10) || 0;
+    setSelectedPicks(prev => prev.map(p => p.sym === sym ? { ...p, amount: num } : p));
+    setValidationError("");
+  };
   const copyPortfolio = (user) => {
-    const picks = (user.picks||[]).map((sym,i)=>({ sym, amount: Math.floor(START_VAL / user.picks.length) }));
+    const picks = (user.picks||[]).map((sym)=>({ sym, amount: Math.floor(START_VAL / user.picks.length) }));
     setSelectedPicks(picks); setSelectedUser(null); setView("enter");
+  };
+  const submitPortfolio = () => {
+    if (selectedPicks.length === 0) { setValidationError("Add at least one pick"); return; }
+    if (selectedPicks.length > 10) { setValidationError("Maximum 10 picks"); return; }
+    const tooSmall = selectedPicks.find(p => p.amount < MIN_POSITION);
+    if (tooSmall) { setValidationError(`$${tooSmall.sym}: Minimum $5,000 per position`); return; }
+    const totalUsed = selectedPicks.reduce((s,p) => s + p.amount, 0);
+    if (totalUsed > START_VAL) { setValidationError("Total exceeds $100,000 budget"); return; }
+    if (totalUsed < MIN_DEPLOY) { setValidationError(`Must deploy at least $95,000 (currently $${fmt(totalUsed,0)})`); return; }
+    // Build holdings from picks
+    const holdings = selectedPicks.map(p => {
+      const price = getPrice(p.sym);
+      const shares = p.amount / price;
+      return { sym: p.sym, shares, buyPrice: price, curPrice: price };
+    });
+    const cash = START_VAL - totalUsed;
+    const portfolio = { holdings, cash, period, submittedAt: Date.now() };
+    setActivePortfolio(portfolio);
+    saveChallengePortfolio(portfolio);
+    setPriceDrift({});
+    setView("myPortfolio");
+    setValidationError("");
   };
 
   // ── Paywall for free users ──────────────────────────────────
@@ -525,15 +581,19 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:fs(11),color:"#475569"}}>Your Rank</div>
-              <div style={{fontSize:fs(20),fontWeight:700,color:"#fbbf24",fontFamily:MONO}}>#4</div>
-            </div>
-            <div style={{width:1,height:28,background:"rgba(255,255,255,0.06)"}}/>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:fs(11),color:"#475569"}}>Your P&L</div>
-              <div style={{fontSize:fs(15),fontWeight:700,color:pnlColor(myPnl),fontFamily:MONO}}>{pnlSign(myPnl)}{fmt(Math.abs(myPct),1)}%</div>
-            </div>
+            {activePortfolio ? (<>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:fs(11),color:"#475569"}}>Your Rank</div>
+                <div style={{fontSize:fs(20),fontWeight:700,color:"#fbbf24",fontFamily:MONO}}>#4</div>
+              </div>
+              <div style={{width:1,height:28,background:"rgba(255,255,255,0.06)"}}/>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:fs(11),color:"#475569"}}>Your P&L</div>
+                <div style={{fontSize:fs(15),fontWeight:700,color:pnlColor(myPnl),fontFamily:MONO}}>{pnlSign(myPnl)}{fmt(Math.abs(myPct),1)}%</div>
+              </div>
+            </>) : (
+              <button onClick={()=>setView("enter")} style={{padding:"6px 16px",borderRadius:6,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(12),fontWeight:700,cursor:"pointer",fontFamily:MONO}}>Enter Challenge</button>
+            )}
           </div>
         </div>
 
@@ -618,49 +678,65 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
 
         {/* ════════ MY PORTFOLIO ════════ */}
         {view==="myPortfolio"&&(<div>
-          <div style={{background:"linear-gradient(135deg,rgba(34,211,238,0.06),rgba(6,182,212,0.03))",border:"1px solid rgba(34,211,238,0.15)",borderRadius:12,padding:"18px 22px",marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"start"}}>
-              <div>
-                <div style={{fontSize:fs(11),color:"#64748b",textTransform:"uppercase",letterSpacing:0.8,marginBottom:4}}>Challenge Portfolio Value</div>
-                <div style={{fontSize:fs(32),fontWeight:700,fontFamily:MONO,color:"#e2e8f0"}}>${fmt(myVal,0)}</div>
-                <div style={{fontSize:fs(15),fontWeight:600,color:pnlColor(myPnl),fontFamily:MONO,marginTop:4}}>{pnlSign(myPnl)}${fmt(Math.abs(myPnl),0)} ({pnlSign(myPct)}{fmt(Math.abs(myPct),1)}%)</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:fs(11),color:"#475569"}}>Rank</div>
-                <div style={{fontSize:fs(28),fontWeight:700,color:"#fbbf24",fontFamily:MONO}}>#4</div>
-                <div style={{fontSize:fs(11),color:"#22c55e",fontFamily:MONO}}>↑2 today</div>
-              </div>
+          {!activePortfolio ? (
+            <div style={{padding:"48px 20px",textAlign:"center"}}>
+              <div style={{fontSize:fs(48),marginBottom:16}}>📊</div>
+              <div style={{fontSize:fs(18),fontWeight:700,color:"#e2e8f0",marginBottom:8}}>No Active Challenge</div>
+              <div style={{fontSize:fs(14),color:"#64748b",marginBottom:20,lineHeight:1.5}}>Enter a challenge to start tracking your portfolio performance against other traders.</div>
+              <button onClick={()=>setView("enter")} style={{padding:"10px 28px",borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(14),fontWeight:700,cursor:"pointer",fontFamily:MONO}}>Enter Challenge</button>
             </div>
-            <div style={{display:"flex",gap:20,marginTop:14,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-              <div><div style={{fontSize:fs(10),color:"#475569"}}>Starting</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600}}>$100,000</div></div>
-              <div><div style={{fontSize:fs(10),color:"#475569"}}>Deployed</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600}}>${fmt(deployed,0)}</div></div>
-              <div><div style={{fontSize:fs(10),color:"#475569"}}>Cash Left</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600,color:"#f59e0b"}}>${fmt(MY_CASH)}</div></div>
-              <div><div style={{fontSize:fs(10),color:"#475569"}}>Holdings</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600}}>{MY_HOLDINGS.length}/10</div></div>
-              <div><div style={{fontSize:fs(10),color:"#475569"}}>Period</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600,color:"#fbbf24"}}>{period==="weekly"?"This Week":period==="monthly"?"February":period==="6month"?"H1 2026":"2026"}</div></div>
-            </div>
-          </div>
+          ) : (
+            <>
+              <div style={{background:"linear-gradient(135deg,rgba(34,211,238,0.06),rgba(6,182,212,0.03))",border:"1px solid rgba(34,211,238,0.15)",borderRadius:12,padding:"18px 22px",marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"start"}}>
+                  <div>
+                    <div style={{fontSize:fs(11),color:"#64748b",textTransform:"uppercase",letterSpacing:0.8,marginBottom:4}}>Challenge Portfolio Value</div>
+                    <div style={{fontSize:fs(32),fontWeight:700,fontFamily:MONO,color:"#e2e8f0"}}>${fmt(myVal,0)}</div>
+                    <div style={{fontSize:fs(15),fontWeight:600,color:pnlColor(myPnl),fontFamily:MONO,marginTop:4}}>{pnlSign(myPnl)}${fmt(Math.abs(myPnl),0)} ({pnlSign(myPct)}{fmt(Math.abs(myPct),1)}%)</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:fs(11),color:"#475569"}}>Rank</div>
+                    <div style={{fontSize:fs(28),fontWeight:700,color:"#fbbf24",fontFamily:MONO}}>#4</div>
+                    <div style={{fontSize:fs(11),color:"#22c55e",fontFamily:MONO}}>↑2 today</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:20,marginTop:14,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+                  <div><div style={{fontSize:fs(10),color:"#475569"}}>Starting</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600}}>$100,000</div></div>
+                  <div><div style={{fontSize:fs(10),color:"#475569"}}>Deployed</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600}}>${fmt(deployed,0)}</div></div>
+                  <div><div style={{fontSize:fs(10),color:"#475569"}}>Cash Left</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600,color:"#f59e0b"}}>${fmt(myCash)}</div></div>
+                  <div><div style={{fontSize:fs(10),color:"#475569"}}>Holdings</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600}}>{myHoldings.length}/10</div></div>
+                  <div><div style={{fontSize:fs(10),color:"#475569"}}>Period</div><div style={{fontSize:fs(13),fontFamily:MONO,fontWeight:600,color:"#fbbf24"}}>{activePortfolio.period==="weekly"?"This Week":activePortfolio.period==="monthly"?"This Month":activePortfolio.period==="6month"?"H1 2026":"2026"}</div></div>
+                </div>
+              </div>
 
-          <div style={{fontSize:fs(12),fontWeight:600,color:"#94a3b8",marginBottom:6}}>Holdings</div>
-          <div style={{display:"grid",gridTemplateColumns:"65px 55px 85px 85px 85px 75px",gap:6,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:fs(10),color:"#475569",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>
-            <span>Ticker</span><span>Shares</span><span>Buy Price</span><span>Current</span><span>Value</span><span>P&L</span>
-          </div>
-          {MY_HOLDINGS.map((h,i)=>{
-            const cv=h.curPrice*h.shares; const bv=h.buyPrice*h.shares; const hp=cv-bv; const hpct=(hp/bv)*100;
-            return (<div key={h.sym} style={{display:"grid",gridTemplateColumns:"65px 55px 85px 85px 85px 75px",gap:6,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.03)",fontSize:fs(13),fontFamily:MONO,animation:`fadeIn 0.15s ease-out ${i*0.04}s both`}}>
-              <span style={{fontWeight:600,color:"#e2e8f0"}}>${h.sym}</span>
-              <span style={{color:"#94a3b8"}}>{h.shares}</span>
-              <span style={{color:"#64748b"}}>${fmt(h.buyPrice)}</span>
-              <span style={{color:"#cbd5e1"}}>${fmt(h.curPrice)}</span>
-              <span style={{color:"#cbd5e1",fontWeight:500}}>${fmt(cv,0)}</span>
-              <span style={{color:pnlColor(hp),fontWeight:600}}>{pnlSign(hp)}{fmt(Math.abs(hpct),1)}%</span>
-            </div>);
-          })}
-          <div style={{display:"flex",gap:8,marginTop:14}}>
-            <button onClick={()=>setShowShareCard(true)} style={{flex:1,padding:"10px",borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(13),fontWeight:700,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              <Icon d={I.share} size={14} style={{color:"#0a0e18"}}/> Share P&L Card
-            </button>
-            <button onClick={()=>setView("leaderboard")} style={{flex:1,padding:"10px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:fs(13),fontWeight:600,cursor:"pointer",fontFamily:MONO}}>View Leaderboard</button>
-          </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:fs(12),fontWeight:600,color:"#94a3b8"}}>Holdings</span>
+                <span style={{fontSize:fs(11),color:"#475569"}}>Submitted {new Date(activePortfolio.submittedAt).toLocaleDateString()}</span>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"70px 70px 90px 90px 90px 75px",gap:6,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:fs(10),color:"#475569",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>
+                <span>Ticker</span><span>Shares</span><span>Buy Price</span><span>Current</span><span>Value</span><span>P&L</span>
+              </div>
+              {myHoldings.map((h,i)=>{
+                const curP = getLivePrice(h.sym);
+                const cv=curP*h.shares; const bv=h.buyPrice*h.shares; const hp=cv-bv; const hpct=bv?(hp/bv)*100:0;
+                return (<div key={h.sym} style={{display:"grid",gridTemplateColumns:"70px 70px 90px 90px 90px 75px",gap:6,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.03)",fontSize:fs(13),fontFamily:MONO,animation:`fadeIn 0.15s ease-out ${i*0.04}s both`}}>
+                  <span style={{fontWeight:600,color:"#e2e8f0"}}>${h.sym}</span>
+                  <span style={{color:"#94a3b8"}}>{formatShares(h.sym, h.shares)}</span>
+                  <span style={{color:"#64748b"}}>${fmt(h.buyPrice)}</span>
+                  <span style={{color:"#cbd5e1"}}>${fmt(curP)}</span>
+                  <span style={{color:"#cbd5e1",fontWeight:500}}>${fmt(cv,0)}</span>
+                  <span style={{color:pnlColor(hp),fontWeight:600}}>{pnlSign(hp)}{fmt(Math.abs(hpct),1)}%</span>
+                </div>);
+              })}
+              <div style={{display:"flex",gap:8,marginTop:14}}>
+                <button onClick={()=>setShowShareCard(true)} style={{flex:1,padding:"10px",borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(13),fontWeight:700,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <Icon d={I.share} size={14} style={{color:"#0a0e18"}}/> Share P&L Card
+                </button>
+                <button onClick={()=>setView("leaderboard")} style={{flex:1,padding:"10px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:fs(13),fontWeight:600,cursor:"pointer",fontFamily:MONO}}>View Leaderboard</button>
+              </div>
+              <button onClick={()=>{setActivePortfolio(null);localStorage.removeItem(STORAGE_KEY);setSelectedPicks([]);setPriceDrift({});}} style={{marginTop:8,width:"100%",padding:8,borderRadius:6,background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.15)",color:"#f87171",fontSize:fs(12),fontWeight:600,cursor:"pointer",fontFamily:MONO}}>Reset Challenge Portfolio</button>
+            </>
+          )}
         </div>)}
 
         {/* ════════ ENTER CHALLENGE ════════ */}
@@ -718,25 +794,51 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
             ))}
           </div>
 
-          <div style={{fontSize:fs(11),color:"#475569",textTransform:"uppercase",letterSpacing:0.8,marginBottom:6}}>Current Picks</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontSize:fs(11),color:"#475569",textTransform:"uppercase",letterSpacing:0.8}}>Current Picks ({selectedPicks.length}/10)</span>
+            {selectedPicks.length > 0 && <span style={{fontSize:fs(11),color:budgetUsed >= MIN_DEPLOY ? "#22c55e" : "#f59e0b",fontFamily:MONO,fontWeight:600}}>{budgetUsed >= MIN_DEPLOY ? "✓ Min deploy met" : `Need $${fmtK(MIN_DEPLOY - budgetUsed)} more`}</span>}
+          </div>
+          {selectedPicks.length === 0 && (
+            <div style={{padding:"24px 16px",textAlign:"center",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:8,marginBottom:8}}>
+              <div style={{fontSize:fs(14),color:"#475569",marginBottom:4}}>No picks yet</div>
+              <div style={{fontSize:fs(12),color:"#334155"}}>Search or tap a ticker above to start building your portfolio</div>
+            </div>
+          )}
           {selectedPicks.map((p,i)=>{
             const shares = p.amount / getPrice(p.sym);
-            const pct = getMockPnlPct(p.sym);
+            const price = getPrice(p.sym);
+            const isEditing = editingAmount === p.sym;
+            const amountValid = p.amount >= MIN_POSITION;
+            const amountOver = budgetUsed > START_VAL;
             return (
-              <div key={`${p.sym}-${i}`} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:7,marginBottom:4}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div key={`${p.sym}-${i}`} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:!amountValid?"rgba(248,113,113,0.04)":"rgba(255,255,255,0.02)",border:`1px solid ${!amountValid?"rgba(248,113,113,0.15)":"rgba(255,255,255,0.05)"}`,borderRadius:7,marginBottom:4,transition:"all 0.15s"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
                   <span style={{fontSize:fs(14),fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${p.sym}</span>
-                  <span style={{fontSize:fs(11),color:"#475569"}}>{formatShares(p.sym, shares)} shares</span>
-                  <span style={{fontSize:fs(11),color:pnlColor(pct),fontFamily:MONO,fontWeight:600}}>{pnlSign(pct)}{fmt(Math.abs(pct),1)}%</span>
+                  <span style={{fontSize:fs(11),color:"#475569"}}>{formatShares(p.sym, shares)} shares @ ${fmt(price)}</span>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:fs(13),fontWeight:600,fontFamily:MONO,color:"#e2e8f0"}}>${fmtK(p.amount)}</span>
-                  <button onClick={()=>removePick(p.sym)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:0}}><Icon d={I.x} size={13}/></button>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+                    <span style={{position:"absolute",left:8,fontSize:fs(13),color:"#64748b",fontFamily:MONO,pointerEvents:"none"}}>$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={isEditing ? p.amount.toString() : fmt(p.amount,0).replace(/,/g,"")==="NaN"?"0":p.amount.toLocaleString("en-US")}
+                      onFocus={()=>setEditingAmount(p.sym)}
+                      onBlur={()=>{setEditingAmount(null);if(p.amount<MIN_POSITION&&p.amount>0){/* keep value, show validation */}}}
+                      onChange={e=>updatePickAmount(p.sym, e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"){e.target.blur();setEditingAmount(null);}}}
+                      style={{width:90,padding:"5px 8px 5px 18px",borderRadius:5,background:isEditing?"rgba(255,255,255,0.06)":"rgba(255,255,255,0.03)",border:`1px solid ${!amountValid?"rgba(248,113,113,0.3)":isEditing?"rgba(34,211,238,0.3)":"rgba(255,255,255,0.08)"}`,color:"#e2e8f0",fontSize:fs(13),fontWeight:600,fontFamily:MONO,textAlign:"right",outline:"none",transition:"border-color 0.15s"}}
+                    />
+                  </div>
+                  {!amountValid && p.amount > 0 && <span style={{fontSize:fs(9),color:"#f87171",whiteSpace:"nowrap"}}>min $5K</span>}
+                  <button onClick={()=>removePick(p.sym)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:2,display:"flex"}} onMouseEnter={e=>e.currentTarget.style.color="#f87171"} onMouseLeave={e=>e.currentTarget.style.color="#475569"}><Icon d={I.x} size={13}/></button>
                 </div>
               </div>
             );
           })}
-          <button style={{marginTop:14,width:"100%",padding:12,borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(15),fontWeight:700,cursor:"pointer",fontFamily:MONO}}>🔒 Submit Portfolio</button>
+          {budgetUsed > START_VAL && <div style={{fontSize:fs(12),color:"#f87171",marginTop:6,fontFamily:MONO}}>Over budget by ${fmt(budgetUsed - START_VAL,0)}</div>}
+          <button onClick={submitPortfolio} disabled={selectedPicks.length===0} style={{marginTop:14,width:"100%",padding:12,borderRadius:8,background:selectedPicks.length===0?"rgba(255,255,255,0.06)":"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:selectedPicks.length===0?"#475569":"#0a0e18",fontSize:fs(15),fontWeight:700,cursor:selectedPicks.length===0?"not-allowed":"pointer",fontFamily:MONO,transition:"all 0.2s",opacity:selectedPicks.length===0?0.5:1}}>🔒 Submit Portfolio</button>
+          {activePortfolio && <button onClick={()=>setView("myPortfolio")} style={{marginTop:6,width:"100%",padding:10,borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:fs(13),fontWeight:600,cursor:"pointer",fontFamily:MONO}}>View Active Portfolio →</button>}
         </div>)}
 
         {/* ════════ LIVE FEED ════════ */}
