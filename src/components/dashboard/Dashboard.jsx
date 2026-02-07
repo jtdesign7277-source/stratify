@@ -198,6 +198,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
+  const [isGrokMinimized, setIsGrokMinimized] = useState(false);
+  const [grokMessageCount, setGrokMessageCount] = useState(0);
 
   // Command palette navigation handler
   const handleCommandNavigate = useCallback((target) => {
@@ -523,7 +525,39 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
         onLogout={() => setCurrentPage('landing')} 
         onLegendClick={() => setActiveTab('legend')}
-        connectedBrokers={connectedBrokers} 
+        connectedBrokers={connectedBrokers}
+        miniPills={[
+          // Slot 0: Grok pill when minimized
+          isGrokMinimized && isFloatingGrokOpen ? (
+            <div
+              key="grok-pill"
+              onClick={() => setIsGrokMinimized(false)}
+              className="h-8 flex items-center gap-2 pl-2.5 pr-2 rounded-full border border-white/20 bg-black/90 cursor-pointer hover:border-white/40 transition-all"
+            >
+              <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-3 h-3 text-black" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </div>
+              <span className="text-white font-medium text-xs">Grok</span>
+              {grokMessageCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-medium">
+                  {grokMessageCount}
+                </span>
+              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsFloatingGrokOpen(false); setIsGrokMinimized(false); }}
+                className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-all"
+              >
+                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ) : null,
+          // Slots 1-5: Empty for future use
+          null, null, null, null, null
+        ]}
       />
       <LiveAlertsTicker />
       <div className="flex flex-1 overflow-hidden">
@@ -662,8 +696,10 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
 
       {/* Floating Grok Chat */}
       <FloatingGrokChat
-        isOpen={isFloatingGrokOpen}
+        isOpen={isFloatingGrokOpen && !isGrokMinimized}
         onClose={() => setIsFloatingGrokOpen(false)}
+        onMinimize={() => setIsGrokMinimized(true)}
+        onMessageCountChange={setGrokMessageCount}
       />
     </div>
   );

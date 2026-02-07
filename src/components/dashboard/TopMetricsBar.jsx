@@ -254,7 +254,7 @@ const BrokerBadge = ({ broker }) => {
   );
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [] }) {
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [] }) {
   const account = alpacaData?.account || {};
   
   // Mock live P&L data
@@ -302,11 +302,24 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
 
   return (
     <div className={`h-14 flex items-center px-4 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="flex flex-1 min-w-0 items-center gap-6 overflow-x-auto">
+      <div className="flex min-w-0 items-center gap-6">
         {metrics.map((metric, index) => (
           <div key={index} className="flex flex-col min-w-0">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
             <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
+          </div>
+        ))}
+      </div>
+      
+      {/* Mini Pills Bar - 6 slots for minimized widgets */}
+      <div className="flex items-center gap-2 mx-6 flex-1 justify-center">
+        {[0, 1, 2, 3, 4, 5].map((slot) => (
+          <div 
+            key={slot} 
+            className={`h-8 min-w-[80px] rounded-full ${miniPills[slot] ? '' : 'border border-dashed border-white/10 bg-white/[0.02]'}`}
+            data-pill-slot={slot}
+          >
+            {miniPills[slot] || null}
           </div>
         ))}
       </div>

@@ -22,7 +22,7 @@ const getSessionId = () => {
 };
 const STORAGE_KEY = 'stratify-floating-grok';
 
-const FloatingGrokChat = ({ isOpen, onClose }) => {
+const FloatingGrokChat = ({ isOpen, onClose, onMinimize, onMessageCountChange }) => {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +30,6 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
   const [size, setSize] = useState({ width: 380, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   
   const messagesEndRef = useRef(null);
   const typingIntervalRef = useRef(null);
@@ -59,13 +58,17 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
     } catch {}
   };
 
-  // When opened from sidebar, always start expanded (not minimized)
+  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setIsMinimized(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Report message count to parent
+  useEffect(() => {
+    onMessageCountChange?.(messages.length);
+  }, [messages.length, onMessageCountChange]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -205,65 +208,6 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // Minimized state - small floating bar (draggable)
-  if (isMinimized) {
-    const handleMinimizedMouseDown = (e) => {
-      if (e.target.closest('[data-close-btn]')) return;
-      e.preventDefault();
-      dragOffset.current = {
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      };
-      dragStartPos.current = { x: e.clientX, y: e.clientY };
-      wasDragged.current = false;
-      setIsDragging(true);
-    };
-
-    const handleMinimizedMouseUp = (e) => {
-      if (e.target.closest('[data-close-btn]')) return;
-      // Only expand if we didn't drag (moved less than 5px)
-      const dist = Math.sqrt(
-        Math.pow(e.clientX - dragStartPos.current.x, 2) + 
-        Math.pow(e.clientY - dragStartPos.current.y, 2)
-      );
-      if (dist < 5) {
-        setIsMinimized(false);
-      }
-    };
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className={`fixed z-[9999] select-none ${isDragging ? 'cursor-grabbing' : 'cursor-pointer'}`}
-        style={{ left: position.x, top: position.y }}
-        onMouseDown={handleMinimizedMouseDown}
-        onMouseUp={handleMinimizedMouseUp}
-      >
-        <div 
-          className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-full border border-white/20 bg-black/90 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.5)] hover:border-white/40 transition-all duration-200"
-        >
-          <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-            <XLogo className="w-3.5 h-3.5 text-black" />
-          </div>
-          <span className="text-white font-medium text-sm">Grok</span>
-          {messages.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-xs font-medium">
-              {messages.length}
-            </span>
-          )}
-          <button
-            data-close-btn
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-all ml-1"
-          >
-            <X className="w-3 h-3" strokeWidth={2} />
-          </button>
-        </div>
-      </motion.div>
-    );
-  }
-
   return (
     <AnimatePresence>
       <motion.div
@@ -301,7 +245,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
             <button
               type="button"
               data-no-drag
-              onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+              onClick={(e) => { e.stopPropagation(); onMinimize?.(); }}
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-gray-400 hover:text-amber-400 transition-all duration-200"
               title="Minimize"
             >
