@@ -350,11 +350,9 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                 tabIndex={0}
                 className="group relative rounded-lg border border-[#1e1e2d] bg-[#0f0f16] p-2.5 hover:border-emerald-500/40 hover:shadow-[inset_-2px_0_12px_rgba(16,185,129,0.15)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
               >
-                {/* Click for details indicator */}
-                <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200 animate-pulse">
-                  <svg className="w-2.5 h-2.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                {/* Bottom edge tab - click for details */}
+                <div className="absolute -bottom-0 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-t-md bg-emerald-500/20 border border-b-0 border-emerald-500/30 opacity-0 group-hover:opacity-100 group-hover:-translate-y-0 translate-y-1 transition-all duration-200">
+                  <span className="text-[9px] font-medium text-emerald-400 uppercase tracking-wider">Details</span>
                 </div>
                 {/* Row 1: Ticker + Status + Share */}
                 <div className="flex items-center justify-between mb-1">
