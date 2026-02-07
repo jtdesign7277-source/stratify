@@ -103,7 +103,7 @@ const applyQuoteUpdate = (prevMap, update) => {
   return nextMap;
 };
 
-const useMarketData = () => {
+export const useMarketData = () => {
   const [prices, setPrices] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
