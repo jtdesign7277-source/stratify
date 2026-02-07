@@ -1,16 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Loader2, X, Zap } from 'lucide-react';
+import { Send, Loader2, X, Zap, GripVertical } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+const STORAGE_KEY = 'stratify-floating-grok';
 
 const FloatingGrokChat = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [position, setPosition] = useState({ x: window.innerWidth - 420, y: window.innerHeight - 560 });
+  const [size, setSize] = useState({ width: 380, height: 500 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const typingIntervalRef = useRef(null);
   const inputRef = useRef(null);
+  const containerRef = useRef(null);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
+
+  // Load saved position/size
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const { pos, sz } = JSON.parse(saved);
+        if (pos) setPosition(pos);
+        if (sz) setSize(sz);
+      }
+    } catch {}
+  }, []);
+
+  // Save position/size
+  const saveState = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: position, sz: size }));
+    } catch {}
+  };
 
   // Focus input when opened
   useEffect(() => {
@@ -24,12 +52,82 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Cleanup typing interval
+  // Cleanup
   useEffect(() => {
     return () => {
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
     };
   }, []);
+
+  // Drag handlers
+  const handleDragStart = (e) => {
+    if (e.target.closest('[data-no-drag]')) return;
+    e.preventDefault();
+    dragOffset.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    
+    const handleMove = (e) => {
+      const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.current.x));
+      const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.current.y));
+      setPosition({ x: newX, y: newY });
+    };
+    
+    const handleUp = () => {
+      setIsDragging(false);
+      saveState();
+    };
+    
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isDragging, size]);
+
+  // Resize handlers
+  const handleResizeStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: size.width,
+      height: size.height,
+    };
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+    
+    const handleMove = (e) => {
+      const deltaX = e.clientX - resizeStart.current.x;
+      const deltaY = e.clientY - resizeStart.current.y;
+      const newWidth = Math.max(280, Math.min(600, resizeStart.current.width + deltaX));
+      const newHeight = Math.max(300, Math.min(800, resizeStart.current.height + deltaY));
+      setSize({ width: newWidth, height: newHeight });
+    };
+    
+    const handleUp = () => {
+      setIsResizing(false);
+      saveState();
+    };
+    
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isResizing]);
 
   const handleSend = async () => {
     if (!chatInput.trim() || isLoading) return;
@@ -48,14 +146,12 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
       const data = await response.json();
       const fullContent = data.response || "Couldn't respond.";
       
-      // Add empty assistant message for typewriter effect
       setMessages((prev) => [...prev, { role: 'assistant', content: '', isTyping: true }]);
 
-      // Typewriter effect
       let idx = 0;
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       typingIntervalRef.current = setInterval(() => {
-        idx += 2; // Characters per tick
+        idx += 2;
         setMessages((prev) => {
           const next = [...prev];
           const done = idx >= fullContent.length;
@@ -71,7 +167,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
           typingIntervalRef.current = null;
           setIsLoading(false);
         }
-      }, 15); // Speed of typewriter
+      }, 15);
     } catch (e) {
       setMessages((prev) => [...prev, { role: 'assistant', content: 'Error connecting to Grok.', isError: true }]);
       setIsLoading(false);
@@ -89,19 +185,27 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="fixed bottom-24 right-6 z-[9999] w-[380px] h-[500px] flex flex-col rounded-2xl overflow-hidden"
+        ref={containerRef}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.15 }}
+        className="fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none"
         style={{
+          left: position.x,
+          top: position.y,
+          width: size.width,
+          height: size.height,
           background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
           border: '1px solid rgba(16, 185, 129, 0.2)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-emerald-500/10 to-transparent">
+        {/* Header - Draggable */}
+        <div 
+          className={`flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-emerald-500/10 to-transparent ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          onMouseDown={handleDragStart}
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
               <Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} />
@@ -113,6 +217,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
           </div>
           <button
             type="button"
+            data-no-drag
             onClick={handleClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
           >
@@ -120,8 +225,15 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ scrollbarWidth: 'thin' }}>
+        {/* Messages - NO SCROLLBAR */}
+        <div 
+          className="flex-1 overflow-y-auto p-4 space-y-3"
+          style={{ 
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
+        >
+          <style>{`.floating-grok-messages::-webkit-scrollbar { display: none; }`}</style>
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
@@ -160,10 +272,11 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
         </div>
 
         {/* Input */}
-        <div className="p-3 border-t border-white/10 bg-[#0d0d12]">
+        <div className="p-3 border-t border-white/10 bg-[#0d0d12]" data-no-drag>
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
+              data-no-drag
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => {
@@ -175,10 +288,11 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
               placeholder="Ask Grok..."
               rows={1}
               className="flex-1 min-h-[44px] max-h-24 rounded-xl bg-[#1a1a1f] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none transition-all"
-              style={{ scrollbarWidth: 'thin' }}
+              style={{ scrollbarWidth: 'none' }}
             />
             <button
               type="button"
+              data-no-drag
               onClick={handleSend}
               disabled={!chatInput.trim() || isLoading}
               className={`h-11 w-11 flex-shrink-0 flex items-center justify-center rounded-xl transition-all duration-200 ${
@@ -194,6 +308,19 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
               )}
             </button>
           </div>
+        </div>
+
+        {/* Resize Handle */}
+        <div
+          data-no-drag
+          onMouseDown={handleResizeStart}
+          className={`absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center cursor-se-resize opacity-40 hover:opacity-100 transition-opacity ${isResizing ? 'opacity-100' : ''}`}
+          style={{ 
+            background: 'linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.3) 50%)',
+            borderRadius: '0 0 16px 0',
+          }}
+        >
+          <GripVertical className="w-3 h-3 text-emerald-400 rotate-[-45deg]" strokeWidth={2} />
         </div>
       </motion.div>
     </AnimatePresence>
