@@ -274,7 +274,7 @@ const parseStrategyResponse = (content) => {
   return { summary: parsed, code, raw: content };
 };
 
-const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
+const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [tickerSearch, setTickerSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -310,6 +310,10 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
+
+  useEffect(() => {
+    onCollapsedChange && onCollapsedChange(isCollapsed);
+  }, [isCollapsed, onCollapsedChange]);
 
   useEffect(() => {
     const introIndex = messages.findIndex(m => m.isIntro);

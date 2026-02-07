@@ -5,6 +5,7 @@ import LiveAlertsTicker from './LiveAlertsTicker';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import GrokPanel from './GrokPanel';
+import FloatingGrokChat from './FloatingGrokChat';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
 import ArbitragePanel from './ArbitragePanel';
@@ -195,6 +196,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     } catch { return []; }
   });
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
+  const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
 
   // Command palette navigation handler
   const handleCommandNavigate = useCallback((target) => {
@@ -530,6 +533,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           savedStrategies={savedStrategies}
           deployedStrategies={deployedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
+          grokPanelCollapsed={isGrokPanelCollapsed}
+          onOpenFloatingGrok={() => setIsFloatingGrokOpen(true)}
         />
         
         {/* Main Content Area - Three Collapsible Panels */}
@@ -586,6 +591,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         </div>
         
         <GrokPanel 
+          onCollapsedChange={setIsGrokPanelCollapsed}
           onSaveStrategy={(strategy) => {
             setSavedStrategies(prev => {
               // Don't add if already exists
@@ -652,6 +658,12 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
       <KeyboardShortcutsModal
         isOpen={showShortcutsModal}
         onClose={() => setShowShortcutsModal(false)}
+      />
+
+      {/* Floating Grok Chat */}
+      <FloatingGrokChat
+        isOpen={isFloatingGrokOpen}
+        onClose={() => setIsFloatingGrokOpen(false)}
       />
     </div>
   );
