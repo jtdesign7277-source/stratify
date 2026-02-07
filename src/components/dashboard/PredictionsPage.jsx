@@ -325,13 +325,13 @@ const OddsCell = ({ line, odds, variant = 'standard' }) => {
   const displayOdds = hasOdds ? odds : 'Bid';
   const displayMoney = hasLine ? line : 'Bid';
   return (
-    <div className="rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] text-center py-2.5 px-2.5">
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] text-center py-1.5 px-1">
       {variant === 'money' ? (
-        <div className="text-[15px] font-semibold text-[#29e1a6]">{displayMoney}</div>
+        <div className="text-xs font-semibold text-[#29e1a6]">{displayMoney}</div>
       ) : (
         <>
-          <div className="text-[15px] font-semibold text-white/90">{displayLine}</div>
-          <div className="text-[10px] text-[#29e1a6]">{displayOdds}</div>
+          <div className="text-xs font-semibold text-white/90">{displayLine}</div>
+          <div className="text-[9px] text-[#29e1a6]">{displayOdds}</div>
         </>
       )}
     </div>
@@ -352,13 +352,13 @@ const SportsBetCard = ({ market }) => {
   const volumeLabel = formatVolumeLong(market.volume || 0);
 
   return (
-    <div className="rounded-2xl border-2 border-[#2c2c2c] bg-[#111111] p-7 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <div className="rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-xl font-semibold text-white leading-snug line-clamp-2">
+          <h3 className="text-base font-semibold text-white leading-snug line-clamp-2">
             {market.title || market.ticker}
           </h3>
-          <div className="mt-2 flex items-center gap-2 text-xs text-white/50">
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-white/50">
             {isLive ? (
               <>
                 <span className="inline-flex items-center gap-2 text-red-400 uppercase tracking-widest">
@@ -380,42 +380,40 @@ const SportsBetCard = ({ market }) => {
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-[1fr_1.1fr] gap-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <ShoeIcon teamName={teamA} />
-            <div className="h-9 w-10 rounded-lg bg-[#171717] border border-[#2a2a2a] flex items-center justify-center text-[11px] font-semibold text-white/70">
+      <div className="mt-3 grid grid-cols-[1fr_1fr] gap-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-8 rounded bg-[#171717] border border-[#2a2a2a] flex items-center justify-center text-[10px] font-semibold text-white/70">
               {getInitials(teamA)}
             </div>
-            <div className="flex-1 text-sm text-white/90">{teamA}</div>
-            <div className="h-9 w-11 rounded-md border border-[#2a2a2a] bg-[#151515] flex items-center justify-center text-sm text-white/80">
+            <div className="flex-1 text-xs text-white/90 truncate">{teamA}</div>
+            <div className="h-7 w-8 rounded border border-[#2a2a2a] bg-[#151515] flex items-center justify-center text-xs text-white/80">
               {scoreA}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <ShoeIcon teamName={teamB} />
-            <div className="h-9 w-10 rounded-lg bg-[#171717] border border-[#2a2a2a] flex items-center justify-center text-[11px] font-semibold text-white/70">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-8 rounded bg-[#171717] border border-[#2a2a2a] flex items-center justify-center text-[10px] font-semibold text-white/70">
               {getInitials(teamB)}
             </div>
-            <div className="flex-1 text-sm text-white/90">{teamB}</div>
-            <div className="h-9 w-11 rounded-md border border-[#2a2a2a] bg-[#151515] flex items-center justify-center text-sm text-white/80">
+            <div className="flex-1 text-xs text-white/90 truncate">{teamB}</div>
+            <div className="h-7 w-8 rounded border border-[#2a2a2a] bg-[#151515] flex items-center justify-center text-xs text-white/80">
               {scoreB}
             </div>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-2 text-[11px] text-white/40 uppercase tracking-widest">
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-3 gap-1.5 text-[9px] text-white/40 uppercase tracking-widest">
             <div className="text-center">Spread</div>
             <div className="text-center">Money</div>
             <div className="text-center">Total</div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <OddsCell line={lines.spreadA} odds={toAmericanOdds(yesPercent)} />
             <OddsCell line={lines.moneyA} variant="money" />
             <OddsCell line={lines.totalOver} odds={toAmericanOdds(yesPercent)} />
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <OddsCell line={lines.spreadB} odds={toAmericanOdds(noPercent)} />
             <OddsCell line={lines.moneyB} variant="money" />
             <OddsCell line={lines.totalUnder} odds={toAmericanOdds(noPercent)} />
@@ -423,9 +421,9 @@ const SportsBetCard = ({ market }) => {
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between text-xs text-white/40">
+      <div className="mt-3 flex items-center justify-between text-[10px] text-white/40">
         <span>${volumeLabel} vol</span>
-        <span>Spread and Total · 2 markets</span>
+        <span>2 markets</span>
       </div>
     </div>
   );
@@ -571,7 +569,7 @@ const PredictionsPage = () => {
       )}
 
       {loading && markets.length === 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-[#1f1f1f] bg-[#111111] p-5 animate-pulse">
               <div className="h-3 bg-white/10 rounded w-2/3 mb-2" />
