@@ -8,6 +8,7 @@ import stocksRouter from './routes/stocks.js';
 import chatRouter from './routes/chat.js';
 import kalshiRouter from './routes/kalshi.js';
 import strategiesRouter from './routes/strategies.js';
+import trendsRouter, { setYahooFinance } from './routes/trends.js';
 import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice } from './services/alpaca.js';
 
 dotenv.config();
@@ -27,6 +28,7 @@ if (process.env.OPENAI_API_KEY) {
 
 // Initialize Yahoo Finance
 const yahooFinance = new YahooFinance();
+setYahooFinance(yahooFinance);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +41,7 @@ app.use('/api/v1/kalshi', kalshiRouter);
 app.use('/api/kalshi', kalshiRouter);
 app.use('/api/claude', chatRouter);
 app.use('/api/strategies', strategiesRouter);
+app.use('/api/trends', trendsRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
