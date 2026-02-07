@@ -646,7 +646,16 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
-          {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={handleSelectTemplate} />}
+          {activeTab === 'templates' && (
+            <StrategyTemplatesGallery 
+              themeClasses={themeClasses} 
+              onSelectTemplate={handleSelectTemplate}
+              onSaveToStrategies={(strategy) => {
+                setSavedStrategies(prev => [...prev, strategy]);
+                setActiveTab('strategies');
+              }}
+            />
+          )}
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
