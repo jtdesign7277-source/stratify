@@ -1024,6 +1024,15 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState('strategies');
+  
+  // When activeTab changes, clear overlays so content is visible
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    // Clear overlay sections when switching main tabs
+    if (tab === 'legend') {
+      setActiveSection(null);
+    }
+  };
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme] = useState('dark'); // Kraken is always dark
@@ -1321,7 +1330,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         activeSection={activeSection} 
         onSectionChange={setActiveSection} 
         activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+        onTabChange={handleTabChange} 
         theme={theme} 
         themeClasses={themeClasses}
         watchlist={watchlist}
@@ -1350,7 +1359,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setActiveTab('legend')}
+                onClick={() => handleTabChange('legend')}
                 className="relative p-2.5 rounded-lg border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-200 hover:shadow-[0_0_12px_rgba(251,191,36,0.4)] transition-all"
                 title="Legend"
               >
