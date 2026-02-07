@@ -1320,6 +1320,8 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         onToggle={(val) => setSidebarExpanded(val)} 
         activeSection={activeSection} 
         onSectionChange={setActiveSection} 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
         theme={theme} 
         themeClasses={themeClasses}
         watchlist={watchlist}
