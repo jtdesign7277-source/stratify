@@ -154,23 +154,19 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
     } catch { return []; }
   });
   const [deployedStrategies, setDeployedStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-deployed-strategies');
-      const staggeredTimes = [
-        Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000),
-        Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),
-        Date.now() - (45 * 60 * 1000),
-        Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000),
-        Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),
-        Date.now() - (5 * 24 * 60 * 60 * 1000) - (8 * 60 * 60 * 1000),
-      ];
-      // Use saved data if available, otherwise use strategiesSeed as default
-      const data = saved ? JSON.parse(saved) : strategiesSeed;
-      return data.map((s, i) => ({
-        ...s,
-        deployedAt: s.deployedAt || staggeredTimes[i % staggeredTimes.length]
-      }));
-    } catch { return strategiesSeed; }
+    const staggeredTimes = [
+      Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000),
+      Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),
+      Date.now() - (45 * 60 * 1000),
+      Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000),
+      Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),
+      Date.now() - (5 * 24 * 60 * 60 * 1000) - (8 * 60 * 60 * 1000),
+    ];
+    // Always use strategiesSeed as the source of truth for active strategies
+    return strategiesSeed.map((s, i) => ({
+      ...s,
+      deployedAt: staggeredTimes[i % staggeredTimes.length]
+    }));
   });
   const [savedStrategies, setSavedStrategies] = useState(() => {
     try {
@@ -439,7 +435,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   }, [deployedStrategies.length]);
 
   useEffect(() => {
-    localStorage.setItem('stratify-deployed-strategies', JSON.stringify(deployedStrategies));
+    localStorage.setItem('stratify-deployed-strategies-v2', JSON.stringify(deployedStrategies));
   }, [deployedStrategies]);
 
   useEffect(() => {
