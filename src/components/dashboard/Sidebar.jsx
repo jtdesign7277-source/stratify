@@ -40,7 +40,7 @@ const Sidebar = ({
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'active', label: 'Active', icon: Play, badge: 4 },
+    { id: 'active', label: 'Active', icon: Play, badge: deployedStrategies.length },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'templates', label: 'Templates', icon: Layout },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
