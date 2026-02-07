@@ -1,0 +1,427 @@
+import { useState, useMemo } from "react";
+
+/* ═══════════════════════════════════════════════════════════════
+   CHALLENGE LEADERBOARD — Standalone component for center panel
+   Drops into existing Stratify layout. Not a full page.
+   Includes: Leaderboard, My Portfolio, Enter Challenge, 
+             Past Winners, Live Social Feed, Super Bowl Challenge
+   ═══════════════════════════════════════════════════════════════ */
+
+const MONO = "'JetBrains Mono', monospace";
+const fmt = (n,d=2) => n?.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}) ?? "—";
+const fmtK = (n) => n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":n?.toString()??"—";
+const pnlColor = (v) => v>=0 ? "#22d3ee" : "#f87171";
+const pnlSign = (v) => v>=0 ? "+" : "";
+const badgeColors = { gold:"#fbbf24", silver:"#94a3b8", bronze:"#d97706" };
+const riskColors = { Low:"#22c55e", Med:"#f59e0b", High:"#ef4444" };
+
+const Icon = ({d,size=18,style:s={}}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" style={s}><path d={d}/></svg>
+);
+const I = {
+  search:"M21 21l-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z",
+  heart:"M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z",
+  msg:"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  share:"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13",
+  x:"M18 6L6 18M6 6l12 12",
+  arrowUp:"M12 19V5M5 12l7-7 7 7",
+  arrowDown:"M12 5v14M19 12l-7 7-7-7",
+  clock:"M12 12m-10 0a10 10 0 1 0 20 0 10 10 0 1 0-20 0M12 6v6l4 2",
+  copy:"M20 9h-9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
+  fire:"M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z",
+  trophy:"M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 22v-4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4M6 2h12v7a6 6 0 0 1-12 0V2z",
+};
+
+// ── Mock Data ─────────────────────────────────────────────────
+const LEADERBOARD = [
+  { rank:1, user:"AlgoAnna", avi:"AA", curVal:134820, picks:["NVDA","SOL","BTC","TSLA","META"], streak:4, badge:"gold", rankChange:0, risk:"High" },
+  { rank:2, user:"TraderMike", avi:"TM", curVal:128450, picks:["AAPL","MSFT","GOOGL","SPY","AMZN"], streak:2, badge:"silver", rankChange:1, risk:"Low" },
+  { rank:3, user:"CryptoKing", avi:"CK", curVal:124200, picks:["BTC","ETH","SOL","XRP","DOGE"], streak:1, badge:"bronze", rankChange:-1, risk:"High" },
+  { rank:4, user:"SwingSetSam", avi:"SS", curVal:118730, picks:["SPY","QQQ","AAPL","NVDA"], streak:0, badge:null, rankChange:2, risk:"Med" },
+  { rank:5, user:"DayTraderDan", avi:"DD", curVal:115400, picks:["TSLA","NVDA","SOL"], streak:0, badge:null, rankChange:0, risk:"High" },
+  { rank:6, user:"ValueVictor", avi:"VV", curVal:112890, picks:["BRK.B","JPM","V","JNJ","PG"], streak:3, badge:null, rankChange:1, risk:"Low" },
+  { rank:7, user:"MomoMary", avi:"MM", curVal:109340, picks:["NVDA","AMD","SMCI","MSTR"], streak:0, badge:null, rankChange:-2, risk:"High" },
+  { rank:8, user:"ETFEddie", avi:"EE", curVal:107200, picks:["SPY","QQQ","IWM","DIA","VTI"], streak:1, badge:null, rankChange:0, risk:"Low" },
+  { rank:9, user:"OptionsOscar", avi:"OO", curVal:103450, picks:["TSLA","AMZN","META","NFLX"], streak:0, badge:null, rankChange:3, risk:"Med" },
+  { rank:10, user:"NewbieNick", avi:"NN", curVal:98200, picks:["GME","AMC","BB","PLTR"], streak:0, badge:null, rankChange:-1, risk:"High" },
+];
+
+const MY_HOLDINGS = [
+  { sym:"NVDA", shares:200, buyPrice:138.50, curPrice:142.87 },
+  { sym:"BTC", shares:0.35, buyPrice:98400, curPrice:102483 },
+  { sym:"TSLA", shares:50, buyPrice:388.00, curPrice:394.21 },
+  { sym:"SOL", shares:45, buyPrice:198.20, curPrice:214.87 },
+  { sym:"AAPL", shares:40, buyPrice:234.80, curPrice:237.42 },
+];
+const MY_CASH = 247.35;
+const START_VAL = 100000;
+
+const PAST_WINNERS = [
+  { period:"Week of Jan 27", user:"AlgoAnna", ret:"+18.4%", val:118400 },
+  { period:"Week of Jan 20", user:"CryptoKing", ret:"+22.1%", val:122100 },
+  { period:"Week of Jan 13", user:"TraderMike", ret:"+15.7%", val:115700 },
+  { period:"January 2026", user:"AlgoAnna", ret:"+34.8%", val:134800 },
+  { period:"December 2025", user:"QuantQueen", ret:"+28.2%", val:128200 },
+];
+
+const LIVE_FEED = [
+  { user:"TraderMike", avi:"TM", verified:true, time:"2m", text:"Just closed my $NVDA calls for +340% — Atlas AI strategy nailed the entry 🎯", pnl:"+$12,847", pnlPct:"+340%", likes:234, comments:18, ticker:"NVDA" },
+  { user:"AlgoAnna", avi:"AA", verified:true, time:"8m", text:"Super Bowl Challenge update: Up 23% this week. AI scalping on $TSLA is printing 🏈💰", pnl:"+$5,120", pnlPct:"+23%", likes:156, comments:12, ticker:"TSLA" },
+  { user:"CryptoKing", avi:"CK", verified:false, time:"15m", text:"$BTC breaking 100K resistance. Challenge portfolio up 24.2% — chasing AlgoAnna for #1", pnl:"+$8,432", pnlPct:"+24.2%", likes:412, comments:31, ticker:"BTC" },
+  { user:"QuantQueen", avi:"QQ", verified:true, time:"22m", text:"Mean reversion on $SPY hitting 73% win rate. Slow and steady wins the monthly challenge 📈", pnl:"+$3,210", pnlPct:"+18%", likes:89, comments:7, ticker:"SPY" },
+  { user:"DayTraderDan", avi:"DD", verified:false, time:"38m", text:"Breakout on $SOL triggered — added to my challenge portfolio at $198. Target $240 🚀", pnl:"+$1,890", pnlPct:"+44%", likes:67, comments:4, ticker:"SOL" },
+  { user:"SwingSetSam", avi:"SS", verified:false, time:"1h", text:"Moved up to #4 on the weekly leaderboard! $SPY and $QQQ carrying me. Conservative but consistent.", pnl:"+$2,340", pnlPct:"+18.7%", likes:43, comments:3, ticker:"SPY" },
+  { user:"MomoMary", avi:"MM", verified:true, time:"1h", text:"$NVDA + $AMD + $SMCI combo for the AI semiconductor play. High risk but high reward challenge strat 🔥", pnl:"+$4,670", pnlPct:"+9.3%", likes:98, comments:8, ticker:"NVDA" },
+];
+
+// ── Social Card ───────────────────────────────────────────────
+const FeedCard = ({ post }) => {
+  const [liked, setLiked] = useState(false);
+  return (
+    <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"12px 14px",marginBottom:6,transition:"background 0.2s",cursor:"pointer"}}
+      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.02)"}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+        <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg, rgba(34,211,238,0.2), rgba(34,211,238,0.05))",border:"1px solid rgba(34,211,238,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#22d3ee",fontFamily:MONO}}>{post.avi}</div>
+        <div style={{flex:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <span style={{fontWeight:600,fontSize:12,color:"#e2e8f0"}}>{post.user}</span>
+            {post.verified&&<span style={{color:"#22d3ee",fontSize:9}}>✓</span>}
+            <span style={{color:"#475569",fontSize:10}}>· {post.time}</span>
+          </div>
+        </div>
+        <div style={{background:"rgba(34,211,238,0.08)",border:"1px solid rgba(34,211,238,0.15)",borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700,fontFamily:MONO,color:"#22d3ee"}}>{post.pnlPct}</div>
+      </div>
+      <p style={{color:"#94a3b8",fontSize:12,lineHeight:1.5,margin:"0 0 8px"}}>{post.text}</p>
+      <div style={{display:"flex",alignItems:"center",gap:14,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.04)"}}>
+        <button onClick={()=>setLiked(!liked)} style={{background:"none",border:"none",display:"flex",alignItems:"center",gap:4,color:liked?"#f87171":"#475569",fontSize:11,cursor:"pointer",padding:0}}><Icon d={I.heart} size={13}/>{liked?post.likes+1:post.likes}</button>
+        <button style={{background:"none",border:"none",display:"flex",alignItems:"center",gap:4,color:"#475569",fontSize:11,cursor:"pointer",padding:0}}><Icon d={I.msg} size={13}/>{post.comments}</button>
+        <button style={{background:"none",border:"none",display:"flex",alignItems:"center",gap:4,color:"#475569",fontSize:11,cursor:"pointer",padding:0}}><Icon d={I.share} size={13}/>Share</button>
+        <div style={{flex:1}}/>
+        <span style={{fontSize:10,fontWeight:600,color:"#22d3ee",background:"rgba(34,211,238,0.08)",padding:"2px 7px",borderRadius:3,fontFamily:MONO}}>${post.ticker}</span>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN COMPONENT — renders inside your existing center panel
+// ═══════════════════════════════════════════════════════════════
+export default function ChallengeLeaderboard({ isPaid = true }) {
+  const [period, setPeriod] = useState("weekly");
+  const [view, setView] = useState("leaderboard"); // leaderboard | myPortfolio | enter | history | feed
+
+  const myVal = MY_HOLDINGS.reduce((s,h)=>s+h.curPrice*h.shares,0) + MY_CASH;
+  const myPnl = myVal - START_VAL;
+  const myPct = (myPnl/START_VAL)*100;
+  const deployed = START_VAL - MY_CASH;
+
+  // ── Paywall for free users ──────────────────────────────────
+  if (!isPaid) {
+    return (
+      <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40,position:"relative",overflow:"hidden"}}>
+        {/* Blurred preview behind */}
+        <div style={{position:"absolute",inset:0,opacity:0.15,filter:"blur(8px)",padding:20,overflow:"hidden",pointerEvents:"none"}}>
+          {LEADERBOARD.slice(0,5).map((e,i)=>(
+            <div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+              <span style={{fontSize:16}}>{e.rank===1?"🥇":e.rank===2?"🥈":e.rank===3?"🥉":"  "}</span>
+              <span style={{color:"#e2e8f0",fontWeight:600}}>{e.user}</span>
+              <span style={{color:"#22d3ee",fontFamily:MONO,marginLeft:"auto"}}>{pnlSign(e.curVal-100000)}{fmt(((e.curVal-100000)/100000)*100,1)}%</span>
+            </div>
+          ))}
+        </div>
+        {/* Upgrade CTA */}
+        <div style={{position:"relative",zIndex:1,textAlign:"center",maxWidth:400}}>
+          <div style={{fontSize:48,marginBottom:16}}>🏆</div>
+          <div style={{fontSize:22,fontWeight:700,fontFamily:MONO,color:"#fbbf24",marginBottom:8}}>Portfolio Challenge</div>
+          <div style={{fontSize:14,color:"#94a3b8",lineHeight:1.6,marginBottom:6}}>Compete against 847+ traders with $100K paper money. Pick your tickers, lock in before market open, and climb the leaderboard.</div>
+          <div style={{fontSize:13,color:"#64748b",marginBottom:24}}>Top performers this week:</div>
+          <div style={{display:"flex",justifyContent:"center",gap:16,marginBottom:24}}>
+            {LEADERBOARD.slice(0,3).map((e,i)=>(
+              <div key={i} style={{background:"rgba(251,191,36,0.04)",border:"1px solid rgba(251,191,36,0.12)",borderRadius:10,padding:"12px 16px",textAlign:"center",minWidth:100}}>
+                <div style={{fontSize:20,marginBottom:4}}>{i===0?"🥇":i===1?"🥈":"🥉"}</div>
+                <div style={{fontSize:12,fontWeight:600,color:"#e2e8f0"}}>{e.user}</div>
+                <div style={{fontSize:14,fontWeight:700,color:"#22d3ee",fontFamily:MONO,marginTop:4}}>{pnlSign(e.curVal-100000)}{fmt(((e.curVal-100000)/100000)*100,1)}%</div>
+              </div>
+            ))}
+          </div>
+          <button style={{padding:"12px 32px",borderRadius:10,background:"linear-gradient(135deg, #fbbf24, #f59e0b)",border:"none",color:"#0a0e18",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:MONO,transition:"transform 0.15s"}}
+            onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+            Upgrade to Legend — $9.99/mo
+          </button>
+          <div style={{fontSize:11,color:"#475569",marginTop:10}}>Cancel anytime · First week free</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Paid user: Full challenge ───────────────────────────────
+  return (
+    <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{padding:"16px 20px 12px",borderBottom:"1px solid rgba(255,255,255,0.06)",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:24}}>🏆</span>
+            <div>
+              <div style={{fontSize:18,fontWeight:700,fontFamily:MONO,color:"#fbbf24"}}>Portfolio Challenge</div>
+              <div style={{fontSize:11,color:"#64748b"}}>$100K paper money · Max 10 picks · Locks 9:29 AM ET</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:10,color:"#475569"}}>Your Rank</div>
+              <div style={{fontSize:18,fontWeight:700,color:"#fbbf24",fontFamily:MONO}}>#4</div>
+            </div>
+            <div style={{width:1,height:28,background:"rgba(255,255,255,0.06)"}}/>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:10,color:"#475569"}}>Your P&L</div>
+              <div style={{fontSize:14,fontWeight:700,color:pnlColor(myPnl),fontFamily:MONO}}>{pnlSign(myPnl)}{fmt(Math.abs(myPct),1)}%</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Period Tabs */}
+        <div style={{display:"flex",gap:4,marginBottom:8}}>
+          {["weekly","monthly","6month","yearly"].map(t=>(
+            <button key={t} onClick={()=>setPeriod(t)} style={{padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,background:period===t?"rgba(251,191,36,0.12)":"transparent",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid transparent",color:period===t?"#fbbf24":"#64748b",cursor:"pointer",fontFamily:MONO}}>{t==="6month"?"6 Month":t==="yearly"?"1 Year":t.charAt(0).toUpperCase()+t.slice(1)}</button>
+          ))}
+        </div>
+
+        {/* View Tabs */}
+        <div style={{display:"flex",gap:2}}>
+          {[{id:"leaderboard",label:"🏅 Leaderboard"},{id:"myPortfolio",label:"📊 My Portfolio"},{id:"enter",label:"🎯 Enter"},{id:"feed",label:"💬 Live Feed"},{id:"history",label:"🏆 Winners"}].map(v=>(
+            <button key={v.id} onClick={()=>setView(v.id)} style={{padding:"6px 12px",borderRadius:6,fontSize:11,fontWeight:500,background:view===v.id?"rgba(255,255,255,0.06)":"transparent",border:"none",color:view===v.id?"#e2e8f0":"#475569",cursor:"pointer",fontFamily:"inherit",transition:"all 0.15s"}}>{v.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div style={{flex:1,overflow:"auto",padding:"12px 20px 20px"}}>
+
+        {/* ════════ LEADERBOARD ════════ */}
+        {view==="leaderboard"&&(<div>
+          {/* Super Bowl Banner */}
+          <div style={{background:"linear-gradient(135deg, rgba(249,115,22,0.12), rgba(239,68,68,0.06))",border:"1px solid rgba(249,115,22,0.2)",borderRadius:10,padding:"14px 16px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:24}}>🏈</span>
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:13,fontWeight:700,color:"#f97316"}}>SUPER BOWL CHALLENGE</span>
+                  <span style={{fontSize:9,background:"rgba(239,68,68,0.15)",color:"#ef4444",padding:"2px 8px",borderRadius:4,fontWeight:700,animation:"pulse 2s infinite"}}>3 DAYS LEFT</span>
+                </div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>Special event: $10K paper money. Top 3 win real cash prizes. 847 traders competing.</div>
+              </div>
+            </div>
+            <button onClick={()=>setView("enter")} style={{padding:"8px 18px",borderRadius:6,background:"linear-gradient(135deg, #f97316, #ef4444)",border:"none",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:MONO,whiteSpace:"nowrap",flexShrink:0}}>Join Now</button>
+          </div>
+
+          {/* Rules */}
+          <div style={{display:"flex",gap:10,marginBottom:14}}>
+            {[{icon:"💰",label:"$100K",desc:"Paper money"},{icon:"📊",label:"Max 10",desc:"Min $5K each"},{icon:"🔒",label:"9:29 AM",desc:"Lock time"},{icon:"🏅",label:"Top 3",desc:"Win badges"},{icon:"📋",label:"Copy Picks",desc:"Clone winners"}].map((r,i)=>(
+              <div key={i} style={{flex:1,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:6,padding:"8px 10px",textAlign:"center"}}>
+                <div style={{fontSize:16,marginBottom:2}}>{r.icon}</div>
+                <div style={{fontSize:10,fontWeight:600,color:"#e2e8f0"}}>{r.label}</div>
+                <div style={{fontSize:9,color:"#475569"}}>{r.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{fontSize:10,color:"#475569",marginBottom:6,fontFamily:MONO}}>847 participants · {period==="weekly"?"Ends Fri Feb 7":period==="monthly"?"Ends Feb 28":period==="6month"?"Ends Jul 31":"Ends Dec 31"} · Live rankings</div>
+
+          {/* Table */}
+          <div style={{display:"grid",gridTemplateColumns:"36px 32px 1fr 130px 80px 65px 44px 44px",gap:6,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:9,color:"#475569",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>
+            <span>#</span><span></span><span>Trader</span><span>Picks</span><span>Value</span><span>P&L</span><span>Risk</span><span>Δ</span>
+          </div>
+          {LEADERBOARD.map((e,i)=>{
+            const pnl=e.curVal-100000; const pct=(pnl/100000)*100; const col=pnlColor(pnl); const bc=badgeColors[e.badge];
+            return (<div key={i} style={{display:"grid",gridTemplateColumns:"36px 32px 1fr 130px 80px 65px 44px 44px",gap:6,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.03)",alignItems:"center",animation:`fadeIn 0.2s ease-out ${i*0.03}s both`,background:e.rank<=3?`linear-gradient(90deg, ${bc}06, transparent)`:"transparent",cursor:"pointer",transition:"background 0.15s",borderRadius:4}}
+              onMouseEnter={ev=>ev.currentTarget.style.background=e.rank<=3?`${bc}0a`:"rgba(255,255,255,0.02)"} onMouseLeave={ev=>ev.currentTarget.style.background=e.rank<=3?`${bc}06`:"transparent"}>
+              <div>{e.rank<=3?<span style={{fontSize:e.rank===1?16:14}}>{e.rank===1?"🥇":e.rank===2?"🥈":"🥉"}</span>:<span style={{fontSize:12,fontWeight:600,color:"#64748b",fontFamily:MONO}}>{e.rank}</span>}</div>
+              <div style={{width:28,height:28,borderRadius:"50%",background:bc?`linear-gradient(135deg,${bc}44,${bc}11)`:"rgba(255,255,255,0.05)",border:bc?`2px solid ${bc}55`:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:bc||"#64748b",fontFamily:MONO}}>{e.avi}</div>
+              <div style={{display:"flex",alignItems:"center",gap:5}}><span style={{fontSize:12,fontWeight:600,color:"#e2e8f0"}}>{e.user}</span>{e.streak>=2&&<span style={{fontSize:8,background:"rgba(251,191,36,0.1)",color:"#fbbf24",padding:"1px 5px",borderRadius:3,fontWeight:700,fontFamily:MONO}}>🔥{e.streak}W</span>}</div>
+              <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>{e.picks.slice(0,3).map(p=><span key={p} style={{fontSize:8,background:"rgba(255,255,255,0.04)",padding:"1px 4px",borderRadius:2,color:"#94a3b8",fontFamily:MONO}}>${p}</span>)}{e.picks.length>3&&<span style={{fontSize:8,color:"#475569"}}>+{e.picks.length-3}</span>}</div>
+              <span style={{fontSize:11,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${fmtK(e.curVal)}</span>
+              <span style={{fontSize:11,fontWeight:600,color:col,fontFamily:MONO}}>{pnlSign(pnl)}{fmt(pct,1)}%</span>
+              <span style={{fontSize:9,fontWeight:600,color:riskColors[e.risk]}}>{e.risk}</span>
+              <div style={{display:"flex",alignItems:"center",gap:1}}>{e.rankChange>0&&<><Icon d={I.arrowUp} size={11} style={{color:"#22c55e"}}/><span style={{fontSize:9,color:"#22c55e",fontFamily:MONO}}>{e.rankChange}</span></>}{e.rankChange<0&&<><Icon d={I.arrowDown} size={11} style={{color:"#ef4444"}}/><span style={{fontSize:9,color:"#ef4444",fontFamily:MONO}}>{Math.abs(e.rankChange)}</span></>}{e.rankChange===0&&<span style={{fontSize:9,color:"#334155"}}>—</span>}</div>
+            </div>);
+          })}
+
+          {/* Copy Winner CTA */}
+          <div style={{marginTop:12,display:"flex",gap:8}}>
+            <button style={{flex:1,padding:"8px 12px",borderRadius:6,background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.15)",color:"#22d3ee",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={I.copy} size={13} style={{color:"#22d3ee"}}/> Copy #1 Portfolio
+            </button>
+            <button onClick={()=>setView("enter")} style={{flex:1,padding:"8px 12px",borderRadius:6,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>Enter This Challenge</button>
+          </div>
+        </div>)}
+
+        {/* ════════ MY PORTFOLIO ════════ */}
+        {view==="myPortfolio"&&(<div>
+          <div style={{background:"linear-gradient(135deg,rgba(34,211,238,0.06),rgba(6,182,212,0.03))",border:"1px solid rgba(34,211,238,0.15)",borderRadius:12,padding:"18px 22px",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"start"}}>
+              <div>
+                <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:0.8,marginBottom:4}}>Challenge Portfolio Value</div>
+                <div style={{fontSize:30,fontWeight:700,fontFamily:MONO,color:"#e2e8f0"}}>${fmt(myVal,0)}</div>
+                <div style={{fontSize:14,fontWeight:600,color:pnlColor(myPnl),fontFamily:MONO,marginTop:4}}>{pnlSign(myPnl)}${fmt(Math.abs(myPnl),0)} ({pnlSign(myPct)}{fmt(Math.abs(myPct),1)}%)</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:"#475569"}}>Rank</div>
+                <div style={{fontSize:26,fontWeight:700,color:"#fbbf24",fontFamily:MONO}}>#4</div>
+                <div style={{fontSize:10,color:"#22c55e",fontFamily:MONO}}>↑2 today</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:20,marginTop:14,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+              <div><div style={{fontSize:9,color:"#475569"}}>Starting</div><div style={{fontSize:12,fontFamily:MONO,fontWeight:600}}>$100,000</div></div>
+              <div><div style={{fontSize:9,color:"#475569"}}>Deployed</div><div style={{fontSize:12,fontFamily:MONO,fontWeight:600}}>${fmt(deployed,0)}</div></div>
+              <div><div style={{fontSize:9,color:"#475569"}}>Cash Left</div><div style={{fontSize:12,fontFamily:MONO,fontWeight:600,color:"#f59e0b"}}>${fmt(MY_CASH)}</div></div>
+              <div><div style={{fontSize:9,color:"#475569"}}>Holdings</div><div style={{fontSize:12,fontFamily:MONO,fontWeight:600}}>{MY_HOLDINGS.length}/10</div></div>
+              <div><div style={{fontSize:9,color:"#475569"}}>Period</div><div style={{fontSize:12,fontFamily:MONO,fontWeight:600,color:"#fbbf24"}}>{period==="weekly"?"This Week":period==="monthly"?"February":period==="6month"?"H1 2026":"2026"}</div></div>
+            </div>
+          </div>
+
+          <div style={{fontSize:11,fontWeight:600,color:"#94a3b8",marginBottom:6}}>Holdings</div>
+          <div style={{display:"grid",gridTemplateColumns:"65px 55px 85px 85px 85px 75px",gap:6,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:9,color:"#475569",fontWeight:600,textTransform:"uppercase",letterSpacing:0.8}}>
+            <span>Ticker</span><span>Shares</span><span>Buy Price</span><span>Current</span><span>Value</span><span>P&L</span>
+          </div>
+          {MY_HOLDINGS.map((h,i)=>{
+            const cv=h.curPrice*h.shares; const bv=h.buyPrice*h.shares; const hp=cv-bv; const hpct=(hp/bv)*100;
+            return (<div key={h.sym} style={{display:"grid",gridTemplateColumns:"65px 55px 85px 85px 85px 75px",gap:6,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.03)",fontSize:12,fontFamily:MONO,animation:`fadeIn 0.15s ease-out ${i*0.04}s both`}}>
+              <span style={{fontWeight:600,color:"#e2e8f0"}}>${h.sym}</span>
+              <span style={{color:"#94a3b8"}}>{h.shares}</span>
+              <span style={{color:"#64748b"}}>${fmt(h.buyPrice)}</span>
+              <span style={{color:"#cbd5e1"}}>${fmt(h.curPrice)}</span>
+              <span style={{color:"#cbd5e1",fontWeight:500}}>${fmt(cv,0)}</span>
+              <span style={{color:pnlColor(hp),fontWeight:600}}>{pnlSign(hp)}{fmt(Math.abs(hpct),1)}%</span>
+            </div>);
+          })}
+          <div style={{display:"flex",gap:8,marginTop:14}}>
+            <button style={{flex:1,padding:"10px",borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:MONO,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={I.share} size={14} style={{color:"#0a0e18"}}/> Share P&L Card
+            </button>
+            <button onClick={()=>setView("leaderboard")} style={{flex:1,padding:"10px",borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:MONO}}>View Leaderboard</button>
+          </div>
+        </div>)}
+
+        {/* ════════ ENTER CHALLENGE ════════ */}
+        {view==="enter"&&(<div>
+          <div style={{background:"rgba(251,191,36,0.06)",border:"1px solid rgba(251,191,36,0.15)",borderRadius:10,padding:14,marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <Icon d={I.clock} size={15} style={{color:"#fbbf24"}}/>
+              <span style={{fontSize:13,fontWeight:600,color:"#fbbf24",fontFamily:MONO}}>Submissions Lock at 9:29 AM ET</span>
+            </div>
+            <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.5}}>Pick up to 10 tickers. Min $5K per position. Deploy at least $95K of your $100K. Picks lock before market open — no changes until next period.</div>
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
+              <span style={{color:"#64748b"}}>Budget Used</span>
+              <span style={{fontFamily:MONO,fontWeight:600,color:"#e2e8f0"}}>$72,800 / $100,000</span>
+            </div>
+            <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden"}}>
+              <div style={{width:"72.8%",height:"100%",background:"linear-gradient(90deg,#22d3ee,#06b6d4)",borderRadius:3}}/>
+            </div>
+            <div style={{fontSize:10,color:"#475569",marginTop:3,fontFamily:MONO}}>$27,200 remaining · 3/10 picks</div>
+          </div>
+
+          <div style={{display:"flex",gap:8,marginBottom:10,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",alignItems:"center"}}>
+            <Icon d={I.search} size={14}/>
+            <input placeholder="Search tickers to add..." style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:13,fontFamily:"inherit"}}/>
+          </div>
+
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}>
+            {["NVDA","AAPL","TSLA","BTC","SPY","SOL","META","AMZN","GOOGL","MSFT"].map(s=>(
+              <button key={s} style={{padding:"5px 12px",borderRadius:5,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:11,fontFamily:MONO,fontWeight:500,cursor:"pointer",transition:"all 0.15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(34,211,238,0.3)";e.currentTarget.style.color="#22d3ee"}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="#94a3b8"}}>${s}</button>
+            ))}
+          </div>
+
+          <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:0.8,marginBottom:6}}>Current Picks</div>
+          {[{sym:"NVDA",amount:28000,shares:196,pct:3.15},{sym:"BTC",amount:25000,shares:0.24,pct:4.15},{sym:"SOL",amount:19800,shares:92,pct:8.41}].map((p,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:7,marginBottom:4}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:13,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${p.sym}</span>
+                <span style={{fontSize:10,color:"#475569"}}>{p.shares} shares</span>
+                <span style={{fontSize:10,color:"#22d3ee",fontFamily:MONO,fontWeight:600}}>+{fmt(p.pct,1)}%</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:12,fontWeight:600,fontFamily:MONO,color:"#e2e8f0"}}>${fmtK(p.amount)}</span>
+                <button style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:0}}><Icon d={I.x} size={13}/></button>
+              </div>
+            </div>
+          ))}
+          <button style={{marginTop:14,width:"100%",padding:12,borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>🔒 Submit Portfolio</button>
+        </div>)}
+
+        {/* ════════ LIVE FEED ════════ */}
+        {view==="feed"&&(<div>
+          {/* Super Bowl Banner */}
+          <div style={{background:"linear-gradient(135deg,rgba(249,115,22,0.12),rgba(239,68,68,0.06))",border:"1px solid rgba(249,115,22,0.2)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+              <span style={{fontSize:18}}>🏈</span>
+              <span style={{fontSize:13,fontWeight:700,color:"#f97316"}}>SUPER BOWL CHALLENGE</span>
+              <span style={{fontSize:9,background:"rgba(239,68,68,0.15)",color:"#ef4444",padding:"2px 7px",borderRadius:4,fontWeight:700}}>3 DAYS LEFT</span>
+            </div>
+            <div style={{fontSize:11,color:"#94a3b8"}}>847 traders competing for real prizes. Top 3 on the leaderboard win.</div>
+          </div>
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:"#22c55e",animation:"pulse 2s infinite"}}/>
+              <span style={{fontSize:10,fontWeight:600,color:"#64748b",textTransform:"uppercase",letterSpacing:0.8}}>Challenge Feed</span>
+            </div>
+            <span style={{fontSize:10,color:"#334155",fontFamily:MONO}}>847 online</span>
+          </div>
+
+          {LIVE_FEED.map((post,i)=>(
+            <div key={i} style={{animation:`fadeIn 0.2s ease-out ${i*0.05}s both`}}>
+              <FeedCard post={post}/>
+            </div>
+          ))}
+        </div>)}
+
+        {/* ════════ PAST WINNERS ════════ */}
+        {view==="history"&&(<div>
+          <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>Hall of Fame</div>
+          {PAST_WINNERS.map((w,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",background:"rgba(251,191,36,0.03)",border:"1px solid rgba(251,191,36,0.1)",borderRadius:10,marginBottom:6,animation:`fadeIn 0.2s ease-out ${i*0.05}s both`,cursor:"pointer",transition:"background 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(251,191,36,0.06)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(251,191,36,0.03)"}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:20}}>🏆</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#fbbf24"}}>{w.user}</div>
+                  <div style={{fontSize:10,color:"#64748b"}}>{w.period}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:14,fontWeight:700,color:"#22d3ee",fontFamily:MONO}}>{w.ret}</div>
+                  <div style={{fontSize:10,color:"#64748b",fontFamily:MONO}}>${fmtK(w.val)}</div>
+                </div>
+                <button style={{padding:"5px 10px",borderRadius:5,background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.12)",color:"#22d3ee",fontSize:9,fontWeight:600,cursor:"pointer",fontFamily:MONO}}>Copy Picks</button>
+              </div>
+            </div>
+          ))}
+
+          <div style={{marginTop:14,padding:"14px 16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:8}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#94a3b8",marginBottom:8}}>How It Works</div>
+            <div style={{fontSize:12,color:"#64748b",lineHeight:1.7}}>
+              <div style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"#fbbf24",fontFamily:MONO,fontWeight:600,minWidth:18}}>1.</span><span>Pick up to 10 tickers before 9:29 AM ET on Monday</span></div>
+              <div style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"#fbbf24",fontFamily:MONO,fontWeight:600,minWidth:18}}>2.</span><span>Deploy at least $95K of your $100K paper balance</span></div>
+              <div style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"#fbbf24",fontFamily:MONO,fontWeight:600,minWidth:18}}>3.</span><span>Min $5K per position — max 10 positions</span></div>
+              <div style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"#fbbf24",fontFamily:MONO,fontWeight:600,minWidth:18}}>4.</span><span>Portfolios lock at market open — no changes until next period</span></div>
+              <div style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"#fbbf24",fontFamily:MONO,fontWeight:600,minWidth:18}}>5.</span><span>Top 3 earn Gold 🥇, Silver 🥈, Bronze 🥉 badges</span></div>
+              <div style={{display:"flex",gap:8}}><span style={{color:"#fbbf24",fontFamily:MONO,fontWeight:600,minWidth:18}}>6.</span><span>Winners featured on Social Feed + leaderboard permanently</span></div>
+            </div>
+          </div>
+        </div>)}
+      </div>
+
+      <style>{`
+        @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+      `}</style>
+    </div>
+  );
+}

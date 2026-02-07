@@ -13,6 +13,7 @@ import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
+import ChallengeLeaderboard from './ChallengeLeaderboard';
 import { StrategyDetailModal, STRATEGIES } from '../strategies/FeaturedStrategies';
 
 // ============================================
@@ -1346,6 +1347,14 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">PRO</span>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab('legend')}
+                className="relative p-2.5 rounded-lg border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-200 hover:shadow-[0_0_12px_rgba(251,191,36,0.4)] transition-all"
+                title="Legend"
+              >
+                <span className="text-base leading-none">🏆</span>
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+              </button>
               <button className={`p-2 ${themeClasses.textMuted} hover:text-white hover:bg-[#1e1e2d] rounded-lg transition-colors`}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -1437,180 +1446,187 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          
-          {/* Chart Section (Collapsible) - Smooth Animation */}
-          <motion.div 
-            className={`flex-shrink-0 border-b ${themeClasses.border} overflow-hidden`}
-            initial={false}
-            animate={chartCollapsed ? "collapsed" : "expanded"}
-            variants={chartVariants}
-          >
-            <div 
-              className={`h-12 px-6 flex items-center justify-between ${themeClasses.surface} cursor-pointer hover:bg-[#12121a] transition-colors duration-200`}
-              onClick={() => setChartCollapsed(!chartCollapsed)}
-            >
-              <div className="flex items-center gap-4">
-                <motion.svg 
-                  className={`w-4 h-4 ${themeClasses.textMuted}`} 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                  animate={{ rotate: chartCollapsed ? 0 : 90 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-                </motion.svg>
-                <span className="text-white font-medium">Portfolio Growth</span>
-                <div className="flex gap-2">
-                  {['1D', '1W', '1M', '3M', 'YTD', 'ALL'].map(period => (
-                    <button
-                      key={period}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
-                        period === '1M' ? 'bg-purple-500/20 text-purple-400' : `${themeClasses.textMuted} hover:text-white hover:bg-[#1e1e2d]`
-                      }`}
-                    >
-                      {period}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-white font-mono text-lg">${portfolioValue.toLocaleString()}</span>
-                <span className={`text-sm font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {dayChange >= 0 ? '+' : ''}{dayChangePercent}% today
-                </span>
-              </div>
+          {activeTab === 'legend' ? (
+            <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
+              <ChallengeLeaderboard isPaid={true} />
             </div>
-            
-            <AnimatePresence>
-              {!chartCollapsed && (
-                <motion.div 
-                  className="h-[calc(100%-48px)] px-6 py-4"
-                  initial="hidden"
-                  animate="visible"
-                  exit="hidden"
-                  variants={contentFadeVariants}
+          ) : (
+            <>
+              {/* Chart Section (Collapsible) - Smooth Animation */}
+              <motion.div 
+                className={`flex-shrink-0 border-b ${themeClasses.border} overflow-hidden`}
+                initial={false}
+                animate={chartCollapsed ? "collapsed" : "expanded"}
+                variants={chartVariants}
+              >
+                <div 
+                  className={`h-12 px-6 flex items-center justify-between ${themeClasses.surface} cursor-pointer hover:bg-[#12121a] transition-colors duration-200`}
+                  onClick={() => setChartCollapsed(!chartCollapsed)}
                 >
-                  <PortfolioGrowthChart height={200} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-          
-          {/* Content Tabs - Smooth hover and active states */}
-          <div className={`h-12 px-6 flex items-center gap-1 border-b ${themeClasses.border} ${themeClasses.surface}`}>
-            {[
-              { id: 'strategies', label: 'Edit Strategies', badge: draftStrategiesCount },
-              { id: 'arbitrage', label: 'Arb Scanner' },
-              { id: 'deployed', label: 'Deployed', badge: deployedStrategies.length },
-            ].map(tab => (
-              <motion.button
-                key={tab.id}
-                onClick={() => setContentTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 relative ${
-                  contentTab === tab.id
-                    ? 'text-white'
-                    : `${themeClasses.textMuted} hover:text-white`
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              >
-                {contentTab === tab.id && (
+                  <div className="flex items-center gap-4">
+                    <motion.svg 
+                      className={`w-4 h-4 ${themeClasses.textMuted}`} 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                      animate={{ rotate: chartCollapsed ? 0 : 90 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                    </motion.svg>
+                    <span className="text-white font-medium">Portfolio Growth</span>
+                    <div className="flex gap-2">
+                      {['1D', '1W', '1M', '3M', 'YTD', 'ALL'].map(period => (
+                        <button
+                          key={period}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+                            period === '1M' ? 'bg-purple-500/20 text-purple-400' : `${themeClasses.textMuted} hover:text-white hover:bg-[#1e1e2d]`
+                          }`}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-white font-mono text-lg">${portfolioValue.toLocaleString()}</span>
+                    <span className={`text-sm font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {dayChange >= 0 ? '+' : ''}{dayChangePercent}% today
+                    </span>
+                  </div>
+                </div>
+                
+                <AnimatePresence>
+                  {!chartCollapsed && (
+                    <motion.div 
+                      className="h-[calc(100%-48px)] px-6 py-4"
+                      initial="hidden"
+                      animate="visible"
+                      exit="hidden"
+                      variants={contentFadeVariants}
+                    >
+                      <PortfolioGrowthChart height={200} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+              
+              {/* Content Tabs - Smooth hover and active states */}
+              <div className={`h-12 px-6 flex items-center gap-1 border-b ${themeClasses.border} ${themeClasses.surface}`}>
+                {[
+                  { id: 'strategies', label: 'Edit Strategies', badge: draftStrategiesCount },
+                  { id: 'arbitrage', label: 'Arb Scanner' },
+                  { id: 'deployed', label: 'Deployed', badge: deployedStrategies.length },
+                ].map(tab => (
+                  <motion.button
+                    key={tab.id}
+                    onClick={() => setContentTab(tab.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 relative ${
+                      contentTab === tab.id
+                        ? 'text-white'
+                        : `${themeClasses.textMuted} hover:text-white`
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    {contentTab === tab.id && (
+                      <motion.div
+                        className="absolute inset-0 bg-[#1e1e2d] rounded-lg"
+                        layoutId="activeTab"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
+                    {tab.badge > 0 && (
+                      <span className="relative z-10 px-1.5 py-0.5 text-[10px] bg-purple-500/30 text-purple-400 rounded-full">{tab.badge}</span>
+                    )}
+                  </motion.button>
+                ))}
+              </div>
+              
+              {/* Content Panel - Animated transitions between tabs */}
+              <div className={`flex-1 overflow-auto ${themeClasses.bg}`} style={{ scrollbarWidth: 'thin' }}>
+                <AnimatePresence mode="wait">
+                  {contentTab === 'strategies' && (
                   <motion.div
-                    className="absolute inset-0 bg-[#1e1e2d] rounded-lg"
-                    layoutId="activeTab"
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    key="strategies"
+                    className="min-h-full"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={tabContentVariants}
+                  >
+                  <DataTable 
+                    activeTab={activeTab} 
+                    alpacaData={alpacaData} 
+                    strategies={strategies} 
+                    demoState={demoState} 
+                    theme={theme} 
+                    themeClasses={themeClasses} 
+                    onDeleteStrategy={handleDeleteStrategy}
+                    onDeployStrategy={handleDeployStrategy}
+                    onEditStrategy={handleEditStrategy}
+                    onSaveToSidebar={handleSaveToSidebar}
+                    onUpdateStrategy={handleUpdateStrategy}
+                    savedStrategies={savedStrategies}
+                    autoBacktestStrategy={autoBacktestStrategy}
                   />
+                  </motion.div>
                 )}
-                <span className="relative z-10">{tab.label}</span>
-                {tab.badge > 0 && (
-                  <span className="relative z-10 px-1.5 py-0.5 text-[10px] bg-purple-500/30 text-purple-400 rounded-full">{tab.badge}</span>
+                {contentTab === 'arbitrage' && (
+                  <motion.div
+                    key="arbitrage"
+                    className="min-h-full"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={tabContentVariants}
+                  >
+                    <ArbitragePanel themeClasses={themeClasses} />
+                  </motion.div>
                 )}
-              </motion.button>
-            ))}
-          </div>
-          
-          {/* Content Panel - Animated transitions between tabs */}
-          <div className={`flex-1 overflow-auto ${themeClasses.bg}`} style={{ scrollbarWidth: 'thin' }}>
-            <AnimatePresence mode="wait">
-              {contentTab === 'strategies' && (
-              <motion.div
-                key="strategies"
-                className="min-h-full"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={tabContentVariants}
-              >
-              <DataTable 
-                activeTab={activeTab} 
-                alpacaData={alpacaData} 
-                strategies={strategies} 
-                demoState={demoState} 
-                theme={theme} 
-                themeClasses={themeClasses} 
-                onDeleteStrategy={handleDeleteStrategy}
-                onDeployStrategy={handleDeployStrategy}
-                onEditStrategy={handleEditStrategy}
-                onSaveToSidebar={handleSaveToSidebar}
-                onUpdateStrategy={handleUpdateStrategy}
-                savedStrategies={savedStrategies}
-                autoBacktestStrategy={autoBacktestStrategy}
-              />
-              </motion.div>
-            )}
-            {contentTab === 'arbitrage' && (
-              <motion.div
-                key="arbitrage"
-                className="min-h-full"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={tabContentVariants}
-              >
-                <ArbitragePanel themeClasses={themeClasses} />
-              </motion.div>
-            )}
-            {contentTab === 'deployed' && (
-              <motion.div
-                key="deployed"
-                className="min-h-full"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={tabContentVariants}
-              >
-                <TerminalPanel 
-                  themeClasses={themeClasses} 
-                  deployedStrategies={deployedStrategies} 
-                  onRemoveStrategy={(id) => {
-                    // Find the strategy before removing
-                    const strategyToSave = deployedStrategies.find(s => s.id === id);
-                    
-                    // Save to sidebar (Uncategorized) before removing
-                    if (strategyToSave) {
-                      setSavedStrategies(prev => {
-                        if (prev.some(s => s.id === strategyToSave.id || s.name === strategyToSave.name)) return prev;
-                        return [...prev, { 
-                          ...strategyToSave, 
-                          status: 'stopped', 
-                          runStatus: 'stopped',
-                          savedAt: Date.now(),
-                          riskLevel: 'medium'
-                        }];
-                      });
-                    }
-                    
-                    // Remove from deployed
-                    setDeployedStrategies(prev => prev.filter(s => s.id !== id));
-                  }}
-                />
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </div>
+                {contentTab === 'deployed' && (
+                  <motion.div
+                    key="deployed"
+                    className="min-h-full"
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={tabContentVariants}
+                  >
+                    <TerminalPanel 
+                      themeClasses={themeClasses} 
+                      deployedStrategies={deployedStrategies} 
+                      onRemoveStrategy={(id) => {
+                        // Find the strategy before removing
+                        const strategyToSave = deployedStrategies.find(s => s.id === id);
+                        
+                        // Save to sidebar (Uncategorized) before removing
+                        if (strategyToSave) {
+                          setSavedStrategies(prev => {
+                            if (prev.some(s => s.id === strategyToSave.id || s.name === strategyToSave.name)) return prev;
+                            return [...prev, { 
+                              ...strategyToSave, 
+                              status: 'stopped', 
+                              runStatus: 'stopped',
+                              savedAt: Date.now(),
+                              riskLevel: 'medium'
+                            }];
+                          });
+                        }
+                        
+                        // Remove from deployed
+                        setDeployedStrategies(prev => prev.filter(s => s.id !== id));
+                      }}
+                    />
+                  </motion.div>
+                )}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
 
           {/* Settings Full Page Overlay - Smooth slide in */}
           <AnimatePresence>
