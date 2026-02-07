@@ -239,4 +239,3 @@ const useMarketData = () => {
   };
 };
 
-export { useMarketData };

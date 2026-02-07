@@ -143,4 +143,3 @@ export const useTradeHistory = ({ onApplyTrade } = {}) => {
   };
 };
 
-export { useTradeHistory };

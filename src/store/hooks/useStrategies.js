@@ -202,4 +202,3 @@ export const useStrategies = (initialStrategies = []) => {
   };
 };
 
-export { useStrategies };
