@@ -3,7 +3,7 @@ import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
-import { useAlpacaData } from './useAlpacaData';
+import { useMarketData, usePortfolio } from './store/StratifyProvider';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -970,12 +970,51 @@ export class TeslaEMAStrategy extends Strategy {
 // Main App Component
 export default function StratifyApp() {
   const [currentPage, setCurrentPage] = useState('landing');
-  const { stocks, account, positions, loading, error } = useAlpacaData();
+  const marketData = useMarketData();
+  const portfolio = usePortfolio();
+
+  const portfolioPositions = portfolio?.positions || [];
+  const derivedPositions = portfolioPositions.map((position) => {
+    const shares = Number(position.shares ?? position.qty ?? 0);
+    const avgCost = Number(position.avgCost ?? position.avg_entry_price ?? 0);
+    const currentPrice = Number(position.currentPrice ?? position.current_price ?? avgCost ?? 0);
+    const pnl = Number(position.pnl ?? position.unrealized_pl ?? 0);
+    const pnlPercent = Number(position.pnlPercent ?? (position.unrealized_plpc ?? 0) * 100 ?? 0);
+    const marketValue = Number.isFinite(currentPrice) && Number.isFinite(shares) ? currentPrice * shares : 0;
+
+    return {
+      ...position,
+      qty: shares,
+      avg_entry_price: avgCost,
+      current_price: currentPrice,
+      market_value: marketValue,
+      unrealized_pl: pnl,
+      unrealized_plpc: Number.isFinite(pnlPercent) ? pnlPercent / 100 : 0,
+    };
+  });
+
+  const stocks = marketData?.prices ? Array.from(marketData.prices.values()) : [];
+  const account = {
+    equity: portfolio?.totalValue ?? 0,
+    cash: portfolio?.cash ?? 0,
+    buying_power: portfolio?.cash ?? 0,
+    daily_pnl: portfolio?.todayPnL ?? 0,
+    unrealized_pl: portfolio?.todayPnL ?? 0,
+    realized_pl: 0,
+  };
 
   // Landing page with runway-bg video background + Experience Stratify intro
   if (currentPage === 'landing') {
     return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
   }
 
-  return <Dashboard setCurrentPage={setCurrentPage} alpacaData={{ positions: positions.length > 0 ? positions : stocks, account: account || { equity: 0, cash: 0, buying_power: 0 } }} />;
+  return (
+    <Dashboard
+      setCurrentPage={setCurrentPage}
+      alpacaData={{
+        positions: derivedPositions.length > 0 ? derivedPositions : stocks,
+        account,
+      }}
+    />
+  );
 }
