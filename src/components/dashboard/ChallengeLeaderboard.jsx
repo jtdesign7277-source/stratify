@@ -1,4 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Plus, X } from "lucide-react";
+import { TOP_CRYPTO_BY_MARKET_CAP } from "../../data/cryptoTop20";
 
 /* ═══════════════════════════════════════════════════════════════
    CHALLENGE LEADERBOARD — Standalone component for center panel
@@ -32,21 +34,75 @@ const I = {
   trophy:"M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 22v-4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4M6 2h12v7a6 6 0 0 1-12 0V2z",
 };
 
-// ── Local Stock Database for Challenge Search ────────────────
+// ── Local Stock + Crypto Databases for Challenge Search ────────────────
 const STOCK_DATABASE = [
-  { symbol:"AAPL", name:"Apple Inc.", exchange:"NASDAQ", price:190 },
-  { symbol:"NVDA", name:"NVIDIA Corporation", exchange:"NASDAQ", price:720 },
-  { symbol:"TSLA", name:"Tesla, Inc.", exchange:"NASDAQ", price:260 },
-  { symbol:"MSFT", name:"Microsoft Corporation", exchange:"NASDAQ", price:410 },
-  { symbol:"GOOGL", name:"Alphabet Inc.", exchange:"NASDAQ", price:155 },
-  { symbol:"AMZN", name:"Amazon.com, Inc.", exchange:"NASDAQ", price:170 },
-  { symbol:"META", name:"Meta Platforms, Inc.", exchange:"NASDAQ", price:470 },
-  { symbol:"SPY", name:"SPDR S&P 500 ETF", exchange:"NYSE", price:495 },
-  { symbol:"QQQ", name:"Invesco QQQ Trust", exchange:"NASDAQ", price:420 },
-  { symbol:"BTC", name:"Bitcoin", exchange:"CRYPTO", price:102000 },
-  { symbol:"ETH", name:"Ethereum", exchange:"CRYPTO", price:3200 },
-  { symbol:"SOL", name:"Solana", exchange:"CRYPTO", price:210 },
+  { symbol:"AAPL", name:"Apple Inc.", exchange:"NASDAQ" },
+  { symbol:"GOOGL", name:"Alphabet Inc.", exchange:"NASDAQ" },
+  { symbol:"AMZN", name:"Amazon.com, Inc.", exchange:"NASDAQ" },
+  { symbol:"NVDA", name:"NVIDIA Corporation", exchange:"NASDAQ" },
+  { symbol:"META", name:"Meta Platforms, Inc.", exchange:"NASDAQ" },
+  { symbol:"TSLA", name:"Tesla, Inc.", exchange:"NASDAQ" },
+  { symbol:"MSFT", name:"Microsoft Corporation", exchange:"NASDAQ" },
+  { symbol:"HOOD", name:"Robinhood Markets, Inc.", exchange:"NASDAQ" },
+  { symbol:"SOFI", name:"SoFi Technologies, Inc.", exchange:"NASDAQ" },
+  { symbol:"AMD", name:"Advanced Micro Devices", exchange:"NASDAQ" },
+  { symbol:"INTC", name:"Intel Corporation", exchange:"NASDAQ" },
+  { symbol:"NFLX", name:"Netflix, Inc.", exchange:"NASDAQ" },
+  { symbol:"PYPL", name:"PayPal Holdings, Inc.", exchange:"NASDAQ" },
+  { symbol:"COIN", name:"Coinbase Global, Inc.", exchange:"NASDAQ" },
+  { symbol:"PLTR", name:"Palantir Technologies", exchange:"NYSE" },
+  { symbol:"SPY", name:"SPDR S&P 500 ETF", exchange:"NYSE" },
+  { symbol:"QQQ", name:"Invesco QQQ Trust", exchange:"NASDAQ" },
+  { symbol:"DIA", name:"SPDR Dow Jones ETF", exchange:"NYSE" },
+  { symbol:"JPM", name:"JPMorgan Chase & Co.", exchange:"NYSE" },
+  { symbol:"BAC", name:"Bank of America Corp.", exchange:"NYSE" },
+  { symbol:"V", name:"Visa Inc.", exchange:"NYSE" },
+  { symbol:"MA", name:"Mastercard Inc.", exchange:"NYSE" },
+  { symbol:"DIS", name:"Walt Disney Company", exchange:"NYSE" },
+  { symbol:"UBER", name:"Uber Technologies", exchange:"NYSE" },
+  { symbol:"ABNB", name:"Airbnb, Inc.", exchange:"NASDAQ" },
+  { symbol:"SQ", name:"Block, Inc.", exchange:"NYSE" },
+  { symbol:"CRWD", name:"CrowdStrike Holdings", exchange:"NASDAQ" },
+  { symbol:"GME", name:"GameStop Corp.", exchange:"NYSE" },
+  { symbol:"AMC", name:"AMC Entertainment", exchange:"NYSE" },
+  { symbol:"RIVN", name:"Rivian Automotive", exchange:"NASDAQ" },
+  { symbol:"NIO", name:"NIO Inc.", exchange:"NYSE" },
+  { symbol:"F", name:"Ford Motor Company", exchange:"NYSE" },
+  { symbol:"XOM", name:"Exxon Mobil Corp.", exchange:"NYSE" },
+  { symbol:"JNJ", name:"Johnson & Johnson", exchange:"NYSE" },
+  { symbol:"WMT", name:"Walmart Inc.", exchange:"NYSE" },
+  { symbol:"HD", name:"Home Depot", exchange:"NYSE" },
+  { symbol:"BA", name:"Boeing Company", exchange:"NYSE" },
+  { symbol:"AVGO", name:"Broadcom Inc.", exchange:"NASDAQ" },
+  { symbol:"CRM", name:"Salesforce, Inc.", exchange:"NYSE" },
+  { symbol:"ADBE", name:"Adobe Inc.", exchange:"NASDAQ" },
+  { symbol:"PANW", name:"Palo Alto Networks", exchange:"NASDAQ" },
+  { symbol:"SNOW", name:"Snowflake Inc.", exchange:"NYSE" },
+  { symbol:"NET", name:"Cloudflare, Inc.", exchange:"NYSE" },
+  { symbol:"HIMS", name:"Hims & Hers Health", exchange:"NYSE" },
+  { symbol:"MARA", name:"Marathon Digital", exchange:"NASDAQ" },
+  { symbol:"SMCI", name:"Super Micro Computer", exchange:"NASDAQ" },
+  { symbol:"ARM", name:"Arm Holdings", exchange:"NASDAQ" },
+  { symbol:"RKLB", name:"Rocket Lab USA", exchange:"NASDAQ" },
 ];
+
+const CRYPTO_DATABASE = TOP_CRYPTO_BY_MARKET_CAP.map((crypto) => ({
+  symbol:`${crypto.symbol}-USD`,
+  name:crypto.name,
+  displaySymbol:crypto.symbol,
+  exchange:"CRYPTO",
+}));
+
+const SEARCH_DATABASE = [...STOCK_DATABASE, ...CRYPTO_DATABASE];
+
+const getSearchDisplaySymbol = (stock) => {
+  if (!stock?.symbol) return "";
+  if (stock.displaySymbol) return stock.displaySymbol;
+  if (stock.symbol.includes("-")) return stock.symbol.split("-")[0];
+  if (stock.symbol.includes("/")) return stock.symbol.split("/")[0];
+  if (stock.symbol.endsWith("USD")) return stock.symbol.slice(0, -3);
+  return stock.symbol;
+};
 
 const DEFAULT_PICK_AMOUNT = 10000;
 const DEFAULT_PICKS = [
@@ -176,7 +232,7 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
     }
     const query = value.toLowerCase();
     const existingSymbols = selectedPicks.map(p => p.symbol);
-    const filtered = STOCK_DATABASE.filter(stock => {
+    const filtered = SEARCH_DATABASE.filter(stock => {
       if (existingSymbols.includes(stock.symbol)) return false;
       return stock.symbol.toLowerCase().includes(query) || stock.name.toLowerCase().includes(query);
     }).slice(0, 8);
@@ -412,23 +468,31 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
               />
             </div>
             {searchQuery && (
-              <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:6,background:"rgba(10,14,24,0.98)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,overflow:"hidden",zIndex:20,boxShadow:"0 10px 30px rgba(0,0,0,0.35)"}}>
-                {searchResults.length > 0 ? searchResults.map(stock => (
-                  <button
-                    key={stock.symbol}
-                    onClick={() => addPick(stock.symbol)}
-                    style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"8px 10px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-                  >
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{fontSize:12,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${stock.symbol}</span>
-                      <span style={{fontSize:11,color:"#64748b"}}>{stock.name}</span>
-                    </div>
-                    <span style={{fontSize:9,color:"#475569",fontFamily:MONO}}>{stock.exchange}</span>
-                  </button>
-                )) : (
-                  <div style={{padding:"8px 10px",fontSize:11,color:"#475569"}}>No results for "{searchQuery}"</div>
+              <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:6,background:"#111118",border:"1px solid #374151",borderRadius:8,boxShadow:"0 25px 50px -12px rgba(0,0,0,0.25)",maxHeight:384,overflowY:"auto",zIndex:50}}>
+                {searchResults.length > 0 ? searchResults.map((stock, index) => {
+                  const displaySymbol = getSearchDisplaySymbol(stock);
+                  return (
+                    <button
+                      key={stock.symbol}
+                      onClick={() => addPick(stock.symbol)}
+                      style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:index === searchResults.length - 1 ? "none" : "1px solid rgba(31,41,55,0.5)"}}
+                      onMouseEnter={e=>{e.currentTarget.style.background="rgba(16,185,129,0.1)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}
+                    >
+                      <div style={{display:"flex",alignItems:"center"}}>
+                        <span style={{color:"#ffffff",fontWeight:700,fontSize:16}}>${displaySymbol}</span>
+                        <span style={{color:"#9ca3af",fontSize:14,marginLeft:12}}>{stock.name}</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:12}}>
+                        {stock.exchange && (
+                          <span style={{color:"#6b7280",fontSize:12}}>{stock.exchange}</span>
+                        )}
+                        <Plus size={20} style={{color:"#34d399"}} strokeWidth={1.5} fill="none" />
+                      </div>
+                    </button>
+                  );
+                }) : (
+                  <div style={{padding:16,textAlign:"center",color:"#9ca3af",fontSize:14}}>No results for "{searchQuery}"</div>
                 )}
               </div>
             )}
