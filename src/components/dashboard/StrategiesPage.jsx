@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, FolderOpen, Folder, ChevronRight, Play, Pause, Edit3, Trash2, MoreHorizontal, Star, Zap, TrendingUp, Clock, X } from 'lucide-react';
 
-const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeployStrategy, onEditStrategy, onRemoveSavedStrategy }) => {
+const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeployStrategy, onEditStrategy, onRemoveSavedStrategy, setActiveTab }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -188,7 +188,13 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                   key={strategy.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, strategy)}
+                  onDoubleClick={() => {
+                    if (strategy.status !== 'active') {
+                      onDeployStrategy?.(strategy, true);
+                    }
+                  }}
                   className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing"
+                  title="Double-click to deploy"
                 >
                   {/* Strategy Icon */}
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${

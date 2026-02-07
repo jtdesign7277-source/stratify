@@ -367,20 +367,31 @@ export default function Dashboard({
     setActiveTab('strategies');
   };
 
-  const handleDeployStrategy = (strategy) => {
-    const nextStatus = strategy.status === 'paper' ? 'paper' : 'deployed';
+  const handleDeployStrategy = (strategy, navigateToActive = false) => {
+    // Convert saved strategy to active trade format
+    const activeStrategy = {
+      id: strategy.id || `strat-${Date.now()}`,
+      symbol: strategy.symbol || strategy.name?.split(' ')[0] || 'CUSTOM',
+      name: strategy.name,
+      status: 'Live',
+      pnl: 0,
+      pnlPct: 0,
+      heat: Math.floor(Math.random() * 40) + 50,
+      deployedAt: Date.now(),
+    };
 
-    setStrategies(prev => prev.map(s => 
-      s.id === strategy.id ? { ...s, status: nextStatus } : s
+    setDeployedStrategies(prev => {
+      if (prev.some(s => s.id === activeStrategy.id)) return prev;
+      return [...prev, activeStrategy];
+    });
+
+    // Mark as deployed in saved strategies
+    setSavedStrategies(prev => prev.map(s => 
+      s.id === strategy.id ? { ...s, status: 'active', deployed: true } : s
     ));
 
-    if (nextStatus === 'paper') {
-      setDeployedStrategies(prev => prev.filter(s => s.id !== strategy.id));
-    } else {
-      setDeployedStrategies(prev => {
-        if (prev.some(s => s.id === strategy.id)) return prev;
-        return [...prev, { ...strategy, status: 'deployed', runStatus: 'running', deployedAt: Date.now() }];
-      });
+    if (navigateToActive) {
+      setActiveTab('active');
     }
 
     setAutoBacktestStrategy(null);
