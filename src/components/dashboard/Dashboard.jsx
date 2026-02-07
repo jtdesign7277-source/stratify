@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { X } from 'lucide-react';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
 import LiveAlertsTicker from './LiveAlertsTicker';
@@ -102,7 +103,13 @@ const generateRandomDeployedStrategy = () => {
 
 const RESPAWN_DELAY_MS = 60000;
 
-export default function Dashboard({ setCurrentPage, alpacaData }) {
+export default function Dashboard({
+  setCurrentPage,
+  alpacaData,
+  isSocialFeedOpen = false,
+  onToggleSocialFeed = () => {},
+  socialFeedUnread = false,
+}) {
   const savedState = loadDashboardState();
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -546,8 +553,26 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
               </span>
             )}
           </div>,
-          // Slots 1-5: Empty for future use
-          null, null, null, null, null
+          // Slot 1: Social feed pill
+          <div
+            key="feed-pill"
+            onClick={onToggleSocialFeed}
+            className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
+              isSocialFeedOpen
+                ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+                : 'border border-white/20 bg-black/90 hover:border-white/40'
+            }`}
+          >
+            <div className="w-5 h-5 rounded-full bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
+              <X className="w-3 h-3 text-blue-300" strokeWidth={1.5} fill="none" />
+            </div>
+            <span className="text-white font-medium text-xs">Feed</span>
+            {socialFeedUnread && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+            )}
+          </div>,
+          // Slots 2-5: Empty for future use
+          null, null, null, null
         ]}
       />
       <LiveAlertsTicker />

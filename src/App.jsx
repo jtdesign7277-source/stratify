@@ -4,6 +4,7 @@ import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
+import XPill from './components/shared/XPill';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -970,6 +971,8 @@ export class TeslaEMAStrategy extends Strategy {
 // Main App Component
 export default function StratifyApp() {
   const [currentPage, setCurrentPage] = useState('landing');
+  const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
+  const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const marketData = useMarketData();
   const portfolio = usePortfolio();
 
@@ -1003,18 +1006,31 @@ export default function StratifyApp() {
     realized_pl: 0,
   };
 
-  // Landing page with runway-bg video background + Experience Stratify intro
-  if (currentPage === 'landing') {
-    return <LandingPage onEnter={() => setCurrentPage('dashboard')} />;
-  }
+  const mainContent =
+    currentPage === 'landing' ? (
+      <LandingPage onEnter={() => setCurrentPage('dashboard')} />
+    ) : (
+      <Dashboard
+        setCurrentPage={setCurrentPage}
+        isSocialFeedOpen={isSocialFeedOpen}
+        onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
+        socialFeedUnread={hasSocialFeedUnread}
+        alpacaData={{
+          positions: derivedPositions.length > 0 ? derivedPositions : stocks,
+          account,
+        }}
+      />
+    );
 
   return (
-    <Dashboard
-      setCurrentPage={setCurrentPage}
-      alpacaData={{
-        positions: derivedPositions.length > 0 ? derivedPositions : stocks,
-        account,
-      }}
-    />
+    <>
+      {mainContent}
+      <XPill
+        isOpen={isSocialFeedOpen}
+        onOpenChange={setIsSocialFeedOpen}
+        onUnreadChange={setHasSocialFeedUnread}
+        showTrigger={false}
+      />
+    </>
   );
 }

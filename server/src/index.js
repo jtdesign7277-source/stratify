@@ -47,6 +47,144 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+const buildFallbackSocialFeed = (symbols = []) => {
+  const list = Array.isArray(symbols) && symbols.length > 0 ? symbols : ['NVDA', 'TSLA', 'AAPL'];
+  const now = Date.now();
+  const minutesAgo = (mins) => new Date(now - mins * 60 * 1000).toISOString();
+  return [
+    {
+      handle: 'flowtrader',
+      displayName: 'Flow Trader',
+      content: `Seeing chunky prints on $${list[0]} into the close. Dark pool activity heating up. 👀`,
+      timestamp: minutesAgo(6),
+      sentiment: 'bullish',
+      ticker: list[0],
+    },
+    {
+      handle: 'gammaqueen',
+      displayName: 'Gamma Queen',
+      content: `$${list[1]} IV bid again. Dealers hedging hard. Could squeeze if this holds. 🚀`,
+      timestamp: minutesAgo(18),
+      sentiment: 'bullish',
+      ticker: list[1],
+    },
+    {
+      handle: 'trendtactician',
+      displayName: 'Trend Tactician',
+      content: `Chop city on $${list[2]}. Waiting for break of VWAP before pressing. 🧠`,
+      timestamp: minutesAgo(34),
+      sentiment: 'neutral',
+      ticker: list[2],
+    },
+    {
+      handle: 'tapehunter',
+      displayName: 'Tape Hunter',
+      content: `$${list[0]} rejecting yesterday's high. Watch for a flush if buyers step away. ⚠️`,
+      timestamp: minutesAgo(52),
+      sentiment: 'bearish',
+      ticker: list[0],
+    },
+    {
+      handle: 'macroace',
+      displayName: 'Macro Ace',
+      content: `Risk on rotation showing in $${list[1]} + $${list[2]}. Keeping size light ahead of data. 📊`,
+      timestamp: minutesAgo(75),
+      sentiment: 'neutral',
+      ticker: list[1],
+    },
+  ];
+};
+
+const normalizeGrokFeed = (items = [], symbols = []) => {
+  const fallbackTicker = symbols.find(Boolean) || 'SPY';
+  return items
+    .filter(Boolean)
+    .map((item, index) => ({
+      handle: item.handle || item.authorHandle || item.author || item.user || `trader${index + 1}`,
+      displayName: item.displayName || item.authorDisplayName || item.name || item.handle || `Trader ${index + 1}`,
+      content: String(item.content || item.text || item.body || '').trim(),
+      timestamp: item.timestamp || item.time || new Date().toISOString(),
+      sentiment: (item.sentiment || item.bias || 'neutral').toLowerCase(),
+      ticker: item.ticker || item.symbol || item.mentionedTicker || fallbackTicker,
+    }))
+    .filter((item) => item.content);
+};
+
+const extractJsonArray = (raw = '') => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const start = raw.indexOf('[');
+    const end = raw.lastIndexOf(']');
+    if (start === -1 || end === -1 || end <= start) return null;
+    try {
+      return JSON.parse(raw.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+};
+
+app.post('/api/social/feed', async (req, res) => {
+  const symbols = Array.isArray(req.body?.symbols) ? req.body.symbols : [];
+  const fallback = buildFallbackSocialFeed(symbols);
+
+  try {
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) {
+      console.warn('XAI_API_KEY not set; returning fallback social feed.');
+      return res.json(fallback);
+    }
+
+    const requestBody = {
+      model: 'grok-3',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a financial social media feed generator. Given stock symbols, generate 8-10 realistic tweet-style posts about these stocks. Each post should have: author handle, author display name, content (max 280 chars), timestamp (within last 2 hours), sentiment (bullish/bearish/neutral), and mentioned ticker. Make them feel like real trader Twitter/X posts with cashtags, emojis, and trader slang. Return as JSON array.',
+        },
+        {
+          role: 'user',
+          content: `Generate a live social feed for these tickers: ${symbols.join(', ')}`,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 800,
+    };
+
+    const grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!grokResponse.ok) {
+      const err = await grokResponse.text();
+      console.error('Grok social feed error:', err);
+      return res.json(fallback);
+    }
+
+    const grokData = await grokResponse.json();
+    const rawContent = grokData.choices?.[0]?.message?.content?.trim() || '';
+    const parsed = extractJsonArray(rawContent);
+    if (!Array.isArray(parsed)) {
+      console.warn('Grok social feed response invalid; returning fallback.');
+      return res.json(fallback);
+    }
+
+    const normalized = normalizeGrokFeed(parsed, symbols);
+    return res.json(normalized.length > 0 ? normalized : fallback);
+  } catch (error) {
+    console.error('Social feed error:', error);
+    return res.json(fallback);
+  }
+});
+
 // Atlas AI Chat Endpoint - Powered by Grok xAI with Trade Execution
 app.post('/api/v1/chat/', async (req, res) => {
   try {
