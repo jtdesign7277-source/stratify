@@ -228,10 +228,10 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 12 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="fixed top-0 left-0 z-[9999] w-[360px] max-w-[90vw] max-h-[85vh] min-h-[360px] rounded-2xl border border-white/10 bg-[#202124]/90 backdrop-blur-xl shadow-[0_24px_60px_rgba(0,0,0,0.55)] overflow-hidden"
+          className="fixed z-[9999] w-[360px] max-w-[90vw] max-h-[85vh] min-h-[360px] rounded-2xl border border-white/10 bg-[#202124]/90 backdrop-blur-xl shadow-[0_24px_60px_rgba(0,0,0,0.55)] overflow-hidden"
           style={{
-            x: position.x,
-            y: position.y,
+            top: position.y,
+            left: position.x,
             resize: 'both',
           }}
         >
