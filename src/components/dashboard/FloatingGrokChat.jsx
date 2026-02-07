@@ -134,8 +134,8 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     const handleMove = (e) => {
       const deltaX = e.clientX - resizeStart.current.x;
       const deltaY = e.clientY - resizeStart.current.y;
-      const newWidth = Math.max(280, Math.min(600, resizeStart.current.width + deltaX));
-      const newHeight = Math.max(300, Math.min(800, resizeStart.current.height + deltaY));
+      const newWidth = Math.max(200, Math.min(600, resizeStart.current.width + deltaX));
+      const newHeight = Math.max(180, Math.min(800, resizeStart.current.height + deltaY));
       setSize({ width: newWidth, height: newHeight });
     };
     

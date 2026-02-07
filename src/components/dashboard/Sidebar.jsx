@@ -202,29 +202,7 @@ const Sidebar = ({
         </button>
 
         {/* Floating Grok Chat trigger - shown when Grok panel is collapsed */}
-        {grokPanelCollapsed && onOpenFloatingGrok && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFloatingGrok();
-            }}
-            className={`mt-2 w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-400/50 ${
-              collapsed ? 'justify-center px-2' : ''
-            }`}
-            title="Open Grok Chat"
-          >
-            <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.3)] animate-pulse">
-              <Zap className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} fill="none" />
-            </div>
-            {!collapsed && (
-              <span className="text-emerald-400 whitespace-nowrap overflow-hidden">
-                Grok Chat
-              </span>
-            )}
-          </button>
-        )}
-      </div>
+              </div>
     </motion.div>
   );
 };
