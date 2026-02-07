@@ -113,7 +113,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
       winRate: parseInt(template.metrics.winRate) || 0,
       trades: 0,
       pnl: 0,
-      folderId: 'uncategorized',
+      // No folderId = goes to uncategorized
       settings: { ...settings },
       createdAt: Date.now(),
     };
