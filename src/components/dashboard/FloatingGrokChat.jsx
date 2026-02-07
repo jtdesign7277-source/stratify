@@ -38,6 +38,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
   const containerRef = useRef(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
   // Load saved position/size
   useEffect(() => {
@@ -205,18 +206,26 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
 
   // Minimized state - small floating bar (draggable)
   if (isMinimized) {
-    const handleMinimizedDragStart = (e) => {
+    const handleMinimizedMouseDown = (e) => {
+      if (e.target.closest('[data-close-btn]')) return;
       e.preventDefault();
       dragOffset.current = {
         x: e.clientX - position.x,
         y: e.clientY - position.y,
       };
+      dragStartPos.current = { x: e.clientX, y: e.clientY };
+      wasDragged.current = false;
       setIsDragging(true);
     };
 
-    const handleMinimizedClick = (e) => {
-      // Only expand if not dragging
-      if (!isDragging) {
+    const handleMinimizedMouseUp = (e) => {
+      if (e.target.closest('[data-close-btn]')) return;
+      // Only expand if we didn't drag (moved less than 5px)
+      const dist = Math.sqrt(
+        Math.pow(e.clientX - dragStartPos.current.x, 2) + 
+        Math.pow(e.clientY - dragStartPos.current.y, 2)
+      );
+      if (dist < 5) {
         setIsMinimized(false);
       }
     };
@@ -225,13 +234,13 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`fixed z-[9999] select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`fixed z-[9999] select-none ${isDragging ? 'cursor-grabbing' : 'cursor-pointer'}`}
         style={{ left: position.x, top: position.y }}
-        onMouseDown={handleMinimizedDragStart}
-        onClick={handleMinimizedClick}
+        onMouseDown={handleMinimizedMouseDown}
+        onMouseUp={handleMinimizedMouseUp}
       >
         <div 
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/20 bg-black/90 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.5)] hover:border-white/40 hover:shadow-[0_8px_32px_rgba(0,0,0,0.7)] transition-all duration-200"
+          className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-full border border-white/20 bg-black/90 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.5)] hover:border-white/40 transition-all duration-200"
         >
           <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
             <XLogo className="w-3.5 h-3.5 text-black" />
@@ -242,6 +251,13 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
               {messages.length}
             </span>
           )}
+          <button
+            data-close-btn
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-all ml-1"
+          >
+            <X className="w-3 h-3" strokeWidth={2} />
+          </button>
         </div>
       </motion.div>
     );
