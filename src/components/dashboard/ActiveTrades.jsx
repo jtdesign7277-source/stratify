@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Share2, X } from 'lucide-react';
+import { Share2, X, Pause, Play } from 'lucide-react';
 import { PnLShareCard } from './PnLShareCard';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
@@ -101,6 +101,7 @@ const statusStyles = {
   Scaling: 'border-sky-400/40 bg-sky-400/10 text-sky-200',
   Hedged: 'border-amber-400/40 bg-amber-400/10 text-amber-200',
   Cooling: 'border-red-400/40 bg-red-500/10 text-red-300',
+  Paused: 'border-gray-400/40 bg-gray-400/10 text-gray-300',
 };
 
 const formatMoney = (value) =>
@@ -359,7 +360,8 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                   <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                     {strategy.symbol}
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
+                    {/* Share button */}
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
@@ -383,9 +385,44 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                         });
                         setShareOpen(true);
                       }}
-                      className="w-6 h-6 rounded bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center justify-center group"
+                      className="w-5 h-5 rounded bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center justify-center"
+                      title="Share"
                     >
-                      <Share2 className="w-3 h-3 text-gray-400 group-hover:text-emerald-400" fill="none" strokeWidth={1.5} />
+                      <Share2 className="w-2.5 h-2.5 text-gray-400 hover:text-emerald-400" fill="none" strokeWidth={1.5} />
+                    </button>
+                    {/* Pause button */}
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setStrategies(prev => prev.map(s => 
+                          s.id === strategy.id ? { ...s, status: s.status === 'Paused' ? 'Live' : 'Paused' } : s
+                        ));
+                      }}
+                      className={`w-5 h-5 rounded border transition-all flex items-center justify-center ${
+                        strategy.status === 'Paused' 
+                          ? 'bg-amber-500/20 border-amber-500/50 hover:bg-amber-500/30' 
+                          : 'bg-white/5 border-white/10 hover:bg-amber-500/20 hover:border-amber-500/50'
+                      }`}
+                      title={strategy.status === 'Paused' ? 'Resume' : 'Pause'}
+                    >
+                      {strategy.status === 'Paused' ? (
+                        <Play className="w-2.5 h-2.5 text-amber-400" fill="currentColor" strokeWidth={0} />
+                      ) : (
+                        <Pause className="w-2.5 h-2.5 text-gray-400 hover:text-amber-400" fill="none" strokeWidth={2} />
+                      )}
+                    </button>
+                    {/* Kill/Stop button */}
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (confirm(`Stop "${strategy.name}" and move to strategies?`)) {
+                          setStrategies(prev => prev.filter(s => s.id !== strategy.id));
+                        }
+                      }}
+                      className="w-5 h-5 rounded bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 transition-all flex items-center justify-center"
+                      title="Stop & Remove"
+                    >
+                      <X className="w-2.5 h-2.5 text-gray-400 hover:text-red-400" strokeWidth={2} />
                     </button>
                     <span className={`text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusStyles[strategy.status]}`}>
                       {strategy.status}
