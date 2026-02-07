@@ -239,4 +239,4 @@ const useMarketData = () => {
   };
 };
 
-export default useMarketData;
+export { useMarketData };

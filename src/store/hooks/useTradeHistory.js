@@ -143,4 +143,4 @@ export const useTradeHistory = ({ onApplyTrade } = {}) => {
   };
 };
 
-export default useTradeHistory;
+export { useTradeHistory };

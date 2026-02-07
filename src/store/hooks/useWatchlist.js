@@ -68,4 +68,4 @@ export const useWatchlist = (initialSymbols = DEFAULT_SYMBOLS) => {
   };
 };
 
-export default useWatchlist;
+export { useWatchlist };

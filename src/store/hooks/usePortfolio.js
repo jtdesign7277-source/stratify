@@ -228,4 +228,4 @@ export const usePortfolio = (prices = new Map()) => {
   };
 };
 
-export default usePortfolio;
+export { usePortfolio };

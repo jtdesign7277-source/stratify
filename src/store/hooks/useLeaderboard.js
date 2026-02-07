@@ -90,4 +90,4 @@ export const useLeaderboard = ({ totalValue, todayPnL, todayPnLPercent } = {}) =
   };
 };
 
-export default useLeaderboard;
+export { useLeaderboard };
