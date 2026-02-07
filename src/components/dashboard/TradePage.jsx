@@ -219,8 +219,9 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     setDragOverTabs(false);
   };
 
-  // Watchlist states: 'open' (default 384px) → 'small' (280px) → 'closed' (80px) → 'open'...
-  const [watchlistState, setWatchlistState] = useState('open');
+  // Watchlist states: 'open' (384px) → 'small' (280px) → 'closed' (80px) → 'open'...
+  // Default to 'small' size
+  const [watchlistState, setWatchlistState] = useState('small');
   
   const stateWidths = { open: 384, small: 280, closed: 80 };
   
