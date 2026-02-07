@@ -232,30 +232,17 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                     </div>
                   )}
 
-                  {/* Actions */}
+                  {/* Actions - Edit & Delete only (double-click to deploy) */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {strategy.status === 'active' ? (
-                      <button className="p-1.5 hover:bg-yellow-500/20 rounded text-gray-400 hover:text-yellow-400" title="Pause">
-                        <Pause className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => onDeployStrategy?.(strategy)}
-                        className="p-1.5 hover:bg-emerald-500/20 rounded text-gray-400 hover:text-emerald-400" 
-                        title="Deploy"
-                      >
-                        <Play className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
-                    )}
                     <button 
-                      onClick={() => onEditStrategy?.(strategy)}
+                      onClick={(e) => { e.stopPropagation(); onEditStrategy?.(strategy); }}
                       className="p-1.5 hover:bg-emerald-500/20 rounded text-gray-400 hover:text-emerald-400" 
                       title="Edit"
                     >
                       <Edit3 className="w-4 h-4" strokeWidth={1.5} />
                     </button>
                     <button 
-                      onClick={() => onRemoveSavedStrategy?.(strategy.id)}
+                      onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(strategy.id); }}
                       className="p-1.5 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400" 
                       title="Delete"
                     >
