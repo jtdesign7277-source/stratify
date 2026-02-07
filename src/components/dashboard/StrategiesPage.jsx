@@ -225,7 +225,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                   {/* PnL */}
                   {strategy.pnl !== 0 && (
                     <div className="text-sm font-mono flex items-center gap-1.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-sans">Total PNL</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-sans">P&L</span>
                       <span className={strategy.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         ${strategy.pnl >= 0 ? '+' : ''}{Math.abs(strategy.pnl)?.toFixed(2)}
                       </span>
