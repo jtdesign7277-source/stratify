@@ -363,8 +363,10 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                   <div className="flex items-center gap-1">
                     {/* Share button */}
                     <button
+                      type="button"
                       onClick={(event) => {
                         event.stopPropagation();
+                        event.preventDefault();
                         setSelectedStrategy({
                           ticker: strategy.symbol,
                           strategyName: strategy.name,
@@ -385,20 +387,22 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                         });
                         setShareOpen(true);
                       }}
-                      className="w-5 h-5 rounded bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/50 transition-all flex items-center justify-center"
-                      title="Share"
+                      className="share-btn w-6 h-6 rounded bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/50 transition-all flex items-center justify-center z-10"
+                      title="Share Stats"
                     >
-                      <Share2 className="w-2.5 h-2.5 text-gray-400 hover:text-emerald-400" fill="none" strokeWidth={1.5} />
+                      <Share2 className="w-3 h-3 text-gray-400 group-hover:text-blue-400" fill="none" strokeWidth={2} />
                     </button>
                     {/* Pause button */}
                     <button
+                      type="button"
                       onClick={(event) => {
                         event.stopPropagation();
+                        event.preventDefault();
                         setStrategies(prev => prev.map(s => 
                           s.id === strategy.id ? { ...s, status: s.status === 'Paused' ? 'Live' : 'Paused' } : s
                         ));
                       }}
-                      className={`w-5 h-5 rounded border transition-all flex items-center justify-center ${
+                      className={`w-6 h-6 rounded border transition-all flex items-center justify-center z-10 ${
                         strategy.status === 'Paused' 
                           ? 'bg-amber-500/20 border-amber-500/50 hover:bg-amber-500/30' 
                           : 'bg-white/5 border-white/10 hover:bg-amber-500/20 hover:border-amber-500/50'
@@ -406,23 +410,25 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                       title={strategy.status === 'Paused' ? 'Resume' : 'Pause'}
                     >
                       {strategy.status === 'Paused' ? (
-                        <Play className="w-2.5 h-2.5 text-amber-400" fill="currentColor" strokeWidth={0} />
+                        <Play className="w-3 h-3 text-amber-400" fill="currentColor" strokeWidth={0} />
                       ) : (
-                        <Pause className="w-2.5 h-2.5 text-gray-400 hover:text-amber-400" fill="none" strokeWidth={2} />
+                        <Pause className="w-3 h-3 text-gray-400" fill="none" strokeWidth={2} />
                       )}
                     </button>
                     {/* Kill/Stop button */}
                     <button
+                      type="button"
                       onClick={(event) => {
                         event.stopPropagation();
+                        event.preventDefault();
                         if (confirm(`Stop "${strategy.name}" and move to strategies?`)) {
                           setStrategies(prev => prev.filter(s => s.id !== strategy.id));
                         }
                       }}
-                      className="w-5 h-5 rounded bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 transition-all flex items-center justify-center"
+                      className="w-6 h-6 rounded bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/50 transition-all flex items-center justify-center z-10"
                       title="Stop & Remove"
                     >
-                      <X className="w-2.5 h-2.5 text-gray-400 hover:text-red-400" strokeWidth={2} />
+                      <X className="w-3 h-3 text-gray-400" strokeWidth={2} />
                     </button>
                     <span className={`text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusStyles[strategy.status]}`}>
                       {strategy.status}
