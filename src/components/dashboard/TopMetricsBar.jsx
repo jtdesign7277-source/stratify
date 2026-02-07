@@ -254,7 +254,7 @@ const BrokerBadge = ({ broker }) => {
   );
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, connectedBrokers = [] }) {
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [] }) {
   const account = alpacaData?.account || {};
   
   // Mock live P&L data
@@ -301,8 +301,8 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
   };
 
   return (
-    <div className={`h-14 flex items-center justify-between px-4 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="flex items-center gap-6 overflow-x-auto">
+    <div className={`h-14 flex items-center px-4 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
+      <div className="flex flex-1 min-w-0 items-center gap-6 overflow-x-auto">
         {metrics.map((metric, index) => (
           <div key={index} className="flex flex-col min-w-0">
             <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
@@ -310,7 +310,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-4 ml-4">
+      <div className="flex items-center gap-4 ml-auto flex-shrink-0">
         <div className="flex items-center gap-4">
           {/* Connected Accounts */}
           {connectedBrokers.length > 0 && (
@@ -329,9 +329,21 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
               </div>
             </div>
           )}
-          <div className="text-right">
-            <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
-            <p className={`text-sm font-semibold ${themeClasses.text}`}>{formatCurrencyNeutral(netLiquidity)}</p>
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
+              <p className={`text-sm font-semibold ${themeClasses.text}`}>{formatCurrencyNeutral(netLiquidity)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onLegendClick}
+              className="relative flex h-8 w-8 flex-none shrink-0 items-center justify-center rounded-lg border bg-gradient-to-br from-amber-300/90 via-amber-400 to-amber-500 text-[14px] shadow-[0_0_14px_rgba(251,191,36,0.35)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              style={{ borderColor: 'rgba(251,191,36,0.3)' }}
+              aria-label="Open legend leaderboard"
+            >
+              <span className="animate-pulse">🏆</span>
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]" />
+            </button>
           </div>
         </div>
         {/* Notification Bell */}

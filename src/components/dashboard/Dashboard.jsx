@@ -29,6 +29,7 @@ import TradePage from './TradePage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplatesGallery from './StrategyTemplatesGallery';
 import ActiveTrades from './ActiveTrades';
+import ChallengeLeaderboard from './ChallengeLeaderboard';
 
 const loadDashboardState = () => {
   try {
@@ -518,6 +519,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
         themeClasses={themeClasses} 
         onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
         onLogout={() => setCurrentPage('landing')} 
+        onLegendClick={() => setActiveTab('legend')}
         connectedBrokers={connectedBrokers} 
       />
       <LiveAlertsTicker />
@@ -580,6 +582,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
           {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={handleSelectTemplate} />}
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} />}
+          {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
         </div>
         
         <GrokPanel 
