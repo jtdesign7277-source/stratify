@@ -1457,6 +1457,10 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Debug: show current activeTab */}
+          <div style={{position:'absolute',top:0,left:0,zIndex:9999,background:'red',color:'white',padding:'4px 8px',fontSize:12}}>
+            activeTab: {activeTab} | activeSection: {String(activeSection)}
+          </div>
           {activeTab === 'legend' ? (
             <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
               <ChallengeLeaderboard isPaid={true} />
