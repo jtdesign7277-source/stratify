@@ -59,9 +59,10 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
     } catch {}
   };
 
-  // Focus input when opened
+  // When opened from sidebar, always start expanded (not minimized)
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen) {
+      setIsMinimized(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
