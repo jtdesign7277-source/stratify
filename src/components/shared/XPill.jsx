@@ -454,14 +454,14 @@ const XPill = ({
         </div>
 
         <div className="flex items-center justify-between border-t border-white/10 px-4 py-2 text-[11px] text-white/60">
-          <span>Powered by Grok AI</span>
+          <span>AI-generated from real market news</span>
           <a
-            href="https://x.com"
+            href="https://marketaux.com"
             target="_blank"
             rel="noreferrer"
             className="text-blue-400 transition hover:text-blue-300"
           >
-            x.com
+            marketaux.com
           </a>
         </div>
       </div>

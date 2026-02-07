@@ -126,11 +126,75 @@ const extractJsonArray = (raw = '') => {
   }
 };
 
+const normalizeMarketauxArticles = (items = []) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      const rawSymbols = Array.isArray(item.symbols)
+        ? item.symbols
+        : typeof item.symbols === 'string'
+          ? item.symbols.split(',')
+          : [];
+      const symbols = rawSymbols
+        .map((symbol) => (typeof symbol === 'string' ? symbol : symbol?.symbol))
+        .map((symbol) => String(symbol || '').trim().toUpperCase())
+        .filter(Boolean);
+
+      return {
+        title: item.title || '',
+        description: item.description || item.snippet || '',
+        source: item.source?.name || item.source || item.publisher || '',
+        published_at: item.published_at || item.publishedAt || item.published || '',
+        url: item.url || item.link || '',
+        symbols,
+      };
+    })
+    .filter((article) => article.title || article.description);
+};
+
 app.post('/api/social/feed', async (req, res) => {
-  const symbols = Array.isArray(req.body?.symbols) ? req.body.symbols : [];
+  const symbols = Array.isArray(req.body?.symbols)
+    ? req.body.symbols.map((symbol) => String(symbol || '').trim().toUpperCase()).filter(Boolean)
+    : [];
   const fallback = buildFallbackSocialFeed(symbols);
+  const querySymbols = symbols.length > 0 ? symbols : ['NVDA', 'TSLA', 'AAPL'];
 
   try {
+    const marketauxToken = process.env.MARKETAUX_API_TOKEN;
+    if (!marketauxToken) {
+      console.warn('MARKETAUX_API_TOKEN not set; returning fallback social feed.');
+      return res.json(fallback);
+    }
+
+    let articles = [];
+    try {
+      const marketauxUrl = new URL('https://api.marketaux.com/v1/news/all');
+      marketauxUrl.search = new URLSearchParams({
+        symbols: querySymbols.join(','),
+        filter_entities: 'true',
+        language: 'en',
+        limit: '10',
+        api_token: marketauxToken,
+      }).toString();
+
+      const marketauxResponse = await fetch(marketauxUrl.toString());
+      if (!marketauxResponse.ok) {
+        const err = await marketauxResponse.text();
+        console.error('Marketaux error:', err);
+        return res.json(fallback);
+      }
+
+      const marketauxData = await marketauxResponse.json();
+      articles = normalizeMarketauxArticles(marketauxData?.data);
+      if (articles.length === 0) {
+        console.warn('Marketaux returned no articles; returning fallback social feed.');
+        return res.json(fallback);
+      }
+    } catch (error) {
+      console.error('Marketaux fetch error:', error);
+      return res.json(fallback);
+    }
+
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
       console.warn('XAI_API_KEY not set; returning fallback social feed.');
@@ -143,14 +207,14 @@ app.post('/api/social/feed', async (req, res) => {
         {
           role: 'system',
           content:
-            'You are a financial social media feed generator. Given stock symbols, generate 8-10 realistic tweet-style posts about these stocks. Each post should have: author handle, author display name, content (max 280 chars), timestamp (within last 2 hours), sentiment (bullish/bearish/neutral), and mentioned ticker. Make them feel like real trader Twitter/X posts with cashtags, emojis, and trader slang. Return as JSON array.',
+            'Use only the provided articles. Do not invent facts. If there are too few articles, return fewer posts. You are a financial social media feed generator. Using the articles, generate realistic tweet-style posts. Each post must include: handle, displayName, content (<=280 chars), timestamp (ISO string, within last 2 hours if possible), sentiment (bullish/bearish/neutral), ticker. Make them feel like real trader posts with cashtags, emojis, and trader slang. Return ONLY a JSON array.',
         },
         {
           role: 'user',
-          content: `Generate a live social feed for these tickers: ${symbols.join(', ')}`,
+          content: `Articles:\n${JSON.stringify(articles, null, 2)}`,
         },
       ],
-      temperature: 0.7,
+      temperature: 0.6,
       max_tokens: 800,
     };
 
@@ -177,7 +241,7 @@ app.post('/api/social/feed', async (req, res) => {
       return res.json(fallback);
     }
 
-    const normalized = normalizeGrokFeed(parsed, symbols);
+    const normalized = normalizeGrokFeed(parsed, querySymbols);
     return res.json(normalized.length > 0 ? normalized : fallback);
   } catch (error) {
     console.error('Social feed error:', error);
