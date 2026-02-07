@@ -341,15 +341,15 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="text-gray-500">{strategies.filter(s => s.status === 'active').length} active</span>
+            <span className="text-gray-500">{deployedStrategies.filter(s => s.status !== 'Paused').length} active</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-            <span className="text-gray-500">{strategies.filter(s => s.status === 'paused').length} paused</span>
+            <span className="text-gray-500">{deployedStrategies.filter(s => s.status === 'Paused').length} paused</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-            <span className="text-gray-500">{strategies.filter(s => s.status === 'draft').length} drafts</span>
+            <span className="text-gray-500">{strategies.filter(s => s.status === 'draft' || s.status === 'inactive').length} drafts</span>
           </span>
         </div>
       </div>
