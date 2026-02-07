@@ -233,8 +233,8 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           onMouseDown={handleDragStart}
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-              <XLogo className="w-4 h-4 text-black" />
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+              <XLogo className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
               <span className="text-white font-semibold text-sm">Grok</span>
@@ -275,7 +275,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
-                <XLogo className="w-8 h-8 text-white/40" />
+                <XLogo className="w-8 h-8 text-emerald-400/50" />
               </div>
               <p className="text-white/40 text-sm">Ask Grok anything about trading, markets, or strategies.</p>
             </div>

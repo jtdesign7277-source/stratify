@@ -536,8 +536,8 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
                 : 'border border-white/20 bg-black/90 hover:border-white/40'
             }`}
           >
-            <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 text-black" fill="currentColor">
+            <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="currentColor">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
             </div>
