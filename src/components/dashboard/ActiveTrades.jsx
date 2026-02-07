@@ -35,7 +35,7 @@ const ChartPreview = ({ symbol, position }) => {
   );
 };
 
-const strategiesSeed = [
+export const strategiesSeed = [
   { id: 'nvda', symbol: 'NVDA', name: 'NVDA Momentum', status: 'Live', pnl: 1824.32, pnlPct: 2.8, heat: 88 },
   { id: 'aapl', symbol: 'AAPL', name: 'AAPL Mean Revert', status: 'Scaling', pnl: 642.15, pnlPct: 1.2, heat: 61 },
   { id: 'tsla', symbol: 'TSLA', name: 'TSLA Breakout', status: 'Cooling', pnl: -412.5, pnlPct: -0.9, heat: 92 },
@@ -177,10 +177,14 @@ const SignalBars = ({ heat }) => {
   );
 };
 
-const ActiveTrades = ({ setActiveTab }) => {
+const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies: propSetStrategies }) => {
   const [totalPnl, setTotalPnl] = useState(4823.12);
   const [pnlDelta, setPnlDelta] = useState(0);
-  const [strategies, setStrategies] = useState(strategiesSeed);
+  const [internalStrategies, setInternalStrategies] = useState(strategiesSeed);
+  
+  // Use props if provided, otherwise use internal state
+  const strategies = propStrategies && propStrategies.length > 0 ? propStrategies : internalStrategies;
+  const setStrategies = propSetStrategies || setInternalStrategies;
   const [shareOpen, setShareOpen] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [tradePanelOpen, setTradePanelOpen] = useState(false);

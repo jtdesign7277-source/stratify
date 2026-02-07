@@ -29,7 +29,7 @@ import AnalyticsPage from './AnalyticsPage';
 import TradePage from './TradePage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplatesGallery from './StrategyTemplatesGallery';
-import ActiveTrades from './ActiveTrades';
+import ActiveTrades, { strategiesSeed } from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 
@@ -156,20 +156,21 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
   const [deployedStrategies, setDeployedStrategies] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-deployed-strategies');
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
       const staggeredTimes = [
         Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000),
         Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),
         Date.now() - (45 * 60 * 1000),
         Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000),
         Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),
+        Date.now() - (5 * 24 * 60 * 60 * 1000) - (8 * 60 * 60 * 1000),
       ];
-      return parsed.map((s, i) => ({
+      // Use saved data if available, otherwise use strategiesSeed as default
+      const data = saved ? JSON.parse(saved) : strategiesSeed;
+      return data.map((s, i) => ({
         ...s,
-        deployedAt: staggeredTimes[i % staggeredTimes.length]
+        deployedAt: s.deployedAt || staggeredTimes[i % staggeredTimes.length]
       }));
-    } catch { return []; }
+    } catch { return strategiesSeed; }
   });
   const [savedStrategies, setSavedStrategies] = useState(() => {
     try {
@@ -614,7 +615,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
           {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={handleSelectTemplate} />}
-          {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} />}
+          {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
         </div>
