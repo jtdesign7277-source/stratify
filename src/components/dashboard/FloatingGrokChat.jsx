@@ -3,6 +3,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Send, Loader2, X, Zap, GripVertical } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+
+// Unique session ID for conversation memory
+const getSessionId = () => {
+  let id = sessionStorage.getItem('grok-session-id');
+  if (!id) {
+    id = 'session-' + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem('grok-session-id', id);
+  }
+  return id;
+};
 const STORAGE_KEY = 'stratify-floating-grok';
 
 const FloatingGrokChat = ({ isOpen, onClose }) => {
@@ -140,7 +150,10 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
       const response = await fetch(API_BASE + '/api/v1/chat/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg }),
+        body: JSON.stringify({ 
+          message: userMsg,
+          session_id: getSessionId()
+        }),
       });
       if (!response.ok) throw new Error('Failed');
       const data = await response.json();
