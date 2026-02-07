@@ -22,7 +22,7 @@ const getSessionId = () => {
 };
 const STORAGE_KEY = 'stratify-floating-grok';
 
-const FloatingGrokChat = ({ isOpen, onClose, onMinimize, onMessageCountChange }) => {
+const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -245,7 +245,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMinimize, onMessageCountChange })
             <button
               type="button"
               data-no-drag
-              onClick={(e) => { e.stopPropagation(); onMinimize?.(); }}
+              onClick={(e) => { e.stopPropagation(); onClose?.(); }}
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-gray-400 hover:text-amber-400 transition-all duration-200"
               title="Minimize"
             >
