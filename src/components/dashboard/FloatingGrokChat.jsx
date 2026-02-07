@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Loader2, X, Zap, GripVertical, Minus } from 'lucide-react';
+import { Send, Loader2, X, GripVertical, Minus } from 'lucide-react';
+
+// X (Twitter) logo for Grok
+const XLogo = ({ className }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -196,25 +203,42 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // Minimized state - small floating bar
+  // Minimized state - small floating bar (draggable)
   if (isMinimized) {
+    const handleMinimizedDragStart = (e) => {
+      e.preventDefault();
+      dragOffset.current = {
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      };
+      setIsDragging(true);
+    };
+
+    const handleMinimizedClick = (e) => {
+      // Only expand if not dragging
+      if (!isDragging) {
+        setIsMinimized(false);
+      }
+    };
+
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="fixed z-[9999] cursor-pointer"
+        className={`fixed z-[9999] select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{ left: position.x, top: position.y }}
-        onClick={() => setIsMinimized(false)}
+        onMouseDown={handleMinimizedDragStart}
+        onClick={handleMinimizedClick}
       >
         <div 
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-emerald-500/30 bg-[#1a1a1f]/95 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(16,185,129,0.15)] hover:border-emerald-500/50 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_30px_rgba(16,185,129,0.25)] transition-all duration-200"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/20 bg-black/90 backdrop-blur-sm shadow-[0_8px_32px_rgba(0,0,0,0.5)] hover:border-white/40 hover:shadow-[0_8px_32px_rgba(0,0,0,0.7)] transition-all duration-200"
         >
-          <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2} />
+          <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+            <XLogo className="w-3.5 h-3.5 text-black" />
           </div>
           <span className="text-white font-medium text-sm">Grok</span>
           {messages.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-medium">
+            <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-xs font-medium">
               {messages.length}
             </span>
           )}
@@ -248,8 +272,8 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
           onMouseDown={handleDragStart}
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-              <Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} />
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+              <XLogo className="w-4 h-4 text-black" />
             </div>
             <div>
               <span className="text-white font-semibold text-sm">Grok</span>
@@ -264,7 +288,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-gray-400 hover:text-amber-400 transition-all duration-200"
               title="Minimize"
             >
-              <Minus className="w-4 h-4" strokeWidth={2} />
+              <Minus className="w-4 h-4" />
             </button>
             <button
               type="button"
@@ -273,7 +297,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
               title="Close"
             >
-              <X className="w-4 h-4" strokeWidth={2} />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -290,7 +314,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
-                <Zap className="w-8 h-8 text-emerald-400/60" strokeWidth={1.5} />
+                <XLogo className="w-8 h-8 text-white/40" />
               </div>
               <p className="text-white/40 text-sm">Ask Grok anything about trading, markets, or strategies.</p>
             </div>
@@ -373,7 +397,7 @@ const FloatingGrokChat = ({ isOpen, onClose }) => {
             borderRadius: '0 0 16px 0',
           }}
         >
-          <GripVertical className="w-3 h-3 text-emerald-400 rotate-[-45deg]" strokeWidth={2} />
+          <GripVertical className="w-3 h-3 text-emerald-400 rotate-[-45deg]" />
         </div>
       </motion.div>
     </AnimatePresence>
