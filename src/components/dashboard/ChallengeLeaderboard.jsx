@@ -1,6 +1,210 @@
-import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, X } from "lucide-react";
-import { TOP_CRYPTO_BY_MARKET_CAP } from "../../data/cryptoTop20";
+/*
+═══════════════════════════════════════════════════════════════
+STRATIFY LEGEND — FEATURE SPEC + COMPONENT
+═══════════════════════════════════════════════════════════════
+
+WHAT THIS IS:
+A new "Legend" tab in Stratify's left sidebar. Paid feature —
+free users see a paywall, paid users get the full Portfolio
+Challenge system. This is an ADD-ON. Do NOT replace or break
+anything that already works.
+
+FILE LOCATION: src/components/dashboard/ChallengeLeaderboard.jsx
+
+═══════════════════════════════════════════════════════════════
+1. SIDEBAR + NAVIGATION
+═══════════════════════════════════════════════════════════════
+
+Add "Legend" to left sidebar:
+- Position: between "Social" and "Predict" tabs
+- Icon: trophy (thin pencil-line, strokeWidth 1.5)
+- Label: "Legend"
+- When active → CENTER PANEL renders <ChallengeLeaderboard />
+  instead of chart/positions view
+- ALL other tabs keep working exactly as they do now
+
+Gold trophy button in top bar:
+- Goes in top-right area, next to portfolio value
+- Gold border rgba(251,191,36,0.3), gradient background
+- 🏆 emoji inside, red notification dot, glow animation
+- On click → sets active tab to "legend"
+
+═══════════════════════════════════════════════════════════════
+2. PAYWALL (FREE USERS)
+═══════════════════════════════════════════════════════════════
+
+When isPaid={false}:
+- Blurred preview of leaderboard behind overlay
+- Show top 3 winners with returns (social proof / FOMO)
+- CTA: "Upgrade to Legend — $9.99/mo"
+- Subtext: "Cancel anytime · First week free"
+- Block all challenge functionality
+
+═══════════════════════════════════════════════════════════════
+3. CHALLENGE PERIODS + CALENDAR PICKER
+═══════════════════════════════════════════════════════════════
+
+4 independent challenge periods:
+- Weekly:  Monday 9:29 AM → Friday 4:00 PM
+- Monthly: 1st of month → last trading day
+- 6 Month: Jan–Jun, Jul–Dec
+- Yearly:  Jan 1 → Dec 31
+
+CALENDAR DATE PICKER (critical):
+When user clicks "Enter Challenge" for ANY period:
+1. Show popup/modal with calendar widget
+2. Calendar shows available periods (upcoming weeks, months, etc)
+3. User clicks the specific period they want to enter
+4. VALIDATION: If already entered that exact period → show error
+   "You're already entered in this challenge" + gray out submit
+5. User CAN be in multiple DIFFERENT periods at once
+   (e.g., one weekly AND one monthly) but NEVER same period twice
+
+═══════════════════════════════════════════════════════════════
+4. CHALLENGE RULES (ENFORCE THESE)
+═══════════════════════════════════════════════════════════════
+
+- Starting balance: $100,000 paper money
+- Max 10 tickers per portfolio
+- Min $5,000 per position
+- Must deploy at least $95,000 (max $5K left as cash)
+- Submissions lock at 9:29 AM ET (1 min before market open)
+- Once locked → NO changes until period ends
+- Performance tracked using REAL prices from Alpaca API
+- Winner = highest portfolio value at period end
+
+═══════════════════════════════════════════════════════════════
+5. TABS INSIDE LEGEND VIEW
+═══════════════════════════════════════════════════════════════
+
+TAB 1: 🏅 LEADERBOARD
+- Ranked list of all participants for selected period
+- Each row: rank, avatar, username (CLICKABLE — see below),
+  ticker tags, portfolio value, P&L %, risk score, rank arrows
+- Top 3 get medals: 🥇 🥈 🥉
+- Win streaks: 🔥3W badge
+- Super Bowl Challenge banner at top (limited-time event)
+- "Copy #1 Portfolio" + "Enter This Challenge" buttons at bottom
+
+CLICKING A USERNAME (important):
+- Opens profile card/modal showing that user's FULL portfolio
+- Shows: every ticker, shares, buy price, current price,
+  P&L per holding, total value
+- FULLY TRANSPARENT — everyone sees everyone's picks
+- "Copy This Portfolio" button pre-fills Enter Challenge form
+- Like open source — no hidden information
+
+TAB 2: 📊 MY PORTFOLIO
+- Current user's challenge portfolio
+- Summary: total value, P&L ($ and %), rank, rank change
+- Stats: Starting ($100K), Deployed, Cash remaining,
+  Holdings count (/10), Period name
+- Holdings table: Ticker, Shares, Buy Price, Current Price,
+  Current Value, P&L %
+- "Share P&L Card" button (generates shareable image)
+- "View Leaderboard" button
+
+TAB 3: 🎯 ENTER CHALLENGE
+- Calendar date picker popup FIRST (Section 3 above)
+- Budget progress bar (how much of $100K allocated)
+- Ticker search input
+- Quick-add buttons: $NVDA $AAPL $TSLA $BTC $SPY $SOL
+  $META $AMZN $GOOGL $MSFT
+- Current picks list: ticker, shares, $ amount, P&L, remove (X)
+- Dollar amount input per ticker (enforce $5K min)
+- Remaining budget display
+- Validation errors shown inline:
+  "Must deploy at least $95K"
+  "Maximum 10 picks"
+  "Minimum $5K per position"
+- 🔒 Submit Portfolio button (disabled if validation fails)
+- After submit → confirmation → switch to My Portfolio tab
+
+TAB 4: 💬 LIVE FEED
+- Super Bowl Challenge banner at top
+- Real-time social feed from challenge participants
+- Each post: avatar, username, verified badge, timestamp,
+  message, P&L badge, ticker tag, likes/comments/share
+- Posts about challenge performance and picks
+- Like, comment, share buttons must work
+
+TAB 5: 🏆 PAST WINNERS (HALL OF FAME)
+- Previous winners organized by period
+- Each: trophy, username, period, return %, final value
+- "Copy Picks" button on each → pre-fills Enter Challenge
+- "How It Works" rules section at bottom
+
+═══════════════════════════════════════════════════════════════
+6. COPY PICKS (MUST WORK END TO END)
+═══════════════════════════════════════════════════════════════
+
+Triggered from:
+- Leaderboard → click username → profile → "Copy This Portfolio"
+- Past Winners → "Copy Picks" button
+- Leaderboard → "Copy #1 Portfolio" button
+
+When triggered:
+1. Switch to Enter Challenge tab
+2. Pre-fill all ticker picks from that user's portfolio
+3. Pre-fill dollar amounts proportionally (matching original %)
+4. User can modify before submitting
+5. All validation rules still enforced
+
+═══════════════════════════════════════════════════════════════
+7. DATA + API
+═══════════════════════════════════════════════════════════════
+
+- Prices from Alpaca API (same as rest of Stratify)
+- Portfolio values update real-time during market hours
+- Leaderboard rankings recalculate as prices change
+- Live feed connects to same social system as main Social tab
+
+═══════════════════════════════════════════════════════════════
+8. DESIGN (MATCH EXISTING STRATIFY)
+═══════════════════════════════════════════════════════════════
+
+- Dark theme: #060a10 bg, #0a1628 panels
+- Cyan #22d3ee gains, Red #f87171 losses, Gold #fbbf24 trophy
+- JetBrains Mono for numbers/tickers, IBM Plex Sans for text
+- Icons: thin pencil-line (strokeWidth 1.5), no box backgrounds
+- Tickers always $ prefix ($AAPL, $BTC)
+- No scrolling on main layout — internal scroll only
+- Animations: fadeIn, slideIn from existing keyframes
+
+═══════════════════════════════════════════════════════════════
+9. CHECKLIST (verify each one)
+═══════════════════════════════════════════════════════════════
+
+[ ] Legend tab in sidebar with trophy icon
+[ ] Gold trophy button in top bar
+[ ] Paywall for free users (blurred + upgrade CTA)
+[ ] 4 period tabs: weekly / monthly / 6 month / yearly
+[ ] Calendar date picker when entering a challenge
+[ ] Cannot enter same period twice validation
+[ ] Leaderboard with clickable usernames
+[ ] User profile cards showing full transparent portfolio
+[ ] My Portfolio with holdings table + P&L
+[ ] Enter Challenge with budget bar, search, validation
+[ ] Live Feed with Super Bowl banner + social posts
+[ ] Past Winners with Copy Picks buttons
+[ ] Copy Picks pre-fills the Enter Challenge form
+[ ] Share P&L Card button works
+[ ] All prices from Alpaca API
+[ ] Matches Stratify dark theme
+[ ] Nothing existing is broken
+
+═══════════════════════════════════════════════════════════════
+AGENT INSTRUCTIONS:
+1. Move this file to src/components/dashboard/ChallengeLeaderboard.jsx
+2. Import in main dashboard
+3. Wire Legend sidebar tab to render this in center panel
+4. Add gold trophy to top bar
+5. Make ALL tabs and interactions functional per spec above
+6. Connect to Alpaca API for real prices
+7. git add . && git commit -m "feat: Legend challenge system" && git push
+═══════════════════════════════════════════════════════════════
+*/
+import { useState, useMemo } from "react";
 
 /* ═══════════════════════════════════════════════════════════════
    CHALLENGE LEADERBOARD — Standalone component for center panel
@@ -33,84 +237,6 @@ const I = {
   fire:"M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z",
   trophy:"M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 22v-4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4M6 2h12v7a6 6 0 0 1-12 0V2z",
 };
-
-// ── Local Stock + Crypto Databases for Challenge Search ────────────────
-const STOCK_DATABASE = [
-  { symbol:"AAPL", name:"Apple Inc.", exchange:"NASDAQ" },
-  { symbol:"GOOGL", name:"Alphabet Inc.", exchange:"NASDAQ" },
-  { symbol:"AMZN", name:"Amazon.com, Inc.", exchange:"NASDAQ" },
-  { symbol:"NVDA", name:"NVIDIA Corporation", exchange:"NASDAQ" },
-  { symbol:"META", name:"Meta Platforms, Inc.", exchange:"NASDAQ" },
-  { symbol:"TSLA", name:"Tesla, Inc.", exchange:"NASDAQ" },
-  { symbol:"MSFT", name:"Microsoft Corporation", exchange:"NASDAQ" },
-  { symbol:"HOOD", name:"Robinhood Markets, Inc.", exchange:"NASDAQ" },
-  { symbol:"SOFI", name:"SoFi Technologies, Inc.", exchange:"NASDAQ" },
-  { symbol:"AMD", name:"Advanced Micro Devices", exchange:"NASDAQ" },
-  { symbol:"INTC", name:"Intel Corporation", exchange:"NASDAQ" },
-  { symbol:"NFLX", name:"Netflix, Inc.", exchange:"NASDAQ" },
-  { symbol:"PYPL", name:"PayPal Holdings, Inc.", exchange:"NASDAQ" },
-  { symbol:"COIN", name:"Coinbase Global, Inc.", exchange:"NASDAQ" },
-  { symbol:"PLTR", name:"Palantir Technologies", exchange:"NYSE" },
-  { symbol:"SPY", name:"SPDR S&P 500 ETF", exchange:"NYSE" },
-  { symbol:"QQQ", name:"Invesco QQQ Trust", exchange:"NASDAQ" },
-  { symbol:"DIA", name:"SPDR Dow Jones ETF", exchange:"NYSE" },
-  { symbol:"JPM", name:"JPMorgan Chase & Co.", exchange:"NYSE" },
-  { symbol:"BAC", name:"Bank of America Corp.", exchange:"NYSE" },
-  { symbol:"V", name:"Visa Inc.", exchange:"NYSE" },
-  { symbol:"MA", name:"Mastercard Inc.", exchange:"NYSE" },
-  { symbol:"DIS", name:"Walt Disney Company", exchange:"NYSE" },
-  { symbol:"UBER", name:"Uber Technologies", exchange:"NYSE" },
-  { symbol:"ABNB", name:"Airbnb, Inc.", exchange:"NASDAQ" },
-  { symbol:"SQ", name:"Block, Inc.", exchange:"NYSE" },
-  { symbol:"CRWD", name:"CrowdStrike Holdings", exchange:"NASDAQ" },
-  { symbol:"GME", name:"GameStop Corp.", exchange:"NYSE" },
-  { symbol:"AMC", name:"AMC Entertainment", exchange:"NYSE" },
-  { symbol:"RIVN", name:"Rivian Automotive", exchange:"NASDAQ" },
-  { symbol:"NIO", name:"NIO Inc.", exchange:"NYSE" },
-  { symbol:"F", name:"Ford Motor Company", exchange:"NYSE" },
-  { symbol:"XOM", name:"Exxon Mobil Corp.", exchange:"NYSE" },
-  { symbol:"JNJ", name:"Johnson & Johnson", exchange:"NYSE" },
-  { symbol:"WMT", name:"Walmart Inc.", exchange:"NYSE" },
-  { symbol:"HD", name:"Home Depot", exchange:"NYSE" },
-  { symbol:"BA", name:"Boeing Company", exchange:"NYSE" },
-  { symbol:"AVGO", name:"Broadcom Inc.", exchange:"NASDAQ" },
-  { symbol:"CRM", name:"Salesforce, Inc.", exchange:"NYSE" },
-  { symbol:"ADBE", name:"Adobe Inc.", exchange:"NASDAQ" },
-  { symbol:"PANW", name:"Palo Alto Networks", exchange:"NASDAQ" },
-  { symbol:"SNOW", name:"Snowflake Inc.", exchange:"NYSE" },
-  { symbol:"NET", name:"Cloudflare, Inc.", exchange:"NYSE" },
-  { symbol:"HIMS", name:"Hims & Hers Health", exchange:"NYSE" },
-  { symbol:"MARA", name:"Marathon Digital", exchange:"NASDAQ" },
-  { symbol:"SMCI", name:"Super Micro Computer", exchange:"NASDAQ" },
-  { symbol:"ARM", name:"Arm Holdings", exchange:"NASDAQ" },
-  { symbol:"RKLB", name:"Rocket Lab USA", exchange:"NASDAQ" },
-];
-
-const CRYPTO_DATABASE = TOP_CRYPTO_BY_MARKET_CAP.map((crypto) => ({
-  symbol:`${crypto.symbol}-USD`,
-  name:crypto.name,
-  displaySymbol:crypto.symbol,
-  exchange:"CRYPTO",
-}));
-
-const SEARCH_DATABASE = [...STOCK_DATABASE, ...CRYPTO_DATABASE];
-
-const getSearchDisplaySymbol = (stock) => {
-  if (!stock?.symbol) return "";
-  if (stock.displaySymbol) return stock.displaySymbol;
-  if (stock.symbol.includes("-")) return stock.symbol.split("-")[0];
-  if (stock.symbol.includes("/")) return stock.symbol.split("/")[0];
-  if (stock.symbol.endsWith("USD")) return stock.symbol.slice(0, -3);
-  return stock.symbol;
-};
-
-const DEFAULT_PICK_AMOUNT = 10000;
-const DEFAULT_PICKS = [
-  { symbol:"NVDA", shares:196, amount:28000 },
-  { symbol:"BTC", shares:0.24, amount:25000 },
-  { symbol:"SOL", shares:92, amount:19800 },
-];
-const PICK_PCTS = { NVDA:3.15, BTC:4.15, SOL:8.41, AAPL:1.7, TSLA:-2.1, MSFT:1.1, GOOGL:0.8, AMZN:1.9, META:2.4, SPY:0.6, QQQ:0.9, ETH:2.7 };
 
 // ── Mock Data ─────────────────────────────────────────────────
 const LEADERBOARD = [
@@ -189,59 +315,6 @@ const FeedCard = ({ post }) => {
 export default function ChallengeLeaderboard({ isPaid = true }) {
   const [period, setPeriod] = useState("weekly");
   const [view, setView] = useState("leaderboard"); // leaderboard | myPortfolio | enter | history | feed
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [selectedPicks, setSelectedPicks] = useState(() => DEFAULT_PICKS);
-
-  const formatShares = (shares) => {
-    if (!Number.isFinite(shares)) return "—";
-    const decimals = shares < 1 ? 4 : shares < 10 ? 2 : 0;
-    return shares.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  };
-
-  const budgetUsed = useMemo(() => (
-    selectedPicks.reduce((sum, pick) => sum + (Number(pick.amount) || 0), 0)
-  ), [selectedPicks]);
-  const budgetRemaining = Math.max(0, START_VAL - budgetUsed);
-  const budgetPct = Math.min(100, (budgetUsed / START_VAL) * 100);
-
-  const addPick = (symbol) => {
-    setSelectedPicks(prev => {
-      if (prev.some(p => p.symbol === symbol)) return prev;
-      if (prev.length >= 10) return prev;
-      const used = prev.reduce((sum, pick) => sum + (Number(pick.amount) || 0), 0);
-      const remaining = START_VAL - used;
-      if (remaining <= 0) return prev;
-      const allocation = Math.min(DEFAULT_PICK_AMOUNT, remaining);
-      const stock = STOCK_DATABASE.find(s => s.symbol === symbol);
-      const price = stock?.price || 100;
-      const decimals = price >= 1000 ? 4 : 2;
-      const shares = price > 0 ? Number((allocation / price).toFixed(decimals)) : 0;
-      return [...prev, { symbol, shares, amount: allocation }];
-    });
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
-  const handleSearchChange = (event) => {
-    const value = event.target.value;
-    setSearchQuery(value);
-    if (!value.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    const query = value.toLowerCase();
-    const existingSymbols = selectedPicks.map(p => p.symbol);
-    const filtered = SEARCH_DATABASE.filter(stock => {
-      if (existingSymbols.includes(stock.symbol)) return false;
-      return stock.symbol.toLowerCase().includes(query) || stock.name.toLowerCase().includes(query);
-    }).slice(0, 8);
-    setSearchResults(filtered);
-  };
-
-  const handleRemovePick = (symbol) => {
-    setSelectedPicks(prev => prev.filter(p => p.symbol !== symbol));
-  };
 
   const myVal = MY_HOLDINGS.reduce((s,h)=>s+h.curPrice*h.shares,0) + MY_CASH;
   const myPnl = myVal - START_VAL;
@@ -449,85 +522,41 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
           <div style={{marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
               <span style={{color:"#64748b"}}>Budget Used</span>
-              <span style={{fontFamily:MONO,fontWeight:600,color:"#e2e8f0"}}>${fmt(budgetUsed,0)} / ${fmt(START_VAL,0)}</span>
+              <span style={{fontFamily:MONO,fontWeight:600,color:"#e2e8f0"}}>$72,800 / $100,000</span>
             </div>
             <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden"}}>
-              <div style={{width:`${budgetPct}%`,height:"100%",background:"linear-gradient(90deg,#22d3ee,#06b6d4)",borderRadius:3}}/>
+              <div style={{width:"72.8%",height:"100%",background:"linear-gradient(90deg,#22d3ee,#06b6d4)",borderRadius:3}}/>
             </div>
-            <div style={{fontSize:10,color:"#475569",marginTop:3,fontFamily:MONO}}>${fmt(budgetRemaining,0)} remaining · {selectedPicks.length}/10 picks</div>
+            <div style={{fontSize:10,color:"#475569",marginTop:3,fontFamily:MONO}}>$27,200 remaining · 3/10 picks</div>
           </div>
 
-          <div style={{position:"relative",marginBottom:10}}>
-            <div style={{display:"flex",gap:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",alignItems:"center"}}>
-              <Icon d={I.search} size={14}/>
-              <input
-                placeholder="Search tickers to add..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:13,fontFamily:"inherit"}}
-              />
-            </div>
-            {searchQuery && (
-              <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:6,background:"#111118",border:"1px solid #374151",borderRadius:8,boxShadow:"0 25px 50px -12px rgba(0,0,0,0.25)",maxHeight:384,overflowY:"auto",zIndex:50}}>
-                {searchResults.length > 0 ? searchResults.map((stock, index) => {
-                  const displaySymbol = getSearchDisplaySymbol(stock);
-                  return (
-                    <button
-                      key={stock.symbol}
-                      onClick={() => addPick(stock.symbol)}
-                      style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:index === searchResults.length - 1 ? "none" : "1px solid rgba(31,41,55,0.5)"}}
-                      onMouseEnter={e=>{e.currentTarget.style.background="rgba(16,185,129,0.1)";}}
-                      onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}
-                    >
-                      <div style={{display:"flex",alignItems:"center"}}>
-                        <span style={{color:"#ffffff",fontWeight:700,fontSize:16}}>${displaySymbol}</span>
-                        <span style={{color:"#9ca3af",fontSize:14,marginLeft:12}}>{stock.name}</span>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:12}}>
-                        {stock.exchange && (
-                          <span style={{color:"#6b7280",fontSize:12}}>{stock.exchange}</span>
-                        )}
-                        <Plus size={20} style={{color:"#34d399"}} strokeWidth={1.5} fill="none" />
-                      </div>
-                    </button>
-                  );
-                }) : (
-                  <div style={{padding:16,textAlign:"center",color:"#9ca3af",fontSize:14}}>No results for "{searchQuery}"</div>
-                )}
-              </div>
-            )}
+          <div style={{display:"flex",gap:8,marginBottom:10,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",alignItems:"center"}}>
+            <Icon d={I.search} size={14}/>
+            <input placeholder="Search tickers to add..." style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:13,fontFamily:"inherit"}}/>
           </div>
 
           <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}>
             {["NVDA","AAPL","TSLA","BTC","SPY","SOL","META","AMZN","GOOGL","MSFT"].map(s=>(
               <button key={s} style={{padding:"5px 12px",borderRadius:5,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:11,fontFamily:MONO,fontWeight:500,cursor:"pointer",transition:"all 0.15s"}}
-                onClick={()=>addPick(s)}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(34,211,238,0.3)";e.currentTarget.style.color="#22d3ee"}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="#94a3b8"}}>${s}</button>
             ))}
           </div>
 
           <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:0.8,marginBottom:6}}>Current Picks</div>
-          {selectedPicks.length === 0 && (
-            <div style={{padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:7,marginBottom:6,fontSize:11,color:"#64748b"}}>No picks yet. Search or tap a ticker to add.</div>
-          )}
-          {selectedPicks.map((p,i)=>{
-            const pct = PICK_PCTS[p.symbol] ?? 0;
-            const pctLabel = `${pct >= 0 ? "+" : "-"}${fmt(Math.abs(pct),1)}%`;
-            return (
-              <div key={p.symbol} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:7,marginBottom:4,animation:`fadeIn 0.15s ease-out ${i*0.03}s both`}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:13,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${p.symbol}</span>
-                  <span style={{fontSize:10,color:"#475569"}}>{formatShares(p.shares)} shares</span>
-                  <span style={{fontSize:10,color:pnlColor(pct),fontFamily:MONO,fontWeight:600}}>{pctLabel}</span>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:12,fontWeight:600,fontFamily:MONO,color:"#e2e8f0"}}>${fmtK(p.amount)}</span>
-                  <button onClick={() => handleRemovePick(p.symbol)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:0}}><Icon d={I.x} size={13}/></button>
-                </div>
+          {[{sym:"NVDA",amount:28000,shares:196,pct:3.15},{sym:"BTC",amount:25000,shares:0.24,pct:4.15},{sym:"SOL",amount:19800,shares:92,pct:8.41}].map((p,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:7,marginBottom:4}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:13,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${p.sym}</span>
+                <span style={{fontSize:10,color:"#475569"}}>{p.shares} shares</span>
+                <span style={{fontSize:10,color:"#22d3ee",fontFamily:MONO,fontWeight:600}}>+{fmt(p.pct,1)}%</span>
               </div>
-            );
-          })}
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:12,fontWeight:600,fontFamily:MONO,color:"#e2e8f0"}}>${fmtK(p.amount)}</span>
+                <button style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:0}}><Icon d={I.x} size={13}/></button>
+              </div>
+            </div>
+          ))}
           <button style={{marginTop:14,width:"100%",padding:12,borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>🔒 Submit Portfolio</button>
         </div>)}
 

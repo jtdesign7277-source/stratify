@@ -212,7 +212,7 @@ const NotificationButton = ({ themeClasses }) => {
         </svg>
         {/* Active indicator dot */}
         {hasNotifications && (
-          <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full" />
+          <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_6px_rgba(248,113,113,0.6)]" />
         )}
       </button>
       <NotificationDropdown isOpen={isOpen} onClose={() => setIsOpen(false)} themeClasses={themeClasses} />
@@ -338,19 +338,12 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         </div>
         {/* Notification Bell */}
         <NotificationButton themeClasses={themeClasses} />
-        <button 
-          onClick={onLegendClick} 
-          className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"
+        <button
+          onClick={onLegendClick}
+          className="px-2.5 py-1.5 rounded-lg border border-[rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/15 via-amber-400/10 to-transparent shadow-[0_0_12px_rgba(251,191,36,0.25)] hover:shadow-[0_0_16px_rgba(251,191,36,0.35)] transition-all"
           title="Legend Challenge"
         >
-          <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-            <path d="M4 22h16" />
-            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-          </svg>
+          <span className="text-[15px] leading-none">🏆</span>
         </button>
         <button onClick={onLogout} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
