@@ -32,6 +32,30 @@ const I = {
   trophy:"M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 22v-4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4M6 2h12v7a6 6 0 0 1-12 0V2z",
 };
 
+// ── Local Stock Database for Challenge Search ────────────────
+const STOCK_DATABASE = [
+  { symbol:"AAPL", name:"Apple Inc.", exchange:"NASDAQ", price:190 },
+  { symbol:"NVDA", name:"NVIDIA Corporation", exchange:"NASDAQ", price:720 },
+  { symbol:"TSLA", name:"Tesla, Inc.", exchange:"NASDAQ", price:260 },
+  { symbol:"MSFT", name:"Microsoft Corporation", exchange:"NASDAQ", price:410 },
+  { symbol:"GOOGL", name:"Alphabet Inc.", exchange:"NASDAQ", price:155 },
+  { symbol:"AMZN", name:"Amazon.com, Inc.", exchange:"NASDAQ", price:170 },
+  { symbol:"META", name:"Meta Platforms, Inc.", exchange:"NASDAQ", price:470 },
+  { symbol:"SPY", name:"SPDR S&P 500 ETF", exchange:"NYSE", price:495 },
+  { symbol:"QQQ", name:"Invesco QQQ Trust", exchange:"NASDAQ", price:420 },
+  { symbol:"BTC", name:"Bitcoin", exchange:"CRYPTO", price:102000 },
+  { symbol:"ETH", name:"Ethereum", exchange:"CRYPTO", price:3200 },
+  { symbol:"SOL", name:"Solana", exchange:"CRYPTO", price:210 },
+];
+
+const DEFAULT_PICK_AMOUNT = 10000;
+const DEFAULT_PICKS = [
+  { symbol:"NVDA", shares:196, amount:28000 },
+  { symbol:"BTC", shares:0.24, amount:25000 },
+  { symbol:"SOL", shares:92, amount:19800 },
+];
+const PICK_PCTS = { NVDA:3.15, BTC:4.15, SOL:8.41, AAPL:1.7, TSLA:-2.1, MSFT:1.1, GOOGL:0.8, AMZN:1.9, META:2.4, SPY:0.6, QQQ:0.9, ETH:2.7 };
+
 // ── Mock Data ─────────────────────────────────────────────────
 const LEADERBOARD = [
   { rank:1, user:"AlgoAnna", avi:"AA", curVal:134820, picks:["NVDA","SOL","BTC","TSLA","META"], streak:4, badge:"gold", rankChange:0, risk:"High" },
@@ -109,6 +133,59 @@ const FeedCard = ({ post }) => {
 export default function ChallengeLeaderboard({ isPaid = true }) {
   const [period, setPeriod] = useState("weekly");
   const [view, setView] = useState("leaderboard"); // leaderboard | myPortfolio | enter | history | feed
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedPicks, setSelectedPicks] = useState(() => DEFAULT_PICKS);
+
+  const formatShares = (shares) => {
+    if (!Number.isFinite(shares)) return "—";
+    const decimals = shares < 1 ? 4 : shares < 10 ? 2 : 0;
+    return shares.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  };
+
+  const budgetUsed = useMemo(() => (
+    selectedPicks.reduce((sum, pick) => sum + (Number(pick.amount) || 0), 0)
+  ), [selectedPicks]);
+  const budgetRemaining = Math.max(0, START_VAL - budgetUsed);
+  const budgetPct = Math.min(100, (budgetUsed / START_VAL) * 100);
+
+  const addPick = (symbol) => {
+    setSelectedPicks(prev => {
+      if (prev.some(p => p.symbol === symbol)) return prev;
+      if (prev.length >= 10) return prev;
+      const used = prev.reduce((sum, pick) => sum + (Number(pick.amount) || 0), 0);
+      const remaining = START_VAL - used;
+      if (remaining <= 0) return prev;
+      const allocation = Math.min(DEFAULT_PICK_AMOUNT, remaining);
+      const stock = STOCK_DATABASE.find(s => s.symbol === symbol);
+      const price = stock?.price || 100;
+      const decimals = price >= 1000 ? 4 : 2;
+      const shares = price > 0 ? Number((allocation / price).toFixed(decimals)) : 0;
+      return [...prev, { symbol, shares, amount: allocation }];
+    });
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleSearchChange = (event) => {
+    const value = event.target.value;
+    setSearchQuery(value);
+    if (!value.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const query = value.toLowerCase();
+    const existingSymbols = selectedPicks.map(p => p.symbol);
+    const filtered = STOCK_DATABASE.filter(stock => {
+      if (existingSymbols.includes(stock.symbol)) return false;
+      return stock.symbol.toLowerCase().includes(query) || stock.name.toLowerCase().includes(query);
+    }).slice(0, 8);
+    setSearchResults(filtered);
+  };
+
+  const handleRemovePick = (symbol) => {
+    setSelectedPicks(prev => prev.filter(p => p.symbol !== symbol));
+  };
 
   const myVal = MY_HOLDINGS.reduce((s,h)=>s+h.curPrice*h.shares,0) + MY_CASH;
   const myPnl = myVal - START_VAL;
@@ -316,41 +393,77 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
           <div style={{marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
               <span style={{color:"#64748b"}}>Budget Used</span>
-              <span style={{fontFamily:MONO,fontWeight:600,color:"#e2e8f0"}}>$72,800 / $100,000</span>
+              <span style={{fontFamily:MONO,fontWeight:600,color:"#e2e8f0"}}>${fmt(budgetUsed,0)} / ${fmt(START_VAL,0)}</span>
             </div>
             <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden"}}>
-              <div style={{width:"72.8%",height:"100%",background:"linear-gradient(90deg,#22d3ee,#06b6d4)",borderRadius:3}}/>
+              <div style={{width:`${budgetPct}%`,height:"100%",background:"linear-gradient(90deg,#22d3ee,#06b6d4)",borderRadius:3}}/>
             </div>
-            <div style={{fontSize:10,color:"#475569",marginTop:3,fontFamily:MONO}}>$27,200 remaining · 3/10 picks</div>
+            <div style={{fontSize:10,color:"#475569",marginTop:3,fontFamily:MONO}}>${fmt(budgetRemaining,0)} remaining · {selectedPicks.length}/10 picks</div>
           </div>
 
-          <div style={{display:"flex",gap:8,marginBottom:10,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",alignItems:"center"}}>
-            <Icon d={I.search} size={14}/>
-            <input placeholder="Search tickers to add..." style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:13,fontFamily:"inherit"}}/>
+          <div style={{position:"relative",marginBottom:10}}>
+            <div style={{display:"flex",gap:8,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",alignItems:"center"}}>
+              <Icon d={I.search} size={14}/>
+              <input
+                placeholder="Search tickers to add..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                style={{flex:1,background:"none",border:"none",color:"#e2e8f0",fontSize:13,fontFamily:"inherit"}}
+              />
+            </div>
+            {searchQuery && (
+              <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:6,background:"rgba(10,14,24,0.98)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,overflow:"hidden",zIndex:20,boxShadow:"0 10px 30px rgba(0,0,0,0.35)"}}>
+                {searchResults.length > 0 ? searchResults.map(stock => (
+                  <button
+                    key={stock.symbol}
+                    onClick={() => addPick(stock.symbol)}
+                    style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"8px 10px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                  >
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:12,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${stock.symbol}</span>
+                      <span style={{fontSize:11,color:"#64748b"}}>{stock.name}</span>
+                    </div>
+                    <span style={{fontSize:9,color:"#475569",fontFamily:MONO}}>{stock.exchange}</span>
+                  </button>
+                )) : (
+                  <div style={{padding:"8px 10px",fontSize:11,color:"#475569"}}>No results for "{searchQuery}"</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}>
             {["NVDA","AAPL","TSLA","BTC","SPY","SOL","META","AMZN","GOOGL","MSFT"].map(s=>(
               <button key={s} style={{padding:"5px 12px",borderRadius:5,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:11,fontFamily:MONO,fontWeight:500,cursor:"pointer",transition:"all 0.15s"}}
+                onClick={()=>addPick(s)}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(34,211,238,0.3)";e.currentTarget.style.color="#22d3ee"}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";e.currentTarget.style.color="#94a3b8"}}>${s}</button>
             ))}
           </div>
 
           <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:0.8,marginBottom:6}}>Current Picks</div>
-          {[{sym:"NVDA",amount:28000,shares:196,pct:3.15},{sym:"BTC",amount:25000,shares:0.24,pct:4.15},{sym:"SOL",amount:19800,shares:92,pct:8.41}].map((p,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:7,marginBottom:4}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:13,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${p.sym}</span>
-                <span style={{fontSize:10,color:"#475569"}}>{p.shares} shares</span>
-                <span style={{fontSize:10,color:"#22d3ee",fontFamily:MONO,fontWeight:600}}>+{fmt(p.pct,1)}%</span>
+          {selectedPicks.length === 0 && (
+            <div style={{padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:7,marginBottom:6,fontSize:11,color:"#64748b"}}>No picks yet. Search or tap a ticker to add.</div>
+          )}
+          {selectedPicks.map((p,i)=>{
+            const pct = PICK_PCTS[p.symbol] ?? 0;
+            const pctLabel = `${pct >= 0 ? "+" : "-"}${fmt(Math.abs(pct),1)}%`;
+            return (
+              <div key={p.symbol} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:7,marginBottom:4,animation:`fadeIn 0.15s ease-out ${i*0.03}s both`}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:13,fontWeight:600,color:"#e2e8f0",fontFamily:MONO}}>${p.symbol}</span>
+                  <span style={{fontSize:10,color:"#475569"}}>{formatShares(p.shares)} shares</span>
+                  <span style={{fontSize:10,color:pnlColor(pct),fontFamily:MONO,fontWeight:600}}>{pctLabel}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:12,fontWeight:600,fontFamily:MONO,color:"#e2e8f0"}}>${fmtK(p.amount)}</span>
+                  <button onClick={() => handleRemovePick(p.symbol)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:0}}><Icon d={I.x} size={13}/></button>
+                </div>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:12,fontWeight:600,fontFamily:MONO,color:"#e2e8f0"}}>${fmtK(p.amount)}</span>
-                <button style={{background:"none",border:"none",color:"#475569",cursor:"pointer",padding:0}}><Icon d={I.x} size={13}/></button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <button style={{marginTop:14,width:"100%",padding:12,borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:MONO}}>🔒 Submit Portfolio</button>
         </div>)}
 
