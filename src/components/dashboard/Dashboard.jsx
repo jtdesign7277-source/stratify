@@ -31,6 +31,7 @@ import DemoPanel from './DemoPanel';
 import StrategyTemplatesGallery from './StrategyTemplatesGallery';
 import ActiveTrades from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
+import TrendScanner from './TrendScanner';
 
 const loadDashboardState = () => {
   try {
@@ -622,6 +623,7 @@ export default function Dashboard({ setCurrentPage, alpacaData }) {
           {activeTab === 'templates' && <StrategyTemplatesGallery themeClasses={themeClasses} onSelectTemplate={handleSelectTemplate} />}
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
+          {activeTab === 'trends' && <TrendScanner />}
         </div>
         
         <GrokPanel 
