@@ -830,7 +830,16 @@ app.post('/api/backtest/ai', async (req, res) => {
       return res.status(400).json({ error: 'Ticker is required' });
     }
 
-    const symbol = ticker.toUpperCase().replace('$', '');
+    let symbol = ticker.toUpperCase().replace('$', '');
+    
+    // Detect crypto symbols and format correctly
+    const cryptoSymbols = ['BTC', 'ETH', 'DOGE', 'SOL', 'AVAX', 'LINK', 'UNI', 'AAVE', 'LTC', 'BCH', 'DOT', 'MATIC', 'SHIB', 'XRP'];
+    const isCrypto = cryptoSymbols.includes(symbol) || symbol.includes('/');
+    
+    // Format crypto symbol for Alpaca (BTC -> BTC/USD)
+    if (isCrypto && !symbol.includes('/')) {
+      symbol = `${symbol}/USD`;
+    }
     
     // Calculate start date
     const now = new Date();
@@ -851,24 +860,47 @@ app.post('/api/backtest/ai', async (req, res) => {
       paper: true,
     });
 
-    const barsIterator = alpaca.getBarsV2(symbol, {
-      start: startDate.toISOString(),
-      end: new Date().toISOString(),
-      timeframe: timeframe,
-      limit: 10000,
-      feed: 'iex',
-    });
-
     const bars = [];
-    for await (const bar of barsIterator) {
-      bars.push({
-        time: bar.Timestamp,
-        open: bar.OpenPrice,
-        high: bar.HighPrice,
-        low: bar.LowPrice,
-        close: bar.ClosePrice,
-        volume: bar.Volume,
+    
+    if (isCrypto) {
+      // Use crypto bars API
+      const cryptoBarsIterator = alpaca.getCryptoBars(symbol, {
+        start: startDate.toISOString(),
+        end: new Date().toISOString(),
+        timeframe: timeframe,
+        limit: 10000,
       });
+      
+      for await (const bar of cryptoBarsIterator) {
+        bars.push({
+          time: bar.Timestamp,
+          open: bar.Open,
+          high: bar.High,
+          low: bar.Low,
+          close: bar.Close,
+          volume: bar.Volume,
+        });
+      }
+    } else {
+      // Use stock bars API
+      const barsIterator = alpaca.getBarsV2(symbol, {
+        start: startDate.toISOString(),
+        end: new Date().toISOString(),
+        timeframe: timeframe,
+        limit: 10000,
+        feed: 'iex',
+      });
+
+      for await (const bar of barsIterator) {
+        bars.push({
+          time: bar.Timestamp,
+          open: bar.OpenPrice,
+          high: bar.HighPrice,
+          low: bar.LowPrice,
+          close: bar.ClosePrice,
+          volume: bar.Volume,
+        });
+      }
     }
 
     if (bars.length < 20) {
