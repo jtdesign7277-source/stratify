@@ -176,7 +176,9 @@ const XPill = ({
       }
 
       const payload = await response.json();
+      console.log('[XPill] Feed response:', payload);
       const items = normalizeFeedItems(payload);
+      console.log('[XPill] Normalized items:', items.length);
 
       cacheRef.current = {
         timestamp: Date.now(),
@@ -188,6 +190,7 @@ const XPill = ({
         setHasUnread(true);
       }
     } catch (err) {
+      console.error('[XPill] Fetch error:', err);
       if (err?.name === 'AbortError') return;
       setError('Feed unavailable');
     } finally {
