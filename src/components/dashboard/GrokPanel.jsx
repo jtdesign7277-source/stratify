@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import BacktestTerminal from './BacktestTerminal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Loader2, Copy, Check, Zap, Search, X, Plus, Brain,
@@ -294,6 +295,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
   const [strategyCounter, setStrategyCounter] = useState(0);
   const [backtestResults, setBacktestResults] = useState(null);
   const [isBacktesting, setIsBacktesting] = useState(false);
+  const [showBacktestTerminal, setShowBacktestTerminal] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('strategy');
   const messagesEndRef = useRef(null);
   const introTypingRef = useRef(null);
@@ -440,16 +442,16 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
     setChatInput('');
   };
 
-  const handleBacktest = async () => {
+  const handleBacktest = async (customStrategy = null) => {
     const activeTabData = tabs.find(t => t.id === activeTab);
     if (!activeTabData || activeTab === 'chat') return;
     
-    const summary = activeTabData.parsed?.summary || {};
+    const summary = customStrategy || activeTabData.parsed?.summary || {};
     const tickerValue = summary.ticker || (activeTabData.tickers?.length > 0 ? activeTabData.tickers[0] : 'SPY');
     const ticker = tickerValue.replace(/\$/g, '').split(',')[0].trim();
     
     setIsBacktesting(true);
-    setBacktestResults(null);
+    setShowBacktestTerminal(true);
     
     try {
       // Use AI-powered backtest endpoint
@@ -478,6 +480,19 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
     } finally {
       setIsBacktesting(false);
     }
+  };
+
+  const getCurrentStrategy = () => {
+    const activeTabData = tabs.find(t => t.id === activeTab);
+    if (!activeTabData) return {};
+    return activeTabData.parsed?.summary || {};
+  };
+
+  const getCurrentTicker = () => {
+    const activeTabData = tabs.find(t => t.id === activeTab);
+    if (!activeTabData) return 'SPY';
+    const summary = activeTabData.parsed?.summary || {};
+    return summary.ticker || (activeTabData.tickers?.length > 0 ? activeTabData.tickers[0] : 'SPY');
   };
 
   const handleChatSend = async () => {
@@ -910,6 +925,17 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
           </div>
         </div>
       </div>
+
+      {/* Backtest Terminal Popup */}
+      <BacktestTerminal
+        isOpen={showBacktestTerminal}
+        onClose={() => setShowBacktestTerminal(false)}
+        results={backtestResults}
+        strategy={getCurrentStrategy()}
+        ticker={getCurrentTicker()}
+        onRunBacktest={handleBacktest}
+        isLoading={isBacktesting}
+      />
     </div>
   );
 };
