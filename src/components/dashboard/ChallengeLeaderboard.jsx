@@ -736,7 +736,7 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
               </div>
             );
           })}
-          <button style={{marginTop:14,width:"100%",padding:12,borderRadius:8,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(15),fontWeight:700,cursor:"pointer",fontFamily:MONO}}>🔒 Submit Portfolio</button>
+          <button style={{marginTop:10,padding:"6px 16px",borderRadius:6,background:"linear-gradient(135deg,#fbbf24 0%,#f59e0b 50%,#d97706 100%)",border:"1px solid rgba(251,191,36,0.3)",color:"#0a0e18",fontSize:fs(11),fontWeight:600,cursor:"pointer",fontFamily:MONO,textTransform:"uppercase",letterSpacing:"0.05em",boxShadow:"0 2px 8px rgba(251,191,36,0.25)"}}>🔒 Submit Portfolio</button>
         </div>)}
 
         {/* ════════ LIVE FEED ════════ */}
