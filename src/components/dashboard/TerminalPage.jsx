@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight, FolderOpen } from 'lucide-react';
 
 const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading, onDeploy, onNavigateToActive }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
@@ -28,6 +28,17 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   
   // Collapsed state for Recent Tests sub-section
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  
+  // Collapsed state for Strategies panel
+  const [isStrategiesCollapsed, setIsStrategiesCollapsed] = useState(false);
+  
+  // Load saved strategies from localStorage
+  const [savedStrategies, setSavedStrategies] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-saved-strategies');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   
   // Editable strategy for the input fields
   const [editableStrategy, setEditableStrategy] = useState({
@@ -369,6 +380,88 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
             </button>
+          )}
+        </div>
+
+        {/* Strategies Panel - Collapsible */}
+        <div className={`${isStrategiesCollapsed ? 'w-14' : 'w-64'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+          <div className={`flex ${isStrategiesCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
+            {isStrategiesCollapsed ? (
+              <>
+                <button 
+                  onClick={() => setIsStrategiesCollapsed(false)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white mb-2"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+                <FolderOpen className="w-4 h-4 text-amber-400" />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-mono text-amber-400 uppercase tracking-wider">Strategies</span>
+                </div>
+                <button 
+                  onClick={() => setIsStrategiesCollapsed(true)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
+          
+          {!isStrategiesCollapsed && (
+            <>
+              {savedStrategies.length > 0 && (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] text-gray-500 font-mono">{savedStrategies.length} saved</span>
+                </div>
+              )}
+              
+              <div className="space-y-1 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
+                {savedStrategies.length > 0 ? savedStrategies.map((strat, i) => {
+                  const pnl = parseFloat(strat?.pnl) || 0;
+                  const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                  return (
+                    <div 
+                      key={strat.id || i} 
+                      onClick={() => {
+                        setEditableStrategy({
+                          name: strat.name || '',
+                          ticker: strat.ticker || strat.symbol || '',
+                          entry: strat.entry || '',
+                          exit: strat.exit || '',
+                          stopLoss: strat.stopLoss || '',
+                          positionSize: strat.positionSize || '',
+                        });
+                      }}
+                      className="p-2 rounded bg-gray-800/50 hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-amber-500/30"
+                    >
+                      <div className="text-[10px] text-amber-400 font-mono font-medium truncate">
+                        {strat.name || 'Unnamed Strategy'}
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] font-mono text-gray-400">
+                          {strat.ticker || strat.symbol || '—'}
+                        </span>
+                        {pnl !== 0 && (
+                          <span className={`text-[10px] font-mono ${pnlColor}`}>
+                            {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[9px] text-gray-600 mt-0.5">
+                        {strat.winRate ? `${strat.winRate}% win` : strat.type || ''}
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="text-[10px] text-gray-600 font-mono py-4 text-center">No saved strategies</div>
+                )}
+              </div>
+            </>
           )}
         </div>
 
