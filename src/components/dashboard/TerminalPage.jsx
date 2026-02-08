@@ -6,6 +6,11 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   const [isTyping, setIsTyping] = useState(false);
   const [history, setHistory] = useState([]);
   const terminalRef = useRef(null);
+  
+  // Strategy used for display in terminal (captured when backtest runs)
+  const [displayStrategy, setDisplayStrategy] = useState({});
+  
+  // Editable strategy for the input fields
   const [editableStrategy, setEditableStrategy] = useState({
     entry: strategy?.entry || '',
     exit: strategy?.exit || '',
@@ -14,6 +19,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
     ticker: strategy?.ticker || ticker || 'SPY',
   });
 
+  // Update editable strategy when new strategy prop arrives (from GrokPanel)
   useEffect(() => {
     if (strategy && Object.keys(strategy).length > 0) {
       setEditableStrategy({
@@ -23,6 +29,8 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         positionSize: strategy.positionSize || '',
         ticker: strategy.ticker || ticker || 'SPY',
       });
+      // Also set as display strategy when it first arrives
+      setDisplayStrategy(strategy);
     }
   }, [strategy, ticker]);
 
@@ -60,10 +68,10 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       
       // Strategy config with box
       lines.push({ type: 'section', text: '┌─────────────────────────── STRATEGY PARAMETERS ───────────────────────────┐', color: 'text-purple-500/70' });
-      lines.push({ type: 'config', text: `│  ENTRY:    ${safeStr(editableStrategy.entry)}  │`, color: 'text-yellow-300' });
-      lines.push({ type: 'config', text: `│  EXIT:     ${safeStr(editableStrategy.exit)}  │`, color: 'text-orange-300' });
-      lines.push({ type: 'config', text: `│  STOP:     ${safeStr(editableStrategy.stopLoss)}  │`, color: 'text-red-400' });
-      lines.push({ type: 'config', text: `│  SIZE:     ${safeStr(editableStrategy.positionSize)}  │`, color: 'text-blue-400' });
+      lines.push({ type: 'config', text: `│  ENTRY:    ${safeStr(displayStrategy.entry || strategy.entry)}  │`, color: 'text-yellow-300' });
+      lines.push({ type: 'config', text: `│  EXIT:     ${safeStr(displayStrategy.exit || strategy.exit)}  │`, color: 'text-orange-300' });
+      lines.push({ type: 'config', text: `│  STOP:     ${safeStr(displayStrategy.stopLoss || strategy.stopLoss)}  │`, color: 'text-red-400' });
+      lines.push({ type: 'config', text: `│  SIZE:     ${safeStr(displayStrategy.positionSize || strategy.positionSize)}  │`, color: 'text-blue-400' });
       lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-purple-500/70' });
       lines.push({ type: 'blank', text: '' });
 
@@ -154,7 +162,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         clearInterval(typeInterval);
         setIsTyping(false);
         // Save to history
-        setHistory(prev => [{ timestamp: new Date().toISOString(), results: backtestResults, strategy: editableStrategy }, ...prev.slice(0, 9)]);
+        setHistory(prev => [{ timestamp: new Date().toISOString(), results: backtestResults, strategy: displayStrategy }, ...prev.slice(0, 9)]);
       }
     }, 25);
 
@@ -163,9 +171,11 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       console.error('Terminal render error:', err);
       setDisplayedLines([{ type: 'error', text: `RENDER ERROR: ${err.message}`, color: 'text-red-400' }]);
     }
-  }, [backtestResults, editableStrategy, ticker]);
+  }, [backtestResults]); // Only re-run when new backtest results arrive
 
   const handleRunBacktest = () => {
+    // Capture the current editable strategy as the one being tested
+    setDisplayStrategy({ ...editableStrategy });
     onRunBacktest && onRunBacktest(editableStrategy);
   };
 
