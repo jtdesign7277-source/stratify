@@ -86,10 +86,8 @@ const XPill = ({
   const [size, setSize] = useState({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
   const [position, setPosition] = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
-    return {
-      x: Math.max(0, window.innerWidth - PANEL_WIDTH - PANEL_MARGIN),
-      y: Math.max(0, window.innerHeight - PANEL_HEIGHT - PANEL_MARGIN),
-    };
+    // Default position: to the right of Grok panel (220 + 380 + 20 gap = 620)
+    return { x: 620, y: 200 };
   });
   const currentPos = useRef(position);
   const isControlled = typeof controlledIsOpen === 'boolean';

@@ -26,7 +26,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [position, setPosition] = useState({ x: window.innerWidth - 420, y: window.innerHeight - 560 });
+  const [position, setPosition] = useState({ x: 220, y: 200 });
   const [size, setSize] = useState({ width: 380, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
