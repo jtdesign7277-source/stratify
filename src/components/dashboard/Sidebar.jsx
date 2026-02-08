@@ -90,7 +90,7 @@ const Sidebar = ({
                       ? isLegend
                         ? 'text-amber-400 bg-amber-500/10 border border-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
                         : 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20'
-                      : 'text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent'
+                      : 'text-white hover:bg-white/5 border border-transparent'
                   } ${collapsed ? 'justify-center px-2' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
@@ -120,7 +120,7 @@ const Sidebar = ({
           })}
         </ul>
 
-              </nav>
+      </nav>
 
       {/* Bottom Section */}
       <div className="flex-shrink-0 px-2 pb-3">
@@ -131,7 +131,7 @@ const Sidebar = ({
           <li>
             <button
               onClick={() => handleTabClick('more')}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-white/50 hover:text-white/80 hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 ${
+              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-white hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 ${
                 collapsed ? 'justify-center px-2' : ''
               }`}
               title={collapsed ? 'More info' : undefined}
@@ -148,7 +148,7 @@ const Sidebar = ({
 
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide text-white/60 hover:text-white hover:bg-emerald-500/10 transition-all duration-200 hover:-translate-y-0.5 border border-white/10 hover:border-emerald-400/40 ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide text-white hover:bg-emerald-500/10 transition-all duration-200 hover:-translate-y-0.5 border border-white/10 hover:border-emerald-400/40 ${
             collapsed ? 'justify-center px-2' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

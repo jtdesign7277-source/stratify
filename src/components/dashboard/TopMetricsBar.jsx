@@ -389,7 +389,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         <NotificationButton themeClasses={themeClasses} />
         <button
           onClick={onLegendClick}
-          className="px-2.5 py-1.5 rounded-lg border border-[rgba(251,191,36,0.3)] bg-gradient-to-br from-amber-500/15 via-amber-400/10 to-transparent shadow-[0_0_12px_rgba(251,191,36,0.25)] hover:shadow-[0_0_16px_rgba(251,191,36,0.35)] transition-all"
+          className="p-2 rounded-lg hover:bg-white/5 transition-colors"
           title="Legend Challenge"
         >
           <span className="text-[15px] leading-none">🏆</span>
