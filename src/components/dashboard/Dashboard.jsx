@@ -685,25 +685,24 @@ export default function Dashboard({
               </span>
             )}
           </div>,
-          // Slot 1: Kalshi predictions feed pill
+          // Slot 1: X Social feed pill
           <div
-            key="kalshi-pill"
+            key="feed-pill"
             onClick={onToggleSocialFeed}
             className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
               isSocialFeedOpen
-                ? 'border border-emerald-400/40 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                : 'border border-white/20 bg-black/90 hover:border-emerald-400/40'
+                ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+                : 'border border-white/20 bg-black/90 hover:border-white/40'
             }`}
           >
-            <div className="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                <polyline points="17 6 23 6 23 12" />
+            <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
             </div>
-            <span className="text-white font-medium text-xs">Kalshi</span>
+            <span className="text-white font-medium text-xs">Feed</span>
             {socialFeedUnread && (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
             )}
           </div>,
           // Slots 2-5: Draggable ticker pills
