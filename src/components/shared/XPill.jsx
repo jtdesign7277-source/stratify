@@ -72,6 +72,8 @@ const XPill = ({
   const abortRef = useRef(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
+  const containerRef = useRef(null);
+  const frameRef = useRef(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -86,6 +88,7 @@ const XPill = ({
       y: Math.max(0, window.innerHeight - PANEL_HEIGHT - PANEL_MARGIN),
     };
   });
+  const currentPos = useRef(position);
   const isControlled = typeof controlledIsOpen === 'boolean';
   const isOpen = isControlled ? controlledIsOpen : internalOpen;
 
@@ -240,32 +243,50 @@ const XPill = ({
     if (isMobile) return;
     if (event.target.closest('[data-no-drag]')) return;
     event.preventDefault();
+    event.stopPropagation();
+    currentPos.current = { ...position };
     dragOffset.current = {
       x: event.clientX - position.x,
       y: event.clientY - position.y,
     };
+    if (containerRef.current) {
+      containerRef.current.style.transition = 'none';
+    }
     setIsDragging(true);
   };
 
   useEffect(() => {
     if (!isDragging) return undefined;
     const handleMove = (event) => {
-      const nextPos = clampPosition({
-        x: event.clientX - dragOffset.current.x,
-        y: event.clientY - dragOffset.current.y,
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      frameRef.current = requestAnimationFrame(() => {
+        const nextPos = clampPosition({
+          x: event.clientX - dragOffset.current.x,
+          y: event.clientY - dragOffset.current.y,
+        });
+        currentPos.current = nextPos;
+        positionRef.current = nextPos;
+        if (containerRef.current) {
+          containerRef.current.style.left = `${nextPos.x}px`;
+          containerRef.current.style.top = `${nextPos.y}px`;
+        }
       });
-      positionRef.current = nextPos;
-      setPosition(nextPos);
     };
     const handleUp = () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      setPosition({ ...currentPos.current });
       setIsDragging(false);
-      savePosition(positionRef.current);
+      if (containerRef.current) {
+        containerRef.current.style.transition = '';
+      }
+      setTimeout(() => savePosition(currentPos.current), 50);
     };
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
+    document.addEventListener('mousemove', handleMove, { capture: true, passive: true });
+    document.addEventListener('mouseup', handleUp, { capture: true });
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      document.removeEventListener('mousemove', handleMove, { capture: true });
+      document.removeEventListener('mouseup', handleUp, { capture: true });
     };
   }, [isDragging]);
 
@@ -407,10 +428,24 @@ const XPill = ({
       `}</style>
 
       <div
+        ref={containerRef}
         className={`fixed z-50 w-full max-w-none overflow-hidden border border-white/10 bg-black/70 backdrop-blur-xl shadow-2xl shadow-black/60 transition-all duration-300 ease-out ${
           isMobile ? 'inset-x-0 bottom-0 rounded-t-2xl' : 'rounded-xl'
         } ${isOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
-        style={isMobile ? { maxHeight: PANEL_HEIGHT } : { left: position.x, top: position.y, width: PANEL_WIDTH, height: PANEL_HEIGHT }}
+        style={isMobile ? {
+          maxHeight: PANEL_HEIGHT,
+          willChange: isDragging ? 'left, top' : 'auto',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+        } : {
+          left: position.x,
+          top: position.y,
+          width: PANEL_WIDTH,
+          height: PANEL_HEIGHT,
+          willChange: isDragging ? 'left, top' : 'auto',
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+        }}
       >
         <div
           className={`flex items-center justify-between border-b border-white/10 px-4 py-3 ${isMobile ? 'cursor-default' : isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
