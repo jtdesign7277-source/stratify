@@ -267,7 +267,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
 
       <div className="flex-1 flex overflow-hidden">
         {/* Strategy Editor Panel - Collapsible */}
-        <div className={`${isCollapsed ? 'w-14' : 'w-80'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+        <div className={`${isCollapsed ? 'w-14' : 'w-56'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-purple-400" />
