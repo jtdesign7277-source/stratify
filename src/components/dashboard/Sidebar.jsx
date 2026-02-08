@@ -118,47 +118,7 @@ const Sidebar = ({
           })}
         </ul>
 
-        {/* Deployed Strategies Section */}
-        {!collapsed && liveStrategies.length > 0 && (
-          <div className="mt-4">
-            <button
-              onClick={() => setDeployedExpanded(!deployedExpanded)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-semibold text-white/40 uppercase tracking-wider bg-white/5 backdrop-blur rounded-lg border border-white/10 hover:text-white/60 transition-all duration-200 hover:-translate-y-0.5"
-            >
-              {deployedExpanded ? (
-                <ChevronDown className="w-3 h-3" strokeWidth={1.5} />
-              ) : (
-                <ChevronRight className="w-3 h-3" strokeWidth={1.5} />
-              )}
-              <Play className="w-3 h-3 text-emerald-400" strokeWidth={1.5} />
-              <span>Live</span>
-              <span className="ml-auto text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded">{liveStrategies.length}</span>
-            </button>
-            
-            <AnimatePresence>
-              {deployedExpanded && (
-                <motion.ul
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="mt-1 space-y-px overflow-hidden"
-                >
-                  {liveStrategies.map((strategy) => (
-                    <li key={strategy.id}>
-                      <div className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-                        <span className="flex-1 truncate">{strategy.name}</span>
-                        <span className="text-[9px] text-emerald-400">Running</span>
-                      </div>
-                    </li>
-                  ))}
-                </motion.ul>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-      </nav>
+              </nav>
 
       {/* Bottom Section */}
       <div className="flex-shrink-0 px-2 pb-3">
