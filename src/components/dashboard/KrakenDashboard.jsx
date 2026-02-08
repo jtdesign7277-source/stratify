@@ -1694,7 +1694,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
           </AnimatePresence>
       </div>
       
-      {/* Right Panel - Uses existing RightPanel (Atlas AI) */}
+      {/* Right Panel - Uses existing RightPanel (Grok AI) */}
       <RightPanel 
         width={rightPanelWidth} 
         alpacaData={alpacaData} 

@@ -249,7 +249,7 @@ app.post('/api/social/feed', async (req, res) => {
   }
 });
 
-// Atlas AI Chat Endpoint - Powered by Grok xAI with Trade Execution
+// Grok AI Chat Endpoint - Powered by Grok xAI with Trade Execution
 app.post('/api/v1/chat/', async (req, res) => {
   try {
     const { message, strategy_name, stream } = req.body;
@@ -265,7 +265,7 @@ app.post('/api/v1/chat/', async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: `You are Atlas, an AI trading assistant for Stratify. You can:
+          content: `You are Grok, an AI trading assistant for Stratify. You can:
 1. Generate Python trading strategies when asked
 2. Execute trades when users say things like "buy 10 shares of AAPL" or "sell TSLA"
 3. Answer questions about trading and markets
@@ -377,7 +377,7 @@ Be extremely concise. Maximum 2-3 sentences per response unless asked for more d
     });
 
   } catch (error) {
-    console.error('Atlas AI error:', error);
+    console.error('Grok AI error:', error);
     res.status(500).json({ error: 'Failed to process request', details: error.message });
   }
 });

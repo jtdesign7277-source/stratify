@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 
 // ============== MOCK DATA ==============
 const MOCK_USER = {
-  name: 'Atlas',
-  email: 'atlas@stratify.io',
-  avatar: 'brain', // Special avatar type for Atlas AI brain icon
+  name: 'Grok',
+  email: 'grok@stratify.io',
+  avatar: 'brain', // Special avatar type for Grok AI brain icon
   initials: 'AI',
   plan: 'pro',
   planExpiresAt: '2026-02-28',
@@ -19,8 +19,8 @@ const MOCK_STATS = {
   totalTrades: 847,
   winRate: 62.4,
   totalPnL: 12847.32,
-  atlasQueries: 127,
-  atlasLimit: 1000,
+  grokQueries: 127,
+  grokLimit: 1000,
   backtestsRun: 34,
   backtestsLimit: 500,
 };
@@ -54,8 +54,8 @@ const GradientOrb = ({ className }) => (
   <div className={`absolute rounded-full blur-3xl opacity-20 animate-pulse ${className}`} />
 );
 
-// Atlas Brain Icon for avatar
-const AtlasBrainIcon = ({ className = "w-full h-full" }) => (
+// Grok Brain Icon for avatar
+const GrokBrainIcon = ({ className = "w-full h-full" }) => (
   <div className={`${className} flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-purple-600 animate-pulse`}>
     <svg viewBox="0 0 24 24" className="w-3/5 h-3/5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 4.5C10 4.5 9 5.5 9 7c0-2-1.5-3-3-3s-2.5 1.5-2.5 3c0 1 .5 2 1 2.5-.5.5-1.5 1.5-1.5 3 0 2 1.5 3 3 3 .5 0 1-.1 1.5-.3 0 1.8 1.5 3.3 3.5 3.3" />
@@ -487,7 +487,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-0.5">
               <div className="relative w-full h-full rounded-[14px] bg-[#0d0d12] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
                 {user.avatar === 'brain' ? (
-                  <AtlasBrainIcon />
+                  <GrokBrainIcon />
                 ) : user.avatar ? (
                   <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -741,7 +741,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
               <div className="w-28 h-28 rounded-3xl border border-[#2a2a3d] bg-[#12121a]">
                 <div className="relative w-full h-full rounded-3xl bg-[#0d0d12] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
                   {user.avatar === 'brain' ? (
-                    <AtlasBrainIcon />
+                    <GrokBrainIcon />
                   ) : user.avatar ? (
                     <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
@@ -814,7 +814,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
           <StatCard label="Strategies Live" value={stats.strategiesLive} subValue={`${stats.strategiesCreated} total created`} icon="🚀" color="cyan" />
           <StatCard label="Total Trades" value={stats.totalTrades.toLocaleString()} subValue={`${stats.winRate}% win rate`} icon="💹" color="green" trend={4.2} />
           <StatCard label="Total P&L" value={`$${stats.totalPnL.toLocaleString()}`} icon="💰" color="green" trend={12.8} />
-          <StatCard label="Atlas AI Queries" value={stats.atlasQueries} subValue={`${stats.atlasLimit - stats.atlasQueries} remaining`} icon="🤖" color="purple" />
+          <StatCard label="Grok AI Queries" value={stats.grokQueries} subValue={`${stats.grokLimit - stats.grokQueries} remaining`} icon="🤖" color="purple" />
         </div>
 
         {/* Usage & Limits */}
@@ -824,10 +824,10 @@ export default function SettingsPage({ themeClasses, onClose }) {
             <div className="space-y-5">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Atlas AI Queries</span>
+                  <span className="text-sm text-gray-400">Grok AI Queries</span>
                   <span className="text-xs text-gray-500">{PLANS[currentPlan].name} Plan</span>
                 </div>
-                <ProgressBar value={stats.atlasQueries} max={stats.atlasLimit} color="cyan" />
+                <ProgressBar value={stats.grokQueries} max={stats.grokLimit} color="cyan" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">

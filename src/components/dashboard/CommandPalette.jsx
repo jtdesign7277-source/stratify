@@ -102,7 +102,7 @@ export default function CommandPalette({
       
       // Quick Actions
       { id: 'action-new-strategy', name: 'New Strategy', description: 'Create a new trading strategy', category: 'actions', icon: PlusCircle, shortcut: 'Cmd+N', action: () => onAction?.('newStrategy') },
-      { id: 'action-ai-chat', name: 'Ask Atlas AI', description: 'Describe a strategy in natural language', category: 'actions', icon: Bot, shortcut: 'Cmd+J', action: () => onAction?.('openAI') },
+      { id: 'action-ai-chat', name: 'Ask Grok AI', description: 'Describe a strategy in natural language', category: 'actions', icon: Bot, shortcut: 'Cmd+J', action: () => onAction?.('openAI') },
       { id: 'action-backtest', name: 'Run Backtest', description: 'Backtest selected strategy', category: 'actions', icon: Play, shortcut: 'Cmd+B', action: () => onAction?.('runBacktest') },
       { id: 'action-deploy', name: 'Deploy Strategy', description: 'Deploy strategy to live trading', category: 'actions', icon: Zap, shortcut: 'Cmd+D', action: () => onAction?.('deployStrategy') },
       { id: 'action-search-stock', name: 'Search Stocks', description: 'Find stocks to add to watchlist', category: 'actions', icon: Search, shortcut: 'Cmd+/', action: () => onAction?.('searchStock') },

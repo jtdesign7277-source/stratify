@@ -324,7 +324,7 @@ const PAST_WINNERS = [
 ];
 
 const LIVE_FEED = [
-  { user:"TraderMike", avi:"TM", verified:true, time:"2m", text:"Just closed my $NVDA calls for +340% — Atlas AI strategy nailed the entry 🎯", pnl:"+$12,847", pnlPct:"+340%", likes:234, comments:18, ticker:"NVDA" },
+  { user:"TraderMike", avi:"TM", verified:true, time:"2m", text:"Just closed my $NVDA calls for +340% — Grok AI strategy nailed the entry 🎯", pnl:"+$12,847", pnlPct:"+340%", likes:234, comments:18, ticker:"NVDA" },
   { user:"AlgoAnna", avi:"AA", verified:true, time:"8m", text:"Super Bowl Challenge update: Up 23% this week. AI scalping on $TSLA is printing 🏈💰", pnl:"+$5,120", pnlPct:"+23%", likes:156, comments:12, ticker:"TSLA" },
   { user:"CryptoKing", avi:"CK", verified:false, time:"15m", text:"$BTC breaking 100K resistance. Challenge portfolio up 24.2% — chasing AlgoAnna for #1", pnl:"+$8,432", pnlPct:"+24.2%", likes:412, comments:31, ticker:"BTC" },
   { user:"QuantQueen", avi:"QQ", verified:true, time:"22m", text:"Mean reversion on $SPY hitting 73% win rate. Slow and steady wins the monthly challenge 📈", pnl:"+$3,210", pnlPct:"+18%", likes:89, comments:7, ticker:"SPY" },

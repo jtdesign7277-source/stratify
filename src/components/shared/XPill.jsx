@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCw, X } from 'lucide-react';
+import { GripVertical, RotateCw, X } from 'lucide-react';
 import { useWatchlist as useWatchlistHook } from '../../store/StratifyProvider';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
@@ -74,13 +74,16 @@ const XPill = ({
   const positionRef = useRef({ x: 0, y: 0 });
   const containerRef = useRef(null);
   const frameRef = useRef(null);
+  const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const [internalOpen, setInternalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [feedItems, setFeedItems] = useState([]);
   const [hasUnread, setHasUnread] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
+  const [size, setSize] = useState({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
   const [position, setPosition] = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     return {
@@ -91,6 +94,7 @@ const XPill = ({
   const currentPos = useRef(position);
   const isControlled = typeof controlledIsOpen === 'boolean';
   const isOpen = isControlled ? controlledIsOpen : internalOpen;
+  const sizeRef = useRef(size);
 
   const setOpen = (nextOpen) => {
     if (onOpenChange) {
@@ -108,19 +112,23 @@ const XPill = ({
     watchlist = null;
   }
 
-  const clampPosition = (pos) => {
+  useEffect(() => {
+    sizeRef.current = size;
+  }, [size]);
+
+  const clampPosition = (pos, sizeValue = sizeRef.current) => {
     if (typeof window === 'undefined') return pos;
-    const maxX = Math.max(0, window.innerWidth - PANEL_WIDTH);
-    const maxY = Math.max(0, window.innerHeight - PANEL_HEIGHT);
+    const maxX = Math.max(0, window.innerWidth - sizeValue.width);
+    const maxY = Math.max(0, window.innerHeight - sizeValue.height);
     return {
       x: Math.min(Math.max(0, pos.x), maxX),
       y: Math.min(Math.max(0, pos.y), maxY),
     };
   };
 
-  const savePosition = (nextPos) => {
+  const saveState = (nextPos = positionRef.current, nextSize = sizeRef.current) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPos));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: nextPos, sz: nextSize }));
     } catch {}
   };
 
@@ -205,13 +213,23 @@ const XPill = ({
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const nextSize =
+          parsed?.sz && typeof parsed.sz.width === 'number' && typeof parsed.sz.height === 'number'
+            ? { width: parsed.sz.width, height: parsed.sz.height }
+            : sizeRef.current;
+        if (parsed?.pos && typeof parsed.pos.x === 'number' && typeof parsed.pos.y === 'number') {
+          setSize(nextSize);
+          setPosition(clampPosition(parsed.pos, nextSize));
+          return;
+        }
         if (parsed && typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          setPosition(clampPosition(parsed));
+          setSize(nextSize);
+          setPosition(clampPosition(parsed, nextSize));
           return;
         }
       }
     } catch {}
-    setPosition((current) => clampPosition(current));
+    setPosition((current) => clampPosition(current, sizeRef.current));
   }, []);
 
   useEffect(() => {
@@ -224,14 +242,26 @@ const XPill = ({
         positionRef.current = clamped;
         setPosition(clamped);
         if (!nextIsMobile) {
-          savePosition(clamped);
+          saveState(clamped);
         }
       }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [size]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const clamped = clampPosition(positionRef.current);
+    if (clamped.x !== positionRef.current.x || clamped.y !== positionRef.current.y) {
+      positionRef.current = clamped;
+      setPosition(clamped);
+      if (!isMobile) {
+        saveState(clamped);
+      }
+    }
+  }, [size, isMobile]);
 
   useEffect(() => {
     if (onUnreadChange) {
@@ -241,6 +271,7 @@ const XPill = ({
 
   const handleDragStart = (event) => {
     if (isMobile) return;
+    if (isResizing) return;
     if (event.target.closest('[data-no-drag]')) return;
     event.preventDefault();
     event.stopPropagation();
@@ -279,7 +310,7 @@ const XPill = ({
       if (containerRef.current) {
         containerRef.current.style.transition = '';
       }
-      setTimeout(() => savePosition(currentPos.current), 50);
+      setTimeout(() => saveState(currentPos.current), 50);
     };
     document.addEventListener('mousemove', handleMove, { capture: true, passive: true });
     document.addEventListener('mouseup', handleUp, { capture: true });
@@ -294,6 +325,45 @@ const XPill = ({
     fetchFeed({ force: true });
   };
 
+  const handleResizeStart = (event) => {
+    if (isMobile) return;
+    event.preventDefault();
+    event.stopPropagation();
+    resizeStart.current = {
+      x: event.clientX,
+      y: event.clientY,
+      width: sizeRef.current.width,
+      height: sizeRef.current.height,
+    };
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return undefined;
+
+    const handleMove = (event) => {
+      const deltaX = event.clientX - resizeStart.current.x;
+      const deltaY = event.clientY - resizeStart.current.y;
+      const newWidth = Math.max(200, Math.min(600, resizeStart.current.width + deltaX));
+      const newHeight = Math.max(180, Math.min(800, resizeStart.current.height + deltaY));
+      const nextSize = { width: newWidth, height: newHeight };
+      sizeRef.current = nextSize;
+      setSize(nextSize);
+    };
+
+    const handleUp = () => {
+      setIsResizing(false);
+      saveState(positionRef.current, sizeRef.current);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isResizing]);
+
   const renderFeedContent = () => {
     if (isLoading) {
       return (
@@ -301,7 +371,7 @@ const XPill = ({
           {[0, 1, 2].map((item) => (
             <div
               key={`skeleton-${item}`}
-              className="x-feed-shimmer rounded-lg border border-white/10 bg-white/5 p-4"
+              className="x-feed-shimmer rounded-xl border border-white/5 bg-[#1a1a1f] p-4"
             >
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full bg-white/10" />
@@ -327,7 +397,7 @@ const XPill = ({
           <button
             type="button"
             onClick={handleRefresh}
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-white/80 transition hover:border-white/30 hover:bg-white/10"
+            className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-200 transition hover:border-emerald-400/60 hover:bg-emerald-500/20"
           >
             Retry
           </button>
@@ -344,7 +414,7 @@ const XPill = ({
     }
 
     return (
-      <div className="divide-y divide-white/10">
+      <div className="space-y-3 p-4">
         {feedItems.map((item, index) => {
           const displayName = item.displayName || item.name || item.user?.name || 'Market Watcher';
           const handle = item.handle || item.username || item.user?.handle || item.user?.username || 'stratify';
@@ -365,11 +435,11 @@ const XPill = ({
           return (
             <div
               key={item.id || item._id || `${handle}-${index}`}
-              className="space-y-3 px-4 py-3 transition hover:bg-white/5"
+              className="space-y-3 rounded-xl border border-white/5 bg-[#252530] px-4 py-3 shadow-[0_0_20px_rgba(0,0,0,0.25)] transition hover:border-emerald-500/20 hover:shadow-[0_0_24px_rgba(16,185,129,0.08)]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/80">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-xs font-semibold text-emerald-200">
                     {getInitials(displayName, handle)}
                   </div>
                   <div>
@@ -381,7 +451,7 @@ const XPill = ({
                   {formatRelativeTime(timestamp)}
                 </div>
               </div>
-              <div className="text-sm text-white/80 leading-relaxed">
+              <div className="text-sm leading-relaxed text-[#e5e5e5]">
                 {highlightCashtags(content)}
               </div>
               <div className="flex items-center justify-between">
@@ -402,22 +472,12 @@ const XPill = ({
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       <style>{`
         .x-feed-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
         }
-        .x-feed-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .x-feed-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .x-feed-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.18);
-          border-radius: 999px;
-          border: 1px solid rgba(0, 0, 0, 0.6);
-        }
+        .x-feed-scroll::-webkit-scrollbar { display: none; }
         .x-feed-shimmer {
-          background: linear-gradient(110deg, rgba(255,255,255,0.06) 8%, rgba(255,255,255,0.16) 18%, rgba(255,255,255,0.06) 33%);
+          background: linear-gradient(110deg, rgba(255,255,255,0.04) 8%, rgba(255,255,255,0.12) 18%, rgba(255,255,255,0.04) 33%);
           background-size: 200% 100%;
           animation: x-feed-shimmer 1.6s ease-in-out infinite;
         }
@@ -429,41 +489,50 @@ const XPill = ({
 
       <div
         ref={containerRef}
-        className={`fixed z-50 w-full max-w-none overflow-hidden border border-white/10 bg-black/70 backdrop-blur-xl shadow-2xl shadow-black/60 transition-all duration-300 ease-out ${
-          isMobile ? 'inset-x-0 bottom-0 rounded-t-2xl' : 'rounded-xl'
+        className={`fixed z-50 flex w-full max-w-none flex-col overflow-hidden transition-all duration-300 ease-out relative ${
+          isMobile ? 'inset-x-0 bottom-0 rounded-t-2xl' : 'rounded-2xl'
         } ${isOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
         style={isMobile ? {
-          maxHeight: PANEL_HEIGHT,
+          height: size.height,
           willChange: isDragging ? 'left, top' : 'auto',
           transform: 'translateZ(0)',
           backfaceVisibility: 'hidden',
+          background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
         } : {
           left: position.x,
           top: position.y,
-          width: PANEL_WIDTH,
-          height: PANEL_HEIGHT,
+          width: size.width,
+          height: size.height,
           willChange: isDragging ? 'left, top' : 'auto',
           transform: 'translateZ(0)',
           backfaceVisibility: 'hidden',
+          background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
         }}
       >
         <div
-          className={`flex items-center justify-between border-b border-white/10 px-4 py-3 ${isMobile ? 'cursor-default' : isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-emerald-500/10 to-transparent px-4 py-3 ${isMobile ? 'cursor-default' : isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleDragStart}
         >
-          <div className="flex items-center gap-2 text-white">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10">
-              <X className="h-4 w-4 text-white" strokeWidth={1.5} fill="none" />
+          <div className="flex items-center gap-3 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+              <X className="h-4 w-4 text-emerald-400" strokeWidth={1.5} fill="none" />
             </div>
-            <div className="text-sm font-semibold">Social Feed</div>
+            <div>
+              <span className="text-sm font-semibold text-white">Social Feed</span>
+              <span className="ml-2 text-xs text-emerald-400/60">Live</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               data-no-drag
               onClick={handleRefresh}
               disabled={isLoading}
-              className="rounded-full border border-white/10 bg-white/5 p-2 text-white/80 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition-all duration-200 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Refresh feed"
             >
               <RotateCw
@@ -476,7 +545,7 @@ const XPill = ({
               type="button"
               data-no-drag
               onClick={() => setOpen(false)}
-              className="rounded-full border border-white/10 bg-white/5 p-2 text-white/80 transition hover:border-white/30 hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
               aria-label="Close feed"
             >
               <X className="h-4 w-4" strokeWidth={1.5} fill="none" />
@@ -484,11 +553,14 @@ const XPill = ({
           </div>
         </div>
 
-        <div className="x-feed-scroll flex-1 overflow-y-auto" style={{ maxHeight: 370 }}>
+        <div
+          className="x-feed-scroll flex-1 overflow-y-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {renderFeedContent()}
         </div>
 
-        <div className="flex items-center justify-between border-t border-white/10 px-4 py-2 text-[11px] text-white/60">
+        <div className="flex items-center justify-between border-t border-white/10 bg-[#0d0d12] px-4 py-2 text-[11px] text-white/60">
           <span>AI-generated from real market news</span>
           <a
             href="https://marketaux.com"
@@ -499,6 +571,20 @@ const XPill = ({
             marketaux.com
           </a>
         </div>
+
+        {!isMobile && (
+          <div
+            data-no-drag
+            onMouseDown={handleResizeStart}
+            className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center cursor-se-resize opacity-40 transition-opacity hover:opacity-100 ${isResizing ? 'opacity-100' : ''}`}
+            style={{
+              background: 'linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.3) 50%)',
+              borderRadius: '0 0 16px 0',
+            }}
+          >
+            <GripVertical className="h-3 w-3 rotate-[-45deg] text-emerald-400" />
+          </div>
+        )}
       </div>
 
       {showTrigger && (
@@ -507,15 +593,15 @@ const XPill = ({
           onClick={() => setOpen(!isOpen)}
           aria-label="Toggle social feed"
           aria-expanded={isOpen}
-          className="group relative flex h-12 items-center gap-2 rounded-full border border-white/10 bg-black px-4 text-sm font-semibold text-white/90 shadow-lg shadow-black/60 transition-all duration-200 ease-out hover:scale-105 hover:border-white/25"
+          className="group relative flex h-12 items-center gap-2 rounded-full border border-emerald-500/25 bg-[#0d0d12] px-4 text-sm font-semibold text-white/90 shadow-lg shadow-black/60 transition-all duration-200 ease-out hover:scale-105 hover:border-emerald-400/50"
         >
-          <span className="pointer-events-none absolute inset-0 rounded-full border border-white/10 opacity-60 shadow-[0_0_18px_rgba(59,130,246,0.45)] animate-[pulse_3s_ease-in-out_infinite]" />
-          <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-white/10">
-            <X className="h-4 w-4 text-white" strokeWidth={1.5} fill="none" />
+          <span className="pointer-events-none absolute inset-0 rounded-full border border-emerald-500/20 opacity-60 shadow-[0_0_18px_rgba(16,185,129,0.45)] animate-[pulse_3s_ease-in-out_infinite]" />
+          <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30">
+            <X className="h-4 w-4 text-emerald-400" strokeWidth={1.5} fill="none" />
           </div>
           <span className="relative">Feed</span>
           {hasUnread && !isOpen && (
-            <span className="pointer-events-none absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.7)]" />
+            <span className="pointer-events-none absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
           )}
         </button>
       )}

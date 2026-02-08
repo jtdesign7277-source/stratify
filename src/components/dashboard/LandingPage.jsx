@@ -387,7 +387,7 @@ const LandingPage = ({ onEnter }) => {
                 <div className="text-blue-400/50 text-sm font-medium mb-2">Step 1</div>
                 <h3 className="text-xl font-medium text-white mb-3">Describe Your Strategy</h3>
                 <p className="text-white/50 text-sm leading-relaxed">
-                  Tell Atlas AI what you want in plain English. "Buy $NVDA when RSI drops below 30" — that's all it takes.
+                  Tell Grok AI what you want in plain English. "Buy $NVDA when RSI drops below 30" — that's all it takes.
                 </p>
               </motion.div>
               

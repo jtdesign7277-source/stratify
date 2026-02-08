@@ -134,18 +134,18 @@ export async function getAlpacaPositions() {
   }
 }
 
-// Chat with Atlas AI
-export async function chatWithAtlas(message, strategyName) {
+// Chat with Grok AI
+export async function chatWithGrok(message, strategyName) {
   try {
     const response = await fetch(`${API_BASE}/api/v1/chat/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, strategy_name: strategyName }),
     });
-    if (!response.ok) throw new Error('Failed to chat with Atlas');
+    if (!response.ok) throw new Error('Failed to chat with Grok');
     return await response.json();
   } catch (error) {
-    console.error('Error chatting with Atlas:', error);
+    console.error('Error chatting with Grok:', error);
     return null;
   }
 }

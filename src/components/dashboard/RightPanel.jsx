@@ -544,7 +544,7 @@ if __name__ == "__main__":
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <BrainIcon className="w-6 h-6 text-emerald-400" />
-          <span className="text-sm font-semibold text-white/90 tracking-wide">Atlas AI</span>
+          <span className="text-sm font-semibold text-white/90 tracking-wide">Grok AI</span>
         </div>
         <div className="flex gap-1">
           <button onClick={handleReset} className="p-1.5 hover:bg-white/10 rounded transition-colors" title="Start Fresh">

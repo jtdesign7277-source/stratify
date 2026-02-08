@@ -43,7 +43,7 @@ export default function AIChat() {
     <div className="flex flex-col h-full bg-zinc-900 rounded-lg border border-zinc-800">
       <div className="flex items-center gap-2 p-4 border-b border-zinc-800">
         <Bot className="w-5 h-5 text-emerald-400" />
-        <span className="font-semibold text-white">Atlas AI</span>
+        <span className="font-semibold text-white">Grok AI</span>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (

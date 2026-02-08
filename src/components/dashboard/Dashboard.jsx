@@ -635,7 +635,7 @@ export default function Dashboard({
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
-          {activeTab === 'atlas' && <DemoPanel />}
+          {activeTab === 'grok' && <DemoPanel />}
           {activeTab === 'portfolio' && (
             <PortfolioPage
               themeClasses={themeClasses}

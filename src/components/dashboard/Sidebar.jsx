@@ -49,7 +49,7 @@ const Sidebar = ({
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
     { id: 'legend', label: 'Legend', icon: Trophy },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
-    { id: 'atlas', label: 'Demo', icon: Brain, isNew: true, labelClass: 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)] animate-pulse' },
+    { id: 'grok', label: 'Demo', icon: Brain, isNew: true, labelClass: 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.45)] animate-pulse' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
   ];

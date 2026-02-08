@@ -120,14 +120,14 @@ export default function NewsletterModal({ isOpen, onClose }) {
               </div>
             </Section>
 
-            {/* Atlas */}
-            <Section label="Core Feature" title="🤖 Atlas">
+            {/* Grok */}
+            <Section label="Core Feature" title="🤖 Grok">
               <p className="text-gray-400 text-sm leading-relaxed mb-5">
                 Our AI chatbot understands trading concepts and translates your ideas into real, executable code. It's like having a quantitative developer on call 24/7.
               </p>
               
               <Step number="1" title="Describe Your Strategy" description="Type what you want in natural language. No technical jargon needed." />
-              <Step number="2" title="AI Generates the Code" description="Atlas AI translates your idea into backtestable Python code instantly." />
+              <Step number="2" title="AI Generates the Code" description="Grok AI translates your idea into backtestable Python code instantly." />
               <Step number="3" title="Review & Customize" description="Adjust risk parameters, position sizing, and stop losses with simple controls." />
               <Step number="4" title="Backtest & Deploy" description="Test against historical data, then deploy to live markets with one click." />
 
