@@ -6,7 +6,6 @@ import LiveAlertsTicker from './LiveAlertsTicker';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
 import GrokPanel from './GrokPanel';
-import FloatingGrokChat from './FloatingGrokChat';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
 import ArbitragePanel from './ArbitragePanel';
@@ -202,8 +201,7 @@ export default function Dashboard({
   });
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
-  const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
-  const [grokMessageCount, setGrokMessageCount] = useState(0);
+  const [grokMessageCount] = useState(0);
 
   // Command palette navigation handler
   const handleCommandNavigate = useCallback((target) => {
@@ -542,15 +540,10 @@ export default function Dashboard({
         onLegendClick={() => setActiveTab('legend')}
         connectedBrokers={connectedBrokers}
         miniPills={[
-          // Slot 0: Grok pill - ALWAYS visible, click to open/close floating chat
+          // Slot 0: Grok pill - ALWAYS visible
           <div
             key="grok-pill"
-            onClick={() => setIsFloatingGrokOpen(prev => !prev)}
-            className={`h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
-              isFloatingGrokOpen 
-                ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]' 
-                : 'border border-white/20 bg-black/90 hover:border-white/40'
-            }`}
+            className="h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full border border-white/20 bg-black/90"
           >
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="currentColor">
@@ -595,7 +588,6 @@ export default function Dashboard({
           deployedStrategies={deployedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
           grokPanelCollapsed={isGrokPanelCollapsed}
-          onOpenFloatingGrok={() => setIsFloatingGrokOpen(true)}
         />
         
         {/* Main Content Area - Three Collapsible Panels */}
@@ -761,36 +753,34 @@ export default function Dashboard({
           )}
         </div>
         
-        {activeTab !== 'trade' && (
-          <GrokPanel 
-            onCollapsedChange={setIsGrokPanelCollapsed}
-            onSaveStrategy={(strategy) => {
-              setSavedStrategies(prev => {
-                // Don't add if already exists
-                if (prev.some(s => s.id === strategy.id)) {
-                  return prev.map(s => s.id === strategy.id ? { ...s, ...strategy } : s);
-                }
-                return [...prev, strategy];
-              });
-            }}
-            onDeployStrategy={(strategy) => {
-              // Add to saved strategies
-              setSavedStrategies(prev => {
-                if (prev.some(s => s.id === strategy.id)) {
-                  return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, deployed: true } : s);
-                }
-                return [...prev, strategy];
-              });
-              // Also add to deployed strategies
-              setDeployedStrategies(prev => {
-                if (prev.some(s => s.id === strategy.id)) {
-                  return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, runStatus: 'running' } : s);
-                }
-                return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];
-              });
-            }}
-          />
-        )}
+        <GrokPanel 
+          onCollapsedChange={setIsGrokPanelCollapsed}
+          onSaveStrategy={(strategy) => {
+            setSavedStrategies(prev => {
+              // Don't add if already exists
+              if (prev.some(s => s.id === strategy.id)) {
+                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy } : s);
+              }
+              return [...prev, strategy];
+            });
+          }}
+          onDeployStrategy={(strategy) => {
+            // Add to saved strategies
+            setSavedStrategies(prev => {
+              if (prev.some(s => s.id === strategy.id)) {
+                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, deployed: true } : s);
+              }
+              return [...prev, strategy];
+            });
+            // Also add to deployed strategies
+            setDeployedStrategies(prev => {
+              if (prev.some(s => s.id === strategy.id)) {
+                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, runStatus: 'running' } : s);
+              }
+              return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];
+            });
+          }}
+        />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
 
@@ -833,12 +823,6 @@ export default function Dashboard({
         onClose={() => setShowShortcutsModal(false)}
       />
 
-      {/* Floating Grok Chat */}
-      <FloatingGrokChat
-        isOpen={isFloatingGrokOpen}
-        onClose={() => setIsFloatingGrokOpen(false)}
-        onMessageCountChange={setGrokMessageCount}
-      />
     </div>
   );
 }
