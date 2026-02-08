@@ -25,6 +25,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   
   // Editable strategy for the input fields
   const [editableStrategy, setEditableStrategy] = useState({
+    name: strategy?.name || '',
     entry: strategy?.entry || '',
     exit: strategy?.exit || '',
     stopLoss: strategy?.stopLoss || '',
@@ -36,6 +37,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   useEffect(() => {
     if (strategy && Object.keys(strategy).length > 0) {
       setEditableStrategy({
+        name: strategy.name || `${strategy.ticker || ticker || 'SPY'} Strategy`,
         entry: strategy.entry || '',
         exit: strategy.exit || '',
         stopLoss: strategy.stopLoss || '',
@@ -194,12 +196,12 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
     if (onDeploy) {
       const strategyToSave = {
         id: 'strategy-' + Date.now(),
-        name: `${displayStrategy.ticker || ticker} Strategy`,
-        ticker: displayStrategy.ticker || ticker,
-        entry: displayStrategy.entry,
-        exit: displayStrategy.exit,
-        stopLoss: displayStrategy.stopLoss,
-        positionSize: displayStrategy.positionSize,
+        name: editableStrategy.name || `${editableStrategy.ticker || ticker} Strategy`,
+        ticker: editableStrategy.ticker || ticker,
+        entry: editableStrategy.entry,
+        exit: editableStrategy.exit,
+        stopLoss: editableStrategy.stopLoss,
+        positionSize: editableStrategy.positionSize,
         backtestResults: backtestResults,
         deployed: true,
         runStatus: 'running',
@@ -266,6 +268,16 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           </div>
           
           <div className="space-y-3 flex-1">
+            <div>
+              <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Strategy Name</label>
+              <input
+                type="text"
+                value={editableStrategy.name || ''}
+                onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-white text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                placeholder="My RSI Strategy"
+              />
+            </div>
             <div>
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Ticker</label>
               <input
