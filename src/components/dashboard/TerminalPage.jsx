@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X } from 'lucide-react';
+import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading, onDeploy, onNavigateToActive }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
@@ -22,6 +22,9 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   
   // Strategy used for display in terminal (captured when backtest runs)
   const [displayStrategy, setDisplayStrategy] = useState({});
+  
+  // Collapsed state for left panel
+  const [isCollapsed, setIsCollapsed] = useState(false);
   
   // Editable strategy for the input fields
   const [editableStrategy, setEditableStrategy] = useState({
@@ -260,13 +263,22 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Strategy Editor Panel */}
-        <div className="w-80 border-r border-gray-800 bg-[#0d0d12] p-4 flex flex-col overflow-hidden">
-          <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-            <Zap className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-mono text-purple-400 uppercase tracking-wider">Strategy Config</span>
+        {/* Strategy Editor Panel - Collapsible */}
+        <div className={`${isCollapsed ? 'w-14' : 'w-80'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+          <div className="flex items-center justify-between mb-3 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-purple-400" />
+              {!isCollapsed && <span className="text-sm font-mono text-purple-400 uppercase tracking-wider">Strategy Config</span>}
+            </div>
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)} 
+              className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
+            >
+              {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
+            </button>
           </div>
           
+          {!isCollapsed && (
           <div className="space-y-2 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
             <div>
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Strategy Name</label>
@@ -329,6 +341,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               />
             </div>
           </div>
+          )}
 
           <button
             onClick={handleRunBacktest}
@@ -336,11 +349,11 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
             className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 text-xs font-mono font-medium transition-all disabled:opacity-50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] flex-shrink-0"
           >
             {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
+            {isCollapsed ? null : (isLoading ? 'ANALYZING...' : 'RUN BACKTEST')}
           </button>
 
           {/* History */}
-          {history.length > 0 && (
+          {!isCollapsed && history.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-800">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Recent Tests</div>
