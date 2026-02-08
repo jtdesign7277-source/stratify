@@ -799,7 +799,6 @@ export default function Dashboard({
         theme={theme} 
         themeClasses={themeClasses} 
         onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
-        onLogout={() => setCurrentPage('landing')} 
         onLegendClick={() => setActiveTab('legend')}
         connectedBrokers={connectedBrokers}
         miniPills={miniPillSlots}
