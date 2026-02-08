@@ -210,14 +210,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
   const fetchQuote = useCallback(async (symbol) => {
     try {
-      // Try public quote endpoint first (has change/changePercent)
+      // Use public quote endpoint (same as TickerPill - has accurate change/changePercent)
       const res = await fetch(`${API_URL}/api/public/quote/${symbol}`);
-      if (!res.ok) {
-        // Fallback to trades quote
-        const fallbackRes = await fetch(`${API_URL}/api/trades/quote/${symbol}`);
-        if (!fallbackRes.ok) return null;
-        return await fallbackRes.json();
-      }
+      if (!res.ok) return null;
       return await res.json();
     } catch (err) {
       console.error('Quote fetch error:', symbol, err);
@@ -239,17 +234,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         activeWatchlist.map(async (stock) => {
           const quote = await fetchQuote(stock.symbol);
           if (quote && quote.price) {
-            // Use API's change data if available, otherwise calculate from prevClose
-            const apiChange = quote.change;
-            const apiChangePercent = quote.changePercent;
-            const prevClose = prevCloses[stock.symbol] || quote.prevClose || quote.price;
-            const change = apiChange !== undefined ? apiChange : (quote.price - prevClose);
-            const changePercent = apiChangePercent !== undefined ? apiChangePercent : (prevClose > 0 ? (change / prevClose) * 100 : 0);
-            
+            // Use API's change data directly (same source as TickerPill)
             results[stock.symbol] = {
               price: quote.price,
-              change: change,
-              changePercent: changePercent,
+              change: quote.change || 0,
+              changePercent: quote.changePercent || 0,
               askPrice: quote.askPrice,
               bidPrice: quote.bidPrice,
             };
