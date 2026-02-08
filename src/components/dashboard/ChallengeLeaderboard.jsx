@@ -579,16 +579,16 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
         </div>
 
         {/* Period Tabs with Info */}
-        <div style={{display:"flex",gap:4,marginBottom:8}}>
+        <div style={{display:"flex",gap:12,marginBottom:8,flexWrap:"wrap"}}>
           {["weekly","monthly","6month","yearly"].map(t=>{
             const participants = t==="weekly"?847:t==="monthly"?1243:t==="6month"?3156:5892;
             const isEntered = t==="weekly"||t==="monthly"; // Mock: user entered weekly & monthly
             return (
-              <div key={t} style={{position:"relative",display:"flex",alignItems:"center"}}>
-                <button onClick={()=>setPeriod(t)} style={{padding:"5px 10px 5px 14px",borderRadius:"6px 0 0 6px",fontSize:fs(12),fontWeight:600,background:period===t?"rgba(251,191,36,0.12)":"transparent",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid transparent",borderRight:"none",color:period===t?"#fbbf24":"#64748b",cursor:"pointer",fontFamily:MONO}}>{t==="6month"?"6 Month":t==="yearly"?"1 Year":t.charAt(0).toUpperCase()+t.slice(1)}</button>
+              <div key={t} style={{position:"relative",display:"flex",alignItems:"center",gap:6}}>
+                <button onClick={()=>setPeriod(t)} style={{padding:"5px 14px",borderRadius:6,fontSize:fs(12),fontWeight:600,background:period===t?"rgba(251,191,36,0.12)":"transparent",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid transparent",color:period===t?"#fbbf24":"#64748b",cursor:"pointer",fontFamily:MONO}}>{t==="6month"?"6 Month":t==="yearly"?"1 Year":t.charAt(0).toUpperCase()+t.slice(1)}</button>
                 <button 
                   onClick={(e)=>{e.stopPropagation();setShowPeriodInfo(showPeriodInfo===t?null:t);}}
-                  style={{padding:"5px 8px",borderRadius:"0 6px 6px 0",fontSize:fs(10),background:period===t?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.03)",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid rgba(255,255,255,0.08)",borderLeft:"none",color:isEntered?"#29e1a6":"#64748b",cursor:"pointer",display:"flex",alignItems:"center",gap:3}}
+                  style={{padding:"5px 10px",borderRadius:6,fontSize:fs(10),background:period===t?"rgba(251,191,36,0.08)":"rgba(255,255,255,0.03)",border:period===t?"1px solid rgba(251,191,36,0.2)":"1px solid rgba(255,255,255,0.08)",color:isEntered?"#29e1a6":"#64748b",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}
                 >
                   <Icon d={I.users} size={10}/>{participants>999?`${(participants/1000).toFixed(1)}K`:participants}
                 </button>
