@@ -59,7 +59,10 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
       return strategies.filter(s => strategyFolders[s.id] === 'favorites' || s.folderId === 'favorites');
     }
     if (folderId === 'uncategorized') {
-      return strategies.filter(s => !strategyFolders[s.id] && !s.folderId && s.status !== 'active' && !s.code);
+      return strategies.filter(s => 
+        s.folderId === 'uncategorized' || 
+        (!strategyFolders[s.id] && !s.folderId && s.status !== 'active' && !s.code)
+      );
     }
     return strategies.filter(s => strategyFolders[s.id] === folderId || s.folderId === folderId);
   };

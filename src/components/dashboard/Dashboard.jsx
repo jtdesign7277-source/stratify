@@ -425,10 +425,12 @@ export default function Dashboard({
   };
 
   const handleDeployStrategy = (strategy, navigateToActive = false) => {
+    const strategyId = strategy.id || `strat-${Date.now()}`;
+    
     // Convert saved strategy to active trade format
     const activeStrategy = {
-      id: strategy.id || `strat-${Date.now()}`,
-      symbol: strategy.symbol || strategy.name?.split(' ')[0] || 'CUSTOM',
+      id: strategyId,
+      symbol: strategy.symbol || strategy.ticker || strategy.name?.split(' ')[0] || 'CUSTOM',
       name: strategy.name,
       status: 'Live',
       pnl: 0,
@@ -442,10 +444,34 @@ export default function Dashboard({
       return [...prev, activeStrategy];
     });
 
-    // Mark as deployed in saved strategies
-    setSavedStrategies(prev => prev.map(s => 
-      s.id === strategy.id ? { ...s, status: 'active', deployed: true } : s
-    ));
+    // Auto-save to savedStrategies in "Uncategorized" folder if not already saved
+    setSavedStrategies(prev => {
+      const exists = prev.some(s => s.id === strategyId);
+      if (exists) {
+        // Mark as deployed
+        return prev.map(s => s.id === strategyId ? { ...s, status: 'active', deployed: true } : s);
+      } else {
+        // Add new strategy to Uncategorized folder
+        const newSavedStrategy = {
+          id: strategyId,
+          name: strategy.name || `${strategy.ticker || 'Custom'} Strategy`,
+          type: strategy.type || 'Custom',
+          status: 'active',
+          deployed: true,
+          winRate: strategy.backtestResults?.winRate || 0,
+          trades: strategy.backtestResults?.totalTrades || 0,
+          pnl: strategy.backtestResults?.totalPnL || 0,
+          folderId: 'uncategorized',
+          ticker: strategy.ticker,
+          entry: strategy.entry,
+          exit: strategy.exit,
+          stopLoss: strategy.stopLoss,
+          positionSize: strategy.positionSize,
+          createdAt: Date.now(),
+        };
+        return [...prev, newSavedStrategy];
+      }
+    });
 
     if (navigateToActive) {
       setActiveTab('active');
