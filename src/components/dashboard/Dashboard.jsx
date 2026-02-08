@@ -33,6 +33,7 @@ import ActiveTrades, { strategiesSeed } from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
+import TerminalPage from './TerminalPage';
 
 const loadDashboardState = () => {
   try {
@@ -120,6 +121,12 @@ export default function Dashboard({
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   
+  // Terminal backtest state
+  const [terminalBacktestResults, setTerminalBacktestResults] = useState(null);
+  const [terminalStrategy, setTerminalStrategy] = useState({});
+  const [terminalTicker, setTerminalTicker] = useState('TSLA');
+  const [isTerminalLoading, setIsTerminalLoading] = useState(false);
+
   // Panel expanded states - single source of truth
   const [panelStates, setPanelStates] = useState(() => {
     try {
@@ -411,6 +418,40 @@ export default function Dashboard({
     });
   };
 
+  // Terminal backtest handler
+  const handleTerminalBacktest = async (strategy) => {
+    const ticker = (strategy.ticker || terminalTicker || 'TSLA').replace(/\$/g, '').split(',')[0].trim();
+    setTerminalStrategy(strategy);
+    setTerminalTicker(ticker);
+    setIsTerminalLoading(true);
+    
+    try {
+      const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker,
+          strategy: {
+            entry: strategy.entry || 'Buy when RSI drops below 30',
+            exit: strategy.exit || 'Sell when RSI rises above 70',
+            stopLoss: strategy.stopLoss || '5%',
+            positionSize: strategy.positionSize || '100 shares',
+          },
+          period: '6mo',
+          timeframe: '1Day',
+        }),
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      setTerminalBacktestResults(data);
+    } catch (err) {
+      console.error('Terminal backtest error:', err);
+      setTerminalBacktestResults({ error: err.message });
+    } finally {
+      setIsTerminalLoading(false);
+    }
+  };
+
   useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
   }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme]);
@@ -658,6 +699,15 @@ export default function Dashboard({
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
+          {activeTab === 'terminal' && (
+            <TerminalPage
+              backtestResults={terminalBacktestResults}
+              strategy={terminalStrategy}
+              ticker={terminalTicker}
+              onRunBacktest={handleTerminalBacktest}
+              isLoading={isTerminalLoading}
+            />
+          )}
           {activeTab === 'more' && (
             <div className="h-full overflow-y-auto bg-[#0a0a0f] p-6" style={{ scrollbarWidth: 'none' }}>
               <div className="max-w-2xl mx-auto">

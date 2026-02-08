@@ -1,0 +1,286 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap } from 'lucide-react';
+
+const TerminalPage = ({ backtestResults, strategy, ticker, onRunBacktest, isLoading }) => {
+  const [displayedLines, setDisplayedLines] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [history, setHistory] = useState([]);
+  const terminalRef = useRef(null);
+  const [editableStrategy, setEditableStrategy] = useState(strategy || {});
+
+  useEffect(() => {
+    if (strategy) setEditableStrategy(strategy);
+  }, [strategy]);
+
+  useEffect(() => {
+    if (!backtestResults || backtestResults.error) return;
+    
+    // Build terminal output lines
+    const lines = [];
+    const timestamp = new Date().toLocaleTimeString();
+    const dateStamp = new Date().toLocaleDateString();
+    
+    lines.push({ type: 'header', text: '╔══════════════════════════════════════════════════════════════════════════════╗', color: 'text-emerald-500/50' });
+    lines.push({ type: 'header', text: '║                    G R O K   B A C K T E S T   E N G I N E                   ║', color: 'text-emerald-400' });
+    lines.push({ type: 'header', text: '║                              [ v2.0 CLASSIFIED ]                             ║', color: 'text-emerald-500/50' });
+    lines.push({ type: 'header', text: '╚══════════════════════════════════════════════════════════════════════════════╝', color: 'text-emerald-500/50' });
+    lines.push({ type: 'blank', text: '' });
+    lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to Alpaca Markets API`, color: 'text-gray-500' });
+    lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-gray-500' });
+    lines.push({ type: 'blank', text: '' });
+    
+    // Target info
+    lines.push({ type: 'info', text: `▸ TARGET:     ${backtestResults.symbol || ticker || 'N/A'}`, color: 'text-cyan-400' });
+    lines.push({ type: 'info', text: `▸ PERIOD:     ${backtestResults.period || '6mo'}`, color: 'text-cyan-400' });
+    lines.push({ type: 'info', text: `▸ TIMEFRAME:  ${backtestResults.timeframe || '1Day'}`, color: 'text-cyan-400' });
+    lines.push({ type: 'info', text: `▸ BARS:       ${backtestResults.barsAnalyzed || 0} data points analyzed`, color: 'text-cyan-400' });
+    lines.push({ type: 'blank', text: '' });
+    
+    // Strategy config with box
+    lines.push({ type: 'section', text: '┌─────────────────────────── STRATEGY PARAMETERS ───────────────────────────┐', color: 'text-purple-500/70' });
+    lines.push({ type: 'config', text: `│  ENTRY:    ${(editableStrategy.entry || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-yellow-300' });
+    lines.push({ type: 'config', text: `│  EXIT:     ${(editableStrategy.exit || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-orange-300' });
+    lines.push({ type: 'config', text: `│  STOP:     ${(editableStrategy.stopLoss || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-red-400' });
+    lines.push({ type: 'config', text: `│  SIZE:     ${(editableStrategy.positionSize || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-blue-400' });
+    lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-purple-500/70' });
+    lines.push({ type: 'blank', text: '' });
+
+    // Results summary with visual bars
+    const summary = backtestResults.summary || {};
+    const pnl = parseFloat(summary.totalPnL) || 0;
+    const winRate = parseFloat(summary.winRate) || 0;
+    const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+    const winRateColor = winRate >= 50 ? 'text-emerald-400' : 'text-red-400';
+    
+    lines.push({ type: 'section', text: '┌─────────────────────────── PERFORMANCE METRICS ───────────────────────────┐', color: 'text-emerald-500/70' });
+    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+    
+    // Win rate bar
+    const winBarFilled = Math.round(winRate / 5);
+    const winBar = '█'.repeat(Math.min(winBarFilled, 20)) + '░'.repeat(Math.max(20 - winBarFilled, 0));
+    lines.push({ type: 'metric', text: `│  WIN RATE     [${winBar}]  ${winRate.toFixed(1)}%`, color: winRateColor });
+    
+    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+    lines.push({ type: 'metric', text: `│  TOTAL TRADES ············································  ${String(summary.totalTrades || 0).padStart(6)}`, color: 'text-white' });
+    lines.push({ type: 'metric', text: `│  WINNING     ·············································  ${String(summary.winningTrades || 0).padStart(6)}`, color: 'text-emerald-400' });
+    lines.push({ type: 'metric', text: `│  LOSING      ·············································  ${String(summary.losingTrades || 0).padStart(6)}`, color: 'text-red-400' });
+    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+    lines.push({ type: 'metric', text: `│  TOTAL P&L   ············································· $${String(summary.totalPnL || '0.00').padStart(10)}`, color: pnlColor });
+    lines.push({ type: 'metric', text: `│  RETURN      ·············································  ${String((summary.returnPercent || 0) + '%').padStart(10)}`, color: pnlColor });
+    lines.push({ type: 'metric', text: `│  AVG WIN     ············································· $${String(summary.avgWin || '0.00').padStart(10)}`, color: 'text-emerald-400' });
+    lines.push({ type: 'metric', text: `│  AVG LOSS    ············································· $${String(summary.avgLoss || '0.00').padStart(10)}`, color: 'text-red-400' });
+    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+    lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-emerald-500/70' });
+    lines.push({ type: 'blank', text: '' });
+
+    // Trade log
+    if (backtestResults.trades && backtestResults.trades.length > 0) {
+      lines.push({ type: 'section', text: '┌──────────────────────────────── TRADE LOG ────────────────────────────────┐', color: 'text-amber-500/70' });
+      
+      backtestResults.trades.forEach((trade, idx) => {
+        const entryDate = new Date(trade.entryTime).toLocaleDateString();
+        const entryTime = new Date(trade.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const exitDate = new Date(trade.exitTime).toLocaleDateString();
+        const exitTime = new Date(trade.exitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const tradePnl = parseFloat(trade.pnl) || 0;
+        const tradeColor = tradePnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+        const icon = tradePnl >= 0 ? '✓' : '✗';
+        const status = tradePnl >= 0 ? 'WIN ' : 'LOSS';
+        
+        lines.push({ type: 'trade', text: `│                                                                            │`, color: 'text-gray-700' });
+        lines.push({ type: 'trade', text: `│  ═══ TRADE #${String(idx + 1).padStart(2, '0')} ═══════════════════════════════════════════════════════════`, color: tradeColor });
+        lines.push({ type: 'trade', text: `│  ${icon} STATUS: ${status}                                                           │`, color: tradeColor });
+        lines.push({ type: 'detail', text: `│    ┌─ BUY ───────────────────────────────────────────────────────────────┐`, color: 'text-cyan-500/50' });
+        lines.push({ type: 'detail', text: `│    │  DATE:   ${entryDate}                                                    │`, color: 'text-cyan-300' });
+        lines.push({ type: 'detail', text: `│    │  TIME:   ${entryTime}                                                       │`, color: 'text-cyan-300' });
+        lines.push({ type: 'detail', text: `│    │  PRICE:  $${trade.entryPrice?.toFixed(2)}                                                   │`, color: 'text-cyan-400' });
+        lines.push({ type: 'detail', text: `│    └──────────────────────────────────────────────────────────────────────┘`, color: 'text-cyan-500/50' });
+        lines.push({ type: 'detail', text: `│    ┌─ SELL ──────────────────────────────────────────────────────────────┐`, color: 'text-orange-500/50' });
+        lines.push({ type: 'detail', text: `│    │  DATE:   ${exitDate}                                                    │`, color: 'text-orange-300' });
+        lines.push({ type: 'detail', text: `│    │  TIME:   ${exitTime}                                                       │`, color: 'text-orange-300' });
+        lines.push({ type: 'detail', text: `│    │  PRICE:  $${trade.exitPrice?.toFixed(2)}                                                   │`, color: 'text-orange-400' });
+        lines.push({ type: 'detail', text: `│    │  REASON: ${(trade.exitReason || 'N/A').substring(0, 55).padEnd(55)}    │`, color: 'text-orange-300' });
+        lines.push({ type: 'detail', text: `│    └──────────────────────────────────────────────────────────────────────┘`, color: 'text-orange-500/50' });
+        lines.push({ type: 'pnl', text: `│    P&L:  ${tradePnl >= 0 ? '+' : ''}$${trade.pnl?.toFixed(2)} (${tradePnl >= 0 ? '+' : ''}${trade.pnlPercent?.toFixed(2)}%)`, color: tradeColor });
+      });
+      
+      lines.push({ type: 'section', text: '│                                                                            │', color: 'text-gray-700' });
+      lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-amber-500/70' });
+    } else {
+      lines.push({ type: 'warning', text: '⚠ NO TRADES EXECUTED - Strategy conditions not met during this period', color: 'text-yellow-500' });
+    }
+
+    lines.push({ type: 'blank', text: '' });
+    lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ Analysis complete`, color: 'text-gray-500' });
+    lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ System ready for deployment`, color: 'text-emerald-500' });
+    lines.push({ type: 'blank', text: '' });
+    lines.push({ type: 'cursor', text: '> █', color: 'text-emerald-400 animate-pulse' });
+
+    // Typewriter effect
+    setDisplayedLines([]);
+    setIsTyping(true);
+    let lineIndex = 0;
+    
+    const typeInterval = setInterval(() => {
+      if (lineIndex < lines.length) {
+        setDisplayedLines(prev => [...prev, lines[lineIndex]]);
+        lineIndex++;
+        if (terminalRef.current) {
+          terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+        }
+      } else {
+        clearInterval(typeInterval);
+        setIsTyping(false);
+        // Save to history
+        setHistory(prev => [{ timestamp: new Date().toISOString(), results: backtestResults, strategy: editableStrategy }, ...prev.slice(0, 9)]);
+      }
+    }, 25);
+
+    return () => clearInterval(typeInterval);
+  }, [backtestResults, editableStrategy, ticker]);
+
+  const handleRunBacktest = () => {
+    onRunBacktest && onRunBacktest(editableStrategy);
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-[#0a0a0f]">
+      {/* Terminal Header */}
+      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-[#0d0d12] via-[#111118] to-[#0d0d12] border-b border-emerald-500/20">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+            <Terminal className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <h1 className="text-lg font-mono font-bold text-emerald-400 tracking-wider">GROK TERMINAL</h1>
+            <p className="text-[10px] text-gray-500 font-mono">ENCRYPTED • AI-POWERED BACKTEST ENGINE v2.0</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-xs font-mono">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Cpu className="w-3.5 h-3.5" />
+            <span>GROK-3</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-500">
+            <Activity className="w-3.5 h-3.5 text-emerald-500" />
+            <span className="text-emerald-500">ONLINE</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Strategy Editor Panel */}
+        <div className="w-80 border-r border-gray-800 bg-[#0d0d12] p-4 flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-mono text-purple-400 uppercase tracking-wider">Strategy Config</span>
+          </div>
+          
+          <div className="space-y-3 flex-1">
+            <div>
+              <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Ticker</label>
+              <input
+                type="text"
+                value={editableStrategy.ticker || ticker || ''}
+                onChange={(e) => setEditableStrategy(prev => ({ ...prev, ticker: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-cyan-400 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                placeholder="TSLA"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Entry Condition</label>
+              <textarea
+                value={editableStrategy.entry || ''}
+                onChange={(e) => setEditableStrategy(prev => ({ ...prev, entry: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-yellow-300 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
+                rows={2}
+                placeholder="Buy when RSI < 30..."
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Exit Condition</label>
+              <textarea
+                value={editableStrategy.exit || ''}
+                onChange={(e) => setEditableStrategy(prev => ({ ...prev, exit: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-orange-300 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
+                rows={2}
+                placeholder="Sell when RSI > 70..."
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Stop Loss</label>
+              <input
+                type="text"
+                value={editableStrategy.stopLoss || ''}
+                onChange={(e) => setEditableStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-red-400 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                placeholder="5%"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Position Size</label>
+              <input
+                type="text"
+                value={editableStrategy.positionSize || ''}
+                onChange={(e) => setEditableStrategy(prev => ({ ...prev, positionSize: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-blue-400 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                placeholder="100 shares"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleRunBacktest}
+            disabled={isLoading}
+            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm font-mono font-medium transition-all disabled:opacity-50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+          >
+            {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
+          </button>
+
+          {/* History */}
+          {history.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-800">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider font-mono mb-2">Recent Tests</div>
+              <div className="space-y-1 max-h-32 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                {history.map((h, i) => (
+                  <div key={i} className="text-xs font-mono text-gray-600 hover:text-gray-400 cursor-pointer truncate">
+                    {new Date(h.timestamp).toLocaleTimeString()} - {h.results?.symbol} ({h.results?.summary?.totalTrades || 0} trades)
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Terminal Output */}
+        <div
+          ref={terminalRef}
+          className="flex-1 overflow-y-auto p-6 font-mono text-sm bg-[#0a0a0f]"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {displayedLines.length === 0 && !isLoading && (
+            <div className="flex flex-col items-center justify-center h-full text-gray-600">
+              <Terminal className="w-16 h-16 mb-4 opacity-20" />
+              <p className="text-lg font-mono">AWAITING INPUT</p>
+              <p className="text-xs mt-2 opacity-50">Configure strategy and run backtest</p>
+            </div>
+          )}
+          {displayedLines.map((line, idx) => (
+            <div key={idx} className={`${line.color} ${line.type === 'blank' ? 'h-4' : ''} whitespace-pre`}>
+              {line.text}
+            </div>
+          ))}
+          {isLoading && displayedLines.length === 0 && (
+            <div className="text-emerald-400 animate-pulse">
+              <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TerminalPage;

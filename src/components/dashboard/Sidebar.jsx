@@ -20,7 +20,8 @@ import {
   Trash2,
   Zap,
   Trophy,
-  TrendingUp
+  TrendingUp,
+  Terminal
 } from 'lucide-react';
 
 const Sidebar = ({ 
@@ -41,6 +42,7 @@ const Sidebar = ({
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'active', label: 'Active', icon: Play, badge: deployedStrategies.length },
+    { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'templates', label: 'Templates', icon: Layout },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
