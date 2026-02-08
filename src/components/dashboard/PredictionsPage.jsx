@@ -301,7 +301,7 @@ const PredictionCard = ({ market }) => {
             <span>{closeLabel}</span>
           </div>
         </div>
-        <span className="rounded-full border border-[#2a2a2a] bg-[#151515] px-2 py-1 text-[10px] uppercase tracking-widest text-white/50">
+        <span className="rounded-full border border-[#2a2a2a] bg-[#111111] px-2 py-1 text-[10px] uppercase tracking-widest text-white/50">
           {category}
         </span>
       </div>
@@ -391,7 +391,7 @@ const SportsBetCard = ({ market }) => {
             )}
           </div>
         </div>
-        <span className="rounded-full border border-[#2a2a2a] bg-[#151515] px-2.5 py-1 text-[10px] uppercase tracking-widest text-white/50">
+        <span className="rounded-full border border-[#2a2a2a] bg-[#111111] px-2.5 py-1 text-[10px] uppercase tracking-widest text-white/50">
           {category}
         </span>
       </div>
@@ -403,7 +403,7 @@ const SportsBetCard = ({ market }) => {
               {getInitials(teamA)}
             </div>
             <div className="flex-1 text-xs text-white/90 truncate">{teamA}</div>
-            <div className="h-7 w-8 rounded border border-[#2a2a2a] bg-[#151515] flex items-center justify-center text-xs text-white/80">
+            <div className="h-7 w-8 rounded border border-[#2a2a2a] bg-[#111111] flex items-center justify-center text-xs text-white/80">
               {scoreA}
             </div>
           </div>
@@ -412,7 +412,7 @@ const SportsBetCard = ({ market }) => {
               {getInitials(teamB)}
             </div>
             <div className="flex-1 text-xs text-white/90 truncate">{teamB}</div>
-            <div className="h-7 w-8 rounded border border-[#2a2a2a] bg-[#151515] flex items-center justify-center text-xs text-white/80">
+            <div className="h-7 w-8 rounded border border-[#2a2a2a] bg-[#111111] flex items-center justify-center text-xs text-white/80">
               {scoreB}
             </div>
           </div>

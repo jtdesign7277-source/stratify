@@ -531,15 +531,15 @@ if __name__ == "__main__":
   if (!expanded) {
     return (
       <div onClick={() => setExpanded(true)}
-        className="w-12 flex flex-col items-center py-4 gap-3 bg-[#0d0d12] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
+        className="w-12 flex flex-col items-center py-4 gap-3 bg-[#0b0b0b] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
         <BrainIcon className="w-6 h-6 text-emerald-400" />
-        <span className="text-[10px] text-gray-500 tracking-widest" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
+        <span className="text-[10px] text-white/50 tracking-widest" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col bg-[#0d0d12] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width }}>
+    <div className="flex flex-col bg-[#0b0b0b] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
@@ -567,7 +567,7 @@ if __name__ == "__main__":
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors relative ${
-              activeTab === tab.id ? 'text-emerald-300' : 'text-gray-500 hover:text-gray-300'
+              activeTab === tab.id ? 'text-emerald-300' : 'text-white/50 hover:text-gray-300'
             }`}>
             {tab.label}
             {activeTab === tab.id && (
@@ -682,7 +682,7 @@ if __name__ == "__main__":
                 className={`mt-auto py-3 rounded-lg text-sm font-semibold tracking-wide transition-all duration-200 flex-shrink-0 ${
                   selectedTicker && selectedTemplate && strategyName && backtestTimeframe
                     ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 text-[#0b0b12] shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
-                    : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                    : 'bg-white/5 text-white/50 cursor-not-allowed'
                 }`}>
                 Generate Strategy →
               </button>
@@ -750,7 +750,7 @@ if __name__ == "__main__":
                       <BrainIcon className="w-6 h-6 text-emerald-300/80" />
                     </div>
                     <p className="text-sm text-gray-300 mb-1 font-medium">Describe your strategy</p>
-                    <p className="text-xs text-gray-500 mb-4">Try a starter prompt:</p>
+                    <p className="text-xs text-white/50 mb-4">Try a starter prompt:</p>
                     <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
                       {starterPrompts.map((sp, i) => (
                         <button
@@ -802,7 +802,7 @@ if __name__ == "__main__":
                     className={`px-3 py-2.5 rounded-lg transition-all duration-200 ${
                       chatInput.trim() && chatTicker && chatStrategyName && !isThinking
                         ? 'bg-gradient-to-r from-emerald-500 to-cyan-400 text-[#0b0b12] shadow-[0_0_18px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
-                        : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                        : 'bg-white/5 text-white/50 cursor-not-allowed'
                     }`}
                   >
                     <SendIcon className="w-4 h-4" />
@@ -869,7 +869,7 @@ if __name__ == "__main__":
                 <div className="flex-1 flex flex-col items-center justify-center text-center">
                   <BrainIcon className="w-12 h-12 text-emerald-300/50 mb-3" />
                   <p className="text-sm text-gray-300 mb-1">No results yet</p>
-                  <p className="text-xs text-gray-500">Build a strategy to see results here</p>
+                  <p className="text-xs text-white/50">Build a strategy to see results here</p>
                 </div>
               )}
             </motion.div>

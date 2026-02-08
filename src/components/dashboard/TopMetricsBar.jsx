@@ -41,7 +41,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-[#0d0d12] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
+    <div className="absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -61,7 +61,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
       <div className={`${settings.enabled ? '' : 'opacity-50 pointer-events-none'}`}>
         {/* Delivery Methods */}
         <div className="px-4 py-3 border-b border-[#2a2a3d]">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Delivery Method</p>
+          <p className="text-[10px] text-white/50 uppercase tracking-wider mb-3">Delivery Method</p>
           <div className="space-y-2">
             <label className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-3">
@@ -84,7 +84,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
                 </svg>
                 <div>
                   <span className="text-sm text-white">Phone</span>
-                  <p className="text-[10px] text-gray-500">Requires mobile app</p>
+                  <p className="text-[10px] text-white/50">Requires mobile app</p>
                 </div>
               </div>
               <button
@@ -113,7 +113,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
 
         {/* Alert Types */}
         <div className="px-4 py-3">
-          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Alert Types</p>
+          <p className="text-[10px] text-white/50 uppercase tracking-wider mb-3">Alert Types</p>
           <div className="space-y-2">
             <label className="flex items-center justify-between cursor-pointer py-1">
               <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 bg-[#151515] border-t border-[#2a2a3d]">
+      <div className="px-4 py-2 bg-[#111111] border-t border-[#2a2a3d]">
         <p className="text-[10px] text-gray-600 text-center">
           {settings.enabled ? 'Notifications are enabled' : 'Notifications are disabled'}
         </p>
@@ -354,7 +354,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
                   <BrokerBadge key={broker.id} broker={broker} />
                 ))}
                 {connectedBrokers.length > 4 && (
-                  <span className="text-[10px] text-gray-500">+{connectedBrokers.length - 4}</span>
+                  <span className="text-[10px] text-white/50">+{connectedBrokers.length - 4}</span>
                 )}
               </div>
               <div className="text-right">

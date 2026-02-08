@@ -138,10 +138,10 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg rounded-2xl border border-[#2a2a3d] bg-[#0d0d12] shadow-2xl"
+          className="relative w-full max-w-lg rounded-2xl border border-[#2a2a3d] bg-[#0b0b0b] shadow-2xl"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#1e1e2d] p-4">
+          <div className="flex items-center justify-between border-b border-[#1f1f1f] p-4">
             <div>
               <h3 className="text-lg font-semibold text-white">Customize Template</h3>
               <p className="text-sm text-gray-400">{template.category}</p>
@@ -163,7 +163,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                 type="text"
                 value={settings.name}
                 onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               />
             </div>
 
@@ -183,7 +183,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                         ? level === 'Low' ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
                         : level === 'Medium' ? 'border-amber-500 bg-amber-500/20 text-amber-400'
                         : 'border-red-500 bg-red-500/20 text-red-400'
-                        : 'border-[#2a2a3d] bg-[#0a0a0f] text-gray-400 hover:border-gray-600'
+                        : 'border-[#2a2a3d] bg-[#0b0b0b] text-gray-400 hover:border-gray-600'
                     }`}
                   >
                     {level}
@@ -203,7 +203,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                   type="number"
                   value={settings.stopLoss}
                   onChange={(e) => setSettings({ ...settings, stopLoss: parseFloat(e.target.value) })}
-                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
                 />
               </div>
               <div>
@@ -215,7 +215,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                   type="number"
                   value={settings.takeProfit}
                   onChange={(e) => setSettings({ ...settings, takeProfit: parseFloat(e.target.value) })}
-                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 />
               </div>
             </div>
@@ -231,7 +231,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                   type="number"
                   value={settings.positionSize}
                   onChange={(e) => setSettings({ ...settings, positionSize: parseFloat(e.target.value) })}
-                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 />
               </div>
               <div>
@@ -242,7 +242,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                   type="number"
                   value={settings.maxPositions}
                   onChange={(e) => setSettings({ ...settings, maxPositions: parseInt(e.target.value) })}
-                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                 />
               </div>
             </div>
@@ -261,7 +261,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
                       settings.timeframe === tf
                         ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                        : 'border-[#2a2a3d] bg-[#0a0a0f] text-gray-400 hover:border-gray-600'
+                        : 'border-[#2a2a3d] bg-[#0b0b0b] text-gray-400 hover:border-gray-600'
                     }`}
                   >
                     {tf}
@@ -271,9 +271,9 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
             </div>
 
             {/* Template Info */}
-            <div className="rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] p-4">
+            <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-4">
               <p className="text-sm text-gray-400">{template.description}</p>
-              <div className="mt-3 flex gap-4 text-xs text-gray-500">
+              <div className="mt-3 flex gap-4 text-xs text-white/50">
                 <span>Win Rate: <span className="text-emerald-400">{template.metrics.winRate}</span></span>
                 <span>Avg Return: <span className="text-sky-400">{template.metrics.avgReturn}</span></span>
               </div>
@@ -281,7 +281,7 @@ const TemplateEditModal = ({ template, isOpen, onClose, onSave }) => {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 border-t border-[#1e1e2d] p-4">
+          <div className="flex items-center justify-end gap-3 border-t border-[#1f1f1f] p-4">
             <button
               onClick={onClose}
               className="px-4 py-2 rounded-lg border border-[#2a2a3d] text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
@@ -335,7 +335,7 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
   const standardTemplates = filteredTemplates.filter((template) => !template.featured);
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0a0a0f] p-6 text-white" style={{ scrollbarWidth: 'none' }}>
+    <div className="h-full overflow-y-auto bg-[#0b0b0b] p-6 text-white" style={{ scrollbarWidth: 'none' }}>
       <style>{`::-webkit-scrollbar { display: none; }`}</style>
       
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -346,12 +346,12 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
           </p>
         </div>
         <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
           <input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search templates"
-            className="w-full rounded-lg border border-[#1e1e2d] bg-[#0d0d12] py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="w-full rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
           />
         </div>
       </div>
@@ -364,7 +364,7 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               activeCategory === category
                 ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-200'
-                : 'border-[#1e1e2d] bg-[#0d0d12] text-gray-400 hover:text-white'
+                : 'border-[#1f1f1f] bg-[#0b0b0b] text-gray-400 hover:text-white'
             }`}
           >
             {category}
@@ -401,7 +401,7 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
                     {featuredTemplate.tags?.map((ticker) => (
                       <span
                         key={ticker}
-                        className="rounded-full border border-[#2a2a3a] bg-[#0d0d12] px-2.5 py-1 text-xs text-gray-300"
+                        className="rounded-full border border-[#2a2a3a] bg-[#0b0b0b] px-2.5 py-1 text-xs text-gray-300"
                       >
                         {ticker}
                       </span>
@@ -432,7 +432,7 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
           <div
             key={template.id}
             onClick={() => handleTemplateClick(template)}
-            className="flex h-full flex-col rounded-2xl border border-[#1e1e2d] bg-[#0d0d12] p-5 cursor-pointer hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all"
+            className="flex h-full flex-col rounded-2xl border border-[#1f1f1f] bg-[#0b0b0b] p-5 cursor-pointer hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -441,7 +441,7 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
                   {template.category}
                 </span>
               </div>
-              <div className="rounded-lg bg-[#0f0f14] p-2 text-gray-300">
+              <div className="rounded-lg bg-[#111111] p-2 text-gray-300">
                 {template.category === 'Momentum' && (
                   <Zap className="h-4 w-4 text-emerald-400" />
                 )}
@@ -493,7 +493,7 @@ const StrategyTemplatesGallery = ({ onSelectTemplate = () => {}, onSaveToStrateg
       </div>
 
       {filteredTemplates.length === 0 && (
-        <div className="mt-8 rounded-xl border border-dashed border-[#1e1e2d] bg-[#0d0d12] p-8 text-center text-sm text-gray-400">
+        <div className="mt-8 rounded-xl border border-dashed border-[#1f1f1f] bg-[#0b0b0b] p-8 text-center text-sm text-gray-400">
           No templates match your search. Try a different keyword or category.
         </div>
       )}

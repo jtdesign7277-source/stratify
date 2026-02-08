@@ -36,9 +36,9 @@ const formatPercent = (num) => {
 
 // Metric Card Component
 const MetricCard = ({ label, value, subValue, color = 'cyan', tooltip }) => (
-  <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-3 hover:border-[#2a2a3d] transition-all group relative">
+  <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-3 hover:border-[#2a2a3d] transition-all group relative">
     <div className="flex items-center gap-1 mb-1">
-      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{label}</span>
+      <span className="text-[10px] text-white/50 uppercase tracking-wider font-medium">{label}</span>
       {tooltip && (
         <div className="relative">
           <svg className="w-3 h-3 text-gray-600 hover:text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@ const MetricCard = ({ label, value, subValue, color = 'cyan', tooltip }) => (
     }`}>
       {value}
     </div>
-    {subValue && <div className="text-[10px] text-gray-500 mt-0.5">{subValue}</div>}
+    {subValue && <div className="text-[10px] text-white/50 mt-0.5">{subValue}</div>}
   </div>
 );
 
@@ -102,17 +102,17 @@ const CodeEditor = ({ code, onChange, readOnly = false }) => {
   const lines = code?.split('\n') || [''];
   
   return (
-    <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg overflow-hidden font-mono text-xs">
-      <div className="flex items-center justify-between px-3 py-2 bg-[#12121a] border-b border-[#1e1e2d]">
+    <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg overflow-hidden font-mono text-xs">
+      <div className="flex items-center justify-between px-3 py-2 bg-[#12121a] border-b border-[#1f1f1f]">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500/60"></div>
           <div className="w-3 h-3 rounded-full bg-amber-500/60"></div>
           <div className="w-3 h-3 rounded-full bg-emerald-500/60"></div>
         </div>
-        <span className="text-[10px] text-gray-500">strategy.py</span>
+        <span className="text-[10px] text-white/50">strategy.py</span>
       </div>
       <div className="flex max-h-64 overflow-auto scrollbar-hide">
-        <div className="py-3 px-2 bg-[#0d0d12] border-r border-[#1e1e2d] select-none">
+        <div className="py-3 px-2 bg-[#0b0b0b] border-r border-[#1f1f1f] select-none">
           {lines.map((_, i) => (
             <div key={i} className="text-gray-600 text-right pr-2 leading-5">{i + 1}</div>
           ))}
@@ -145,7 +145,7 @@ const ConditionBuilder = ({ conditions = [], onChange }) => {
           className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
             mode === 'visual' 
               ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
-              : 'bg-[#12121a] text-gray-400 border border-[#1e1e2d] hover:border-gray-600'
+              : 'bg-[#12121a] text-gray-400 border border-[#1f1f1f] hover:border-gray-600'
           }`}
         >
           Visual Builder
@@ -155,7 +155,7 @@ const ConditionBuilder = ({ conditions = [], onChange }) => {
           className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
             mode === 'code' 
               ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
-              : 'bg-[#12121a] text-gray-400 border border-[#1e1e2d] hover:border-gray-600'
+              : 'bg-[#12121a] text-gray-400 border border-[#1f1f1f] hover:border-gray-600'
           }`}
         >
           Code Editor
@@ -165,25 +165,25 @@ const ConditionBuilder = ({ conditions = [], onChange }) => {
       {mode === 'visual' ? (
         <div className="space-y-2">
           {/* Entry Conditions */}
-          <div className="bg-[#0d0d12] border border-emerald-500/30 rounded-lg p-3">
+          <div className="bg-[#0b0b0b] border border-emerald-500/30 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
               <span className="text-xs font-medium text-emerald-400">Entry Conditions</span>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <select className="bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
+                <select className="bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
                   {indicatorOptions.map(ind => <option key={ind}>{ind}</option>)}
                 </select>
-                <select className="bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
+                <select className="bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
                   {operatorOptions.map(op => <option key={op}>{op}</option>)}
                 </select>
                 <input 
                   type="text" 
                   defaultValue="30"
-                  className="w-20 bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-cyan-500 outline-none"
+                  className="w-20 bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-cyan-500 outline-none"
                 />
-                <button className="p-1 text-gray-500 hover:text-red-400 transition-colors">
+                <button className="p-1 text-white/50 hover:text-red-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -199,25 +199,25 @@ const ConditionBuilder = ({ conditions = [], onChange }) => {
           </div>
 
           {/* Exit Conditions */}
-          <div className="bg-[#0d0d12] border border-red-500/30 rounded-lg p-3">
+          <div className="bg-[#0b0b0b] border border-red-500/30 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-red-500"></div>
               <span className="text-xs font-medium text-red-400">Exit Conditions</span>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <select className="bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
+                <select className="bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
                   {indicatorOptions.map(ind => <option key={ind}>{ind}</option>)}
                 </select>
-                <select className="bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
+                <select className="bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
                   {operatorOptions.map(op => <option key={op}>{op}</option>)}
                 </select>
                 <input 
                   type="text" 
                   defaultValue="70"
-                  className="w-20 bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-cyan-500 outline-none"
+                  className="w-20 bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-cyan-500 outline-none"
                 />
-                <button className="p-1 text-gray-500 hover:text-red-400 transition-colors">
+                <button className="p-1 text-white/50 hover:text-red-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -265,11 +265,11 @@ const EquityCurve = ({ data = [] }) => {
   }, [data]);
 
   return (
-    <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
+    <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-gray-400 font-medium">Equity Curve</span>
         <div className="flex items-center gap-3 text-[10px]">
-          <span className="text-gray-500">Initial: $10,000</span>
+          <span className="text-white/50">Initial: $10,000</span>
           <span className="text-emerald-400">Final: ${chartData[chartData.length - 1]?.toLocaleString() || '--'}</span>
         </div>
       </div>
@@ -345,9 +345,9 @@ const SliderInput = ({ label, value, onChange, min, max, step = 1, unit = '', to
                 onChange(clampNumber(parsed, min, max));
               }
             }}
-            className="w-20 bg-[#0d0d12] border border-[#1e1e2d] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-cyan-500 outline-none"
+            className="w-20 bg-[#0b0b0b] border border-[#1f1f1f] rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-cyan-500 outline-none"
           />
-          <span className="text-[10px] text-gray-500">{unit}</span>
+          <span className="text-[10px] text-white/50">{unit}</span>
         </div>
       ) : (
         <span className="text-xs text-cyan-400 font-mono">{value}{unit}</span>
@@ -565,7 +565,7 @@ export default function StrategyBuilder({
             <svg className="w-16 h-16 mx-auto text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <p className="text-gray-500 text-sm">Select a strategy to view details</p>
+            <p className="text-white/50 text-sm">Select a strategy to view details</p>
             <p className="text-gray-600 text-xs mt-1">or create a new one with Grok AI</p>
           </div>
         </div>
@@ -616,13 +616,13 @@ export default function StrategyBuilder({
             </div>
 
             {/* Version History */}
-            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4">
               <h3 className="text-sm font-medium text-white mb-3">Version History</h3>
               <div className="space-y-2">
                 <div className="flex items-center gap-3 p-2 bg-[#12121a] rounded">
                   <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
                   <span className="text-xs text-gray-300 flex-1">v1.0 - Initial version</span>
-                  <span className="text-[10px] text-gray-500">Current</span>
+                  <span className="text-[10px] text-white/50">Current</span>
                 </div>
               </div>
             </div>
@@ -651,13 +651,13 @@ export default function StrategyBuilder({
             <h3 className="text-sm font-medium text-white mb-4">Execution Settings</h3>
             
             {/* Order Types */}
-            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4">
               <h4 className="text-xs text-gray-400 mb-3">Order Type</h4>
               <div className="grid grid-cols-3 gap-2">
                 {['Market', 'Limit', 'Stop-Limit'].map(type => (
                   <button
                     key={type}
-                    className="px-3 py-2 text-xs font-medium rounded transition-all bg-[#12121a] text-gray-400 border border-[#1e1e2d] hover:border-cyan-500/50 hover:text-cyan-400"
+                    className="px-3 py-2 text-xs font-medium rounded transition-all bg-[#12121a] text-gray-400 border border-[#1f1f1f] hover:border-cyan-500/50 hover:text-cyan-400"
                   >
                     {type}
                   </button>
@@ -666,30 +666,30 @@ export default function StrategyBuilder({
             </div>
 
             {/* Timing Rules */}
-            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4">
               <h4 className="text-xs text-gray-400 mb-3">Trading Hours</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">Start Time</label>
+                  <label className="text-[10px] text-white/50 mb-1 block">Start Time</label>
                   <input 
                     type="time" 
                     defaultValue="09:30"
-                    className="w-full bg-[#12121a] border border-[#1e1e2d] rounded px-3 py-2 text-xs text-white focus:border-cyan-500 outline-none"
+                    className="w-full bg-[#12121a] border border-[#1f1f1f] rounded px-3 py-2 text-xs text-white focus:border-cyan-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 mb-1 block">End Time</label>
+                  <label className="text-[10px] text-white/50 mb-1 block">End Time</label>
                   <input 
                     type="time" 
                     defaultValue="16:00"
-                    className="w-full bg-[#12121a] border border-[#1e1e2d] rounded px-3 py-2 text-xs text-white focus:border-cyan-500 outline-none"
+                    className="w-full bg-[#12121a] border border-[#1f1f1f] rounded px-3 py-2 text-xs text-white focus:border-cyan-500 outline-none"
                   />
                 </div>
               </div>
             </div>
 
             {/* Position Sizing */}
-            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
+            <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4 space-y-4">
               <h4 className="text-xs text-gray-400">Position Sizing</h4>
               <SliderInput 
                 label="Position Size" 
@@ -739,7 +739,7 @@ export default function StrategyBuilder({
 
             {/* Risk Parameters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
+              <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4 space-y-4">
                 <SliderInput 
                   label="Stop Loss" 
                   value={riskParams.stopLoss} 
@@ -765,7 +765,7 @@ export default function StrategyBuilder({
                 />
               </div>
 
-              <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4 space-y-4">
+              <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4 space-y-4">
                 <SliderInput 
                   label="Max Drawdown" 
                   value={riskParams.maxDrawdown} 
@@ -800,7 +800,7 @@ export default function StrategyBuilder({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-white">Backtest Results</h3>
               <div className="flex items-center gap-2">
-                <select className="bg-[#12121a] border border-[#1e1e2d] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
+                <select className="bg-[#12121a] border border-[#1f1f1f] rounded px-2 py-1.5 text-xs text-white focus:border-cyan-500 outline-none">
                   <option>1 Year</option>
                   <option>2 Years</option>
                   <option>5 Years</option>
@@ -878,7 +878,7 @@ export default function StrategyBuilder({
             </div>
 
             {/* Parameter Grid */}
-            <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg p-4">
+            <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg p-4">
               <h4 className="text-xs text-gray-400 mb-3">Parameters to Optimize</h4>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex items-center gap-2 text-xs text-gray-300">
@@ -902,8 +902,8 @@ export default function StrategyBuilder({
 
             {/* Optimization Results */}
             {optimizeResults.length > 0 && (
-              <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-lg overflow-hidden">
-                <div className="px-4 py-2 bg-[#12121a] border-b border-[#1e1e2d]">
+              <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg overflow-hidden">
+                <div className="px-4 py-2 bg-[#12121a] border-b border-[#1f1f1f]">
                   <span className="text-xs text-gray-400">Top Parameter Combinations</span>
                 </div>
                 <div className="divide-y divide-[#1e1e2d]">
@@ -934,10 +934,10 @@ export default function StrategyBuilder({
             {/* Deployment Flow */}
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                selectedStrategy?.status === 'draft' ? 'border-gray-500 bg-gray-500/10' : 'border-[#1e1e2d] bg-[#0d0d12]'
+                selectedStrategy?.status === 'draft' ? 'border-gray-500 bg-gray-500/10' : 'border-[#1f1f1f] bg-[#0b0b0b]'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  selectedStrategy?.status === 'draft' ? 'bg-gray-500 text-white' : 'bg-gray-700 text-gray-500'
+                  selectedStrategy?.status === 'draft' ? 'bg-gray-500 text-white' : 'bg-gray-700 text-white/50'
                 }`}>1</div>
                 <span className="text-xs text-gray-400">Draft</span>
               </div>
@@ -945,10 +945,10 @@ export default function StrategyBuilder({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
               </svg>
               <div className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                selectedStrategy?.status === 'paper' ? 'border-amber-500 bg-amber-500/10' : 'border-[#1e1e2d] bg-[#0d0d12]'
+                selectedStrategy?.status === 'paper' ? 'border-amber-500 bg-amber-500/10' : 'border-[#1f1f1f] bg-[#0b0b0b]'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  selectedStrategy?.status === 'paper' ? 'bg-amber-500 text-black' : 'bg-gray-700 text-gray-500'
+                  selectedStrategy?.status === 'paper' ? 'bg-amber-500 text-black' : 'bg-gray-700 text-white/50'
                 }`}>2</div>
                 <span className="text-xs text-gray-400">Paper</span>
               </div>
@@ -956,10 +956,10 @@ export default function StrategyBuilder({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
               </svg>
               <div className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                selectedStrategy?.status === 'deployed' ? 'border-emerald-500 bg-emerald-500/10' : 'border-[#1e1e2d] bg-[#0d0d12]'
+                selectedStrategy?.status === 'deployed' ? 'border-emerald-500 bg-emerald-500/10' : 'border-[#1f1f1f] bg-[#0b0b0b]'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  selectedStrategy?.status === 'deployed' ? 'bg-emerald-500 text-black' : 'bg-gray-700 text-gray-500'
+                  selectedStrategy?.status === 'deployed' ? 'bg-emerald-500 text-black' : 'bg-gray-700 text-white/50'
                 }`}>3</div>
                 <span className="text-xs text-gray-400">Live</span>
               </div>
@@ -970,7 +970,7 @@ export default function StrategyBuilder({
               <button
                 onClick={() => handleDeploy('paper')}
                 disabled={selectedStrategy?.status === 'deployed'}
-                className="flex flex-col items-center gap-3 p-6 bg-[#0d0d12] border border-amber-500/30 rounded-lg hover:bg-amber-500/5 hover:border-amber-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-col items-center gap-3 p-6 bg-[#0b0b0b] border border-amber-500/30 rounded-lg hover:bg-amber-500/5 hover:border-amber-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
                   <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -979,14 +979,14 @@ export default function StrategyBuilder({
                 </div>
                 <div className="text-center">
                   <div className="text-sm font-medium text-amber-400">Paper Trading</div>
-                  <div className="text-[10px] text-gray-500 mt-1">Test with simulated money</div>
+                  <div className="text-[10px] text-white/50 mt-1">Test with simulated money</div>
                 </div>
               </button>
 
               <button
                 onClick={() => handleDeploy('live')}
                 disabled={selectedStrategy?.status !== 'paper' && selectedStrategy?.status !== 'draft'}
-                className="flex flex-col items-center gap-3 p-6 bg-[#0d0d12] border border-emerald-500/30 rounded-lg hover:bg-emerald-500/5 hover:border-emerald-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-col items-center gap-3 p-6 bg-[#0b0b0b] border border-emerald-500/30 rounded-lg hover:bg-emerald-500/5 hover:border-emerald-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -995,7 +995,7 @@ export default function StrategyBuilder({
                 </div>
                 <div className="text-center">
                   <div className="text-sm font-medium text-emerald-400">Go Live</div>
-                  <div className="text-[10px] text-gray-500 mt-1">Trade with real capital</div>
+                  <div className="text-[10px] text-white/50 mt-1">Trade with real capital</div>
                 </div>
               </button>
             </div>
@@ -1029,17 +1029,17 @@ export default function StrategyBuilder({
 
   // ============== MAIN RENDER ==============
   return (
-    <div className="flex h-full bg-[#0d0d12] text-white overflow-hidden">
+    <div className="flex h-full bg-[#0b0b0b] text-white overflow-hidden">
       {/* Left Sidebar - Strategy Library */}
-      <div className={`flex flex-col border-r border-[#1e1e2d] transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-56'}`}>
+      <div className={`flex flex-col border-r border-[#1f1f1f] transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-56'}`}>
         {/* Sidebar Header */}
-        <div className="h-10 flex items-center justify-between px-3 border-b border-[#1e1e2d] bg-[#12121a]">
+        <div className="h-10 flex items-center justify-between px-3 border-b border-[#1f1f1f] bg-[#12121a]">
           {!sidebarCollapsed && <span className="text-xs font-medium text-gray-400">STRATEGIES</span>}
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="p-1 hover:bg-[#1e1e2d] rounded transition-colors"
           >
-            <svg className={`w-4 h-4 text-gray-500 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 text-white/50 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
             </svg>
           </button>
@@ -1062,7 +1062,7 @@ export default function StrategyBuilder({
                 <>
                   <span className="flex-1 text-xs text-left truncate">{folder.name}</span>
                   {folder.count > 0 && (
-                    <span className="text-[10px] text-gray-500">{folder.count}</span>
+                    <span className="text-[10px] text-white/50">{folder.count}</span>
                   )}
                 </>
               )}
@@ -1072,7 +1072,7 @@ export default function StrategyBuilder({
 
         {/* Strategy List */}
         {!sidebarCollapsed && (
-          <div className="border-t border-[#1e1e2d] max-h-48 overflow-auto scrollbar-hide">
+          <div className="border-t border-[#1f1f1f] max-h-48 overflow-auto scrollbar-hide">
             <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-gray-600">
               {foldersWithCounts.find(folder => folder.id === selectedFolder)?.name || 'Strategies'}
             </div>
@@ -1094,7 +1094,7 @@ export default function StrategyBuilder({
                 </button>
               ))
             ) : (
-              <div className="px-3 py-4 text-[11px] text-gray-500">
+              <div className="px-3 py-4 text-[11px] text-white/50">
                 No strategies in this folder.
               </div>
             )}
@@ -1105,7 +1105,7 @@ export default function StrategyBuilder({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Tab Navigation */}
-        <div className="h-10 flex items-center border-b border-[#1e1e2d] bg-[#12121a] px-2 overflow-x-auto scrollbar-hide">
+        <div className="h-10 flex items-center border-b border-[#1f1f1f] bg-[#12121a] px-2 overflow-x-auto scrollbar-hide">
           {WORKFLOW_TABS.map(tab => (
             <button
               key={tab.id}
@@ -1113,7 +1113,7 @@ export default function StrategyBuilder({
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap transition-all ${
                 activeTab === tab.id 
                   ? 'text-cyan-400 border-b-2 border-cyan-400 -mb-[2px]' 
-                  : 'text-gray-500 hover:text-gray-300'
+                  : 'text-white/50 hover:text-gray-300'
               }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

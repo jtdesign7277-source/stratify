@@ -71,7 +71,7 @@ const Sidebar = ({
       initial={false}
       animate={{ width: collapsed ? 60 : 220 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="h-full bg-[#0d0d12] border-r border-white/10 flex flex-col flex-shrink-0"
+      className="h-full bg-[#0b0b0b] border-r border-[#1f1f1f] flex flex-col flex-shrink-0"
     >
       {/* Main Navigation */}
       <nav className="flex-1 px-2 overflow-y-auto min-h-0 flex flex-col" style={{ scrollbarWidth: 'none' }}>

@@ -226,7 +226,7 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
           <div className="text-3xl font-bold text-white">{formatCurrency(currentValue)}</div>
           <div className={`text-sm ${changeAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {changeAmount >= 0 ? '+' : ''}{formatCurrency(changeAmount)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
-            <span className="text-gray-500 ml-1">
+            <span className="text-white/50 ml-1">
               {historyData.length > 1 ? `· ${historyData.length} days tracked` : '· Demo data'}
             </span>
           </div>
@@ -239,7 +239,7 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
               className={`px-3 py-1 rounded text-sm font-medium transition-all ${
                 selectedTimeframe === tf
                   ? 'bg-purple-500/20 text-purple-400'
-                  : 'text-gray-500 hover:text-gray-300'
+                  : 'text-white/50 hover:text-gray-300'
               }`}
             >
               {tf}

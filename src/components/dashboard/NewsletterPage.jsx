@@ -68,9 +68,9 @@ const BetSlipModal = ({ market, onClose }) => {
           
           {/* Amount Input */}
           <div className="mb-4">
-            <label className="text-xs text-gray-500 mb-1 block">Amount (USD)</label>
+            <label className="text-xs text-white/50 mb-1 block">Amount (USD)</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
               <input
                 type="number"
                 value={betAmount}
@@ -97,11 +97,11 @@ const BetSlipModal = ({ market, onClose }) => {
           {/* Potential Win */}
           <div className="bg-[#303134] rounded-lg p-3 mb-4">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">Shares</span>
+              <span className="text-white/50">Shares</span>
               <span className="text-white">{betAmount ? (parseFloat(betAmount) / (price / 100)).toFixed(0) : '0'}</span>
             </div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">Avg Price</span>
+              <span className="text-white/50">Avg Price</span>
               <span className="text-white">{price}¢</span>
             </div>
             <div className="flex justify-between text-sm font-medium pt-2 border-t border-[#5f6368]">
@@ -187,12 +187,12 @@ const ArbBetSlipModal = ({ arb, onClose }) => {
           {/* Two Legs */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 mb-1">LEG 1 • Polymarket</div>
+              <div className="text-[10px] text-white/50 mb-1">LEG 1 • Polymarket</div>
               <div className="text-emerald-400 font-medium">Buy YES @ {arb.polymarket.price}¢</div>
               {amount > 0 && <div className="text-xs text-gray-400 mt-1">${yesAllocation.toFixed(2)}</div>}
             </div>
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 mb-1">LEG 2 • Kalshi</div>
+              <div className="text-[10px] text-white/50 mb-1">LEG 2 • Kalshi</div>
               <div className="text-red-400 font-medium">Buy NO @ {arb.kalshi.price}¢</div>
               {amount > 0 && <div className="text-xs text-gray-400 mt-1">${noAllocation.toFixed(2)}</div>}
             </div>
@@ -202,9 +202,9 @@ const ArbBetSlipModal = ({ arb, onClose }) => {
         {/* Amount Input */}
         <div className="px-4 py-4">
           <div className="mb-4">
-            <label className="text-xs text-gray-500 mb-1 block">Total Investment (USD)</label>
+            <label className="text-xs text-white/50 mb-1 block">Total Investment (USD)</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
               <input
                 type="number"
                 value={betAmount}
@@ -232,28 +232,28 @@ const ArbBetSlipModal = ({ arb, onClose }) => {
           <div className="bg-[#303134] rounded-lg p-4 mb-4">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Polymarket (YES)</span>
+                <span className="text-white/50">Polymarket (YES)</span>
                 <span className="text-white">${yesAllocation.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Kalshi (NO)</span>
+                <span className="text-white/50">Kalshi (NO)</span>
                 <span className="text-white">${noAllocation.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t border-[#5f6368] pt-2">
-                <span className="text-gray-500">Total Investment</span>
+                <span className="text-white/50">Total Investment</span>
                 <span className="text-white">${amount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Guaranteed Payout</span>
+                <span className="text-white/50">Guaranteed Payout</span>
                 <span className="text-white">${grossPayout.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Gross Profit</span>
+                <span className="text-white/50">Gross Profit</span>
                 <span className="text-emerald-400">+${grossProfit.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600">Stratify Fee ({HOUSE_FEE_PERCENT}%)</span>
-                <span className="text-gray-500">-${houseFee.toFixed(2)}</span>
+                <span className="text-white/50">-${houseFee.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t border-amber-500/30 pt-2">
                 <span className="text-amber-400 font-medium">Net Profit</span>
@@ -598,12 +598,12 @@ export default function NewsletterPage({ themeClasses, onClose }) {
                   {/* Leg Preview */}
                   <div className="flex items-center gap-2 mb-3 text-xs">
                     <div className="flex-1 py-1.5 px-3 bg-[#202124] rounded border border-emerald-500/30 text-center">
-                      <span className="text-gray-500">Polymarket</span>
+                      <span className="text-white/50">Polymarket</span>
                       <span className="text-emerald-400 ml-2">YES @ {arb.polymarket.price}¢</span>
                     </div>
                     <span className="text-gray-600">+</span>
                     <div className="flex-1 py-1.5 px-3 bg-[#202124] rounded border border-red-500/30 text-center">
-                      <span className="text-gray-500">Kalshi</span>
+                      <span className="text-white/50">Kalshi</span>
                       <span className="text-red-400 ml-2">NO @ {arb.kalshi.price}¢</span>
                     </div>
                   </div>

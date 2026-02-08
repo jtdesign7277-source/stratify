@@ -161,10 +161,10 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
   });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-hidden">
-      <div className="bg-[#111118] border border-gray-800 rounded-xl flex-1 flex flex-col overflow-hidden min-h-0">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-hidden">
+      <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Header */}
-        <div className="px-4 py-4 border-b border-gray-800 flex-shrink-0">
+        <div className="px-4 py-4 border-b border-[#1f1f1f] flex-shrink-0">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                   Connect a Broker
                 </button>
               )}
-              <button className="p-2 hover:bg-[#1a2438] rounded-lg transition-colors">
+              <button className="p-2 hover:bg-[#111111] rounded-lg transition-colors">
                 <Settings2 className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
               </button>
             </div>
@@ -214,7 +214,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
         <div className="flex-1 overflow-auto">
           {/* Connect Panel */}
           {isConnectOpen && (
-            <div className="p-4 border-b border-gray-800">
+            <div className="p-4 border-b border-[#1f1f1f]">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-white font-medium mb-1">
@@ -232,7 +232,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                     setIsConnectOpen(false);
                     setSelectedBroker(null);
                   }}
-                  className="p-2 hover:bg-[#1a2438] rounded-lg transition-colors"
+                  className="p-2 hover:bg-[#111111] rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
                 </button>
@@ -244,13 +244,13 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                     <button
                       key={broker.id}
                       onClick={() => setSelectedBroker(broker)}
-                      className="bg-[#111118] hover:bg-white/5 border border-gray-800 hover:border-emerald-500/50 rounded-xl p-4 text-left transition-all group"
+                      className="bg-[#111111] hover:bg-white/5 border border-[#1f1f1f] hover:border-emerald-500/50 rounded-xl p-4 text-left transition-all group"
                     >
                       <div className="text-2xl mb-3">
                         {broker.logo}
                       </div>
                       <h4 className="text-white font-medium text-sm mb-1">{broker.name}</h4>
-                      <p className="text-gray-500 text-xs mb-2 line-clamp-2">{broker.description}</p>
+                      <p className="text-white/50 text-xs mb-2 line-clamp-2">{broker.description}</p>
                       <div className="flex flex-wrap gap-1">
                         {broker.features.slice(0, 2).map((feature, idx) => (
                           <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-gray-800 text-gray-400 rounded">
@@ -269,7 +269,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                   <div className="flex items-center gap-4 mb-6">
                     <button
                       onClick={() => setSelectedBroker(null)}
-                      className="p-2 hover:bg-[#1a2438] rounded-lg transition-colors"
+                      className="p-2 hover:bg-[#111111] rounded-lg transition-colors"
                     >
                       <X className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
                     </button>
@@ -283,7 +283,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                   </div>
 
                   {/* Get API Keys Section */}
-                  <div className="bg-[#111118] border border-gray-800 rounded-xl p-4 mb-4">
+                  <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 mb-4">
                     <div className="flex items-start gap-3">
                       <Key className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
                       <div className="flex-1">
@@ -304,7 +304,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
                               selectedBroker?.id === 'alpaca'
                                 ? `${alpacaActiveButtonClass} ${alpacaActiveButtonHover}`
-                                : 'bg-[#1a2438] hover:bg-[#243048] text-gray-300'
+                                : 'bg-[#111111] hover:bg-[#243048] text-gray-300'
                             }`}
                           >
                             View Documentation
@@ -315,7 +315,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                   </div>
 
                   {/* API Key Input Section */}
-                  <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+                  <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
                     <div className="flex items-start gap-3 mb-4">
                       <Lock className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
                       <div>
@@ -337,7 +337,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                           value={apiKey}
                           onChange={(e) => setApiKey(e.target.value)}
                           placeholder="Paste your API key here..."
-                          className="w-full px-4 py-3 bg-[#060d18] border border-gray-700 focus:border-emerald-500 rounded-lg text-white placeholder-gray-500 text-sm font-mono outline-none transition-colors"
+                          className="w-full px-4 py-3 bg-[#060d18] border border-[#2a2a2a] focus:border-emerald-500 rounded-lg text-white placeholder-gray-500 text-sm font-mono outline-none transition-colors"
                         />
                       </div>
                       
@@ -350,9 +350,9 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                           value={secretKey}
                           onChange={(e) => setSecretKey(e.target.value)}
                           placeholder="Paste your secret key here..."
-                          className="w-full px-4 py-3 bg-[#060d18] border border-gray-700 focus:border-emerald-500 rounded-lg text-white placeholder-gray-500 text-sm font-mono outline-none transition-colors"
+                          className="w-full px-4 py-3 bg-[#060d18] border border-[#2a2a2a] focus:border-emerald-500 rounded-lg text-white placeholder-gray-500 text-sm font-mono outline-none transition-colors"
                         />
-                        <p className="text-gray-500 text-xs mt-1.5 flex items-center gap-1">
+                        <p className="text-white/50 text-xs mt-1.5 flex items-center gap-1">
                           <Lock className="w-3 h-3" />
                           Your secret key is encrypted and never shared
                         </p>
@@ -381,7 +381,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                   </div>
 
                   {/* Security Note */}
-                  <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-500">
+                  <div className="flex items-center justify-center gap-2 mt-4 text-xs text-white/50">
                     <Shield className="w-3.5 h-3.5 text-green-400" strokeWidth={1.5} />
                     <span>256-bit encryption • SOC 2 compliant • Read-only access available</span>
                   </div>
@@ -414,7 +414,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                 {connectedBrokers.map((account) => (
                   <div
                     key={account.id}
-                    className="bg-[#111118] border border-gray-800 rounded-xl p-4 flex items-center justify-between gap-4"
+                    className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="text-2xl">{account.logo}</div>
@@ -426,7 +426,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                             Connected
                           </span>
                         </div>
-                        <div className="text-gray-500 text-xs font-mono mt-1">
+                        <div className="text-white/50 text-xs font-mono mt-1">
                           API Key: {account.maskedKey}
                         </div>
                         {account.balance !== undefined && (
@@ -450,7 +450,7 @@ const Home = ({ connectedBrokers, onBrokerConnect, onBrokerDisconnect, onBrokerU
                     </div>
                     <button
                       onClick={() => handleDisconnect(account.id)}
-                      className="px-3 py-1.5 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-xs font-medium transition-colors"
+                      className="px-3 py-1.5 bg-[#111111] hover:bg-[#243048] text-gray-300 rounded-lg text-xs font-medium transition-colors"
                     >
                       Disconnect
                     </button>

@@ -514,7 +514,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   );
 
   return (
-    <div className="flex-1 flex h-full bg-[#0d0d12] overflow-hidden">
+    <div className="flex-1 flex h-full bg-[#0b0b0b] overflow-hidden">
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .ticker-tape-track { height: 100%; display: flex; align-items: center; overflow: hidden; }
@@ -525,11 +525,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       
       {/* Watchlist Panel */}
       <div 
-        className="flex flex-col border-r border-gray-800 flex-shrink-0 transition-all duration-300 ease-out"
+        className="flex flex-col border-r border-[#1f1f1f] flex-shrink-0 transition-all duration-300 ease-out"
         style={{ width: stateWidths[watchlistState] }}
       >
         {/* Header */}
-        <div className="border-b border-gray-800 relative">
+        <div className="border-b border-[#1f1f1f] relative">
           {/* Mini Tabs - Drag tickers here */}
           <div 
             className={`flex-1 px-2 py-2 flex items-center gap-1 overflow-x-auto scrollbar-hide ${
@@ -549,7 +549,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 className={`group flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
                   selectedTicker === symbol
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600 hover:text-white'
+                    : 'bg-gray-800 text-gray-400 border border-[#2a2a2a] hover:border-gray-600 hover:text-white'
                 }`}
               >
                 <span>{symbol}</span>
@@ -563,7 +563,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               <div className={`px-2 py-1 rounded border border-dashed text-xs transition-colors ${
                 dragOverTabs 
                   ? 'border-emerald-500 text-emerald-400' 
-                  : 'border-gray-700 text-gray-600'
+                  : 'border-[#2a2a2a] text-gray-600'
               }`}>
                 {dragOverTabs ? 'Drop here' : '+ Drag'}
               </div>
@@ -576,9 +576,9 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
         {/* Search */}
         {watchlistState !== 'closed' && (
-          <div className="p-3 border-b border-gray-800 relative">
-            <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-3 py-2.5">
-              <Search className="w-4 h-4 text-gray-500" />
+          <div className="p-3 border-b border-[#1f1f1f] relative">
+            <div className="flex items-center gap-2 bg-[#111111] border border-[#2a2a2a] rounded-lg px-3 py-2.5">
+              <Search className="w-4 h-4 text-white/50" />
               <input
                 type="text"
                 value={searchQuery}
@@ -587,14 +587,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-white">
+                <button onClick={() => setSearchQuery('')} className="text-white/50 hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
             
             {searchQuery && searchResults.length > 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111118] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
                 {searchResults.map((stock) => {
                   const displaySymbol = activeMarket === 'crypto'
                     ? (stock.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
@@ -603,7 +603,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   return (
                     <div 
                       key={stock.symbol}
-                      className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-gray-800/50 last:border-0 transition-colors"
+                      className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-[#1f1f1f]/50 last:border-0 transition-colors"
                       onClick={() => handleAddStock(stock)}
                     >
                       <div className="flex-1">
@@ -612,7 +612,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                       </div>
                       <div className="flex items-center gap-3">
                         {exchangeLabel && (
-                          <span className="text-gray-500 text-xs">{exchangeLabel}</span>
+                          <span className="text-white/50 text-xs">{exchangeLabel}</span>
                         )}
                         <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
                       </div>
@@ -623,7 +623,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             )}
 
             {searchQuery && searchResults.length === 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111118] border border-gray-700 rounded-lg p-4 text-center text-gray-400 text-sm z-50">
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 text-center text-gray-400 text-sm z-50">
                 No results for "{searchQuery}"
               </div>
             )}
@@ -633,7 +633,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
         {/* Tab Switcher */}
         {watchlistState !== 'closed' && (
           <div className="px-3 pb-3">
-            <div className="flex items-center gap-1 p-1 rounded-lg border border-gray-700 bg-[#111118]">
+            <div className="flex items-center gap-1 p-1 rounded-lg border border-[#2a2a2a] bg-[#111111]">
               <button
                 type="button"
                 onClick={() => setActiveMarket('equity')}
@@ -670,7 +670,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           )}
           
           {activeWatchlist.length === 0 && !activeLoading && (
-            <div className="px-4 py-6 text-center text-gray-500 text-sm">
+            <div className="px-4 py-6 text-center text-white/50 text-sm">
               Watchlist is empty. Search to add symbols.
             </div>
           )}
@@ -705,7 +705,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   e.dataTransfer.setDragImage(dragEl, 30, 12);
                   setTimeout(() => document.body.removeChild(dragEl), 0);
                 }}
-                className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
+                className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                 } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => handleSelectSymbol(stock.symbol)}
@@ -713,7 +713,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 {watchlistState === 'closed' ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">${displaySymbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
                       {price > 0 ? `$${formatPrice(price)}` : '...'}
                     </div>
                   </div>
@@ -721,7 +721,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   <>
                     <div className="flex-1 min-w-0 pr-4">
                       <div className="text-white font-bold text-base">${displaySymbol}</div>
-                      <div className="text-gray-500 text-sm truncate">{name}</div>
+                      <div className="text-white/50 text-sm truncate">{name}</div>
                     </div>
 
                     <div className="text-right flex-shrink-0 mr-3">
@@ -750,7 +750,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
 
         {/* Footer */}
         {watchlistState !== 'closed' && (
-          <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
+          <div className="p-3 border-t border-[#1f1f1f] flex items-center justify-between text-xs">
             <span className="text-gray-400">{activeWatchlist.length} symbols</span>
             <span className={activeMarket === 'crypto' ? 'text-amber-400' : 'text-emerald-400'}>
               {activeMarket === 'crypto' ? 'Crypto Data' : 'Alpaca Data'}
@@ -760,8 +760,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       </div>
 
       {/* TradingView Chart + Trade Panel */}
-      <div className="flex-1 flex flex-col bg-[#0d0d12] min-w-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <div className="flex-1 flex flex-col bg-[#0b0b0b] min-w-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f1f1f]">
           <div className="flex items-center gap-3">
             <h2 className="text-white font-bold text-lg">${selectedDisplaySymbol}</h2>
             <span className="text-gray-400 text-sm">{selectedName}</span>
@@ -777,7 +777,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             {!isTradePanelOpen && (
               <button
                 onClick={() => setIsTradePanelOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#111118] border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#111111] border border-[#2a2a2a] text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
               >
                 Trade
               </button>
@@ -795,13 +795,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           </div>
 
           <div
-            className={`bg-[#111118] overflow-hidden transition-all duration-300 ease-in-out ${
+            className={`bg-[#111111] overflow-hidden transition-all duration-300 ease-in-out ${
               isTradePanelOpen
-                ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-gray-800 w-full xl:w-80'
+                ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-[#1f1f1f] w-full xl:w-80'
                 : 'opacity-0 max-h-0 xl:max-h-none border-transparent w-full xl:w-0 pointer-events-none translate-y-2 xl:translate-y-0 xl:translate-x-3'
             }`}
           >
-            <div className="p-4 border-b border-gray-800 flex items-start justify-between">
+            <div className="p-4 border-b border-[#1f1f1f] flex items-start justify-between">
               <div>
                 <h3 className="text-white font-semibold text-base">Trade Execution</h3>
                 <p className="text-gray-400 text-xs mt-1">Place a market or limit order.</p>
@@ -822,7 +822,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
                     orderSide === 'buy'
                       ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                      : 'bg-[#060d18] text-gray-400 border-gray-700 hover:text-white'
+                      : 'bg-[#060d18] text-gray-400 border-[#2a2a2a] hover:text-white'
                   }`}
                 >
                   Buy
@@ -832,7 +832,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
                     orderSide === 'sell'
                       ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                      : 'bg-[#060d18] text-gray-400 border-gray-700 hover:text-white'
+                      : 'bg-[#060d18] text-gray-400 border-[#2a2a2a] hover:text-white'
                   }`}
                 >
                   Sell
@@ -847,7 +847,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                   step="1"
                   value={orderQty}
                   onChange={(e) => setOrderQty(e.target.value)}
-                  className="mt-1 w-full bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
+                  className="mt-1 w-full bg-[#060d18] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
                 />
               </div>
 
@@ -856,21 +856,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                 <select
                   value={orderType}
                   onChange={(e) => setOrderType(e.target.value)}
-                  className="mt-1 w-full bg-[#060d18] border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
+                  className="mt-1 w-full bg-[#060d18] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
                 >
                   <option value="market">Market</option>
                   <option value="limit">Limit</option>
                 </select>
               </div>
 
-              <div className="rounded-lg border border-gray-800 bg-[#060d18] p-3">
+              <div className="rounded-lg border border-[#1f1f1f] bg-[#060d18] p-3">
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span>Est. Total</span>
                   <span className="text-white font-semibold">
                     {estimatedTotal > 0 ? `$${formatPrice(estimatedTotal)}` : '...'}
                   </span>
                 </div>
-                <div className="text-[11px] text-gray-500 mt-2">
+                <div className="text-[11px] text-white/50 mt-2">
                   Based on {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : 'current'} price.
                 </div>
               </div>

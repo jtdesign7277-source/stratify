@@ -86,11 +86,11 @@ const BacktestSparkline = ({ progress }) => {
 // Info tooltip component
 const InfoTooltip = ({ text }) => (
   <div className="group relative inline-flex ml-1">
-    <svg className="w-3 h-3 text-gray-500 hover:text-gray-300 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-3 h-3 text-white/50 hover:text-gray-300 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="10" strokeWidth="1.5" />
       <path strokeLinecap="round" strokeWidth="1.5" d="M12 16v-4m0-4h.01" />
     </svg>
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#12121a] border border-[#1e1e2d] rounded-lg text-xs text-gray-300 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 shadow-xl">
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#12121a] border border-[#1f1f1f] rounded-lg text-xs text-gray-300 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 shadow-xl">
       {text}
       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#3c4043]" />
     </div>
@@ -118,21 +118,21 @@ const BacktestResultsPanel = ({ results, onDeploy, onClose, strategy }) => {
   }
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1.5 bg-[#06060c] border border-[#1e1e2d] rounded-lg">
+    <div className="flex items-center gap-3 px-3 py-1.5 bg-[#06060c] border border-[#1f1f1f] rounded-lg">
       <div className="flex items-center gap-4 text-xs">
         <div className="text-center">
-          <div className="text-gray-500">Win</div>
+          <div className="text-white/50">Win</div>
           <div className="text-amber-400 font-medium">{results.winRate}%</div>
         </div>
         <div className="text-center">
-          <div className="text-gray-500 flex items-center justify-center">
+          <div className="text-white/50 flex items-center justify-center">
             Sharpe
             <InfoTooltip text="Sharpe Ratio measures risk-adjusted return. Higher = better returns per unit of risk. 1-2 is solid, 2+ is very good." />
           </div>
           <div className="text-amber-400 font-medium">{results.sharpeRatio}</div>
         </div>
         <div className="text-center">
-          <div className="text-gray-500 flex items-center justify-center">
+          <div className="text-white/50 flex items-center justify-center">
             DD
             <InfoTooltip text="Max Drawdown is the largest peak-to-trough decline. Shows the worst-case loss you'd have experienced. Lower is better." />
           </div>
@@ -147,7 +147,7 @@ const BacktestResultsPanel = ({ results, onDeploy, onClose, strategy }) => {
       </button>
       <button
         onClick={() => setCollapsed(true)}
-        className="text-gray-500 hover:text-gray-300 p-0.5"
+        className="text-white/50 hover:text-gray-300 p-0.5"
         title="Collapse"
       >
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,7 +442,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             const isClickingBacktest = cursorPhase === 'clicking-backtest';
 
             return (
-              <div key={strategy.id} className={`bg-[#0d0d12] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#1e1e2d] hover:border-purple-500/30'}`}>
+              <div key={strategy.id} className={`bg-[#0b0b0b] border rounded-lg transition-all ${isExpanded ? 'border-purple-500/50' : 'border-[#1f1f1f] hover:border-purple-500/30'}`}>
                 {/* Strategy Row */}
                 <div className="flex items-center justify-between gap-4 px-3 py-2">
                   {/* Left: Dropdown toggle + Name + Status */}
@@ -464,7 +464,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                     <span className={`text-[10px] flex-shrink-0 ${
                       strategy.status === 'deployed' 
                         ? 'text-emerald-400' 
-                        : 'text-gray-500'
+                        : 'text-white/50'
                     }`}>
                       {strategy.status}
                     </span>
@@ -499,7 +499,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                         e.stopPropagation();
                         onDeleteStrategy?.(strategy.id);
                       }}
-                      className="text-gray-500 hover:text-red-400 transition-colors p-0.5 hover:bg-red-500/10 rounded"
+                      className="text-white/50 hover:text-red-400 transition-colors p-0.5 hover:bg-red-500/10 rounded"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -533,7 +533,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
 
                 {/* Expanded Section - Stats & Code */}
                 {isExpanded && (
-                  <div className="px-3 pb-3 border-t border-[#1e1e2d] mt-1 pt-3">
+                  <div className="px-3 pb-3 border-t border-[#1f1f1f] mt-1 pt-3">
                     
                     {/* Edit Mode Panel */}
                     {editingStrategyId === strategy.id && (
@@ -546,7 +546,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                               editParams.stopLoss === -2 && editParams.takeProfit === 5
                                 ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/50'
-                                : 'bg-[#06060c] text-gray-400 border border-[#1e1e2d] hover:border-emerald-500/50'
+                                : 'bg-[#06060c] text-gray-400 border border-[#1f1f1f] hover:border-emerald-500/50'
                             }`}
                           >
                             🛡️ Safe
@@ -556,7 +556,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                               editParams.stopLoss === -5 && editParams.takeProfit === 10
                                 ? 'bg-amber-500/30 text-amber-400 border border-amber-500/50'
-                                : 'bg-[#06060c] text-gray-400 border border-[#1e1e2d] hover:border-amber-500/50'
+                                : 'bg-[#06060c] text-gray-400 border border-[#1f1f1f] hover:border-amber-500/50'
                             }`}
                           >
                             ⚖️ Balanced
@@ -566,7 +566,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                               editParams.stopLoss === -10 && editParams.takeProfit === 20
                                 ? 'bg-red-500/30 text-red-400 border border-red-500/50'
-                                : 'bg-[#06060c] text-gray-400 border border-[#1e1e2d] hover:border-red-500/50'
+                                : 'bg-[#06060c] text-gray-400 border border-[#1f1f1f] hover:border-red-500/50'
                             }`}
                           >
                             🚀 Aggressive
@@ -580,56 +580,56 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                           {/* Compact inline inputs with better labels */}
                           <div className="flex items-center gap-3 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-gray-500" title="Maximum loss per trade">Max Loss</span>
+                              <span className="text-[10px] text-white/50" title="Maximum loss per trade">Max Loss</span>
                               <input
                                 type="number"
                                 value={editParams.stopLoss}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, stopLoss: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#06060c] border border-[#1e1e2d] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#06060c] border border-[#1f1f1f] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 max="0"
                               />
-                              <span className="text-[10px] text-gray-500">%</span>
+                              <span className="text-[10px] text-white/50">%</span>
                             </div>
                             
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-gray-500" title="Target profit to take">Target</span>
+                              <span className="text-[10px] text-white/50" title="Target profit to take">Target</span>
                               <input
                                 type="number"
                                 value={editParams.takeProfit}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, takeProfit: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#06060c] border border-[#1e1e2d] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#06060c] border border-[#1f1f1f] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0"
                               />
-                              <span className="text-[10px] text-gray-500">%</span>
+                              <span className="text-[10px] text-white/50">%</span>
                             </div>
                             
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-gray-500" title="Percentage of portfolio per trade">Trade Size</span>
+                              <span className="text-[10px] text-white/50" title="Percentage of portfolio per trade">Trade Size</span>
                               <input
                                 type="number"
                                 value={editParams.positionSize}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, positionSize: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#06060c] border border-[#1e1e2d] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#06060c] border border-[#1f1f1f] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0.5"
                                 max="100"
                               />
-                              <span className="text-[10px] text-gray-500">%</span>
+                              <span className="text-[10px] text-white/50">%</span>
                             </div>
                             
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-gray-500" title="Lock in profits as price rises">Lock Profits</span>
+                              <span className="text-[10px] text-white/50" title="Lock in profits as price rises">Lock Profits</span>
                               <input
                                 type="number"
                                 value={editParams.trailingStop}
                                 onChange={(e) => setEditParams(prev => ({ ...prev, trailingStop: parseFloat(e.target.value) || 0 }))}
-                                className="w-14 bg-[#06060c] border border-[#1e1e2d] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
+                                className="w-14 bg-[#06060c] border border-[#1f1f1f] rounded px-1.5 py-1 text-xs text-white font-mono focus:border-white/50 focus:outline-none text-center"
                                 step="0.5"
                                 min="0"
                               />
-                              <span className="text-[10px] text-gray-500">%</span>
+                              <span className="text-[10px] text-white/50">%</span>
                             </div>
                           </div>
                         </div>
@@ -656,19 +656,19 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                             </div>
                             <div className="grid grid-cols-4 gap-2">
                               <div className="bg-[#06060c] rounded p-2 border border-emerald-500/30">
-                                <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
+                                <div className="text-[10px] text-white/50 mb-0.5">Win Rate</div>
                                 <div className="text-sm font-semibold text-emerald-400">{editBacktestResults.winRate}%</div>
                               </div>
                               <div className="bg-[#06060c] rounded p-2 border border-emerald-500/30">
-                                <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
+                                <div className="text-[10px] text-white/50 mb-0.5">Profit Factor</div>
                                 <div className="text-sm font-semibold text-blue-400">{editBacktestResults.profitFactor}</div>
                               </div>
                               <div className="bg-[#06060c] rounded p-2 border border-emerald-500/30">
-                                <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
+                                <div className="text-[10px] text-white/50 mb-0.5">Sharpe Ratio</div>
                                 <div className="text-sm font-semibold text-purple-400">{editBacktestResults.sharpeRatio}</div>
                               </div>
                               <div className="bg-[#06060c] rounded p-2 border border-emerald-500/30">
-                                <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
+                                <div className="text-[10px] text-white/50 mb-0.5">Max Drawdown</div>
                                 <div className="text-sm font-semibold text-orange-400">-{editBacktestResults.maxDrawdown}%</div>
                               </div>
                             </div>
@@ -691,7 +691,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                               </button>
                               <button
                                 onClick={cancelEdit}
-                                className="text-sm font-medium text-gray-500 hover:text-gray-400 transition-colors"
+                                className="text-sm font-medium text-white/50 hover:text-gray-400 transition-colors"
                               >
                                 Cancel
                               </button>
@@ -715,7 +715,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                               </button>
                               <button
                                 onClick={cancelEdit}
-                                className="text-sm font-medium text-gray-500 hover:text-gray-400 transition-colors"
+                                className="text-sm font-medium text-white/50 hover:text-gray-400 transition-colors"
                               >
                                 Cancel
                               </button>
@@ -739,22 +739,22 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                     {/* Always show stats if available (not just during backtest) */}
                     {strategy.metrics && !isBacktesting && editingStrategyId !== strategy.id && (
                       <>
-                        <div className="text-xs text-gray-500 mb-2">Backtest Results</div>
+                        <div className="text-xs text-white/50 mb-2">Backtest Results</div>
                         <div className="grid grid-cols-4 gap-2 mb-3">
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Win Rate</div>
                             <div className="text-sm font-semibold text-emerald-400">{strategy.metrics.winRate}%</div>
                           </div>
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Profit Factor</div>
                             <div className="text-sm font-semibold text-blue-400">{strategy.metrics.profitFactor}</div>
                           </div>
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Sharpe Ratio</div>
                             <div className="text-sm font-semibold text-purple-400">{strategy.metrics.sharpeRatio}</div>
                           </div>
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Max Drawdown</div>
                             <div className="text-sm font-semibold text-orange-400">-{strategy.metrics.maxDrawdown}%</div>
                           </div>
                         </div>
@@ -762,8 +762,8 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                         {/* Strategy Code Preview */}
                         {strategy.code && (
                           <div className="mb-3">
-                            <div className="text-xs text-gray-500 mb-2">Strategy Code</div>
-                            <pre className="bg-[#06060c] rounded p-3 border border-[#1e1e2d] text-xs text-gray-400 font-mono overflow-x-auto max-h-32 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+                            <div className="text-xs text-white/50 mb-2">Strategy Code</div>
+                            <pre className="bg-[#06060c] rounded p-3 border border-[#1f1f1f] text-xs text-gray-400 font-mono overflow-x-auto max-h-32 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
                               {strategy.code}
                             </pre>
                           </div>
@@ -807,20 +807,20 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
                         </div>
 
                         <div className="grid grid-cols-4 gap-2 mb-3">
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Win Rate</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Win Rate</div>
                             <div className="text-sm font-semibold text-emerald-400">{strategy.metrics.winRate}%</div>
                           </div>
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Profit Factor</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Profit Factor</div>
                             <div className="text-sm font-semibold text-blue-400">{strategy.metrics.profitFactor}</div>
                           </div>
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Sharpe Ratio</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Sharpe Ratio</div>
                             <div className="text-sm font-semibold text-purple-400">{strategy.metrics.sharpeRatio}</div>
                           </div>
-                          <div className="bg-[#06060c] rounded p-2 border border-[#1e1e2d]">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Max Drawdown</div>
+                          <div className="bg-[#06060c] rounded p-2 border border-[#1f1f1f]">
+                            <div className="text-[10px] text-white/50 mb-0.5">Max Drawdown</div>
                             <div className="text-sm font-semibold text-orange-400">-{strategy.metrics.maxDrawdown}%</div>
                           </div>
                         </div>
@@ -878,7 +878,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
             <tr><td colSpan={columns.length} className={`px-4 py-16 text-center ${themeClasses.textMuted}`}>No {activeTab} to display</td></tr>
           ) : (
             sortedData.map((row, index) => (
-              <tr key={row.symbol || index} onClick={() => setSelectedRow(index)} className={`border-b border-[#1e1e2d] cursor-pointer ${selectedRow === index ? 'bg-[#3c4043] border-l-2 border-l-emerald-500' : 'hover:bg-[#0d0d12]'}`}>
+              <tr key={row.symbol || index} onClick={() => setSelectedRow(index)} className={`border-b border-[#1f1f1f] cursor-pointer ${selectedRow === index ? 'bg-[#3c4043] border-l-2 border-l-emerald-500' : 'hover:bg-[#0b0b0b]'}`}>
                 {columns.map((col) => (
                   <td key={col.key} className={`px-4 py-3 text-sm font-mono ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.colored ? getValueColor(row[col.key]) : themeClasses.text}`}>{renderCell(row, col)}</td>
                 ))}

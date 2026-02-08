@@ -40,7 +40,7 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
       </div>
       <div className="flex items-center gap-4">
         <span className={`text-xs ${themeClasses.textMuted} flex items-center gap-1`}>
-          <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-[10px] font-mono text-gray-500 border border-[#2a2a3d]">⌘K</kbd>
+          <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-[10px] font-mono text-white/50 border border-[#2a2a3d]">⌘K</kbd>
           <span className="text-gray-600">Command palette</span>
         </span>
         <MarketStatusIndicator compact />

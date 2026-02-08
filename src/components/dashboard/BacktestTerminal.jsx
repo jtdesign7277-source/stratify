@@ -104,7 +104,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-3xl mx-4 bg-[#0a0a0f] border border-emerald-500/30 rounded-lg shadow-[0_0_50px_rgba(16,185,129,0.15)] overflow-hidden">
+      <div className="w-full max-w-3xl mx-4 bg-[#0b0b0b] border border-emerald-500/30 rounded-lg shadow-[0_0_50px_rgba(16,185,129,0.15)] overflow-hidden">
         {/* Terminal Header */}
         <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-[#0d0d12] to-[#111118] border-b border-emerald-500/20">
           <div className="flex items-center gap-3">
@@ -124,7 +124,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
         </div>
 
         {/* Strategy Editor */}
-        <div className="px-4 py-3 bg-[#0d0d12] border-b border-gray-800">
+        <div className="px-4 py-3 bg-[#0b0b0b] border-b border-[#1f1f1f]">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Entry</label>
@@ -132,7 +132,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
                 type="text"
                 value={editableStrategy.entry || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, entry: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
               />
             </div>
             <div>
@@ -141,7 +141,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
                 type="text"
                 value={editableStrategy.exit || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, exit: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
               />
             </div>
             <div>
@@ -150,7 +150,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
                 type="text"
                 value={editableStrategy.stopLoss || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-red-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-red-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
               />
             </div>
             <div>
@@ -159,7 +159,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
                 type="text"
                 value={editableStrategy.positionSize || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, positionSize: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-blue-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-blue-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50"
               />
             </div>
           </div>
@@ -176,7 +176,7 @@ const BacktestTerminal = ({ isOpen, onClose, results, strategy, ticker, onRunBac
         {/* Terminal Output */}
         <div
           ref={terminalRef}
-          className="h-[400px] overflow-y-auto p-4 font-mono text-sm bg-[#0a0a0f]"
+          className="h-[400px] overflow-y-auto p-4 font-mono text-sm bg-[#0b0b0b]"
           style={{ scrollbarWidth: 'none' }}
         >
           {displayedLines.map((line, idx) => (

@@ -71,20 +71,20 @@ const Dropdown = ({ label, value, options, onChange, placeholder, searchable = f
       <label className="text-gray-400 text-[10px] font-semibold mb-1.5 block tracking-widest uppercase">{label}</label>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 bg-[#111118] border border-gray-800 rounded-lg text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-white/5 transition-all duration-200"
+        className="w-full px-3 py-2 bg-[#111111] border border-[#1f1f1f] rounded-lg text-left flex items-center justify-between hover:border-emerald-500/50 hover:bg-white/5 transition-all duration-200"
       >
-        <span className={displayValue ? 'text-white' : 'text-gray-500'}>
+        <span className={displayValue ? 'text-white' : 'text-white/50'}>
           {displayValue ? (displayValue.name || displayValue.symbol || displayValue.label) : placeholder}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-500" />
+        <ChevronDown className="w-4 h-4 text-white/50" />
       </button>
       
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-[#0d0d12] border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 w-full mt-1 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg shadow-xl overflow-hidden">
           {searchable && (
-            <div className="p-2 border-b border-gray-800">
-              <div className="flex items-center gap-2 bg-[#111118] border border-gray-700 rounded-lg px-2 py-1.5">
-                <Search className="w-4 h-4 text-gray-500" />
+            <div className="p-2 border-b border-[#1f1f1f]">
+              <div className="flex items-center gap-2 bg-[#111111] border border-[#2a2a2a] rounded-lg px-2 py-1.5">
+                <Search className="w-4 h-4 text-white/50" />
                 <input
                   type="text"
                   value={search}
@@ -104,7 +104,7 @@ const Dropdown = ({ label, value, options, onChange, placeholder, searchable = f
                 className="w-full px-3 py-2 text-left text-sm hover:bg-emerald-500/10 transition-colors flex items-center justify-between"
               >
                 <span className="text-white">{opt.name || opt.symbol || opt.label}</span>
-                {opt.symbol && <span className="text-gray-500 text-xs">${opt.symbol}</span>}
+                {opt.symbol && <span className="text-white/50 text-xs">${opt.symbol}</span>}
               </button>
             ))}
           </div>
@@ -146,9 +146,9 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
   const isValid = ticker && indicator && strategyType && timeframe;
 
   return (
-    <div className="w-80 h-full bg-[#0d0d12] border-l border-gray-800 flex flex-col overflow-hidden">
+    <div className="w-80 h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
           <Zap className="w-4 h-4 text-emerald-400" />
         </div>
@@ -196,7 +196,7 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 ${
                   timeframe === tf.id
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                    : 'bg-[#111118] text-gray-300 border border-gray-800 hover:border-emerald-500/50 hover:bg-white/5'
+                    : 'bg-[#111111] text-gray-300 border border-[#1f1f1f] hover:border-emerald-500/50 hover:bg-white/5'
                 }`}
               >
                 {tf.label}
@@ -208,7 +208,7 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
         {/* Backtest Period (auto) */}
         <div>
           <label className="text-gray-400 text-[10px] font-semibold mb-1.5 block tracking-widest uppercase">Backtest Period</label>
-          <div className="px-3 py-2 bg-[#111118] border border-gray-800 rounded-lg text-gray-400 text-sm">
+          <div className="px-3 py-2 bg-[#111111] border border-[#1f1f1f] rounded-lg text-gray-400 text-sm">
             {backtestPeriod} <span className="text-gray-600">(auto)</span>
           </div>
         </div>
@@ -223,7 +223,7 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
                   riskLevel === risk.id
                     ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-[#111118] border border-gray-800 hover:border-gray-700'
+                    : 'bg-[#111111] border border-[#1f1f1f] hover:border-[#2a2a2a]'
                 }`}
               >
                 <input
@@ -239,7 +239,7 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
                   {riskLevel === risk.id && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
                 </div>
                 <span className="text-white text-sm flex-1">{risk.name}</span>
-                <span className="text-gray-500 text-xs">{risk.percent}/trade</span>
+                <span className="text-white/50 text-xs">{risk.percent}/trade</span>
               </label>
             ))}
           </div>
@@ -276,9 +276,9 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
                 type="number"
                 value={stopLoss}
                 onChange={(e) => setStopLoss(e.target.value)}
-                className="w-20 px-2 py-1.5 bg-[#111118] border border-gray-800 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
+                className="w-20 px-2 py-1.5 bg-[#111111] border border-[#1f1f1f] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
               />
-              <span className="text-gray-500 text-sm">%</span>
+              <span className="text-white/50 text-sm">%</span>
             </div>
           )}
         </div>
@@ -305,9 +305,9 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
                 type="number"
                 value={takeProfit}
                 onChange={(e) => setTakeProfit(e.target.value)}
-                className="w-20 px-2 py-1.5 bg-[#111118] border border-gray-800 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
+                className="w-20 px-2 py-1.5 bg-[#111111] border border-[#1f1f1f] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
               />
-              <span className="text-gray-500 text-sm">%</span>
+              <span className="text-white/50 text-sm">%</span>
             </div>
           )}
         </div>
@@ -321,7 +321,7 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isPaper
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
-                  : 'bg-[#111118] text-gray-400 border border-gray-800 hover:border-gray-700'
+                  : 'bg-[#111111] text-gray-400 border border-[#1f1f1f] hover:border-[#2a2a2a]'
               }`}
             >
               📄 Paper
@@ -331,7 +331,7 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 !isPaper
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                  : 'bg-[#111118] text-gray-400 border border-gray-800 hover:border-gray-700'
+                  : 'bg-[#111111] text-gray-400 border border-[#1f1f1f] hover:border-[#2a2a2a]'
               }`}
             >
               💰 Live
@@ -341,14 +341,14 @@ const StrategyBuilderV1 = ({ onGenerate }) => {
       </div>
 
       {/* Generate Button */}
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-[#1f1f1f]">
         <button
           onClick={handleGenerate}
           disabled={!isValid}
           className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
             isValid
               ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 text-[#0b0b12] shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
-              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-800 text-white/50 cursor-not-allowed'
           }`}
         >
           🟢 Generate Strategy

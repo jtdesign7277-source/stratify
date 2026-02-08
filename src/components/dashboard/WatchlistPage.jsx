@@ -299,15 +299,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
   return (
-    <div className="flex-1 flex h-full bg-[#0d0d12] overflow-hidden">
+    <div className="flex-1 flex h-full bg-[#0b0b0b] overflow-hidden">
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
       {/* Watchlist Panel */}
-      <div className={`flex flex-col border-r border-gray-800 transition-all duration-300 ${
+      <div className={`flex flex-col border-r border-[#1f1f1f] transition-all duration-300 ${
         isCollapsed ? 'w-20' : selectedTicker ? 'w-96' : 'flex-1 max-w-xl'
       }`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        <div className="flex items-center justify-between p-4 border-b border-[#1f1f1f]">
           {!isCollapsed && (
             <div className="flex-1">
               <h1 className="font-semibold text-white text-xl">Watchlist</h1>
@@ -328,9 +328,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
         {/* Search */}
         {!isCollapsed && (
-          <div className="p-3 border-b border-gray-800 relative">
-            <div className="flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg px-3 py-2.5">
-              <Search className="w-4 h-4 text-gray-500" />
+          <div className="p-3 border-b border-[#1f1f1f] relative">
+            <div className="flex items-center gap-2 bg-[#111111] border border-[#2a2a2a] rounded-lg px-3 py-2.5">
+              <Search className="w-4 h-4 text-white/50" />
               <input
                 type="text"
                 value={searchQuery}
@@ -339,13 +339,13 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-white">
+                <button onClick={() => setSearchQuery('')} className="text-white/50 hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            <div className="mt-3 flex items-center gap-2 bg-[#0d1829] border border-gray-700 rounded-lg p-1">
+            <div className="mt-3 flex items-center gap-2 bg-[#111111] border border-[#2a2a2a] rounded-lg p-1">
               <button
                 type="button"
                 onClick={() => handleTabChange('stocks')}
@@ -371,11 +371,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             </div>
             
             {searchQuery && searchResults.length > 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
                 {searchResults.map((stock) => (
                   <div 
                     key={stock.symbol}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-gray-800/50 last:border-0 transition-colors"
+                    className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-[#1f1f1f]/50 last:border-0 transition-colors"
                     onClick={() => handleAddStock(stock)}
                   >
                     <div className="flex-1">
@@ -383,7 +383,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                       <span className="text-gray-400 text-sm ml-3">{stock.name}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-gray-500 text-xs">{stock.exchange}</span>
+                      <span className="text-white/50 text-xs">{stock.exchange}</span>
                       <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
                     </div>
                   </div>
@@ -392,7 +392,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             )}
 
             {searchQuery && searchResults.length === 0 && (
-              <div className="absolute left-3 right-3 top-full mt-1 bg-[#0d1829] border border-gray-700 rounded-lg p-4 text-center text-gray-400 text-sm z-50">
+              <div className="absolute left-3 right-3 top-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 text-center text-gray-400 text-sm z-50">
                 No results for "{searchQuery}"
               </div>
             )}
@@ -416,7 +416,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           )}
 
           {activeTab === 'crypto' && !cryptoLoading && Object.keys(cryptoQuotes).length === 0 && (
-            <div className="px-4 py-6 text-center text-gray-500 text-sm">
+            <div className="px-4 py-6 text-center text-white/50 text-sm">
               No crypto data available.
             </div>
           )}
@@ -431,15 +431,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             return (
               <div 
                 key={crypto.symbol}
-                className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
-                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#0d1829]'
+                className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#111111]'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => setSelectedTicker(crypto.symbol)}
               >
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">{crypto.symbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${Number.isFinite(price) ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${Number.isFinite(price) ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
                       {Number.isFinite(price) ? `$${formatCryptoPrice(price)}` : '...'}
                     </div>
                   </div>
@@ -447,7 +447,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                   <>
                     <div className="flex-1 min-w-0 pr-4">
                       <div className="text-white font-bold text-base">{crypto.symbol}</div>
-                      <div className="text-gray-500 text-sm truncate">{crypto.name}</div>
+                      <div className="text-white/50 text-sm truncate">{crypto.name}</div>
                     </div>
                     <div className="text-right flex-shrink-0 mr-3">
                       <div className="text-white font-semibold text-base font-mono">
@@ -483,15 +483,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                   e.dataTransfer.setData('text/plain', stock.symbol);
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
-                className={`flex items-center justify-between cursor-grab active:cursor-grabbing transition-all border-b border-gray-800/30 ${
-                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#0d1829]'
+                className={`flex items-center justify-between cursor-grab active:cursor-grabbing transition-all border-b border-[#1f1f1f]/30 ${
+                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#111111]'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => setSelectedTicker(stock.symbol)}
               >
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">${stock.symbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
                       {price > 0 ? `$${formatPrice(price)}` : '...'}
                     </div>
                   </div>
@@ -499,7 +499,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                   <>
                     <div className="flex-1 min-w-0 pr-4">
                       <div className="text-white font-bold text-base">${stock.symbol}</div>
-                      <div className="text-gray-500 text-sm truncate">{name}</div>
+                      <div className="text-white/50 text-sm truncate">{name}</div>
                     </div>
 
                     <div className="text-right flex-shrink-0 mr-3">
@@ -528,7 +528,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
         {/* Footer */}
         {!isCollapsed && (
-          <div className="p-3 border-t border-gray-800 flex items-center justify-between text-xs">
+          <div className="p-3 border-t border-[#1f1f1f] flex items-center justify-between text-xs">
             <span className="text-gray-400">{footerCount} symbols</span>
             <span className="text-blue-400">{footerLabel}</span>
           </div>
@@ -537,8 +537,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
       {/* TradingView Chart */}
       {selectedTicker && (
-        <div className="flex-1 flex flex-col bg-[#0d0d12] min-w-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+        <div className="flex-1 flex flex-col bg-[#0b0b0b] min-w-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f1f1f]">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-bold text-lg">${selectedTicker}</h2>
               <span className="text-gray-400 text-sm">{selectedName}</span>
@@ -559,8 +559,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       )}
 
       {!selectedTicker && (
-        <div className="flex-1 flex items-center justify-center bg-[#0d0d12]">
-          <div className="text-center text-gray-500">
+        <div className="flex-1 flex items-center justify-center bg-[#0b0b0b]">
+          <div className="text-center text-white/50">
             <p className="text-lg">Select a ticker to view chart</p>
             <p className="text-sm mt-1">Click any symbol from your watchlist</p>
           </div>

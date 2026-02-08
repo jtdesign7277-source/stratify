@@ -626,15 +626,15 @@ export default function Dashboard({
   }, [isDragging]);
 
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#0d0d12]',
-    surface: 'bg-[#0d0d12]',
-    surfaceElevated: 'bg-[#0f0f14]',
-    border: 'border-[#1e1e2d]',
+    bg: 'bg-[#0b0b0b]',
+    surface: 'bg-[#0b0b0b]',
+    surfaceElevated: 'bg-[#111111]',
+    border: 'border-[#1f1f1f]',
     text: 'text-white',
-    textMuted: 'text-gray-500',
-    green: 'text-emerald-400',
+    textMuted: 'text-white/50',
+    green: 'text-[#29e1a6]',
     red: 'text-red-400',
-    greenBg: 'bg-emerald-500/10',
+    greenBg: 'bg-[#29e1a6]/10',
     redBg: 'bg-red-500/10',
   } : {
     bg: 'bg-[#FFFFFF]',
@@ -804,13 +804,13 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'more' && (
-            <div className="h-full overflow-y-auto bg-[#0a0a0f] p-6" style={{ scrollbarWidth: 'none' }}>
+            <div className="h-full overflow-y-auto bg-[#0b0b0b] p-6" style={{ scrollbarWidth: 'none' }}>
               <div className="max-w-2xl mx-auto">
                 <h2 className="text-2xl font-semibold text-white mb-2">Account & Contact</h2>
                 <p className="text-gray-400 mb-8">Manage your account settings and get in touch with us.</p>
                 
                 {/* User Info Card */}
-                <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl p-6 mb-6">
+                <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl p-6 mb-6">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -819,20 +819,20 @@ export default function Dashboard({
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Name</label>
-                      <input type="text" defaultValue="Jeff Thompson" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                      <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Name</label>
+                      <input type="text" defaultValue="Jeff Thompson" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Email</label>
-                      <input type="email" defaultValue="jeff@stratify.associates" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                      <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Email</label>
+                      <input type="email" defaultValue="jeff@stratify.associates" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Phone</label>
-                      <input type="tel" placeholder="(555) 123-4567" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                      <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Phone</label>
+                      <input type="tel" placeholder="(555) 123-4567" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Timezone</label>
-                      <select className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                      <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Timezone</label>
+                      <select className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
                         <option>Eastern (EST)</option>
                         <option>Central (CST)</option>
                         <option>Mountain (MST)</option>
@@ -846,7 +846,7 @@ export default function Dashboard({
                 </div>
 
                 {/* Contact Form */}
-                <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl p-6 mb-6">
+                <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl p-6 mb-6">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -855,8 +855,8 @@ export default function Dashboard({
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Subject</label>
-                      <select className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                      <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Subject</label>
+                      <select className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
                         <option>General Inquiry</option>
                         <option>Technical Support</option>
                         <option>Billing Question</option>
@@ -866,8 +866,8 @@ export default function Dashboard({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Message</label>
-                      <textarea rows={4} placeholder="How can we help you?" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0a0a0f] px-4 py-2.5 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 resize-none" />
+                      <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Message</label>
+                      <textarea rows={4} placeholder="How can we help you?" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 resize-none" />
                     </div>
                     <button className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-medium transition-colors flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -879,22 +879,22 @@ export default function Dashboard({
                 </div>
 
                 {/* Quick Links */}
-                <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl p-6">
+                <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3>
                   <div className="grid grid-cols-2 gap-3">
-                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0a0a0f] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
+                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0b0b0b] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
                       <span className="text-2xl">📚</span>
                       <span className="text-white text-sm font-medium">Documentation</span>
                     </a>
-                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0a0a0f] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
+                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0b0b0b] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
                       <span className="text-2xl">💬</span>
                       <span className="text-white text-sm font-medium">Discord Community</span>
                     </a>
-                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0a0a0f] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
+                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0b0b0b] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
                       <span className="text-2xl">🐦</span>
                       <span className="text-white text-sm font-medium">Follow on X</span>
                     </a>
-                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0a0a0f] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
+                    <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0b0b0b] border border-[#2a2a3d] hover:border-emerald-500/40 transition-colors">
                       <span className="text-2xl">📧</span>
                       <span className="text-white text-sm font-medium">Email Support</span>
                     </a>

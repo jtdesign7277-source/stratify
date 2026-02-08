@@ -26,7 +26,7 @@ const HistoryPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -34,11 +34,11 @@ const HistoryPage = () => {
           <p className="text-gray-400 text-sm">View your past transactions</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 bg-[#111111] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
             <Calendar className="w-4 h-4" strokeWidth={1.5} />
             Date Range
           </button>
-          <button className="px-3 py-2 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 bg-[#111111] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
             <Filter className="w-4 h-4" strokeWidth={1.5} />
             Export
           </button>
@@ -47,15 +47,15 @@ const HistoryPage = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
           <div className="text-gray-400 text-sm mb-1">Total Trades</div>
           <div className="text-xl font-bold text-white">{stats.totalTrades}</div>
         </div>
-        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
           <div className="text-gray-400 text-sm mb-1">Buy Volume</div>
           <div className="text-xl font-bold text-emerald-400">${stats.buyVolume.toLocaleString()}</div>
         </div>
-        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
           <div className="text-gray-400 text-sm mb-1">Sell Volume</div>
           <div className="text-xl font-bold text-red-400">${stats.sellVolume.toLocaleString()}</div>
         </div>
@@ -63,7 +63,7 @@ const HistoryPage = () => {
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-1 bg-[#111118] border border-gray-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-[#111111] border border-[#1f1f1f] rounded-lg p-1">
           {['all', 'buy', 'sell'].map((f) => (
             <button
               key={f}
@@ -78,8 +78,8 @@ const HistoryPage = () => {
             </button>
           ))}
         </div>
-        <div className="flex-1 flex items-center gap-2 bg-[#111118] border border-gray-800 rounded-lg px-3 py-2">
-          <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+        <div className="flex-1 flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-2">
+          <Search className="w-4 h-4 text-white/50" strokeWidth={1.5} />
           <input
             type="text"
             placeholder="Search transactions..."
@@ -89,8 +89,8 @@ const HistoryPage = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-[#111118] border border-gray-800 rounded-xl flex-1 overflow-hidden flex flex-col">
-        <div className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-gray-800 text-xs text-gray-500 font-medium">
+      <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl flex-1 overflow-hidden flex flex-col">
+        <div className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-[#1f1f1f] text-xs text-white/50 font-medium">
           <div>Type</div>
           <div>Symbol</div>
           <div className="text-right">Shares</div>
@@ -105,7 +105,7 @@ const HistoryPage = () => {
           {filteredTransactions.map((tx) => (
             <div 
               key={tx.id} 
-              className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-gray-800/50 hover:bg-white/5 transition-colors"
+              className="grid grid-cols-8 gap-4 px-4 py-3 border-b border-[#1f1f1f]/50 hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-2">
                 {tx.type === 'buy' ? (
@@ -122,7 +122,7 @@ const HistoryPage = () => {
               <div className="text-right text-gray-300 text-sm font-mono">${tx.price.toLocaleString()}</div>
               <div className="text-right text-white text-sm font-medium">${tx.total.toLocaleString()}</div>
               <div className="text-gray-400 text-sm">{tx.date}</div>
-              <div className="text-gray-500 text-sm">{tx.time}</div>
+              <div className="text-white/50 text-sm">{tx.time}</div>
               <div>
                 <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs font-medium">
                   {tx.status}

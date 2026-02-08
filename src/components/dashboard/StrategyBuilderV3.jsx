@@ -98,16 +98,16 @@ const Dropdown = ({ label, value, options, onChange, placeholder }) => {
       <label className="text-gray-400 text-[10px] font-semibold mb-1 block tracking-widest uppercase">{label}</label>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 bg-[#111118] border border-gray-800 rounded-lg text-left flex items-center justify-between hover:border-emerald-500/50 transition-all text-sm"
+        className="w-full px-3 py-2 bg-[#111111] border border-[#1f1f1f] rounded-lg text-left flex items-center justify-between hover:border-emerald-500/50 transition-all text-sm"
       >
-        <span className={displayValue ? 'text-white' : 'text-gray-500'}>
+        <span className={displayValue ? 'text-white' : 'text-white/50'}>
           {displayValue ? (displayValue.name || displayValue.icon + ' ' + displayValue.name || displayValue.label) : placeholder}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-500" />
+        <ChevronDown className="w-4 h-4 text-white/50" />
       </button>
       
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-[#0d0d12] border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 w-full mt-1 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg shadow-xl overflow-hidden">
           <div className="max-h-40 overflow-y-auto">
             {options.map(opt => (
               <button
@@ -183,11 +183,11 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
   }, [isValid, selectedRisk]);
 
   return (
-    <div className="flex h-full bg-[#0a0a0f]">
+    <div className="flex h-full bg-[#0b0b0b]">
       {/* Left Panel - Form */}
-      <div className="w-80 border-r border-gray-800 flex flex-col overflow-hidden bg-[#0d0d12]">
+      <div className="w-80 border-r border-[#1f1f1f] flex flex-col overflow-hidden bg-[#0b0b0b]">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
+        <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
             <Zap className="w-4 h-4 text-emerald-400" />
           </div>
@@ -199,8 +199,8 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
           {/* Ticker Search */}
           <div>
             <label className="text-gray-400 text-[10px] font-semibold mb-1 block tracking-widest uppercase">Ticker</label>
-            <div className="flex items-center gap-2 bg-[#111118] border border-gray-800 rounded-lg px-2 py-1.5 mb-1">
-              <Search className="w-4 h-4 text-gray-500" />
+            <div className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-2 py-1.5 mb-1">
+              <Search className="w-4 h-4 text-white/50" />
               <input
                 type="text"
                 value={tickerSearch}
@@ -217,7 +217,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
                   className={`py-1.5 rounded-lg text-xs font-medium transition-all ${
                     ticker === t.symbol
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                      : 'bg-[#111118] text-gray-300 border border-gray-800 hover:border-emerald-500/30'
+                      : 'bg-[#111111] text-gray-300 border border-[#1f1f1f] hover:border-emerald-500/30'
                   }`}
                 >
                   ${t.symbol}
@@ -240,7 +240,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
                   className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     timeframe === tf.id
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                      : 'bg-[#111118] text-gray-300 border border-gray-800 hover:border-emerald-500/30'
+                      : 'bg-[#111111] text-gray-300 border border-[#1f1f1f] hover:border-emerald-500/30'
                   }`}
                 >
                   {tf.label}
@@ -260,7 +260,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
                   className={`flex-1 py-1.5 rounded-lg text-xs transition-all ${
                     riskLevel === risk.id
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                      : 'bg-[#111118] text-gray-300 border border-gray-800 hover:border-emerald-500/30'
+                      : 'bg-[#111111] text-gray-300 border border-[#1f1f1f] hover:border-emerald-500/30'
                   }`}
                 >
                   {risk.percent}
@@ -280,7 +280,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
                   className={`flex-1 py-1.5 rounded-lg text-xs transition-all ${
                     positionSize === size
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                      : 'bg-[#111118] text-gray-300 border border-gray-800 hover:border-emerald-500/30'
+                      : 'bg-[#111111] text-gray-300 border border-[#1f1f1f] hover:border-emerald-500/30'
                   }`}
                 >
                   {size}
@@ -291,7 +291,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
 
           {/* Stop Loss & Take Profit */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="p-2 bg-[#111118] border border-gray-800 rounded-lg">
+            <div className="p-2 bg-[#111111] border border-[#1f1f1f] rounded-lg">
               <label className="flex items-center gap-2 cursor-pointer text-xs">
                 <input
                   type="checkbox"
@@ -307,7 +307,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
                 <span className="text-gray-400">SL {stopLoss}%</span>
               </label>
             </div>
-            <div className="p-2 bg-[#111118] border border-gray-800 rounded-lg">
+            <div className="p-2 bg-[#111111] border border-[#1f1f1f] rounded-lg">
               <label className="flex items-center gap-2 cursor-pointer text-xs">
                 <input
                   type="checkbox"
@@ -332,7 +332,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                 isPaper
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
-                  : 'bg-[#111118] text-gray-400 border border-gray-800'
+                  : 'bg-[#111111] text-gray-400 border border-[#1f1f1f]'
               }`}
             >
               📄 Paper
@@ -342,7 +342,7 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                 !isPaper
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                  : 'bg-[#111118] text-gray-400 border border-gray-800'
+                  : 'bg-[#111111] text-gray-400 border border-[#1f1f1f]'
               }`}
             >
               💰 Live
@@ -351,14 +351,14 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
         </div>
 
         {/* Generate Button */}
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-4 border-t border-[#1f1f1f]">
           <button
             onClick={handleGenerate}
             disabled={!isValid}
             className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${
               isValid
                 ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 text-[#0b0b12] shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
-                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-800 text-white/50 cursor-not-allowed'
             }`}
           >
             🟢 Generate Strategy
@@ -370,10 +370,10 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
       <div className="flex-1 p-6 overflow-y-auto">
         {/* Ticker Card */}
         {selectedTicker ? (
-          <div className="mb-6 p-6 bg-[#0d0d12] border border-gray-800 rounded-2xl">
+          <div className="mb-6 p-6 bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <div className="text-gray-500 text-sm">{selectedTicker.name}</div>
+                <div className="text-white/50 text-sm">{selectedTicker.name}</div>
                 <div className="text-white text-3xl font-bold">${selectedTicker.symbol}</div>
               </div>
               <div className="text-right">
@@ -387,8 +387,8 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
             <MiniChart positive={selectedTicker.change >= 0} />
           </div>
         ) : (
-          <div className="mb-6 p-12 bg-[#0d0d12] border border-gray-800 border-dashed rounded-2xl flex items-center justify-center">
-            <div className="text-gray-500 text-center">
+          <div className="mb-6 p-12 bg-[#0b0b0b] border border-[#1f1f1f] border-dashed rounded-2xl flex items-center justify-center">
+            <div className="text-white/50 text-center">
               <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-30" />
               <div>Select a ticker to see preview</div>
             </div>
@@ -400,22 +400,22 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
           <>
             <h3 className="text-white text-lg font-semibold mb-4">Strategy Preview</h3>
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl">
-                <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Strategy</div>
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl">
+                <div className="text-white/50 text-xs uppercase tracking-wider mb-1">Strategy</div>
                 <div className="text-white font-semibold">
                   {selectedStrategy?.icon} {selectedStrategy?.name}
                 </div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl">
-                <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Indicator</div>
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl">
+                <div className="text-white/50 text-xs uppercase tracking-wider mb-1">Indicator</div>
                 <div className="text-white font-semibold">{selectedIndicator?.name}</div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl">
-                <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Timeframe</div>
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl">
+                <div className="text-white/50 text-xs uppercase tracking-wider mb-1">Timeframe</div>
                 <div className="text-white font-semibold">{selectedTimeframe?.label}</div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl">
-                <div className="text-gray-500 text-xs uppercase tracking-wider mb-1">Backtest</div>
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl">
+                <div className="text-white/50 text-xs uppercase tracking-wider mb-1">Backtest</div>
                 <div className="text-white font-semibold">{backtestPeriod}</div>
               </div>
             </div>
@@ -423,39 +423,39 @@ const StrategyBuilderV3 = ({ onGenerate }) => {
             {/* Mock Backtest Results */}
             <h3 className="text-white text-lg font-semibold mb-4">Estimated Performance</h3>
             <div className="grid grid-cols-5 gap-3">
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl text-center">
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-center">
                 <div className="text-emerald-400 text-2xl font-bold">{mockMetrics?.winRate}%</div>
-                <div className="text-gray-500 text-xs">Win Rate</div>
+                <div className="text-white/50 text-xs">Win Rate</div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl text-center">
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-center">
                 <div className="text-emerald-400 text-2xl font-bold">+{mockMetrics?.avgReturn}%</div>
-                <div className="text-gray-500 text-xs">Avg Return</div>
+                <div className="text-white/50 text-xs">Avg Return</div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl text-center">
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-center">
                 <div className="text-cyan-400 text-2xl font-bold">{mockMetrics?.sharpe}</div>
-                <div className="text-gray-500 text-xs">Sharpe</div>
+                <div className="text-white/50 text-xs">Sharpe</div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl text-center">
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-center">
                 <div className="text-red-400 text-2xl font-bold">-{mockMetrics?.maxDrawdown}%</div>
-                <div className="text-gray-500 text-xs">Max DD</div>
+                <div className="text-white/50 text-xs">Max DD</div>
               </div>
-              <div className="p-4 bg-[#0d0d12] border border-gray-800 rounded-xl text-center">
+              <div className="p-4 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-center">
                 <div className="text-white text-2xl font-bold">{mockMetrics?.trades}</div>
-                <div className="text-gray-500 text-xs">Trades</div>
+                <div className="text-white/50 text-xs">Trades</div>
               </div>
             </div>
 
             {/* Equity Curve Placeholder */}
-            <div className="mt-6 p-6 bg-[#0d0d12] border border-gray-800 rounded-xl">
-              <div className="text-gray-500 text-sm mb-4">Simulated Equity Curve</div>
+            <div className="mt-6 p-6 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl">
+              <div className="text-white/50 text-sm mb-4">Simulated Equity Curve</div>
               <div className="h-32">
                 <MiniChart positive data={[100, 102, 101, 105, 103, 108, 110, 109, 115, 113, 120, 118, 125]} />
               </div>
             </div>
           </>
         ) : (
-          <div className="p-12 bg-[#0d0d12] border border-gray-800 border-dashed rounded-2xl flex items-center justify-center">
-            <div className="text-gray-500 text-center">
+          <div className="p-12 bg-[#0b0b0b] border border-[#1f1f1f] border-dashed rounded-2xl flex items-center justify-center">
+            <div className="text-white/50 text-center">
               <Activity className="w-12 h-12 mx-auto mb-2 opacity-30" />
               <div>Complete the form to see strategy preview</div>
             </div>

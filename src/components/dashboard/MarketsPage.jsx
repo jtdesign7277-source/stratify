@@ -105,7 +105,7 @@ const MarketsPage = ({ themeClasses }) => {
   }, []);
 
   const MarketCard = ({ title, data, icon: Icon, showSymbol = true }) => (
-    <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+    <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
       <div className="flex items-center gap-2 mb-4">
         <Icon className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
         <h3 className="text-white font-medium">{title}</h3>
@@ -116,7 +116,7 @@ const MarketsPage = ({ themeClasses }) => {
             <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
           </div>
         ) : data.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-4">No data available</p>
+          <p className="text-white/50 text-sm text-center py-4">No data available</p>
         ) : (
           data.map((item, idx) => {
             const change = item.change || 0;
@@ -126,7 +126,7 @@ const MarketsPage = ({ themeClasses }) => {
             return (
               <div
                 key={item.symbol || item.name || idx}
-                className="flex items-center justify-between py-2 border-b border-gray-800/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors"
+                className="flex items-center justify-between py-2 border-b border-[#1f1f1f]/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors"
                 onMouseEnter={(e) => {
                   clearTimeout(hoverTimeout.current);
                   hoverTimeout.current = setTimeout(() => {
@@ -147,7 +147,7 @@ const MarketsPage = ({ themeClasses }) => {
                     {showSymbol && item.displaySymbol ? `$${item.displaySymbol}` : item.name}
                   </div>
                   {showSymbol && item.name && (
-                    <div className="text-gray-500 text-xs">{item.name}</div>
+                    <div className="text-white/50 text-xs">{item.name}</div>
                   )}
                 </div>
                 <div className="text-right">
@@ -180,7 +180,7 @@ const MarketsPage = ({ themeClasses }) => {
   ].map(s => ({ ...s, changePercent: s.change }));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-semibold text-white">Markets</h1>

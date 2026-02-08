@@ -80,10 +80,10 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-[#0f0f14] border border-amber-500/50 rounded-xl w-[440px] overflow-hidden shadow-2xl"
+        className="bg-[#111111] border border-amber-500/50 rounded-xl w-[440px] overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 py-3 border-b border-[#1e1e2d] bg-amber-500/10">
+        <div className="px-4 py-3 border-b border-[#1f1f1f] bg-amber-500/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-amber-400">🎯</span>
@@ -98,7 +98,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
           </div>
         </div>
         
-        <div className="px-4 py-4 border-b border-[#1e1e2d]">
+        <div className="px-4 py-4 border-b border-[#1f1f1f]">
           <div className="text-white font-medium mb-2">{arb.name}</div>
           <div className="text-xs text-gray-400 mb-3">Sharpe: {arb.sharpe} • Category: {arb.category}</div>
           
@@ -109,7 +109,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
               rel="noopener noreferrer"
               className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 hover:bg-emerald-500/20 transition-colors cursor-pointer block"
             >
-              <div className="text-[10px] text-gray-500 mb-1 flex items-center justify-between">
+              <div className="text-[10px] text-white/50 mb-1 flex items-center justify-between">
                 <span>Polymarket</span>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </div>
@@ -122,7 +122,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
               rel="noopener noreferrer"
               className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 hover:bg-red-500/20 transition-colors cursor-pointer block"
             >
-              <div className="text-[10px] text-gray-500 mb-1 flex items-center justify-between">
+              <div className="text-[10px] text-white/50 mb-1 flex items-center justify-between">
                 <span>Kalshi</span>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </div>
@@ -130,20 +130,20 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
               {amount > 0 && <div className="text-xs text-gray-400 mt-1">${noAllocation.toFixed(2)}</div>}
             </a>
           </div>
-          <p className="text-[10px] text-gray-500 mt-2 text-center">Click each platform to place your bets →</p>
+          <p className="text-[10px] text-white/50 mt-2 text-center">Click each platform to place your bets →</p>
         </div>
         
         <div className="px-4 py-4">
           <div className="mb-4">
-            <label className="text-xs text-gray-500 mb-1 block">Investment Amount</label>
+            <label className="text-xs text-white/50 mb-1 block">Investment Amount</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
               <input
                 type="number"
                 value={betAmount}
                 onChange={(e) => setBetAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-7 pr-4 py-3 bg-[#1e1e2d] border border-[#1e1e2d] rounded-lg text-white text-lg focus:border-amber-500 focus:outline-none"
+                className="w-full pl-7 pr-4 py-3 bg-[#1e1e2d] border border-[#1f1f1f] rounded-lg text-white text-lg focus:border-amber-500 focus:outline-none"
               />
             </div>
           </div>
@@ -153,7 +153,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
               <button
                 key={amt}
                 onClick={() => setBetAmount(amt.toString())}
-                className="flex-1 py-2 bg-[#1e1e2d] hover:bg-[#2a2a3d] border border-[#1e1e2d] rounded text-xs text-gray-300"
+                className="flex-1 py-2 bg-[#1e1e2d] hover:bg-[#2a2a3d] border border-[#1f1f1f] rounded text-xs text-gray-300"
               >
                 ${amt}
               </button>
@@ -163,16 +163,16 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
           <div className="bg-[#1e1e2d] rounded-lg p-4 mb-4">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Total Investment</span>
+                <span className="text-white/50">Total Investment</span>
                 <span className="text-white">${amount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Guaranteed Payout</span>
+                <span className="text-white/50">Guaranteed Payout</span>
                 <span className="text-white">${grossPayout.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600">Stratify Fee (0.5%)</span>
-                <span className="text-gray-500">-${houseFee.toFixed(2)}</span>
+                <span className="text-white/50">-${houseFee.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t border-amber-500/30 pt-2">
                 <span className="text-amber-400 font-medium">Net Profit</span>
@@ -207,7 +207,7 @@ const ArbBetSlipModal = ({ arb, onClose, onExecute }) => {
             >
               {amount > 0 ? `Track This Arb (+$${netProfit.toFixed(2)})` : 'Enter Amount to Track'}
             </button>
-            <p className="text-[10px] text-gray-500 text-center">Place bets on both platforms, then track here</p>
+            <p className="text-[10px] text-white/50 text-center">Place bets on both platforms, then track here</p>
           </div>
         </div>
       </div>
@@ -224,10 +224,10 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-[#0f0f14] border border-[#1e1e2d] rounded-xl w-[400px] overflow-hidden shadow-2xl"
+        className="bg-[#111111] border border-[#1f1f1f] rounded-xl w-[400px] overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 py-3 border-b border-[#1e1e2d] flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
           <span className="text-sm font-medium text-white">Scanner Settings</span>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +244,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
               step="0.1"
               value={localSettings.minSharpe}
               onChange={(e) => setLocalSettings({ ...localSettings, minSharpe: parseFloat(e.target.value) })}
-              className="w-full px-3 py-2 bg-[#1e1e2d] border border-[#1e1e2d] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-[#1e1e2d] border border-[#1f1f1f] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
             />
             <p className="text-[10px] text-gray-600 mt-1">Higher = less risk, fewer opportunities</p>
           </div>
@@ -256,7 +256,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
               step="0.5"
               value={localSettings.minSpread}
               onChange={(e) => setLocalSettings({ ...localSettings, minSpread: parseFloat(e.target.value) })}
-              className="w-full px-3 py-2 bg-[#1e1e2d] border border-[#1e1e2d] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-[#1e1e2d] border border-[#1f1f1f] rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
             />
           </div>
           
@@ -281,7 +281,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     localSettings.categories.includes(cat) || (cat === 'All' && localSettings.categories.includes('All'))
                       ? 'bg-amber-500/30 text-amber-400 border border-amber-500/50'
-                      : 'bg-[#1e1e2d] text-gray-400 border border-[#1e1e2d] hover:border-gray-500'
+                      : 'bg-[#1e1e2d] text-gray-400 border border-[#1f1f1f] hover:border-gray-500'
                   }`}
                 >
                   {cat}
@@ -301,7 +301,7 @@ const SettingsModal = ({ settings, onSave, onClose }) => {
           </div>
         </div>
         
-        <div className="px-4 py-3 border-t border-[#1e1e2d] flex gap-2">
+        <div className="px-4 py-3 border-t border-[#1f1f1f] flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 bg-[#1e1e2d] text-gray-400 text-sm rounded-lg hover:bg-[#2a2a3d]">
             Cancel
           </button>
@@ -410,7 +410,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       >
         <div className="flex items-center gap-2">
           <svg 
-            className={`w-4 h-4 text-gray-500 transition-transform ${activeSection === 'scanner' ? 'rotate-90' : ''}`} 
+            className={`w-4 h-4 text-white/50 transition-transform ${activeSection === 'scanner' ? 'rotate-90' : ''}`} 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -430,7 +430,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
             onClick={(e) => { e.stopPropagation(); setShowSettings(true); }}
             className="p-0.5 hover:bg-amber-500/20 rounded transition-colors"
           >
-            <svg className="w-3.5 h-3.5 text-gray-500 hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-white/50 hover:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -440,9 +440,9 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Arbitrage Scanner Content */}
       {activeSection === 'scanner' && (
-        <div className="max-h-64 overflow-y-auto bg-[#0d0d12] scrollbar-hide">
+        <div className="max-h-64 overflow-y-auto bg-[#0b0b0b] scrollbar-hide">
           {/* Settings Summary */}
-          <div className="px-3 py-1.5 border-b border-[#1e1e2d] text-[10px] text-gray-600 flex justify-between">
+          <div className="px-3 py-1.5 border-b border-[#1f1f1f] text-[10px] text-gray-600 flex justify-between">
             <span>Sharpe ≥ {settings.minSharpe} • Spread ≥ {settings.minSpread}%</span>
             <span className={dataSource === 'live' ? 'text-emerald-500' : 'text-amber-500'}>
               {dataSource === 'live' ? '● LIVE' : dataSource === 'loading' ? '○ Loading...' : '○ Demo'}
@@ -451,7 +451,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
           
           {filteredOpportunities.length === 0 ? (
             <div className="px-4 py-4 text-center">
-              <div className="text-gray-500 text-xs">No arbitrage opportunities found</div>
+              <div className="text-white/50 text-xs">No arbitrage opportunities found</div>
             </div>
           ) : (
             <div className="divide-y divide-[#2a2a2a]">
@@ -460,20 +460,20 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-white font-medium text-xs">{arb.name}</span>
-                      <span className="text-[9px] text-gray-500 bg-[#2a2a2a] px-1 py-0.5 rounded">{arb.category}</span>
+                      <span className="text-[9px] text-white/50 bg-[#2a2a2a] px-1 py-0.5 rounded">{arb.category}</span>
                     </div>
                     <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">+{arb.spread}%</span>
                   </div>
                   
                   {/* Compact Leg Preview */}
                   <div className="flex items-center gap-1 mb-1.5">
-                    <div className="flex-1 py-1 px-2 bg-[#0f0f14] rounded text-[10px] flex justify-between">
-                      <span className="text-gray-500">Poly</span>
+                    <div className="flex-1 py-1 px-2 bg-[#111111] rounded text-[10px] flex justify-between">
+                      <span className="text-white/50">Poly</span>
                       <span className="text-emerald-400">{arb.polymarket.side} {arb.polymarket.price}¢</span>
                     </div>
                     <span className="text-gray-600 text-[10px]">+</span>
-                    <div className="flex-1 py-1 px-2 bg-[#0f0f14] rounded text-[10px] flex justify-between">
-                      <span className="text-gray-500">Kalshi</span>
+                    <div className="flex-1 py-1 px-2 bg-[#111111] rounded text-[10px] flex justify-between">
+                      <span className="text-white/50">Kalshi</span>
                       <span className="text-red-400">{arb.kalshi.side} {arb.kalshi.price}¢</span>
                     </div>
                     <button
@@ -492,12 +492,12 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Open Bets Header */}
       <div 
-        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#1e1e2d] cursor-pointer transition-colors ${activeSection === 'openBets' ? 'bg-emerald-500/10' : 'hover:bg-[#12121a]'}`}
+        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#1f1f1f] cursor-pointer transition-colors ${activeSection === 'openBets' ? 'bg-emerald-500/10' : 'hover:bg-[#12121a]'}`}
         onClick={() => toggleSection('openBets')}
       >
         <div className="flex items-center gap-2">
           <svg 
-            className={`w-4 h-4 text-gray-500 transition-transform ${activeSection === 'openBets' ? 'rotate-90' : ''}`} 
+            className={`w-4 h-4 text-white/50 transition-transform ${activeSection === 'openBets' ? 'rotate-90' : ''}`} 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -513,9 +513,9 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* Open Bets Content */}
       {activeSection === 'openBets' && (
-        <div className="bg-[#0d0d12] max-h-48 overflow-y-auto scrollbar-hide">
+        <div className="bg-[#0b0b0b] max-h-48 overflow-y-auto scrollbar-hide">
           {openBets.length === 0 ? (
-            <div className="px-4 py-6 text-center text-gray-500 text-sm">No open bets</div>
+            <div className="px-4 py-6 text-center text-white/50 text-sm">No open bets</div>
           ) : (
             <div className="divide-y divide-[#2a2a2a]">
               {openBets.map((bet) => (
@@ -527,13 +527,13 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                     <span className="text-white text-sm">{bet.name}</span>
                     <span className="text-emerald-400 text-xs">+${bet.projectedProfit.toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-white/50">
                     <span>Invested: ${bet.totalInvested}</span>
                     <span>{formatTimeAgo(bet.placedAt)}</span>
                   </div>
                   
                   {/* Hover Popup */}
-                  <div className="absolute left-full top-0 ml-2 w-72 bg-[#0f0f14] border border-amber-500/30 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
+                  <div className="absolute left-full top-0 ml-2 w-72 bg-[#111111] border border-amber-500/30 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
                     <div className="px-3 py-2 border-b border-[#2a2a3d] bg-amber-500/10 rounded-t-lg">
                       <div className="flex items-center gap-2">
                         <span className="text-amber-400 text-xs">🎯</span>
@@ -543,19 +543,19 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                     <div className="p-3 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-2">
-                          <div className="text-[9px] text-gray-500 mb-0.5">Polymarket</div>
+                          <div className="text-[9px] text-white/50 mb-0.5">Polymarket</div>
                           <div className="text-emerald-400 text-xs font-medium">{bet.polymarket?.side} @ {bet.polymarket?.price}¢</div>
                           <div className="text-[10px] text-gray-400">${bet.polymarket?.amount?.toFixed(2)}</div>
                         </div>
                         <div className="bg-red-500/10 border border-red-500/30 rounded p-2">
-                          <div className="text-[9px] text-gray-500 mb-0.5">Kalshi</div>
+                          <div className="text-[9px] text-white/50 mb-0.5">Kalshi</div>
                           <div className="text-red-400 text-xs font-medium">{bet.kalshi?.side} @ {bet.kalshi?.price}¢</div>
                           <div className="text-[10px] text-gray-400">${bet.kalshi?.amount?.toFixed(2)}</div>
                         </div>
                       </div>
                       <div className="pt-2 border-t border-[#2a2a3d] space-y-1">
                         <div className="flex justify-between text-[10px]">
-                          <span className="text-gray-500">Total Invested</span>
+                          <span className="text-white/50">Total Invested</span>
                           <span className="text-white">${bet.totalInvested?.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-xs font-medium">
@@ -574,29 +574,29 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
       
       {/* History Header */}
       <div 
-        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#1e1e2d] cursor-pointer transition-colors ${activeSection === 'history' ? 'bg-gray-500/10' : 'hover:bg-[#12121a]'}`}
+        className={`h-10 flex-shrink-0 flex items-center justify-between px-3 border-t border-[#1f1f1f] cursor-pointer transition-colors ${activeSection === 'history' ? 'bg-gray-500/10' : 'hover:bg-[#12121a]'}`}
         onClick={() => toggleSection('history')}
       >
         <div className="flex items-center gap-2">
           <svg 
-            className={`w-4 h-4 text-gray-500 transition-transform ${activeSection === 'history' ? 'rotate-90' : ''}`} 
+            className={`w-4 h-4 text-white/50 transition-transform ${activeSection === 'history' ? 'rotate-90' : ''}`} 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
           </svg>
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className={`text-xs font-medium ${activeSection === 'history' ? 'text-gray-300' : 'text-gray-500'}`}>History</span>
+          <span className={`text-xs font-medium ${activeSection === 'history' ? 'text-gray-300' : 'text-white/50'}`}>History</span>
         </div>
         <span className="text-xs text-gray-600">{betHistory.length}</span>
       </div>
       
       {/* History Content */}
       {activeSection === 'history' && (
-        <div className="bg-[#0d0d12] max-h-48 overflow-y-auto scrollbar-hide">
+        <div className="bg-[#0b0b0b] max-h-48 overflow-y-auto scrollbar-hide">
           {betHistory.length === 0 ? (
-            <div className="px-4 py-6 text-center text-gray-500 text-sm">No bet history</div>
+            <div className="px-4 py-6 text-center text-white/50 text-sm">No bet history</div>
           ) : (
             <div className="divide-y divide-[#2a2a2a]">
               {betHistory.map((bet) => (
@@ -607,7 +607,7 @@ export default function ArbitragePanel({ themeClasses, embedded = false }) {
                       {bet.profit >= 0 ? '+' : ''}${bet.profit.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-white/50">
                     <span>Invested: ${bet.totalInvested}</span>
                     <span className={`${bet.status === 'won' ? 'text-emerald-500' : 'text-red-500'} uppercase text-[10px]`}>
                       {bet.status}

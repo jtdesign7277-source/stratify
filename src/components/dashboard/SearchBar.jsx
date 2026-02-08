@@ -223,7 +223,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
         transition-all duration-300 ease-out
         ${isFocused 
           ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10 scale-[1.02]' 
-          : 'border-[#1e1e2d] hover:border-[#2a2a3d]'
+          : 'border-[#1f1f1f] hover:border-[#2a2a3d]'
         }
       `}>
         {/* Animated sparkle icon */}
@@ -267,23 +267,23 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
             }}
             className="p-1 hover:bg-white/10 rounded-full transition-colors"
           >
-            <svg className="w-4 h-4 text-gray-500 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-white/50 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         ) : (
           <div className="flex items-center gap-1 text-[10px] text-gray-600 font-mono">
-            <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-gray-500">⌘</kbd>
-            <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-gray-500">K</kbd>
+            <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-white/50">⌘</kbd>
+            <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-white/50">K</kbd>
           </div>
         )}
       </div>
       
       {/* Premium Dropdown */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full mt-3 w-[420px] bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
+        <div className="absolute top-full mt-3 w-[420px] bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[#1e1e2d] flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingIcon />
               <span className="text-xs font-medium text-gray-400">Results for "{query}"</span>
@@ -299,7 +299,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
                 onClick={() => handleSelect(stock)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`
-                  group px-4 py-3 cursor-pointer border-b border-[#1e1e2d]/50 last:border-0
+                  group px-4 py-3 cursor-pointer border-b border-[#1f1f1f]/50 last:border-0
                   transition-all duration-150
                   ${index === selectedIndex 
                     ? 'bg-gradient-to-r from-cyan-500/10 to-transparent' 
@@ -330,7 +330,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
                           {stock.exchange}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500 truncate max-w-[200px]">{stock.name}</div>
+                      <div className="text-xs text-white/50 truncate max-w-[200px]">{stock.name}</div>
                     </div>
                   </div>
                   
@@ -366,7 +366,7 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
           </div>
           
           {/* Footer hint */}
-          <div className="px-4 py-2 border-t border-[#1e1e2d] bg-[#0f0f14]">
+          <div className="px-4 py-2 border-t border-[#1f1f1f] bg-[#111111]">
             <div className="flex items-center justify-between text-[10px] text-gray-600">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
@@ -386,9 +386,9 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
 
       {/* No results state */}
       {isOpen && query.length > 0 && results.length === 0 && !loading && (
-        <div className="absolute top-full mt-3 w-[420px] bg-[#0d0d12] border border-[#1e1e2d] rounded-2xl shadow-2xl z-50 p-8 text-center">
+        <div className="absolute top-full mt-3 w-[420px] bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl shadow-2xl z-50 p-8 text-center">
           <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-[#1e1e2d] flex items-center justify-center">
-            <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>

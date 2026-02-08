@@ -132,27 +132,27 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="w-full max-w-2xl bg-[#0d0d12] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-2xl bg-[#0b0b0b] border border-[#1f1f1f] rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-[#1f1f1f] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                   <Zap className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
                   <h2 className="text-white font-semibold text-lg">Strategy Builder</h2>
-                  <p className="text-gray-500 text-sm">Step {step} of {STEPS.length}: {STEPS[step-1].name}</p>
+                  <p className="text-white/50 text-sm">Step {step} of {STEPS.length}: {STEPS[step-1].name}</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-white/50" />
               </button>
             </div>
 
             {/* Progress Bar */}
-            <div className="px-6 py-3 border-b border-gray-800">
+            <div className="px-6 py-3 border-b border-[#1f1f1f]">
               <div className="flex gap-2">
                 {STEPS.map((s) => (
                   <div key={s.id} className="flex-1">
@@ -177,8 +177,8 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                     className="space-y-4"
                   >
                     <h3 className="text-white text-xl font-semibold">What do you want to trade?</h3>
-                    <div className="flex items-center gap-2 bg-[#111118] border border-gray-800 rounded-lg px-3 py-2">
-                      <Search className="w-5 h-5 text-gray-500" />
+                    <div className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-2">
+                      <Search className="w-5 h-5 text-white/50" />
                       <input
                         type="text"
                         value={tickerSearch}
@@ -195,11 +195,11 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                           className={`p-3 rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 ${
                             ticker === t.symbol
                               ? 'bg-emerald-500/20 border-2 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
-                              : 'bg-[#111118] border border-gray-800 hover:border-emerald-500/30 hover:bg-white/5'
+                              : 'bg-[#111111] border border-[#1f1f1f] hover:border-emerald-500/30 hover:bg-white/5'
                           }`}
                         >
                           <div className="text-white font-semibold">${t.symbol}</div>
-                          <div className="text-gray-500 text-xs truncate">{t.name}</div>
+                          <div className="text-white/50 text-xs truncate">{t.name}</div>
                         </button>
                       ))}
                     </div>
@@ -225,11 +225,11 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                             className={`p-3 rounded-xl text-left transition-all duration-200 hover:-translate-y-0.5 ${
                               indicator === ind.id
                                 ? 'bg-emerald-500/20 border-2 border-emerald-500/50'
-                                : 'bg-[#111118] border border-gray-800 hover:border-emerald-500/30'
+                                : 'bg-[#111111] border border-[#1f1f1f] hover:border-emerald-500/30'
                             }`}
                           >
                             <div className="text-white font-medium">{ind.name}</div>
-                            <div className="text-gray-500 text-xs">{ind.description}</div>
+                            <div className="text-white/50 text-xs">{ind.description}</div>
                           </button>
                         ))}
                       </div>
@@ -244,12 +244,12 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                             className={`p-3 rounded-xl text-center transition-all duration-200 hover:-translate-y-0.5 ${
                               strategyType === st.id
                                 ? 'bg-emerald-500/20 border-2 border-emerald-500/50'
-                                : 'bg-[#111118] border border-gray-800 hover:border-emerald-500/30'
+                                : 'bg-[#111111] border border-[#1f1f1f] hover:border-emerald-500/30'
                             }`}
                           >
                             <div className="text-2xl mb-1">{st.icon}</div>
                             <div className="text-white font-medium text-sm">{st.name}</div>
-                            <div className="text-gray-500 text-xs">{st.description}</div>
+                            <div className="text-white/50 text-xs">{st.description}</div>
                           </button>
                         ))}
                       </div>
@@ -275,7 +275,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                           className={`py-4 rounded-xl text-center transition-all duration-200 hover:-translate-y-0.5 ${
                             timeframe === tf.id
                               ? 'bg-emerald-500/20 border-2 border-emerald-500/50'
-                              : 'bg-[#111118] border border-gray-800 hover:border-emerald-500/30'
+                              : 'bg-[#111111] border border-[#1f1f1f] hover:border-emerald-500/30'
                           }`}
                         >
                           <div className="text-white font-semibold text-lg">{tf.label}</div>
@@ -283,7 +283,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                       ))}
                     </div>
                     {timeframe && (
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
                         <div className="text-gray-400 text-sm">Backtest period (auto-calculated)</div>
                         <div className="text-white text-lg font-semibold">{backtestPeriod}</div>
                       </div>
@@ -310,7 +310,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                             className={`flex-1 p-4 rounded-xl text-center transition-all duration-200 hover:-translate-y-0.5 ${
                               riskLevel === risk.id
                                 ? 'bg-emerald-500/20 border-2 border-emerald-500/50'
-                                : 'bg-[#111118] border border-gray-800 hover:border-emerald-500/30'
+                                : 'bg-[#111111] border border-[#1f1f1f] hover:border-emerald-500/30'
                             }`}
                           >
                             <div className="text-white font-semibold">{risk.name}</div>
@@ -329,7 +329,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                             className={`flex-1 py-3 rounded-xl text-center transition-all ${
                               positionSize === size
                                 ? 'bg-emerald-500/20 border-2 border-emerald-500/50 text-emerald-400'
-                                : 'bg-[#111118] border border-gray-800 text-gray-300 hover:border-emerald-500/30'
+                                : 'bg-[#111111] border border-[#1f1f1f] text-gray-300 hover:border-emerald-500/30'
                             }`}
                           >
                             {size}
@@ -338,7 +338,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
                         <label className="flex items-center gap-2 cursor-pointer mb-2">
                           <input
                             type="checkbox"
@@ -359,13 +359,13 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                               type="number"
                               value={stopLoss}
                               onChange={(e) => setStopLoss(e.target.value)}
-                              className="w-20 px-2 py-1.5 bg-[#0d0d12] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                              className="w-20 px-2 py-1.5 bg-[#0b0b0b] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-emerald-500"
                             />
-                            <span className="text-gray-500">%</span>
+                            <span className="text-white/50">%</span>
                           </div>
                         )}
                       </div>
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
                         <label className="flex items-center gap-2 cursor-pointer mb-2">
                           <input
                             type="checkbox"
@@ -386,9 +386,9 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                               type="number"
                               value={takeProfit}
                               onChange={(e) => setTakeProfit(e.target.value)}
-                              className="w-20 px-2 py-1.5 bg-[#0d0d12] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                              className="w-20 px-2 py-1.5 bg-[#0b0b0b] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-emerald-500"
                             />
-                            <span className="text-gray-500">%</span>
+                            <span className="text-white/50">%</span>
                           </div>
                         )}
                       </div>
@@ -407,31 +407,31 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                   >
                     <h3 className="text-white text-xl font-semibold">Review your strategy</h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
-                        <div className="text-gray-500 text-xs uppercase tracking-wider">Ticker</div>
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
+                        <div className="text-white/50 text-xs uppercase tracking-wider">Ticker</div>
                         <div className="text-white font-semibold">${selectedTicker?.symbol}</div>
                         <div className="text-gray-400 text-sm">{selectedTicker?.name}</div>
                       </div>
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
-                        <div className="text-gray-500 text-xs uppercase tracking-wider">Indicator</div>
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
+                        <div className="text-white/50 text-xs uppercase tracking-wider">Indicator</div>
                         <div className="text-white font-semibold">{selectedIndicator?.name}</div>
                       </div>
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
-                        <div className="text-gray-500 text-xs uppercase tracking-wider">Strategy</div>
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
+                        <div className="text-white/50 text-xs uppercase tracking-wider">Strategy</div>
                         <div className="text-white font-semibold">{selectedStrategy?.icon} {selectedStrategy?.name}</div>
                       </div>
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
-                        <div className="text-gray-500 text-xs uppercase tracking-wider">Timeframe</div>
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
+                        <div className="text-white/50 text-xs uppercase tracking-wider">Timeframe</div>
                         <div className="text-white font-semibold">{selectedTimeframe?.label}</div>
                         <div className="text-gray-400 text-sm">Backtest: {backtestPeriod}</div>
                       </div>
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
-                        <div className="text-gray-500 text-xs uppercase tracking-wider">Risk</div>
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
+                        <div className="text-white/50 text-xs uppercase tracking-wider">Risk</div>
                         <div className="text-white font-semibold">{selectedRisk?.name} ({selectedRisk?.percent})</div>
                         <div className="text-gray-400 text-sm">Position: {positionSize}</div>
                       </div>
-                      <div className="p-4 bg-[#111118] border border-gray-800 rounded-xl">
-                        <div className="text-gray-500 text-xs uppercase tracking-wider">Mode</div>
+                      <div className="p-4 bg-[#111111] border border-[#1f1f1f] rounded-xl">
+                        <div className="text-white/50 text-xs uppercase tracking-wider">Mode</div>
                         <div className={`font-semibold ${isPaper ? 'text-amber-400' : 'text-emerald-400'}`}>
                           {isPaper ? '📄 Paper Trading' : '💰 Live Trading'}
                         </div>
@@ -443,7 +443,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                         className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                           isPaper
                             ? 'bg-amber-500/20 text-amber-400 border-2 border-amber-500/50'
-                            : 'bg-[#111118] text-gray-400 border border-gray-800'
+                            : 'bg-[#111111] text-gray-400 border border-[#1f1f1f]'
                         }`}
                       >
                         📄 Paper
@@ -453,7 +453,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                         className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                           !isPaper
                             ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50'
-                            : 'bg-[#111118] text-gray-400 border border-gray-800'
+                            : 'bg-[#111111] text-gray-400 border border-[#1f1f1f]'
                         }`}
                       >
                         💰 Live
@@ -465,7 +465,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-800 flex items-center justify-between">
+            <div className="px-6 py-4 border-t border-[#1f1f1f] flex items-center justify-between">
               <button
                 onClick={() => setStep(s => Math.max(1, s - 1))}
                 disabled={step === 1}
@@ -485,7 +485,7 @@ const StrategyBuilderV2 = ({ isOpen, onClose, onGenerate }) => {
                   className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all ${
                     canProceed()
                       ? 'bg-emerald-500 text-white hover:bg-emerald-400'
-                      : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-800 text-white/50 cursor-not-allowed'
                   }`}
                 >
                   Next

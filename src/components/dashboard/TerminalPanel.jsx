@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 // Premium stat display
 const StatBadge = ({ label, value, color = 'white', trend }) => (
   <div className="text-right">
-    <div className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</div>
+    <div className="text-[10px] text-white/50 uppercase tracking-wider">{label}</div>
     <div className={`font-semibold tabular-nums text-sm ${
       color === 'green' ? 'text-emerald-400' : 
       color === 'red' ? 'text-red-400' : 
@@ -116,22 +116,22 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
   const isPositiveTotal = totals.pnl >= 0;
 
   const content = (
-    <div className="h-full flex flex-col bg-[#0d0d12]">
+    <div className="h-full flex flex-col bg-[#0b0b0b]">
       {/* Premium Summary Bar */}
       {activeStrategies.length > 0 && (
-        <div className="flex items-center justify-end gap-6 px-4 py-3 border-b border-[#1e1e2d] bg-gradient-to-r from-[#0f0f14] to-[#0d0d12]">
+        <div className="flex items-center justify-end gap-6 px-4 py-3 border-b border-[#1f1f1f] bg-gradient-to-r from-[#0f0f14] to-[#0d0d12]">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider">Total P&L:</span>
+            <span className="text-[10px] text-white/50 uppercase tracking-wider">Total P&L:</span>
             <span className={`font-bold tabular-nums ${isPositiveTotal ? 'text-emerald-400' : 'text-red-400'}`}>
               {isPositiveTotal ? '+' : ''}${totals.pnl.toFixed(2)}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider">Trades:</span>
+            <span className="text-[10px] text-white/50 uppercase tracking-wider">Trades:</span>
             <span className="text-white font-semibold tabular-nums">{totals.trades}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Win:</span>
+            <span className="text-[10px] text-white/50 uppercase tracking-wider">Avg Win:</span>
             <span className="text-emerald-400 font-semibold tabular-nums">{avgWinRate.toFixed(1)}%</span>
           </div>
         </div>
@@ -156,10 +156,10 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
             return (
               <div 
                 key={strategy.id}
-                className={`group relative bg-[#0f0f14] border rounded-xl p-4 transition-all duration-300 hover:bg-[#12121a] ${
+                className={`group relative bg-[#111111] border rounded-xl p-4 transition-all duration-300 hover:bg-[#12121a] ${
                   isPaused 
                     ? 'border-amber-500/40 hover:border-amber-500/60' 
-                    : 'border-[#1e1e2d] hover:border-emerald-500/40'
+                    : 'border-[#1f1f1f] hover:border-emerald-500/40'
                 }`}
               >
                 {/* Glow effect on hover */}
@@ -188,7 +188,7 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
 
                   {/* Middle: Runtime */}
                   <div className="text-center">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Runtime</div>
+                    <div className="text-[10px] text-white/50 uppercase tracking-wider">Runtime</div>
                     <div className="text-sm text-white font-mono tabular-nums">
                       {formatElapsedTime(strategy.deployedAt || Date.now())}
                     </div>
@@ -240,8 +240,8 @@ export default function TerminalPanel({ themeClasses, deployedStrategies = [], o
   if (embedded) return content;
 
   return (
-    <div className="flex flex-col bg-[#0d0d12] border-t border-[#1e1e2d] h-full">
-      <div className="h-10 flex items-center justify-between px-4 border-b border-[#1e1e2d] bg-[#0f0f14]">
+    <div className="flex flex-col bg-[#0b0b0b] border-t border-[#1f1f1f] h-full">
+      <div className="h-10 flex items-center justify-between px-4 border-b border-[#1f1f1f] bg-[#111111]">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />

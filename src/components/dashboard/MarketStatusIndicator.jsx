@@ -221,7 +221,7 @@ const MarketStatusIndicator = ({ compact = false }) => {
           {marketState.label}
         </span>
         {marketState.countdown && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-white/50">
             {formatCountdown(marketState.countdown)}
           </span>
         )}
@@ -231,7 +231,7 @@ const MarketStatusIndicator = ({ compact = false }) => {
 
   return (
     <motion.div 
-      className={`bg-[#0d0d12] border ${config.borderColor} rounded-lg p-3 min-w-[200px]`}
+      className={`bg-[#0b0b0b] border ${config.borderColor} rounded-lg p-3 min-w-[200px]`}
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -253,14 +253,14 @@ const MarketStatusIndicator = ({ compact = false }) => {
       
       {/* Current time */}
       <div className="flex items-center gap-1.5 mb-2">
-        <Clock className="w-3 h-3 text-gray-500" />
+        <Clock className="w-3 h-3 text-white/50" />
         <span className="text-xs text-gray-400 font-mono">{timeDisplay} ET</span>
       </div>
       
       {/* Countdown to next event */}
       {marketState.countdown && (
         <div className={`flex items-center justify-between px-2 py-1.5 rounded ${config.bgColor}`}>
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+          <span className="text-[10px] text-white/50 uppercase tracking-wider">
             {marketState.nextEvent}
           </span>
           <AnimatePresence mode="wait">
@@ -279,7 +279,7 @@ const MarketStatusIndicator = ({ compact = false }) => {
       
       {/* Weekend/Holiday message */}
       {!marketState.countdown && marketState.nextEvent && (
-        <div className="text-[10px] text-gray-500 text-center py-1">
+        <div className="text-[10px] text-white/50 text-center py-1">
           {marketState.nextEvent}
         </div>
       )}

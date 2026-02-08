@@ -22,7 +22,7 @@ const ChartPreview = ({ symbol, position }) => {
       <div className="px-3 py-2 border-b border-[#2a2e39] flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
         <span className="text-sm text-white font-medium">{symbol}</span>
-        <span className="text-xs text-gray-500">Live Chart</span>
+        <span className="text-xs text-white/50">Live Chart</span>
       </div>
       <iframe
         src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_widget&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=0&hideideas=1&hide_top_toolbar=1&hide_legend=1&allow_symbol_change=0`}
@@ -282,7 +282,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
   }, [tradePanelStrategy]);
 
   return (
-    <div className="relative h-screen bg-[#0a0a0f] text-white overflow-hidden flex flex-col">
+    <div className="relative h-screen bg-[#0b0b0b] text-white overflow-hidden flex flex-col">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_50%)]" />
       <canvas ref={confettiCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
 
@@ -304,7 +304,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
             </AnimatePresence>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">Active</div>
+            <div className="text-[10px] text-white/50 uppercase tracking-wider">Active</div>
             <div className="text-xl font-semibold text-white">{strategies.length}</div>
           </div>
         </div>
@@ -349,7 +349,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                 }}
                 role="button"
                 tabIndex={0}
-                className="group relative rounded-lg border border-[#1e1e2d] bg-[#0f0f16] p-2.5 hover:border-emerald-500/40 hover:shadow-[inset_-2px_0_12px_rgba(16,185,129,0.15)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+                className="group relative rounded-lg border border-[#1f1f1f] bg-[#0f0f16] p-2.5 hover:border-emerald-500/40 hover:shadow-[inset_-2px_0_12px_rgba(16,185,129,0.15)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
               >
                 {/* Bottom edge tab - click for details */}
                 <div className="absolute -bottom-0 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-t-md bg-emerald-500/20 border border-b-0 border-emerald-500/30 opacity-0 group-hover:opacity-100 group-hover:-translate-y-0 translate-y-1 transition-all duration-200">
@@ -357,7 +357,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                 </div>
                 {/* Row 1: Ticker + Status + Share */}
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/50">
                     {strategy.symbol}
                   </span>
                   <div className="flex items-center gap-1">
@@ -482,14 +482,14 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
               onClick={() => setTradePanelOpen(false)}
             />
             <motion.aside
-              className="fixed left-0 top-0 z-50 h-full w-full sm:w-[420px] bg-[#0f0f16] border-r border-[#1e1e2d] shadow-[0_0_45px_rgba(0,0,0,0.6)] flex flex-col"
+              className="fixed left-0 top-0 z-50 h-full w-full sm:w-[420px] bg-[#0f0f16] border-r border-[#1f1f1f] shadow-[0_0_45px_rgba(0,0,0,0.6)] flex flex-col"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', stiffness: 260, damping: 32 }}
             >
               {/* Sticky Header - stays fixed while scrolling */}
-              <div className="flex-shrink-0 border-b border-[#1e1e2d] bg-[#0f0f16]">
+              <div className="flex-shrink-0 border-b border-[#1f1f1f] bg-[#0f0f16]">
                 {/* Top row: Title + Close */}
                 <div className="px-5 pt-5 pb-3 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_60%)]">
                   <div className="flex items-start justify-between gap-4">
@@ -501,7 +501,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                     </div>
                     <button
                       onClick={() => setTradePanelOpen(false)}
-                      className="w-9 h-9 rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] hover:border-emerald-500/40 hover:bg-emerald-500/10 transition flex items-center justify-center"
+                      className="w-9 h-9 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] hover:border-emerald-500/40 hover:bg-emerald-500/10 transition flex items-center justify-center"
                     >
                       <X className="w-4 h-4 text-gray-400 hover:text-emerald-300" fill="none" strokeWidth={1.5} />
                     </button>
@@ -509,8 +509,8 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                 </div>
                 
                 {/* P&L Summary - Live updating */}
-                <div className="px-5 py-3 bg-[#0a0a0f] border-t border-[#1e1e2d]">
-                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Total Return</div>
+                <div className="px-5 py-3 bg-[#0b0b0b] border-t border-[#1f1f1f]">
+                  <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Total Return</div>
                   <div className="flex items-baseline gap-5">
                     <AnimatePresence mode="popLayout">
                       <motion.div
@@ -538,7 +538,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-lg border border-[#1e1e2d] bg-[#0a0a0f] p-4 transition hover:border-emerald-500/30 hover:shadow-[0_0_18px_rgba(16,185,129,0.08)]"
+                      className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-4 transition hover:border-emerald-500/30 hover:shadow-[0_0_18px_rgba(16,185,129,0.08)]"
                     >
                       {/* Header: Date + P&L */}
                       <div className="flex items-center justify-between mb-3">
@@ -548,13 +548,13 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                       
                       {/* Entry / Exit prices */}
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1e1e2d] p-2.5">
-                          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Entry</div>
+                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1f1f1f] p-2.5">
+                          <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">Entry</div>
                           <div className="text-sm font-semibold text-white">{formatPrice(trade.entryPrice)}</div>
                         </div>
-                        <div className="text-gray-500">→</div>
-                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1e1e2d] p-2.5">
-                          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Exit</div>
+                        <div className="text-white/50">→</div>
+                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1f1f1f] p-2.5">
+                          <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">Exit</div>
                           <div className={`text-sm font-semibold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>{formatPrice(trade.exitPrice)}</div>
                         </div>
                       </div>

@@ -313,7 +313,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
                 className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   m.role === 'user'
                     ? 'bg-emerald-600 text-white rounded-br-sm'
-                    : 'bg-[#252530] text-[#e5e5e5] border border-white/5 rounded-bl-sm'
+                    : 'bg-[#111111] text-[#e5e5e5] border border-white/5 rounded-bl-sm'
                 }`}
               >
                 <span className="whitespace-pre-wrap">{m.content}</span>
@@ -326,7 +326,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           
           {isLoading && messages[messages.length - 1]?.role === 'user' && (
             <div className="flex justify-start">
-              <div className="bg-[#252530] rounded-xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-2 border border-white/5">
+              <div className="bg-[#111111] rounded-xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-2 border border-white/5">
                 <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
                 <span className="text-gray-400 text-sm">Thinking...</span>
               </div>
@@ -336,7 +336,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
         </div>
 
         {/* Input */}
-        <div className="p-3 border-t border-white/10 bg-[#0d0d12]" data-no-drag>
+        <div className="p-3 border-t border-white/10 bg-[#0b0b0b]" data-no-drag>
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -351,7 +351,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
               }}
               placeholder="Ask Grok..."
               rows={1}
-              className="flex-1 min-h-[44px] max-h-24 rounded-xl bg-[#1a1a1f] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none transition-all"
+              className="flex-1 min-h-[44px] max-h-24 rounded-xl bg-[#111111] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none transition-all"
               style={{ scrollbarWidth: 'none' }}
             />
             <button
@@ -362,7 +362,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
               className={`h-11 w-11 flex-shrink-0 flex items-center justify-center rounded-xl transition-all duration-200 ${
                 chatInput.trim() && !isLoading
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
-                  : 'bg-[#1a1a1f] text-gray-600 border border-white/10'
+                  : 'bg-[#111111] text-gray-600 border border-white/10'
               }`}
             >
               {isLoading ? (

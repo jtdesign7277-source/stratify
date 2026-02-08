@@ -203,7 +203,7 @@ const DemoPanel = () => {
 
   return (
     <div
-      className={`relative flex-1 h-full bg-[#0d0d12] text-white ${
+      className={`relative flex-1 h-full bg-[#0b0b0b] text-white ${
         introComplete ? 'overflow-y-auto' : 'overflow-hidden'
       }`}
     >
@@ -320,7 +320,7 @@ const DemoPanel = () => {
 
         {/* Live P&L */}
         <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-          <div className="rounded-2xl border border-white/10 bg-[#111118] p-4">
+          <div className="rounded-2xl border border-white/10 bg-[#111111] p-4">
             <div className="text-sm font-semibold text-white/80">Live P&amp;L Ticker</div>
             <div className="mt-4 flex items-end gap-3">
               <div className="text-2xl font-semibold text-emerald-300">
@@ -343,7 +343,7 @@ const DemoPanel = () => {
               Profits auto-compound into balance every 60s
             </div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-[#111118] p-4">
+          <div className="rounded-2xl border border-white/10 bg-[#111111] p-4">
             <div className="text-sm font-semibold text-white/80">Live Demo Feed</div>
             <div className="mt-3 space-y-2 text-[0.8rem] text-gray-300">
               {[
@@ -369,7 +369,7 @@ const DemoPanel = () => {
               <motion.div
                 key={strategy.id}
                 layout
-                className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#111118] p-4"
+                className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#111111] p-4"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -382,20 +382,20 @@ const DemoPanel = () => {
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
                   <div>
-                    <div className="text-gray-500">Win rate</div>
+                    <div className="text-white/50">Win rate</div>
                     <div className="text-emerald-300 font-semibold">{strategy.winRate}%</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Total return</div>
+                    <div className="text-white/50">Total return</div>
                     <div className="text-emerald-300 font-semibold">+{strategy.totalReturn}%</div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Trades</div>
+                    <div className="text-white/50">Trades</div>
                     <div className="text-white font-semibold">{strategy.trades}</div>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center justify-between">
-                  <div className="text-[0.65rem] text-gray-500">Auto-risk filters + smart sizing</div>
+                  <div className="text-[0.65rem] text-white/50">Auto-risk filters + smart sizing</div>
                   <button
                     onClick={() => handleDeploy(strategy.id)}
                     disabled={Boolean(deployingId)}
@@ -411,7 +411,7 @@ const DemoPanel = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex items-center justify-center bg-[#0d0d12]/80 backdrop-blur-sm"
+                      className="absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/80 backdrop-blur-sm"
                     >
                       <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}

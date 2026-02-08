@@ -67,11 +67,11 @@ const GrokBrainIcon = ({ className = "w-full h-full" }) => (
 
 // Stat card with animation
 const StatCard = ({ label, value, subValue, icon, color = 'cyan', trend }) => (
-  <div className="group relative bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-5 hover:border-[#2a2a3d] transition-all duration-300 overflow-hidden">
+  <div className="group relative bg-[#111111] border border-[#1f1f1f] rounded-2xl p-5 hover:border-[#2a2a3d] transition-all duration-300 overflow-hidden">
     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
     <div className="relative">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">{label}</span>
+        <span className="text-xs text-white/50 uppercase tracking-wider font-medium">{label}</span>
         {icon && <span className="text-lg">{icon}</span>}
       </div>
       <div className="flex items-end gap-2">
@@ -87,7 +87,7 @@ const StatCard = ({ label, value, subValue, icon, color = 'cyan', trend }) => (
           </span>
         )}
       </div>
-      {subValue && <p className="text-xs text-gray-500 mt-1">{subValue}</p>}
+      {subValue && <p className="text-xs text-white/50 mt-1">{subValue}</p>}
     </div>
   </div>
 );
@@ -102,7 +102,7 @@ const ProgressBar = ({ value, max, color = 'cyan', showLabel = true }) => {
       {showLabel && (
         <div className="flex justify-between text-xs">
           <span className="text-gray-400">{value.toLocaleString()} / {max.toLocaleString()}</span>
-          <span className={isNearLimit ? 'text-amber-400' : 'text-gray-500'}>{percent.toFixed(0)}%</span>
+          <span className={isNearLimit ? 'text-amber-400' : 'text-white/50'}>{percent.toFixed(0)}%</span>
         </div>
       )}
       <div className="h-2 bg-[#1a1a24] rounded-full overflow-hidden">
@@ -136,12 +136,12 @@ const Toggle = ({ enabled, onChange, label }) => (
 
 // Broker card
 const BrokerCard = ({ broker, onConnect }) => (
-  <div className={`relative bg-[#0f0f14] border rounded-xl p-4 transition-all duration-300 ${
+  <div className={`relative bg-[#111111] border rounded-xl p-4 transition-all duration-300 ${
     broker.connected 
       ? 'border-emerald-500/30 hover:border-emerald-500/50' 
       : broker.status === 'coming_soon'
-        ? 'border-[#1e1e2d] opacity-60'
-        : 'border-[#1e1e2d] hover:border-[#2a2a3d]'
+        ? 'border-[#1f1f1f] opacity-60'
+        : 'border-[#1f1f1f] hover:border-[#2a2a3d]'
   }`}>
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -151,16 +151,16 @@ const BrokerCard = ({ broker, onConnect }) => (
           {broker.connected ? (
             <p className="text-xs text-emerald-400">Connected • Synced {broker.lastSync}</p>
           ) : broker.status === 'coming_soon' ? (
-            <p className="text-xs text-gray-500">Coming soon</p>
+            <p className="text-xs text-white/50">Coming soon</p>
           ) : (
-            <p className="text-xs text-gray-500">Not connected</p>
+            <p className="text-xs text-white/50">Not connected</p>
           )}
         </div>
       </div>
       {broker.connected ? (
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <button className="text-xs text-gray-500 hover:text-red-400 transition-colors">Disconnect</button>
+          <button className="text-xs text-white/50 hover:text-red-400 transition-colors">Disconnect</button>
         </div>
       ) : broker.status !== 'coming_soon' && (
         <button 
@@ -190,7 +190,7 @@ const ActivityItem = ({ activity }) => {
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-300 truncate">{activity.text}</p>
       </div>
-      <span className="text-xs text-gray-500 whitespace-nowrap">{activity.time}</span>
+      <span className="text-xs text-white/50 whitespace-nowrap">{activity.time}</span>
     </div>
   );
 };
@@ -228,14 +228,14 @@ const PaymentModal = ({ plan, onClose, onComplete }) => {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-[#12121a] border border-[#2a2a3d] rounded-2xl w-[440px] shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-[#1e1e2d]">
+        <div className="p-6 border-b border-[#1f1f1f]">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Upgrade to {selectedPlan?.name}</h2>
-              <p className="text-sm text-gray-500 mt-1">${selectedPlan?.price}/month • Cancel anytime</p>
+              <p className="text-sm text-white/50 mt-1">${selectedPlan?.price}/month • Cancel anytime</p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-[#1e1e2d] rounded-lg transition-colors">
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -244,45 +244,45 @@ const PaymentModal = ({ plan, onClose, onComplete }) => {
         
         <div className="p-6 space-y-4">
           <div>
-            <label className="text-xs text-gray-500 mb-2 block">Card Number</label>
+            <label className="text-xs text-white/50 mb-2 block">Card Number</label>
             <input
               type="text"
               value={cardNumber}
               onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim())}
               placeholder="1234 5678 9012 3456"
-              className="w-full px-4 py-3.5 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
+              className="w-full px-4 py-3.5 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
             />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-500 mb-2 block">Expiry</label>
+              <label className="text-xs text-white/50 mb-2 block">Expiry</label>
               <input
                 type="text"
                 value={expiry}
                 onChange={(e) => setExpiry(e.target.value.replace(/\D/g, '').slice(0, 4).replace(/(.{2})/, '$1/'))}
                 placeholder="MM/YY"
-                className="w-full px-4 py-3.5 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
+                className="w-full px-4 py-3.5 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-2 block">CVC</label>
+              <label className="text-xs text-white/50 mb-2 block">CVC</label>
               <input
                 type="text"
                 value={cvc}
                 onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="123"
-                className="w-full px-4 py-3.5 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
+                className="w-full px-4 py-3.5 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-white placeholder-gray-600 focus:border-cyan-500/50 focus:outline-none transition-colors font-mono"
               />
             </div>
           </div>
           
-          <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-xl p-4 space-y-3">
+          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-4 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Stratify {selectedPlan?.name}</span>
+              <span className="text-white/50">Stratify {selectedPlan?.name}</span>
               <span className="text-white">${selectedPlan?.price}.00/mo</span>
             </div>
-            <div className="border-t border-[#1e1e2d] pt-3 flex justify-between">
+            <div className="border-t border-[#1f1f1f] pt-3 flex justify-between">
               <span className="text-white font-medium">Total today</span>
               <span className="text-white font-semibold">${selectedPlan?.price}.00</span>
             </div>
@@ -357,7 +357,7 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-white mb-2">Plans & Billing</h2>
-        <p className="text-gray-500">Choose the plan that fits your trading style</p>
+        <p className="text-white/50">Choose the plan that fits your trading style</p>
       </div>
 
       {/* Upgrade Success */}
@@ -380,7 +380,7 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
               className={`relative rounded-2xl p-6 transition-all duration-300 ${
                 isCurrentPlan 
                   ? 'bg-gradient-to-b from-[#1a1a24] to-[#12121a] border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/10' 
-                  : 'bg-[#0f0f14] border border-[#1e1e2d] hover:border-[#2a2a3d]'
+                  : 'bg-[#111111] border border-[#1f1f1f] hover:border-[#2a2a3d]'
               }`}
             >
               {isCurrentPlan && (
@@ -392,7 +392,7 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
               <h3 className="text-lg font-semibold text-white mb-2">{plan.name}</h3>
               <div className="mb-4">
                 <span className="text-3xl font-bold text-white">${plan.price}</span>
-                <span className="text-gray-500 text-sm">/mo</span>
+                <span className="text-white/50 text-sm">/mo</span>
               </div>
               
               <ul className="space-y-2.5 mb-6">
@@ -407,7 +407,7 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
               </ul>
               
               {isCurrentPlan ? (
-                <button disabled className="w-full py-3 bg-[#1e1e2d] text-gray-500 text-sm font-medium rounded-xl cursor-default">
+                <button disabled className="w-full py-3 bg-[#1e1e2d] text-white/50 text-sm font-medium rounded-xl cursor-default">
                   Current Plan
                 </button>
               ) : (
@@ -466,7 +466,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
 
       <div>
         <h2 className="text-2xl font-bold text-white mb-2">Account Settings</h2>
-        <p className="text-gray-500">Manage your profile and security</p>
+        <p className="text-white/50">Manage your profile and security</p>
       </div>
 
       {saved && (
@@ -479,13 +479,13 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
       )}
 
       {/* Profile Section */}
-      <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6 space-y-6">
+      <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6 space-y-6">
         <h3 className="text-lg font-semibold text-white">Profile</h3>
         
         <div className="flex items-center gap-6">
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-0.5">
-              <div className="relative w-full h-full rounded-[14px] bg-[#0d0d12] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+              <div className="relative w-full h-full rounded-[14px] bg-[#0b0b0b] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
                 {user.avatar === 'brain' ? (
                   <GrokBrainIcon />
                 ) : user.avatar ? (
@@ -512,7 +512,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
             </button>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Profile Photo</p>
+            <p className="text-sm text-white/50">Profile Photo</p>
             <p className="text-xs text-gray-600 mt-1">JPG, PNG or GIF. Max 2MB.</p>
             {avatarError && (
               <p className="text-xs text-amber-400 mt-2">{avatarError}</p>
@@ -531,21 +531,21 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-gray-500 mb-2 block">Full Name</label>
+            <label className="text-xs text-white/50 mb-2 block">Full Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-2 block">Email Address</label>
+            <label className="text-xs text-white/50 mb-2 block">Email Address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0d0d12] border border-[#1e1e2d] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl text-white focus:border-cyan-500/50 focus:outline-none transition-colors"
             />
           </div>
         </div>
@@ -560,13 +560,13 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
       </div>
 
       {/* Security Section */}
-      <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6 space-y-5">
+      <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6 space-y-5">
         <h3 className="text-lg font-semibold text-white">Security</h3>
         
         <div className="flex items-center justify-between py-3 border-b border-[#1a1a24]">
           <div>
             <p className="text-sm text-white font-medium">Two-Factor Authentication</p>
-            <p className="text-xs text-gray-500 mt-0.5">Add an extra layer of security</p>
+            <p className="text-xs text-white/50 mt-0.5">Add an extra layer of security</p>
           </div>
           <Toggle enabled={user.twoFactorEnabled} onChange={() => {}} />
         </div>
@@ -574,7 +574,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
         <div className="flex items-center justify-between py-3">
           <div>
             <p className="text-sm text-white font-medium">Password</p>
-            <p className="text-xs text-gray-500 mt-0.5">Last changed 30 days ago</p>
+            <p className="text-xs text-white/50 mt-0.5">Last changed 30 days ago</p>
           </div>
           <button className="px-4 py-2 text-xs font-medium bg-[#1e1e2d] hover:bg-[#2a2a3d] text-white rounded-lg transition-colors">
             Change
@@ -585,7 +585,7 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
       {/* Danger Zone */}
       <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
         <h3 className="text-lg font-semibold text-red-400 mb-2">Danger Zone</h3>
-        <p className="text-sm text-gray-500 mb-4">Once you delete your account, there is no going back.</p>
+        <p className="text-sm text-white/50 mb-4">Once you delete your account, there is no going back.</p>
         <button className="px-4 py-2 text-sm font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl transition-colors">
           Delete Account
         </button>
@@ -659,7 +659,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
   // Sub-views
   if (activeView === 'billing') {
     return (
-      <div className="h-full overflow-y-auto bg-[#0d0d12] p-8">
+      <div className="h-full overflow-y-auto bg-[#0b0b0b] p-8">
         <div className="max-w-4xl mx-auto">
           <BillingView 
             onClose={() => setActiveView('main')} 
@@ -673,7 +673,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
   if (activeView === 'account') {
     return (
-      <div className="h-full overflow-y-auto bg-[#0d0d12] p-8">
+      <div className="h-full overflow-y-auto bg-[#0b0b0b] p-8">
         <div className="max-w-3xl mx-auto">
           <input
             ref={fileInputRef}
@@ -698,7 +698,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
   // Main settings view
   return (
-    <div className="h-full overflow-y-auto bg-[#0d0d12]">
+    <div className="h-full overflow-y-auto bg-[#0b0b0b]">
       <input
         ref={fileInputRef}
         type="file"
@@ -717,7 +717,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
         <div className="flex items-center justify-between mb-10">
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">Settings</h1>
-            <p className="text-gray-500">Manage your account and preferences</p>
+            <p className="text-white/50">Manage your account and preferences</p>
           </div>
           {onClose && (
             <button 
@@ -732,14 +732,14 @@ export default function SettingsPage({ themeClasses, onClose }) {
         </div>
 
         {/* User Profile Hero */}
-        <div className="relative bg-gradient-to-br from-[#12121a] via-[#0f0f14] to-[#12121a] border border-[#1e1e2d] rounded-3xl p-8 mb-8 overflow-hidden">
+        <div className="relative bg-gradient-to-br from-[#12121a] via-[#0f0f14] to-[#12121a] border border-[#1f1f1f] rounded-3xl p-8 mb-8 overflow-hidden">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMDIwMzAiIGZpbGwtb3BhY2l0eT0iMC40Ij48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzLTItMi00LTJjMCAwIDAtMiAwLTRzMi00IDItNGMtMiAwLTQtMi00LTJzLTIgMi0yIDRjMCAwLTIgMC00IDBzLTQgMi00IDJjMCAyIDIgNCAyIDRzLTIgMi00IDJjMCAyIDIgNCAyIDRzMi0yIDQtMmMwIDAgMi0yIDQtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20" />
           
           <div className="relative flex items-center gap-8">
             {/* Avatar */}
             <div className="relative group">
               <div className="w-28 h-28 rounded-3xl border border-[#2a2a3d] bg-[#12121a]">
-                <div className="relative w-full h-full rounded-3xl bg-[#0d0d12] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+                <div className="relative w-full h-full rounded-3xl bg-[#0b0b0b] flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
                   {user.avatar === 'brain' ? (
                     <GrokBrainIcon />
                   ) : user.avatar ? (
@@ -777,16 +777,16 @@ export default function SettingsPage({ themeClasses, onClose }) {
               <p className="text-gray-400 mb-4">{user.email}</p>
               <div className="flex items-center gap-6 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500">Member since</span>
+                  <span className="text-white/50">Member since</span>
                   <span className="text-white font-medium">Nov 2024</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500">Timezone</span>
+                  <span className="text-white/50">Timezone</span>
                   <span className="text-white font-medium">{user.timezone}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${user.twoFactorEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="text-gray-500">2FA {user.twoFactorEnabled ? 'Enabled' : 'Disabled'}</span>
+                  <span className="text-white/50">2FA {user.twoFactorEnabled ? 'Enabled' : 'Disabled'}</span>
                 </div>
               </div>
             </div>
@@ -819,13 +819,13 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
         {/* Usage & Limits */}
         <div className="grid grid-cols-2 gap-5 mb-8">
-          <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6">
             <SectionHeader title="Usage" />
             <div className="space-y-5">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-400">Grok AI Queries</span>
-                  <span className="text-xs text-gray-500">{PLANS[currentPlan].name} Plan</span>
+                  <span className="text-xs text-white/50">{PLANS[currentPlan].name} Plan</span>
                 </div>
                 <ProgressBar value={stats.grokQueries} max={stats.grokLimit} color="cyan" />
               </div>
@@ -839,7 +839,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
           </div>
 
           {/* Activity Feed */}
-          <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6">
             <SectionHeader title="Recent Activity" action={() => {}} actionLabel="View All" />
             <div className="space-y-1">
               {activity.slice(0, 4).map(item => (
@@ -850,7 +850,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
         </div>
 
         {/* Connected Brokers */}
-        <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6 mb-8">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6 mb-8">
           <SectionHeader title="Connected Brokers" action={() => {}} actionLabel="Add Broker" />
           <div className="grid grid-cols-2 gap-4">
             {brokers.map(broker => (
@@ -862,7 +862,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
         {/* Quick Settings */}
         <div className="grid grid-cols-3 gap-5">
           {/* Notifications */}
-          <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-5">Notifications</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -881,7 +881,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
           </div>
 
           {/* Display */}
-          <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-5">Display</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -900,9 +900,9 @@ export default function SettingsPage({ themeClasses, onClose }) {
           </div>
 
           {/* API */}
-          <div className="bg-[#0f0f14] border border-[#1e1e2d] rounded-2xl p-6">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-5">API Access</h3>
-            <p className="text-sm text-gray-500 mb-4">Generate API keys for programmatic access</p>
+            <p className="text-sm text-white/50 mb-4">Generate API keys for programmatic access</p>
             <button className="w-full py-3 bg-[#1e1e2d] hover:bg-[#2a2a3d] text-white text-sm font-medium rounded-xl transition-colors border border-[#2a2a3d]">
               Generate API Key
             </button>

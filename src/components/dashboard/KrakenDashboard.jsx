@@ -445,9 +445,9 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
       animate={{ height: "auto", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="overflow-hidden border-b border-[#1e1e2d]"
+      className="overflow-hidden border-b border-[#1f1f1f]"
     >
-      <div className="p-6 bg-[#0d0d12] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+      <div className="p-6 bg-[#0b0b0b] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -490,14 +490,14 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
         {/* Balance Sections */}
         <div className="grid grid-cols-2 gap-6">
           {/* Connected Accounts / Spot Balances */}
-          <div className="bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
+          <div className="bg-[#06060c] rounded-xl p-4 border border-[#1f1f1f]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Connected Accounts</h3>
               <span className="text-white font-mono font-medium">${totalSpot.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="space-y-3">
               {spotBalances.map((account, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-[#1e1e2d] last:border-0">
+                <div key={i} className="flex items-center justify-between py-2 border-b border-[#1f1f1f] last:border-0">
                   <div>
                     <div className="text-white font-medium">{account.broker}</div>
                     <div className="text-xs text-[#6b6b80]">{account.accountType}</div>
@@ -524,7 +524,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
           </div>
           
           {/* Trading Stats */}
-          <div className="bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
+          <div className="bg-[#06060c] rounded-xl p-4 border border-[#1f1f1f]">
             <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider mb-4">Trading Stats</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -554,7 +554,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
         </div>
         
         {/* Portfolio Growth Chart */}
-        <div className="mt-6 bg-[#06060c] rounded-xl p-4 border border-[#1e1e2d]">
+        <div className="mt-6 bg-[#06060c] rounded-xl p-4 border border-[#1f1f1f]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Portfolio Growth</h3>
@@ -630,9 +630,9 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
       animate={{ height: "auto", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="overflow-hidden border-b border-[#1e1e2d]"
+      className="overflow-hidden border-b border-[#1f1f1f]"
     >
-      <div className="p-6 bg-[#0d0d12] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="p-6 bg-[#0b0b0b] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -658,7 +658,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
 
         {/* Search & Filter */}
         <div className="flex gap-3 mb-6">
-          <div className="flex-1 flex items-center gap-2 bg-[#06060c] border border-[#1e1e2d] rounded-xl px-4 py-2.5">
+          <div className="flex-1 flex items-center gap-2 bg-[#06060c] border border-[#1f1f1f] rounded-xl px-4 py-2.5">
             <svg className="w-4 h-4 text-[#6b6b80]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -672,7 +672,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
           <select
             value={riskFilter}
             onChange={(e) => setRiskFilter(e.target.value)}
-            className="bg-[#06060c] border border-[#1e1e2d] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
+            className="bg-[#06060c] border border-[#1f1f1f] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
           >
             <option>All</option>
             <option>Low</option>
@@ -691,7 +691,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
             {filteredStrategies.map((strategy) => (
               <div
                 key={strategy.name}
-                className="group bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-blue-500/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all cursor-pointer"
+                className="group bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4 hover:border-blue-500/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-2xl">{strategy.icon}</span>
@@ -718,14 +718,14 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {savedStrategies.length === 0 ? (
-              <div className="min-w-[200px] bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 text-sm text-[#6b6b80]">
+              <div className="min-w-[200px] bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4 text-sm text-[#6b6b80]">
                 No saved strategies yet
               </div>
             ) : (
               savedStrategies.slice(0, 5).map((strategy) => (
                 <div
                   key={strategy.id}
-                  className="min-w-[180px] bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-emerald-500/40 transition-all cursor-pointer"
+                  className="min-w-[180px] bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4 hover:border-emerald-500/40 transition-all cursor-pointer"
                 >
                   <h4 className="text-white font-medium text-sm mb-1 truncate">{strategy.name}</h4>
                   <p className="text-xs text-[#6b6b80] mb-2">{strategy.type || 'Custom'}</p>
@@ -733,7 +733,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
                 </div>
               ))
             )}
-            <button className="min-w-[140px] bg-[#06060c] border border-dashed border-[#1e1e2d] rounded-xl p-4 text-sm text-[#6b6b80] hover:text-white hover:border-blue-500/50 transition-all flex items-center justify-center gap-2">
+            <button className="min-w-[140px] bg-[#06060c] border border-dashed border-[#1f1f1f] rounded-xl p-4 text-sm text-[#6b6b80] hover:text-white hover:border-blue-500/50 transition-all flex items-center justify-center gap-2">
               <span className="text-lg">＋</span>
               Add New
             </button>
@@ -751,7 +751,7 @@ const StrategiesPanel = ({ savedStrategies = [], deployedStrategies = [], onClos
             {EXPLORE_MORE.map((item) => (
               <div
                 key={item.title}
-                className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-[#2a2a3d] transition-all cursor-pointer group"
+                className="bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a3d] transition-all cursor-pointer group"
               >
                 <div className="text-2xl mb-2">{item.icon}</div>
                 <p className="text-sm text-white font-medium group-hover:text-cyan-400 transition-colors">{item.title}</p>
@@ -833,9 +833,9 @@ const ArbOppsPanel = ({ onClose }) => {
       animate={{ height: "auto", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="overflow-hidden border-b border-[#1e1e2d]"
+      className="overflow-hidden border-b border-[#1f1f1f]"
     >
-      <div className="p-6 bg-[#0d0d12] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="p-6 bg-[#0b0b0b] max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -874,7 +874,7 @@ const ArbOppsPanel = ({ onClose }) => {
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                 selectedMarket === market 
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
-                  : 'bg-[#06060c] text-[#6b6b80] border border-[#1e1e2d] hover:border-[#2a2a3d] hover:text-white'
+                  : 'bg-[#06060c] text-[#6b6b80] border border-[#1f1f1f] hover:border-[#2a2a3d] hover:text-white'
               }`}
             >
               {market}
@@ -884,23 +884,23 @@ const ArbOppsPanel = ({ onClose }) => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+          <div className="bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4">
             <div className="text-2xl font-bold text-white font-mono">{opportunities.length}</div>
             <div className="text-xs text-[#6b6b80]">Active Opps</div>
           </div>
-          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+          <div className="bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4">
             <div className="text-2xl font-bold text-emerald-400 font-mono">
               {opportunities.length > 0 ? (opportunities.reduce((sum, o) => sum + (o.spread || 0), 0) / opportunities.length).toFixed(1) : '0'}%
             </div>
             <div className="text-xs text-[#6b6b80]">Avg Spread</div>
           </div>
-          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+          <div className="bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4">
             <div className="text-2xl font-bold text-cyan-400 font-mono">
               ${opportunities.length > 0 ? Math.round(opportunities.reduce((sum, o) => sum + (o.spread || 0), 0) / opportunities.length * 10) : '0'}
             </div>
             <div className="text-xs text-[#6b6b80]">Avg Profit/1K</div>
           </div>
-          <div className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4">
+          <div className="bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4">
             <div className="text-2xl font-bold text-amber-400 font-mono">
               {opportunities.filter(o => o.confidence === 'High').length}
             </div>
@@ -933,7 +933,7 @@ const ArbOppsPanel = ({ onClose }) => {
           {!loading && opportunities.map((opp) => (
             <div
               key={opp.id}
-              className="bg-[#06060c] border border-[#1e1e2d] rounded-xl p-4 hover:border-cyan-500/40 transition-all cursor-pointer group"
+              className="bg-[#06060c] border border-[#1f1f1f] rounded-xl p-4 hover:border-cyan-500/40 transition-all cursor-pointer group"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -952,7 +952,7 @@ const ArbOppsPanel = ({ onClose }) => {
               
               <div className="grid grid-cols-3 gap-4">
                 {/* Polymarket */}
-                <div className="bg-[#0d0d12] rounded-lg p-3">
+                <div className="bg-[#0b0b0b] rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-5 h-5 rounded bg-purple-500/20 flex items-center justify-center">
                       <span className="text-[10px] font-bold text-purple-400">P</span>
@@ -964,7 +964,7 @@ const ArbOppsPanel = ({ onClose }) => {
                 </div>
                 
                 {/* Kalshi */}
-                <div className="bg-[#0d0d12] rounded-lg p-3">
+                <div className="bg-[#0b0b0b] rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center">
                       <span className="text-[10px] font-bold text-emerald-400">K</span>
@@ -1302,9 +1302,9 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   // Kraken theme classes
   const themeClasses = {
     bg: 'bg-[#06060c]',
-    surface: 'bg-[#0d0d12]',
+    surface: 'bg-[#0b0b0b]',
     surfaceElevated: 'bg-[#12121a]',
-    border: 'border-[#1e1e2d]',
+    border: 'border-[#1f1f1f]',
     text: 'text-[#e0e0e6]',
     textMuted: 'text-[#6b6b80]',
     green: 'text-emerald-400',

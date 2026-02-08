@@ -74,8 +74,8 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       lines.push({ type: 'header', text: '║                              [ v2.0 CLASSIFIED ]                             ║', color: 'text-emerald-500/50' });
       lines.push({ type: 'header', text: '╚══════════════════════════════════════════════════════════════════════════════╝', color: 'text-emerald-500/50' });
       lines.push({ type: 'blank', text: '' });
-      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to Alpaca Markets API`, color: 'text-gray-500' });
-      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-gray-500' });
+      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to Alpaca Markets API`, color: 'text-white/50' });
+      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-white/50' });
       lines.push({ type: 'blank', text: '' });
       
       lines.push({ type: 'info', text: `▸ TARGET:     ${results.symbol || strat?.ticker || 'N/A'}`, color: 'text-cyan-400' });
@@ -151,7 +151,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       }
 
       lines.push({ type: 'blank', text: '' });
-      lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ Analysis complete`, color: 'text-gray-500' });
+      lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ Analysis complete`, color: 'text-white/50' });
       lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ System ready for deployment`, color: 'text-emerald-500' });
       lines.push({ type: 'blank', text: '' });
       lines.push({ type: 'cursor', text: '> █', color: 'text-emerald-400 animate-pulse' });
@@ -240,7 +240,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0f]">
+    <div className="h-full flex flex-col bg-[#0b0b0b]">
       {/* Terminal Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-[#0d0d12] via-[#111118] to-[#0d0d12] border-b border-emerald-500/20">
         <div className="flex items-center gap-4">
@@ -250,15 +250,15 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           </div>
           <div>
             <h1 className="text-lg font-mono font-bold text-emerald-400 tracking-wider">GROK TERMINAL</h1>
-            <p className="text-[10px] text-gray-500 font-mono">ENCRYPTED • AI-POWERED BACKTEST ENGINE v2.0</p>
+            <p className="text-[10px] text-white/50 font-mono">ENCRYPTED • AI-POWERED BACKTEST ENGINE v2.0</p>
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-2 text-gray-500">
+          <div className="flex items-center gap-2 text-white/50">
             <Cpu className="w-3.5 h-3.5" />
             <span>GROK-3</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-500">
+          <div className="flex items-center gap-2 text-white/50">
             <Activity className="w-3.5 h-3.5 text-emerald-500" />
             <span className="text-emerald-500">ONLINE</span>
           </div>
@@ -267,7 +267,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
 
       <div className="flex-1 flex overflow-hidden">
         {/* Strategy Editor Panel - Collapsible */}
-        <div className={`${isCollapsed ? 'w-14' : 'w-72'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+        <div className={`${isCollapsed ? 'w-14' : 'w-72'} border-r border-[#1f1f1f] bg-[#0b0b0b] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
           <div className={`flex ${isCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
             {isCollapsed ? (
               <>
@@ -303,7 +303,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.name || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-white text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-white text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="My RSI Strategy"
               />
             </div>
@@ -313,7 +313,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.ticker || ticker || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, ticker: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-cyan-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-cyan-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="TSLA"
               />
             </div>
@@ -322,7 +322,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <textarea
                 value={editableStrategy.entry || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, entry: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
                 rows={2}
                 placeholder="Buy when RSI < 30..."
               />
@@ -332,7 +332,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <textarea
                 value={editableStrategy.exit || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, exit: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
                 rows={2}
                 placeholder="Sell when RSI > 70..."
               />
@@ -343,7 +343,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.stopLoss || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-red-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-red-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="5%"
               />
             </div>
@@ -353,7 +353,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.positionSize || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, positionSize: e.target.value }))}
-                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-blue-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-blue-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="100 shares"
               />
             </div>
@@ -373,7 +373,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         </div>
 
         {/* Recent Tests Panel - Collapsible */}
-        <div className={`${isHistoryCollapsed ? 'w-14' : 'w-64'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+        <div className={`${isHistoryCollapsed ? 'w-14' : 'w-64'} border-r border-[#1f1f1f] bg-[#0b0b0b] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
           <div className={`flex ${isHistoryCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
             {isHistoryCollapsed ? (
               <>
@@ -405,7 +405,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
             <>
               {history.length > 0 && (
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] text-gray-500 font-mono">{history.length} tests</span>
+                  <span className="text-[10px] text-white/50 font-mono">{history.length} tests</span>
                   <button
                     onClick={handleClearHistory}
                     className="text-[10px] text-gray-600 hover:text-red-400 transition-colors font-mono"
@@ -452,7 +452,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         {/* Terminal Output */}
         <div
           ref={terminalRef}
-          className="flex-1 overflow-y-auto p-6 font-mono text-sm bg-[#0a0a0f]"
+          className="flex-1 overflow-y-auto p-6 font-mono text-sm bg-[#0b0b0b]"
           style={{ scrollbarWidth: 'none' }}
         >
           {displayedLines.length === 0 && !isLoading && (
@@ -471,7 +471,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           ))}
           {isLoading && displayedLines.length === 0 && (
             <div className="text-emerald-400 animate-pulse">
-              <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
+              <span className="text-white/50">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
             </div>
           )}
           
@@ -482,7 +482,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 <Rocket className="w-4 h-4 text-emerald-400" />
                 <span className="text-emerald-400 font-mono text-sm font-medium">DEPLOY THIS STRATEGY?</span>
               </div>
-              <p className="text-gray-500 text-xs mb-3 font-mono">
+              <p className="text-white/50 text-xs mb-3 font-mono">
                 Strategy will begin live trading with your configured parameters.
               </p>
               <div className="flex gap-2">

@@ -37,18 +37,18 @@ const AnalyticsPage = () => {
   ];
 
   const StatCard = ({ title, value, subtitle, icon: Icon, color = 'text-white' }) => (
-    <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+    <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
       <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
         <Icon className="w-4 h-4" strokeWidth={1.5} />
         {title}
       </div>
       <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      {subtitle && <div className="text-gray-500 text-xs mt-1">{subtitle}</div>}
+      {subtitle && <div className="text-white/50 text-xs mt-1">{subtitle}</div>}
     </div>
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-white">Analytics</h1>
@@ -89,7 +89,7 @@ const AnalyticsPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* Monthly Returns */}
-        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
             <h3 className="text-white font-medium">Monthly Returns</h3>
@@ -104,7 +104,7 @@ const AnalyticsPage = () => {
                     className={`w-full rounded-t ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`}
                     style={{ height: `${height}px` }}
                   />
-                  <span className="text-[10px] text-gray-500 mt-2">{month.month}</span>
+                  <span className="text-[10px] text-white/50 mt-2">{month.month}</span>
                 </div>
               );
             })}
@@ -112,7 +112,7 @@ const AnalyticsPage = () => {
         </div>
 
         {/* Win/Loss Distribution */}
-        <div className="bg-[#111118] border border-gray-800 rounded-xl p-4">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
           <div className="flex items-center gap-2 mb-4">
             <PieChart className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
             <h3 className="text-white font-medium">Trade Distribution</h3>
@@ -145,14 +145,14 @@ const AnalyticsPage = () => {
       </div>
 
       {/* Strategy Performance */}
-      <div className="bg-[#111118] border border-gray-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-800">
+      <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#1f1f1f]">
           <h3 className="text-white font-medium">Strategy Performance</h3>
         </div>
         <div className="overflow-auto">
           <table className="w-full">
             <thead>
-              <tr className="text-xs text-gray-500 border-b border-gray-800">
+              <tr className="text-xs text-white/50 border-b border-[#1f1f1f]">
                 <th className="text-left px-4 py-2">Strategy</th>
                 <th className="text-right px-4 py-2">P&L</th>
                 <th className="text-right px-4 py-2">Trades</th>
@@ -162,7 +162,7 @@ const AnalyticsPage = () => {
             </thead>
             <tbody>
               {strategyPerformance.map((strategy) => (
-                <tr key={strategy.name} className="border-b border-gray-800/50 hover:bg-white/5">
+                <tr key={strategy.name} className="border-b border-[#1f1f1f]/50 hover:bg-white/5">
                   <td className="px-4 py-3">
                     <div className="text-white font-medium text-sm">{strategy.name}</div>
                   </td>

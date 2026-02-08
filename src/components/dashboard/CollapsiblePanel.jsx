@@ -44,12 +44,12 @@ export default function CollapsiblePanel({
       {/* Premium Header */}
       <div
         onClick={onToggle}
-        className={`h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-[#1e1e2d] bg-[#0f0f14] cursor-pointer transition-all duration-200 hover:bg-[#12121a] group`}
+        className={`h-11 flex-shrink-0 flex items-center justify-between px-4 border-b border-[#1f1f1f] bg-[#111111] cursor-pointer transition-all duration-200 hover:bg-[#12121a] group`}
       >
         <div className="flex items-center gap-3">
           {/* Animated Chevron */}
           <svg
-            className={`w-4 h-4 text-gray-500 group-hover:text-gray-400 transition-all duration-200 ${expanded ? 'rotate-90' : ''}`}
+            className={`w-4 h-4 text-white/50 group-hover:text-gray-400 transition-all duration-200 ${expanded ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -84,7 +84,7 @@ export default function CollapsiblePanel({
         <div className="flex items-center gap-3">
           {headerRight}
           {!expanded && (
-            <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">Click to expand</span>
+            <span className="text-xs text-white/50 group-hover:text-gray-400 transition-colors">Click to expand</span>
           )}
         </div>
       </div>
@@ -97,7 +97,7 @@ export default function CollapsiblePanel({
           transition: 'max-height 0.3s ease-out, opacity 0.2s ease-out'
         }}
       >
-        <div className="h-full overflow-y-auto scrollbar-hide bg-[#0d0d12]" style={{ scrollbarWidth: 'none' }}>
+        <div className="h-full overflow-y-auto scrollbar-hide bg-[#0b0b0b]" style={{ scrollbarWidth: 'none' }}>
           {children}
         </div>
       </div>

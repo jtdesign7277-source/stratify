@@ -70,7 +70,7 @@ const LiveAlertsTicker = () => {
   ];
 
   return (
-    <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1e1e2d]">
+    <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
       <style>{`
         @keyframes ticker-scroll {
           from { transform: translateX(0); }

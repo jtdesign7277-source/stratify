@@ -388,7 +388,7 @@ export default function TrendScanner() {
     (activeSources.has('crypto') ? (trends?.crypto?.length || 0) : 0);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[#0a0a0f]">
+    <div className="h-full flex flex-col overflow-hidden bg-[#0b0b0b]">
       {/* Header */}
       <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-white/[0.06]">
         <div className="flex items-center justify-between mb-4">

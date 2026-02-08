@@ -156,10 +156,10 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         <button
           onClick={() => toggleFolder(folder.id)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-            isDropping ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111118] hover:bg-white/5'
+            isDropping ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-[#111111] hover:bg-white/5'
           }`}
         >
-          <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} strokeWidth={1.5} />
+          <ChevronRight className={`w-4 h-4 text-white/50 transition-transform ${isExpanded ? 'rotate-90' : ''}`} strokeWidth={1.5} />
           <FolderIcon icon={folder.icon} color={folder.color} />
           <span className="flex-1 text-left text-white text-sm font-medium">{folder.name}</span>
           {!isSystem && (
@@ -168,21 +168,21 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                 e.stopPropagation();
                 deleteFolder(folder.id);
               }}
-              className="p-1 hover:bg-red-500/20 rounded text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+              className="p-1 hover:bg-red-500/20 rounded text-white/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
           )}
-          <span className="ml-auto text-xs text-gray-500 bg-[#1a2438] px-2 py-0.5 rounded min-w-[28px] text-center">
+          <span className="ml-auto text-xs text-white/50 bg-[#111111] px-2 py-0.5 rounded min-w-[28px] text-center">
             {folderStrategies.length}
           </span>
         </button>
 
         {/* Folder Content */}
         {isExpanded && (
-          <div className="mt-1 ml-4 pl-4 border-l border-gray-800">
+          <div className="mt-1 ml-4 pl-4 border-l border-[#1f1f1f]">
             {folderStrategies.length === 0 ? (
-              <div className="py-4 text-center text-gray-500 text-sm">
+              <div className="py-4 text-center text-white/50 text-sm">
                 {isDropping ? 'Drop strategy here' : 'No strategies'}
               </div>
             ) : (
@@ -206,7 +206,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                     {strategy.status === 'active' ? (
                       <Zap className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
                     ) : (
-                      <TrendingUp className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+                      <TrendingUp className="w-4 h-4 text-white/50" strokeWidth={1.5} />
                     )}
                   </div>
 
@@ -218,7 +218,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                         {strategy.status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 text-xs text-white/50">
                       <span>{strategy.type}</span>
                       {strategy.winRate > 0 && <span>{strategy.winRate}% win</span>}
                       {strategy.trades > 0 && <span>{strategy.trades} trades</span>}
@@ -228,7 +228,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                   {/* PnL */}
                   {strategy.pnl !== 0 && (
                     <div className="text-sm font-mono flex items-center gap-1.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-sans">P&L</span>
+                      <span className="text-[10px] text-white/50 uppercase tracking-wider font-sans">P&L</span>
                       <span className={strategy.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                         ${strategy.pnl >= 0 ? '+' : ''}{Math.abs(strategy.pnl)?.toFixed(2)}
                       </span>
@@ -275,7 +275,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] p-4 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -285,7 +285,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowNewFolder(!showNewFolder)}
-            className="px-4 py-2 bg-[#1a2438] hover:bg-[#243048] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-[#111111] hover:bg-[#1f1f1f] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           >
             <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
             New Folder
@@ -295,7 +295,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
 
       {/* New Folder Input */}
       {showNewFolder && (
-        <div className="mb-4 bg-[#111118] border border-gray-800 rounded-xl p-4">
+        <div className="mb-4 bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
           <div className="flex items-center gap-3">
             <Folder className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
             <input
@@ -310,7 +310,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
             <button
               onClick={createFolder}
               disabled={!newFolderName.trim()}
-              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-700 disabled:text-white/50 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Create
             </button>
@@ -339,20 +339,20 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
       </div>
 
       {/* Stats Footer */}
-      <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between text-sm">
+      <div className="mt-4 pt-4 border-t border-[#1f1f1f] flex items-center justify-between text-sm">
         <span className="text-gray-400">{strategies.length} total strategies</span>
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="text-gray-500">{deployedStrategies.filter(s => s.status !== 'Paused').length} active</span>
+            <span className="text-white/50">{deployedStrategies.filter(s => s.status !== 'Paused').length} active</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-            <span className="text-gray-500">{deployedStrategies.filter(s => s.status === 'Paused').length} paused</span>
+            <span className="text-white/50">{deployedStrategies.filter(s => s.status === 'Paused').length} paused</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-            <span className="text-gray-500">{strategies.filter(s => s.status === 'draft' || s.status === 'inactive').length} drafts</span>
+            <span className="text-white/50">{strategies.filter(s => s.status === 'draft' || s.status === 'inactive').length} drafts</span>
           </span>
         </div>
       </div>

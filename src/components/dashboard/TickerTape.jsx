@@ -4,7 +4,7 @@ const TickerTape = ({ text }) => {
   if (!text) return null;
 
   return (
-    <div className="relative h-8 overflow-hidden border-b border-emerald-500/20 bg-[#0a0a0f]">
+    <div className="relative h-8 overflow-hidden border-b border-emerald-500/20 bg-[#0b0b0b]">
       <div className="ticker-tape-track">
         <div className="ticker-tape-content text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/90">
           <span>{text}</span>

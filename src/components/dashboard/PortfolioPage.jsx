@@ -146,9 +146,9 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
   const totalConnectedValue = connectedBrokers.reduce((sum, b) => sum + (b.value || 0), 0) + portfolioData.totalValue;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0d0d12] overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] overflow-auto">
       <div className="px-6 pt-6 pb-4">
-        <div className="bg-[#111118] border border-gray-800 rounded-xl overflow-hidden p-4">
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl overflow-hidden p-4">
           <PortfolioChart initialValue={totalConnectedValue} />
         </div>
       </div>
@@ -168,7 +168,7 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(hasRealData || true) && (
-            <div className="bg-[#111118] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+            <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
@@ -176,13 +176,13 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
                   </div>
                   <div>
                     <div className="text-white font-medium">Alpaca</div>
-                    <div className="text-gray-500 text-sm flex items-center gap-1">
+                    <div className="text-white/50 text-sm flex items-center gap-1">
                       <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
                       Connected
                     </div>
                   </div>
                 </div>
-                <button className="p-1 text-gray-500 hover:text-white transition-colors">
+                <button className="p-1 text-white/50 hover:text-white transition-colors">
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
               </div>
@@ -210,7 +210,7 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
           )}
 
           {connectedBrokers.map(broker => (
-            <div key={broker.id} className="bg-[#111118] border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+            <div key={broker.id} className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
@@ -218,7 +218,7 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
                   </div>
                   <div>
                     <div className="text-white font-medium">{broker.name}</div>
-                    <div className="text-gray-500 text-sm flex items-center gap-1">
+                    <div className="text-white/50 text-sm flex items-center gap-1">
                       <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
                       Connected
                     </div>
@@ -226,7 +226,7 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
                 </div>
                 <button 
                   onClick={() => handleDisconnectBroker(broker.id)}
-                  className="p-1 text-gray-500 hover:text-red-400 transition-colors"
+                  className="p-1 text-white/50 hover:text-red-400 transition-colors"
                   title="Disconnect"
                 >
                   <Unlink className="w-4 h-4" />
@@ -247,13 +247,13 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
 
           <button
             onClick={() => setShowBrokerModal(true)}
-            className="bg-[#111118] border border-dashed border-gray-700 rounded-xl p-4 hover:border-emerald-500/50 hover:bg-white/5 transition-all flex flex-col items-center justify-center min-h-[160px] group"
+            className="bg-[#111111] border border-dashed border-[#2a2a2a] rounded-xl p-4 hover:border-emerald-500/50 hover:bg-white/5 transition-all flex flex-col items-center justify-center min-h-[160px] group"
           >
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
               <Plus className="w-6 h-6 text-emerald-400" />
             </div>
             <div className="text-white font-medium mb-1">Connect a Broker</div>
-            <div className="text-gray-500 text-sm text-center">Link your accounts for unified tracking</div>
+            <div className="text-white/50 text-sm text-center">Link your accounts for unified tracking</div>
           </button>
         </div>
       </div>

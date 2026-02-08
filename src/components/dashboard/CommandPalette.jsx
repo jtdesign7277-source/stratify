@@ -47,7 +47,7 @@ const CommandItem = ({ command, isActive, onSelect }) => {
       }`}>
         <IconComponent 
           size={16} 
-          className={isActive ? 'text-cyan-400' : 'text-gray-500'} 
+          className={isActive ? 'text-cyan-400' : 'text-white/50'} 
         />
       </div>
       <div className="flex-1 min-w-0">
@@ -55,7 +55,7 @@ const CommandItem = ({ command, isActive, onSelect }) => {
           {command.name}
         </div>
         {command.description && (
-          <div className="text-xs text-gray-500 truncate">{command.description}</div>
+          <div className="text-xs text-white/50 truncate">{command.description}</div>
         )}
       </div>
       {command.shortcut && (
@@ -251,10 +251,10 @@ export default function CommandPalette({
         className="fixed left-1/2 top-[15%] -translate-x-1/2 w-full max-w-xl z-[101]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl shadow-2xl overflow-hidden">
           {/* Search Input */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1e1e2d]">
-            <Search size={18} className="text-gray-500" />
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1f1f1f]">
+            <Search size={18} className="text-white/50" />
             <input
               ref={inputRef}
               type="text"
@@ -265,7 +265,7 @@ export default function CommandPalette({
               className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-sm"
             />
             <div className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-[10px] font-mono text-gray-500 border border-[#2a2a3d]">
+              <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-[10px] font-mono text-white/50 border border-[#2a2a3d]">
                 esc
               </kbd>
               <span className="text-[10px] text-gray-600 ml-1">to close</span>
@@ -275,7 +275,7 @@ export default function CommandPalette({
           {/* Command List */}
           <div ref={listRef} className="max-h-[400px] overflow-y-auto scrollbar-hide">
             {allFilteredCommands.length === 0 ? (
-              <div className="px-4 py-8 text-center text-gray-500 text-sm">
+              <div className="px-4 py-8 text-center text-white/50 text-sm">
                 No commands found for "{query}"
               </div>
             ) : (
@@ -328,7 +328,7 @@ export default function CommandPalette({
           </div>
 
           {/* Footer with hints */}
-          <div className="px-4 py-2 border-t border-[#1e1e2d] bg-[#08080c] flex items-center justify-between">
+          <div className="px-4 py-2 border-t border-[#1f1f1f] bg-[#08080c] flex items-center justify-between">
             <div className="flex items-center gap-4 text-[10px] text-gray-600">
               <span className="flex items-center gap-1">
                 <ArrowUp size={10} />
@@ -487,8 +487,8 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-[101]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-[#0d0d12] border border-[#1e1e2d] rounded-xl shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e1e2d]">
+        <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#1f1f1f]">
             <div className="flex items-center gap-3">
               <Keyboard size={20} className="text-cyan-400" strokeWidth={1.5} />
               <h2 className="text-lg font-semibold text-white">Keyboard Shortcuts</h2>
@@ -497,7 +497,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
               onClick={onClose}
               className="p-2 hover:bg-[#1e1e2d] rounded-lg transition-colors"
             >
-              <X size={18} className="text-gray-500" />
+              <X size={18} className="text-white/50" />
             </button>
           </div>
 
@@ -505,7 +505,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
             <div className="space-y-6">
               {shortcuts.map(section => (
                 <div key={section.category}>
-                  <h3 className="text-xs uppercase tracking-wider text-gray-500 mb-3">
+                  <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3">
                     {section.category}
                   </h3>
                   <div className="space-y-2">
@@ -526,8 +526,8 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          <div className="px-6 py-4 border-t border-[#1e1e2d] bg-[#08080c]">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="px-6 py-4 border-t border-[#1f1f1f] bg-[#08080c]">
+            <p className="text-xs text-white/50 text-center">
               Press <kbd className="px-1.5 py-0.5 bg-[#1e1e2d] rounded text-[10px] font-mono text-gray-400 border border-[#2a2a3d]">⌘K</kbd> anytime to open the command palette
             </p>
           </div>

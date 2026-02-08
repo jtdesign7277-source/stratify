@@ -300,7 +300,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                         <BrokerIcon broker={broker.id} className="w-10 h-10" />
                       </div>
                       <div className="text-sm font-medium text-white mb-1">{broker.name}</div>
-                      <div className="text-[10px] text-gray-500 leading-tight">{broker.description}</div>
+                      <div className="text-[10px] text-white/50 leading-tight">{broker.description}</div>
                     </button>
                   );
                 })}
@@ -380,7 +380,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                   className={`w-full py-3 rounded-lg font-medium transition-all ${
                     apiKey && secretKey && !connecting
                       ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : 'bg-[#3c4043] text-gray-500 cursor-not-allowed'
+                      : 'bg-[#3c4043] text-white/50 cursor-not-allowed'
                   }`}
                 >
                   {connecting ? (

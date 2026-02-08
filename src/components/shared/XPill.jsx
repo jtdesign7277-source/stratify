@@ -370,7 +370,7 @@ const XPill = ({
           {[0, 1, 2].map((item) => (
             <div
               key={`skeleton-${item}`}
-              className="x-feed-shimmer rounded-xl border border-white/5 bg-[#1a1a1f] p-4"
+              className="x-feed-shimmer rounded-xl border border-white/5 bg-[#111111] p-4"
             >
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full bg-white/10" />
@@ -434,7 +434,7 @@ const XPill = ({
           return (
             <div
               key={item.id || item._id || `${handle}-${index}`}
-              className="space-y-3 rounded-xl border border-white/5 bg-[#252530] px-4 py-3 shadow-[0_0_20px_rgba(0,0,0,0.25)] transition hover:border-emerald-500/20 hover:shadow-[0_0_24px_rgba(16,185,129,0.08)]"
+              className="space-y-3 rounded-xl border border-white/5 bg-[#111111] px-4 py-3 shadow-[0_0_20px_rgba(0,0,0,0.25)] transition hover:border-emerald-500/20 hover:shadow-[0_0_24px_rgba(16,185,129,0.08)]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">

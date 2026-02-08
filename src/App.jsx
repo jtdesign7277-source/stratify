@@ -236,7 +236,7 @@ const Terminal = () => {
   const totalPL = strategies.reduce((sum, s) => sum + s.profit, 0);
 
   return (
-    <div className="h-full bg-[#202124] flex flex-col">
+    <div className="h-full bg-[#0b0b0b] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ const Terminal = () => {
       </div>
 
       {/* Footer - Total P&L */}
-      <div className="border-t border-white/10 px-6 py-4 bg-[#202124]">
+      <div className="border-t border-white/10 px-6 py-4 bg-[#0b0b0b]">
         <div className="flex items-center justify-between">
           <span className="text-base text-gray-400">Total P&L:</span>
           <span className="text-emerald-400 font-mono text-xl font-bold">
@@ -318,7 +318,7 @@ const ClaudeCodeChat = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#202124]">
+    <div className="flex flex-col h-full bg-[#0b0b0b]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a]">
         <div className="flex items-center gap-2">
@@ -397,7 +397,7 @@ const ClaudeCodeChat = () => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[#2a2a2a] p-4 bg-[#202124]">
+      <div className="border-t border-[#2a2a2a] p-4 bg-[#0b0b0b]">
         <div className="mb-3">
           <div className="text-xs text-gray-500 flex items-center gap-1.5">
             <kbd className="px-1.5 py-0.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded text-xs font-mono">⌘</kbd>
@@ -670,7 +670,7 @@ export class TeslaEMAStrategy extends Strategy {
   ];
 
   return (
-    <div className="min-h-screen bg-[#202124] text-white flex">
+    <div className="min-h-screen bg-[#0b0b0b] text-white flex">
       <GridBackground />
 
       {/* Edge Navigation Sidebar */}
@@ -808,12 +808,12 @@ export class TeslaEMAStrategy extends Strategy {
         {/* Code Editor Area */}
         <div className="flex-1 flex flex-col">
           {/* Tab Bar */}
-          <div className="bg-[#202124] border-b border-white/10 px-4 py-3 flex items-center">
+          <div className="bg-[#0b0b0b] border-b border-white/10 px-4 py-3 flex items-center">
             <span className="text-sm font-medium text-gray-400">tesla-ema-strategy.ts</span>
           </div>
 
           {/* Editor Content */}
-          <div className="flex-1 bg-[#202124] relative overflow-hidden">
+          <div className="flex-1 bg-[#0b0b0b] relative overflow-hidden">
             <Editor
               height="100%"
               defaultLanguage="typescript"
@@ -853,15 +853,15 @@ export class TeslaEMAStrategy extends Strategy {
               className={`h-1 bg-white/5 hover:bg-blue-500/30 transition-colors ${isDragging ? 'bg-blue-500/50' : ''} cursor-ns-resize`}
             />
 
-            <div className="border-t border-white/10 bg-[#202124]" style={{ height: `${strategiesHeight}px` }}>
+            <div className="border-t border-white/10 bg-[#0b0b0b]" style={{ height: `${strategiesHeight}px` }}>
               {/* Tabs */}
-              <div className="flex items-center justify-between px-2 py-1 border-b border-white/10 bg-[#1e1e1e]">
+              <div className="flex items-center justify-between px-2 py-1 border-b border-white/10 bg-[#0b0b0b]">
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setBottomTab('strategies')}
                     className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                       bottomTab === 'strategies'
-                        ? 'bg-[#202124] text-white'
+                        ? 'bg-[#0b0b0b] text-white'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -871,7 +871,7 @@ export class TeslaEMAStrategy extends Strategy {
                     onClick={() => setBottomTab('terminal')}
                     className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                       bottomTab === 'terminal'
-                        ? 'bg-[#202124] text-white'
+                        ? 'bg-[#0b0b0b] text-white'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -928,7 +928,7 @@ export class TeslaEMAStrategy extends Strategy {
           </>
         ) : (
           /* Collapsed Footer Bar */
-          <div className="border-t border-white/10 bg-[#1e1e1e] px-3 py-2 flex items-center justify-between">
+          <div className="border-t border-white/10 bg-[#0b0b0b] px-3 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -949,7 +949,7 @@ export class TeslaEMAStrategy extends Strategy {
             </div>
             <div className="flex items-center gap-2">
               {activeStrategies.map((strategy, i) => (
-                <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-[#202124] rounded text-xs">
+                <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-[#0b0b0b] rounded text-xs">
                   <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                   <span className="text-gray-400">{strategy.name}</span>
                   <span className="text-emerald-400 font-mono">+${strategy.profit.toFixed(0)}</span>
@@ -961,7 +961,7 @@ export class TeslaEMAStrategy extends Strategy {
       </div>
 
       {/* Right Sidebar - Claude Code Chat */}
-      <div className="relative z-10 w-[380px] border-l border-white/10 bg-[#202124]">
+      <div className="relative z-10 w-[380px] border-l border-white/10 bg-[#0b0b0b]">
         <ClaudeCodeChat />
       </div>
     </div>
