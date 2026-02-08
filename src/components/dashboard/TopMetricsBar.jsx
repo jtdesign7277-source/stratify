@@ -254,7 +254,7 @@ const BrokerBadge = ({ broker }) => {
   );
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [] }) {
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop }) {
   const account = alpacaData?.account || {};
   
   // Mock live P&L data
@@ -316,8 +316,29 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         {[0, 1, 2, 3, 4, 5].map((slot) => (
           <div 
             key={slot} 
-            className={`h-8 min-w-[80px] rounded-full ${miniPills[slot] ? '' : 'border border-dashed border-white/10 bg-white/[0.02]'}`}
+            className={`h-8 min-w-[80px] rounded-full transition-all ${
+              miniPills[slot] 
+                ? '' 
+                : 'border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
+            }`}
             data-pill-slot={slot}
+            onDragOver={(e) => {
+              if (slot >= 2) { // Only slots 2-5 can accept drops
+                e.preventDefault();
+                e.currentTarget.classList.add('border-emerald-500/50', 'bg-emerald-500/10');
+              }
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove('border-emerald-500/50', 'bg-emerald-500/10');
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.remove('border-emerald-500/50', 'bg-emerald-500/10');
+              const symbol = e.dataTransfer.getData('text/plain');
+              if (symbol && onTickerDrop && slot >= 2) {
+                onTickerDrop(symbol, slot);
+              }
+            }}
           >
             {miniPills[slot] || null}
           </div>

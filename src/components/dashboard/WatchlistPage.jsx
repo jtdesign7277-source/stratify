@@ -482,7 +482,12 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             return (
               <div 
                 key={stock.symbol}
-                className={`flex items-center justify-between cursor-pointer transition-all border-b border-gray-800/30 ${
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', stock.symbol);
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                className={`flex items-center justify-between cursor-grab active:cursor-grabbing transition-all border-b border-gray-800/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#0d1829]'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => setSelectedTicker(stock.symbol)}

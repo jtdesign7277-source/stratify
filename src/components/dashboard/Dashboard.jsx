@@ -34,6 +34,7 @@ import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
 import TerminalPage from './TerminalPage';
+import TickerPill from './TickerPill';
 
 const loadDashboardState = () => {
   try {
@@ -160,6 +161,41 @@ export default function Dashboard({
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  
+  // Mini ticker pills (slots 2-5, slots 0-1 are Grok and Feed)
+  const [miniTickers, setMiniTickers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-mini-tickers');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  
+  // Save mini tickers to localStorage
+  useEffect(() => {
+    localStorage.setItem('stratify-mini-tickers', JSON.stringify(miniTickers));
+  }, [miniTickers]);
+  
+  // Handle dropping a ticker onto a pill slot
+  const handleTickerDrop = (symbol, slotIndex) => {
+    if (slotIndex < 2) return; // Slots 0-1 are reserved for Grok/Feed
+    const tickerIndex = slotIndex - 2; // Map to miniTickers array
+    setMiniTickers(prev => {
+      const newTickers = [...prev];
+      // Remove if already exists elsewhere
+      const existingIndex = newTickers.indexOf(symbol);
+      if (existingIndex !== -1) newTickers.splice(existingIndex, 1);
+      // Add to new slot (max 4 tickers)
+      while (newTickers.length < tickerIndex) newTickers.push(null);
+      newTickers[tickerIndex] = symbol;
+      return newTickers.slice(0, 4);
+    });
+  };
+  
+  // Remove ticker from pill
+  const handleRemoveMiniTicker = (symbol) => {
+    setMiniTickers(prev => prev.filter(t => t !== symbol));
+  };
+  
   const [selectedStock, setSelectedStock] = useState(null);
   const [strategies, setStrategies] = useState(() => {
     try {
@@ -623,9 +659,18 @@ export default function Dashboard({
               <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
             )}
           </div>,
-          // Slots 2-5: Empty for future use
-          null, null, null, null
+          // Slots 2-5: Draggable ticker pills
+          ...[0, 1, 2, 3].map((i) => 
+            miniTickers[i] ? (
+              <TickerPill 
+                key={`ticker-pill-${i}`} 
+                symbol={miniTickers[i]} 
+                onRemove={handleRemoveMiniTicker}
+              />
+            ) : null
+          )
         ]}
+        onTickerDrop={handleTickerDrop}
       />
       <LiveAlertsTicker />
       <div className="flex flex-1 overflow-hidden">
