@@ -325,14 +325,24 @@ const LandingPage = ({ onEnter }) => {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="py-20 px-8 bg-[#060d18]"
+          className="relative overflow-hidden py-24 px-6 sm:px-8 bg-[#060d18]"
         >
-          <div className="max-w-5xl mx-auto text-center">
-            <p className="text-white/30 text-xs tracking-[0.3em] uppercase mb-10">
-              Powered By Industry Leaders
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 translate-x-16 translate-y-10 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute top-10 left-0 h-64 w-64 -translate-x-20 rounded-full bg-blue-500/10 blur-[100px]" />
+
+          <div className="relative max-w-6xl mx-auto text-center">
+            <p className="text-white/40 text-xs tracking-[0.4em] uppercase">
+              Trusted Infrastructure
             </p>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <h2 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent">
+              Powered By Industry Leaders
+            </h2>
+            <p className="mt-4 text-white/60 text-base sm:text-lg max-w-2xl mx-auto">
+              Built on the same partners powering the most advanced fintech platforms.
+            </p>
+
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
               {[
                 {
                   name: 'Alpaca',
@@ -351,19 +361,21 @@ const LandingPage = ({ onEnter }) => {
                   logo: '/logos/railway.svg'
                 }
               ].map((partner) => (
-                <div
-                  key={partner.name}
-                  className="group flex items-center justify-center gap-5 px-2 py-4 text-white/70 transition-all"
-                >
-                  <img
-                    src={partner.logo}
-                    alt={partner.name}
-                    className="h-12 w-12 object-contain opacity-80 transition-opacity group-hover:opacity-100"
-                    loading="lazy"
-                  />
-                  <span className="text-lg font-semibold tracking-[0.16em] uppercase text-white/60 group-hover:text-white">
-                    {partner.name}
-                  </span>
+                <div key={partner.name} className="group relative">
+                  <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-blue-500/40 via-cyan-400/40 to-blue-500/40 opacity-40 blur-md transition duration-500 group-hover:opacity-90" />
+                  <div className="relative rounded-2xl bg-gradient-to-r from-blue-500/40 via-cyan-400/40 to-blue-500/40 p-[1px] transition duration-500 group-hover:-translate-y-2 group-hover:scale-[1.02] group-hover:shadow-[0_18px_45px_rgba(34,211,238,0.25)]">
+                    <div className="flex items-center justify-center gap-5 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-8 backdrop-blur-xl">
+                      <img
+                        src={partner.logo}
+                        alt={partner.name}
+                        className="h-16 w-16 object-contain opacity-90 drop-shadow-[0_0_16px_rgba(59,130,246,0.35)] transition duration-500 group-hover:opacity-100 group-hover:drop-shadow-[0_0_26px_rgba(34,211,238,0.55)]"
+                        loading="lazy"
+                      />
+                      <span className="text-lg font-semibold tracking-[0.18em] uppercase text-white/60 transition duration-500 group-hover:text-white">
+                        {partner.name}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
