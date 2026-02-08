@@ -14,7 +14,25 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // If Supabase isn't configured, just render children without auth
+  if (!supabase) {
+    const noopValue = {
+      user: null,
+      session: null,
+      loading: false,
+      signIn: async () => ({ data: null, error: new Error('Supabase not configured') }),
+      signUp: async () => ({ data: null, error: new Error('Supabase not configured') }),
+      signOut: async () => ({ error: null }),
+      updateProfile: async () => ({ data: null, error: new Error('Supabase not configured') }),
+    };
+    return (
+      <AuthContext.Provider value={noopValue}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
 
   const loadProfile = useCallback(async (authUser) => {
     if (!authUser) {
@@ -46,16 +64,20 @@ export const AuthProvider = ({ children }) => {
 
     const initSession = async () => {
       setLoading(true);
-      const { data } = await supabase.auth.getSession();
-      if (!isMounted) return;
-      const nextSession = data?.session ?? null;
-      const nextUser = nextSession?.user ?? null;
-      setSession(nextSession);
-      setUser(nextUser);
-      if (nextUser) {
-        await loadProfile(nextUser);
-      } else {
-        setProfile(null);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        const nextSession = data?.session ?? null;
+        const nextUser = nextSession?.user ?? null;
+        setSession(nextSession);
+        setUser(nextUser);
+        if (nextUser) {
+          await loadProfile(nextUser);
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Auth init error:', err);
       }
       setLoading(false);
     };
