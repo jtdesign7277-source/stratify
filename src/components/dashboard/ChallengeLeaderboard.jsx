@@ -239,6 +239,8 @@ const I = {
   copy:"M20 9h-9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
   fire:"M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z",
   trophy:"M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 22v-4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4M6 2h12v7a6 6 0 0 1-12 0V2z",
+  down:"M6 9l6 6 6-6",
+  right:"M9 18l6-6-6-6",
 };
 
 const STOCK_DATABASE = [
@@ -445,6 +447,16 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showShareCard, setShowShareCard] = useState(false);
   const [validationError, setValidationError] = useState("");
+  
+  // Pick Modal State
+  const [showPickModal, setShowPickModal] = useState(false);
+  const [pendingPick, setPendingPick] = useState("");
+  const [pickAmount, setPickAmount] = useState(10000);
+  const [pickTimeframe, setPickTimeframe] = useState("week");
+  const [savedPicks, setSavedPicks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("stratify-challenge-picks") || "[]"); } catch { return []; }
+  });
+  const [showSavedPicks, setShowSavedPicks] = useState(false);
 
   const myVal = MY_HOLDINGS.reduce((s,h)=>s+h.curPrice*h.shares,0) + MY_CASH;
   const myPnl = myVal - START_VAL;
@@ -460,12 +472,39 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
   }, [searchQuery, selectedPicks]);
 
   const addPick = (sym) => {
-    if (selectedPicks.length >= 10) return;
-    const amt = Math.max(MIN_POSITION, Math.min(remaining, 10000));
-    if (amt < MIN_POSITION) { setValidationError("Not enough budget"); return; }
-    setSelectedPicks([...selectedPicks, { sym, amount: amt }]);
+    if (selectedPicks.length >= 10) { setValidationError("Max 10 picks"); return; }
+    if (remaining < MIN_POSITION) { setValidationError("Not enough budget"); return; }
+    setPendingPick(sym);
+    setPickAmount(Math.min(remaining, 10000));
+    setPickTimeframe("week");
+    setShowPickModal(true);
     setSearchQuery(""); setShowSearch(false); setValidationError("");
   };
+  
+  const confirmPick = () => {
+    if (pickAmount < MIN_POSITION) { setValidationError("Min $5,000 per position"); return; }
+    if (pickAmount > remaining) { setValidationError("Exceeds budget"); return; }
+    const newPick = { sym: pendingPick, amount: pickAmount, timeframe: pickTimeframe, addedAt: Date.now() };
+    setSelectedPicks([...selectedPicks, newPick]);
+    const updatedSaved = [...savedPicks, newPick];
+    setSavedPicks(updatedSaved);
+    localStorage.setItem("stratify-challenge-picks", JSON.stringify(updatedSaved));
+    setShowPickModal(false);
+    setPendingPick("");
+  };
+  
+  const removeSavedPick = (idx) => {
+    const updated = savedPicks.filter((_,i) => i !== idx);
+    setSavedPicks(updated);
+    localStorage.setItem("stratify-challenge-picks", JSON.stringify(updated));
+  };
+  
+  const loadSavedPick = (pick) => {
+    if (selectedPicks.some(p => p.sym === pick.sym)) { setValidationError("Already in picks"); return; }
+    if (selectedPicks.length >= 10) { setValidationError("Max 10 picks"); return; }
+    setSelectedPicks([...selectedPicks, pick]);
+  };
+  
   const removePick = (sym) => setSelectedPicks(selectedPicks.filter(p=>p.sym!==sym));
   const copyPortfolio = (user) => {
     const picks = (user.picks||[]).map((sym,i)=>({ sym, amount: Math.floor(START_VAL / user.picks.length) }));
@@ -718,6 +757,33 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
             ))}
           </div>
 
+          {/* My Saved Picks - Collapsible */}
+          {savedPicks.length > 0 && (
+            <div style={{marginBottom:12}}>
+              <button onClick={()=>setShowSavedPicks(!showSavedPicks)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",padding:0,cursor:"pointer",marginBottom:6}}>
+                <Icon d={showSavedPicks ? I.down : I.right} size={12} style={{color:"#64748b"}}/>
+                <span style={{fontSize:fs(11),color:"#64748b",textTransform:"uppercase",letterSpacing:0.8}}>My Saved Picks ({savedPicks.length})</span>
+              </button>
+              {showSavedPicks && (
+                <div style={{marginLeft:18}}>
+                  {savedPicks.map((p,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:"rgba(41,225,166,0.03)",border:"1px solid rgba(41,225,166,0.1)",borderRadius:6,marginBottom:3}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:fs(13),fontWeight:600,color:"#29e1a6",fontFamily:MONO}}>${p.sym}</span>
+                        <span style={{fontSize:fs(10),color:"#475569"}}>${fmtK(p.amount)}</span>
+                        <span style={{fontSize:fs(9),padding:"2px 5px",borderRadius:3,background:"rgba(255,255,255,0.05)",color:"#64748b"}}>{p.timeframe}</span>
+                      </div>
+                      <div style={{display:"flex",gap:4}}>
+                        <button onClick={()=>loadSavedPick(p)} style={{padding:"3px 8px",borderRadius:4,background:"rgba(41,225,166,0.1)",border:"1px solid rgba(41,225,166,0.2)",color:"#29e1a6",fontSize:fs(10),fontWeight:600,cursor:"pointer"}}>Load</button>
+                        <button onClick={()=>removeSavedPick(i)} style={{padding:"3px 6px",borderRadius:4,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",color:"#64748b",fontSize:fs(10),cursor:"pointer"}}><Icon d={I.x} size={10}/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{fontSize:fs(11),color:"#475569",textTransform:"uppercase",letterSpacing:0.8,marginBottom:6}}>Current Picks</div>
           {selectedPicks.map((p,i)=>{
             const shares = p.amount / getPrice(p.sym);
@@ -828,6 +894,74 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
           badgeText: "4W Streak"
         }}
       />
+
+      {/* ════════ PICK ALLOCATION MODAL ════════ */}
+      {showPickModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
+          <div style={{width:380,background:"#111111",border:"1px solid #1f1f1f",borderRadius:12,overflow:"hidden",boxShadow:"0 25px 50px rgba(0,0,0,0.5)"}}>
+            <div style={{padding:"14px 16px",borderBottom:"1px solid #1f1f1f",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:fs(16),fontWeight:700,color:"#29e1a6",fontFamily:MONO}}>${pendingPick}</span>
+                <span style={{fontSize:fs(12),color:"#64748b"}}>@ ${fmt(getPrice(pendingPick),2)}</span>
+              </div>
+              <button onClick={()=>setShowPickModal(false)} style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",padding:4}}><Icon d={I.x} size={16}/></button>
+            </div>
+            
+            <div style={{padding:16}}>
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:fs(11),color:"#64748b",textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Allocation Amount</div>
+                <input
+                  type="range"
+                  min={MIN_POSITION}
+                  max={Math.min(remaining, 50000)}
+                  step={1000}
+                  value={pickAmount}
+                  onChange={e=>setPickAmount(Number(e.target.value))}
+                  style={{width:"100%",accentColor:"#29e1a6"}}
+                />
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:fs(11),color:"#475569"}}>
+                  <span>$5K</span>
+                  <span style={{fontSize:fs(16),fontWeight:700,color:"#29e1a6",fontFamily:MONO}}>${fmtK(pickAmount)}</span>
+                  <span>${fmtK(Math.min(remaining, 50000))}</span>
+                </div>
+                <div style={{display:"flex",gap:6,marginTop:10}}>
+                  {[5000,10000,20000,50000].filter(a=>a<=remaining).map(amt=>(
+                    <button key={amt} onClick={()=>setPickAmount(amt)} style={{flex:1,padding:"6px 0",borderRadius:5,background:pickAmount===amt?"rgba(41,225,166,0.15)":"rgba(255,255,255,0.03)",border:pickAmount===amt?"1px solid rgba(41,225,166,0.4)":"1px solid rgba(255,255,255,0.08)",color:pickAmount===amt?"#29e1a6":"#94a3b8",fontSize:fs(11),fontWeight:600,cursor:"pointer",fontFamily:MONO}}>${fmtK(amt)}</button>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:fs(11),color:"#64748b",textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Timeframe</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                  {[{id:"day",label:"Day"},{id:"week",label:"Swing"},{id:"month",label:"Position"},{id:"quarter",label:"Long"}].map(tf=>(
+                    <button key={tf.id} onClick={()=>setPickTimeframe(tf.id)} style={{padding:"8px 4px",borderRadius:6,background:pickTimeframe===tf.id?"rgba(41,225,166,0.15)":"rgba(255,255,255,0.03)",border:pickTimeframe===tf.id?"1px solid rgba(41,225,166,0.4)":"1px solid rgba(255,255,255,0.08)",color:pickTimeframe===tf.id?"#29e1a6":"#94a3b8",fontSize:fs(10),fontWeight:600,cursor:"pointer",textAlign:"center"}}>
+                      <div>{tf.label}</div>
+                      <div style={{fontSize:fs(9),color:pickTimeframe===tf.id?"#29e1a6":"#475569",marginTop:2}}>{tf.id==="day"?"1D":tf.id==="week"?"1W":tf.id==="month"?"1M":"3M+"}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{padding:10,background:"rgba(255,255,255,0.02)",borderRadius:6,marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:fs(12)}}>
+                  <span style={{color:"#64748b"}}>Shares</span>
+                  <span style={{color:"#e2e8f0",fontFamily:MONO,fontWeight:600}}>{formatShares(pendingPick, pickAmount/getPrice(pendingPick))}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:fs(12),marginTop:4}}>
+                  <span style={{color:"#64748b"}}>Budget After</span>
+                  <span style={{color:"#e2e8f0",fontFamily:MONO,fontWeight:600}}>${fmtK(remaining - pickAmount)}</span>
+                </div>
+              </div>
+              
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setShowPickModal(false)} style={{flex:1,padding:"10px",borderRadius:6,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",color:"#94a3b8",fontSize:fs(12),fontWeight:600,cursor:"pointer"}}>Cancel</button>
+                <button onClick={confirmPick} style={{flex:1,padding:"10px",borderRadius:6,background:"linear-gradient(135deg,#29e1a6 0%,#10b981 100%)",border:"none",color:"#0a0e18",fontSize:fs(12),fontWeight:700,cursor:"pointer"}}>Add Position</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
