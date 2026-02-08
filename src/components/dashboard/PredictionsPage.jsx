@@ -278,9 +278,14 @@ const PredictionCard = ({ market }) => {
   const isLive = isMarketLive(market);
   const closeLabel = formatCloseLabel(market);
   const marketId = market?.ticker || market?.id;
+  const kalshiUrl = marketId ? `https://kalshi.com/markets/${marketId}` : 'https://kalshi.com/markets';
 
   return (
-    <div className="rounded-2xl border border-[#2a2a2a] bg-[#111111] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]">
+    <a
+      href={kalshiUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block rounded-2xl border border-[#2a2a2a] bg-[#111111] p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-all hover:border-[#29e1a6]/50 hover:shadow-[0_0_20px_rgba(41,225,166,0.1)] cursor-pointer">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-lg font-semibold text-white leading-snug line-clamp-2">
@@ -316,16 +321,11 @@ const PredictionCard = ({ market }) => {
 
       <div className="mt-4 flex items-center justify-between text-xs text-white/50">
         <span>${formatVolume(volume)} vol</span>
-        <a
-          href={marketId ? `https://kalshi.com/markets/${marketId}` : 'https://kalshi.com/markets'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] bg-[#0f1b1a] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#6cf2c5] transition-all hover:border-[#29e1a6]/70 hover:bg-[#123126] hover:shadow-[0_0_12px_rgba(41,225,166,0.2)]"
-        >
+        <span className="inline-flex items-center gap-2 rounded-md border border-[#2a2a2a] bg-[#0f1b1a] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#6cf2c5]">
           Trade on Kalshi →
-        </a>
+        </span>
       </div>
-    </div>
+    </a>
   );
 };
 
@@ -361,9 +361,14 @@ const SportsBetCard = ({ market }) => {
   const liveMeta = getLiveMeta(category, marketId);
   const eventTime = formatEventTime(market);
   const volumeLabel = formatVolumeLong(market.volume || 0);
+  const kalshiUrl = marketId ? `https://kalshi.com/markets/${marketId}` : 'https://kalshi.com/markets';
 
   return (
-    <div className="rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+    <a
+      href={kalshiUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition-all hover:border-[#29e1a6]/50 hover:shadow-[0_0_20px_rgba(41,225,166,0.1)] cursor-pointer">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-white leading-snug line-clamp-2">
@@ -434,9 +439,9 @@ const SportsBetCard = ({ market }) => {
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-white/40">
         <span>${volumeLabel} vol</span>
-        <span>2 markets</span>
+        <span className="text-[#29e1a6]">Trade on Kalshi →</span>
       </div>
-    </div>
+    </a>
   );
 };
 
@@ -454,10 +459,15 @@ const TrendingSection = ({ trendingMarkets, topMovers }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Featured Market */}
         {featured && (
-          <div className="lg:col-span-2 rounded-2xl border border-[#1f1f1f] bg-[#111111] p-5">
+          <a
+            href={`https://kalshi.com/markets/${featured.ticker || featured.id || ''}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="lg:col-span-2 block rounded-2xl border border-[#1f1f1f] bg-[#111111] p-5 transition-all hover:border-[#29e1a6]/50 hover:shadow-[0_0_20px_rgba(41,225,166,0.1)] cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-white">{featured.title}</h3>
-              <span className="text-xs text-white/40">Featured</span>
+              <span className="text-xs text-[#29e1a6]">Trade on Kalshi →</span>
             </div>
             <div className="flex items-center gap-6">
               <div className="flex-1">
@@ -482,7 +492,7 @@ const TrendingSection = ({ trendingMarkets, topMovers }) => {
                 <div className="text-xs text-white/40 mt-1">${((featured.volume || 0) / 1000000).toFixed(1)}M vol</div>
               </div>
             </div>
-          </div>
+          </a>
         )}
         
         {/* Trending & Top Movers */}
@@ -495,14 +505,20 @@ const TrendingSection = ({ trendingMarkets, topMovers }) => {
             </div>
             <div className="space-y-3">
               {trendingList.map((market, i) => (
-                <div key={market.id || i} className="flex items-start gap-3">
+                <a
+                  key={market.id || i}
+                  href={`https://kalshi.com/markets/${market.ticker || market.id || ''}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                >
                   <span className="text-white/40 font-mono text-sm">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-white truncate">{market.title}</div>
                     <div className="text-xs text-white/40 mt-0.5">{inferCategory(market)}</div>
                   </div>
                   <span className="text-sm font-bold text-[#29e1a6]">{(market.yesPercent || 50).toFixed(0)}%</span>
-                </div>
+                </a>
               ))}
             </div>
           </div>
@@ -515,7 +531,13 @@ const TrendingSection = ({ trendingMarkets, topMovers }) => {
             </div>
             <div className="space-y-3">
               {topMovers.slice(0, 3).map((market, i) => (
-                <div key={market.id || i} className="flex items-start gap-3">
+                <a
+                  key={market.id || i}
+                  href={`https://kalshi.com/markets/${market.ticker || market.id || ''}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                >
                   <span className="text-white/40 font-mono text-sm">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-white truncate">{market.title}</div>
@@ -524,7 +546,7 @@ const TrendingSection = ({ trendingMarkets, topMovers }) => {
                     <div className="text-sm font-bold text-white">{(market.yesPercent || 50).toFixed(0)}%</div>
                     <div className="text-[10px] text-emerald-400">▲ {Math.floor(Math.random() * 20 + 5)}</div>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           </div>
