@@ -135,7 +135,7 @@ const LandingPage = ({ onEnter }) => {
             className="text-6xl md:text-8xl text-center font-light text-white mb-6"
             style={{ textShadow: '0 0 80px rgba(16, 185, 129, 0.3), 0 4px 20px rgba(0,0,0,0.5)' }}
           >
-            A <span className="italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">smarter way</span>
+            A <span className="italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent inline-block pt-2 pr-2">smarter way</span>
             <br />
             to trade
           </motion.h1>
