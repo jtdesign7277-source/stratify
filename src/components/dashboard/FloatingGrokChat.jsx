@@ -82,10 +82,13 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     };
   }, []);
 
-  // Drag handlers
+  // Drag handlers - use refs for smooth dragging without re-renders
+  const currentPos = useRef(position);
+  
   const handleDragStart = (e) => {
     if (e.target.closest('[data-no-drag]')) return;
     e.preventDefault();
+    currentPos.current = position;
     dragOffset.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
@@ -99,15 +102,22 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     const handleMove = (e) => {
       const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.current.x));
       const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.current.y));
-      setPosition({ x: newX, y: newY });
+      currentPos.current = { x: newX, y: newY };
+      
+      // Apply position directly to DOM for smooth movement
+      if (containerRef.current) {
+        containerRef.current.style.left = `${newX}px`;
+        containerRef.current.style.top = `${newY}px`;
+      }
     };
     
     const handleUp = () => {
+      setPosition(currentPos.current);
       setIsDragging(false);
       saveState();
     };
     
-    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mousemove', handleMove, { passive: true });
     window.addEventListener('mouseup', handleUp);
     return () => {
       window.removeEventListener('mousemove', handleMove);
@@ -222,6 +232,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           top: position.y,
           width: size.width,
           height: size.height,
+          willChange: isDragging ? 'left, top' : 'auto',
           background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
           border: '1px solid rgba(16, 185, 129, 0.2)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
