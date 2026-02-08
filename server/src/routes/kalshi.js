@@ -10,56 +10,37 @@ const toPercent = (value) => {
 
 const buildMarketFeed = (markets, { category, limit } = {}) => {
   const normalized = (markets || []).map((market) => {
-    const yesRaw = market?.yes_ask ?? market?.last_price;
-    const noRaw = market?.no_ask;
+    const yesRaw = market?.yes_ask ?? market?.last_price ?? market?.yes_bid;
+    const noRaw = market?.no_ask ?? market?.no_bid;
     const yesPercent = toPercent(yesRaw);
     const noPercent = toPercent(
       noRaw ?? (Number.isFinite(yesPercent) ? 100 - yesPercent : null)
     );
-    const volume = Number(market?.volume || 0);
+    const volume = Number(market?.volume || market?.dollar_volume || 0);
     const safeYesPercent = Number.isFinite(yesPercent) ? yesPercent : 50;
     const yesVolume = Number.isFinite(volume) ? volume * (safeYesPercent / 100) : 0;
     const noVolume = Number.isFinite(volume) ? volume - yesVolume : 0;
-    const hasLiveFlag = market
-      && (Object.prototype.hasOwnProperty.call(market, 'is_live')
-        || Object.prototype.hasOwnProperty.call(market, 'event_live')
-        || Object.prototype.hasOwnProperty.call(market, 'live')
-        || Object.prototype.hasOwnProperty.call(market, 'in_play')
-        || Object.prototype.hasOwnProperty.call(market, 'inPlay'));
-    let liveFlags = null;
-    if (hasLiveFlag) {
-      const isLive = Boolean(market?.is_live)
-        || Boolean(market?.event_live)
-        || Boolean(market?.live)
-        || Boolean(market?.in_play)
-        || Boolean(market?.inPlay);
-      liveFlags = {
-        is_live: isLive,
-        live: isLive,
-        in_play: Boolean(market?.in_play ?? market?.inPlay),
-        event_live: Boolean(market?.event_live)
-      };
-    }
 
     return {
-      id: market?.ticker || '',
+      id: market?.ticker || market?.id || '',
       title: market?.title || market?.ticker || '',
       ticker: market?.ticker || '',
-      category: market?.category || 'Other',
+      category: market?.category || market?.event_category || 'Other',
       yesPercent: Number.isFinite(yesPercent) ? yesPercent : null,
       noPercent: Number.isFinite(noPercent) ? noPercent : null,
       yesVolume,
       noVolume,
       volume,
-      closeTime: market?.close_time || market?.expiration_time || null,
-      status: market?.status || 'open',
-      ...(liveFlags || {})
+      closeTime: market?.close_time || market?.expiration_time || market?.end_date || null,
+      status: market?.status || market?.result || 'open',
     };
   });
 
   let filtered = normalized;
   if (category && category !== 'All') {
-    filtered = normalized.filter((market) => market.category === category);
+    filtered = normalized.filter((market) => 
+      market.category?.toLowerCase().includes(category.toLowerCase())
+    );
   }
   if (Number.isFinite(limit) && limit > 0) {
     filtered = filtered.slice(0, limit);
@@ -71,17 +52,17 @@ const buildMarketFeed = (markets, { category, limit } = {}) => {
   };
 };
 
+// Try multiple Kalshi API endpoints
+const KALSHI_ENDPOINTS = [
+  'https://api.elections.kalshi.com/trade-api/v2/markets',
+  'https://trading-api.kalshi.com/trade-api/v2/markets',
+  'https://demo-api.kalshi.co/trade-api/v2/markets',
+];
+
 router.get('/markets', async (req, res) => {
   const apiKey = process.env.KALSHI_API_KEY;
   const apiSecret = process.env.KALSHI_API_SECRET;
 
-  if (!apiKey || !apiSecret) {
-    return res.status(500).json({
-      error: 'KALSHI_API_KEY and KALSHI_API_SECRET must be set'
-    });
-  }
-
-  const url = new URL('https://trading-api.kalshi.com/trade-api/v2/markets');
   const rawLimit = Array.isArray(req.query?.limit) ? req.query.limit[0] : req.query?.limit;
   const parsedLimit = Number(rawLimit);
   const requestedLimit = Number.isFinite(parsedLimit) && parsedLimit > 0
@@ -92,58 +73,56 @@ router.get('/markets', async (req, res) => {
   const rawStatus = Array.isArray(req.query?.status) ? req.query.status[0] : req.query?.status;
   const status = rawStatus ? String(rawStatus) : 'open';
 
-  url.searchParams.set('limit', String(fetchLimit));
-  url.searchParams.set('status', status);
+  const rawCategory = Array.isArray(req.query?.category) ? req.query.category[0] : req.query?.category;
+  const category = rawCategory ? String(rawCategory) : null;
 
-  for (const [key, value] of Object.entries(req.query || {})) {
-    if (key === 'limit' || key === 'category' || key === 'status') continue;
-    if (Array.isArray(value)) {
-      value.forEach((entry) => {
-        if (entry !== undefined && entry !== null) {
-          url.searchParams.append(key, String(entry));
-        }
-      });
-    } else if (value !== undefined && value !== null) {
-      url.searchParams.append(key, String(value));
+  // Build headers - use auth if available
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey && apiSecret) {
+    headers['Authorization'] = `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString('base64')}`;
+  }
+
+  let lastError = null;
+  
+  // Try each endpoint
+  for (const baseUrl of KALSHI_ENDPOINTS) {
+    try {
+      const url = new URL(baseUrl);
+      url.searchParams.set('limit', String(fetchLimit));
+      url.searchParams.set('status', status);
+
+      console.log(`[Kalshi] Trying: ${url.toString()}`);
+      
+      const response = await fetch(url.toString(), { headers });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.log(`[Kalshi] ${baseUrl} returned ${response.status}: ${text.slice(0, 200)}`);
+        lastError = { status: response.status, text };
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (data?.markets && data.markets.length > 0) {
+        const { markets, count } = buildMarketFeed(data.markets, { category, limit: requestedLimit });
+        console.log(`[Kalshi] Success! Got ${count} markets from ${baseUrl}`);
+        return res.json({ success: true, count, markets });
+      }
+    } catch (error) {
+      console.log(`[Kalshi] ${baseUrl} error:`, error.message);
+      lastError = { error: error.message };
     }
   }
 
-  const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-
-  let response;
-  try {
-    response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Basic ${auth}`
-      }
-    });
-  } catch (error) {
-    return res.status(502).json({ error: 'Upstream request failed' });
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-    return res.status(response.status).send(text);
-  }
-
-  try {
-    const data = await response.json();
-    const rawCategory = Array.isArray(req.query?.category)
-      ? req.query.category[0]
-      : req.query?.category;
-    const category = rawCategory ? String(rawCategory) : null;
-    const { markets, count } = buildMarketFeed(data?.markets, {
-      category,
-      limit: requestedLimit
-    });
-    return res.json({
-      success: true,
-      count,
-      markets
-    });
-  } catch (error) {
-    return res.status(502).json({ error: 'Invalid JSON from upstream' });
-  }
+  // All endpoints failed - return error with details
+  console.log('[Kalshi] All endpoints failed');
+  return res.status(502).json({ 
+    success: false,
+    error: 'All Kalshi API endpoints failed',
+    details: lastError,
+    hint: 'Using mock data on frontend'
+  });
 });
 
 export default router;
