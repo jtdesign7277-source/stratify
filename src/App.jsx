@@ -1031,8 +1031,6 @@ export default function StratifyApp() {
       />
     );
 
-  const isAuthRoute = typeof window !== 'undefined' && window.location.pathname === '/auth';
-
   return (
     <AuthProvider>
       {isAuthRoute ? (
