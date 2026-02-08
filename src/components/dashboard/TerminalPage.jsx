@@ -261,20 +261,20 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
 
       <div className="flex-1 flex overflow-hidden">
         {/* Strategy Editor Panel */}
-        <div className="w-80 border-r border-gray-800 bg-[#0d0d12] p-4 flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="w-80 border-r border-gray-800 bg-[#0d0d12] p-4 flex flex-col overflow-hidden">
+          <div className="flex items-center gap-2 mb-3 flex-shrink-0">
             <Zap className="w-4 h-4 text-purple-400" />
             <span className="text-sm font-mono text-purple-400 uppercase tracking-wider">Strategy Config</span>
           </div>
           
-          <div className="space-y-3 flex-1">
+          <div className="space-y-2 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
             <div>
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Strategy Name</label>
               <input
                 type="text"
                 value={editableStrategy.name || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-white text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-white text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="My RSI Strategy"
               />
             </div>
@@ -284,7 +284,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.ticker || ticker || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, ticker: e.target.value }))}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-cyan-400 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-cyan-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="TSLA"
               />
             </div>
@@ -293,8 +293,8 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <textarea
                 value={editableStrategy.entry || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, entry: e.target.value }))}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-yellow-300 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
-                rows={2}
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
+                rows={1}
                 placeholder="Buy when RSI < 30..."
               />
             </div>
@@ -303,8 +303,8 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <textarea
                 value={editableStrategy.exit || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, exit: e.target.value }))}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-orange-300 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
-                rows={2}
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
+                rows={1}
                 placeholder="Sell when RSI > 70..."
               />
             </div>
@@ -314,7 +314,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.stopLoss || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-red-400 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-red-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="5%"
               />
             </div>
@@ -324,7 +324,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 type="text"
                 value={editableStrategy.positionSize || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, positionSize: e.target.value }))}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded text-blue-400 text-sm font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-blue-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="100 shares"
               />
             </div>
@@ -333,7 +333,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           <button
             onClick={handleRunBacktest}
             disabled={isLoading}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm font-mono font-medium transition-all disabled:opacity-50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+            className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 text-xs font-mono font-medium transition-all disabled:opacity-50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] flex-shrink-0"
           >
             {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
