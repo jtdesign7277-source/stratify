@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Loader2, Copy, Check, Zap, Search, X, Plus, Brain,
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
-  ChevronsLeft, ChevronsRight, RotateCcw, Save, Play
+  ChevronsLeft, ChevronsRight, RotateCcw, Save, Play, ArrowLeft
 } from 'lucide-react';
 
 const GROK_LOADING_STEPS = ['Analyzing', 'Building', 'Testing'];
@@ -429,6 +429,18 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
   const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
   const handleSaveAndDeploy = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: true, runStatus: 'running', savedAt: Date.now(), deployedAt: Date.now() }; onDeployStrategy && onDeployStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true, deployed: true } : t)); };
 
+  const handleBackToBuilder = () => {
+    setActiveTab('chat');
+    setBacktestResults(null);
+    setSelectedTickers([]);
+    setSelectedStrategy(null);
+    setSelectedTimeframe(null);
+    setSelectedChartTimeframe(null);
+    setSelectedQuickStrategy(null);
+    setStrategyName('');
+    setChatInput('');
+  };
+
   const handleBacktest = async () => {
     const activeTabData = tabs.find(t => t.id === activeTab);
     if (!activeTabData || activeTab === 'chat') return;
@@ -849,6 +861,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
                   </div>
                 )}
                 <div className="flex gap-2 px-2 py-1.5 border-t border-gray-700 flex-shrink-0">
+                  <button onClick={handleBackToBuilder} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-white transition-colors" title="Back to Builder">
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
                   <button onClick={handleBacktest} disabled={isBacktesting} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-purple-600/20 text-purple-300 border border-purple-500/50 hover:bg-purple-600/30 hover:text-purple-200 transition-colors disabled:opacity-50">
                     {isBacktesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
                     {isBacktesting ? 'Testing...' : 'Backtest'}
