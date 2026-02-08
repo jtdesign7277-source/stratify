@@ -536,9 +536,20 @@ const PredictionsPage = () => {
 
   const hasMarkets = categoryOrder.length > 0;
 
+  const [activeCategory, setActiveCategory] = useState(null);
+
+  const scrollToCategory = (category) => {
+    setActiveCategory(category);
+    const element = document.getElementById(`category-${category.replace(/\s+/g, '-').toLowerCase()}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white p-4 overflow-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 pb-2">
         <div>
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-[#29e1a6]" strokeWidth={1.5} />
@@ -562,31 +573,57 @@ const PredictionsPage = () => {
         </button>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-200 text-sm px-3 py-2">
-          {error}
+      {/* Category Tabs */}
+      {hasMarkets && (
+        <div className="px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-2">
+            {categoryOrder.map((category) => (
+              <button
+                key={category}
+                onClick={() => scrollToCategory(category)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                  activeCategory === category
+                    ? 'bg-[#29e1a6] text-black'
+                    : 'bg-[#1a1a1a] text-white/70 hover:bg-[#252525] hover:text-white border border-[#2a2a2a]'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {loading && markets.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-[#1f1f1f] bg-[#111111] p-5 animate-pulse">
-              <div className="h-3 bg-white/10 rounded w-2/3 mb-2" />
-              <div className="h-4 bg-white/10 rounded w-4/5" />
-              <div className="mt-4 h-24 bg-white/5 rounded" />
-            </div>
-          ))}
-        </div>
-      ) : !hasMarkets ? (
-        <div className="text-white/40 text-sm">No markets found.</div>
-      ) : (
-        <div className="space-y-10">
-          {categoryOrder.map((category) => (
-            <CategorySection key={category} title={category} markets={groupedMarkets[category]} />
-          ))}
-        </div>
-      )}
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-4 pt-2">
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-200 text-sm px-3 py-2">
+            {error}
+          </div>
+        )}
+
+        {loading && markets.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-[#1f1f1f] bg-[#111111] p-5 animate-pulse">
+                <div className="h-3 bg-white/10 rounded w-2/3 mb-2" />
+                <div className="h-4 bg-white/10 rounded w-4/5" />
+                <div className="mt-4 h-24 bg-white/5 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : !hasMarkets ? (
+          <div className="text-white/40 text-sm">No markets found.</div>
+        ) : (
+          <div className="space-y-10">
+            {categoryOrder.map((category) => (
+              <div key={category} id={`category-${category.replace(/\s+/g, '-').toLowerCase()}`}>
+                <CategorySection title={category} markets={groupedMarkets[category]} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
