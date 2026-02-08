@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Loader2, X, GripVertical, Minus } from 'lucide-react';
+import { Send, Loader2, X, GripVertical } from 'lucide-react';
 
 // X (Twitter) logo for Grok
 const XLogo = ({ className }) => (
@@ -278,26 +278,15 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
               <span className="text-emerald-400/60 text-xs ml-2">AI Assistant</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              data-no-drag
-              onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-gray-400 hover:text-amber-400 transition-all duration-200"
-              title="Minimize"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              data-no-drag
-              onClick={handleClose}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
-              title="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            data-no-drag
+            onClick={handleClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Messages - NO SCROLLBAR */}
