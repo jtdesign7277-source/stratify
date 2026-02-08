@@ -77,15 +77,15 @@ const MiniGamePill = ({ game, onRemove }) => {
       : currentGame.detail || 'Upcoming';
 
   return (
-    <div className="group h-8 max-w-[200px] px-2.5 rounded-full bg-[#1a1a1f] border border-white/10 flex items-center gap-2 text-white text-[11px] leading-none">
-      <div className="flex items-center gap-1.5 min-w-0">
+    <div className="group h-8 px-2.5 rounded-full bg-[#1a1a1f] border border-white/10 flex items-center gap-2 text-white text-[11px] leading-none whitespace-nowrap">
+      <div className="flex items-center gap-1.5">
         {currentGame.awayLogo && <img src={currentGame.awayLogo} alt="" className="w-4 h-4" />}
         <span className="font-mono">{currentGame.awayScore}</span>
         <span className="text-white/40">|</span>
         <span className="font-mono">{currentGame.homeScore}</span>
         {currentGame.homeLogo && <img src={currentGame.homeLogo} alt="" className="w-4 h-4" />}
       </div>
-      <span className="text-[10px] text-white/70 truncate">{statusLabel}</span>
+      <span className="text-[10px] text-white/70">{statusLabel}</span>
       <button
         onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded-full transition-opacity"

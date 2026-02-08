@@ -326,10 +326,10 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         {[0, 1, 2, 3, 4, 5].map((slot) => (
           <div 
             key={slot} 
-            className={`h-8 min-w-[80px] rounded-full transition-all ${
+            className={`h-8 rounded-full transition-all ${
               miniPills[slot] 
                 ? '' 
-                : 'border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
+                : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
             }`}
             data-pill-slot={slot}
             onDragOver={(e) => {
