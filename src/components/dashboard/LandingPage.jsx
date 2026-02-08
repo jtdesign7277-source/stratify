@@ -207,13 +207,13 @@ const LandingPage = ({ onEnter }) => {
           >
             <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 rounded-2xl opacity-40 group-hover:opacity-70 blur-xl transition-all duration-500 animate-pulse" />
             <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-cyan-500 rounded-2xl opacity-50 group-hover:opacity-80 blur-md transition-opacity" />
-            <div className="relative flex items-center gap-4 px-10 py-5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-cyan-600/30 border border-emerald-400/50 group-hover:border-emerald-300/80 transition-all backdrop-blur-sm">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-500/50 group-hover:shadow-emerald-400/70 transition-shadow">
-                <Play className="w-6 h-6 text-white ml-0.5" fill="white" strokeWidth={0} />
+            <div className="relative flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-600/30 to-cyan-600/30 border border-emerald-400/50 group-hover:border-emerald-300/80 transition-all backdrop-blur-sm">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-500/50 group-hover:shadow-emerald-400/70 transition-shadow">
+                <Play className="w-5 h-5 text-white ml-0.5" fill="white" strokeWidth={0} />
               </div>
               <div className="flex flex-col items-start">
-                <span className="text-white font-semibold text-lg tracking-wide">Experience Stratify</span>
-                <span className="text-emerald-300/80 text-xs tracking-wider uppercase">Watch the intro</span>
+                <span className="text-white font-semibold text-base tracking-wide">Experience Stratify</span>
+                <span className="text-emerald-300/80 text-[10px] tracking-wider uppercase">Watch the intro</span>
               </div>
             </div>
           </motion.button>
