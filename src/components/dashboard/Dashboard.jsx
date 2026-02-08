@@ -706,6 +706,10 @@ export default function Dashboard({
               ticker={terminalTicker}
               onRunBacktest={handleTerminalBacktest}
               isLoading={isTerminalLoading}
+              onDeploy={(strategy) => {
+                setDeployedStrategies(prev => [...prev, strategy]);
+              }}
+              onNavigateToActive={() => setActiveTab('active')}
             />
           )}
           {activeTab === 'more' && (

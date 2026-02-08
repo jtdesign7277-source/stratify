@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap } from 'lucide-react';
+import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X } from 'lucide-react';
 
-const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading }) => {
+const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading, onDeploy, onNavigateToActive }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [history, setHistory] = useState([]);
+  const [showDeployPrompt, setShowDeployPrompt] = useState(false);
   const terminalRef = useRef(null);
   
   // Strategy used for display in terminal (captured when backtest runs)
@@ -163,6 +164,8 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         setIsTyping(false);
         // Save to history
         setHistory(prev => [{ timestamp: new Date().toISOString(), results: backtestResults, strategy: displayStrategy }, ...prev.slice(0, 9)]);
+        // Show deployment prompt after results are displayed
+        setShowDeployPrompt(true);
       }
     }, 25);
 
@@ -176,7 +179,31 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   const handleRunBacktest = () => {
     // Capture the current editable strategy as the one being tested
     setDisplayStrategy({ ...editableStrategy });
+    setShowDeployPrompt(false); // Reset deploy prompt
     onRunBacktest && onRunBacktest(editableStrategy);
+  };
+
+  const handleDeploy = () => {
+    if (onDeploy) {
+      const strategyToSave = {
+        id: 'strategy-' + Date.now(),
+        name: `${displayStrategy.ticker || ticker} Strategy`,
+        ticker: displayStrategy.ticker || ticker,
+        entry: displayStrategy.entry,
+        exit: displayStrategy.exit,
+        stopLoss: displayStrategy.stopLoss,
+        positionSize: displayStrategy.positionSize,
+        backtestResults: backtestResults,
+        deployed: true,
+        runStatus: 'running',
+        savedAt: Date.now(),
+        deployedAt: Date.now(),
+      };
+      onDeploy(strategyToSave);
+    }
+    if (onNavigateToActive) {
+      onNavigateToActive();
+    }
   };
 
   return (
@@ -313,6 +340,35 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           {isLoading && displayedLines.length === 0 && (
             <div className="text-emerald-400 animate-pulse">
               <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
+            </div>
+          )}
+          
+          {/* Deploy Prompt */}
+          {showDeployPrompt && !isTyping && backtestResults && !backtestResults.error && (
+            <div className="mt-6 p-4 border border-emerald-500/30 rounded-lg bg-emerald-500/5">
+              <div className="flex items-center gap-3 mb-3">
+                <Rocket className="w-5 h-5 text-emerald-400" />
+                <span className="text-emerald-400 font-mono font-medium">DEPLOY THIS STRATEGY?</span>
+              </div>
+              <p className="text-gray-400 text-sm mb-4 font-mono">
+                Strategy will begin live trading with your configured parameters.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDeploy}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-mono font-medium transition-all"
+                >
+                  <span className="text-lg">Y</span>
+                  <span className="text-sm opacity-80">- Yes, Deploy</span>
+                </button>
+                <button
+                  onClick={() => setShowDeployPrompt(false)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 font-mono font-medium transition-all"
+                >
+                  <span className="text-lg">N</span>
+                  <span className="text-sm opacity-80">- No, Cancel</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
