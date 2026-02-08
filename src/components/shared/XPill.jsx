@@ -490,7 +490,7 @@ const XPill = ({
 
       <div
         ref={containerRef}
-        className={`fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        className={`fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0 invisible'}`}
         style={{
           left: position.x,
           top: position.y,

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Loader2, X, GripVertical } from 'lucide-react';
+import { Send, Loader2, X, GripVertical, Minus, Maximize2 } from 'lucide-react';
 
 // X (Twitter) logo for Grok
 const XLogo = ({ className }) => (
@@ -30,6 +30,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   const [size, setSize] = useState({ width: 380, height: 500 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   
   const messagesEndRef = useRef(null);
   const typingIntervalRef = useRef(null);
@@ -242,6 +243,27 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
 
   if (!isOpen) return null;
 
+  // Minimized state - show small pill in bottom right
+  if (isMinimized) {
+    return (
+      <button
+        onClick={() => setIsMinimized(false)}
+        className="fixed bottom-6 right-6 z-[9999] flex items-center gap-2 h-12 px-4 rounded-full bg-gradient-to-r from-[#1a1a1f] to-[#0d0d12] border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:border-emerald-400/50 hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-200 group"
+      >
+        <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+          <XLogo className="w-4 h-4 text-emerald-400" />
+        </div>
+        <span className="text-white font-medium text-sm">Grok</span>
+        {messages.length > 0 && (
+          <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">
+            {messages.length}
+          </span>
+        )}
+        <Maximize2 className="w-4 h-4 text-gray-400 group-hover:text-emerald-400 transition-colors" />
+      </button>
+    );
+  }
+
   return (
     <AnimatePresence>
       <motion.div
@@ -278,15 +300,26 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
               <span className="text-emerald-400/60 text-xs ml-2">AI Assistant</span>
             </div>
           </div>
-          <button
-            type="button"
-            data-no-drag
-            onClick={handleClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
-            title="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              data-no-drag
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-gray-400 hover:text-amber-400 transition-all duration-200"
+              title="Minimize"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              data-no-drag
+              onClick={handleClose}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Messages - NO SCROLLBAR */}
