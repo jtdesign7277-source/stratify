@@ -4,9 +4,21 @@ import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap
 const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading, onDeploy, onNavigateToActive }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [history, setHistory] = useState([]);
   const [showDeployPrompt, setShowDeployPrompt] = useState(false);
   const terminalRef = useRef(null);
+  
+  // Load history from localStorage
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-terminal-history');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  
+  // Save history to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('stratify-terminal-history', JSON.stringify(history));
+  }, [history]);
   
   // Strategy used for display in terminal (captured when backtest runs)
   const [displayStrategy, setDisplayStrategy] = useState({});
@@ -35,20 +47,18 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
     }
   }, [strategy, ticker]);
 
-  useEffect(() => {
-    if (!backtestResults) return;
-    if (backtestResults.error) {
-      setDisplayedLines([{ type: 'error', text: `ERROR: ${backtestResults.error}`, color: 'text-red-400' }]);
+  // Build terminal lines function (reusable)
+  const buildTerminalLines = (results, strat) => {
+    if (!results) return;
+    if (results.error) {
+      setDisplayedLines([{ type: 'error', text: `ERROR: ${results.error}`, color: 'text-red-400' }]);
       return;
     }
     
     try {
-      // Build terminal output lines
       const lines = [];
       const timestamp = new Date().toLocaleTimeString();
       const dateStamp = new Date().toLocaleDateString();
-      
-      // Safe string helper
       const safeStr = (val, fallback = 'N/A') => String(val || fallback).substring(0, 60).padEnd(60);
       
       lines.push({ type: 'header', text: '╔══════════════════════════════════════════════════════════════════════════════╗', color: 'text-emerald-500/50' });
@@ -60,121 +70,118 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-gray-500' });
       lines.push({ type: 'blank', text: '' });
       
-      // Target info
-      lines.push({ type: 'info', text: `▸ TARGET:     ${backtestResults.symbol || ticker || 'N/A'}`, color: 'text-cyan-400' });
-      lines.push({ type: 'info', text: `▸ PERIOD:     ${backtestResults.period || '6mo'}`, color: 'text-cyan-400' });
-      lines.push({ type: 'info', text: `▸ TIMEFRAME:  ${backtestResults.timeframe || '1Day'}`, color: 'text-cyan-400' });
-      lines.push({ type: 'info', text: `▸ BARS:       ${backtestResults.barsAnalyzed || 0} data points analyzed`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ TARGET:     ${results.symbol || strat?.ticker || 'N/A'}`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ PERIOD:     ${results.period || '6mo'}`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ TIMEFRAME:  ${results.timeframe || '1Day'}`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ BARS:       ${results.barsAnalyzed || 0} data points analyzed`, color: 'text-cyan-400' });
       lines.push({ type: 'blank', text: '' });
       
-      // Strategy config with box
       lines.push({ type: 'section', text: '┌─────────────────────────── STRATEGY PARAMETERS ───────────────────────────┐', color: 'text-purple-500/70' });
-      lines.push({ type: 'config', text: `│  ENTRY:    ${safeStr(displayStrategy.entry || strategy.entry)}  │`, color: 'text-yellow-300' });
-      lines.push({ type: 'config', text: `│  EXIT:     ${safeStr(displayStrategy.exit || strategy.exit)}  │`, color: 'text-orange-300' });
-      lines.push({ type: 'config', text: `│  STOP:     ${safeStr(displayStrategy.stopLoss || strategy.stopLoss)}  │`, color: 'text-red-400' });
-      lines.push({ type: 'config', text: `│  SIZE:     ${safeStr(displayStrategy.positionSize || strategy.positionSize)}  │`, color: 'text-blue-400' });
+      lines.push({ type: 'config', text: `│  ENTRY:    ${safeStr(strat?.entry)}  │`, color: 'text-yellow-300' });
+      lines.push({ type: 'config', text: `│  EXIT:     ${safeStr(strat?.exit)}  │`, color: 'text-orange-300' });
+      lines.push({ type: 'config', text: `│  STOP:     ${safeStr(strat?.stopLoss)}  │`, color: 'text-red-400' });
+      lines.push({ type: 'config', text: `│  SIZE:     ${safeStr(strat?.positionSize)}  │`, color: 'text-blue-400' });
       lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-purple-500/70' });
       lines.push({ type: 'blank', text: '' });
 
-    // Results summary with visual bars
-    const summary = backtestResults.summary || {};
-    const pnl = parseFloat(summary.totalPnL) || 0;
-    const winRate = parseFloat(summary.winRate) || 0;
-    const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-    const winRateColor = winRate >= 50 ? 'text-emerald-400' : 'text-red-400';
-    
-    lines.push({ type: 'section', text: '┌─────────────────────────── PERFORMANCE METRICS ───────────────────────────┐', color: 'text-emerald-500/70' });
-    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
-    
-    // Win rate bar
-    const winBarFilled = Math.round(winRate / 5);
-    const winBar = '█'.repeat(Math.min(winBarFilled, 20)) + '░'.repeat(Math.max(20 - winBarFilled, 0));
-    lines.push({ type: 'metric', text: `│  WIN RATE     [${winBar}]  ${winRate.toFixed(1)}%`, color: winRateColor });
-    
-    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
-    lines.push({ type: 'metric', text: `│  TOTAL TRADES ············································  ${String(summary.totalTrades || 0).padStart(6)}`, color: 'text-white' });
-    lines.push({ type: 'metric', text: `│  WINNING     ·············································  ${String(summary.winningTrades || 0).padStart(6)}`, color: 'text-emerald-400' });
-    lines.push({ type: 'metric', text: `│  LOSING      ·············································  ${String(summary.losingTrades || 0).padStart(6)}`, color: 'text-red-400' });
-    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
-    lines.push({ type: 'metric', text: `│  TOTAL P&L   ············································· $${String(summary.totalPnL || '0.00').padStart(10)}`, color: pnlColor });
-    lines.push({ type: 'metric', text: `│  RETURN      ·············································  ${String((summary.returnPercent || 0) + '%').padStart(10)}`, color: pnlColor });
-    lines.push({ type: 'metric', text: `│  AVG WIN     ············································· $${String(summary.avgWin || '0.00').padStart(10)}`, color: 'text-emerald-400' });
-    lines.push({ type: 'metric', text: `│  AVG LOSS    ············································· $${String(summary.avgLoss || '0.00').padStart(10)}`, color: 'text-red-400' });
-    lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
-    lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-emerald-500/70' });
-    lines.push({ type: 'blank', text: '' });
-
-    // Trade log
-    if (backtestResults.trades && backtestResults.trades.length > 0) {
-      lines.push({ type: 'section', text: '┌──────────────────────────────── TRADE LOG ────────────────────────────────┐', color: 'text-amber-500/70' });
+      const summary = results.summary || {};
+      const pnl = parseFloat(summary.totalPnL) || 0;
+      const winRate = parseFloat(summary.winRate) || 0;
+      const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+      const winRateColor = winRate >= 50 ? 'text-emerald-400' : 'text-red-400';
       
-      backtestResults.trades.forEach((trade, idx) => {
-        const entryDate = new Date(trade.entryTime).toLocaleDateString();
-        const entryTime = new Date(trade.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const exitDate = new Date(trade.exitTime).toLocaleDateString();
-        const exitTime = new Date(trade.exitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const tradePnl = parseFloat(trade.pnl) || 0;
-        const tradeColor = tradePnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-        const icon = tradePnl >= 0 ? '✓' : '✗';
-        const status = tradePnl >= 0 ? 'WIN ' : 'LOSS';
-        
-        lines.push({ type: 'trade', text: `│                                                                            │`, color: 'text-gray-700' });
-        lines.push({ type: 'trade', text: `│  ═══ TRADE #${String(idx + 1).padStart(2, '0')} ═══════════════════════════════════════════════════════════`, color: tradeColor });
-        lines.push({ type: 'trade', text: `│  ${icon} STATUS: ${status}                                                           │`, color: tradeColor });
-        lines.push({ type: 'detail', text: `│    ┌─ BUY ───────────────────────────────────────────────────────────────┐`, color: 'text-cyan-500/50' });
-        lines.push({ type: 'detail', text: `│    │  DATE:   ${entryDate}                                                    │`, color: 'text-cyan-300' });
-        lines.push({ type: 'detail', text: `│    │  TIME:   ${entryTime}                                                       │`, color: 'text-cyan-300' });
-        lines.push({ type: 'detail', text: `│    │  PRICE:  $${trade.entryPrice?.toFixed(2)}                                                   │`, color: 'text-cyan-400' });
-        lines.push({ type: 'detail', text: `│    └──────────────────────────────────────────────────────────────────────┘`, color: 'text-cyan-500/50' });
-        lines.push({ type: 'detail', text: `│    ┌─ SELL ──────────────────────────────────────────────────────────────┐`, color: 'text-orange-500/50' });
-        lines.push({ type: 'detail', text: `│    │  DATE:   ${exitDate}                                                    │`, color: 'text-orange-300' });
-        lines.push({ type: 'detail', text: `│    │  TIME:   ${exitTime}                                                       │`, color: 'text-orange-300' });
-        lines.push({ type: 'detail', text: `│    │  PRICE:  $${trade.exitPrice?.toFixed(2)}                                                   │`, color: 'text-orange-400' });
-        lines.push({ type: 'detail', text: `│    │  REASON: ${(trade.exitReason || 'N/A').substring(0, 55).padEnd(55)}    │`, color: 'text-orange-300' });
-        lines.push({ type: 'detail', text: `│    └──────────────────────────────────────────────────────────────────────┘`, color: 'text-orange-500/50' });
-        lines.push({ type: 'pnl', text: `│    P&L:  ${tradePnl >= 0 ? '+' : ''}$${trade.pnl?.toFixed(2)} (${tradePnl >= 0 ? '+' : ''}${trade.pnlPercent?.toFixed(2)}%)`, color: tradeColor });
-      });
-      
-      lines.push({ type: 'section', text: '│                                                                            │', color: 'text-gray-700' });
-      lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-amber-500/70' });
-    } else {
-      lines.push({ type: 'warning', text: '⚠ NO TRADES EXECUTED - Strategy conditions not met during this period', color: 'text-yellow-500' });
-    }
+      lines.push({ type: 'section', text: '┌─────────────────────────── PERFORMANCE METRICS ───────────────────────────┐', color: 'text-emerald-500/70' });
+      lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+      const winBarFilled = Math.round(winRate / 5);
+      const winBar = '█'.repeat(Math.min(winBarFilled, 20)) + '░'.repeat(Math.max(20 - winBarFilled, 0));
+      lines.push({ type: 'metric', text: `│  WIN RATE     [${winBar}]  ${winRate.toFixed(1)}%`, color: winRateColor });
+      lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+      lines.push({ type: 'metric', text: `│  TOTAL TRADES ············································  ${String(summary.totalTrades || 0).padStart(6)}`, color: 'text-white' });
+      lines.push({ type: 'metric', text: `│  WINNING     ·············································  ${String(summary.winningTrades || 0).padStart(6)}`, color: 'text-emerald-400' });
+      lines.push({ type: 'metric', text: `│  LOSING      ·············································  ${String(summary.losingTrades || 0).padStart(6)}`, color: 'text-red-400' });
+      lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+      lines.push({ type: 'metric', text: `│  TOTAL P&L   ············································· $${String(summary.totalPnL || '0.00').padStart(10)}`, color: pnlColor });
+      lines.push({ type: 'metric', text: `│  RETURN      ·············································  ${String((summary.returnPercent || 0) + '%').padStart(10)}`, color: pnlColor });
+      lines.push({ type: 'metric', text: `│  AVG WIN     ············································· $${String(summary.avgWin || '0.00').padStart(10)}`, color: 'text-emerald-400' });
+      lines.push({ type: 'metric', text: `│  AVG LOSS    ············································· $${String(summary.avgLoss || '0.00').padStart(10)}`, color: 'text-red-400' });
+      lines.push({ type: 'metric', text: `│                                                                            │`, color: 'text-gray-700' });
+      lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-emerald-500/70' });
+      lines.push({ type: 'blank', text: '' });
 
-    lines.push({ type: 'blank', text: '' });
-    lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ Analysis complete`, color: 'text-gray-500' });
-    lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ System ready for deployment`, color: 'text-emerald-500' });
-    lines.push({ type: 'blank', text: '' });
-    lines.push({ type: 'cursor', text: '> █', color: 'text-emerald-400 animate-pulse' });
-
-    // Typewriter effect
-    setDisplayedLines([]);
-    setIsTyping(true);
-    let lineIndex = 0;
-    
-    const typeInterval = setInterval(() => {
-      if (lineIndex < lines.length) {
-        setDisplayedLines(prev => [...prev, lines[lineIndex]]);
-        lineIndex++;
-        if (terminalRef.current) {
-          terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-        }
+      if (results.trades && results.trades.length > 0) {
+        lines.push({ type: 'section', text: '┌──────────────────────────────── TRADE LOG ────────────────────────────────┐', color: 'text-amber-500/70' });
+        results.trades.forEach((trade, idx) => {
+          const entryDate = new Date(trade.entryTime).toLocaleDateString();
+          const entryTime = new Date(trade.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const exitDate = new Date(trade.exitTime).toLocaleDateString();
+          const exitTime = new Date(trade.exitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const tradePnl = parseFloat(trade.pnl) || 0;
+          const tradeColor = tradePnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+          const icon = tradePnl >= 0 ? '✓' : '✗';
+          const status = tradePnl >= 0 ? 'WIN ' : 'LOSS';
+          
+          lines.push({ type: 'trade', text: `│                                                                            │`, color: 'text-gray-700' });
+          lines.push({ type: 'trade', text: `│  ═══ TRADE #${String(idx + 1).padStart(2, '0')} ═══════════════════════════════════════════════════════════`, color: tradeColor });
+          lines.push({ type: 'trade', text: `│  ${icon} STATUS: ${status}                                                           │`, color: tradeColor });
+          lines.push({ type: 'detail', text: `│    ┌─ BUY ───────────────────────────────────────────────────────────────┐`, color: 'text-cyan-500/50' });
+          lines.push({ type: 'detail', text: `│    │  DATE:   ${entryDate}                                                    │`, color: 'text-cyan-300' });
+          lines.push({ type: 'detail', text: `│    │  TIME:   ${entryTime}                                                       │`, color: 'text-cyan-300' });
+          lines.push({ type: 'detail', text: `│    │  PRICE:  $${trade.entryPrice?.toFixed(2)}                                                   │`, color: 'text-cyan-400' });
+          lines.push({ type: 'detail', text: `│    └──────────────────────────────────────────────────────────────────────┘`, color: 'text-cyan-500/50' });
+          lines.push({ type: 'detail', text: `│    ┌─ SELL ──────────────────────────────────────────────────────────────┐`, color: 'text-orange-500/50' });
+          lines.push({ type: 'detail', text: `│    │  DATE:   ${exitDate}                                                    │`, color: 'text-orange-300' });
+          lines.push({ type: 'detail', text: `│    │  TIME:   ${exitTime}                                                       │`, color: 'text-orange-300' });
+          lines.push({ type: 'detail', text: `│    │  PRICE:  $${trade.exitPrice?.toFixed(2)}                                                   │`, color: 'text-orange-400' });
+          lines.push({ type: 'detail', text: `│    │  REASON: ${(trade.exitReason || 'N/A').substring(0, 55).padEnd(55)}    │`, color: 'text-orange-300' });
+          lines.push({ type: 'detail', text: `│    └──────────────────────────────────────────────────────────────────────┘`, color: 'text-orange-500/50' });
+          lines.push({ type: 'pnl', text: `│    P&L:  ${tradePnl >= 0 ? '+' : ''}$${trade.pnl?.toFixed(2)} (${tradePnl >= 0 ? '+' : ''}${trade.pnlPercent?.toFixed(2)}%)`, color: tradeColor });
+        });
+        lines.push({ type: 'section', text: '│                                                                            │', color: 'text-gray-700' });
+        lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-amber-500/70' });
       } else {
-        clearInterval(typeInterval);
-        setIsTyping(false);
-        // Save to history
-        setHistory(prev => [{ timestamp: new Date().toISOString(), results: backtestResults, strategy: displayStrategy }, ...prev.slice(0, 9)]);
-        // Show deployment prompt after results are displayed
-        setShowDeployPrompt(true);
+        lines.push({ type: 'warning', text: '⚠ NO TRADES EXECUTED - Strategy conditions not met during this period', color: 'text-yellow-500' });
       }
-    }, 25);
 
-    return () => clearInterval(typeInterval);
+      lines.push({ type: 'blank', text: '' });
+      lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ Analysis complete`, color: 'text-gray-500' });
+      lines.push({ type: 'system', text: `[${new Date().toLocaleTimeString()}] ▸ System ready for deployment`, color: 'text-emerald-500' });
+      lines.push({ type: 'blank', text: '' });
+      lines.push({ type: 'cursor', text: '> █', color: 'text-emerald-400 animate-pulse' });
+
+      // Typewriter effect
+      setDisplayedLines([]);
+      setIsTyping(true);
+      let lineIndex = 0;
+      
+      const typeInterval = setInterval(() => {
+        if (lineIndex < lines.length) {
+          setDisplayedLines(prev => [...prev, lines[lineIndex]]);
+          lineIndex++;
+          if (terminalRef.current) {
+            terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+          }
+        } else {
+          clearInterval(typeInterval);
+          setIsTyping(false);
+          setShowDeployPrompt(true);
+        }
+      }, 25);
+
+      return () => clearInterval(typeInterval);
     } catch (err) {
       console.error('Terminal render error:', err);
       setDisplayedLines([{ type: 'error', text: `RENDER ERROR: ${err.message}`, color: 'text-red-400' }]);
     }
-  }, [backtestResults]); // Only re-run when new backtest results arrive
+  };
+
+  useEffect(() => {
+    if (!backtestResults) return;
+    buildTerminalLines(backtestResults, displayStrategy || strategy);
+    // Save to history
+    if (backtestResults && !backtestResults.error) {
+      setHistory(prev => [{ timestamp: new Date().toISOString(), results: backtestResults, strategy: displayStrategy }, ...prev.slice(0, 19)]);
+    }
+  }, [backtestResults]);
 
   const handleRunBacktest = () => {
     // Capture the current editable strategy as the one being tested
@@ -204,6 +211,24 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
     if (onNavigateToActive) {
       onNavigateToActive();
     }
+  };
+
+  // Load a history item into the terminal
+  const handleLoadHistory = (historyItem) => {
+    if (historyItem.results) {
+      setDisplayStrategy(historyItem.strategy || {});
+      setEditableStrategy(historyItem.strategy || {});
+      // Trigger re-render of terminal with this result
+      // We need to manually build the lines since backtestResults prop won't change
+      buildTerminalLines(historyItem.results, historyItem.strategy || {});
+      setShowDeployPrompt(true);
+    }
+  };
+
+  // Clear all history
+  const handleClearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('stratify-terminal-history');
   };
 
   return (
@@ -305,13 +330,40 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           {/* History */}
           {history.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-800">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider font-mono mb-2">Recent Tests</div>
-              <div className="space-y-1 max-h-32 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-                {history.map((h, i) => (
-                  <div key={i} className="text-xs font-mono text-gray-600 hover:text-gray-400 cursor-pointer truncate">
-                    {new Date(h.timestamp).toLocaleTimeString()} - {h.results?.symbol} ({h.results?.summary?.totalTrades || 0} trades)
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Recent Tests</div>
+                <button
+                  onClick={handleClearHistory}
+                  className="p-1 text-gray-600 hover:text-red-400 transition-colors"
+                  title="Clear History"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="space-y-1 max-h-40 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                {history.map((h, i) => {
+                  const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
+                  const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => handleLoadHistory(h)}
+                      className="p-2 rounded bg-gray-800/50 hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-emerald-500/30"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono text-gray-400">
+                          {new Date(h.timestamp).toLocaleTimeString()} - {h.results?.symbol}
+                        </span>
+                        <span className={`text-xs font-mono ${pnlColor}`}>
+                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-gray-600 mt-0.5">
+                        {h.results?.summary?.totalTrades || 0} trades • {h.results?.summary?.winRate || 0}% win
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
