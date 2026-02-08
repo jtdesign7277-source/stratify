@@ -533,39 +533,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
             const finalContent = accumulated || "Couldn't respond.";
             const parsed = parseStrategyResponse(finalContent);
             setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: finalContent, parsed, isTyping: false } : t));
-            
-            // Auto-run backtest after strategy is generated
-            const tickerRaw = parsed.summary?.ticker || (selectedTickers[0] ? selectedTickers[0] : 'SPY');
-            const ticker = tickerRaw.replace(/\$/g, '').split(',')[0].trim();
-            const strategyPayload = {
-              entry: parsed.summary?.entry || 'Buy when RSI drops below 30',
-              exit: parsed.summary?.exit || 'Sell when RSI rises above 70',
-              stopLoss: parsed.summary?.stopLoss || '5%',
-              positionSize: parsed.summary?.positionSize || '100 shares',
-              ticker: ticker,
-            };
-            setIsBacktesting(true);
-            try {
-              const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  ticker,
-                  strategy: strategyPayload,
-                  period: '6mo',
-                  timeframe: '1Day',
-                }),
-              });
-              const data = await response.json();
-              if (!data.error) {
-                setBacktestResults(data);
-                // Sync with Terminal page and auto-open it
-                if (onBacktestResults) {
-                  onBacktestResults(data, strategyPayload, ticker);
-                }
-              }
-            } catch (err) { console.error('Auto-backtest error:', err); }
-            finally { setIsBacktesting(false); }
+            // No auto-backtest - user must click Backtest button
           },
         });
       } catch (e) { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t)); }
@@ -856,7 +824,10 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
               <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-700 flex-shrink-0">
                 <button onClick={() => setActiveSubTab('strategy')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'strategy' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Strategy</button>
                 <button onClick={() => setActiveSubTab('code')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Code</button>
-                <button onClick={handleReset} className="ml-auto p-1 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Start Over"><RotateCcw className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} /></button>
+                <div className="ml-auto flex items-center gap-1">
+                  <button onClick={handleReset} className="p-1 hover:bg-gray-800 rounded transition-colors text-gray-500 hover:text-white" title="Start Over"><RotateCcw className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} /></button>
+                  <button onClick={() => setIsCollapsed(true)} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Collapse"><ChevronsRight className="w-3.5 h-3.5" /></button>
+                </div>
               </div>
             )}
             <div className="flex-1 overflow-y-auto min-h-0">
