@@ -32,6 +32,7 @@ import StrategyTemplatesGallery from './StrategyTemplatesGallery';
 import ActiveTrades, { strategiesSeed } from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
+import FloatingGrokChat from './FloatingGrokChat';
 
 const loadDashboardState = () => {
   try {
@@ -201,7 +202,8 @@ export default function Dashboard({
   });
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
-  const [grokMessageCount] = useState(0);
+  const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
+  const [grokMessageCount, setGrokMessageCount] = useState(0);
 
   // Command palette navigation handler
   const handleCommandNavigate = useCallback((target) => {
@@ -543,7 +545,12 @@ export default function Dashboard({
           // Slot 0: Grok pill - ALWAYS visible
           <div
             key="grok-pill"
-            className="h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full border border-white/20 bg-black/90"
+            onClick={() => setIsFloatingGrokOpen((prev) => !prev)}
+            className={`h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full border bg-black/90 cursor-pointer transition-all ${
+              isFloatingGrokOpen
+                ? 'border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                : 'border-white/20 hover:border-white/40'
+            }`}
           >
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="currentColor">
@@ -803,6 +810,12 @@ export default function Dashboard({
         onClose={() => setShowBrokerModal(false)}
         onConnect={handleConnectBroker}
         connectedBrokers={connectedBrokers}
+      />
+
+      <FloatingGrokChat
+        isOpen={isFloatingGrokOpen}
+        onClose={() => setIsFloatingGrokOpen(false)}
+        onMessageCountChange={setGrokMessageCount}
       />
 
       {/* Command Palette - ⌘K to open */}
