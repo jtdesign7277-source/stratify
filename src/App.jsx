@@ -1033,25 +1033,19 @@ export default function StratifyApp() {
     );
 
   return (
-    <AuthProvider>
-      {isAuthRoute ? (
-        <AuthPage />
-      ) : (
-        <>
-          {mainContent}
-          <XPill
-            isOpen={isSocialFeedOpen}
-            onOpenChange={setIsSocialFeedOpen}
-            onUnreadChange={setHasSocialFeedUnread}
-            showTrigger={false}
-          />
-          <LiveScoresPill
-            isOpen={isLiveScoresOpen}
-            onOpenChange={setIsLiveScoresOpen}
-            onUnreadChange={setHasLiveScoresUnread}
-          />
-        </>
-      )}
-    </AuthProvider>
+    <>
+      {mainContent}
+      <XPill
+        isOpen={isSocialFeedOpen}
+        onOpenChange={setIsSocialFeedOpen}
+        onUnreadChange={setHasSocialFeedUnread}
+        showTrigger={false}
+      />
+      <LiveScoresPill
+        isOpen={isLiveScoresOpen}
+        onOpenChange={setIsLiveScoresOpen}
+        onUnreadChange={setHasLiveScoresUnread}
+      />
+    </>
   );
 }
