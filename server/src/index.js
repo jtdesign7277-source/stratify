@@ -813,3 +813,197 @@ app.get('/api/snapshot/:symbol', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ============ BACKTESTING API ============
+// Run strategy backtest against historical Alpaca data
+app.post('/api/backtest', async (req, res) => {
+  try {
+    const { 
+      ticker, 
+      strategy, // { entry, exit, stopLoss, positionSize }
+      period = '6mo', // 1mo, 3mo, 6mo, 1y, 2y
+      timeframe = '1Day' // 1Min, 5Min, 15Min, 1Hour, 1Day
+    } = req.body;
+
+    if (!ticker) {
+      return res.status(400).json({ error: 'Ticker is required' });
+    }
+
+    const symbol = ticker.toUpperCase().replace('$', '');
+    
+    // Calculate start date based on period
+    const now = new Date();
+    let startDate;
+    switch(period) {
+      case '1mo': startDate = new Date(now.setMonth(now.getMonth() - 1)); break;
+      case '3mo': startDate = new Date(now.setMonth(now.getMonth() - 3)); break;
+      case '6mo': startDate = new Date(now.setMonth(now.getMonth() - 6)); break;
+      case '1y': startDate = new Date(now.setFullYear(now.getFullYear() - 1)); break;
+      case '2y': startDate = new Date(now.setFullYear(now.getFullYear() - 2)); break;
+      default: startDate = new Date(now.setMonth(now.getMonth() - 6));
+    }
+
+    // Fetch historical data from Alpaca
+    const Alpaca = (await import('@alpacahq/alpaca-trade-api')).default;
+    const alpaca = new Alpaca({
+      keyId: process.env.ALPACA_API_KEY,
+      secretKey: process.env.ALPACA_SECRET_KEY,
+      paper: true,
+    });
+
+    const barsIterator = alpaca.getBarsV2(symbol, {
+      start: startDate.toISOString(),
+      end: new Date().toISOString(),
+      timeframe: timeframe,
+      limit: 10000,
+    });
+
+    const bars = [];
+    for await (const bar of barsIterator) {
+      bars.push({
+        time: bar.Timestamp,
+        open: bar.OpenPrice,
+        high: bar.HighPrice,
+        low: bar.LowPrice,
+        close: bar.ClosePrice,
+        volume: bar.Volume,
+      });
+    }
+
+    if (bars.length < 50) {
+      return res.status(400).json({ error: 'Insufficient historical data for backtest' });
+    }
+
+    // Calculate indicators (SMA)
+    const calculateSMA = (data, period) => {
+      const sma = [];
+      for (let i = 0; i < data.length; i++) {
+        if (i < period - 1) {
+          sma.push(null);
+        } else {
+          const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b.close, 0);
+          sma.push(sum / period);
+        }
+      }
+      return sma;
+    };
+
+    const sma20 = calculateSMA(bars, 20);
+    const sma50 = calculateSMA(bars, 50);
+    const sma200 = calculateSMA(bars, 200);
+
+    // Simple backtest simulation
+    const trades = [];
+    let position = null;
+    let cash = 100000;
+    const positionSize = parseInt(strategy?.positionSize?.match(/\d+/)?.[0]) || 100;
+    const stopLossPercent = parseFloat(strategy?.stopLoss?.match(/[\d.]+/)?.[0]) || 5;
+
+    for (let i = 200; i < bars.length; i++) {
+      const bar = bars[i];
+      const price = bar.close;
+      
+      // Check for entry (Golden Cross: SMA50 crosses above SMA200)
+      const prevSma50 = sma50[i - 1];
+      const prevSma200 = sma200[i - 1];
+      const currSma50 = sma50[i];
+      const currSma200 = sma200[i];
+
+      if (!position && prevSma50 && prevSma200 && currSma50 && currSma200) {
+        // Golden Cross - BUY signal
+        if (prevSma50 <= prevSma200 && currSma50 > currSma200) {
+          const shares = Math.min(positionSize, Math.floor(cash / price));
+          if (shares > 0) {
+            position = {
+              entryPrice: price,
+              shares,
+              entryTime: bar.time,
+              stopLoss: price * (1 - stopLossPercent / 100),
+            };
+            cash -= shares * price;
+          }
+        }
+      }
+
+      // Check for exit
+      if (position) {
+        // Death Cross - SELL signal
+        const deathCross = prevSma50 >= prevSma200 && currSma50 < currSma200;
+        const hitStopLoss = price <= position.stopLoss;
+
+        if (deathCross || hitStopLoss) {
+          const exitPrice = hitStopLoss ? position.stopLoss : price;
+          const pnl = (exitPrice - position.entryPrice) * position.shares;
+          const pnlPercent = ((exitPrice - position.entryPrice) / position.entryPrice) * 100;
+          
+          trades.push({
+            entryTime: position.entryTime,
+            exitTime: bar.time,
+            entryPrice: position.entryPrice,
+            exitPrice,
+            shares: position.shares,
+            pnl,
+            pnlPercent,
+            exitReason: hitStopLoss ? 'Stop Loss' : 'Death Cross',
+          });
+
+          cash += position.shares * exitPrice;
+          position = null;
+        }
+      }
+    }
+
+    // Close any open position at the end
+    if (position) {
+      const lastBar = bars[bars.length - 1];
+      const pnl = (lastBar.close - position.entryPrice) * position.shares;
+      const pnlPercent = ((lastBar.close - position.entryPrice) / position.entryPrice) * 100;
+      
+      trades.push({
+        entryTime: position.entryTime,
+        exitTime: lastBar.time,
+        entryPrice: position.entryPrice,
+        exitPrice: lastBar.close,
+        shares: position.shares,
+        pnl,
+        pnlPercent,
+        exitReason: 'End of Period',
+      });
+      cash += position.shares * lastBar.close;
+    }
+
+    // Calculate summary statistics
+    const winningTrades = trades.filter(t => t.pnl > 0);
+    const losingTrades = trades.filter(t => t.pnl <= 0);
+    const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
+    const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
+    const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + t.pnl, 0) / winningTrades.length : 0;
+    const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((sum, t) => sum + t.pnl, 0) / losingTrades.length : 0;
+
+    res.json({
+      symbol,
+      period,
+      timeframe,
+      barsAnalyzed: bars.length,
+      startDate: bars[0]?.time,
+      endDate: bars[bars.length - 1]?.time,
+      summary: {
+        totalTrades: trades.length,
+        winningTrades: winningTrades.length,
+        losingTrades: losingTrades.length,
+        winRate: winRate.toFixed(1),
+        totalPnL: totalPnL.toFixed(2),
+        avgWin: avgWin.toFixed(2),
+        avgLoss: avgLoss.toFixed(2),
+        finalCash: cash.toFixed(2),
+        returnPercent: (((cash - 100000) / 100000) * 100).toFixed(2),
+      },
+      trades: trades.slice(-20), // Last 20 trades
+      priceData: bars.filter((_, i) => i % Math.ceil(bars.length / 100) === 0), // Sampled for chart
+    });
+
+  } catch (error) {
+    console.error('Backtest error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
