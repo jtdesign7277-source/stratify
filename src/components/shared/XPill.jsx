@@ -200,6 +200,13 @@ const XPill = ({
     if (!isOpen) return;
     setHasUnread(false);
     fetchFeed();
+    
+    // Auto-refresh every 60 seconds
+    const refreshInterval = setInterval(() => {
+      fetchFeed({ force: true });
+    }, 60000);
+    
+    return () => clearInterval(refreshInterval);
   }, [isOpen, symbolsKey]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
