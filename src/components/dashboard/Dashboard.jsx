@@ -35,6 +35,7 @@ import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
 import TerminalPage from './TerminalPage';
 import TickerPill from './TickerPill';
+import MiniGamePill from '../shared/MiniGamePill';
 
 const loadDashboardState = () => {
   try {
@@ -186,16 +187,32 @@ export default function Dashboard({
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+
+  const [pinnedGames, setPinnedGames] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-pinned-games');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   
   // Save mini tickers to localStorage
   useEffect(() => {
     localStorage.setItem('stratify-mini-tickers', JSON.stringify(miniTickers));
   }, [miniTickers]);
+
+  useEffect(() => {
+    localStorage.setItem('stratify-pinned-games', JSON.stringify(pinnedGames));
+  }, [pinnedGames]);
   
   // Handle dropping a ticker onto a pill slot
   const handleTickerDrop = (symbol, slotIndex) => {
     if (slotIndex < 2) return; // Slots 0-1 are reserved for Grok/Feed
     const tickerIndex = slotIndex - 2; // Map to miniTickers array
+    setPinnedGames(prev => {
+      const next = [...prev];
+      next[slotIndex] = null;
+      return next;
+    });
     setMiniTickers(prev => {
       const newTickers = [...prev];
       // Remove if already exists elsewhere
@@ -205,6 +222,31 @@ export default function Dashboard({
       while (newTickers.length < tickerIndex) newTickers.push(null);
       newTickers[tickerIndex] = symbol;
       return newTickers.slice(0, 4);
+    });
+  };
+
+  const handleGameDrop = (game, slotIndex) => {
+    if (slotIndex < 2) return;
+    setPinnedGames(prev => {
+      const next = [...prev];
+      const existingIndex = next.findIndex(g => g?.id === game?.id);
+      if (existingIndex !== -1) next[existingIndex] = null;
+      next[slotIndex] = game;
+      return next;
+    });
+    setMiniTickers(prev => {
+      const next = [...prev];
+      const tickerIndex = slotIndex - 2;
+      if (tickerIndex >= 0) next[tickerIndex] = null;
+      return next;
+    });
+  };
+
+  const handleRemovePinnedGame = (slotIndex) => {
+    setPinnedGames(prev => {
+      const next = [...prev];
+      next[slotIndex] = null;
+      return next;
     });
   };
   
@@ -654,6 +696,104 @@ export default function Dashboard({
 
   const draftStrategiesCount = strategies.filter(s => s.status !== 'deployed').length;
 
+  const miniPillSlots = Array(6).fill(null);
+
+  miniPillSlots[0] = (
+    <div
+      key="grok-pill"
+      onClick={() => setIsFloatingGrokOpen((prev) => !prev)}
+      className={`h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full border bg-black/90 cursor-pointer transition-all ${
+        isFloatingGrokOpen
+          ? 'border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+          : 'border-white/20 hover:border-white/40'
+      }`}
+    >
+      <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      </div>
+      <span className="text-white font-medium text-xs">Grok</span>
+      {grokMessageCount > 0 && (
+        <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-medium">
+          {grokMessageCount}
+        </span>
+      )}
+    </div>
+  );
+
+  miniPillSlots[1] = (
+    <div
+      key="feed-pill"
+      onClick={onToggleSocialFeed}
+      className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
+        isSocialFeedOpen
+          ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+          : 'border border-white/20 bg-black/90 hover:border-white/40'
+      }`}
+    >
+      <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="currentColor">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      </div>
+      <span className="text-white font-medium text-xs">Feed</span>
+      {socialFeedUnread && (
+        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+      )}
+    </div>
+  );
+
+  const liveScoresPill = (
+    <div
+      key="scores-pill"
+      onClick={onToggleLiveScores}
+      className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
+        isLiveScoresOpen
+          ? 'border border-orange-400/40 bg-orange-500/10 shadow-[0_0_12px_rgba(249,115,22,0.2)]'
+          : 'border border-white/20 bg-black/90 hover:border-orange-400/40'
+      }`}
+    >
+      <div className="w-5 h-5 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center">
+        <span className="text-xs">🏀</span>
+      </div>
+      <span className="text-white font-medium text-xs">Live</span>
+      {liveScoresUnread && (
+        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
+      )}
+    </div>
+  );
+
+  [2, 3, 4, 5].forEach((slot) => {
+    if (pinnedGames[slot]) {
+      miniPillSlots[slot] = (
+        <MiniGamePill
+          key={`pinned-game-${slot}-${pinnedGames[slot].id}`}
+          game={pinnedGames[slot]}
+          onRemove={() => handleRemovePinnedGame(slot)}
+        />
+      );
+      return;
+    }
+
+    const tickerIndex = slot - 2;
+    const tickerSymbol = miniTickers[tickerIndex];
+    if (tickerSymbol) {
+      miniPillSlots[slot] = (
+        <TickerPill
+          key={`ticker-pill-${slot}`}
+          symbol={tickerSymbol}
+          onRemove={handleRemoveMiniTicker}
+        />
+      );
+      return;
+    }
+
+    if (slot === 2) {
+      miniPillSlots[slot] = liveScoresPill;
+    }
+  });
+
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <TopMetricsBar 
@@ -665,79 +805,9 @@ export default function Dashboard({
         onLogout={() => setCurrentPage('landing')} 
         onLegendClick={() => setActiveTab('legend')}
         connectedBrokers={connectedBrokers}
-        miniPills={[
-          // Slot 0: Grok pill - ALWAYS visible
-          <div
-            key="grok-pill"
-            onClick={() => setIsFloatingGrokOpen((prev) => !prev)}
-            className={`h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full border bg-black/90 cursor-pointer transition-all ${
-              isFloatingGrokOpen
-                ? 'border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
-                : 'border-white/20 hover:border-white/40'
-            }`}
-          >
-            <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </div>
-            <span className="text-white font-medium text-xs">Grok</span>
-            {grokMessageCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-medium">
-                {grokMessageCount}
-              </span>
-            )}
-          </div>,
-          // Slot 1: X Social feed pill
-          <div
-            key="feed-pill"
-            onClick={onToggleSocialFeed}
-            className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
-              isSocialFeedOpen
-                ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
-                : 'border border-white/20 bg-black/90 hover:border-white/40'
-            }`}
-          >
-            <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </div>
-            <span className="text-white font-medium text-xs">Feed</span>
-            {socialFeedUnread && (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
-            )}
-          </div>,
-          // Slot 2: Live Scores pill
-          <div
-            key="scores-pill"
-            onClick={onToggleLiveScores}
-            className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
-              isLiveScoresOpen
-                ? 'border border-orange-400/40 bg-orange-500/10 shadow-[0_0_12px_rgba(249,115,22,0.2)]'
-                : 'border border-white/20 bg-black/90 hover:border-orange-400/40'
-            }`}
-          >
-            <div className="w-5 h-5 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center">
-              <span className="text-xs">🏀</span>
-            </div>
-            <span className="text-white font-medium text-xs">Live</span>
-            {liveScoresUnread && (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
-            )}
-          </div>,
-          // Slots 3-6: Draggable ticker pills
-          ...[0, 1, 2, 3].map((i) => 
-            miniTickers[i] ? (
-              <TickerPill 
-                key={`ticker-pill-${i}`} 
-                symbol={miniTickers[i]} 
-                onRemove={handleRemoveMiniTicker}
-              />
-            ) : null
-          )
-        ]}
+        miniPills={miniPillSlots}
         onTickerDrop={handleTickerDrop}
+        onGameDrop={handleGameDrop}
       />
       <LiveAlertsTicker />
       <div className="flex flex-1 overflow-hidden">

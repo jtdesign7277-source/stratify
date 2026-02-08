@@ -92,6 +92,7 @@ const LiveScoresPill = ({
         
         return {
           id: event.id,
+          sport: activeSport,
           name: event.name,
           homeTeam: home?.team?.abbreviation || 'HOME',
           homeScore: home?.score || '0',
@@ -348,13 +349,24 @@ const LiveScoresPill = ({
 const GameCard = ({ game }) => {
   const isLive = game.isLive;
   const isFinal = game.state === 'post';
+
+  const handleGameDragStart = (e) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    const payload = JSON.stringify({ type: 'game', data: game });
+    e.dataTransfer.setData('application/json', payload);
+    e.dataTransfer.setData('text/plain', payload);
+  };
   
   return (
-    <div className={`p-3 rounded-lg border transition-all ${
+    <div
+      draggable
+      onDragStart={handleGameDragStart}
+      className={`p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
       isLive 
         ? 'bg-red-500/5 border-red-500/20' 
         : 'bg-white/[0.02] border-white/5 hover:border-white/10'
-    }`}>
+    }`}
+    >
       <div className="flex items-center justify-between">
         {/* Teams */}
         <div className="flex-1 space-y-1.5">

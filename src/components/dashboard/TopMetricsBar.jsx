@@ -254,7 +254,17 @@ const BrokerBadge = ({ broker }) => {
   );
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop }) {
+const parseDropPayload = (event) => {
+  const jsonData = event.dataTransfer.getData('application/json') || event.dataTransfer.getData('text/plain');
+  if (!jsonData) return null;
+  try {
+    return JSON.parse(jsonData);
+  } catch {
+    return null;
+  }
+};
+
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop, onGameDrop }) {
   const account = alpacaData?.account || {};
   
   // Mock live P&L data
@@ -334,6 +344,11 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
             onDrop={(e) => {
               e.preventDefault();
               e.currentTarget.classList.remove('border-emerald-500/50', 'bg-emerald-500/10');
+              const payload = parseDropPayload(e);
+              if (payload?.type === 'game' && onGameDrop && slot >= 2) {
+                onGameDrop(payload.data, slot);
+                return;
+              }
               const symbol = e.dataTransfer.getData('text/plain');
               if (symbol && onTickerDrop && slot >= 2) {
                 onTickerDrop(symbol, slot);
