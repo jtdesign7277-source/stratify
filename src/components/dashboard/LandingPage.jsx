@@ -75,22 +75,35 @@ const LandingPage = ({ onEnter }) => {
         )}
       </AnimatePresence>
 
-      {/* Background Video - Hero Only */}
-      <div className="absolute inset-0 h-screen">
+      {/* Background Video - Hero Only - PREMIUM */}
+      <div className="absolute inset-0 h-screen overflow-hidden">
         <video
           autoPlay
           muted
           loop
           playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: 'brightness(0.6)' }}
+          className="absolute inset-0 w-full h-full object-cover scale-105"
+          style={{ filter: 'brightness(0.9) saturate(1.3) contrast(1.1)' }}
         >
           <source src={bgVideoSrc} type="video/mp4" />
         </video>
+        {/* Lighter gradient overlay */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse at center top, rgba(6, 13, 24, 0.3) 0%, rgba(6, 13, 24, 0.95) 100%)',
+            background: 'radial-gradient(ellipse at center top, rgba(6, 13, 24, 0.1) 0%, rgba(6, 13, 24, 0.85) 100%)',
+          }}
+        />
+        {/* Animated gradient orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-purple-500/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
+        {/* Subtle grid overlay */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+            backgroundSize: '60px 60px',
           }}
         />
       </div>
@@ -119,9 +132,10 @@ const LandingPage = ({ onEnter }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-6xl md:text-7xl text-center font-light text-white mb-6"
+            className="text-6xl md:text-8xl text-center font-light text-white mb-6"
+            style={{ textShadow: '0 0 80px rgba(16, 185, 129, 0.3), 0 4px 20px rgba(0,0,0,0.5)' }}
           >
-            A <span className="italic text-white/90">smarter way</span>
+            A <span className="italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">smarter way</span>
             <br />
             to trade
           </motion.h1>
@@ -155,10 +169,10 @@ const LandingPage = ({ onEnter }) => {
             <button 
               type="submit"
               disabled={submitStatus === 'loading' || submitStatus === 'success' || !email}
-              className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium transition-all shadow-lg ${
+              className={`flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all ${
                 submitStatus === 'success'
-                  ? 'bg-green-500 text-white shadow-green-500/25'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400 shadow-blue-500/25'
+                  ? 'bg-green-500 text-white shadow-[0_0_40px_rgba(34,197,94,0.4)]'
+                  : 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:from-emerald-400 hover:to-cyan-400 shadow-[0_0_40px_rgba(16,185,129,0.4)] hover:shadow-[0_0_60px_rgba(16,185,129,0.5)]'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {submitStatus === 'loading' ? (
@@ -183,7 +197,7 @@ const LandingPage = ({ onEnter }) => {
 
           <div className="w-96 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
 
-          {/* Experience Button */}
+          {/* Experience Button - PREMIUM */}
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -191,14 +205,15 @@ const LandingPage = ({ onEnter }) => {
             onClick={handleExperienceClick}
             className="group relative mb-8"
           >
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl opacity-30 group-hover:opacity-50 blur-lg transition-opacity" />
-            <div className="relative flex items-center gap-4 px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/40 group-hover:border-blue-400/60 transition-all">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                <Play className="w-5 h-5 text-white ml-0.5" fill="white" strokeWidth={0} />
+            <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 rounded-2xl opacity-40 group-hover:opacity-70 blur-xl transition-all duration-500 animate-pulse" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-cyan-500 rounded-2xl opacity-50 group-hover:opacity-80 blur-md transition-opacity" />
+            <div className="relative flex items-center gap-4 px-10 py-5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-cyan-600/30 border border-emerald-400/50 group-hover:border-emerald-300/80 transition-all backdrop-blur-sm">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-500/50 group-hover:shadow-emerald-400/70 transition-shadow">
+                <Play className="w-6 h-6 text-white ml-0.5" fill="white" strokeWidth={0} />
               </div>
               <div className="flex flex-col items-start">
-                <span className="text-white font-medium tracking-wide">Experience Stratify</span>
-                <span className="text-blue-400/70 text-xs tracking-wider">Watch the intro</span>
+                <span className="text-white font-semibold text-lg tracking-wide">Experience Stratify</span>
+                <span className="text-emerald-300/80 text-xs tracking-wider uppercase">Watch the intro</span>
               </div>
             </div>
           </motion.button>
@@ -268,7 +283,7 @@ const LandingPage = ({ onEnter }) => {
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]"
+                  className="p-6 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm hover:border-emerald-500/30 hover:bg-white/[0.05] transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]"
                 >
                   <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-4">
                     {item.icon}
