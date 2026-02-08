@@ -33,35 +33,39 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       return;
     }
     
-    // Build terminal output lines
-    const lines = [];
-    const timestamp = new Date().toLocaleTimeString();
-    const dateStamp = new Date().toLocaleDateString();
-    
-    lines.push({ type: 'header', text: '╔══════════════════════════════════════════════════════════════════════════════╗', color: 'text-emerald-500/50' });
-    lines.push({ type: 'header', text: '║                    G R O K   B A C K T E S T   E N G I N E                   ║', color: 'text-emerald-400' });
-    lines.push({ type: 'header', text: '║                              [ v2.0 CLASSIFIED ]                             ║', color: 'text-emerald-500/50' });
-    lines.push({ type: 'header', text: '╚══════════════════════════════════════════════════════════════════════════════╝', color: 'text-emerald-500/50' });
-    lines.push({ type: 'blank', text: '' });
-    lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to Alpaca Markets API`, color: 'text-gray-500' });
-    lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-gray-500' });
-    lines.push({ type: 'blank', text: '' });
-    
-    // Target info
-    lines.push({ type: 'info', text: `▸ TARGET:     ${backtestResults.symbol || ticker || 'N/A'}`, color: 'text-cyan-400' });
-    lines.push({ type: 'info', text: `▸ PERIOD:     ${backtestResults.period || '6mo'}`, color: 'text-cyan-400' });
-    lines.push({ type: 'info', text: `▸ TIMEFRAME:  ${backtestResults.timeframe || '1Day'}`, color: 'text-cyan-400' });
-    lines.push({ type: 'info', text: `▸ BARS:       ${backtestResults.barsAnalyzed || 0} data points analyzed`, color: 'text-cyan-400' });
-    lines.push({ type: 'blank', text: '' });
-    
-    // Strategy config with box
-    lines.push({ type: 'section', text: '┌─────────────────────────── STRATEGY PARAMETERS ───────────────────────────┐', color: 'text-purple-500/70' });
-    lines.push({ type: 'config', text: `│  ENTRY:    ${(editableStrategy.entry || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-yellow-300' });
-    lines.push({ type: 'config', text: `│  EXIT:     ${(editableStrategy.exit || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-orange-300' });
-    lines.push({ type: 'config', text: `│  STOP:     ${(editableStrategy.stopLoss || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-red-400' });
-    lines.push({ type: 'config', text: `│  SIZE:     ${(editableStrategy.positionSize || 'N/A').substring(0, 60).padEnd(60)}  │`, color: 'text-blue-400' });
-    lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-purple-500/70' });
-    lines.push({ type: 'blank', text: '' });
+    try {
+      // Build terminal output lines
+      const lines = [];
+      const timestamp = new Date().toLocaleTimeString();
+      const dateStamp = new Date().toLocaleDateString();
+      
+      // Safe string helper
+      const safeStr = (val, fallback = 'N/A') => String(val || fallback).substring(0, 60).padEnd(60);
+      
+      lines.push({ type: 'header', text: '╔══════════════════════════════════════════════════════════════════════════════╗', color: 'text-emerald-500/50' });
+      lines.push({ type: 'header', text: '║                    G R O K   B A C K T E S T   E N G I N E                   ║', color: 'text-emerald-400' });
+      lines.push({ type: 'header', text: '║                              [ v2.0 CLASSIFIED ]                             ║', color: 'text-emerald-500/50' });
+      lines.push({ type: 'header', text: '╚══════════════════════════════════════════════════════════════════════════════╝', color: 'text-emerald-500/50' });
+      lines.push({ type: 'blank', text: '' });
+      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Connection established to Alpaca Markets API`, color: 'text-gray-500' });
+      lines.push({ type: 'system', text: `[${dateStamp} ${timestamp}] Initializing AI analysis module...`, color: 'text-gray-500' });
+      lines.push({ type: 'blank', text: '' });
+      
+      // Target info
+      lines.push({ type: 'info', text: `▸ TARGET:     ${backtestResults.symbol || ticker || 'N/A'}`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ PERIOD:     ${backtestResults.period || '6mo'}`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ TIMEFRAME:  ${backtestResults.timeframe || '1Day'}`, color: 'text-cyan-400' });
+      lines.push({ type: 'info', text: `▸ BARS:       ${backtestResults.barsAnalyzed || 0} data points analyzed`, color: 'text-cyan-400' });
+      lines.push({ type: 'blank', text: '' });
+      
+      // Strategy config with box
+      lines.push({ type: 'section', text: '┌─────────────────────────── STRATEGY PARAMETERS ───────────────────────────┐', color: 'text-purple-500/70' });
+      lines.push({ type: 'config', text: `│  ENTRY:    ${safeStr(editableStrategy.entry)}  │`, color: 'text-yellow-300' });
+      lines.push({ type: 'config', text: `│  EXIT:     ${safeStr(editableStrategy.exit)}  │`, color: 'text-orange-300' });
+      lines.push({ type: 'config', text: `│  STOP:     ${safeStr(editableStrategy.stopLoss)}  │`, color: 'text-red-400' });
+      lines.push({ type: 'config', text: `│  SIZE:     ${safeStr(editableStrategy.positionSize)}  │`, color: 'text-blue-400' });
+      lines.push({ type: 'section', text: '└────────────────────────────────────────────────────────────────────────────┘', color: 'text-purple-500/70' });
+      lines.push({ type: 'blank', text: '' });
 
     // Results summary with visual bars
     const summary = backtestResults.summary || {};
@@ -155,6 +159,10 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
     }, 25);
 
     return () => clearInterval(typeInterval);
+    } catch (err) {
+      console.error('Terminal render error:', err);
+      setDisplayedLines([{ type: 'error', text: `RENDER ERROR: ${err.message}`, color: 'text-red-400' }]);
+    }
   }, [backtestResults, editableStrategy, ticker]);
 
   const handleRunBacktest = () => {
