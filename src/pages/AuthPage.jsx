@@ -10,11 +10,11 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import supabase from '../lib/supabase';
 
 const AuthPage = () => {
-  const { user, authLoading, signIn, signUp } = useAuth();
+  const { user, loading: authLoading, signIn, signUp } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,7 +54,7 @@ const AuthPage = () => {
     }
 
     if (isSignUp) {
-      const { data, error } = await signUp(trimmedEmail, password);
+      const { data, error } = await signUp({ email: trimmedEmail, password });
       if (error) {
         showToast('error', error.message);
         return;
@@ -66,7 +66,7 @@ const AuthPage = () => {
       showToast('success', 'Account created. Welcome to Stratify.');
       window.location.replace('/');
     } else {
-      const { error } = await signIn(trimmedEmail, password);
+      const { error } = await signIn({ email: trimmedEmail, password });
       if (error) {
         showToast('error', error.message);
         return;

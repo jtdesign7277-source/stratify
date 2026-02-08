@@ -3,9 +3,8 @@ import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import AuthPage from './pages/AuthPage';
-import ProtectedRoute from './components/ProtectedRoute';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 import XPill from './components/shared/XPill';
 import LiveScoresPill from './components/shared/LiveScoresPill';
@@ -1032,20 +1031,28 @@ export default function StratifyApp() {
       />
     );
 
+  const isAuthRoute = typeof window !== 'undefined' && window.location.pathname === '/auth';
+
   return (
-    <>
-      {mainContent}
-      <XPill
-        isOpen={isSocialFeedOpen}
-        onOpenChange={setIsSocialFeedOpen}
-        onUnreadChange={setHasSocialFeedUnread}
-        showTrigger={false}
-      />
-      <LiveScoresPill
-        isOpen={isLiveScoresOpen}
-        onOpenChange={setIsLiveScoresOpen}
-        onUnreadChange={setHasLiveScoresUnread}
-      />
-    </>
+    <AuthProvider>
+      {isAuthRoute ? (
+        <AuthPage />
+      ) : (
+        <>
+          {mainContent}
+          <XPill
+            isOpen={isSocialFeedOpen}
+            onOpenChange={setIsSocialFeedOpen}
+            onUnreadChange={setHasSocialFeedUnread}
+            showTrigger={false}
+          />
+          <LiveScoresPill
+            isOpen={isLiveScoresOpen}
+            onOpenChange={setIsLiveScoresOpen}
+            onUnreadChange={setHasLiveScoresUnread}
+          />
+        </>
+      )}
+    </AuthProvider>
   );
 }
