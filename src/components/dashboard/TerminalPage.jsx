@@ -294,9 +294,11 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
             </div>
           )}
           {displayedLines.map((line, idx) => (
-            <div key={idx} className={`${line.color} ${line.type === 'blank' ? 'h-4' : ''} whitespace-pre`}>
-              {line.text}
-            </div>
+            line ? (
+              <div key={idx} className={`${line.color || 'text-white'} ${line.type === 'blank' ? 'h-4' : ''} whitespace-pre`}>
+                {line.text || ''}
+              </div>
+            ) : null
           ))}
           {isLoading && displayedLines.length === 0 && (
             <div className="text-emerald-400 animate-pulse">
