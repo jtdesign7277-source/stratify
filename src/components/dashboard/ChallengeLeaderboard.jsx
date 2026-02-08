@@ -453,7 +453,7 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
   const [showPickModal, setShowPickModal] = useState(false);
   const [pendingPick, setPendingPick] = useState("");
   const [pickAmount, setPickAmount] = useState(10000);
-  const [pickTimeframe, setPickTimeframe] = useState("week");
+  const [pickTimeframe, setPickTimeframe] = useState("weekly");
   const [savedPicks, setSavedPicks] = useState(() => {
     try { return JSON.parse(localStorage.getItem("stratify-challenge-picks") || "[]"); } catch { return []; }
   });
@@ -478,7 +478,7 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
     if (remaining < MIN_POSITION) { setValidationError("Not enough budget"); return; }
     setPendingPick(sym);
     setPickAmount(Math.min(remaining, 10000));
-    setPickTimeframe("week");
+    setPickTimeframe("weekly");
     setShowPickModal(true);
     setSearchQuery(""); setShowSearch(false); setValidationError("");
   };
@@ -969,10 +969,10 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
               <div style={{marginBottom:16}}>
                 <div style={{fontSize:fs(11),color:"#64748b",textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Timeframe</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-                  {[{id:"day",label:"Day"},{id:"week",label:"Swing"},{id:"month",label:"Position"},{id:"quarter",label:"Long"}].map(tf=>(
+                  {[{id:"weekly",label:"Weekly"},{id:"monthly",label:"Monthly"},{id:"6month",label:"6 Month"},{id:"yearly",label:"1 Year"}].map(tf=>(
                     <button key={tf.id} onClick={()=>setPickTimeframe(tf.id)} style={{padding:"8px 4px",borderRadius:6,background:pickTimeframe===tf.id?"rgba(41,225,166,0.15)":"rgba(255,255,255,0.03)",border:pickTimeframe===tf.id?"1px solid rgba(41,225,166,0.4)":"1px solid rgba(255,255,255,0.08)",color:pickTimeframe===tf.id?"#29e1a6":"#94a3b8",fontSize:fs(10),fontWeight:600,cursor:"pointer",textAlign:"center"}}>
                       <div>{tf.label}</div>
-                      <div style={{fontSize:fs(9),color:pickTimeframe===tf.id?"#29e1a6":"#475569",marginTop:2}}>{tf.id==="day"?"1D":tf.id==="week"?"1W":tf.id==="month"?"1M":"3M+"}</div>
+                      <div style={{fontSize:fs(9),color:pickTimeframe===tf.id?"#29e1a6":"#475569",marginTop:2}}>{tf.id==="weekly"?"1W":tf.id==="monthly"?"1M":tf.id==="6month"?"6M":"1Y"}</div>
                     </button>
                   ))}
                 </div>
