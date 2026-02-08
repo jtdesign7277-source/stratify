@@ -270,7 +270,6 @@ const XPill = ({
   }, [hasUnread, onUnreadChange]);
 
   const handleDragStart = (event) => {
-    if (isMobile) return;
     if (isResizing) return;
     if (event.target.closest('[data-no-drag]')) return;
     event.preventDefault();
@@ -326,7 +325,6 @@ const XPill = ({
   };
 
   const handleResizeStart = (event) => {
-    if (isMobile) return;
     event.preventDefault();
     event.stopPropagation();
     resizeStart.current = {
@@ -489,18 +487,8 @@ const XPill = ({
 
       <div
         ref={containerRef}
-        className={`fixed z-50 flex w-full max-w-none flex-col overflow-hidden transition-all duration-300 ease-out relative ${
-          isMobile ? 'inset-x-0 bottom-0 rounded-t-2xl' : 'rounded-2xl'
-        } ${isOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
-        style={isMobile ? {
-          height: size.height,
-          willChange: isDragging ? 'left, top' : 'auto',
-          transform: 'translateZ(0)',
-          backfaceVisibility: 'hidden',
-          background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.2)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
-        } : {
+        className={`fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        style={{
           left: position.x,
           top: position.y,
           width: size.width,
@@ -514,7 +502,7 @@ const XPill = ({
         }}
       >
         <div
-          className={`flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-emerald-500/10 to-transparent px-4 py-3 ${isMobile ? 'cursor-default' : isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-emerald-500/10 to-transparent px-4 py-3 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleDragStart}
         >
           <div className="flex items-center gap-3 text-white">
@@ -572,19 +560,17 @@ const XPill = ({
           </a>
         </div>
 
-        {!isMobile && (
-          <div
-            data-no-drag
-            onMouseDown={handleResizeStart}
-            className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center cursor-se-resize opacity-40 transition-opacity hover:opacity-100 ${isResizing ? 'opacity-100' : ''}`}
-            style={{
-              background: 'linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.3) 50%)',
-              borderRadius: '0 0 16px 0',
-            }}
-          >
-            <GripVertical className="h-3 w-3 rotate-[-45deg] text-emerald-400" />
-          </div>
-        )}
+        <div
+          data-no-drag
+          onMouseDown={handleResizeStart}
+          className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center cursor-se-resize opacity-40 transition-opacity hover:opacity-100 ${isResizing ? 'opacity-100' : ''}`}
+          style={{
+            background: 'linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.3) 50%)',
+            borderRadius: '0 0 16px 0',
+          }}
+        >
+          <GripVertical className="h-3 w-3 rotate-[-45deg] text-emerald-400" />
+        </div>
       </div>
 
       {showTrigger && (
