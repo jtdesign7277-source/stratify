@@ -409,28 +409,28 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           
           {/* Deploy Prompt */}
           {showDeployPrompt && !isTyping && backtestResults && !backtestResults.error && (
-            <div className="mt-6 p-4 border border-emerald-500/30 rounded-lg bg-emerald-500/5">
-              <div className="flex items-center gap-3 mb-3">
-                <Rocket className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-400 font-mono font-medium">DEPLOY THIS STRATEGY?</span>
+            <div className="mt-6 p-3 border border-emerald-500/20 rounded-lg bg-gradient-to-br from-emerald-500/5 to-transparent">
+              <div className="flex items-center gap-2 mb-2">
+                <Rocket className="w-4 h-4 text-emerald-400" />
+                <span className="text-emerald-400 font-mono text-sm font-medium">DEPLOY THIS STRATEGY?</span>
               </div>
-              <p className="text-gray-400 text-sm mb-4 font-mono">
+              <p className="text-gray-500 text-xs mb-3 font-mono">
                 Strategy will begin live trading with your configured parameters.
               </p>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   onClick={handleDeploy}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-mono font-medium transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 rounded-md text-white font-mono text-xs font-medium transition-all shadow-lg shadow-emerald-500/20 border border-emerald-400/30"
                 >
-                  <span className="text-lg">Y</span>
-                  <span className="text-sm opacity-80">- Yes, Deploy</span>
+                  <span className="text-sm font-bold">Y</span>
+                  <span className="opacity-90">Deploy</span>
                 </button>
                 <button
                   onClick={() => setShowDeployPrompt(false)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 font-mono font-medium transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 rounded-md text-gray-300 font-mono text-xs font-medium transition-all border border-gray-500/30"
                 >
-                  <span className="text-lg">N</span>
-                  <span className="text-sm opacity-80">- No, Cancel</span>
+                  <span className="text-sm font-bold">N</span>
+                  <span className="opacity-90">Cancel</span>
                 </button>
               </div>
             </div>
