@@ -533,7 +533,40 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
             const finalContent = accumulated || "Couldn't respond.";
             const parsed = parseStrategyResponse(finalContent);
             setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: finalContent, parsed, isTyping: false } : t));
-            // No auto-backtest - user must click Backtest button
+            
+            // Auto-run backtest and open Terminal when strategy is generated
+            const tickerRaw = parsed.summary?.ticker || (selectedTickers[0] ? selectedTickers[0] : 'SPY');
+            const ticker = tickerRaw.replace(/\$/g, '').split(',')[0].trim();
+            const strategyPayload = {
+              entry: parsed.summary?.entry || 'Buy when RSI drops below 30',
+              exit: parsed.summary?.exit || 'Sell when RSI rises above 70',
+              stopLoss: parsed.summary?.stopLoss || '5%',
+              positionSize: parsed.summary?.positionSize || '100 shares',
+              ticker: ticker,
+            };
+            
+            setIsBacktesting(true);
+            try {
+              const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ticker,
+                  strategy: strategyPayload,
+                  period: '6mo',
+                  timeframe: '1Day',
+                }),
+              });
+              const data = await response.json();
+              if (!data.error) {
+                setBacktestResults(data);
+                // Auto-open Terminal with results
+                if (onBacktestResults) {
+                  onBacktestResults(data, strategyPayload, ticker);
+                }
+              }
+            } catch (err) { console.error('Auto-backtest error:', err); }
+            finally { setIsBacktesting(false); }
           },
         });
       } catch (e) { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t)); }

@@ -340,7 +340,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                   <RefreshCw className="w-3 h-3" />
                 </button>
               </div>
-              <div className="space-y-1 max-h-40 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+              <div className="space-y-1 max-h-48 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
                 {history.map((h, i) => {
                   const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
                   const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
