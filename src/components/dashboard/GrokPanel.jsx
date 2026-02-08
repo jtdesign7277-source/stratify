@@ -661,14 +661,18 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
     const tickerValue = parsed.ticker || (tab.tickers?.length > 0 ? tab.tickers.map(t => '$' + t).join(', ') : '');
     
     const EditableField = ({ label, field, value }) => (
-      <div>
-        <label className="text-gray-400 text-sm font-medium">{label}</label>
+      <div className="relative">
+        <label className="text-gray-400 text-sm font-medium block mb-1">{label}</label>
         <input
           type="text"
           value={value || ''}
           onChange={(e) => updateStrategyField(tab.id, field, e.target.value)}
-          className="w-full mt-1 px-3 py-2 bg-[#0d0d12] border border-gray-600 rounded-lg text-[#e5e5e5] text-base focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 hover:border-gray-500 transition-colors cursor-text"
+          className="w-full px-3 py-2.5 bg-[#111118] border border-gray-600 rounded-lg text-white text-base focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 hover:border-gray-500 transition-all cursor-text"
           placeholder={`Enter ${label.toLowerCase()}...`}
+          autoComplete="off"
+          spellCheck="false"
+          readOnly={false}
+          disabled={false}
         />
       </div>
     );
