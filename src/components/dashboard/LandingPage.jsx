@@ -230,15 +230,6 @@ const LandingPage = ({ onEnter }) => {
             <ArrowRight className="w-4 h-4" />
           </motion.button>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="text-white/30 text-sm mb-16"
-          >
-            Explore the full app without signing up
-          </motion.p>
-
         </div>
 
         {/* ============ INFO SECTION ============ */}
