@@ -1,19 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap } from 'lucide-react';
 
-const TerminalPage = ({ backtestResults, strategy, ticker, onRunBacktest, isLoading }) => {
+const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [history, setHistory] = useState([]);
   const terminalRef = useRef(null);
-  const [editableStrategy, setEditableStrategy] = useState(strategy || {});
+  const [editableStrategy, setEditableStrategy] = useState({
+    entry: strategy?.entry || '',
+    exit: strategy?.exit || '',
+    stopLoss: strategy?.stopLoss || '',
+    positionSize: strategy?.positionSize || '',
+    ticker: strategy?.ticker || ticker || 'SPY',
+  });
 
   useEffect(() => {
-    if (strategy) setEditableStrategy(strategy);
-  }, [strategy]);
+    if (strategy && Object.keys(strategy).length > 0) {
+      setEditableStrategy({
+        entry: strategy.entry || '',
+        exit: strategy.exit || '',
+        stopLoss: strategy.stopLoss || '',
+        positionSize: strategy.positionSize || '',
+        ticker: strategy.ticker || ticker || 'SPY',
+      });
+    }
+  }, [strategy, ticker]);
 
   useEffect(() => {
-    if (!backtestResults || backtestResults.error) return;
+    if (!backtestResults) return;
+    if (backtestResults.error) {
+      setDisplayedLines([{ type: 'error', text: `ERROR: ${backtestResults.error}`, color: 'text-red-400' }]);
+      return;
+    }
     
     // Build terminal output lines
     const lines = [];
