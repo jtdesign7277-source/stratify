@@ -685,22 +685,25 @@ export default function Dashboard({
               </span>
             )}
           </div>,
-          // Slot 1: Social feed pill
+          // Slot 1: Kalshi predictions feed pill
           <div
-            key="feed-pill"
+            key="kalshi-pill"
             onClick={onToggleSocialFeed}
             className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
               isSocialFeedOpen
-                ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
-                : 'border border-white/20 bg-black/90 hover:border-white/40'
+                ? 'border border-emerald-400/40 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                : 'border border-white/20 bg-black/90 hover:border-emerald-400/40'
             }`}
           >
-            <div className="w-5 h-5 rounded-full bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
-              <X className="w-3 h-3 text-blue-300" strokeWidth={1.5} fill="none" />
+            <div className="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline points="17 6 23 6 23 12" />
+              </svg>
             </div>
-            <span className="text-white font-medium text-xs">Feed</span>
+            <span className="text-white font-medium text-xs">Kalshi</span>
             {socialFeedUnread && (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
             )}
           </div>,
           // Slots 2-5: Draggable ticker pills

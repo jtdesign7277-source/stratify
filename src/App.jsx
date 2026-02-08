@@ -4,7 +4,7 @@ import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
-import XPill from './components/shared/XPill';
+import KalshiPill from './components/shared/KalshiPill';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -1025,7 +1025,7 @@ export default function StratifyApp() {
   return (
     <>
       {mainContent}
-      <XPill
+      <KalshiPill
         isOpen={isSocialFeedOpen}
         onOpenChange={setIsSocialFeedOpen}
         onUnreadChange={setHasSocialFeedUnread}
