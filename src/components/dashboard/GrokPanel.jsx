@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import BacktestTerminal from './BacktestTerminal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Loader2, Copy, Check, Zap, Search, X, Plus, Brain,
@@ -274,7 +273,7 @@ const parseStrategyResponse = (content) => {
   return { summary: parsed, code, raw: content };
 };
 
-const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
+const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBacktestResults }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [tickerSearch, setTickerSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -295,7 +294,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
   const [strategyCounter, setStrategyCounter] = useState(0);
   const [backtestResults, setBacktestResults] = useState(null);
   const [isBacktesting, setIsBacktesting] = useState(false);
-  const [showBacktestTerminal, setShowBacktestTerminal] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('strategy');
   const messagesEndRef = useRef(null);
   const introTypingRef = useRef(null);
@@ -450,8 +448,15 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
     const tickerValue = summary.ticker || (activeTabData.tickers?.length > 0 ? activeTabData.tickers[0] : 'SPY');
     const ticker = tickerValue.replace(/\$/g, '').split(',')[0].trim();
     
+    const strategyPayload = {
+      entry: summary.entry || 'Buy when RSI drops below 30',
+      exit: summary.exit || 'Sell when RSI rises above 70',
+      stopLoss: summary.stopLoss || '5%',
+      positionSize: summary.positionSize || '100 shares',
+      ticker: ticker,
+    };
+    
     setIsBacktesting(true);
-    setShowBacktestTerminal(true);
     
     try {
       // Use AI-powered backtest endpoint
@@ -460,12 +465,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ticker,
-          strategy: {
-            entry: summary.entry || 'Buy when RSI drops below 30',
-            exit: summary.exit || 'Sell when RSI rises above 70',
-            stopLoss: summary.stopLoss || '5%',
-            positionSize: summary.positionSize || '100 shares',
-          },
+          strategy: strategyPayload,
           period: '6mo',
           timeframe: '1Day',
         }),
@@ -474,6 +474,11 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
       setBacktestResults(data);
+      
+      // Sync with Terminal page and auto-open it
+      if (onBacktestResults) {
+        onBacktestResults(data, strategyPayload, ticker);
+      }
     } catch (err) {
       console.error('Backtest error:', err);
       setBacktestResults({ error: err.message });
@@ -530,26 +535,35 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
             setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: finalContent, parsed, isTyping: false } : t));
             
             // Auto-run backtest after strategy is generated
-            const ticker = parsed.summary?.ticker || (selectedTickers[0] ? selectedTickers[0] : 'SPY');
+            const tickerRaw = parsed.summary?.ticker || (selectedTickers[0] ? selectedTickers[0] : 'SPY');
+            const ticker = tickerRaw.replace(/\$/g, '').split(',')[0].trim();
+            const strategyPayload = {
+              entry: parsed.summary?.entry || 'Buy when RSI drops below 30',
+              exit: parsed.summary?.exit || 'Sell when RSI rises above 70',
+              stopLoss: parsed.summary?.stopLoss || '5%',
+              positionSize: parsed.summary?.positionSize || '100 shares',
+              ticker: ticker,
+            };
             setIsBacktesting(true);
             try {
               const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  ticker: ticker.replace(/\$/g, '').split(',')[0].trim(),
-                  strategy: {
-                    entry: parsed.summary?.entry || 'Buy when RSI drops below 30',
-                    exit: parsed.summary?.exit || 'Sell when RSI rises above 70',
-                    stopLoss: parsed.summary?.stopLoss || '5%',
-                    positionSize: parsed.summary?.positionSize || '100 shares',
-                  },
+                  ticker,
+                  strategy: strategyPayload,
                   period: '6mo',
                   timeframe: '1Day',
                 }),
               });
               const data = await response.json();
-              if (!data.error) setBacktestResults(data);
+              if (!data.error) {
+                setBacktestResults(data);
+                // Sync with Terminal page and auto-open it
+                if (onBacktestResults) {
+                  onBacktestResults(data, strategyPayload, ticker);
+                }
+              }
             } catch (err) { console.error('Auto-backtest error:', err); }
             finally { setIsBacktesting(false); }
           },
@@ -925,17 +939,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
           </div>
         </div>
       </div>
-
-      {/* Backtest Terminal Popup */}
-      <BacktestTerminal
-        isOpen={showBacktestTerminal}
-        onClose={() => setShowBacktestTerminal(false)}
-        results={backtestResults}
-        strategy={getCurrentStrategy()}
-        ticker={getCurrentTicker()}
-        onRunBacktest={handleBacktest}
-        isLoading={isBacktesting}
-      />
     </div>
   );
 };

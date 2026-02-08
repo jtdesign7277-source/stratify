@@ -812,6 +812,12 @@ export default function Dashboard({
         
         <GrokPanel 
           onCollapsedChange={setIsGrokPanelCollapsed}
+          onBacktestResults={(results, strategy, ticker) => {
+            setTerminalBacktestResults(results);
+            setTerminalStrategy(strategy);
+            setTerminalTicker(ticker);
+            setActiveTab('terminal');
+          }}
           onSaveStrategy={(strategy) => {
             setSavedStrategies(prev => {
               // Don't add if already exists
