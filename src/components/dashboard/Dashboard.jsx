@@ -750,17 +750,14 @@ export default function Dashboard({
       onClick={onToggleLiveScores}
       className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
         isLiveScoresOpen
-          ? 'border border-orange-400/40 bg-orange-500/10 shadow-[0_0_12px_rgba(249,115,22,0.2)]'
-          : 'border border-white/20 bg-black/90 hover:border-orange-400/40'
+          ? 'border border-white/40 bg-white/10 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+          : 'border border-white/20 bg-black/90 hover:border-white/40'
       }`}
     >
-      <div className="w-5 h-5 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center">
+      <div className="w-5 h-5 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
         <span className="text-xs">🏀</span>
       </div>
       <span className="text-white font-medium text-xs">Live</span>
-      {liveScoresUnread && (
-        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
-      )}
     </div>
   );
 
