@@ -666,7 +666,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
           type="text"
           value={value || ''}
           onChange={(e) => updateStrategyField(tab.id, field, e.target.value)}
-          className="w-full mt-0.5 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] text-base focus:outline-none focus:border-emerald-500/50 hover:border-gray-600 transition-colors"
+          className="w-full mt-1 px-3 py-2 bg-[#0d0d12] border border-gray-600 rounded-lg text-[#e5e5e5] text-base focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 hover:border-gray-500 transition-colors cursor-text"
           placeholder={`Enter ${label.toLowerCase()}...`}
         />
       </div>
