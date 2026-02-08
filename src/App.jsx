@@ -3,7 +3,6 @@ import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
-import { AuthProvider } from './context/AuthContext';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 import XPill from './components/shared/XPill';
 import LiveScoresPill from './components/shared/LiveScoresPill';
@@ -1030,7 +1029,7 @@ export default function StratifyApp() {
     );
 
   return (
-    <AuthProvider>
+    <>
       {mainContent}
       <XPill
         isOpen={isSocialFeedOpen}
@@ -1043,6 +1042,6 @@ export default function StratifyApp() {
         onOpenChange={setIsLiveScoresOpen}
         onUnreadChange={setHasLiveScoresUnread}
       />
-    </AuthProvider>
+    </>
   );
 }
