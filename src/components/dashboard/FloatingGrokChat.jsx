@@ -82,17 +82,24 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     };
   }, []);
 
-  // Drag handlers - use refs for smooth dragging without re-renders
+  // Drag handlers - use transform for buttery smooth movement
   const currentPos = useRef(position);
+  const frameRef = useRef(null);
   
   const handleDragStart = (e) => {
     if (e.target.closest('[data-no-drag]')) return;
     e.preventDefault();
-    currentPos.current = position;
+    e.stopPropagation();
+    currentPos.current = { ...position };
     dragOffset.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
     };
+    
+    // Disable pointer events on iframe/content during drag
+    if (containerRef.current) {
+      containerRef.current.style.transition = 'none';
+    }
     setIsDragging(true);
   };
 
@@ -100,28 +107,45 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     if (!isDragging) return;
     
     const handleMove = (e) => {
-      const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.current.x));
-      const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.current.y));
-      currentPos.current = { x: newX, y: newY };
+      // Cancel previous frame
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
       
-      // Apply position directly to DOM for smooth movement
-      if (containerRef.current) {
-        containerRef.current.style.left = `${newX}px`;
-        containerRef.current.style.top = `${newY}px`;
-      }
+      // Use requestAnimationFrame for smooth 60fps updates
+      frameRef.current = requestAnimationFrame(() => {
+        const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.current.x));
+        const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.current.y));
+        currentPos.current = { x: newX, y: newY };
+        
+        // Apply transform directly for GPU-accelerated smooth movement
+        if (containerRef.current) {
+          containerRef.current.style.left = `${newX}px`;
+          containerRef.current.style.top = `${newY}px`;
+        }
+      });
     };
     
     const handleUp = () => {
-      setPosition(currentPos.current);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      setPosition({ ...currentPos.current });
       setIsDragging(false);
-      saveState();
+      
+      // Re-enable transitions
+      if (containerRef.current) {
+        containerRef.current.style.transition = '';
+      }
+      
+      // Save after a short delay
+      setTimeout(saveState, 50);
     };
     
-    window.addEventListener('mousemove', handleMove, { passive: true });
-    window.addEventListener('mouseup', handleUp);
+    // Use capture phase for faster response
+    document.addEventListener('mousemove', handleMove, { capture: true, passive: true });
+    document.addEventListener('mouseup', handleUp, { capture: true });
+    
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      document.removeEventListener('mousemove', handleMove, { capture: true });
+      document.removeEventListener('mouseup', handleUp, { capture: true });
     };
   }, [isDragging, size]);
 
@@ -233,6 +257,8 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           width: size.width,
           height: size.height,
           willChange: isDragging ? 'left, top' : 'auto',
+          transform: 'translateZ(0)', // Force GPU layer
+          backfaceVisibility: 'hidden',
           background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
           border: '1px solid rgba(16, 185, 129, 0.2)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
