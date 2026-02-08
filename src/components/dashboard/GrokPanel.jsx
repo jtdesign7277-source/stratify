@@ -586,17 +586,46 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
     return parts.map((p, i) => { if (p.type === 'code') { return <div key={i} className="my-2">{renderCode(p.content, msgIdx + '-' + i)}</div>; } return <span key={i} className="whitespace-pre-wrap">{p.content}</span>; });
   };
 
+  const updateStrategyField = (tabId, field, value) => {
+    setTabs(prev => prev.map(t => {
+      if (t.id !== tabId) return t;
+      return {
+        ...t,
+        parsed: {
+          ...t.parsed,
+          summary: {
+            ...t.parsed?.summary,
+            [field]: value
+          }
+        }
+      };
+    }));
+  };
+
   const renderStrategySummary = (tab) => {
     const parsed = tab.parsed?.summary;
     if (!parsed) return <div className="text-gray-400 text-sm">Parsing strategy...</div>;
+    
+    const EditableField = ({ label, field, value }) => (
+      <div>
+        <label className="text-gray-400 text-sm font-medium">{label}</label>
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => updateStrategyField(tab.id, field, e.target.value)}
+          className="w-full mt-0.5 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] text-base focus:outline-none focus:border-emerald-500/50 hover:border-gray-600 transition-colors"
+          placeholder={`Enter ${label.toLowerCase()}...`}
+        />
+      </div>
+    );
+
     return (
       <div className="space-y-3">
-        {parsed.ticker && <div><label className="text-gray-400 text-sm font-medium">Ticker(s)</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.ticker}</div></div>}
-        {parsed.entry && <div><label className="text-gray-400 text-sm font-medium">Entry Condition</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.entry}</div></div>}
-        {parsed.exit && <div><label className="text-gray-400 text-sm font-medium">Exit Condition</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.exit}</div></div>}
-        {parsed.stopLoss && <div><label className="text-gray-400 text-sm font-medium">Stop Loss</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.stopLoss}</div></div>}
-        {parsed.positionSize && <div><label className="text-gray-400 text-sm font-medium">Position Size</label><div className="text-[#e5e5e5] text-base mt-0.5">{parsed.positionSize}</div></div>}
-        {!parsed.ticker && !parsed.entry && parsed.description && <div className="text-[#e5e5e5] text-base whitespace-pre-wrap">{parsed.description}</div>}
+        {(parsed.ticker !== undefined || true) && <EditableField label="Ticker(s)" field="ticker" value={parsed.ticker} />}
+        {(parsed.entry !== undefined || true) && <EditableField label="Entry Condition" field="entry" value={parsed.entry} />}
+        {(parsed.exit !== undefined || true) && <EditableField label="Exit Condition" field="exit" value={parsed.exit} />}
+        {(parsed.stopLoss !== undefined || true) && <EditableField label="Stop Loss" field="stopLoss" value={parsed.stopLoss} />}
+        {(parsed.positionSize !== undefined || true) && <EditableField label="Position Size" field="positionSize" value={parsed.positionSize} />}
       </div>
     );
   };
