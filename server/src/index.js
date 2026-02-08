@@ -875,7 +875,7 @@ app.post('/api/backtest', async (req, res) => {
       return res.status(400).json({ error: 'Insufficient historical data for backtest' });
     }
 
-    // Calculate indicators (SMA)
+    // Calculate indicators
     const calculateSMA = (data, period) => {
       const sma = [];
       for (let i = 0; i < data.length; i++) {
@@ -889,9 +889,47 @@ app.post('/api/backtest', async (req, res) => {
       return sma;
     };
 
-    const sma20 = calculateSMA(bars, 20);
+    const calculateRSI = (data, period = 14) => {
+      const rsi = [];
+      const gains = [];
+      const losses = [];
+      
+      for (let i = 0; i < data.length; i++) {
+        if (i === 0) {
+          rsi.push(null);
+          continue;
+        }
+        
+        const change = data[i].close - data[i - 1].close;
+        gains.push(change > 0 ? change : 0);
+        losses.push(change < 0 ? Math.abs(change) : 0);
+        
+        if (i < period) {
+          rsi.push(null);
+          continue;
+        }
+        
+        const avgGain = gains.slice(-period).reduce((a, b) => a + b, 0) / period;
+        const avgLoss = losses.slice(-period).reduce((a, b) => a + b, 0) / period;
+        
+        if (avgLoss === 0) {
+          rsi.push(100);
+        } else {
+          const rs = avgGain / avgLoss;
+          rsi.push(100 - (100 / (1 + rs)));
+        }
+      }
+      return rsi;
+    };
+
     const sma50 = calculateSMA(bars, 50);
     const sma200 = calculateSMA(bars, 200);
+    const rsi = calculateRSI(bars, 14);
+
+    // Detect strategy type from entry condition
+    const entryLower = (strategy?.entry || '').toLowerCase();
+    const isRSIStrategy = entryLower.includes('rsi');
+    const isSMAStrategy = entryLower.includes('sma') || entryLower.includes('cross');
 
     // Simple backtest simulation
     const trades = [];
@@ -900,56 +938,106 @@ app.post('/api/backtest', async (req, res) => {
     const positionSize = parseInt(strategy?.positionSize?.match(/\d+/)?.[0]) || 100;
     const stopLossPercent = parseFloat(strategy?.stopLoss?.match(/[\d.]+/)?.[0]) || 5;
 
-    for (let i = 200; i < bars.length; i++) {
+    const startIdx = isRSIStrategy ? 14 : 200;
+
+    for (let i = startIdx; i < bars.length; i++) {
       const bar = bars[i];
       const price = bar.close;
       
-      // Check for entry (Golden Cross: SMA50 crosses above SMA200)
-      const prevSma50 = sma50[i - 1];
-      const prevSma200 = sma200[i - 1];
-      const currSma50 = sma50[i];
-      const currSma200 = sma200[i];
-
-      if (!position && prevSma50 && prevSma200 && currSma50 && currSma200) {
-        // Golden Cross - BUY signal
-        if (prevSma50 <= prevSma200 && currSma50 > currSma200) {
-          const shares = Math.min(positionSize, Math.floor(cash / price));
-          if (shares > 0) {
-            position = {
-              entryPrice: price,
-              shares,
-              entryTime: bar.time,
-              stopLoss: price * (1 - stopLossPercent / 100),
-            };
-            cash -= shares * price;
+      if (isRSIStrategy) {
+        // RSI Strategy
+        const currRSI = rsi[i];
+        const prevRSI = rsi[i - 1];
+        
+        if (!position && currRSI && prevRSI) {
+          // Buy when RSI drops below 30 (oversold)
+          if (currRSI < 30) {
+            const shares = Math.min(positionSize, Math.floor(cash / price));
+            if (shares > 0) {
+              position = {
+                entryPrice: price,
+                shares,
+                entryTime: bar.time,
+                stopLoss: price * (1 - stopLossPercent / 100),
+                entryRSI: currRSI,
+              };
+              cash -= shares * price;
+            }
           }
         }
-      }
-
-      // Check for exit
-      if (position) {
-        // Death Cross - SELL signal
-        const deathCross = prevSma50 >= prevSma200 && currSma50 < currSma200;
-        const hitStopLoss = price <= position.stopLoss;
-
-        if (deathCross || hitStopLoss) {
-          const exitPrice = hitStopLoss ? position.stopLoss : price;
-          const pnl = (exitPrice - position.entryPrice) * position.shares;
-          const pnlPercent = ((exitPrice - position.entryPrice) / position.entryPrice) * 100;
+        
+        if (position) {
+          // Sell when RSI rises above 70 (overbought) or stop loss
+          const hitStopLoss = price <= position.stopLoss;
+          const rsiExit = currRSI > 70;
           
-          trades.push({
-            entryTime: position.entryTime,
-            exitTime: bar.time,
-            entryPrice: position.entryPrice,
-            exitPrice,
-            shares: position.shares,
-            pnl,
-            pnlPercent,
-            exitReason: hitStopLoss ? 'Stop Loss' : 'Death Cross',
-          });
+          if (rsiExit || hitStopLoss) {
+            const exitPrice = hitStopLoss ? position.stopLoss : price;
+            const pnl = (exitPrice - position.entryPrice) * position.shares;
+            const pnlPercent = ((exitPrice - position.entryPrice) / position.entryPrice) * 100;
+            
+            trades.push({
+              entryTime: position.entryTime,
+              exitTime: bar.time,
+              entryPrice: position.entryPrice,
+              exitPrice,
+              shares: position.shares,
+              pnl,
+              pnlPercent,
+              exitReason: hitStopLoss ? 'Stop Loss' : 'RSI Overbought',
+            });
 
-          cash += position.shares * exitPrice;
-          position = null;
+            cash += position.shares * exitPrice;
+            position = null;
+          }
+        }
+      } else {
+        // SMA Crossover Strategy (default)
+        const prevSma50 = sma50[i - 1];
+        const prevSma200 = sma200[i - 1];
+        const currSma50 = sma50[i];
+        const currSma200 = sma200[i];
+
+        if (!position && prevSma50 && prevSma200 && currSma50 && currSma200) {
+          // Golden Cross - BUY signal
+          if (prevSma50 <= prevSma200 && currSma50 > currSma200) {
+            const shares = Math.min(positionSize, Math.floor(cash / price));
+            if (shares > 0) {
+              position = {
+                entryPrice: price,
+                shares,
+                entryTime: bar.time,
+                stopLoss: price * (1 - stopLossPercent / 100),
+              };
+              cash -= shares * price;
+            }
+          }
+        }
+
+        if (position) {
+          // Death Cross - SELL signal
+          const deathCross = prevSma50 >= prevSma200 && currSma50 < currSma200;
+          const hitStopLoss = price <= position.stopLoss;
+
+          if (deathCross || hitStopLoss) {
+            const exitPrice = hitStopLoss ? position.stopLoss : price;
+            const pnl = (exitPrice - position.entryPrice) * position.shares;
+            const pnlPercent = ((exitPrice - position.entryPrice) / position.entryPrice) * 100;
+            
+            trades.push({
+              entryTime: position.entryTime,
+              exitTime: bar.time,
+              entryPrice: position.entryPrice,
+              exitPrice,
+              shares: position.shares,
+              pnl,
+              pnlPercent,
+              exitReason: hitStopLoss ? 'Stop Loss' : 'Death Cross',
+            });
+
+            cash += position.shares * exitPrice;
+            position = null;
+          }
         }
       }
     }
