@@ -420,17 +420,17 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <div className="flex gap-2">
                 <button
                   onClick={handleDeploy}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 rounded-md text-white font-mono text-xs font-medium transition-all shadow-lg shadow-emerald-500/20 border border-emerald-400/30"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 font-mono text-sm font-medium transition-all hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                 >
-                  <span className="text-sm font-bold">Y</span>
-                  <span className="opacity-90">Deploy</span>
+                  <span className="font-bold">Y</span>
+                  <span>Deploy</span>
                 </button>
                 <button
                   onClick={() => setShowDeployPrompt(false)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 rounded-md text-gray-300 font-mono text-xs font-medium transition-all border border-gray-500/30"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/50 rounded-lg text-gray-400 font-mono text-sm font-medium transition-all"
                 >
-                  <span className="text-sm font-bold">N</span>
-                  <span className="opacity-90">Cancel</span>
+                  <span className="font-bold">N</span>
+                  <span>Cancel</span>
                 </button>
               </div>
             </div>
