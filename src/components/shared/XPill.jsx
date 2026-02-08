@@ -8,7 +8,7 @@ const CACHE_TTL_MS = 2 * 60 * 1000;
 const PANEL_WIDTH = 380;
 const PANEL_HEIGHT = 500;
 const PANEL_MARGIN = 24;
-const STORAGE_KEY = 'stratify-social-feed-position';
+const STORAGE_KEY = 'stratify-social-feed-v2';
 
 const formatRelativeTime = (value) => {
   if (!value) return 'Just now';
@@ -86,8 +86,8 @@ const XPill = ({
   const [size, setSize] = useState({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
   const [position, setPosition] = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
-    // Default position: to the right of Grok panel (220 + 380 + 20 gap = 620)
-    return { x: 620, y: 200 };
+    // Default position: to the right of Grok panel with clear separation
+    return { x: 650, y: 200 };
   });
   const currentPos = useRef(position);
   const isControlled = typeof controlledIsOpen === 'boolean';

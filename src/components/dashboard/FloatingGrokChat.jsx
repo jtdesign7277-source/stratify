@@ -20,7 +20,7 @@ const getSessionId = () => {
   }
   return id;
 };
-const STORAGE_KEY = 'stratify-floating-grok';
+const STORAGE_KEY = 'stratify-grok-chat-v2';
 
 const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   const [messages, setMessages] = useState([]);
