@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import SearchBar from "./SearchBar";
-import { useAuth } from '../../context/AuthContext';
-import AuthModal from '../auth/AuthModal';
 
 // Notification Settings Dropdown
 const NotificationDropdown = ({ isOpen, onClose, themeClasses }) => {
@@ -266,165 +264,7 @@ const parseDropPayload = (event) => {
   }
 };
 
-const UserProfileButton = ({ themeClasses }) => {
-  const { user, signOut, loading } = useAuth();
-  const profile = user?.profile || {};
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState('emerald');
-  const dropdownRef = useRef(null);
-
-  const userInitial = (profile.first_name || profile.email || user?.email || 'U').trim().charAt(0).toUpperCase() || 'U';
-  const subscriptionPlanRaw = profile.subscription_plan || 'Paper';
-  const normalizedPlan = subscriptionPlanRaw.toLowerCase() === 'elite'
-    ? 'Elite'
-    : subscriptionPlanRaw.toLowerCase() === 'pro'
-      ? 'Pro'
-      : 'Paper';
-
-  const avatarOptions = [
-    { key: 'emerald', label: 'Emerald', className: 'bg-emerald-500 text-emerald-50' },
-    { key: 'blue', label: 'Blue', className: 'bg-blue-500 text-blue-50' },
-    { key: 'purple', label: 'Purple', className: 'bg-purple-500 text-purple-50' },
-    { key: 'amber', label: 'Amber', className: 'bg-amber-500 text-amber-50' },
-    { key: 'rose', label: 'Rose', className: 'bg-rose-500 text-rose-50' },
-    { key: 'cyan', label: 'Cyan', className: 'bg-cyan-500 text-cyan-50' },
-  ];
-
-  const planStyles = {
-    Paper: 'bg-[#14141f] text-gray-300 border border-[#2a2a3d]',
-    Pro: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40',
-    Elite: 'bg-gradient-to-r from-[#F5D46A] via-[#E3B341] to-[#F5D46A] text-[#1a1206] border border-[#F5D46A]/70',
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setIsDropdownOpen(false);
-    }
-  }, [user]);
-
-  const handleProfileClick = () => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    setIsDropdownOpen((prev) => !prev);
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    setIsDropdownOpen(false);
-  };
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={handleProfileClick}
-        className={`p-1 rounded-full hover:bg-white/5 transition-colors ${themeClasses.textMuted}`}
-        aria-label={user ? 'Open user menu' : 'Open sign in modal'}
-      >
-        {user ? (
-          profile.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt={`${profile.first_name || 'User'} avatar`}
-              className="w-8 h-8 rounded-full object-cover border border-[#2a2a3d]"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full border border-[#2a2a3d] bg-[#111111] flex items-center justify-center text-xs font-semibold text-white">
-              {userInitial}
-            </div>
-          )
-        ) : (
-          <div className="w-8 h-8 rounded-full border border-[#2a2a3d] bg-[#111111] flex items-center justify-center">
-            <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 20H8a5 5 0 015-5h0a5 5 0 015 5z" />
-              <circle cx="12" cy="8" r="3.5" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        )}
-      </button>
-
-      {user && isDropdownOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-[#0b0b0b] border border-[#2a2a3d] rounded-xl shadow-2xl z-50 overflow-hidden">
-          <div className="px-4 py-4 border-b border-[#2a2a3d]">
-            <div className="flex items-center gap-3">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={`${profile.first_name || 'User'} avatar`}
-                  className="w-9 h-9 rounded-full object-cover border border-[#2a2a3d]"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full border border-[#2a2a3d] bg-[#111111] flex items-center justify-center text-xs font-semibold text-white">
-                  {userInitial}
-                </div>
-              )}
-              <div>
-                <p className="text-sm font-semibold text-white">{profile.first_name || 'Trader'}</p>
-                <p className="text-xs text-white/50">{profile.email || user?.email || 'No email on file'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 py-3 border-b border-[#2a2a3d]">
-            <p className="text-[10px] text-white/50 uppercase tracking-wider mb-3">Avatar</p>
-            <div className="grid grid-cols-6 gap-2">
-              {avatarOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setSelectedAvatar(option.key)}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold uppercase transition-all ${option.className} ${
-                    selectedAvatar === option.key
-                      ? 'ring-2 ring-emerald-400/70 ring-offset-2 ring-offset-[#0b0b0b]'
-                      : 'hover:ring-2 hover:ring-white/20 ring-offset-2 ring-offset-[#0b0b0b]'
-                  }`}
-                  aria-label={`${option.label} avatar`}
-                >
-                  {userInitial}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="px-4 py-3 border-b border-[#2a2a3d] flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-white/50 uppercase tracking-wider">Plan</p>
-              <span className={`inline-flex items-center px-2 py-1 mt-2 rounded-full text-[10px] font-semibold ${planStyles[normalizedPlan]}`}>
-                {normalizedPlan}
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSignOut}
-            disabled={loading}
-            className="w-full text-left px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            Sign Out
-          </button>
-        </div>
-      )}
-
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-    </div>
-  );
-};
-
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop, onGameDrop }) {
+export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop, onGameDrop }) {
   const account = alpacaData?.account || {};
   
   // Mock live P&L data
@@ -554,7 +394,9 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         >
           <span className="text-[15px] leading-none">🏆</span>
         </button>
-        <UserProfileButton themeClasses={themeClasses} />
+        <button onClick={onLogout} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+        </button>
       </div>
     </div>
   );
