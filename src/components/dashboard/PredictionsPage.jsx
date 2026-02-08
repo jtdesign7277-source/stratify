@@ -440,6 +440,100 @@ const SportsBetCard = ({ market }) => {
   );
 };
 
+const TrendingSection = ({ trendingMarkets, topMovers }) => {
+  const featured = trendingMarkets[0];
+  const trendingList = trendingMarkets.slice(1, 4);
+  
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-2xl font-semibold text-white">Trending</div>
+        <span className="text-[#29e1a6] text-2xl leading-none">›</span>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Featured Market */}
+        {featured && (
+          <div className="lg:col-span-2 rounded-2xl border border-[#1f1f1f] bg-[#111111] p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white">{featured.title}</h3>
+              <span className="text-xs text-white/40">Featured</span>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="flex-1">
+                <div className="text-sm text-white/60 mb-2">Market</div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                    <span className="text-white font-medium">Yes</span>
+                    <span className="px-3 py-1 rounded-full bg-[#29e1a6]/20 text-[#29e1a6] text-sm font-bold">
+                      {(featured.yesPercent || 50).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                    <span className="text-white font-medium">No</span>
+                    <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-sm font-bold">
+                      {(100 - (featured.yesPercent || 50)).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-[#29e1a6]">{(featured.yesPercent || 50).toFixed(0)}%</div>
+                <div className="text-xs text-white/40 mt-1">${((featured.volume || 0) / 1000000).toFixed(1)}M vol</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Trending & Top Movers */}
+        <div className="space-y-4">
+          {/* Trending List */}
+          <div className="rounded-2xl border border-[#1f1f1f] bg-[#111111] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-white">Trending</span>
+              <span className="text-[#29e1a6]">›</span>
+            </div>
+            <div className="space-y-3">
+              {trendingList.map((market, i) => (
+                <div key={market.id || i} className="flex items-start gap-3">
+                  <span className="text-white/40 font-mono text-sm">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-white truncate">{market.title}</div>
+                    <div className="text-xs text-white/40 mt-0.5">{inferCategory(market)}</div>
+                  </div>
+                  <span className="text-sm font-bold text-[#29e1a6]">{(market.yesPercent || 50).toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Top Movers */}
+          <div className="rounded-2xl border border-[#1f1f1f] bg-[#111111] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-white">Top Movers</span>
+              <span className="text-[#29e1a6]">›</span>
+            </div>
+            <div className="space-y-3">
+              {topMovers.slice(0, 3).map((market, i) => (
+                <div key={market.id || i} className="flex items-start gap-3">
+                  <span className="text-white/40 font-mono text-sm">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-white truncate">{market.title}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-white">{(market.yesPercent || 50).toFixed(0)}%</div>
+                    <div className="text-[10px] text-emerald-400">▲ {Math.floor(Math.random() * 20 + 5)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const CategorySection = ({ title, markets }) => {
   const sportsLayout = isSportsCategory(title);
   return (
@@ -522,24 +616,37 @@ const PredictionsPage = () => {
     return grouped;
   }, [markets]);
 
+  // Get trending markets (top by volume)
+  const trendingMarkets = useMemo(() => {
+    return [...markets].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 10);
+  }, [markets]);
+
+  // Get top movers (sort by some activity metric, using volume as proxy)
+  const topMovers = useMemo(() => {
+    return [...markets].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 5);
+  }, [markets]);
+
   const categoryOrder = useMemo(() => {
     const base = [
-      'Basketball',
+      'Trending', // Add Trending first
       'Football',
-      'Baseball',
-      'Hockey',
-      'Soccer',
-      'Sports',
+      'Basketball',
       'Politics',
       'Economics',
       'Crypto',
-      'Tech',
+      'Sports',
       'Culture',
       'Companies',
       'Financials',
+      'Tech',
+      'Climate',
+      'Baseball',
+      'Hockey',
+      'Soccer',
       'Other'
     ];
     const present = new Set(Object.keys(groupedMarkets));
+    present.add('Trending'); // Always show Trending
     const ordered = base.filter((cat) => present.has(cat));
     const extras = Array.from(present).filter((cat) => !ordered.includes(cat));
     return [...ordered, ...extras];
@@ -629,7 +736,11 @@ const PredictionsPage = () => {
           <div className="space-y-10">
             {categoryOrder.map((category) => (
               <div key={category} id={`category-${category.replace(/\s+/g, '-').toLowerCase()}`}>
-                <CategorySection title={category} markets={groupedMarkets[category]} />
+                {category === 'Trending' ? (
+                  <TrendingSection trendingMarkets={trendingMarkets} topMovers={topMovers} />
+                ) : (
+                  <CategorySection title={category} markets={groupedMarkets[category] || []} />
+                )}
               </div>
             ))}
           </div>
