@@ -573,7 +573,11 @@ export default function Dashboard({
   };
 
   const removeFromWatchlist = (symbol) => {
-    setWatchlist(prev => prev.filter(s => s.symbol !== symbol));
+    setWatchlist(prev => prev.filter(s => {
+      // Handle both string items and object items
+      const itemSymbol = typeof s === 'string' ? s : s.symbol;
+      return itemSymbol !== symbol;
+    }));
   };
 
   const handleMouseUp = () => {
