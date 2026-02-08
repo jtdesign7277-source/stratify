@@ -346,14 +346,16 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           </div>
           )}
 
-          <button
-            onClick={handleRunBacktest}
-            disabled={isLoading}
-            className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 text-xs font-mono font-medium transition-all disabled:opacity-50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] flex-shrink-0"
-          >
-            {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {isCollapsed ? null : (isLoading ? 'ANALYZING...' : 'RUN BACKTEST')}
-          </button>
+          {!isCollapsed && (
+            <button
+              onClick={handleRunBacktest}
+              disabled={isLoading}
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 text-xs font-mono font-medium transition-all disabled:opacity-50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] flex-shrink-0"
+            >
+              {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
+            </button>
+          )}
         </div>
 
         {/* Recent Tests Panel - Collapsible */}
