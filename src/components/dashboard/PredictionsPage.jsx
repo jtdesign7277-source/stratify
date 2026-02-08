@@ -25,8 +25,19 @@ const toPercent = (value) => {
 
 const inferCategory = (market) => {
   const base = `${market.category || ''} ${market.title || ''} ${market.ticker || ''}`.toUpperCase();
-  if (base.includes('NBA') || base.includes('WNBA') || base.includes('BASKETBALL')) return 'Basketball';
-  if (base.includes('NFL') || base.includes('FOOTBALL')) return 'Football';
+  
+  // NFL/Football - check for player names, teams, Super Bowl
+  const nflTeams = ['SEAHAWKS', 'PATRIOTS', 'CHIEFS', 'EAGLES', 'COWBOYS', '49ERS', 'RAVENS', 'BILLS', 'BENGALS', 'DOLPHINS', 'LIONS', 'PACKERS', 'BEARS', 'VIKINGS', 'SAINTS', 'BUCCANEERS', 'FALCONS', 'PANTHERS', 'RAMS', 'CARDINALS', 'CHARGERS', 'RAIDERS', 'BRONCOS', 'JETS', 'GIANTS', 'COMMANDERS', 'STEELERS', 'BROWNS', 'TITANS', 'COLTS', 'JAGUARS', 'TEXANS'];
+  const nflPlayers = ['MAHOMES', 'KELCE', 'HURTS', 'JEFFERSON', 'HILL', 'CHASE', 'ALLEN', 'BURROW', 'JACKSON', 'SMITH-NJIGBA', 'WALKER', 'DARNOLD', 'MAYE', 'STEVENSON', 'HENRY', 'METCALF', 'LOCKETT'];
+  if (base.includes('NFL') || base.includes('FOOTBALL') || base.includes('SUPER BOWL') || base.includes('KXNFL') || base.includes('KXSB') ||
+      nflTeams.some(t => base.includes(t)) || nflPlayers.some(p => base.includes(p))) return 'Football';
+  
+  // NBA/Basketball
+  const nbaTeams = ['CELTICS', 'LAKERS', 'WARRIORS', 'NETS', 'BUCKS', 'HEAT', 'SUNS', 'NUGGETS', 'GRIZZLIES', 'CAVALIERS', 'KNICKS', 'SIXERS', 'MAVERICKS', 'CLIPPERS', 'TIMBERWOLVES', 'PELICANS', 'THUNDER', 'KINGS', 'HAWKS', 'RAPTORS', 'BULLS', 'PACERS', 'MAGIC', 'HORNETS', 'WIZARDS', 'PISTONS', 'SPURS', 'ROCKETS', 'JAZZ', 'TRAIL BLAZERS'];
+  const nbaPlayers = ['LEBRON', 'CURRY', 'DURANT', 'GIANNIS', 'JOKIC', 'EMBIID', 'TATUM', 'DONCIC', 'MORANT', 'BRUNSON', 'SIAKAM', 'LEONARD', 'PRITCHARD', 'WHITE'];
+  if (base.includes('NBA') || base.includes('WNBA') || base.includes('BASKETBALL') || base.includes('KXNBA') ||
+      nbaTeams.some(t => base.includes(t)) || nbaPlayers.some(p => base.includes(p))) return 'Basketball';
+  
   if (base.includes('MLB') || base.includes('BASEBALL')) return 'Baseball';
   if (base.includes('NHL') || base.includes('HOCKEY')) return 'Hockey';
   if (base.includes('SOCCER') || base.includes('MLS') || base.includes('FIFA')) return 'Soccer';
