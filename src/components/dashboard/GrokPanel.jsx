@@ -655,8 +655,9 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
   };
 
   const renderStrategySummary = (tab) => {
-    const parsed = tab.parsed?.summary;
-    if (!parsed) return <div className="text-gray-400 text-sm">Parsing strategy...</div>;
+    const parsed = tab.parsed?.summary || {};
+    // Use tab.tickers as fallback if parsed.ticker is empty
+    const tickerValue = parsed.ticker || (tab.tickers?.length > 0 ? tab.tickers.map(t => '$' + t).join(', ') : '');
     
     const EditableField = ({ label, field, value }) => (
       <div>
@@ -673,11 +674,11 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
 
     return (
       <div className="space-y-3">
-        {(parsed.ticker !== undefined || true) && <EditableField label="Ticker(s)" field="ticker" value={parsed.ticker} />}
-        {(parsed.entry !== undefined || true) && <EditableField label="Entry Condition" field="entry" value={parsed.entry} />}
-        {(parsed.exit !== undefined || true) && <EditableField label="Exit Condition" field="exit" value={parsed.exit} />}
-        {(parsed.stopLoss !== undefined || true) && <EditableField label="Stop Loss" field="stopLoss" value={parsed.stopLoss} />}
-        {(parsed.positionSize !== undefined || true) && <EditableField label="Position Size" field="positionSize" value={parsed.positionSize} />}
+        <EditableField label="Ticker(s)" field="ticker" value={tickerValue} />
+        <EditableField label="Entry Condition" field="entry" value={parsed.entry} />
+        <EditableField label="Exit Condition" field="exit" value={parsed.exit} />
+        <EditableField label="Stop Loss" field="stopLoss" value={parsed.stopLoss} />
+        <EditableField label="Position Size" field="positionSize" value={parsed.positionSize} />
       </div>
     );
   };

@@ -856,6 +856,7 @@ app.post('/api/backtest', async (req, res) => {
       end: new Date().toISOString(),
       timeframe: timeframe,
       limit: 10000,
+      feed: 'iex', // Use IEX feed (free) instead of SIP (paid)
     });
 
     const bars = [];
