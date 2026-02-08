@@ -8,6 +8,7 @@ import stocksRouter from './routes/stocks.js';
 import chatRouter from './routes/chat.js';
 import kalshiRouter from './routes/kalshi.js';
 import strategiesRouter from './routes/strategies.js';
+import strategyRouter from './routes/strategy.js';
 import trendsRouter, { setYahooFinance } from './routes/trends.js';
 import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice } from './services/alpaca.js';
 
@@ -41,6 +42,7 @@ app.use('/api/v1/kalshi', kalshiRouter);
 app.use('/api/kalshi', kalshiRouter);
 app.use('/api/claude', chatRouter);
 app.use('/api/strategies', strategiesRouter);
+app.use('/api/strategy', strategyRouter);
 app.use('/api/trends', trendsRouter);
 
 app.get('/api/health', (req, res) => {
