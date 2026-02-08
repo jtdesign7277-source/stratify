@@ -293,6 +293,8 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
   const [tabs, setTabs] = useState([{ id: 'chat', name: 'Builder', content: '', isTyping: false }]);
   const [activeTab, setActiveTab] = useState('chat');
   const [strategyCounter, setStrategyCounter] = useState(0);
+  const [backtestResults, setBacktestResults] = useState(null);
+  const [isBacktesting, setIsBacktesting] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('strategy');
   const messagesEndRef = useRef(null);
   const introTypingRef = useRef(null);
@@ -426,6 +428,44 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
 
   const handleSave = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: false, savedAt: Date.now() }; onSaveStrategy && onSaveStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true } : t)); };
   const handleSaveAndDeploy = () => { const activeTabData = tabs.find(t => t.id === activeTab); if (!activeTabData || activeTab === 'chat') return; const strategyToSave = { id: activeTabData.id, name: activeTabData.name, code: activeTabData.parsed?.code || '', content: activeTabData.content, summary: activeTabData.parsed?.summary || {}, tickers: activeTabData.tickers || [], strategyType: activeTabData.strategyType, timeframe: activeTabData.timeframe, deployed: true, runStatus: 'running', savedAt: Date.now(), deployedAt: Date.now() }; onDeployStrategy && onDeployStrategy(strategyToSave); setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, saved: true, deployed: true } : t)); };
+
+  const handleBacktest = async () => {
+    const activeTabData = tabs.find(t => t.id === activeTab);
+    if (!activeTabData || activeTab === 'chat') return;
+    
+    const summary = activeTabData.parsed?.summary || {};
+    const ticker = summary.ticker || activeTabData.tickers?.[0] || 'SPY';
+    
+    setIsBacktesting(true);
+    setBacktestResults(null);
+    
+    try {
+      const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: ticker.replace('$', ''),
+          strategy: {
+            entry: summary.entry || 'Buy when 50-day SMA crosses above 200-day SMA',
+            exit: summary.exit || 'Sell when 50-day SMA crosses below 200-day SMA',
+            stopLoss: summary.stopLoss || '5%',
+            positionSize: summary.positionSize || '100 shares',
+          },
+          period: '6mo',
+          timeframe: '1Day',
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      setBacktestResults(data);
+    } catch (err) {
+      console.error('Backtest error:', err);
+      setBacktestResults({ error: err.message });
+    } finally {
+      setIsBacktesting(false);
+    }
+  };
 
   const handleChatSend = async () => {
     if (!chatInput.trim() || isChatLoading) return;
@@ -773,10 +813,50 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
               </div>
             </div>
             {isStrategyTab && !activeTabData?.isTyping && activeTabData?.content && (
-              <div className="flex gap-2 px-2 py-1.5 border-t border-gray-700 flex-shrink-0">
-                <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
-                <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-blue-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
-              </div>
+              <>
+                {backtestResults && !backtestResults.error && (
+                  <div className="mx-2 mb-2 p-3 bg-[#111118] border border-emerald-500/30 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-emerald-400 text-xs font-medium">Backtest Results ({backtestResults.period})</span>
+                      <button onClick={() => setBacktestResults(null)} className="text-gray-500 hover:text-white"><X className="w-3 h-3" /></button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-white">{backtestResults.summary?.totalTrades || 0}</div>
+                        <div className="text-[10px] text-gray-500">Trades</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-emerald-400">{backtestResults.summary?.winRate || 0}%</div>
+                        <div className="text-[10px] text-gray-500">Win Rate</div>
+                      </div>
+                      <div>
+                        <div className={`text-lg font-bold ${parseFloat(backtestResults.summary?.totalPnL) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          ${backtestResults.summary?.totalPnL || '0'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Total P&L</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-700 text-[10px] text-gray-400">
+                      Return: <span className={parseFloat(backtestResults.summary?.returnPercent) >= 0 ? 'text-emerald-400' : 'text-red-400'}>{backtestResults.summary?.returnPercent}%</span> • 
+                      Avg Win: ${backtestResults.summary?.avgWin} • 
+                      Avg Loss: ${backtestResults.summary?.avgLoss}
+                    </div>
+                  </div>
+                )}
+                {backtestResults?.error && (
+                  <div className="mx-2 mb-2 p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+                    Backtest failed: {backtestResults.error}
+                  </div>
+                )}
+                <div className="flex gap-2 px-2 py-1.5 border-t border-gray-700 flex-shrink-0">
+                  <button onClick={handleBacktest} disabled={isBacktesting} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-purple-600/20 text-purple-300 border border-purple-500/50 hover:bg-purple-600/30 hover:text-purple-200 transition-colors disabled:opacity-50">
+                    {isBacktesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+                    {isBacktesting ? 'Testing...' : 'Backtest'}
+                  </button>
+                  <button onClick={handleSave} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#111118] text-gray-300 border border-gray-600 hover:border-gray-500 hover:text-white transition-colors"><Save className="w-4 h-4" />Save</button>
+                  <button onClick={handleSaveAndDeploy} className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-blue-500 transition-colors"><Play className="w-4 h-4" />Save & Deploy</button>
+                </div>
+              </>
             )}
             <div className="flex gap-2 p-2 border-t border-gray-700 flex-shrink-0">
               <textarea ref={inputRef} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activeTab === 'chat' ? handleChatSend() : handleStrategyModify(); } }} placeholder={activeTab === 'chat' ? 'Ask Grok...' : "Ask Grok to modify this strategy..."} className="flex-1 px-2 py-1.5 bg-[#111118] border border-gray-700 rounded-lg text-[#e5e5e5] placeholder-gray-500 text-sm resize-none focus:outline-none focus:border-emerald-500/50 transition-colors overflow-hidden" style={{ minHeight: '52px', maxHeight: '120px' }} />
