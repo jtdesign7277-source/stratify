@@ -156,10 +156,24 @@ export default function Dashboard({
   }, []);
   
   const [watchlist, setWatchlist] = useState(() => {
+    const DEFAULT_WATCHLIST = [
+      { symbol: 'AAPL', name: 'Apple Inc.' },
+      { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+      { symbol: 'AMZN', name: 'Amazon.com, Inc.' },
+      { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+      { symbol: 'META', name: 'Meta Platforms, Inc.' },
+      { symbol: 'TSLA', name: 'Tesla, Inc.' },
+      { symbol: 'MSFT', name: 'Microsoft Corporation' },
+      { symbol: 'HOOD', name: 'Robinhood Markets, Inc.' },
+    ];
     try {
       const saved = localStorage.getItem('stratify-watchlist');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.length > 0 ? parsed : DEFAULT_WATCHLIST;
+      }
+      return DEFAULT_WATCHLIST;
+    } catch { return DEFAULT_WATCHLIST; }
   });
   
   // Mini ticker pills (slots 2-5, slots 0-1 are Grok and Feed)
