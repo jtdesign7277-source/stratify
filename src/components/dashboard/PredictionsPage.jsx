@@ -462,7 +462,7 @@ const PredictionsPage = () => {
     { id: 'trump-approval-50', title: 'Trump Approval Above 50% by Q2?', category: 'Politics', yesPercent: 0.42, volume: 1200000, closeTime: '2026-06-30T23:59:00Z' },
     { id: 'btc-100k', title: 'Bitcoin Above $100K by June?', category: 'Crypto', yesPercent: 0.58, volume: 2500000, closeTime: '2026-06-01T00:00:00Z' },
     { id: 'nvda-earnings-beat', title: 'NVDA Beats Earnings Q1 2026?', category: 'Companies', yesPercent: 0.72, volume: 980000, closeTime: '2026-02-28T21:00:00Z' },
-    { id: 'super-bowl-chiefs', title: 'Chiefs Win Super Bowl 2026?', category: 'Football', yesPercent: 0.28, volume: 3200000, closeTime: '2026-02-09T23:30:00Z' },
+    { id: 'super-bowl-eagles', title: 'Eagles Win Super Bowl LX?', category: 'Football', yesPercent: 0.52, volume: 3200000, closeTime: '2026-02-09T23:30:00Z' },
     { id: 'nba-finals-celtics', title: 'Celtics Win NBA Finals 2026?', category: 'Basketball', yesPercent: 0.22, volume: 1800000, closeTime: '2026-06-15T00:00:00Z' },
     { id: 'cpi-under-3', title: 'CPI Under 3% by March?', category: 'Economics', yesPercent: 0.65, volume: 650000, closeTime: '2026-03-12T12:30:00Z' },
     { id: 'ai-regulation', title: 'Major AI Regulation Passed 2026?', category: 'Tech', yesPercent: 0.38, volume: 420000, closeTime: '2026-12-31T23:59:00Z' },
