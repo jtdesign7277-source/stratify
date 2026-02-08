@@ -4,7 +4,6 @@ import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import { AuthProvider } from './context/AuthContext';
-import AuthPage from './pages/AuthPage';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 import XPill from './components/shared/XPill';
 import LiveScoresPill from './components/shared/LiveScoresPill';
@@ -978,7 +977,6 @@ export default function StratifyApp() {
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
   const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
-  const isAuthRoute = typeof window !== 'undefined' && window.location.pathname === '/auth';
   const marketData = useMarketData();
   const portfolio = usePortfolio();
 
@@ -1033,24 +1031,18 @@ export default function StratifyApp() {
 
   return (
     <AuthProvider>
-      {isAuthRoute ? (
-        <AuthPage />
-      ) : (
-        <>
-          {mainContent}
-          <XPill
-            isOpen={isSocialFeedOpen}
-            onOpenChange={setIsSocialFeedOpen}
-            onUnreadChange={setHasSocialFeedUnread}
-            showTrigger={false}
-          />
-          <LiveScoresPill
-            isOpen={isLiveScoresOpen}
-            onOpenChange={setIsLiveScoresOpen}
-            onUnreadChange={setHasLiveScoresUnread}
-          />
-        </>
-      )}
+      {mainContent}
+      <XPill
+        isOpen={isSocialFeedOpen}
+        onOpenChange={setIsSocialFeedOpen}
+        onUnreadChange={setHasSocialFeedUnread}
+        showTrigger={false}
+      />
+      <LiveScoresPill
+        isOpen={isLiveScoresOpen}
+        onOpenChange={setIsLiveScoresOpen}
+        onUnreadChange={setHasLiveScoresUnread}
+      />
     </AuthProvider>
   );
 }
