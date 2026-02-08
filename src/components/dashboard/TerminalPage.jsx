@@ -267,7 +267,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
 
       <div className="flex-1 flex overflow-hidden">
         {/* Strategy Editor Panel - Collapsible */}
-        <div className={`${isCollapsed ? 'w-14' : 'w-56'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+        <div className={`${isCollapsed ? 'w-14' : 'w-72'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-purple-400" />
@@ -309,7 +309,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 value={editableStrategy.entry || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, entry: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
-                rows={1}
+                rows={2}
                 placeholder="Buy when RSI < 30..."
               />
             </div>
@@ -319,7 +319,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 value={editableStrategy.exit || ''}
                 onChange={(e) => setEditableStrategy(prev => ({ ...prev, exit: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-gray-700 rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
-                rows={1}
+                rows={2}
                 placeholder="Sell when RSI > 70..."
               />
             </div>
@@ -357,7 +357,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         </div>
 
         {/* Recent Tests Panel - Collapsible */}
-        <div className={`${isHistoryCollapsed ? 'w-14' : 'w-56'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+        <div className={`${isHistoryCollapsed ? 'w-14' : 'w-64'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-cyan-400" />
