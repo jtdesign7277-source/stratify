@@ -268,17 +268,31 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       <div className="flex-1 flex overflow-hidden">
         {/* Strategy Editor Panel - Collapsible */}
         <div className={`${isCollapsed ? 'w-14' : 'w-72'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
-          <div className="flex items-center justify-between mb-3 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-purple-400" />
-              {!isCollapsed && <span className="text-sm font-mono text-purple-400 uppercase tracking-wider">Strategy Config</span>}
-            </div>
-            <button 
-              onClick={() => setIsCollapsed(!isCollapsed)} 
-              className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
-            >
-              {isCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
-            </button>
+          <div className={`flex ${isCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
+            {isCollapsed ? (
+              <>
+                <button 
+                  onClick={() => setIsCollapsed(false)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white mb-2"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+                <Zap className="w-4 h-4 text-purple-400" />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-mono text-purple-400 uppercase tracking-wider">Strategy Config</span>
+                </div>
+                <button 
+                  onClick={() => setIsCollapsed(true)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
           
           {!isCollapsed && (
@@ -360,17 +374,31 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
 
         {/* Recent Tests Panel - Collapsible */}
         <div className={`${isHistoryCollapsed ? 'w-14' : 'w-64'} border-r border-gray-800 bg-[#0d0d12] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
-          <div className="flex items-center justify-between mb-3 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-cyan-400" />
-              {!isHistoryCollapsed && <span className="text-sm font-mono text-cyan-400 uppercase tracking-wider">History</span>}
-            </div>
-            <button 
-              onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)} 
-              className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
-            >
-              {isHistoryCollapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
-            </button>
+          <div className={`flex ${isHistoryCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
+            {isHistoryCollapsed ? (
+              <>
+                <button 
+                  onClick={() => setIsHistoryCollapsed(false)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white mb-2"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+                <RefreshCw className="w-4 h-4 text-cyan-400" />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm font-mono text-cyan-400 uppercase tracking-wider">History</span>
+                </div>
+                <button 
+                  onClick={() => setIsHistoryCollapsed(true)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
           
           {!isHistoryCollapsed && (
