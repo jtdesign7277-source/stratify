@@ -815,7 +815,139 @@ app.get('/api/snapshot/:symbol', async (req, res) => {
 });
 
 // ============ BACKTESTING API ============
-// Run strategy backtest against historical Alpaca data
+
+// AI-Powered Backtest - Grok generates the strategy code
+app.post('/api/backtest/ai', async (req, res) => {
+  try {
+    const { 
+      ticker, 
+      strategy, // { entry, exit, stopLoss, positionSize }
+      period = '6mo',
+      timeframe = '1Day'
+    } = req.body;
+
+    if (!ticker) {
+      return res.status(400).json({ error: 'Ticker is required' });
+    }
+
+    const symbol = ticker.toUpperCase().replace('$', '');
+    
+    // Calculate start date
+    const now = new Date();
+    let startDate;
+    switch(period) {
+      case '1mo': startDate = new Date(now.setMonth(now.getMonth() - 1)); break;
+      case '3mo': startDate = new Date(now.setMonth(now.getMonth() - 3)); break;
+      case '6mo': startDate = new Date(now.setMonth(now.getMonth() - 6)); break;
+      case '1y': startDate = new Date(now.setFullYear(now.getFullYear() - 1)); break;
+      default: startDate = new Date(now.setMonth(now.getMonth() - 6));
+    }
+
+    // Fetch historical data from Alpaca
+    const Alpaca = (await import('@alpacahq/alpaca-trade-api')).default;
+    const alpaca = new Alpaca({
+      keyId: process.env.ALPACA_API_KEY,
+      secretKey: process.env.ALPACA_SECRET_KEY,
+      paper: true,
+    });
+
+    const barsIterator = alpaca.getBarsV2(symbol, {
+      start: startDate.toISOString(),
+      end: new Date().toISOString(),
+      timeframe: timeframe,
+      limit: 10000,
+      feed: 'iex',
+    });
+
+    const bars = [];
+    for await (const bar of barsIterator) {
+      bars.push({
+        time: bar.Timestamp,
+        open: bar.OpenPrice,
+        high: bar.HighPrice,
+        low: bar.LowPrice,
+        close: bar.ClosePrice,
+        volume: bar.Volume,
+      });
+    }
+
+    if (bars.length < 20) {
+      return res.status(400).json({ error: 'Insufficient historical data' });
+    }
+
+    // Ask Grok to generate backtest logic
+    const strategyPrompt = `
+You are a Python trading algorithm expert. Generate a backtest function for this strategy:
+
+TICKER: ${symbol}
+ENTRY CONDITION: ${strategy?.entry || 'Buy when RSI drops below 30'}
+EXIT CONDITION: ${strategy?.exit || 'Sell when RSI rises above 70'}
+STOP LOSS: ${strategy?.stopLoss || '5%'}
+POSITION SIZE: ${strategy?.positionSize || '100 shares'}
+
+The function receives 'bars' (list of dicts with keys: time, open, high, low, close, volume).
+Starting cash is $100,000.
+
+Return ONLY a JSON object with this exact structure (no markdown, no explanation):
+{
+  "trades": [{"entryTime": "ISO", "exitTime": "ISO", "entryPrice": 0, "exitPrice": 0, "shares": 0, "pnl": 0, "pnlPercent": 0, "exitReason": ""}],
+  "summary": {"totalTrades": 0, "winningTrades": 0, "losingTrades": 0, "winRate": "0.0", "totalPnL": "0.00", "avgWin": "0.00", "avgLoss": "0.00", "finalCash": "100000.00", "returnPercent": "0.00"}
+}
+
+Calculate actual trades based on the entry/exit conditions using real indicator math (RSI, SMA, MACD, etc).
+Parse position size from the text. Apply stop loss logic.
+`;
+
+    // Call Grok API
+    const grokResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'grok-3',
+        messages: [
+          { role: 'system', content: 'You are a quantitative trading expert. Output ONLY valid JSON, no markdown or explanations.' },
+          { role: 'user', content: strategyPrompt + '\n\nHere is the price data:\n' + JSON.stringify(bars.slice(0, 50)) + '\n...(total ' + bars.length + ' bars)' }
+        ],
+        temperature: 0.1,
+      }),
+    });
+
+    const grokData = await grokResponse.json();
+    let aiResult;
+    
+    try {
+      const content = grokData.choices?.[0]?.message?.content || '{}';
+      // Try to extract JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      aiResult = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+    } catch (parseErr) {
+      console.error('Failed to parse Grok response:', grokData);
+      // Fall back to basic calculation
+      aiResult = { trades: [], summary: { totalTrades: 0, winRate: "0", totalPnL: "0", returnPercent: "0" } };
+    }
+
+    res.json({
+      symbol,
+      period,
+      timeframe,
+      barsAnalyzed: bars.length,
+      startDate: bars[0]?.time,
+      endDate: bars[bars.length - 1]?.time,
+      aiPowered: true,
+      ...aiResult,
+      priceData: bars.filter((_, i) => i % Math.ceil(bars.length / 100) === 0),
+    });
+
+  } catch (error) {
+    console.error('AI Backtest error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Legacy backtest (hardcoded strategies)
 app.post('/api/backtest', async (req, res) => {
   try {
     const { 

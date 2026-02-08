@@ -446,20 +446,22 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange }) => {
     if (!activeTabData || activeTab === 'chat') return;
     
     const summary = activeTabData.parsed?.summary || {};
-    const ticker = summary.ticker || activeTabData.tickers?.[0] || 'SPY';
+    const tickerValue = summary.ticker || (activeTabData.tickers?.length > 0 ? activeTabData.tickers[0] : 'SPY');
+    const ticker = tickerValue.replace(/\$/g, '').split(',')[0].trim();
     
     setIsBacktesting(true);
     setBacktestResults(null);
     
     try {
-      const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest', {
+      // Use AI-powered backtest endpoint
+      const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ticker: ticker.replace('$', ''),
+          ticker,
           strategy: {
-            entry: summary.entry || 'Buy when 50-day SMA crosses above 200-day SMA',
-            exit: summary.exit || 'Sell when 50-day SMA crosses below 200-day SMA',
+            entry: summary.entry || 'Buy when RSI drops below 30',
+            exit: summary.exit || 'Sell when RSI rises above 70',
             stopLoss: summary.stopLoss || '5%',
             positionSize: summary.positionSize || '100 shares',
           },
