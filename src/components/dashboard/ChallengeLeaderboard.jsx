@@ -241,6 +241,7 @@ const I = {
   trophy:"M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 22v-4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v4M6 2h12v7a6 6 0 0 1-12 0V2z",
   down:"M6 9l6 6 6-6",
   right:"M9 18l6-6-6-6",
+  users:"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
 };
 
 const STOCK_DATABASE = [
@@ -457,6 +458,7 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
     try { return JSON.parse(localStorage.getItem("stratify-challenge-picks") || "[]"); } catch { return []; }
   });
   const [showSavedPicks, setShowSavedPicks] = useState(false);
+  const [showPeriodInfo, setShowPeriodInfo] = useState(null);
 
   const myVal = MY_HOLDINGS.reduce((s,h)=>s+h.curPrice*h.shares,0) + MY_CASH;
   const myPnl = myVal - START_VAL;
@@ -576,11 +578,44 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
           </div>
         </div>
 
-        {/* Period Tabs */}
+        {/* Period Tabs with Info */}
         <div style={{display:"flex",gap:4,marginBottom:8}}>
-          {["weekly","monthly","6month","yearly"].map(t=>(
-            <button key={t} onClick={()=>setPeriod(t)} style={{padding:"5px 14px",borderRadius:6,fontSize:fs(12),fontWeight:600,background:period===t?"rgba(251,191,36,0.12)":"transparent",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid transparent",color:period===t?"#fbbf24":"#64748b",cursor:"pointer",fontFamily:MONO}}>{t==="6month"?"6 Month":t==="yearly"?"1 Year":t.charAt(0).toUpperCase()+t.slice(1)}</button>
-          ))}
+          {["weekly","monthly","6month","yearly"].map(t=>{
+            const participants = t==="weekly"?847:t==="monthly"?1243:t==="6month"?3156:5892;
+            const isEntered = t==="weekly"||t==="monthly"; // Mock: user entered weekly & monthly
+            return (
+              <div key={t} style={{position:"relative",display:"flex",alignItems:"center"}}>
+                <button onClick={()=>setPeriod(t)} style={{padding:"5px 10px 5px 14px",borderRadius:"6px 0 0 6px",fontSize:fs(12),fontWeight:600,background:period===t?"rgba(251,191,36,0.12)":"transparent",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid transparent",borderRight:"none",color:period===t?"#fbbf24":"#64748b",cursor:"pointer",fontFamily:MONO}}>{t==="6month"?"6 Month":t==="yearly"?"1 Year":t.charAt(0).toUpperCase()+t.slice(1)}</button>
+                <button 
+                  onClick={(e)=>{e.stopPropagation();setShowPeriodInfo(showPeriodInfo===t?null:t);}}
+                  style={{padding:"5px 8px",borderRadius:"0 6px 6px 0",fontSize:fs(10),background:period===t?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.03)",border:period===t?"1px solid rgba(251,191,36,0.25)":"1px solid rgba(255,255,255,0.08)",borderLeft:"none",color:isEntered?"#29e1a6":"#64748b",cursor:"pointer",display:"flex",alignItems:"center",gap:3}}
+                >
+                  <Icon d={I.users} size={10}/>{participants>999?`${(participants/1000).toFixed(1)}K`:participants}
+                </button>
+                {showPeriodInfo===t && (
+                  <div style={{position:"absolute",top:"100%",left:0,marginTop:6,width:200,background:"#111111",border:"1px solid #1f1f1f",borderRadius:8,padding:12,zIndex:50,boxShadow:"0 10px 30px rgba(0,0,0,0.4)"}}>
+                    <div style={{fontSize:fs(13),fontWeight:700,color:"#fbbf24",marginBottom:8}}>{t==="6month"?"6 Month":t==="yearly"?"1 Year":t.charAt(0).toUpperCase()+t.slice(1)} Challenge</div>
+                    <div style={{fontSize:fs(11),color:"#94a3b8",marginBottom:6}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Participants</span><span style={{fontFamily:MONO,color:"#e2e8f0"}}>{participants.toLocaleString()}</span></div>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span>Prize Pool</span><span style={{fontFamily:MONO,color:"#29e1a6"}}>${t==="weekly"?"500":t==="monthly"?"2K":t==="6month"?"10K":"50K"}</span></div>
+                      <div style={{display:"flex",justifyContent:"space-between"}}><span>Ends</span><span style={{fontFamily:MONO,color:"#e2e8f0"}}>{t==="weekly"?"Fri Feb 7":t==="monthly"?"Feb 28":t==="6month"?"Jul 31":"Dec 31"}</span></div>
+                    </div>
+                    <div style={{borderTop:"1px solid #1f1f1f",paddingTop:8,marginTop:8}}>
+                      {isEntered ? (
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <div style={{width:6,height:6,borderRadius:"50%",background:"#29e1a6"}}/>
+                          <span style={{fontSize:fs(11),color:"#29e1a6",fontWeight:600}}>You're Entered</span>
+                          <span style={{fontSize:fs(10),color:"#64748b",marginLeft:"auto"}}>@legend_user</span>
+                        </div>
+                      ) : (
+                        <button onClick={()=>{setView("enter");setShowPeriodInfo(null);}} style={{width:"100%",padding:"6px",borderRadius:5,background:"linear-gradient(135deg,#fbbf24,#f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(10),fontWeight:700,cursor:"pointer"}}>Enter Challenge</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* View Tabs */}
