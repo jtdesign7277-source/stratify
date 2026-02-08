@@ -813,10 +813,12 @@ export default function Dashboard({
         <GrokPanel 
           onCollapsedChange={setIsGrokPanelCollapsed}
           onBacktestResults={(results, strategy, ticker) => {
+            // Batch state updates before switching tabs
             setTerminalBacktestResults(results);
-            setTerminalStrategy(strategy);
-            setTerminalTicker(ticker);
-            setActiveTab('terminal');
+            setTerminalStrategy(strategy || {});
+            setTerminalTicker(ticker || 'SPY');
+            // Use setTimeout to ensure state is set before tab switch
+            setTimeout(() => setActiveTab('terminal'), 50);
           }}
           onSaveStrategy={(strategy) => {
             setSavedStrategies(prev => {
