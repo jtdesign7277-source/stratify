@@ -953,7 +953,7 @@ app.post('/api/backtest', async (req, res) => {
     const { 
       ticker, 
       strategy, // { entry, exit, stopLoss, positionSize }
-      period = '6mo', // 1mo, 3mo, 6mo, 1y, 2y
+      period = '6mo', // 1mo, 3mo, 6mo (Alpaca free tier limit)
       timeframe = '1Day' // 1Min, 5Min, 15Min, 1Hour, 1Day
     } = req.body;
 
