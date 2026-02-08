@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight } from 'lucide-react';
 
 const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading, onDeploy, onNavigateToActive }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
@@ -25,6 +25,9 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   
   // Collapsed state for left panel
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Collapsed state for Recent Tests sub-section
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   
   // Editable strategy for the input fields
   const [editableStrategy, setEditableStrategy] = useState({
@@ -352,44 +355,65 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
             {isCollapsed ? null : (isLoading ? 'ANALYZING...' : 'RUN BACKTEST')}
           </button>
 
-          {/* History */}
-          {!isCollapsed && history.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-800">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Recent Tests</div>
-                <button
-                  onClick={handleClearHistory}
-                  className="p-1 text-gray-600 hover:text-red-400 transition-colors"
-                  title="Clear History"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="space-y-1 max-h-48 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
-                {history.map((h, i) => {
-                  const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
-                  const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => handleLoadHistory(h)}
-                      className="p-2 rounded bg-gray-800/50 hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-emerald-500/30"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono text-gray-400">
-                          {new Date(h.timestamp).toLocaleTimeString()} - {h.results?.symbol}
-                        </span>
-                        <span className={`text-xs font-mono ${pnlColor}`}>
-                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
-                        </span>
+          {/* History - Sub-collapsible */}
+          {!isCollapsed && (
+            <div className="mt-3 pt-3 border-t border-gray-800">
+              <button 
+                onClick={() => setIsHistoryCollapsed(!isHistoryCollapsed)}
+                className="w-full flex items-center justify-between mb-2 hover:bg-gray-800/30 rounded p-1 -ml-1 transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  {isHistoryCollapsed ? (
+                    <ChevronRight className="w-3 h-3 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3 text-gray-500" />
+                  )}
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">
+                    Recent Tests {history.length > 0 && `(${history.length})`}
+                  </span>
+                </div>
+                {!isHistoryCollapsed && history.length > 0 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleClearHistory(); }}
+                    className="p-1 text-gray-600 hover:text-red-400 transition-colors"
+                    title="Clear History"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                )}
+              </button>
+              
+              {!isHistoryCollapsed && history.length > 0 && (
+                <div className="space-y-1 max-h-40 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
+                  {history.map((h, i) => {
+                    const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
+                    const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                    return (
+                      <div 
+                        key={i} 
+                        onClick={() => handleLoadHistory(h)}
+                        className="p-2 rounded bg-gray-800/50 hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-emerald-500/30"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono text-gray-400">
+                            {new Date(h.timestamp).toLocaleTimeString()} - {h.results?.symbol}
+                          </span>
+                          <span className={`text-xs font-mono ${pnlColor}`}>
+                            {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-600 mt-0.5">
+                          {h.results?.summary?.totalTrades || 0} trades • {h.results?.summary?.winRate || 0}% win
+                        </div>
                       </div>
-                      <div className="text-[10px] text-gray-600 mt-0.5">
-                        {h.results?.summary?.totalTrades || 0} trades • {h.results?.summary?.winRate || 0}% win
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {!isHistoryCollapsed && history.length === 0 && (
+                <div className="text-[10px] text-gray-600 font-mono py-2">No recent tests</div>
+              )}
             </div>
           )}
         </div>
