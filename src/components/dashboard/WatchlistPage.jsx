@@ -210,10 +210,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
   const fetchQuote = useCallback(async (symbol) => {
     try {
-      const res = await fetch(`${API_URL}/api/trades/quote/${symbol}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data;
+      // Try public quote endpoint first (has change/changePercent)
+      const res = await fetch(`${API_URL}/api/public/quote/${symbol}`);
+      if (!res.ok) {
+        // Fallback to trades quote
+        const fallbackRes = await fetch(`${API_URL}/api/trades/quote/${symbol}`);
+        if (!fallbackRes.ok) return null;
+        return await fallbackRes.json();
+      }
+      return await res.json();
     } catch (err) {
       console.error('Quote fetch error:', symbol, err);
       return null;
@@ -234,10 +239,12 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         activeWatchlist.map(async (stock) => {
           const quote = await fetchQuote(stock.symbol);
           if (quote && quote.price) {
-            // Store previous close for change calculation (use current as fallback)
-            const prevClose = prevCloses[stock.symbol] || quote.price;
-            const change = quote.price - prevClose;
-            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+            // Use API's change data if available, otherwise calculate from prevClose
+            const apiChange = quote.change;
+            const apiChangePercent = quote.changePercent;
+            const prevClose = prevCloses[stock.symbol] || quote.prevClose || quote.price;
+            const change = apiChange !== undefined ? apiChange : (quote.price - prevClose);
+            const changePercent = apiChangePercent !== undefined ? apiChangePercent : (prevClose > 0 ? (change / prevClose) * 100 : 0);
             
             results[stock.symbol] = {
               price: quote.price,
