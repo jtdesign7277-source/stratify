@@ -5,6 +5,7 @@ import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 import XPill from './components/shared/XPill';
+import LiveScoresPill from './components/shared/LiveScoresPill';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -973,6 +974,8 @@ export default function StratifyApp() {
   const [currentPage, setCurrentPage] = useState('landing');
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
+  const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
+  const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
   const marketData = useMarketData();
   const portfolio = usePortfolio();
 
@@ -1015,6 +1018,9 @@ export default function StratifyApp() {
         isSocialFeedOpen={isSocialFeedOpen}
         onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
         socialFeedUnread={hasSocialFeedUnread}
+        isLiveScoresOpen={isLiveScoresOpen}
+        onToggleLiveScores={() => setIsLiveScoresOpen((prev) => !prev)}
+        liveScoresUnread={hasLiveScoresUnread}
         alpacaData={{
           positions: derivedPositions.length > 0 ? derivedPositions : stocks,
           account,
@@ -1030,6 +1036,11 @@ export default function StratifyApp() {
         onOpenChange={setIsSocialFeedOpen}
         onUnreadChange={setHasSocialFeedUnread}
         showTrigger={false}
+      />
+      <LiveScoresPill
+        isOpen={isLiveScoresOpen}
+        onOpenChange={setIsLiveScoresOpen}
+        onUnreadChange={setHasLiveScoresUnread}
       />
     </>
   );

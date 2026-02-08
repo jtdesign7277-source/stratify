@@ -111,6 +111,9 @@ export default function Dashboard({
   isSocialFeedOpen = false,
   onToggleSocialFeed = () => {},
   socialFeedUnread = false,
+  isLiveScoresOpen = false,
+  onToggleLiveScores = () => {},
+  liveScoresUnread = false,
 }) {
   const savedState = loadDashboardState();
   
@@ -705,7 +708,25 @@ export default function Dashboard({
               <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
             )}
           </div>,
-          // Slots 2-5: Draggable ticker pills
+          // Slot 2: Live Scores pill
+          <div
+            key="scores-pill"
+            onClick={onToggleLiveScores}
+            className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
+              isLiveScoresOpen
+                ? 'border border-orange-400/40 bg-orange-500/10 shadow-[0_0_12px_rgba(249,115,22,0.2)]'
+                : 'border border-white/20 bg-black/90 hover:border-orange-400/40'
+            }`}
+          >
+            <div className="w-5 h-5 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center">
+              <span className="text-xs">🏀</span>
+            </div>
+            <span className="text-white font-medium text-xs">Live</span>
+            {liveScoresUnread && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
+            )}
+          </div>,
+          // Slots 3-6: Draggable ticker pills
           ...[0, 1, 2, 3].map((i) => 
             miniTickers[i] ? (
               <TickerPill 
