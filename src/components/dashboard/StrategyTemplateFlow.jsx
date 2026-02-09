@@ -59,22 +59,6 @@ const Icons = {
       <polyline points="6 9 12 15 18 9" />
     </svg>
   ),
-  ChevronsLeft: (p) => (
-    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="11 17 6 12 11 7" /><polyline points="18 17 13 12 18 7" />
-    </svg>
-  ),
-  ChevronsRight: (p) => (
-    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" />
-    </svg>
-  ),
-  List: (p) => (
-    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-      <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-    </svg>
-  ),
   Clock: (p) => (
     <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
@@ -188,8 +172,100 @@ const TICKERS = [
 const TIMEFRAMES = ["5m", "15m", "1H", "4H", "1D"];
 const PERIODS = ["1M", "3M", "6M", "1Y"];
 
-// ── Price Data Generator ───────────────────────────────────────
-const generatePriceData = (ticker, period, timeframe = "1H") => {
+// ── API Configuration ──────────────────────────────────────────
+const API_BASE = "https://stratify-backend-production-3ebd.up.railway.app/api";
+
+const CRYPTO_TICKERS = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK", "ADA", "AVAX", "DOT"];
+
+// ── Fetch Real Historical Data ─────────────────────────────────
+const fetchHistoricalBars = async (ticker, period, timeframe) => {
+  const isCrypto = CRYPTO_TICKERS.includes(ticker);
+
+  if (isCrypto) {
+    return fetchCryptoBars(ticker, period, timeframe);
+  }
+
+  try {
+    const url = `${API_BASE}/stocks/history/${ticker}?timeframe=${timeframe}&period=${period}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+
+    if (!data.bars || data.bars.length === 0) throw new Error("No bars returned");
+
+    return {
+      source: "alpaca",
+      bars: data.bars.map((b) => ({
+        date: b.date,
+        timestamp: b.timestamp || new Date(b.date).getTime(),
+        open: +b.open,
+        high: +b.high,
+        low: +b.low,
+        close: +b.close,
+        volume: b.volume || 0,
+      })),
+    };
+  } catch (err) {
+    console.warn(`Alpaca fetch failed for ${ticker}, falling back to simulated:`, err.message);
+    return { source: "simulated", bars: generateSimulatedData(ticker, period, timeframe) };
+  }
+};
+
+// ── Crypto via Crypto.com REST API ─────────────────────────────
+const fetchCryptoBars = async (ticker, period, timeframe) => {
+  try {
+    // Crypto.com instrument format: BTC_USD, ETH_USD, etc.
+    const instrument = `${ticker}_USD`;
+
+    // Map timeframe to Crypto.com interval
+    const intervalMap = {
+      "5m": "5m",
+      "15m": "15m",
+      "1H": "1h",
+      "4H": "4h",
+      "1D": "1D",
+    };
+    const interval = intervalMap[timeframe] || "1h";
+
+    const res = await fetch(
+      `https://api.crypto.com/exchange/v1/public/get-candlestick?instrument_name=${instrument}&timeframe=${interval}`
+    );
+
+    if (!res.ok) throw new Error(`Crypto.com API ${res.status}`);
+    const data = await res.json();
+
+    if (!data.result?.data || data.result.data.length === 0) {
+      throw new Error("No crypto candle data");
+    }
+
+    // Crypto.com returns: { t: timestamp, o, h, l, c, v }
+    const periodDays = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+    const cutoff = Date.now() - (periodDays[period] || 180) * 24 * 60 * 60 * 1000;
+
+    const bars = data.result.data
+      .filter((c) => c.t >= cutoff)
+      .map((c) => ({
+        date: new Date(c.t).toISOString(),
+        timestamp: c.t,
+        open: +c.o,
+        high: +c.h,
+        low: +c.l,
+        close: +c.c,
+        volume: +c.v,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    if (bars.length === 0) throw new Error("No bars after filtering");
+
+    return { source: "crypto.com", bars };
+  } catch (err) {
+    console.warn(`Crypto.com fetch failed for ${ticker}, falling back to simulated:`, err.message);
+    return { source: "simulated", bars: generateSimulatedData(ticker, period, timeframe) };
+  }
+};
+
+// ── Simulated Fallback (keeps app working offline/if APIs fail) ─
+const generateSimulatedData = (ticker, period, timeframe = "1H") => {
   // Seed based on ticker for consistent results per symbol
   const seed = ticker.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   let rng = seed;
@@ -405,8 +481,55 @@ const runBacktest = (strategyId, data, capital) => {
   const worstTrade = sells.length > 0 ? Math.min(...sells.map((t) => t.pnl)) : 0;
   const avgTrade = sells.length > 0 ? sells.reduce((a, t) => a + t.pnl, 0) / sells.length : 0;
 
+  // Build round-trip trade pairs for detailed log
+  const roundTrips = [];
+  for (let i = 0; i < trades.length; i++) {
+    if (trades[i].type === "BUY") {
+      const entry = trades[i];
+      const exit = trades[i + 1]?.type === "SELL" ? trades[i + 1] : null;
+      if (exit) {
+        const pnlDollar = exit.pnl;
+        const pnlPct = ((exit.price - entry.price) / entry.price * 100);
+        const openValue = entry.shares * entry.price;
+        const closeValue = entry.shares * exit.price;
+        // Duration in ms
+        const entryTime = new Date(entry.date).getTime();
+        const exitTime = new Date(exit.date).getTime();
+        const durationMs = exitTime - entryTime;
+        const durationHrs = Math.floor(durationMs / (1000 * 60 * 60));
+        const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+        let durationStr = "";
+        if (durationHrs >= 24) {
+          const days = Math.floor(durationHrs / 24);
+          const hrs = durationHrs % 24;
+          durationStr = `${days}d ${hrs}h`;
+        } else {
+          durationStr = `${durationHrs}h ${durationMins}m`;
+        }
+
+        roundTrips.push({
+          id: roundTrips.length + 1,
+          type: "LONG",
+          entryDate: entry.date,
+          exitDate: exit.date,
+          entryPrice: entry.price,
+          exitPrice: exit.price,
+          shares: entry.shares,
+          openValue: +openValue.toFixed(2),
+          closeValue: +closeValue.toFixed(2),
+          pnl: pnlDollar,
+          pnlPct: +pnlPct.toFixed(2),
+          duration: durationStr,
+          entryIdx: entry.index,
+          exitIdx: exit.index,
+        });
+        i++; // skip the SELL since we consumed it
+      }
+    }
+  }
+
   return {
-    trades, equity, pnl, pctReturn, finalEquity, winRate,
+    trades, roundTrips, equity, pnl, pctReturn, finalEquity, winRate,
     maxDD: maxDD.toFixed(1), sharpe, totalTrades: sells.length,
     wins, losses: sells.length - wins, bestTrade, worstTrade, avgTrade,
     rsi, ema20, macd, signal,
@@ -690,102 +813,67 @@ const StrategyDetail = ({ template, onBack }) => {
   const [timeframe, setTimeframe] = useState("1H");
   const [period, setPeriod] = useState("6M");
   const [capital, setCapital] = useState(100000);
-  const [isTradeLogCollapsed, setIsTradeLogCollapsed] = useState(true);
+  const [showTrades, setShowTrades] = useState(false);
   const [isRunning, setIsRunning] = useState(true);
   const [activated, setActivated] = useState(false);
+  const [data, setData] = useState([]);
+  const [dataSource, setDataSource] = useState("loading");
+  const [fetchError, setFetchError] = useState(null);
 
-  const data = useMemo(() => generatePriceData(ticker, period, timeframe), [ticker, period, timeframe]);
-  const result = useMemo(() => runBacktest(template.id, data, capital), [template.id, data, capital]);
-
+  // Fetch real data when params change
   useEffect(() => {
+    let cancelled = false;
     setIsRunning(true);
-    const t = setTimeout(() => setIsRunning(false), 800);
-    return () => clearTimeout(t);
-  }, [ticker, period, timeframe, capital, template.id]);
+    setFetchError(null);
+    setDataSource("loading");
+
+    fetchHistoricalBars(ticker, period, timeframe).then((result) => {
+      if (cancelled) return;
+      setData(result.bars);
+      setDataSource(result.source);
+      setIsRunning(false);
+    }).catch((err) => {
+      if (cancelled) return;
+      setFetchError(err.message);
+      // Fall back to simulated
+      const fallback = generateSimulatedData(ticker, period, timeframe);
+      setData(fallback);
+      setDataSource("simulated");
+      setIsRunning(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [ticker, period, timeframe]);
+
+  const result = useMemo(() => {
+    if (data.length === 0) return null;
+    return runBacktest(template.id, data, capital);
+  }, [template.id, data, capital]);
 
   const fmt = (v) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
 
   const Icon = template.icon;
 
   return (
-    <div className="flex h-full" style={{ animation: "fadeSlideIn 0.35s ease both" }}>
-      {/* Trade Log Panel - Collapsible */}
-      <div className={`${isTradeLogCollapsed ? 'w-14' : 'w-72'} border-r flex flex-col overflow-hidden transition-all duration-200`} style={{ background: "#0a1628", borderColor: "#1e293b" }}>
-        <div className={`flex ${isTradeLogCollapsed ? 'flex-col items-center' : 'items-center justify-between'} p-3 flex-shrink-0`}>
-          {isTradeLogCollapsed ? (
-            <>
-              <button onClick={() => setIsTradeLogCollapsed(false)} className="p-1 hover:bg-white/5 rounded transition-colors mb-2" style={{ color: "#94a3b8" }}>
-                <Icons.ChevronsRight className="w-4 h-4" />
-              </button>
-              <Icons.List className="w-4 h-4" style={{ color: "#3b82f6" }} />
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <Icons.List className="w-4 h-4" style={{ color: "#3b82f6" }} />
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "#3b82f6" }}>Trade Log</span>
-              </div>
-              <button onClick={() => setIsTradeLogCollapsed(true)} className="p-1 hover:bg-white/5 rounded transition-colors" style={{ color: "#94a3b8" }}>
-                <Icons.ChevronsLeft className="w-4 h-4" />
-              </button>
-            </>
-          )}
-        </div>
-        {!isTradeLogCollapsed && (
-          <>
-            <div className="px-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #1e293b" }}>
-              <span className="text-[10px]" style={{ color: "#64748b" }}>{result.trades.length} trades</span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#1e293b #0a1628" }}>
-              {result.trades.map((t, i) => {
-                const pnlColor = t.pnl == null ? "#334155" : t.pnl >= 0 ? "#34d399" : "#f87171";
-                return (
-                  <div key={i} className="p-2 rounded-lg transition-colors hover:bg-white/[0.03]" style={{ border: "1px solid #1e293b" }}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px]" style={{ color: "#64748b" }}>
-                        {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{
-                        background: t.type === "BUY" ? template.color + "15" : t.pnl >= 0 ? "#34d39915" : "#f8717115",
-                        color: t.type === "BUY" ? template.color : t.pnl >= 0 ? "#34d399" : "#f87171",
-                      }}>
-                        {t.type}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs tabular-nums" style={{ color: "#94a3b8" }}>${t.price.toFixed(2)}</span>
-                      <span className="text-xs tabular-nums font-medium" style={{ color: pnlColor }}>
-                        {t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}${fmt(t.pnl)}` : "—"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* Top bar */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="p-2 rounded-lg transition-all hover:bg-white/5"
-              style={{ border: "1px solid #1e293b" }}
-            >
-              <Icons.ArrowLeft className="w-4 h-4" style={{ color: "#94a3b8" }} />
-            </button>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: template.color + "15" }}>
-              <Icon style={{ color: template.color, width: 16, height: 16 }} />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold" style={{ color: "#e2e8f0" }}>{template.name}</h2>
-              <p className="text-xs" style={{ color: "#475569" }}>{template.logic}</p>
-            </div>
+    <div style={{ animation: "fadeSlideIn 0.35s ease both" }}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-2 rounded-lg transition-all hover:bg-white/5"
+            style={{ border: "1px solid #1e293b" }}
+          >
+            <Icons.ArrowLeft className="w-4 h-4" style={{ color: "#94a3b8" }} />
+          </button>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: template.color + "15" }}>
+            <Icon style={{ color: template.color, width: 16, height: 16 }} />
           </div>
+          <div>
+            <h2 className="text-base font-semibold" style={{ color: "#e2e8f0" }}>{template.name}</h2>
+            <p className="text-xs" style={{ color: "#475569" }}>{template.logic}</p>
+          </div>
+        </div>
 
         <button
           onClick={() => setActivated(true)}
@@ -849,17 +937,35 @@ const StrategyDetail = ({ template, onBack }) => {
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2 text-xs tabular-nums" style={{ color: "#334155", fontFamily: "monospace" }}>
-          <span>{data.length.toLocaleString()} candles</span>
-          <span>·</span>
-          <span>{timeframe} × {period}</span>
+        <div className="ml-auto flex items-center gap-2 text-xs tabular-nums" style={{ fontFamily: "monospace" }}>
+          <span className="px-1.5 py-0.5 rounded" style={{
+            background: dataSource === "alpaca" ? "#16a34a15" : dataSource === "crypto.com" ? "#f59e0b15" : dataSource === "simulated" ? "#ef444415" : "#3b82f615",
+            color: dataSource === "alpaca" ? "#34d399" : dataSource === "crypto.com" ? "#fbbf24" : dataSource === "simulated" ? "#f87171" : "#60a5fa",
+            border: `1px solid ${dataSource === "alpaca" ? "#16a34a30" : dataSource === "crypto.com" ? "#f59e0b30" : dataSource === "simulated" ? "#ef444430" : "#3b82f630"}`,
+          }}>
+            {dataSource === "alpaca" ? "LIVE DATA" : dataSource === "crypto.com" ? "CRYPTO.COM" : dataSource === "simulated" ? "SIMULATED" : "LOADING"}
+          </span>
+          <span style={{ color: "#334155" }}>{data.length.toLocaleString()} candles</span>
+          <span style={{ color: "#334155" }}>·</span>
+          <span style={{ color: "#334155" }}>{timeframe} × {period}</span>
         </div>
       </div>
 
       {/* Chart */}
       <div className="rounded-xl overflow-hidden mb-3" style={{ background: "#0a1628", border: "1px solid #1e293b", opacity: isRunning ? 0.5 : 1, transition: "opacity 0.3s" }}>
         <div className="h-[340px]">
-          <BacktestChart data={data} result={result} template={template} />
+          {data.length > 0 && result ? (
+            <BacktestChart data={data} result={result} template={template} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-6 h-6 mx-auto mb-2 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${template.color} transparent ${template.color} ${template.color}` }} />
+                <span className="text-xs" style={{ color: "#475569" }}>
+                  {fetchError ? `Error: ${fetchError} — using simulated data` : "Fetching market data..."}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
         {/* Legend */}
         <div className="flex items-center gap-4 px-4 py-2 text-xs" style={{ borderTop: "1px solid #1e293b" }}>
@@ -887,6 +993,7 @@ const StrategyDetail = ({ template, onBack }) => {
       </div>
 
       {/* Stats Grid */}
+      {result && (
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-3">
         <StatCard label="Total P&L" value={`${result.pnl >= 0 ? "+" : ""}${fmt(result.pnl)}`} color={result.pnl >= 0 ? "#34d399" : "#f87171"} />
         <StatCard label="Return" value={`${result.pnl >= 0 ? "+" : ""}${result.pctReturn}%`} color={result.pnl >= 0 ? "#34d399" : "#f87171"} />
@@ -897,7 +1004,146 @@ const StrategyDetail = ({ template, onBack }) => {
         <StatCard label="Sharpe Ratio" value={result.sharpe} color={parseFloat(result.sharpe) > 1 ? "#34d399" : "#f59e0b"} />
         <StatCard label="Best Trade" value={`+${fmt(result.bestTrade)}`} color="#34d399" />
       </div>
+      )}
+
+      {/* Trade Log */}
+      {result && (
+      <div className="rounded-xl overflow-hidden" style={{ background: "#0a1628", border: "1px solid #1e293b" }}>
+        <button
+          onClick={() => setShowTrades(!showTrades)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium transition-all hover:bg-white/[0.02]"
+          style={{ color: "#94a3b8" }}
+        >
+          <div className="flex items-center gap-3">
+            <span>TRADE LOG</span>
+            <span className="px-1.5 py-0.5 rounded" style={{ background: "#1e293b", color: "#64748b" }}>
+              {result.roundTrips.length} round-trips
+            </span>
+            <span className="px-1.5 py-0.5 rounded" style={{ background: result.pnl >= 0 ? "#16a34a15" : "#ef444415", color: result.pnl >= 0 ? "#34d399" : "#f87171" }}>
+              {result.wins}W / {result.losses}L
+            </span>
+          </div>
+          <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTrades ? "rotate-180" : ""}`} />
+        </button>
+        {showTrades && (
+          <div className="overflow-x-auto" style={{ borderTop: "1px solid #1e293b" }}>
+            <div className="max-h-[360px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#1e293b #0a1628" }}>
+              <table className="w-full text-xs" style={{ fontFamily: "monospace", minWidth: 900 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #1e293b", position: "sticky", top: 0, background: "#0a1628", zIndex: 2 }}>
+                    {["#", "Type", "Open", "Close", "Entry", "Exit", "Shares", "Open $", "Close $", "P&L", "P&L %", "Hold Time"].map((h) => (
+                      <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap" style={{ color: "#475569", fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.roundTrips.map((rt) => {
+                    const isWin = rt.pnl >= 0;
+                    const entryDt = new Date(rt.entryDate);
+                    const exitDt = new Date(rt.exitDate);
+                    const fmtDate = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    const fmtTime = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+
+                    return (
+                      <tr key={rt.id} className="transition-colors hover:bg-white/[0.02] group" style={{ borderBottom: "1px solid #0f172a08" }}>
+                        {/* # */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "#334155" }}>{rt.id}</td>
+
+                        {/* Type */}
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{
+                            background: "#22d3ee12",
+                            color: "#22d3ee",
+                            fontSize: 10,
+                            letterSpacing: "0.05em",
+                          }}>
+                            {rt.type}
+                          </span>
+                        </td>
+
+                        {/* Open date/time */}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <div style={{ color: "#94a3b8" }}>{fmtDate(entryDt)}</div>
+                          <div style={{ color: "#475569", fontSize: 9 }}>{fmtTime(entryDt)}</div>
+                        </td>
+
+                        {/* Close date/time */}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <div style={{ color: "#94a3b8" }}>{fmtDate(exitDt)}</div>
+                          <div style={{ color: "#475569", fontSize: 9 }}>{fmtTime(exitDt)}</div>
+                        </td>
+
+                        {/* Entry price */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "#e2e8f0" }}>
+                          ${rt.entryPrice.toFixed(2)}
+                        </td>
+
+                        {/* Exit price */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: isWin ? "#34d399" : "#f87171" }}>
+                          ${rt.exitPrice.toFixed(2)}
+                        </td>
+
+                        {/* Shares */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "#64748b" }}>
+                          {rt.shares.toLocaleString()}
+                        </td>
+
+                        {/* Open $ value */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "#94a3b8" }}>
+                          {fmt(rt.openValue)}
+                        </td>
+
+                        {/* Close $ value */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "#94a3b8" }}>
+                          {fmt(rt.closeValue)}
+                        </td>
+
+                        {/* P&L $ */}
+                        <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: isWin ? "#34d399" : "#f87171" }}>
+                          {isWin ? "+" : ""}{fmt(rt.pnl)}
+                        </td>
+
+                        {/* P&L % */}
+                        <td className="px-3 py-2 tabular-nums" style={{ color: isWin ? "#34d399" : "#f87171" }}>
+                          <span className="px-1.5 py-0.5 rounded" style={{ background: isWin ? "#34d39910" : "#f8717110" }}>
+                            {isWin ? "+" : ""}{rt.pnlPct}%
+                          </span>
+                        </td>
+
+                        {/* Duration */}
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: "#475569" }}>
+                          <div className="flex items-center gap-1">
+                            <Icons.Clock style={{ width: 10, height: 10, color: "#334155" }} />
+                            {rt.duration}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary row */}
+            <div className="flex items-center justify-between px-4 py-2.5 text-xs" style={{ borderTop: "1px solid #1e293b", background: "#080f1e" }}>
+              <div className="flex items-center gap-4">
+                <span style={{ color: "#475569" }}>Avg Trade:</span>
+                <span className="tabular-nums font-medium" style={{ color: result.avgTrade >= 0 ? "#34d399" : "#f87171", fontFamily: "monospace" }}>
+                  {result.avgTrade >= 0 ? "+" : ""}{fmt(result.avgTrade)}
+                </span>
+                <span style={{ color: "#1e293b" }}>|</span>
+                <span style={{ color: "#475569" }}>Best:</span>
+                <span className="tabular-nums font-medium" style={{ color: "#34d399", fontFamily: "monospace" }}>+{fmt(result.bestTrade)}</span>
+                <span style={{ color: "#1e293b" }}>|</span>
+                <span style={{ color: "#475569" }}>Worst:</span>
+                <span className="tabular-nums font-medium" style={{ color: "#f87171", fontFamily: "monospace" }}>{fmt(result.worstTrade)}</span>
+              </div>
+              <span style={{ color: "#334155" }}>{result.roundTrips.length} completed trades</span>
+            </div>
+          </div>
+        )}
       </div>
+      )}
     </div>
   );
 };
@@ -921,6 +1167,24 @@ export default function StrategyTemplateFlow() {
       }} />
 
       <div className="relative z-10 p-4 lg:p-6 max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b82f6, #8b5cf6)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 5-9" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-base font-semibold tracking-tight" style={{ color: "#e2e8f0" }}>Stratify</h1>
+            <p className="text-xs" style={{ color: "#334155" }}>AI-Powered Strategy Engine</p>
+          </div>
+          <div className="ml-auto">
+            <span className="text-xs px-2 py-1 rounded" style={{ background: "#172554", color: "#60a5fa" }}>
+              PAPER MODE
+            </span>
+          </div>
+        </div>
+
         {/* Content */}
         {selected ? (
           <StrategyDetail template={selected} onBack={() => setSelected(null)} />
