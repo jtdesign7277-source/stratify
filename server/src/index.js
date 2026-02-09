@@ -795,22 +795,38 @@ app.post('/api/trades/close/:symbol', async (req, res) => {
   }
 });
 
-// Get price quote
+// Get price quote - uses Yahoo Finance (Alpaca was returning 401)
 app.get('/api/trades/quote/:symbol', async (req, res) => {
   try {
-    const price = await getLatestPrice(req.params.symbol);
-    res.json(price);
+    const sym = req.params.symbol.toUpperCase();
+    const quote = await yahooFinance.quote(sym);
+    res.json({
+      symbol: sym,
+      askPrice: quote.ask || quote.regularMarketPrice,
+      bidPrice: quote.bid || quote.regularMarketPrice,
+      price: quote.regularMarketPrice || 0,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get snapshot with change data
+// Get snapshot with change data - uses Yahoo Finance (Alpaca was returning 401)
 app.get('/api/snapshot/:symbol', async (req, res) => {
   try {
-    const { getSnapshot } = await import('./services/alpaca.js');
-    const data = await getSnapshot(req.params.symbol);
-    res.json(data);
+    const sym = req.params.symbol.toUpperCase();
+    const quote = await yahooFinance.quote(sym);
+    res.json({
+      symbol: sym,
+      price: quote.regularMarketPrice || 0,
+      prevClose: quote.regularMarketPreviousClose || 0,
+      change: quote.regularMarketChange || 0,
+      changePercent: quote.regularMarketChangePercent || 0,
+      open: quote.regularMarketOpen || 0,
+      high: quote.regularMarketDayHigh || 0,
+      low: quote.regularMarketDayLow || 0,
+      volume: quote.regularMarketVolume || 0,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
