@@ -1,5 +1,8 @@
 import Alpaca from '@alpacahq/alpaca-trade-api';
 
+console.log('🔑 Alpaca init - Key ID:', process.env.ALPACA_API_KEY?.slice(0, 8) + '...');
+console.log('🔑 Alpaca init - Paper mode: false (LIVE)');
+
 const alpaca = new Alpaca({
   keyId: process.env.ALPACA_API_KEY,
   secretKey: process.env.ALPACA_SECRET_KEY,
