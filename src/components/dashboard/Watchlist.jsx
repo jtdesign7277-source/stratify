@@ -111,10 +111,11 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
   const [activeTab, setActiveTab] = useState('stocks');
   const [marketSession, setMarketSession] = useState(getMarketSession);
 
-  const fetchStockQuotes = useCallback(async () => {
+  const fetchStockQuotes = useCallback(async (symbolList) => {
     setStockLoading(true);
     try {
-      const res = await fetch(`/api/stocks`);
+      const query = symbolList && symbolList.length > 0 ? `?symbols=${symbolList.join(",")}` : "";
+      const res = await fetch(`/api/stocks${query}`);
       if (!res.ok) {
         throw new Error(`Failed to fetch stock snapshots: ${res.status}`);
       }
@@ -138,9 +139,10 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
   useEffect(() => {
     const stockSymbols = stocks.filter((stock) => !isCryptoAsset(stock));
     if (stockSymbols.length === 0) return undefined;
-    fetchStockQuotes();
+    const symbols = stockSymbols.map(s => s.symbol || s).filter(Boolean);
+    fetchStockQuotes(symbols);
     const interval = setInterval(() => {
-      fetchStockQuotes();
+      fetchStockQuotes(symbols);
     }, 30000);
     return () => clearInterval(interval);
   }, [stocks, fetchStockQuotes]);
