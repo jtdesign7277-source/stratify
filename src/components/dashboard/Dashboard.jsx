@@ -305,6 +305,13 @@ export default function Dashboard({
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
+  
+  // Collapse Grok panel when on templates page
+  useEffect(() => {
+    if (activeTab === 'templates') {
+      setIsGrokPanelCollapsed(true);
+    }
+  }, [activeTab]);
   const [grokMessageCount, setGrokMessageCount] = useState(0);
 
   // Command palette navigation handler

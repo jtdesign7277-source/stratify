@@ -951,7 +951,8 @@ const StrategyDetail = ({ template, onBack }) => {
         </div>
       </div>
 
-      {/* Chart */}
+      {/* Chart - collapses when trade log is open */}
+      {!showTrades && (
       <div className="rounded-xl overflow-hidden mb-3" style={{ background: "#0a1628", border: "1px solid #1e293b", opacity: isRunning ? 0.5 : 1, transition: "opacity 0.3s" }}>
         <div className="h-[340px]">
           {data.length > 0 && result ? (
@@ -991,6 +992,7 @@ const StrategyDetail = ({ template, onBack }) => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Stats Grid */}
       {result && (
