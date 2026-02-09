@@ -859,7 +859,7 @@ app.post('/api/backtest/ai', async (req, res) => {
     const alpaca = new Alpaca({
       keyId: process.env.ALPACA_API_KEY,
       secretKey: process.env.ALPACA_SECRET_KEY,
-      paper: true,
+      paper: false,
     });
 
     const bars = [];
@@ -1014,7 +1014,7 @@ app.post('/api/backtest', async (req, res) => {
     const alpaca = new Alpaca({
       keyId: process.env.ALPACA_API_KEY,
       secretKey: process.env.ALPACA_SECRET_KEY,
-      paper: true,
+      paper: false,
     });
 
     const barsIterator = alpaca.getBarsV2(symbol, {
