@@ -1,22 +1,62 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
-  
-  const { q = '$TSLA', limit = 25 } = req.query;
-  
+
+  const { q = '$TSLA' } = req.query;
+
+  // Curated finance accounts on Bluesky
+  const FINANCE_ACCOUNTS = [
+    'iankmsmith.ft.com',
+    'ellenychang.bsky.social',
+    'unusual-whales.bsky.social',
+    'marketsinsider.bsky.social',
+    'stockmktnews.bsky.social',
+    'wallstreetbets.bsky.social',
+    'cnbc.bsky.social',
+    'bloomberg.bsky.social',
+    'marketwatch.bsky.social',
+    'benzinga.bsky.social',
+  ];
+
   try {
-    const url = `https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(q)}&limit=${limit}&sort=latest`;
-    const response = await fetch(url, {
-      headers: { 'Accept': 'application/json', 'User-Agent': 'Stratify/1.0' }
+    // Fetch feeds from multiple accounts in parallel
+    const feedPromises = FINANCE_ACCOUNTS.map(async (handle) => {
+      try {
+        const url = `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=10&filter=posts_no_replies`;
+        const r = await fetch(url, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'Stratify/1.0' }
+        });
+        if (!r.ok) return [];
+        const data = await r.json();
+        return (data.feed || []).map(item => item.post);
+      } catch { return []; }
     });
-    
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Bluesky API error', status: response.status });
+
+    const allFeeds = await Promise.all(feedPromises);
+    let posts = allFeeds.flat();
+
+    // Filter by ticker if provided
+    const ticker = q.replace('$', '').toUpperCase();
+    if (ticker && ticker !== 'ALL') {
+      const filtered = posts.filter(p =>
+        p.record?.text?.toUpperCase().includes(`$${ticker}`) ||
+        p.record?.text?.toUpperCase().includes(ticker)
+      );
+      if (filtered.length > 0) posts = filtered;
     }
-    
-    const data = await response.json();
+
+    // Sort by date, deduplicate, limit
+    posts.sort((a, b) => new Date(b.record?.createdAt || 0) - new Date(a.record?.createdAt || 0));
+    const seen = new Set();
+    posts = posts.filter(p => {
+      if (seen.has(p.uri)) return false;
+      seen.add(p.uri);
+      return true;
+    }).slice(0, 25);
+
+    // Format response to match expected shape
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
-    return res.status(200).json(data);
+    return res.status(200).json({ posts });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
