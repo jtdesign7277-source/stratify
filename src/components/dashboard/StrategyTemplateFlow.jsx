@@ -59,6 +59,22 @@ const Icons = {
       <polyline points="6 9 12 15 18 9" />
     </svg>
   ),
+  ChevronsLeft: (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="11 17 6 12 11 7" /><polyline points="18 17 13 12 18 7" />
+    </svg>
+  ),
+  ChevronsRight: (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" />
+    </svg>
+  ),
+  List: (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  ),
   Clock: (p) => (
     <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
@@ -674,7 +690,7 @@ const StrategyDetail = ({ template, onBack }) => {
   const [timeframe, setTimeframe] = useState("1H");
   const [period, setPeriod] = useState("6M");
   const [capital, setCapital] = useState(100000);
-  const [showTrades, setShowTrades] = useState(false);
+  const [isTradeLogCollapsed, setIsTradeLogCollapsed] = useState(true);
   const [isRunning, setIsRunning] = useState(true);
   const [activated, setActivated] = useState(false);
 
@@ -692,25 +708,84 @@ const StrategyDetail = ({ template, onBack }) => {
   const Icon = template.icon;
 
   return (
-    <div style={{ animation: "fadeSlideIn 0.35s ease both" }}>
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg transition-all hover:bg-white/5"
-            style={{ border: "1px solid #1e293b" }}
-          >
-            <Icons.ArrowLeft className="w-4 h-4" style={{ color: "#94a3b8" }} />
-          </button>
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: template.color + "15" }}>
-            <Icon style={{ color: template.color, width: 16, height: 16 }} />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold" style={{ color: "#e2e8f0" }}>{template.name}</h2>
-            <p className="text-xs" style={{ color: "#475569" }}>{template.logic}</p>
-          </div>
+    <div className="flex h-full" style={{ animation: "fadeSlideIn 0.35s ease both" }}>
+      {/* Trade Log Panel - Collapsible */}
+      <div className={`${isTradeLogCollapsed ? 'w-14' : 'w-72'} border-r flex flex-col overflow-hidden transition-all duration-200`} style={{ background: "#0a1628", borderColor: "#1e293b" }}>
+        <div className={`flex ${isTradeLogCollapsed ? 'flex-col items-center' : 'items-center justify-between'} p-3 flex-shrink-0`}>
+          {isTradeLogCollapsed ? (
+            <>
+              <button onClick={() => setIsTradeLogCollapsed(false)} className="p-1 hover:bg-white/5 rounded transition-colors mb-2" style={{ color: "#94a3b8" }}>
+                <Icons.ChevronsRight className="w-4 h-4" />
+              </button>
+              <Icons.List className="w-4 h-4" style={{ color: "#3b82f6" }} />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Icons.List className="w-4 h-4" style={{ color: "#3b82f6" }} />
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "#3b82f6" }}>Trade Log</span>
+              </div>
+              <button onClick={() => setIsTradeLogCollapsed(true)} className="p-1 hover:bg-white/5 rounded transition-colors" style={{ color: "#94a3b8" }}>
+                <Icons.ChevronsLeft className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
+        {!isTradeLogCollapsed && (
+          <>
+            <div className="px-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #1e293b" }}>
+              <span className="text-[10px]" style={{ color: "#64748b" }}>{result.trades.length} trades</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#1e293b #0a1628" }}>
+              {result.trades.map((t, i) => {
+                const pnlColor = t.pnl == null ? "#334155" : t.pnl >= 0 ? "#34d399" : "#f87171";
+                return (
+                  <div key={i} className="p-2 rounded-lg transition-colors hover:bg-white/[0.03]" style={{ border: "1px solid #1e293b" }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px]" style={{ color: "#64748b" }}>
+                        {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{
+                        background: t.type === "BUY" ? template.color + "15" : t.pnl >= 0 ? "#34d39915" : "#f8717115",
+                        color: t.type === "BUY" ? template.color : t.pnl >= 0 ? "#34d399" : "#f87171",
+                      }}>
+                        {t.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs tabular-nums" style={{ color: "#94a3b8" }}>${t.price.toFixed(2)}</span>
+                      <span className="text-xs tabular-nums font-medium" style={{ color: pnlColor }}>
+                        {t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}${fmt(t.pnl)}` : "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="p-2 rounded-lg transition-all hover:bg-white/5"
+              style={{ border: "1px solid #1e293b" }}
+            >
+              <Icons.ArrowLeft className="w-4 h-4" style={{ color: "#94a3b8" }} />
+            </button>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: template.color + "15" }}>
+              <Icon style={{ color: template.color, width: 16, height: 16 }} />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold" style={{ color: "#e2e8f0" }}>{template.name}</h2>
+              <p className="text-xs" style={{ color: "#475569" }}>{template.logic}</p>
+            </div>
+          </div>
 
         <button
           onClick={() => setActivated(true)}
@@ -822,52 +897,6 @@ const StrategyDetail = ({ template, onBack }) => {
         <StatCard label="Sharpe Ratio" value={result.sharpe} color={parseFloat(result.sharpe) > 1 ? "#34d399" : "#f59e0b"} />
         <StatCard label="Best Trade" value={`+${fmt(result.bestTrade)}`} color="#34d399" />
       </div>
-
-      {/* Trade Log */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "#0a1628", border: "1px solid #1e293b" }}>
-        <button
-          onClick={() => setShowTrades(!showTrades)}
-          className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium transition-all hover:bg-white/[0.02]"
-          style={{ color: "#94a3b8" }}
-        >
-          <span>TRADE LOG ({result.trades.length} entries)</span>
-          <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTrades ? "rotate-180" : ""}`} />
-        </button>
-        {showTrades && (
-          <div style={{ borderTop: "1px solid #1e293b" }}>
-            <table className="w-full text-xs" style={{ fontFamily: "monospace" }}>
-              <thead className="sticky top-0" style={{ background: "#0a1628" }}>
-                <tr style={{ borderBottom: "1px solid #1e293b" }}>
-                  {["Date", "Type", "Price", "Shares", "P&L"].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left font-medium" style={{ color: "#475569" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {result.trades.map((t, i) => (
-                  <tr key={i} className="transition-colors hover:bg-white/[0.02]" style={{ borderBottom: "1px solid #0f172a" }}>
-                    <td className="px-4 py-2" style={{ color: "#64748b" }}>
-                      {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className="px-2 py-0.5 rounded text-xs font-medium" style={{
-                        background: t.type === "BUY" ? template.color + "15" : t.pnl >= 0 ? "#34d39915" : "#f8717115",
-                        color: t.type === "BUY" ? template.color : t.pnl >= 0 ? "#34d399" : "#f87171",
-                      }}>
-                        {t.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 tabular-nums" style={{ color: "#94a3b8" }}>${t.price.toFixed(2)}</td>
-                    <td className="px-4 py-2 tabular-nums" style={{ color: "#64748b" }}>×{t.shares}</td>
-                    <td className="px-4 py-2 tabular-nums font-medium" style={{ color: t.pnl == null ? "#334155" : t.pnl >= 0 ? "#34d399" : "#f87171" }}>
-                      {t.pnl != null ? `${t.pnl >= 0 ? "+" : ""}${fmt(t.pnl)}` : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );
