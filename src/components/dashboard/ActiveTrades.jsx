@@ -335,8 +335,9 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                 }}
                 onMouseEnter={(e) => {
                   clearTimeout(hoverTimeout.current);
+                  const target = e.currentTarget;
                   hoverTimeout.current = setTimeout(() => {
-                    const rect = e.currentTarget?.getBoundingClientRect();
+                    const rect = target?.getBoundingClientRect();
                     if (!rect) return;
                     setHoverPreview({
                       symbol: strategy.symbol,

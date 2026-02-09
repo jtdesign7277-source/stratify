@@ -130,8 +130,9 @@ const MarketsPage = ({ themeClasses }) => {
                 className="flex items-center justify-between py-2 border-b border-[#1f1f1f]/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors"
                 onMouseEnter={(e) => {
                   clearTimeout(hoverTimeout.current);
+                  const target = e.currentTarget;
                   hoverTimeout.current = setTimeout(() => {
-                    const rect = e.currentTarget?.getBoundingClientRect();
+                    const rect = target?.getBoundingClientRect();
                     if (!rect) return;
                     setHoverPreview({
                       symbol: item.symbol,
