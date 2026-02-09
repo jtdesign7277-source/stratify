@@ -764,7 +764,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
 
       <div className="flex-1 p-2 flex flex-col gap-1 min-h-0 overflow-hidden">
         {activeTab === 'chat' && (
-          <div className="flex-shrink-0 space-y-2 overflow-y-auto">
+          <div className="space-y-2 overflow-y-auto max-h-[50vh]">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-gray-300 text-xs font-semibold">TICKER</span>
