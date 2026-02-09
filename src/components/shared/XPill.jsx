@@ -493,7 +493,7 @@ const XPill = ({
     : Math.max(0, size.height - PANEL_CHROME_HEIGHT);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
       <style>{`
         .x-feed-scroll {
           scrollbar-width: thin;
@@ -524,7 +524,7 @@ const XPill = ({
       <div
         className={`fixed z-50 w-full max-w-none overflow-hidden border border-white/10 bg-black/70 backdrop-blur-xl shadow-2xl shadow-black/60 transition-all duration-300 ease-out relative ${
           isMobile ? 'inset-x-0 bottom-0 rounded-t-2xl' : 'rounded-xl'
-        } ${isOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'}`}
+        } ${isOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'pointer-events-none translate-y-4 opacity-0'}`}
         style={
           isMobile
             ? { maxHeight: DEFAULT_PANEL_HEIGHT }
@@ -610,7 +610,7 @@ const XPill = ({
           onClick={() => setOpen(!isOpen)}
           aria-label="Toggle social feed"
           aria-expanded={isOpen}
-          className="group relative flex h-12 items-center gap-2 rounded-full border border-white/10 bg-black px-4 text-sm font-semibold text-white/90 shadow-lg shadow-black/60 transition-all duration-200 ease-out hover:scale-105 hover:border-white/25"
+          className="group relative flex h-12 items-center gap-2 rounded-full border border-white/10 bg-black px-4 text-sm font-semibold text-white/90 shadow-lg shadow-black/60 transition-all duration-200 ease-out hover:scale-105 hover:border-white/25 pointer-events-auto"
         >
           <span className="pointer-events-none absolute inset-0 rounded-full border border-white/10 opacity-60 shadow-[0_0_18px_rgba(59,130,246,0.45)] animate-[pulse_3s_ease-in-out_infinite]" />
           <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-white/10">
