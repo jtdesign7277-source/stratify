@@ -834,7 +834,7 @@ const StrategyDetail = ({ template, onBack }) => {
           <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTrades ? "rotate-180" : ""}`} />
         </button>
         {showTrades && (
-          <div className="max-h-[300px] overflow-y-scroll overscroll-contain" style={{ borderTop: "1px solid #1e293b", scrollbarWidth: "thin", scrollbarColor: "#1e293b #0a1628" }}>
+          <div style={{ borderTop: "1px solid #1e293b" }}>
             <table className="w-full text-xs" style={{ fontFamily: "monospace" }}>
               <thead className="sticky top-0" style={{ background: "#0a1628" }}>
                 <tr style={{ borderBottom: "1px solid #1e293b" }}>
