@@ -28,7 +28,7 @@ import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
 import TradePage from './TradePage';
 import DemoPanel from './DemoPanel';
-import StrategyTemplatesGallery from './StrategyTemplatesGallery';
+import StrategyTemplateFlow from './StrategyTemplateFlow';
 import ActiveTrades, { strategiesSeed } from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
@@ -864,16 +864,7 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
-          {activeTab === 'templates' && (
-            <StrategyTemplatesGallery 
-              themeClasses={themeClasses} 
-              onSelectTemplate={handleSelectTemplate}
-              onSaveToStrategies={(strategy) => {
-                setSavedStrategies(prev => [...prev, strategy]);
-                setActiveTab('strategies');
-              }}
-            />
-          )}
+          {activeTab === 'templates' && <StrategyTemplateFlow />}
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
