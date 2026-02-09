@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
+const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const TrendUpIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -66,36 +67,88 @@ const resolveCryptoChangePercent = (changeRaw, price) => {
   return changeRaw;
 };
 
+const EASTERN_TIMEZONE = 'America/New_York';
+const PRE_MARKET_START_MINUTES = 4 * 60;
+const PRE_MARKET_END_MINUTES = 9 * 60 + 30;
+const AFTER_HOURS_START_MINUTES = 16 * 60;
+const AFTER_HOURS_END_MINUTES = 20 * 60;
+
+const getEasternMinutes = (date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIMEZONE,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+};
+
+const getMarketSession = () => {
+  const minutes = getEasternMinutes(new Date());
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
+  if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
+  return 'closed';
+};
+
+const formatStockPrice = (price) => {
+  if (!Number.isFinite(price)) return '...';
+  return Number(price).toFixed(2);
+};
+
+const formatSignedPercent = (value) => {
+  if (!Number.isFinite(value)) return null;
+  return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+};
+
 export default function Watchlist({ stocks = [], onRemove, onViewChart, themeClasses, compact = false }) {
   const [quotes, setQuotes] = useState({});
-  const [loading, setLoading] = useState({});
+  const [stockLoading, setStockLoading] = useState(false);
   const [cryptoQuotes, setCryptoQuotes] = useState({});
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('stocks');
+  const [marketSession, setMarketSession] = useState(getMarketSession);
 
-  const fetchQuote = useCallback(async (symbol) => {
-    setLoading(prev => ({ ...prev, [symbol]: true }));
+  const fetchStockQuotes = useCallback(async () => {
+    setStockLoading(true);
     try {
-      const res = await fetch(`https://stratify-backend-production-3ebd.up.railway.app/api/trades/quote/${symbol}`);
+      const res = await fetch(`${API_BASE}/api/stocks/bars`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch stock snapshots: ${res.status}`);
+      }
       const data = await res.json();
-      if (data.price) {
-        setQuotes(prev => ({ ...prev, [symbol]: data }));
+      if (Array.isArray(data)) {
+        const nextQuotes = {};
+        data.forEach((item) => {
+          if (item?.symbol) {
+            nextQuotes[item.symbol] = item;
+          }
+        });
+        setQuotes(nextQuotes);
       }
     } catch (err) {
       console.error('Quote fetch error:', err);
     }
-    setLoading(prev => ({ ...prev, [symbol]: false }));
   }, []);
 
   useEffect(() => {
-    stocks.forEach(stock => {
-      fetchQuote(stock.symbol);
-    });
+    const stockSymbols = stocks.filter((stock) => !isCryptoAsset(stock));
+    if (stockSymbols.length === 0) return undefined;
+    fetchStockQuotes();
     const interval = setInterval(() => {
-      stocks.forEach(stock => fetchQuote(stock.symbol));
+      fetchStockQuotes();
     }, 30000);
     return () => clearInterval(interval);
-  }, [stocks, fetchQuote]);
+  }, [stocks, fetchStockQuotes]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMarketSession(getMarketSession());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchCryptoQuote = useCallback(async (symbol) => {
     try {
@@ -202,7 +255,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
       {visibleItems.map(stock => {
         const isCrypto = isCryptoAsset(stock);
         const quote = isCrypto ? (cryptoQuotes[stock.symbol] || {}) : (quotes[stock.symbol] || {});
-        const isLoading = isCrypto ? (cryptoLoading && !quote.price) : loading[stock.symbol];
+        const isLoading = isCrypto ? (cryptoLoading && !quote.price) : (stockLoading && !quote.price);
         const hasData = isCrypto ? Number.isFinite(quote.price) : quote.price !== undefined;
         
         const price = isCrypto ? quote.price : (quote.price || stock.price || 0);
@@ -213,6 +266,16 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
           : changePercent;
         const volume = isCrypto ? null : (quote.volume || stock.volume);
         const companyName = isCrypto ? stock.name : (quote.name || stock.name || '');
+        const preMarketPrice = isCrypto ? null : quote.preMarketPrice;
+        const preMarketChange = isCrypto ? null : quote.preMarketChange;
+        const preMarketChangePercent = isCrypto ? null : quote.preMarketChangePercent;
+        const afterHoursPrice = isCrypto ? null : quote.afterHoursPrice;
+        const afterHoursChange = isCrypto ? null : quote.afterHoursChange;
+        const afterHoursChangePercent = isCrypto ? null : quote.afterHoursChangePercent;
+        const showPreMarket = !isCrypto && marketSession === 'pre' && Number.isFinite(preMarketPrice);
+        const showAfterHours = !isCrypto && marketSession === 'after' && Number.isFinite(afterHoursPrice);
+        const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
+        const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
         
         return (
           <div 
@@ -225,22 +288,32 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                 <span className="font-bold text-white">{stock.symbol}</span>
                 <p className="text-xs text-zinc-500 truncate max-w-[140px]">{companyName}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end">
                 {isLoading && !hasData ? (
                   <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-400 rounded-full animate-spin" />
                 ) : (
                   <>
                     <p className="font-semibold text-white">
-                      ${isCrypto ? formatCryptoPrice(price) : Number(price || 0).toFixed(2)}
+                      ${isCrypto ? formatCryptoPrice(price) : formatStockPrice(price)}
                     </p>
                     {changePercentDisplay !== null && (
-                      <div className={`flex items-center justify-end gap-1 text-xs ${getChangeColor(change)}`}>
+                      <div className={`mt-1 flex items-center justify-end gap-1 text-xs ${getChangeColor(change)}`}>
                         {change >= 0 ? (
                           <TrendUpIcon className="w-3 h-3" />
                         ) : (
                           <TrendDownIcon className="w-3 h-3" />
                         )}
                         <span>{change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%</span>
+                      </div>
+                    )}
+                    {showPreMarket && preMarketPercentLabel && (
+                      <div className={`mt-1 text-xs ${getChangeColor(preMarketChange || 0)}`}>
+                        Pre: ${formatStockPrice(preMarketPrice)} {preMarketPercentLabel}
+                      </div>
+                    )}
+                    {showAfterHours && afterHoursPercentLabel && (
+                      <div className={`mt-1 text-xs ${getChangeColor(afterHoursChange || 0)}`}>
+                        AH: ${formatStockPrice(afterHoursPrice)} {afterHoursPercentLabel}
                       </div>
                     )}
                   </>

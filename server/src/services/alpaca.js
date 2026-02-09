@@ -7,6 +7,111 @@ const alpaca = new Alpaca({
 });
 
 const SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD', 'MSFT', 'META', 'GOOGL', 'AMZN'];
+const EASTERN_TIMEZONE = 'America/New_York';
+const PRE_MARKET_START_MINUTES = 4 * 60;
+const PRE_MARKET_END_MINUTES = 9 * 60 + 30;
+const AFTER_HOURS_START_MINUTES = 16 * 60;
+const AFTER_HOURS_END_MINUTES = 20 * 60;
+
+const resolveLatestEntry = (collection, symbol, index) => {
+  if (!collection) return null;
+  if (Array.isArray(collection)) return collection[index];
+  if (collection.get) return collection.get(symbol);
+  return collection[symbol];
+};
+
+const getEasternMinutes = (timestamp) => {
+  if (!timestamp) return null;
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIMEZONE,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+};
+
+const resolveExtendedSession = (timestamp) => {
+  const minutes = getEasternMinutes(timestamp);
+  if (minutes === null) return null;
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
+  return null;
+};
+
+const getQuotePrice = (quote) => {
+  const bid = quote?.BidPrice;
+  const ask = quote?.AskPrice;
+  if (Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0) {
+    return (bid + ask) / 2;
+  }
+  if (Number.isFinite(bid)) return bid;
+  if (Number.isFinite(ask)) return ask;
+  return null;
+};
+
+const buildExtendedHoursData = ({ trade, quote, prevClose }) => {
+  const tradeSession = resolveExtendedSession(trade?.Timestamp);
+  const quoteSession = resolveExtendedSession(quote?.Timestamp);
+  const quotePrice = getQuotePrice(quote);
+
+  let session = tradeSession;
+  let price = tradeSession && Number.isFinite(trade?.Price) ? trade.Price : null;
+
+  if (!session && quoteSession && Number.isFinite(quotePrice)) {
+    session = quoteSession;
+    price = quotePrice;
+  }
+
+  if (!session || !Number.isFinite(price)) {
+    return {
+      preMarketPrice: null,
+      preMarketChange: null,
+      preMarketChangePercent: null,
+      afterHoursPrice: null,
+      afterHoursChange: null,
+      afterHoursChangePercent: null,
+    };
+  }
+
+  const change = prevClose > 0 ? price - prevClose : 0;
+  const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+
+  if (session === 'pre') {
+    return {
+      preMarketPrice: price,
+      preMarketChange: change,
+      preMarketChangePercent: changePercent,
+      afterHoursPrice: null,
+      afterHoursChange: null,
+      afterHoursChangePercent: null,
+    };
+  }
+
+  if (session === 'after') {
+    return {
+      preMarketPrice: null,
+      preMarketChange: null,
+      preMarketChangePercent: null,
+      afterHoursPrice: price,
+      afterHoursChange: change,
+      afterHoursChangePercent: changePercent,
+    };
+  }
+
+  return {
+    preMarketPrice: null,
+    preMarketChange: null,
+    preMarketChangePercent: null,
+    afterHoursPrice: null,
+    afterHoursChange: null,
+    afterHoursChangePercent: null,
+  };
+};
 
 export async function getQuotes() {
   try {
@@ -29,7 +134,11 @@ export async function getQuotes() {
 // Get snapshots with previous close for change calculation
 export async function getSnapshots(symbols = SYMBOLS) {
   try {
-    const snapshots = await alpaca.getSnapshots(symbols);
+    const [snapshots, latestTrades, latestQuotes] = await Promise.all([
+      alpaca.getSnapshots(symbols),
+      alpaca.getLatestTrades(symbols),
+      alpaca.getLatestQuotes(symbols),
+    ]);
     
     // DEBUG: Log raw response structure
     console.log('📸 Raw snapshots type:', typeof snapshots, snapshots?.constructor?.name);
@@ -37,7 +146,9 @@ export async function getSnapshots(symbols = SYMBOLS) {
     
     return symbols.map((symbol, index) => {
       // Alpaca returns Array indexed by position, not by symbol name
-      const snapshot = Array.isArray(snapshots) ? snapshots[index] : (snapshots.get ? snapshots.get(symbol) : snapshots[symbol]);
+      const snapshot = resolveLatestEntry(snapshots, symbol, index);
+      const latestTradeData = resolveLatestEntry(latestTrades, symbol, index);
+      const latestQuoteData = resolveLatestEntry(latestQuotes, symbol, index);
       
       // DEBUG: Log first symbol's snapshot structure
       if (index === 0) {
@@ -45,24 +156,48 @@ export async function getSnapshots(symbols = SYMBOLS) {
       }
       
       if (!snapshot) {
-        return { symbol, price: 0, prevClose: 0, change: 0, changePercent: 0 };
+        return {
+          symbol,
+          price: 0,
+          prevClose: 0,
+          change: 0,
+          changePercent: 0,
+          preMarketPrice: null,
+          preMarketChange: null,
+          preMarketChangePercent: null,
+          afterHoursPrice: null,
+          afterHoursChange: null,
+          afterHoursChangePercent: null,
+        };
       }
       
-      const latestTrade = snapshot.LatestTrade;
+      const snapshotLatestTrade = snapshot.LatestTrade;
       const dailyBar = snapshot.DailyBar;
       const prevDailyBar = snapshot.PrevDailyBar;
       
-      const currentPrice = latestTrade?.Price || dailyBar?.ClosePrice || 0;
+      const currentPrice = snapshotLatestTrade?.Price || dailyBar?.ClosePrice || 0;
       const prevClose = prevDailyBar?.ClosePrice || dailyBar?.OpenPrice || currentPrice;
       const change = currentPrice - prevClose;
       const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
       
+      const extendedHours = buildExtendedHoursData({
+        trade: latestTradeData,
+        quote: latestQuoteData,
+        prevClose,
+      });
+
       return {
         symbol,
         price: currentPrice,
         prevClose,
         change,
         changePercent,
+        preMarketPrice: extendedHours.preMarketPrice,
+        preMarketChange: extendedHours.preMarketChange,
+        preMarketChangePercent: extendedHours.preMarketChangePercent,
+        afterHoursPrice: extendedHours.afterHoursPrice,
+        afterHoursChange: extendedHours.afterHoursChange,
+        afterHoursChangePercent: extendedHours.afterHoursChangePercent,
         open: dailyBar?.OpenPrice || 0,
         high: dailyBar?.HighPrice || 0,
         low: dailyBar?.LowPrice || 0,
