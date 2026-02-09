@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
-const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
 
 const getMarketStatus = () => {
@@ -12,7 +11,6 @@ const getMarketStatus = () => {
   const minutes = et.getMinutes();
   const day = et.getDay();
   const time = hours * 60 + minutes;
-  
   if (day === 0 || day === 6) return 'closed';
   if (time >= 570 && time < 960) return 'open';
   if (time >= 240 && time < 570) return 'premarket';
@@ -22,32 +20,22 @@ const getMarketStatus = () => {
 
 const formatCryptoSymbol = (symbol) => {
   if (!symbol) return symbol;
-  const normalized = symbol.toUpperCase();
-  if (normalized.includes(':')) return normalized;
-  if (normalized.endsWith('USD')) return `CRYPTO:${normalized}`;
-  return `CRYPTO:${normalized}USD`;
+  const n = symbol.toUpperCase();
+  if (n.includes(':')) return n;
+  if (n.endsWith('USD')) return `CRYPTO:${n}`;
+  return `CRYPTO:${n}USD`;
 };
-
-const buildCryptoInstrumentName = (symbol) => `${String(symbol || '').toUpperCase()}_USD`;
 
 const formatCryptoPrice = (price) => {
   if (!Number.isFinite(price)) return '...';
-  if (price >= 1) {
-    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  if (price >= 0.01) {
-    return price.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-  }
+  if (price >= 1) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (price >= 0.01) return price.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
   return price.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 8 });
 };
 
-const resolveCryptoChangePercent = (changeRaw, price) => {
-  if (!Number.isFinite(changeRaw)) return null;
-  if (Math.abs(changeRaw) <= 1) return changeRaw * 100;
-  if (Number.isFinite(price) && price !== 0) {
-    return (changeRaw / price) * 100;
-  }
-  return changeRaw;
+const formatPrice = (price) => {
+  if (!price || price === 0) return '...';
+  return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const STOCK_DATABASE = [
@@ -121,153 +109,136 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [quotes, setQuotes] = useState({});
   const [loading, setLoading] = useState(true);
-  const [prevCloses, setPrevCloses] = useState({});
   const [cryptoQuotes, setCryptoQuotes] = useState({});
   const [cryptoLoading, setCryptoLoading] = useState(false);
+  const mountedRef = useRef(true);
   const cryptoList = TOP_CRYPTO_BY_MARKET_CAP;
-  
-  const normalizedWatchlist = watchlist.length > 0 
+
+  const normalizedWatchlist = watchlist.length > 0
     ? watchlist.map(item => typeof item === 'string' ? { symbol: item, name: item } : item)
     : DEFAULT_WATCHLIST;
 
-  const isCryptoItem = (item) => {
-    const exchange = typeof item?.exchange === 'string' ? item.exchange.toUpperCase() : '';
-    const sector = typeof item?.sector === 'string' ? item.sector.toLowerCase() : '';
-    return exchange === 'CRYPTO' || sector === 'crypto';
-  };
+  const stockWatchlist = normalizedWatchlist.filter(item => {
+    const ex = typeof item?.exchange === 'string' ? item.exchange.toUpperCase() : '';
+    const sec = typeof item?.sector === 'string' ? item.sector.toLowerCase() : '';
+    return ex !== 'CRYPTO' && sec !== 'crypto';
+  });
 
-  const stockWatchlist = normalizedWatchlist.filter((item) => !isCryptoItem(item));
   const activeWatchlist = activeTab === 'stocks' ? stockWatchlist : [];
-
-  const activeSymbols = activeWatchlist.map(s => s.symbol).join(',');
-  const selectedStock = normalizedWatchlist.find(s => s.symbol === selectedTicker);
-  const selectedCrypto = cryptoList.find(crypto => crypto.symbol === selectedTicker);
-  const selectedIsCrypto = Boolean(selectedCrypto) || (selectedStock ? isCryptoItem(selectedStock) : false);
-  const chartSymbol = selectedTicker
-    ? (selectedIsCrypto ? formatCryptoSymbol(selectedTicker) : selectedTicker)
-    : null;
-  const selectedName = selectedIsCrypto
-    ? (selectedCrypto?.name || selectedTicker)
-    : (STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name || normalizedWatchlist.find(s => s.symbol === selectedTicker)?.name || selectedTicker);
   const footerCount = activeTab === 'crypto' ? cryptoList.length : activeWatchlist.length;
   const footerLabel = activeTab === 'crypto' ? 'Crypto.com API' : 'Alpaca Data';
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    if (!selectedTicker) return;
-    if ((tab === 'crypto' && !selectedIsCrypto) || (tab === 'stocks' && selectedIsCrypto)) {
-      setSelectedTicker(null);
-    }
-  };
-
-  const fetchCryptoQuote = useCallback(async (symbol) => {
-    try {
-      const instrumentName = buildCryptoInstrumentName(symbol);
-      const res = await fetch(`${CRYPTO_API_BASE}?instrument_name=${instrumentName}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      const ticker = data?.result?.data?.[0];
-      if (!ticker) return null;
-      const price = Number(ticker.a);
-      const changeRaw = Number(ticker.c);
-      const changePercent = resolveCryptoChangePercent(changeRaw, price);
-      return { price, changePercent };
-    } catch (err) {
-      console.error('Crypto quote fetch error:', symbol, err);
-      return null;
-    }
+  // Cleanup ref
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
-  useEffect(() => {
-    if (activeTab !== 'crypto') return undefined;
-    let isMounted = true;
-
-    const fetchAllCryptoQuotes = async () => {
-      setCryptoLoading(true);
-      const results = {};
-      await Promise.all(
-        cryptoList.map(async (crypto) => {
-          const quote = await fetchCryptoQuote(crypto.symbol);
-          if (quote) {
-            results[crypto.symbol] = quote;
-          }
-        })
-      );
-      if (isMounted) {
-        setCryptoQuotes(results);
-        setCryptoLoading(false);
-      }
-    };
-
-    fetchAllCryptoQuotes();
-    const interval = setInterval(fetchAllCryptoQuotes, 15000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [activeTab, cryptoList, fetchCryptoQuote]);
-
-  // Fetch all stock quotes via Vercel /api/stocks (Alpaca SIP bulk)
-  useEffect(() => {
-    if (activeTab !== 'stocks') {
-      setLoading(false);
-      return;
-    }
-    if (activeWatchlist.length === 0) {
-      setLoading(false);
-      return;
-    }
-    const fetchAllQuotes = async () => {
-      setLoading(true);
-      try {
-        const symbols = activeWatchlist.map(s => s.symbol).join(',');
-        const res = await fetch(`/api/stocks?symbols=${symbols}`);
-        if (!res.ok) throw new Error(`Stock API error: ${res.status}`);
-        const data = await res.json();
-        const results = {};
-        data.forEach(item => {
-          results[item.symbol] = {
-            price: item.price || 0,
-            change: item.change || 0,
-            changePercent: item.changePercent || 0,
-          };
-        });
-        setQuotes(results);
-      } catch (err) {
-        console.error('Stock quotes fetch error:', err);
-      }
-      setLoading(false);
-    };
-    
-    fetchAllQuotes();
-    const interval = setInterval(fetchAllQuotes, 10000);
-    return () => clearInterval(interval);
-  }, [activeTab, activeSymbols]);
-
+  // Market status updater
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Local search from STOCK_DATABASE
+  // ===== STOCK QUOTES via Vercel /api/stocks (Alpaca SIP) =====
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
+    if (activeTab !== 'stocks' || activeWatchlist.length === 0) {
+      setLoading(false);
       return;
     }
-    const query = searchQuery.toLowerCase();
-    const existingSymbols = normalizedWatchlist.map(s => s.symbol);
-    const filtered = STOCK_DATABASE.filter(s => 
-      !existingSymbols.includes(s.symbol) &&
-      (s.symbol.toLowerCase().includes(query) || s.name.toLowerCase().includes(query))
-    ).slice(0, 10);
-    setSearchResults(filtered);
+
+    const fetchStockQuotes = async () => {
+      try {
+        const symbols = activeWatchlist.map(s => s.symbol).join(',');
+        const url = '/api/stocks?symbols=' + symbols;
+        console.log('[WatchlistPage] Fetching stocks:', url);
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.error('[WatchlistPage] Stock API error:', res.status);
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        console.log('[WatchlistPage] Got stock data:', data.length, 'items');
+        if (!mountedRef.current) return;
+        const results = {};
+        data.forEach(item => {
+          if (item && item.symbol) {
+            results[item.symbol] = {
+              price: item.price || 0,
+              change: item.change || 0,
+              changePercent: item.changePercent || 0,
+            };
+          }
+        });
+        setQuotes(results);
+      } catch (err) {
+        console.error('[WatchlistPage] Stock fetch error:', err);
+      }
+      if (mountedRef.current) setLoading(false);
+    };
+
+    setLoading(true);
+    fetchStockQuotes();
+    const interval = setInterval(fetchStockQuotes, 10000);
+    return () => clearInterval(interval);
+  }, [activeTab, activeWatchlist.map(s => s.symbol).join(',')]);
+
+  // ===== CRYPTO QUOTES via Crypto.com =====
+  useEffect(() => {
+    if (activeTab !== 'crypto') return;
+
+    const fetchAllCrypto = async () => {
+      setCryptoLoading(true);
+      const results = {};
+      await Promise.all(
+        cryptoList.map(async (crypto) => {
+          try {
+            const name = `${crypto.symbol.toUpperCase()}_USD`;
+            const res = await fetch(`${CRYPTO_API_BASE}?instrument_name=${name}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const ticker = data?.result?.data?.[0];
+            if (!ticker) return;
+            const price = Number(ticker.a);
+            const changeRaw = Number(ticker.c);
+            let changePercent = null;
+            if (Number.isFinite(changeRaw)) {
+              changePercent = Math.abs(changeRaw) <= 1 ? changeRaw * 100 :
+                (Number.isFinite(price) && price !== 0) ? (changeRaw / price) * 100 : changeRaw;
+            }
+            results[crypto.symbol] = { price, changePercent };
+          } catch (err) {
+            console.error('Crypto error:', crypto.symbol, err);
+          }
+        })
+      );
+      if (mountedRef.current) {
+        setCryptoQuotes(results);
+        setCryptoLoading(false);
+      }
+    };
+
+    fetchAllCrypto();
+    const interval = setInterval(fetchAllCrypto, 15000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  // Search
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    const q = searchQuery.toLowerCase();
+    const existing = normalizedWatchlist.map(s => s.symbol);
+    setSearchResults(
+      STOCK_DATABASE.filter(s =>
+        !existing.includes(s.symbol) &&
+        (s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
+      ).slice(0, 10)
+    );
   }, [searchQuery, normalizedWatchlist]);
 
   const handleAddStock = (stock) => {
-    if (onAddToWatchlist) {
-      onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
-    }
+    onAddToWatchlist?.({ symbol: stock.symbol, name: stock.name });
     setSearchQuery('');
     setSearchResults([]);
   };
@@ -275,22 +246,30 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const handleRemoveStock = (symbol, e) => {
     e.stopPropagation();
     e.preventDefault();
-    if (onRemoveFromWatchlist) {
-      onRemoveFromWatchlist(symbol);
-    }
+    onRemoveFromWatchlist?.(symbol);
   };
 
-  const formatPrice = (price) => {
-    if (!price || price === 0) return '...';
-    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSelectedTicker(null);
   };
+
+  const selectedCrypto = cryptoList.find(c => c.symbol === selectedTicker);
+  const selectedIsCrypto = Boolean(selectedCrypto);
+  const chartSymbol = selectedTicker
+    ? (selectedIsCrypto ? formatCryptoSymbol(selectedTicker) : selectedTicker)
+    : null;
+  const selectedName = selectedIsCrypto
+    ? (selectedCrypto?.name || selectedTicker)
+    : (STOCK_DATABASE.find(s => s.symbol === selectedTicker)?.name ||
+       normalizedWatchlist.find(s => s.symbol === selectedTicker)?.name || selectedTicker);
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
   return (
     <div className="flex-1 flex h-full bg-[#0b0b0b] overflow-hidden">
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
-      
+
       {/* Watchlist Panel */}
       <div className={`flex flex-col border-r border-[#1f1f1f] transition-all duration-300 ${
         isCollapsed ? 'w-20' : selectedTicker ? 'w-96' : 'flex-1 max-w-xl'
@@ -306,7 +285,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 marketStatus === 'afterhours' ? 'bg-purple-500/20 text-purple-400' :
                 'bg-gray-500/20 text-gray-400'
               }`}>
-                {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' : marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
+                {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' :
+                 marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
               </span>
             </div>
           )}
@@ -315,7 +295,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           </button>
         </div>
 
-        {/* Search */}
+        {/* Search + Tabs */}
         {!isCollapsed && (
           <div className="p-3 border-b border-[#1f1f1f] relative">
             <div className="flex items-center gap-2 bg-[#111111] border border-[#2a2a2a] rounded-lg px-3 py-2.5">
@@ -335,38 +315,23 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             </div>
 
             <div className="mt-3 flex items-center gap-2 bg-[#111111] border border-[#2a2a2a] rounded-lg p-1">
-              <button
-                type="button"
-                onClick={() => handleTabChange('stocks')}
+              <button type="button" onClick={() => handleTabChange('stocks')}
                 className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  activeTab === 'stocks'
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Stocks
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTabChange('crypto')}
+                  activeTab === 'stocks' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-400 hover:text-white'
+                }`}>Stocks</button>
+              <button type="button" onClick={() => handleTabChange('crypto')}
                 className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  activeTab === 'crypto'
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Crypto
-              </button>
+                  activeTab === 'crypto' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-400 hover:text-white'
+                }`}>Crypto</button>
             </div>
-            
+
+            {/* Search Results Dropdown */}
             {searchQuery && searchResults.length > 0 && (
               <div className="absolute left-3 right-3 top-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-lg overflow-hidden shadow-2xl z-50 max-h-96 overflow-y-auto scrollbar-hide" style={scrollStyle}>
                 {searchResults.map((stock) => (
-                  <div 
-                    key={stock.symbol}
+                  <div key={stock.symbol}
                     className="flex items-center justify-between px-4 py-3 hover:bg-emerald-500/10 cursor-pointer border-b border-[#1f1f1f]/50 last:border-0 transition-colors"
-                    onClick={() => handleAddStock(stock)}
-                  >
+                    onClick={() => handleAddStock(stock)}>
                     <div className="flex-1">
                       <span className="text-white font-bold text-base">${stock.symbol}</span>
                       <span className="text-gray-400 text-sm ml-3">{stock.name}</span>
@@ -379,7 +344,6 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 ))}
               </div>
             )}
-
             {searchQuery && searchResults.length === 0 && (
               <div className="absolute left-3 right-3 top-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 text-center text-gray-400 text-sm z-50">
                 No results for "{searchQuery}"
@@ -388,15 +352,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           </div>
         )}
 
-        {/* Stock/Crypto List */}
+        {/* List */}
         <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
+          {/* Loading states */}
           {activeTab === 'stocks' && loading && Object.keys(quotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
             </div>
           )}
-
           {activeTab === 'crypto' && cryptoLoading && Object.keys(cryptoQuotes).length === 0 && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -404,31 +368,23 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             </div>
           )}
 
-          {activeTab === 'crypto' && !cryptoLoading && Object.keys(cryptoQuotes).length === 0 && (
-            <div className="px-4 py-6 text-center text-white/50 text-sm">
-              No crypto data available.
-            </div>
-          )}
-
+          {/* Crypto list */}
           {activeTab === 'crypto' && cryptoList.map((crypto) => {
             const isSelected = selectedTicker === crypto.symbol;
-            const quote = cryptoQuotes[crypto.symbol] || {};
-            const price = Number(quote.price);
-            const changePercent = Number.isFinite(quote.changePercent) ? quote.changePercent : null;
-            const isPositive = changePercent !== null ? changePercent >= 0 : true;
-
+            const q = cryptoQuotes[crypto.symbol] || {};
+            const price = Number(q.price);
+            const cp = Number.isFinite(q.changePercent) ? q.changePercent : null;
+            const pos = cp !== null ? cp >= 0 : true;
             return (
-              <div 
-                key={crypto.symbol}
+              <div key={crypto.symbol}
                 className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#111111]'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
-                onClick={() => setSelectedTicker(crypto.symbol)}
-              >
+                onClick={() => setSelectedTicker(crypto.symbol)}>
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">{crypto.symbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${Number.isFinite(price) ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${Number.isFinite(price) ? (pos ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
                       {Number.isFinite(price) ? `$${formatCryptoPrice(price)}` : '...'}
                     </div>
                   </div>
@@ -442,9 +398,9 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                       <div className="text-white font-semibold text-base font-mono">
                         {Number.isFinite(price) ? `$${formatCryptoPrice(price)}` : '...'}
                       </div>
-                      {changePercent !== null && (
-                        <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                      {cp !== null && (
+                        <div className={`text-sm font-medium ${pos ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {pos ? '+' : ''}{cp.toFixed(2)}%
                         </div>
                       )}
                     </div>
@@ -454,33 +410,28 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             );
           })}
 
+          {/* Stock list */}
           {activeTab === 'stocks' && activeWatchlist.map((stock) => {
-            const quote = quotes[stock.symbol] || {};
-            const price = quote.price || 0;
-            const change = quote.change || 0;
-            const changePercent = quote.changePercent || 0;
-            const isPositive = change >= 0;
+            const q = quotes[stock.symbol] || {};
+            const price = q.price || 0;
+            const change = q.change || 0;
+            const changePercent = q.changePercent || 0;
+            const pos = change >= 0;
             const isSelected = selectedTicker === stock.symbol;
-            const stockInfo = STOCK_DATABASE.find(s => s.symbol === stock.symbol);
-            const name = stockInfo?.name || stock.name || stock.symbol;
-            
+            const info = STOCK_DATABASE.find(s => s.symbol === stock.symbol);
+            const name = info?.name || stock.name || stock.symbol;
             return (
-              <div 
-                key={stock.symbol}
+              <div key={stock.symbol}
                 draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', stock.symbol);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onDragStart={(e) => { e.dataTransfer.setData('text/plain', stock.symbol); e.dataTransfer.effectAllowed = 'copy'; }}
                 className={`flex items-center justify-between cursor-grab active:cursor-grabbing transition-all border-b border-[#1f1f1f]/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#111111]'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
-                onClick={() => setSelectedTicker(stock.symbol)}
-              >
+                onClick={() => setSelectedTicker(stock.symbol)}>
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">${stock.symbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (pos ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
                       {price > 0 ? `$${formatPrice(price)}` : '...'}
                     </div>
                   </div>
@@ -490,22 +441,18 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                       <div className="text-white font-bold text-base">${stock.symbol}</div>
                       <div className="text-white/50 text-sm truncate">{name}</div>
                     </div>
-
                     <div className="text-right flex-shrink-0 mr-3">
                       <div className="text-white font-semibold text-base font-mono">
                         {price > 0 ? `$${formatPrice(price)}` : '...'}
                       </div>
                       {price > 0 && (
-                        <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+                        <div className={`text-sm font-medium ${pos ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {pos ? '+' : ''}{change.toFixed(2)} ({pos ? '+' : ''}{changePercent.toFixed(2)}%)
                         </div>
                       )}
                     </div>
-
-                    <button 
-                      onClick={(e) => handleRemoveStock(stock.symbol, e)}
-                      className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400"
-                    >
+                    <button onClick={(e) => handleRemoveStock(stock.symbol, e)}
+                      className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400">
                       <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                     </button>
                   </>
