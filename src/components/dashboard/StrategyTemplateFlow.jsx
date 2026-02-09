@@ -1167,24 +1167,6 @@ export default function StrategyTemplateFlow() {
       }} />
 
       <div className="relative z-10 p-4 lg:p-6 max-w-[1400px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b82f6, #8b5cf6)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 5-9" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-base font-semibold tracking-tight" style={{ color: "#e2e8f0" }}>Stratify</h1>
-            <p className="text-xs" style={{ color: "#334155" }}>AI-Powered Strategy Engine</p>
-          </div>
-          <div className="ml-auto">
-            <span className="text-xs px-2 py-1 rounded" style={{ background: "#172554", color: "#60a5fa" }}>
-              PAPER MODE
-            </span>
-          </div>
-        </div>
-
         {/* Content */}
         {selected ? (
           <StrategyDetail template={selected} onBack={() => setSelected(null)} />
