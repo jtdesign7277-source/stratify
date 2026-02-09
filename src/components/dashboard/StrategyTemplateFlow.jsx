@@ -699,10 +699,10 @@ const BacktestChart = ({ data, result, template }) => {
 
 // ── Stat Card ──────────────────────────────────────────────────
 const StatCard = ({ label, value, sub, color }) => (
-  <div className="p-3 rounded-lg" style={{ background: "#0d1829", border: "1px solid #1e293b" }}>
-    <div className="text-xs mb-1" style={{ color: "#475569" }}>{label}</div>
-    <div className="text-lg font-semibold tabular-nums" style={{ color: color || "#e2e8f0", fontFamily: "monospace" }}>{value}</div>
-    {sub && <div className="text-xs mt-0.5" style={{ color: "#475569" }}>{sub}</div>}
+  <div className="px-2.5 py-1.5 rounded-lg" style={{ background: "#0d1829", border: "1px solid #1e293b" }}>
+    <div className="text-[10px] mb-0.5" style={{ color: "#475569" }}>{label}</div>
+    <div className="text-sm font-semibold tabular-nums" style={{ color: color || "#e2e8f0", fontFamily: "monospace" }}>{value}</div>
+    {sub && <div className="text-[10px]" style={{ color: "#475569" }}>{sub}</div>}
   </div>
 );
 
