@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+133
+  import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Globe, BarChart3, Activity, RefreshCw, Loader2 } from 'lucide-react';
 import { getQuotes, getTrending } from '../../services/marketData';
 
@@ -130,7 +131,7 @@ const MarketsPage = ({ themeClasses }) => {
                 onMouseEnter={(e) => {
                   clearTimeout(hoverTimeout.current);
                   hoverTimeout.current = setTimeout(() => {
-                    const rect = e.currentTarget.getBoundingClientRect();
+                    const rect = e.currentTarget?.getBoundingClientRect();
                     setHoverPreview({
                       symbol: item.symbol,
                       position: { x: rect.right, y: rect.top + rect.height / 2 }
