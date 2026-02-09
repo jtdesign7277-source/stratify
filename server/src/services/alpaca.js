@@ -43,6 +43,20 @@ const resolveExtendedSession = (timestamp) => {
   return null;
 };
 
+const getEasternDateKey = (timestamp) => {
+  if (!timestamp) return null;
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-CA', { timeZone: EASTERN_TIMEZONE }); // YYYY-MM-DD
+};
+
+const getCurrentSession = () => {
+  const minutes = getEasternMinutes(new Date());
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
+  return null;
+};
+
 const getQuotePrice = (quote) => {
   const bid = quote?.BidPrice;
   const ask = quote?.AskPrice;
@@ -55,33 +69,45 @@ const getQuotePrice = (quote) => {
 };
 
 const buildExtendedHoursData = ({ trade, quote, prevClose }) => {
+  const nullResult = {
+    preMarketPrice: null,
+    preMarketChange: null,
+    preMarketChangePercent: null,
+    afterHoursPrice: null,
+    afterHoursChange: null,
+    afterHoursChangePercent: null,
+  };
+
+  // Check if we're currently in extended hours
+  const currentSession = getCurrentSession();
+  if (!currentSession) return nullResult;
+
+  const todayKey = getEasternDateKey(new Date());
+
+  // Check trade first
   const tradeSession = resolveExtendedSession(trade?.Timestamp);
+  const tradeDate = getEasternDateKey(trade?.Timestamp);
+  const tradeIsToday = tradeDate === todayKey && tradeSession === currentSession;
+
+  // Check quote
   const quoteSession = resolveExtendedSession(quote?.Timestamp);
+  const quoteDate = getEasternDateKey(quote?.Timestamp);
+  const quoteIsToday = quoteDate === todayKey && quoteSession === currentSession;
   const quotePrice = getQuotePrice(quote);
 
-  let session = tradeSession;
-  let price = tradeSession && Number.isFinite(trade?.Price) ? trade.Price : null;
-
-  if (!session && quoteSession && Number.isFinite(quotePrice)) {
-    session = quoteSession;
+  let price = null;
+  if (tradeIsToday && Number.isFinite(trade?.Price)) {
+    price = trade.Price;
+  } else if (quoteIsToday && Number.isFinite(quotePrice)) {
     price = quotePrice;
   }
 
-  if (!session || !Number.isFinite(price)) {
-    return {
-      preMarketPrice: null,
-      preMarketChange: null,
-      preMarketChangePercent: null,
-      afterHoursPrice: null,
-      afterHoursChange: null,
-      afterHoursChangePercent: null,
-    };
-  }
+  if (!Number.isFinite(price)) return nullResult;
 
   const change = prevClose > 0 ? price - prevClose : 0;
   const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-  if (session === 'pre') {
+  if (currentSession === 'pre') {
     return {
       preMarketPrice: price,
       preMarketChange: change,
@@ -92,7 +118,7 @@ const buildExtendedHoursData = ({ trade, quote, prevClose }) => {
     };
   }
 
-  if (session === 'after') {
+  if (currentSession === 'after') {
     return {
       preMarketPrice: null,
       preMarketChange: null,
@@ -103,14 +129,7 @@ const buildExtendedHoursData = ({ trade, quote, prevClose }) => {
     };
   }
 
-  return {
-    preMarketPrice: null,
-    preMarketChange: null,
-    preMarketChangePercent: null,
-    afterHoursPrice: null,
-    afterHoursChange: null,
-    afterHoursChangePercent: null,
-  };
+  return nullResult;
 };
 
 export async function getQuotes() {
