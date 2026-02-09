@@ -4,7 +4,7 @@ import { Dashboard } from './components/dashboard';
 import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
-import XPill from './components/shared/XPill';
+// XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
 
 // Cinematic Video Intro Component - "The Drop"
@@ -1031,12 +1031,6 @@ export default function StratifyApp() {
   return (
     <>
       {mainContent}
-      <XPill
-        isOpen={isSocialFeedOpen}
-        onOpenChange={setIsSocialFeedOpen}
-        onUnreadChange={setHasSocialFeedUnread}
-        showTrigger={false}
-      />
       <LiveScoresPill
         isOpen={isLiveScoresOpen}
         onOpenChange={setIsLiveScoresOpen}
