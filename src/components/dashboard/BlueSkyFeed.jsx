@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { GripVertical, RotateCw, X } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════
-   STRATIFY — BlueSky Social Feed Panel
-   Live posts from Bluesky's public API (no auth required)
-   Replaces the old X/Twitter mock feed
+   STRATIFY — BlueSky Social Feed (Floating Panel)
+   Draggable + resizable, matches LiveScoresPill / FloatingGrokChat
    ═══════════════════════════════════════════════════════════════ */
 
-// ── Bluesky Butterfly Icon ─────────────────────────────────────
+const PANEL_WIDTH = 360;
+const PANEL_HEIGHT = 520;
+const STORAGE_KEY = "stratify-bluesky-feed-v1";
+const REFRESH_INTERVAL = 30000;
+
 const BlueskyIcon = ({ size = 16, className = "" }) => (
   <svg viewBox="0 0 568 501" width={size} height={size} className={className}>
     <path
@@ -16,7 +20,6 @@ const BlueskyIcon = ({ size = 16, className = "" }) => (
   </svg>
 );
 
-// ── Thin pencil-line icons (strokeWidth 1.5) ───────────────────
 const Icons = {
   heart: (p) => (
     <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -43,490 +46,346 @@ const Icons = {
       <line x1="10" y1="14" x2="21" y2="3" />
     </svg>
   ),
-  refresh: (p) => (
+  bookmark: (p) => (
     <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 4 23 10 17 10" />
-      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-    </svg>
-  ),
-  close: (p) => (
-    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  ),
-  search: (p) => (
-    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   ),
 };
 
-// ── Relative time helper ───────────────────────────────────────
 const timeAgo = (dateStr) => {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = Math.floor((now - then) / 1000);
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return "now";
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${Math.floor(diff / 86400)}d`;
 };
 
-// ── Fallback posts (shown if API fails) ────────────────────────
-const FALLBACK_POSTS = [
-  {
-    id: "fallback-1",
-    author: { handle: "stratify.app", displayName: "Stratify", avatar: null },
-    text: "Markets are moving. Track every ticker, test every strategy. What are you watching today? 📈",
-    likeCount: 42, replyCount: 8, repostCount: 15,
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-  },
-  {
-    id: "fallback-2",
-    author: { handle: "trader.bsky.social", displayName: "AlgoTrader", avatar: null },
-    text: "$NVDA breakout above resistance. Momentum strategy triggered at the 20 EMA crossover. Let's see if it holds through power hour. 🚀",
-    likeCount: 28, replyCount: 5, repostCount: 11,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "fallback-3",
-    author: { handle: "markets.bsky.social", displayName: "MarketPulse", avatar: null },
-    text: "RSI on $TSLA dipping below 30 — classic bounce setup. Backtesting shows 67% win rate on this pattern over 6 months.",
-    likeCount: 19, replyCount: 3, repostCount: 7,
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: "fallback-4",
-    author: { handle: "fintech.bsky.social", displayName: "FinTech Daily", avatar: null },
-    text: "AI-powered trading strategies are reshaping retail. No longer just for the institutions. The tools are here — are you using them?",
-    likeCount: 55, replyCount: 12, repostCount: 23,
-    createdAt: new Date(Date.now() - 14400000).toISOString(),
-  },
-];
+const fmtNum = (n) => {
+  if (!n) return "0";
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+};
 
-// ── Quick ticker chips ─────────────────────────────────────────
-const TICKER_CHIPS = ["$TSLA", "$NVDA", "$AAPL", "$MSFT", "$BTC", "$ETH", "$SPY"];
+const HighlightedText = ({ text }) => {
+  if (!text) return null;
+  const parts = text.split(/(\$[A-Za-z]{1,6})/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        /^\$[A-Za-z]{1,6}$/.test(p) ? (
+          <span key={i} className="text-emerald-400 font-semibold">{p}</span>
+        ) : (
+          <span key={i}>{p}</span>
+        )
+      )}
+    </>
+  );
+};
 
-// ── Single Post Card ───────────────────────────────────────────
+const PostSkeleton = () => (
+  <div className="p-4 animate-pulse">
+    <div className="flex gap-3">
+      <div className="w-10 h-10 rounded-full bg-white/10" />
+      <div className="flex-1 space-y-2">
+        <div className="h-3 w-32 bg-white/10 rounded" />
+        <div className="h-3 w-full bg-white/10 rounded" />
+        <div className="h-3 w-3/4 bg-white/10 rounded" />
+      </div>
+    </div>
+  </div>
+);
+
 const PostCard = ({ post }) => {
-  const [expanded, setExpanded] = useState(false);
-  const maxLen = 220;
-  const isLong = post.text.length > maxLen;
-  const displayText = expanded || !isLong ? post.text : post.text.slice(0, maxLen) + "…";
+  const author = post.author || {};
+  const record = post.record || {};
+  const displayName = author.displayName || author.handle || "Unknown";
+  const handle = author.handle || "";
+  const avatar = author.avatar;
+  const text = record.text || "";
+  const createdAt = record.createdAt || post.indexedAt;
 
-  // Extract rkey from URI for link
-  const rkey = post.id?.split("/").pop() || "";
-  const postUrl = `https://bsky.app/profile/${post.author.handle}/post/${rkey}`;
+  const postUrl = post.uri
+    ? `https://bsky.app/profile/${handle}/post/${post.uri.split("/").pop()}`
+    : "#";
 
-  // Initials fallback for avatar
-  const initials = (post.author.displayName || post.author.handle || "?")
-    .split(/[\s._-]/)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-
-  // Highlight cashtags in text
-  const highlightText = (text) => {
-    const parts = text.split(/(\$[A-Z]{1,5})/g);
-    return parts.map((part, i) =>
-      /^\$[A-Z]{1,5}$/.test(part) ? (
-        <span key={i} style={{ color: "#22d3ee", fontWeight: 600 }}>{part}</span>
-      ) : (
-        <span key={i}>{part}</span>
-      )
-    );
-  };
+  const initials = displayName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.015)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: 12,
-        padding: "14px 16px",
-        transition: "background 0.2s, border-color 0.2s",
-        cursor: "default",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(255,255,255,0.035)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "rgba(255,255,255,0.015)";
-        e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-      }}
-    >
-      {/* Header: avatar + name + time */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-        {/* Avatar */}
-        {post.author.avatar ? (
-          <img
-            src={post.author.avatar}
-            alt=""
-            style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", objectFit: "cover" }}
-            onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
-          />
-        ) : null}
-        <div
-          style={{
-            width: 34, height: 34, borderRadius: "50%",
-            background: "linear-gradient(135deg, #0085ff22, #0085ff08)",
-            border: "1px solid #0085ff33",
-            display: post.author.avatar ? "none" : "flex",
-            alignItems: "center", justifyContent: "center",
-            fontSize: 11, fontWeight: 700, color: "#0085ff",
-            fontFamily: "'SF Mono', 'Fira Code', monospace",
-            flexShrink: 0,
-          }}
-        >
-          {initials}
-        </div>
-
-        {/* Name + handle */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontWeight: 600, fontSize: 13, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {post.author.displayName || post.author.handle}
-            </span>
-            <span style={{ color: "#334155", fontSize: 11 }}>·</span>
-            <span style={{ color: "#475569", fontSize: 11, flexShrink: 0 }}>{timeAgo(post.createdAt)}</span>
+    <div className="px-4 py-3 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+      <div className="flex gap-3">
+        {avatar ? (
+          <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/30 to-cyan-500/30 border border-white/10 flex items-center justify-center flex-shrink-0">
+            <span className="text-[11px] font-bold text-white/60">{initials}</span>
           </div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>@{post.author.handle}</div>
-        </div>
-
-        {/* Open in Bluesky */}
-        <a
-          href={postUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ flexShrink: 0, opacity: 0.4, transition: "opacity 0.2s" }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.4)}
-          title="View on Bluesky"
-        >
-          <Icons.external style={{ width: 13, height: 13, color: "#0085ff" }} />
-        </a>
-      </div>
-
-      {/* Post text */}
-      <p style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.55, margin: "0 0 10px 0", wordBreak: "break-word" }}>
-        {highlightText(displayText)}
-        {isLong && !expanded && (
-          <button
-            onClick={() => setExpanded(true)}
-            style={{ background: "none", border: "none", color: "#0085ff", fontSize: 12, cursor: "pointer", marginLeft: 4, padding: 0 }}
-          >
-            more
-          </button>
         )}
-      </p>
-
-      {/* Engagement row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#334155", fontSize: 11 }}>
-          <Icons.reply style={{ width: 13, height: 13 }} />
-          <span>{post.replyCount || 0}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[13px] font-semibold text-white truncate max-w-[140px]">{displayName}</span>
+            <span className="text-[11px] text-white/30">·</span>
+            <span className="text-[11px] text-white/30">{timeAgo(createdAt)}</span>
+            <div className="ml-auto">
+              <a href={postUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                <Icons.external className="w-3.5 h-3.5 text-white/20 hover:text-[#0085ff] transition-colors" />
+              </a>
+            </div>
+          </div>
+          <p className="text-[12px] text-white/40 -mt-1 mb-1.5 truncate">@{handle}</p>
+          <p className="text-[13px] text-white/80 leading-relaxed whitespace-pre-wrap break-words">
+            <HighlightedText text={text} />
+          </p>
+          <div className="flex items-center gap-5 mt-2">
+            <span className="flex items-center gap-1 text-white/25 hover:text-blue-400 transition-colors cursor-default">
+              <Icons.reply className="w-3.5 h-3.5" />
+              <span className="text-[11px]">{fmtNum(post.replyCount)}</span>
+            </span>
+            <span className="flex items-center gap-1 text-white/25 hover:text-green-400 transition-colors cursor-default">
+              <Icons.repost className="w-3.5 h-3.5" />
+              <span className="text-[11px]">{fmtNum(post.repostCount)}</span>
+            </span>
+            <span className="flex items-center gap-1 text-white/25 hover:text-rose-400 transition-colors cursor-default">
+              <Icons.heart className="w-3.5 h-3.5" />
+              <span className="text-[11px]">{fmtNum(post.likeCount)}</span>
+            </span>
+            <span className="ml-auto text-white/25 hover:text-yellow-400 transition-colors cursor-default">
+              <Icons.bookmark className="w-3.5 h-3.5" />
+            </span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#334155", fontSize: 11 }}>
-          <Icons.repost style={{ width: 13, height: 13 }} />
-          <span>{post.repostCount || 0}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#334155", fontSize: 11 }}>
-          <Icons.heart style={{ width: 13, height: 13 }} />
-          <span>{post.likeCount || 0}</span>
-        </div>
-        <div style={{ flex: 1 }} />
-        <BlueskyIcon size={11} className="opacity-20" />
       </div>
     </div>
   );
 };
 
-// ── Loading skeleton ───────────────────────────────────────────
-const SkeletonCard = () => (
-  <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px" }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ width: "40%", height: 10, borderRadius: 4, background: "rgba(255,255,255,0.05)", marginBottom: 6 }} />
-        <div style={{ width: "25%", height: 8, borderRadius: 4, background: "rgba(255,255,255,0.03)" }} />
-      </div>
-    </div>
-    <div style={{ width: "90%", height: 10, borderRadius: 4, background: "rgba(255,255,255,0.04)", marginBottom: 8 }} />
-    <div style={{ width: "70%", height: 10, borderRadius: 4, background: "rgba(255,255,255,0.03)" }} />
-  </div>
-);
+// ═══════════════════════════════════════════════════════════════
+const BlueSkyFeed = ({ isOpen, onClose }) => {
+  const containerRef = useRef(null);
+  const positionRef = useRef({ x: 0, y: 0 });
+  const sizeRef = useRef({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
-// ═══════════════════════════════════════════════════════════════
-//  MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════
-export default function BlueSkyFeed({ isOpen, onClose, ticker = "$TSLA" }) {
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchTicker, setSearchTicker] = useState(ticker);
-  const [customSearch, setCustomSearch] = useState("");
-  const [lastRefresh, setLastRefresh] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const intervalRef = useRef(null);
-  const panelRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [size, setSize] = useState({ width: PANEL_WIDTH, height: PANEL_HEIGHT });
+  const [position, setPosition] = useState({ x: 400, y: 100 });
 
-  // Update search when parent ticker changes
+  useEffect(() => { sizeRef.current = size; }, [size]);
+  useEffect(() => { positionRef.current = position; }, [position]);
+
+  // Load saved position/size
   useEffect(() => {
-    if (ticker) setSearchTicker(ticker);
-  }, [ticker]);
-
-  // Fetch posts from Bluesky public API
-  const fetchPosts = useCallback(async (query, isAutoRefresh = false) => {
-    if (!isAutoRefresh) setLoading(true);
-    else setIsRefreshing(true);
-    setError(null);
-
     try {
-      const searchQuery = query || searchTicker;
-      const url = `/api/bluesky?q=${encodeURIComponent(searchQuery)}&limit=25`;
-      const res = await fetch(url);
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const { pos, sz } = JSON.parse(saved);
+        if (pos) setPosition(pos);
+        if (sz) setSize(sz);
+      }
+    } catch {}
+  }, []);
 
+  const saveState = (pos = positionRef.current, sz = sizeRef.current) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos, sz })); } catch {}
+  };
+
+  const clampPosition = useCallback((pos, sz = sizeRef.current) => {
+    if (typeof window === "undefined") return pos;
+    return {
+      x: Math.min(Math.max(0, pos.x), window.innerWidth - sz.width),
+      y: Math.min(Math.max(0, pos.y), window.innerHeight - sz.height),
+    };
+  }, []);
+
+  // Fetch posts
+  const fetchPosts = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/bluesky?q=ALL&limit=25`);
       if (!res.ok) throw new Error(`API ${res.status}`);
       const data = await res.json();
-
-      if (!data.posts || data.posts.length === 0) {
-        // Use fallbacks if no results
-        setPosts(FALLBACK_POSTS);
-      } else {
-        const mapped = data.posts.map((p) => ({
-          id: p.uri,
-          author: {
-            handle: p.author?.handle || "unknown",
-            displayName: p.author?.displayName || p.author?.handle || "Unknown",
-            avatar: p.author?.avatar || null,
-          },
-          text: p.record?.text || "",
-          likeCount: p.likeCount || 0,
-          replyCount: p.replyCount || 0,
-          repostCount: p.repostCount || 0,
-          createdAt: p.record?.createdAt || p.indexedAt || new Date().toISOString(),
-        }));
-        setPosts(mapped);
-      }
-      setLastRefresh(new Date());
+      if (data.posts && data.posts.length > 0) setPosts(data.posts);
     } catch (err) {
       console.warn("Bluesky fetch failed:", err.message);
       setError(err.message);
-      if (posts.length === 0) setPosts(FALLBACK_POSTS);
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      setIsLoading(false);
     }
-  }, [searchTicker]);
+  }, []);
 
-  // Initial fetch + auto-refresh every 30s
   useEffect(() => {
     if (!isOpen) return;
-    fetchPosts(searchTicker);
-    intervalRef.current = setInterval(() => fetchPosts(searchTicker, true), 30000);
-    return () => clearInterval(intervalRef.current);
-  }, [isOpen, searchTicker, fetchPosts]);
+    fetchPosts();
+    const iv = setInterval(fetchPosts, REFRESH_INTERVAL);
+    return () => clearInterval(iv);
+  }, [isOpen, fetchPosts]);
 
-  // Handle chip click
-  const handleChipClick = (chip) => {
-    setSearchTicker(chip);
-    setCustomSearch("");
-  };
-
-  // Handle custom search
-  const handleCustomSearch = (e) => {
+  // ── Drag ─────────────────────────────────────────────────────
+  const handleDragStart = (e) => {
+    if (e.target.closest("button") || e.target.closest("a")) return;
     e.preventDefault();
-    if (customSearch.trim()) {
-      const q = customSearch.trim().startsWith("$") ? customSearch.trim() : `$${customSearch.trim().toUpperCase()}`;
-      setSearchTicker(q);
-      setCustomSearch("");
-    }
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragOffset.current = { x: clientX - positionRef.current.x, y: clientY - positionRef.current.y };
+    setIsDragging(true);
   };
+
+  const handleDragMove = useCallback((e) => {
+    if (!isDragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const newPos = clampPosition({ x: clientX - dragOffset.current.x, y: clientY - dragOffset.current.y });
+    positionRef.current = newPos;
+    if (containerRef.current) containerRef.current.style.transform = `translate(${newPos.x}px, ${newPos.y}px)`;
+  }, [isDragging, clampPosition]);
+
+  const handleDragEnd = useCallback(() => {
+    if (isDragging) { setPosition({ ...positionRef.current }); saveState(); }
+    setIsDragging(false);
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
+    window.addEventListener("touchmove", handleDragMove, { passive: false });
+    window.addEventListener("touchend", handleDragEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+      window.removeEventListener("touchmove", handleDragMove);
+      window.removeEventListener("touchend", handleDragEnd);
+    };
+  }, [isDragging, handleDragMove, handleDragEnd]);
+
+  // ── Resize ───────────────────────────────────────────────────
+  const handleResizeStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    resizeStart.current = { x: clientX, y: clientY, width: sizeRef.current.width, height: sizeRef.current.height };
+    setIsResizing(true);
+  };
+
+  const handleResizeMove = useCallback((e) => {
+    if (!isResizing) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const newSize = {
+      width: Math.max(300, Math.min(600, resizeStart.current.width + (clientX - resizeStart.current.x))),
+      height: Math.max(300, Math.min(800, resizeStart.current.height + (clientY - resizeStart.current.y))),
+    };
+    sizeRef.current = newSize;
+    if (containerRef.current) {
+      containerRef.current.style.width = `${newSize.width}px`;
+      containerRef.current.style.height = `${newSize.height}px`;
+    }
+  }, [isResizing]);
+
+  const handleResizeEnd = useCallback(() => {
+    if (isResizing) { setSize({ ...sizeRef.current }); saveState(); }
+    setIsResizing(false);
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    window.addEventListener("mousemove", handleResizeMove);
+    window.addEventListener("mouseup", handleResizeEnd);
+    window.addEventListener("touchmove", handleResizeMove, { passive: false });
+    window.addEventListener("touchend", handleResizeEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleResizeMove);
+      window.removeEventListener("mouseup", handleResizeEnd);
+      window.removeEventListener("touchmove", handleResizeMove);
+      window.removeEventListener("touchend", handleResizeEnd);
+    };
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   if (!isOpen) return null;
 
   return (
     <div
-      ref={panelRef}
+      ref={containerRef}
+      className="fixed z-[9999] flex flex-col rounded-xl overflow-hidden shadow-2xl shadow-black/50"
       style={{
-        position: "fixed",
-        top: 56,
-        right: 16,
-        bottom: 16,
-        width: 380,
-        zIndex: 50,
-        background: "#060d18",
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        width: size.width,
+        height: size.height,
+        background: "linear-gradient(180deg, #0a1628 0%, #060d18 100%)",
         border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 16,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.1)",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        left: 0,
+        top: 0,
+        userSelect: isDragging || isResizing ? "none" : "auto",
       }}
     >
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div style={{
-        padding: "16px 16px 12px",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        background: "linear-gradient(180deg, rgba(0,133,255,0.04) 0%, transparent 100%)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <BlueskyIcon size={18} />
-            <span style={{ fontWeight: 700, fontSize: 14, color: "#e2e8f0", letterSpacing: "-0.01em" }}>Social Feed</span>
-            {isRefreshing && (
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#0085ff", animation: "pulse 1s ease infinite" }} />
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {/* Refresh button */}
-            <button
-              onClick={() => fetchPosts(searchTicker)}
-              disabled={loading}
-              style={{
-                background: "none", border: "none", cursor: "pointer", padding: 4,
-                opacity: loading ? 0.3 : 0.5, transition: "opacity 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.5)}
-              title="Refresh feed"
-            >
-              <Icons.refresh style={{ width: 14, height: 14, color: "#94a3b8", animation: loading ? "spin 1s linear infinite" : "none" }} />
-            </button>
-            {/* Close button */}
-            <button
-              onClick={onClose}
-              style={{
-                background: "none", border: "none", cursor: "pointer", padding: 4,
-                opacity: 0.5, transition: "opacity 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.5)}
-            >
-              <Icons.close style={{ width: 14, height: 14, color: "#94a3b8" }} />
-            </button>
-          </div>
+      {/* Header (draggable) */}
+      <div
+        className="flex items-center gap-2 px-3 py-2.5 border-b border-white/5 cursor-grab active:cursor-grabbing select-none"
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+      >
+        <GripVertical className="w-3.5 h-3.5 text-white/20" strokeWidth={1.5} />
+        <BlueskyIcon size={18} />
+        <span className="text-[13px] font-semibold text-white tracking-wide">Social Feed</span>
+        <div className="ml-auto flex items-center gap-1">
+          <button onClick={fetchPosts} className="p-1.5 rounded-md hover:bg-white/5 transition-colors" title="Refresh">
+            <RotateCw className={`w-3.5 h-3.5 text-white/40 hover:text-white/70 ${isLoading ? "animate-spin" : ""}`} strokeWidth={1.5} />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-white/5 transition-colors" title="Close">
+            <X className="w-3.5 h-3.5 text-white/40 hover:text-white/70" strokeWidth={1.5} />
+          </button>
         </div>
-
-        {/* Ticker chips */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          {TICKER_CHIPS.map((chip) => (
-            <button
-              key={chip}
-              onClick={() => handleChipClick(chip)}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 20,
-                fontSize: 11,
-                fontWeight: 600,
-                fontFamily: "'SF Mono', 'Fira Code', monospace",
-                border: searchTicker === chip ? "1px solid #0085ff55" : "1px solid rgba(255,255,255,0.08)",
-                background: searchTicker === chip ? "#0085ff15" : "rgba(255,255,255,0.03)",
-                color: searchTicker === chip ? "#0085ff" : "#64748b",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom search */}
-        <form onSubmit={handleCustomSearch} style={{ display: "flex", gap: 6 }}>
-          <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: 6,
-            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 8, padding: "0 10px",
-          }}>
-            <Icons.search style={{ width: 13, height: 13, color: "#334155", flexShrink: 0 }} />
-            <input
-              value={customSearch}
-              onChange={(e) => setCustomSearch(e.target.value)}
-              placeholder="Search ticker or topic..."
-              style={{
-                flex: 1, background: "none", border: "none", outline: "none",
-                color: "#e2e8f0", fontSize: 12, padding: "8px 0",
-                fontFamily: "'SF Mono', 'Fira Code', monospace",
-              }}
-            />
-          </div>
-        </form>
       </div>
 
-      {/* ── Posts list ──────────────────────────────────────── */}
-      <div style={{
-        flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8,
-        scrollbarWidth: "thin", scrollbarColor: "#1e293b #060d18",
-      }}>
-        {/* Active search indicator */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "4px 0", marginBottom: 2,
-        }}>
-          <span style={{ fontSize: 11, color: "#475569" }}>
-            Showing results for <span style={{ color: "#22d3ee", fontWeight: 600, fontFamily: "'SF Mono', 'Fira Code', monospace" }}>{searchTicker}</span>
-          </span>
-          {lastRefresh && (
-            <span style={{ fontSize: 10, color: "#1e293b" }}>
-              {timeAgo(lastRefresh.toISOString())}
-            </span>
-          )}
+      {/* Error banner */}
+      {error && posts.length === 0 && (
+        <div className="px-3 py-2 bg-yellow-500/10 border-b border-yellow-500/20">
+          <p className="text-[11px] text-yellow-400/80">Feed unavailable — retrying...</p>
         </div>
+      )}
 
-        {/* Loading state */}
-        {loading && posts.length === 0 ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
+      {/* Posts */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        {isLoading && posts.length === 0 ? (
+          <>{Array.from({ length: 5 }).map((_, i) => <PostSkeleton key={i} />)}</>
+        ) : posts.length > 0 ? (
+          posts.map((post, i) => <PostCard key={post.uri || i} post={post} />)
         ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} />)
-        )}
-
-        {/* Error banner */}
-        {error && (
-          <div style={{
-            padding: "8px 12px", borderRadius: 8,
-            background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)",
-            fontSize: 11, color: "#f87171", textAlign: "center",
-          }}>
-            Feed unavailable — showing cached posts
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <BlueskyIcon size={32} className="mb-3 opacity-30" />
+            <p className="text-[13px] text-white/30">No posts available</p>
+            <button onClick={fetchPosts} className="mt-3 text-[12px] text-[#0085ff] hover:text-[#0085ff]/80 transition-colors">
+              Try again
+            </button>
           </div>
         )}
       </div>
 
-      {/* ── Footer ─────────────────────────────────────────── */}
-      <div style={{
-        padding: "10px 16px",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-      }}>
-        <BlueskyIcon size={12} className="opacity-30" />
-        <span style={{ fontSize: 10, color: "#1e293b", letterSpacing: "0.02em" }}>
-          Powered by Bluesky · Public API · No account required
-        </span>
+      {/* Footer */}
+      <div className="px-3 py-1.5 border-t border-white/5 flex items-center justify-center gap-1">
+        <BlueskyIcon size={10} className="opacity-40" />
+        <span className="text-[10px] text-white/20">Powered by Bluesky · Public API</span>
       </div>
 
-      {/* ── Animations ─────────────────────────────────────── */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* Resize handle */}
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+        onMouseDown={handleResizeStart}
+        onTouchStart={handleResizeStart}
+      >
+        <svg className="w-3 h-3 text-white/15 absolute bottom-0.5 right-0.5" viewBox="0 0 10 10">
+          <path d="M9 1v8H1" fill="none" stroke="currentColor" strokeWidth="1" />
+          <path d="M9 5v4H5" fill="none" stroke="currentColor" strokeWidth="1" />
+        </svg>
+      </div>
     </div>
   );
-}
+};
+
+export default BlueSkyFeed;

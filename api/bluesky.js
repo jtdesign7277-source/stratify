@@ -2,30 +2,42 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  const { q = '$TSLA' } = req.query;
+  const { q = 'ALL', limit = 25 } = req.query;
 
-  // Curated finance accounts on Bluesky
+  // Try search endpoint first (may work from Vercel's servers)
+  if (q !== 'ALL') {
+    try {
+      const searchUrl = `https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(q)}&limit=${limit}&sort=latest`;
+      const searchRes = await fetch(searchUrl, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 Stratify/1.0' }
+      });
+      if (searchRes.ok) {
+        const data = await searchRes.json();
+        if (data.posts && data.posts.length > 0) {
+          res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+          return res.status(200).json(data);
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback: curated finance account feeds
   const FINANCE_ACCOUNTS = [
     'iankmsmith.ft.com',
     'ellenychang.bsky.social',
     'unusual-whales.bsky.social',
-    'marketsinsider.bsky.social',
     'stockmktnews.bsky.social',
-    'wallstreetbets.bsky.social',
+    'benzinga.bsky.social',
+    'marketwatch.bsky.social',
     'cnbc.bsky.social',
     'bloomberg.bsky.social',
-    'marketwatch.bsky.social',
-    'benzinga.bsky.social',
   ];
 
   try {
-    // Fetch feeds from multiple accounts in parallel
     const feedPromises = FINANCE_ACCOUNTS.map(async (handle) => {
       try {
         const url = `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=10&filter=posts_no_replies`;
-        const r = await fetch(url, {
-          headers: { 'Accept': 'application/json', 'User-Agent': 'Stratify/1.0' }
-        });
+        const r = await fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 Stratify/1.0' } });
         if (!r.ok) return [];
         const data = await r.json();
         return (data.feed || []).map(item => item.post);
@@ -35,7 +47,7 @@ export default async function handler(req, res) {
     const allFeeds = await Promise.all(feedPromises);
     let posts = allFeeds.flat();
 
-    // Filter by ticker if provided
+    // Filter by ticker if specified
     const ticker = q.replace('$', '').toUpperCase();
     if (ticker && ticker !== 'ALL') {
       const filtered = posts.filter(p =>
@@ -54,7 +66,6 @@ export default async function handler(req, res) {
       return true;
     }).slice(0, 25);
 
-    // Format response to match expected shape
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
     return res.status(200).json({ posts });
   } catch (err) {
