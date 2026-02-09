@@ -6,6 +6,7 @@ import LandingPage from './components/dashboard/LandingPage';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
+import BlueSkyFeed from "./components/dashboard/BlueSkyFeed";
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -1035,6 +1036,10 @@ export default function StratifyApp() {
         isOpen={isLiveScoresOpen}
         onOpenChange={setIsLiveScoresOpen}
         onUnreadChange={setHasLiveScoresUnread}
+      />
+      <BlueSkyFeed
+        isOpen={isSocialFeedOpen}
+        onClose={() => setIsSocialFeedOpen(false)}
       />
     </>
   );
