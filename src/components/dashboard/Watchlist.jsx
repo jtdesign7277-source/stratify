@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
-const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+const API_BASE = '';
 
 const TrendUpIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -114,7 +114,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
   const fetchStockQuotes = useCallback(async () => {
     setStockLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/stocks/bars`);
+      const res = await fetch(`/api/stocks`);
       if (!res.ok) {
         throw new Error(`Failed to fetch stock snapshots: ${res.status}`);
       }
