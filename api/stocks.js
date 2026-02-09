@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       : DEFAULT_SYMBOLS;
 
     const response = await fetch(
-      `${ALPACA_DATA_URL}/stocks/snapshots?symbols=${symbols.join(',')}&feed=iexfeed=sip`,
+      `${ALPACA_DATA_URL}/stocks/snapshots?symbols=${symbols.join(',')}&feed=sip`,
       {
         headers: {
           'APCA-API-KEY-ID': ALPACA_KEY,
