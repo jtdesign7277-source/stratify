@@ -205,15 +205,15 @@ const LandingPage = ({ onEnter }) => {
             onClick={handleExperienceClick}
             className="group relative mb-8"
           >
-            <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 rounded-2xl opacity-40 group-hover:opacity-70 blur-xl transition-all duration-500 animate-pulse" />
-            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-cyan-500 rounded-2xl opacity-50 group-hover:opacity-80 blur-md transition-opacity" />
-            <div className="relative flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-600/30 to-cyan-600/30 border border-emerald-400/50 group-hover:border-emerald-300/80 transition-all backdrop-blur-sm">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-500/50 group-hover:shadow-emerald-400/70 transition-shadow">
-                <Play className="w-5 h-5 text-white ml-0.5" fill="white" strokeWidth={0} />
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/60 via-cyan-500/60 to-emerald-500/60 rounded-xl opacity-25 group-hover:opacity-40 blur-lg transition-all duration-500" />
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-600/50 to-cyan-500/50 rounded-xl opacity-30 group-hover:opacity-50 blur-sm transition-opacity" />
+            <div className="relative flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border border-emerald-400/30 group-hover:border-emerald-300/50 transition-all backdrop-blur-sm">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400/80 to-cyan-400/80 flex items-center justify-center shadow-md shadow-emerald-500/30 group-hover:shadow-emerald-400/50 transition-shadow">
+                <Play className="w-3 h-3 text-white ml-0.5" fill="white" strokeWidth={0} />
               </div>
               <div className="flex flex-col items-start">
-                <span className="text-white font-semibold text-base tracking-wide">Experience Stratify</span>
-                <span className="text-emerald-300/80 text-[10px] tracking-wider uppercase">Watch the intro</span>
+                <span className="text-white/90 font-medium text-sm tracking-wide">Experience Stratify</span>
+                <span className="text-emerald-300/60 text-[8px] tracking-wider uppercase">Watch the intro</span>
               </div>
             </div>
           </motion.button>
