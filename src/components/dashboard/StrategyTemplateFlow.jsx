@@ -173,7 +173,7 @@ const TIMEFRAMES = ["5m", "15m", "1H", "4H", "1D"];
 const PERIODS = ["1M", "3M", "6M", "1Y"];
 
 // ── Price Data Generator ───────────────────────────────────────
-const generatePriceData = (ticker, period) => {
+const generatePriceData = (ticker, period, timeframe = "1H") => {
   // Seed based on ticker for consistent results per symbol
   const seed = ticker.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   let rng = seed;
@@ -200,35 +200,53 @@ const generatePriceData = (ticker, period) => {
   const cfg = configs[ticker] || { start: 100, volatility: 0.015, trend: 0.0003 };
   const periodDays = { "1M": 22, "3M": 66, "6M": 132, "1Y": 252 };
   const days = periodDays[period] || 132;
-  const hoursPerDay = 7;
+
+  // Candles per day based on timeframe (6.5hr market day)
+  const candlesPerDay = {
+    "5m": 78,   // 390 min / 5
+    "15m": 26,  // 390 min / 15
+    "1H": 7,    // ~6.5 rounded
+    "4H": 2,    // 2 candles per day
+    "1D": 1,    // daily
+  };
+  const cpd = candlesPerDay[timeframe] || 7;
+
+  // Scale volatility per candle — smaller timeframes = smaller per-candle moves
+  const volScale = Math.sqrt(1 / cpd); // volatility scales with sqrt of time
+  const trendScale = 1 / cpd; // trend distributes evenly
+
   const points = [];
   let price = cfg.start;
 
   for (let d = 0; d < days; d++) {
-    for (let h = 0; h < hoursPerDay; h++) {
-      const r = (rand() - 0.5) * 2 * cfg.volatility * price;
-      const t = cfg.trend * price * (0.5 + rand());
-      // Add some cyclical movement
-      const cycle = Math.sin((d / days) * Math.PI * 3) * cfg.volatility * price * 0.3;
+    const date = new Date(2025, 7, 1);
+    date.setDate(date.getDate() + d);
+    if (date.getDay() === 0 || date.getDay() === 6) continue;
+
+    for (let c = 0; c < cpd; c++) {
+      const r = (rand() - 0.5) * 2 * cfg.volatility * volScale * price;
+      const t = cfg.trend * trendScale * price * (0.5 + rand());
+      const cycle = Math.sin((d / days) * Math.PI * 3) * cfg.volatility * volScale * price * 0.3;
       price = Math.max(price + r + t + cycle * 0.1, cfg.start * 0.5);
 
-      const open = price + (rand() - 0.5) * price * 0.005;
-      const high = Math.max(price, open) + rand() * price * 0.008;
-      const low = Math.min(price, open) - rand() * price * 0.008;
+      const noiseScale = volScale * 0.4;
+      const open = price + (rand() - 0.5) * price * noiseScale * 0.02;
+      const high = Math.max(price, open) + rand() * price * noiseScale * 0.03;
+      const low = Math.min(price, open) - rand() * price * noiseScale * 0.03;
 
-      const date = new Date(2025, 7, 1); // Aug 1
-      date.setDate(date.getDate() + d);
-      date.setHours(9 + h, 30);
-      if (date.getDay() === 0 || date.getDay() === 6) continue;
+      // Set time based on candle position in the day
+      const minuteOffset = Math.floor((c / cpd) * 390); // 390 min market day
+      const candleDate = new Date(date);
+      candleDate.setHours(9, 30 + minuteOffset, 0, 0);
 
       points.push({
-        date: date.toISOString(),
-        timestamp: date.getTime(),
+        date: candleDate.toISOString(),
+        timestamp: candleDate.getTime(),
         open: +open.toFixed(2),
         high: +high.toFixed(2),
         low: +low.toFixed(2),
         close: +price.toFixed(2),
-        volume: Math.floor(5000000 + rand() * 15000000),
+        volume: Math.floor((5000000 + rand() * 15000000) / cpd),
       });
     }
   }
@@ -660,14 +678,14 @@ const StrategyDetail = ({ template, onBack }) => {
   const [isRunning, setIsRunning] = useState(true);
   const [activated, setActivated] = useState(false);
 
-  const data = useMemo(() => generatePriceData(ticker, period), [ticker, period]);
+  const data = useMemo(() => generatePriceData(ticker, period, timeframe), [ticker, period, timeframe]);
   const result = useMemo(() => runBacktest(template.id, data, capital), [template.id, data, capital]);
 
   useEffect(() => {
     setIsRunning(true);
     const t = setTimeout(() => setIsRunning(false), 800);
     return () => clearTimeout(t);
-  }, [ticker, period, capital, template.id]);
+  }, [ticker, period, timeframe, capital, template.id]);
 
   const fmt = (v) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
 
@@ -756,8 +774,10 @@ const StrategyDetail = ({ template, onBack }) => {
           </div>
         )}
 
-        <div className="ml-auto text-xs tabular-nums" style={{ color: "#334155" }}>
-          {data.length.toLocaleString()} candles
+        <div className="ml-auto flex items-center gap-2 text-xs tabular-nums" style={{ color: "#334155", fontFamily: "monospace" }}>
+          <span>{data.length.toLocaleString()} candles</span>
+          <span>·</span>
+          <span>{timeframe} × {period}</span>
         </div>
       </div>
 
