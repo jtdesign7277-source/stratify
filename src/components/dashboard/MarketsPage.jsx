@@ -132,6 +132,7 @@ const MarketsPage = ({ themeClasses }) => {
                   clearTimeout(hoverTimeout.current);
                   hoverTimeout.current = setTimeout(() => {
                     const rect = e.currentTarget?.getBoundingClientRect();
+                    if (!rect) return;
                     setHoverPreview({
                       symbol: item.symbol,
                       position: { x: rect.right, y: rect.top + rect.height / 2 }
