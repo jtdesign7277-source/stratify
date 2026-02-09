@@ -93,6 +93,32 @@ const CRYPTO_TV_MAP = {
   'MATIC-USD': 'COINBASE:MATICUSD',
 };
 
+const EASTERN_TIMEZONE = 'America/New_York';
+const PRE_MARKET_START_MINUTES = 4 * 60;
+const PRE_MARKET_END_MINUTES = 9 * 60 + 30;
+const AFTER_HOURS_START_MINUTES = 16 * 60;
+const AFTER_HOURS_END_MINUTES = 20 * 60;
+
+const getEasternMinutes = (date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIMEZONE,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+};
+
+const getMarketSession = () => {
+  const minutes = getEasternMinutes(new Date());
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
+  if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
+  return 'closed';
+};
+
 const normalizeWatchlistItem = (item) => (typeof item === 'string' ? { symbol: item, name: item } : item);
 
 const getCryptoDisplaySymbol = (symbol) => {
@@ -161,6 +187,12 @@ const buildQuote = (quote) => {
     : fallbackPrevClose > 0
       ? (change / fallbackPrevClose) * 100
       : 0;
+  const preMarketPrice = toNumber(quote.preMarketPrice);
+  const preMarketChange = toNumber(quote.preMarketChange);
+  const preMarketChangePercent = toNumber(quote.preMarketChangePercent);
+  const afterHoursPrice = toNumber(quote.afterHoursPrice ?? quote.postMarketPrice);
+  const afterHoursChange = toNumber(quote.afterHoursChange ?? quote.postMarketChange);
+  const afterHoursChangePercent = toNumber(quote.afterHoursChangePercent ?? quote.postMarketChangePercent);
   return {
     price,
     change,
@@ -169,6 +201,12 @@ const buildQuote = (quote) => {
     high: toNumber(quote.high),
     low: toNumber(quote.low),
     volume: toNumber(quote.volume),
+    preMarketPrice,
+    preMarketChange,
+    preMarketChangePercent,
+    afterHoursPrice,
+    afterHoursChange,
+    afterHoursChangePercent,
   };
 };
 
@@ -196,11 +234,19 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     } catch { return ['NVDA', 'TSLA', 'AAPL']; }
   });
   const [dragOverTabs, setDragOverTabs] = useState(false);
+  const [marketSession, setMarketSession] = useState(getMarketSession);
 
   // Save pinned tabs to localStorage
   useEffect(() => {
     localStorage.setItem('stratify-pinned-tabs', JSON.stringify(pinnedTabs));
   }, [pinnedTabs]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMarketSession(getMarketSession());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const addPinnedTab = (symbol) => {
     if (!pinnedTabs.includes(symbol) && pinnedTabs.length < 5) {
@@ -293,20 +339,20 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const estimatedTotal = selectedQuote?.price ? selectedQuote.price * orderQtyNumber : 0;
 
   // Fetch quote snapshot via Railway backend
-  const fetchSnapshot = useCallback(async (symbol) => {
+  const fetchSnapshot = useCallback(async () => {
     try {
-      const url = new URL(`${API_URL}/api/snapshot/${encodeURIComponent(symbol)}`);
+      const url = new URL(`${API_URL}/api/stocks/bars`);
       url.searchParams.set('t', Date.now());
       const res = await fetch(url.toString(), {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' },
       });
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       const data = await res.json();
-      return buildQuote(data);
+      return Array.isArray(data) ? data : [];
     } catch (err) {
-      console.error('Snapshot fetch error:', symbol, err);
-      return null;
+      console.error('Snapshot fetch error:', err);
+      return [];
     }
   }, []);
 
@@ -336,14 +382,19 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
     const fetchEquityQuotes = async () => {
       setEquityLoading(true);
       const results = {};
-      await Promise.all(
-        equityStocks.map(async (stock) => {
-          const quote = await fetchSnapshot(stock.symbol);
-          if (quote && quote.price) {
-            results[stock.symbol] = quote;
-          }
-        })
-      );
+      const snapshotData = await fetchSnapshot();
+      const snapshotsBySymbol = {};
+      snapshotData.forEach((item) => {
+        if (item?.symbol) {
+          snapshotsBySymbol[item.symbol] = item;
+        }
+      });
+      equityStocks.forEach((stock) => {
+        const quote = buildQuote(snapshotsBySymbol[stock.symbol]);
+        if (quote && quote.price) {
+          results[stock.symbol] = quote;
+        }
+      });
       setEquityQuotes(results);
       setEquityLoading(false);
     };
@@ -491,6 +542,17 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const formatPrice = (price) => {
     if (!price || price === 0) return '...';
     return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatSignedPercent = (value) => {
+    if (!Number.isFinite(value)) return null;
+    return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+  };
+
+  const getChangeColor = (value) => {
+    if (value > 0) return 'text-emerald-400';
+    if (value < 0) return 'text-red-400';
+    return 'text-white/50';
   };
 
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
@@ -682,6 +744,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             const price = quote.price || 0;
             const change = quote.change || 0;
             const changePercent = quote.changePercent || 0;
+            const preMarketPrice = quote.preMarketPrice;
+            const preMarketChange = quote.preMarketChange;
+            const preMarketChangePercent = quote.preMarketChangePercent;
+            const afterHoursPrice = quote.afterHoursPrice;
+            const afterHoursChange = quote.afterHoursChange;
+            const afterHoursChangePercent = quote.afterHoursChangePercent;
             const isPositive = change >= 0;
             const isSelected = selectedTicker === stock.symbol;
             const stockInfo = activeMarket === 'crypto'
@@ -691,6 +759,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               ? (stock.displaySymbol || stockInfo?.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
               : stock.symbol;
             const name = stockInfo?.name || stock.name || displaySymbol;
+            const showPreMarket = activeMarket === 'equity' && marketSession === 'pre' && Number.isFinite(preMarketPrice);
+            const showAfterHours = activeMarket === 'equity' && marketSession === 'after' && Number.isFinite(afterHoursPrice);
+            const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
+            const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
             
             return (
               <div 
@@ -733,6 +805,16 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                       {price > 0 && (
                         <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                           {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+                        </div>
+                      )}
+                      {price > 0 && showPreMarket && preMarketPercentLabel && (
+                        <div className={`mt-1 text-xs ${getChangeColor(preMarketChange || 0)}`}>
+                          Pre: ${formatPrice(preMarketPrice)} {preMarketPercentLabel}
+                        </div>
+                      )}
+                      {price > 0 && showAfterHours && afterHoursPercentLabel && (
+                        <div className={`mt-1 text-xs ${getChangeColor(afterHoursChange || 0)}`}>
+                          AH: ${formatPrice(afterHoursPrice)} {afterHoursPercentLabel}
                         </div>
                       )}
                     </div>

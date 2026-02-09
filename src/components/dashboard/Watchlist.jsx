@@ -130,6 +130,8 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
       }
     } catch (err) {
       console.error('Quote fetch error:', err);
+    } finally {
+      setStockLoading(false);
     }
   }, []);
 

@@ -1,7 +1,56 @@
 133
-  import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Globe, BarChart3, Activity, RefreshCw, Loader2 } from 'lucide-react';
 import { getQuotes, getTrending } from '../../services/marketData';
+
+const EASTERN_TIMEZONE = 'America/New_York';
+const PRE_MARKET_START_MINUTES = 4 * 60;
+const PRE_MARKET_END_MINUTES = 9 * 60 + 30;
+const AFTER_HOURS_START_MINUTES = 16 * 60;
+const AFTER_HOURS_END_MINUTES = 20 * 60;
+
+const getEasternMinutes = (date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIMEZONE,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+};
+
+const getMarketSession = () => {
+  const minutes = getEasternMinutes(new Date());
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
+  if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
+  return 'closed';
+};
+
+const toNumber = (value) => {
+  if (typeof value === 'number') return value;
+  if (value == null) return NaN;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const formatStockPrice = (price) => {
+  if (!Number.isFinite(price)) return '...';
+  return Number(price).toFixed(2);
+};
+
+const formatSignedPercent = (value) => {
+  if (!Number.isFinite(value)) return null;
+  return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+};
+
+const getChangeColor = (value) => {
+  if (value > 0) return 'text-emerald-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-zinc-400';
+};
 
 // Floating TradingView mini chart preview
 const ChartPreview = ({ symbol, position }) => {
@@ -49,6 +98,7 @@ const MarketsPage = ({ themeClasses }) => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [hoverPreview, setHoverPreview] = useState(null);
+  const [marketSession, setMarketSession] = useState(getMarketSession);
   const hoverTimeout = useRef(null);
 
   const INDEX_SYMBOLS = ['^GSPC', '^DJI', '^IXIC', '^RUT'];
@@ -105,6 +155,13 @@ const MarketsPage = ({ themeClasses }) => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMarketSession(getMarketSession());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const MarketCard = ({ title, data, icon: Icon, showSymbol = true }) => (
     <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
       <div className="flex items-center gap-2 mb-4">
@@ -123,6 +180,16 @@ const MarketsPage = ({ themeClasses }) => {
             const change = item.change || 0;
             const changePercent = item.changePercent || 0;
             const isPositive = changePercent >= 0;
+            const preMarketPrice = toNumber(item.preMarketPrice);
+            const preMarketChange = toNumber(item.preMarketChange);
+            const preMarketChangePercent = toNumber(item.preMarketChangePercent);
+            const afterHoursPrice = toNumber(item.afterHoursPrice ?? item.postMarketPrice);
+            const afterHoursChange = toNumber(item.afterHoursChange ?? item.postMarketChange);
+            const afterHoursChangePercent = toNumber(item.afterHoursChangePercent ?? item.postMarketChangePercent);
+            const showPreMarket = marketSession === 'pre' && Number.isFinite(preMarketPrice);
+            const showAfterHours = marketSession === 'after' && Number.isFinite(afterHoursPrice);
+            const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
+            const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
 
             return (
               <div
@@ -157,6 +224,16 @@ const MarketsPage = ({ themeClasses }) => {
                   {item.price != null && (
                     <div className="text-white text-sm font-mono">
                       ${typeof item.price === 'number' ? item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.price}
+                    </div>
+                  )}
+                  {showPreMarket && preMarketPercentLabel && (
+                    <div className={`mt-1 text-xs ${getChangeColor(preMarketChange || 0)}`}>
+                      Pre: ${formatStockPrice(preMarketPrice)} {preMarketPercentLabel}
+                    </div>
+                  )}
+                  {showAfterHours && afterHoursPercentLabel && (
+                    <div className={`mt-1 text-xs ${getChangeColor(afterHoursChange || 0)}`}>
+                      AH: ${formatStockPrice(afterHoursPrice)} {afterHoursPercentLabel}
                     </div>
                   )}
                   <div className={`text-xs font-medium flex items-center gap-1 justify-end ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
