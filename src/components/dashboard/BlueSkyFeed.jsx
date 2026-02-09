@@ -288,7 +288,7 @@ export default function BlueSkyFeed({ isOpen, onClose, ticker = "$TSLA" }) {
 
     try {
       const searchQuery = query || searchTicker;
-      const url = `https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(searchQuery)}&limit=25&sort=latest`;
+      const url = `/api/bluesky?q=${encodeURIComponent(searchQuery)}&limit=25`;
       const res = await fetch(url);
 
       if (!res.ok) throw new Error(`API ${res.status}`);
