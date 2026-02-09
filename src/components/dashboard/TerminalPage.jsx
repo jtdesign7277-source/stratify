@@ -27,7 +27,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   // Collapsed state for Recent Tests sub-section
-  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
   
   // Editable strategy for the input fields
   const [editableStrategy, setEditableStrategy] = useState({
@@ -266,6 +266,83 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
       </div>
 
       <div className="flex-1 flex overflow-hidden">
+        {/* Recent Tests Panel - Collapsible */}
+        <div className={`${isHistoryCollapsed ? 'w-14' : 'w-64'} border-r border-[#1f1f1f] bg-[#0b0b0b] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
+          <div className={`flex ${isHistoryCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
+            {isHistoryCollapsed ? (
+              <>
+                <button 
+                  onClick={() => setIsHistoryCollapsed(false)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white mb-2"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+                <RefreshCw className="w-4 h-4 text-cyan-400" />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm font-mono text-cyan-400 uppercase tracking-wider">History</span>
+                </div>
+                <button 
+                  onClick={() => setIsHistoryCollapsed(true)} 
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
+          
+          {!isHistoryCollapsed && (
+            <>
+              {history.length > 0 && (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] text-white/50 font-mono">{history.length} tests</span>
+                  <button
+                    onClick={handleClearHistory}
+                    className="text-[10px] text-gray-600 hover:text-red-400 transition-colors font-mono"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+              
+              <div className="space-y-1 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
+                {history.length > 0 ? history.map((h, i) => {
+                  const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
+                  const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => handleLoadHistory(h)}
+                      className="p-2 rounded bg-gray-800/50 hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-cyan-500/30"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-gray-400">
+                          {new Date(h.timestamp).toLocaleTimeString()}
+                        </span>
+                        <span className={`text-[10px] font-mono ${pnlColor}`}>
+                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-cyan-400 font-mono font-medium">
+                        {h.results?.symbol}
+                      </div>
+                      <div className="text-[9px] text-gray-600 mt-0.5">
+                        {h.results?.summary?.totalTrades || 0}t • {h.results?.summary?.winRate || 0}%
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="text-[10px] text-gray-600 font-mono py-4 text-center">No tests yet</div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Strategy Editor Panel - Collapsible */}
         <div className={`${isCollapsed ? 'w-14' : 'w-72'} border-r border-[#1f1f1f] bg-[#0b0b0b] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
           <div className={`flex ${isCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
@@ -369,83 +446,6 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
             </button>
-          )}
-        </div>
-
-        {/* Recent Tests Panel - Collapsible */}
-        <div className={`${isHistoryCollapsed ? 'w-14' : 'w-64'} border-r border-[#1f1f1f] bg-[#0b0b0b] p-3 flex flex-col overflow-hidden transition-all duration-200`}>
-          <div className={`flex ${isHistoryCollapsed ? 'flex-col items-center' : 'items-center justify-between'} mb-3 flex-shrink-0`}>
-            {isHistoryCollapsed ? (
-              <>
-                <button 
-                  onClick={() => setIsHistoryCollapsed(false)} 
-                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white mb-2"
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </button>
-                <RefreshCw className="w-4 h-4 text-cyan-400" />
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-mono text-cyan-400 uppercase tracking-wider">History</span>
-                </div>
-                <button 
-                  onClick={() => setIsHistoryCollapsed(true)} 
-                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400 hover:text-white"
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-          
-          {!isHistoryCollapsed && (
-            <>
-              {history.length > 0 && (
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] text-white/50 font-mono">{history.length} tests</span>
-                  <button
-                    onClick={handleClearHistory}
-                    className="text-[10px] text-gray-600 hover:text-red-400 transition-colors font-mono"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-              
-              <div className="space-y-1 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
-                {history.length > 0 ? history.map((h, i) => {
-                  const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
-                  const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => handleLoadHistory(h)}
-                      className="p-2 rounded bg-gray-800/50 hover:bg-gray-700/50 cursor-pointer transition-colors border border-transparent hover:border-cyan-500/30"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-gray-400">
-                          {new Date(h.timestamp).toLocaleTimeString()}
-                        </span>
-                        <span className={`text-[10px] font-mono ${pnlColor}`}>
-                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-cyan-400 font-mono font-medium">
-                        {h.results?.symbol}
-                      </div>
-                      <div className="text-[9px] text-gray-600 mt-0.5">
-                        {h.results?.summary?.totalTrades || 0}t • {h.results?.summary?.winRate || 0}%
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="text-[10px] text-gray-600 font-mono py-4 text-center">No tests yet</div>
-                )}
-              </div>
-            </>
           )}
         </div>
 
