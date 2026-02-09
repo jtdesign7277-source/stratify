@@ -68,7 +68,7 @@ const getQuotePrice = (quote) => {
   return null;
 };
 
-const buildExtendedHoursData = ({ trade, quote, prevClose }) => {
+const buildExtendedHoursData = ({ trade, quote, prevClose, symbol }) => {
   const nullResult = {
     preMarketPrice: null,
     preMarketChange: null,
@@ -80,9 +80,20 @@ const buildExtendedHoursData = ({ trade, quote, prevClose }) => {
 
   // Check if we're currently in extended hours
   const currentSession = getCurrentSession();
-  if (!currentSession) return nullResult;
-
   const todayKey = getEasternDateKey(new Date());
+  
+  // Debug logging for first symbol
+  if (symbol === 'NVDA') {
+    console.log(`🕐 Extended hours debug for ${symbol}:`);
+    console.log(`   Current session: ${currentSession}, Today: ${todayKey}`);
+    console.log(`   Trade timestamp: ${trade?.Timestamp}, Trade price: ${trade?.Price}`);
+    console.log(`   Quote timestamp: ${quote?.Timestamp}, Bid: ${quote?.BidPrice}, Ask: ${quote?.AskPrice}`);
+    if (trade?.Timestamp) {
+      console.log(`   Trade date key: ${getEasternDateKey(trade?.Timestamp)}, Trade session: ${resolveExtendedSession(trade?.Timestamp)}`);
+    }
+  }
+  
+  if (!currentSession) return nullResult;
 
   // Check trade first
   const tradeSession = resolveExtendedSession(trade?.Timestamp);
@@ -203,6 +214,7 @@ export async function getSnapshots(symbols = SYMBOLS) {
         trade: latestTradeData,
         quote: latestQuoteData,
         prevClose,
+        symbol,
       });
 
       return {
