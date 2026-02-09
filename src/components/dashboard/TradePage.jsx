@@ -341,12 +341,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   // Fetch quote snapshot via Railway backend
   const fetchSnapshot = useCallback(async () => {
     try {
-      const url = new URL(`${API_URL}/api/stocks/bars`);
-      url.searchParams.set('t', Date.now());
-      const res = await fetch(url.toString(), {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
-      });
+      const symbols = equityStocks.map(s => s.symbol).join(',');
+      const res = await fetch('/api/stocks?symbols=' + symbols);
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
@@ -354,7 +350,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       console.error('Snapshot fetch error:', err);
       return [];
     }
-  }, []);
+  }, [equityStocks]);
 
   const fetchCryptoQuote = useCallback(async (symbol) => {
     try {
