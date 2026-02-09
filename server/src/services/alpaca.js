@@ -247,8 +247,41 @@ export async function getSnapshots(symbols = SYMBOLS) {
 // Get single snapshot
 export async function getSnapshot(symbol) {
   try {
-    const snapshots = await getSnapshots([symbol.toUpperCase()]);
-    return snapshots[0] || null;
+    // Use direct API call instead of SDK to avoid 401 issues
+    const sym = symbol.toUpperCase();
+    const response = await fetch(`https://data.alpaca.markets/v2/stocks/${sym}/snapshot`, {
+      headers: {
+        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY,
+      },
+    });
+    
+    if (!response.ok) {
+      console.error('Alpaca snapshot error:', response.status, await response.text());
+      throw new Error(`Alpaca API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const latestTrade = data.latestTrade;
+    const dailyBar = data.dailyBar;
+    const prevDailyBar = data.prevDailyBar;
+    
+    const currentPrice = latestTrade?.p || dailyBar?.c || 0;
+    const prevClose = prevDailyBar?.c || dailyBar?.o || currentPrice;
+    const change = currentPrice - prevClose;
+    const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+    
+    return {
+      symbol: sym,
+      price: currentPrice,
+      prevClose,
+      change,
+      changePercent,
+      open: dailyBar?.o || 0,
+      high: dailyBar?.h || 0,
+      low: dailyBar?.l || 0,
+      volume: dailyBar?.v || 0,
+    };
   } catch (error) {
     console.error('Error fetching snapshot:', error.message);
     throw error;
@@ -462,12 +495,26 @@ export async function closePosition(symbol) {
 
 export async function getLatestPrice(symbol) {
   try {
-    const quote = await alpaca.getLatestQuote(symbol.toUpperCase());
+    const sym = symbol.toUpperCase();
+    const response = await fetch(`https://data.alpaca.markets/v2/stocks/${sym}/quotes/latest`, {
+      headers: {
+        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY,
+      },
+    });
+    
+    if (!response.ok) {
+      console.error('Alpaca quote error:', response.status);
+      throw new Error(`Alpaca API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const quote = data.quote;
     return {
-      symbol: symbol.toUpperCase(),
-      askPrice: quote.AskPrice,
-      bidPrice: quote.BidPrice,
-      price: quote.AskPrice || quote.BidPrice,
+      symbol: sym,
+      askPrice: quote?.ap,
+      bidPrice: quote?.bp,
+      price: quote?.ap || quote?.bp,
     };
   } catch (error) {
     console.error('Error getting latest price:', error.message);
