@@ -207,53 +207,42 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     };
   }, [activeTab, cryptoList, fetchCryptoQuote]);
 
-  // Fetch quote from Alpaca via Railway backend - WORKING ENDPOINT
-  const fetchQuote = useCallback(async (symbol) => {
-    try {
-      // Use public quote endpoint (same as TickerPill - has accurate change/changePercent)
-      const res = await fetch(`${API_URL}/api/public/quote/${symbol}`);
-      if (!res.ok) return null;
-      return await res.json();
-    } catch (err) {
-      console.error('Quote fetch error:', symbol, err);
-      return null;
-    }
-  }, []);
-
-  // Fetch all quotes
+  // Fetch all stock quotes via Vercel /api/stocks (Alpaca SIP bulk)
   useEffect(() => {
     if (activeTab !== 'stocks') {
       setLoading(false);
       return;
     }
+    if (activeWatchlist.length === 0) {
+      setLoading(false);
+      return;
+    }
     const fetchAllQuotes = async () => {
       setLoading(true);
-      const results = {};
-      
-      await Promise.all(
-        activeWatchlist.map(async (stock) => {
-          const quote = await fetchQuote(stock.symbol);
-          if (quote && quote.price) {
-            // Use API's change data directly (same source as TickerPill)
-            results[stock.symbol] = {
-              price: quote.price,
-              change: quote.change || 0,
-              changePercent: quote.changePercent || 0,
-              askPrice: quote.askPrice,
-              bidPrice: quote.bidPrice,
-            };
-          }
-        })
-      );
-      
-      setQuotes(results);
+      try {
+        const symbols = activeWatchlist.map(s => s.symbol).join(',');
+        const res = await fetch(`/api/stocks?symbols=${symbols}`);
+        if (!res.ok) throw new Error(`Stock API error: ${res.status}`);
+        const data = await res.json();
+        const results = {};
+        data.forEach(item => {
+          results[item.symbol] = {
+            price: item.price || 0,
+            change: item.change || 0,
+            changePercent: item.changePercent || 0,
+          };
+        });
+        setQuotes(results);
+      } catch (err) {
+        console.error('Stock quotes fetch error:', err);
+      }
       setLoading(false);
     };
     
     fetchAllQuotes();
-    const interval = setInterval(fetchAllQuotes, 10000); // Refresh every 10s
+    const interval = setInterval(fetchAllQuotes, 10000);
     return () => clearInterval(interval);
-  }, [activeTab, activeSymbols, fetchQuote]);
+  }, [activeTab, activeSymbols]);
 
   useEffect(() => {
     const interval = setInterval(() => setMarketStatus(getMarketStatus()), 60000);
