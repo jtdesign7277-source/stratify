@@ -755,10 +755,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               ? (stock.displaySymbol || stockInfo?.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
               : stock.symbol;
             const name = stockInfo?.name || stock.name || displaySymbol;
-            const showPreMarket = activeMarket === 'equity' && marketSession === 'pre' && Number.isFinite(preMarketPrice);
-            const showAfterHours = activeMarket === 'equity' && marketSession === 'after' && Number.isFinite(afterHoursPrice);
+            // Show extended hours data like Yahoo Finance - always show when available
+            const isExtendedHours = marketSession === 'pre' || marketSession === 'after' || marketSession === 'closed';
+            const showPreMarket = activeMarket === 'equity' && (marketSession === 'pre' || marketSession === 'closed') && Number.isFinite(preMarketPrice) && preMarketPrice > 0;
+            const showAfterHours = activeMarket === 'equity' && (marketSession === 'after' || marketSession === 'closed') && Number.isFinite(afterHoursPrice) && afterHoursPrice > 0;
             const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
             const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
+            const preMarketIsPositive = (preMarketChange || 0) >= 0;
+            const afterHoursIsPositive = (afterHoursChange || 0) >= 0;
             
             return (
               <div 
@@ -803,14 +807,22 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                           {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
                         </div>
                       )}
-                      {price > 0 && showPreMarket && preMarketPercentLabel && (
-                        <div className={`mt-1 text-xs ${getChangeColor(preMarketChange || 0)}`}>
-                          Pre: ${formatPrice(preMarketPrice)} {preMarketPercentLabel}
+                      {price > 0 && showPreMarket && (
+                        <div className="mt-1 flex items-center gap-1 text-xs">
+                          <span className="text-blue-400/70">Pre:</span>
+                          <span className="text-blue-400 font-mono">${formatPrice(preMarketPrice)}</span>
+                          <span className={preMarketIsPositive ? 'text-emerald-400' : 'text-red-400'}>
+                            {preMarketIsPositive ? '+' : ''}{(preMarketChange || 0).toFixed(2)} ({preMarketPercentLabel})
+                          </span>
                         </div>
                       )}
-                      {price > 0 && showAfterHours && afterHoursPercentLabel && (
-                        <div className={`mt-1 text-xs ${getChangeColor(afterHoursChange || 0)}`}>
-                          AH: ${formatPrice(afterHoursPrice)} {afterHoursPercentLabel}
+                      {price > 0 && showAfterHours && (
+                        <div className="mt-1 flex items-center gap-1 text-xs">
+                          <span className="text-purple-400/70">AH:</span>
+                          <span className="text-purple-400 font-mono">${formatPrice(afterHoursPrice)}</span>
+                          <span className={afterHoursIsPositive ? 'text-emerald-400' : 'text-red-400'}>
+                            {afterHoursIsPositive ? '+' : ''}{(afterHoursChange || 0).toFixed(2)} ({afterHoursPercentLabel})
+                          </span>
                         </div>
                       )}
                     </div>
