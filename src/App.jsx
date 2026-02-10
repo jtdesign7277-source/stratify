@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
-import SignUpPage from './components/auth/SignUpPage';
 import AuthPage from './components/AuthPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
@@ -977,6 +976,7 @@ function StratifyAppContent() {
   const { isAuthenticated, loading } = useAuth();
   const [guestSkipped, setGuestSkipped] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
+  const [authDefaultMode, setAuthDefaultMode] = useState('signin');
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1014,16 +1014,33 @@ function StratifyAppContent() {
     realized_pl: 0,
   };
 
+  const openAuth = (mode = 'signin') => {
+    setAuthDefaultMode(mode);
+    setCurrentPage('auth');
+  };
+
+  const handleSkip = () => {
+    setGuestSkipped(true);
+    setCurrentPage('dashboard');
+  };
+
   const mainContent =
     currentPage === 'landing' ? (
       <LandingPage
         onEnter={() => setCurrentPage('dashboard')}
-        onSignUp={() => setCurrentPage('signup')}
+        onSignUp={() => {
+          if (isAuthenticated) {
+            setCurrentPage('dashboard');
+            return;
+          }
+          openAuth('signup');
+        }}
       />
-    ) : currentPage === 'signup' ? (
-      <SignUpPage
+    ) : currentPage === 'auth' ? (
+      <AuthPage
+        defaultMode={authDefaultMode}
+        onSkip={handleSkip}
         onBack={() => setCurrentPage('landing')}
-        onSuccess={() => setCurrentPage('dashboard')}
       />
     ) : (
       <Dashboard
@@ -1042,15 +1059,16 @@ function StratifyAppContent() {
     );
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && currentPage === 'auth') {
       setCurrentPage('dashboard');
     }
-  }, [isAuthenticated]);
+  }, [currentPage, isAuthenticated]);
 
-  const handleSkip = () => {
-    setGuestSkipped(true);
-    setCurrentPage('dashboard');
-  };
+  useEffect(() => {
+    if (currentPage === 'dashboard' && !isAuthenticated && !guestSkipped) {
+      openAuth('signin');
+    }
+  }, [currentPage, guestSkipped, isAuthenticated]);
 
   if (loading) {
     return (
@@ -1061,10 +1079,6 @@ function StratifyAppContent() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated && !guestSkipped) {
-    return <AuthPage onSkip={handleSkip} />;
   }
 
   return (

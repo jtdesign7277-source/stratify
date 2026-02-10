@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const inputStyles =
   'w-full rounded-xl border border-[#1e1e2d] bg-[#0f0f16] px-3 py-2.5 text-sm text-white/90 placeholder:text-gray-500 focus:border-cyan-400/70 focus:outline-none focus:ring-1 focus:ring-cyan-400/20 transition-all';
 
-export default function AuthPage({ onSkip }) {
+export default function AuthPage({ onSkip, defaultMode = 'signin', onBack }) {
   const { signIn, signUp, loading } = useAuth();
-  const [mode, setMode] = useState('signin');
+  const [mode, setMode] = useState(defaultMode);
   const [formState, setFormState] = useState({
     email: '',
     password: '',
@@ -20,6 +20,10 @@ export default function AuthPage({ onSkip }) {
   const isSignIn = mode === 'signin';
   const iconProps = { strokeWidth: 1.5, fill: 'none' };
   const labelClass = 'mb-2 block text-[10px] font-semibold uppercase tracking-widest text-gray-400';
+
+  useEffect(() => {
+    setMode(defaultMode);
+  }, [defaultMode]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -68,6 +72,15 @@ export default function AuthPage({ onSkip }) {
 
       <div className="relative z-10 flex h-screen items-center justify-center px-6 py-6">
         <div className="w-full max-w-md space-y-5 rounded-3xl border border-white/10 bg-gradient-to-br from-[#0b0f18] via-[#070a12] to-[#05070d] p-7 shadow-[0_0_40px_rgba(0,0,0,0.55)] backdrop-blur">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-[11px] text-white/50 transition-colors hover:text-white/75"
+            >
+              Back to landing
+            </button>
+          ) : null}
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.32em] text-sky-200">
               <Sparkles className="h-3.5 w-3.5" {...iconProps} />
