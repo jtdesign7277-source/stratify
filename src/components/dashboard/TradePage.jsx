@@ -808,21 +808,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                         </div>
                       )}
                       {price > 0 && showPreMarket && (
-                        <div className="mt-1 flex items-center gap-1 text-xs">
-                          <span className="text-blue-400/70">Pre:</span>
-                          <span className="text-blue-400 font-mono">${formatPrice(preMarketPrice)}</span>
-                          <span className={preMarketIsPositive ? 'text-emerald-400' : 'text-red-400'}>
-                            {preMarketIsPositive ? '+' : ''}{(preMarketChange || 0).toFixed(2)} ({preMarketPercentLabel})
-                          </span>
+                        <div className="mt-1 text-xs">
+                          <span className="text-blue-400">Pre: {preMarketPercentLabel}</span>
                         </div>
                       )}
                       {price > 0 && showAfterHours && (
-                        <div className="mt-1 flex items-center gap-1 text-xs">
-                          <span className="text-purple-400/70">AH:</span>
-                          <span className="text-purple-400 font-mono">${formatPrice(afterHoursPrice)}</span>
-                          <span className={afterHoursIsPositive ? 'text-emerald-400' : 'text-red-400'}>
-                            {afterHoursIsPositive ? '+' : ''}{(afterHoursChange || 0).toFixed(2)} ({afterHoursPercentLabel})
-                          </span>
+                        <div className="mt-1 text-xs">
+                          <span className="text-purple-400">AH: {afterHoursPercentLabel}</span>
                         </div>
                       )}
                     </div>
