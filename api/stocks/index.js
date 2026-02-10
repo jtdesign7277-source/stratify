@@ -59,7 +59,24 @@ export default async function handler(req, res) {
       const prevDaily = snap.prevDailyBar || {};
       const latestPrice = latest.p || 0;
       const dailyClose = daily.c || 0;
-      const prevClose = prevDaily.c || 0;
+      const prevCloseCandidates = [
+        { source: 'prevDailyBar.c', value: prevDaily.c },
+        { source: 'dailyBar.o', value: daily.o },
+        { source: 'latestTrade.p', value: latest.p },
+      ];
+      let prevClose = 0;
+      let prevCloseSource = 'prevDailyBar.c';
+      for (const { source, value } of prevCloseCandidates) {
+        const numericValue = typeof value === 'number' ? value : Number(value);
+        if (numericValue) {
+          prevClose = numericValue;
+          prevCloseSource = source;
+          break;
+        }
+      }
+      if (prevCloseSource !== 'prevDailyBar.c') {
+        console.log(`[stocks] prevClose fallback for ${symbol}: using ${prevCloseSource} (prevDailyBar.c missing/0)`);
+      }
       
       // Extended hours calculations
       let preMarketPrice = null;
@@ -77,7 +94,7 @@ export default async function handler(req, res) {
         // - Main price = current live price
         // - Main change = yesterday's regular session change (close vs prev close)
         // - Pre-market = today's pre-market move (live vs yesterday's close)
-        price = latestPrice || prevClose || 0;
+        price = latestPrice || 0;
         
         // Yesterday's regular session change (what the stock did yesterday)
         const prevPrevClose = prevDaily.o || prevClose; // Approximate prior day
