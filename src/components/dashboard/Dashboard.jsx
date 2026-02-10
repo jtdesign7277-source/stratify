@@ -660,6 +660,15 @@ export default function Dashboard({
     }));
   };
 
+  const reorderWatchlist = (sourceIndex, destIndex) => {
+    setWatchlist(prev => {
+      const reordered = Array.from(prev);
+      const [removed] = reordered.splice(sourceIndex, 1);
+      reordered.splice(destIndex, 0, removed);
+      return reordered;
+    });
+  };
+
   const handleMouseUp = () => {
     setIsDragging(false);
     document.body.style.cursor = 'default';
@@ -858,7 +867,7 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'trade' && (
-            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />
+            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} onReorderWatchlist={reorderWatchlist} />
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff } from 'lucide-react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, GripVertical, FolderPlus, ChevronRight, Folder } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
@@ -211,7 +212,7 @@ const buildQuote = (quote) => {
   };
 };
 
-const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
+const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
   const [chartInterval, setChartInterval] = useState('D');
   const [selectedEquity, setSelectedEquity] = useState(() => {
@@ -563,7 +564,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       const normalizedStock = normalizeCryptoWatchlistItem(stock);
       setCryptoWatchlist(prev => {
         if (prev.some(s => s.symbol === normalizedStock.symbol)) return prev;
-        return [...prev, normalizedStock];
+        // Add new tickers to TOP of list (prepend)
+        return [normalizedStock, ...prev];
       });
     } else if (onAddToWatchlist) {
       onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
@@ -589,6 +591,27 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
       setSelectedEquity(symbol);
     }
   }, [activeMarket]);
+
+  // Handle drag & drop reordering
+  const handleDragEnd = useCallback((result) => {
+    if (!result.destination) return;
+    
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+    
+    if (sourceIndex === destIndex) return;
+    
+    if (activeMarket === 'crypto') {
+      setCryptoWatchlist(prev => {
+        const reordered = Array.from(prev);
+        const [removed] = reordered.splice(sourceIndex, 1);
+        reordered.splice(destIndex, 0, removed);
+        return reordered;
+      });
+    } else if (onReorderWatchlist) {
+      onReorderWatchlist(sourceIndex, destIndex);
+    }
+  }, [activeMarket, onReorderWatchlist]);
 
   const handlePlaceOrder = async () => {
     if (!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting') return;
@@ -818,133 +841,142 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           </div>
         )}
 
-        {/* Stock/Crypto List */}
-        <div className="flex-1 overflow-auto scrollbar-hide" style={scrollStyle}>
-          {activeLoading && Object.keys(activeQuotes).length === 0 && (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
-            </div>
-          )}
-          
-          {activeWatchlist.length === 0 && !activeLoading && (
-            <div className="px-4 py-6 text-center text-white/50 text-sm">
-              Watchlist is empty. Search to add symbols.
-            </div>
-          )}
-
-          {activeWatchlist.map((stock) => {
-            const quote = activeQuotes[stock.symbol] || {};
-            const price = quote.price || 0;
-            const change = quote.change || 0;
-            const changePercent = quote.changePercent || 0;
-            const preMarketPrice = quote.preMarketPrice;
-            const preMarketChange = quote.preMarketChange;
-            const preMarketChangePercent = quote.preMarketChangePercent;
-            const afterHoursPrice = quote.afterHoursPrice;
-            const afterHoursChange = quote.afterHoursChange;
-            const afterHoursChangePercent = quote.afterHoursChangePercent;
-            const isPositive = change >= 0;
-            const isSelected = selectedTicker === stock.symbol;
-            const stockInfo = activeMarket === 'crypto'
-              ? CRYPTO_DATABASE.find(s => s.symbol === stock.symbol || s.displaySymbol === stock.symbol)
-              : STOCK_DATABASE.find(s => s.symbol === stock.symbol);
-            const displaySymbol = activeMarket === 'crypto'
-              ? (stock.displaySymbol || stockInfo?.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
-              : stock.symbol;
-            const name = stockInfo?.name || stock.name || displaySymbol;
-            // Show extended hours data like Yahoo Finance - always show when available
-            const isExtendedHours = marketSession === 'pre' || marketSession === 'after' || marketSession === 'closed';
-            const showPreMarket = activeMarket === 'equity' && (marketSession === 'pre' || marketSession === 'closed') && Number.isFinite(preMarketPrice) && preMarketPrice > 0;
-            const showAfterHours = activeMarket === 'equity' && (marketSession === 'after' || marketSession === 'closed') && Number.isFinite(afterHoursPrice) && afterHoursPrice > 0;
-            const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
-            const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
-            const preMarketIsPositive = (preMarketChange || 0) >= 0;
-            const afterHoursIsPositive = (afterHoursChange || 0) >= 0;
-            
-            return (
+        {/* Stock/Crypto List with Drag & Drop */}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="watchlist">
+            {(provided, snapshot) => (
               <div 
-                key={stock.symbol}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', stock.symbol);
-                  e.dataTransfer.effectAllowed = 'copy';
-                  // Create small drag preview
-                  const dragEl = document.createElement('div');
-                  dragEl.textContent = stock.symbol;
-                  dragEl.style.cssText = 'position:absolute;top:-1000px;padding:4px 8px;background:#10b981;color:#000;font-size:11px;font-weight:600;border-radius:4px;';
-                  document.body.appendChild(dragEl);
-                  e.dataTransfer.setDragImage(dragEl, 30, 12);
-                  setTimeout(() => document.body.removeChild(dragEl), 0);
-                }}
-                className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
-                  isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
-                } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'}`}
-                onClick={() => handleSelectSymbol(stock.symbol)}
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="flex-1 overflow-auto scrollbar-hide" 
+                style={scrollStyle}
               >
-                {watchlistState === 'closed' ? (
-                  <div className="w-full text-center">
-                    <div className="text-white text-xs font-bold">${displaySymbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
-                      {price > 0 ? `$${formatPrice(price)}` : '...'}
-                    </div>
+                {activeLoading && Object.keys(activeQuotes).length === 0 && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-w-0 pr-4">
-                      <div className="text-white font-bold text-base">${displaySymbol}</div>
-                      <div className="text-white/50 text-sm truncate">{name}</div>
-                    </div>
+                )}
+                
+                {activeWatchlist.length === 0 && !activeLoading && (
+                  <div className="px-4 py-6 text-center text-white/50 text-sm">
+                    Watchlist is empty. Search to add symbols.
+                  </div>
+                )}
 
-                    <div className="text-right flex-shrink-0 mr-3">
-                      <div className="text-white font-semibold text-base font-mono">
-                        {price > 0 ? `$${formatPrice(price)}` : '...'}
-                      </div>
-                      {price > 0 && (
-                        <div className="flex flex-col items-end gap-1">
-                          {/* Regular hours change badge - clickable to toggle % / $ */}
-                          <span 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowDollarChange(!showDollarChange);
-                            }}
-                            className={`px-2 py-0.5 rounded text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
-                          >
-                            {showDollarChange 
-                              ? `${isPositive ? '+' : ''}$${Math.abs(change).toFixed(2)}`
-                              : `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`
-                            }
-                          </span>
-                          {/* Pre-market - blue % with yellow sun */}
-                          {showPreMarket && (
-                            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
-                              <span className="text-yellow-400">☀️</span>
-                              {preMarketPercentLabel}
-                            </span>
-                          )}
-                          {/* After-hours - blue % with purple moon */}
-                          {showAfterHours && (
-                            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
-                              <span className="text-purple-400">🌙</span>
-                              {afterHoursPercentLabel}
-                            </span>
+                {activeWatchlist.map((stock, index) => {
+                  const quote = activeQuotes[stock.symbol] || {};
+                  const price = quote.price || 0;
+                  const change = quote.change || 0;
+                  const changePercent = quote.changePercent || 0;
+                  const preMarketPrice = quote.preMarketPrice;
+                  const preMarketChange = quote.preMarketChange;
+                  const preMarketChangePercent = quote.preMarketChangePercent;
+                  const afterHoursPrice = quote.afterHoursPrice;
+                  const afterHoursChange = quote.afterHoursChange;
+                  const afterHoursChangePercent = quote.afterHoursChangePercent;
+                  const isPositive = change >= 0;
+                  const isSelected = selectedTicker === stock.symbol;
+                  const stockInfo = activeMarket === 'crypto'
+                    ? CRYPTO_DATABASE.find(s => s.symbol === stock.symbol || s.displaySymbol === stock.symbol)
+                    : STOCK_DATABASE.find(s => s.symbol === stock.symbol);
+                  const displaySymbol = activeMarket === 'crypto'
+                    ? (stock.displaySymbol || stockInfo?.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
+                    : stock.symbol;
+                  const name = stockInfo?.name || stock.name || displaySymbol;
+                  const isExtendedHours = marketSession === 'pre' || marketSession === 'after' || marketSession === 'closed';
+                  const showPreMarket = activeMarket === 'equity' && (marketSession === 'pre' || marketSession === 'closed') && Number.isFinite(preMarketPrice) && preMarketPrice > 0;
+                  const showAfterHours = activeMarket === 'equity' && (marketSession === 'after' || marketSession === 'closed') && Number.isFinite(afterHoursPrice) && afterHoursPrice > 0;
+                  const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
+                  const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
+                  
+                  return (
+                    <Draggable key={stock.symbol} draggableId={stock.symbol} index={index}>
+                      {(provided, snapshot) => (
+                        <div 
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                            isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
+                          } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'} ${
+                            snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
+                          }`}
+                          onClick={() => handleSelectSymbol(stock.symbol)}
+                        >
+                          {watchlistState === 'closed' ? (
+                            <div className="w-full text-center">
+                              <div className="text-white text-xs font-bold">${displaySymbol}</div>
+                              <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (isPositive ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
+                                {price > 0 ? `$${formatPrice(price)}` : '...'}
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Drag Handle */}
+                              <div 
+                                {...provided.dragHandleProps}
+                                className="mr-2 text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing"
+                              >
+                                <GripVertical className="w-4 h-4" />
+                              </div>
+
+                              <div className="flex-1 min-w-0 pr-4">
+                                <div className="text-white font-bold text-base">${displaySymbol}</div>
+                                <div className="text-white/50 text-sm truncate">{name}</div>
+                              </div>
+
+                              <div className="text-right flex-shrink-0 mr-3">
+                                <div className="text-white font-semibold text-base font-mono">
+                                  {price > 0 ? `$${formatPrice(price)}` : '...'}
+                                </div>
+                                {price > 0 && (
+                                  <div className="flex flex-col items-end gap-1">
+                                    <span 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowDollarChange(!showDollarChange);
+                                      }}
+                                      className={`px-2 py-0.5 rounded text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
+                                    >
+                                      {showDollarChange 
+                                        ? `${isPositive ? '+' : ''}$${Math.abs(change).toFixed(2)}`
+                                        : `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`
+                                      }
+                                    </span>
+                                    {showPreMarket && (
+                                      <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                                        <span className="text-yellow-400">☀️</span>
+                                        {preMarketPercentLabel}
+                                      </span>
+                                    )}
+                                    {showAfterHours && (
+                                      <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                                        <span className="text-purple-400">🌙</span>
+                                        {afterHoursPercentLabel}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <button 
+                                onClick={(e) => handleRemoveStock(stock.symbol, e)}
+                                className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400"
+                              >
+                                <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                              </button>
+                            </>
                           )}
                         </div>
                       )}
-                    </div>
-
-                    <button 
-                      onClick={(e) => handleRemoveStock(stock.symbol, e)}
-                      className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400"
-                    >
-                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                    </button>
-                  </>
-                )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </Droppable>
+        </DragDropContext>
 
         {/* Footer */}
         {watchlistState !== 'closed' && (
