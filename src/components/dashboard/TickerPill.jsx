@@ -12,12 +12,14 @@ const TickerPill = ({ symbol, onRemove }) => {
     
     const fetchPrice = async () => {
       try {
-        const response = await fetch(`https://stratify-backend-production-3ebd.up.railway.app/api/public/quote/${symbol}`);
+        // Use the Vercel API with Alpaca data
+        const response = await fetch(`/api/stocks?symbols=${symbol}`);
         const data = await response.json();
-        if (isMounted && data) {
-          setPrice(data.price || data.regularMarketPrice);
-          setChange(data.change || data.regularMarketChange);
-          setChangePercent(data.changePercent || data.regularMarketChangePercent);
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          const stock = data[0];
+          setPrice(stock.price);
+          setChange(stock.change);
+          setChangePercent(stock.changePercent);
           setLoading(false);
         }
       } catch (err) {

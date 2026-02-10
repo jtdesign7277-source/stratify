@@ -151,6 +151,168 @@ const GrokLoadingOverlay = ({ isVisible }) => {
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
+// Detect if user message is asking for a backtest and extract parameters
+const detectBacktestRequest = (message, previousContext = null) => {
+  const msg = message.toLowerCase();
+  
+  // Check for follow-up/modification requests (uses previous context)
+  const modifyKeywords = ['instead', 'change', 'make it', 'try', 'what about', 'switch to', 'use', 'with a', 'but with'];
+  const isModifyRequest = modifyKeywords.some(kw => msg.includes(kw)) && previousContext;
+  
+  if (isModifyRequest && previousContext) {
+    // Start with previous context and update only what's mentioned
+    const updated = { ...previousContext, originalMessage: message };
+    
+    // Check for stop loss changes
+    const stopMatch = msg.match(/(\d+(?:\.\d+)?)\s*%?\s*(?:stop|sl)/i);
+    if (stopMatch) updated.stopLoss = stopMatch[1] + '%';
+    
+    // Check for position size changes
+    const sizeMatch = msg.match(/\$?([\d,]+)k?\s*(?:worth|position|size)?/i);
+    if (sizeMatch && msg.includes('k')) {
+      updated.positionSize = '$' + (parseInt(sizeMatch[1]) * 1000);
+    }
+    
+    // Check for period changes
+    if (msg.includes('1 month') || msg.includes('1mo')) updated.period = '1M';
+    else if (msg.includes('3 month') || msg.includes('3mo')) updated.period = '3M';
+    else if (msg.includes('6 month') || msg.includes('6mo')) updated.period = '6M';
+    else if (msg.includes('1 year') || msg.includes('year')) updated.period = '1Y';
+    
+    // Check for strategy changes
+    if (msg.includes('rsi')) updated.strategyType = 'rsi';
+    else if (msg.includes('macd')) updated.strategyType = 'macd';
+    else if (msg.includes('vwap')) updated.strategyType = 'vwap';
+    else if (msg.includes('sma')) updated.strategyType = 'sma';
+    
+    return updated;
+  }
+  
+  // Check for new backtest keywords
+  const backtestKeywords = ['backtest', 'what if', 'last', 'weeks', 'months', 'bought', 'results', 'p&l', 'profit', 'loss', 'performance', 'traded', 'trading', 'strategy result', 'show me', 'run'];
+  const hasBacktestIntent = backtestKeywords.some(kw => msg.includes(kw));
+  if (!hasBacktestIntent) return null;
+  
+  // Extract ticker (look for $SYMBOL or common tickers)
+  const tickerPatterns = [
+    /\$([A-Z]{1,5})/gi,
+    /\b(TSLA|NVDA|AAPL|MSFT|GOOGL|AMZN|META|AMD|SPY|QQQ|GME|AMC|PLTR|COIN|SOFI)\b/gi,
+  ];
+  let ticker = null;
+  for (const pattern of tickerPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      ticker = match[0].replace('$', '').toUpperCase();
+      break;
+    }
+  }
+  // If no ticker found but we have previous context, use that ticker
+  if (!ticker && previousContext) ticker = previousContext.ticker;
+  if (!ticker) return null;
+  
+  // Extract timeframe/period
+  let period = '3M';
+  if (msg.includes('6 week') || msg.includes('6wk')) period = '6W';
+  else if (msg.includes('1 month') || msg.includes('1mo') || msg.includes('last month')) period = '1M';
+  else if (msg.includes('3 month') || msg.includes('3mo')) period = '3M';
+  else if (msg.includes('6 month') || msg.includes('6mo')) period = '6M';
+  else if (msg.includes('1 year') || msg.includes('1yr') || msg.includes('year')) period = '1Y';
+  else if (msg.includes('week')) period = '1M'; // default for "weeks" mentions
+  
+  // Extract strategy hints
+  let strategyType = 'custom';
+  if (msg.includes('vwap')) strategyType = 'vwap';
+  else if (msg.includes('rsi')) strategyType = 'rsi';
+  else if (msg.includes('macd')) strategyType = 'macd';
+  else if (msg.includes('sma') || msg.includes('moving average')) strategyType = 'sma';
+  else if (msg.includes('breakout')) strategyType = 'breakout';
+  
+  // Extract stop loss
+  let stopLoss = '3%';
+  const stopMatch = msg.match(/(\d+(?:\.\d+)?)\s*%?\s*stop/i);
+  if (stopMatch) stopLoss = stopMatch[1] + '%';
+  
+  // Extract position size
+  let positionSize = '$10000';
+  const sizeMatch = msg.match(/\$?([\d,]+)k?\s*(?:worth|position|size)/i);
+  if (sizeMatch) {
+    let amount = sizeMatch[1].replace(/,/g, '');
+    if (msg.includes('k')) amount = parseInt(amount) * 1000;
+    positionSize = '$' + amount;
+  }
+  const size2Match = msg.match(/(\d+)k\s*worth/i);
+  if (size2Match) positionSize = '$' + (parseInt(size2Match[1]) * 1000);
+  
+  // Extract timeframe for bars (5min, 1H, 1D)
+  let timeframe = '1Day';
+  if (msg.includes('5 min') || msg.includes('5min') || msg.includes('5m chart')) timeframe = '5Min';
+  else if (msg.includes('15 min') || msg.includes('15min')) timeframe = '15Min';
+  else if (msg.includes('1 hour') || msg.includes('1h') || msg.includes('hourly')) timeframe = '1Hour';
+  else if (msg.includes('intraday') || msg.includes('intra day') || msg.includes('day trad')) timeframe = '5Min';
+  
+  return { ticker, period, timeframe, strategyType, stopLoss, positionSize, originalMessage: message };
+};
+
+// Run actual backtest with Alpaca data
+const runRealBacktest = async (params) => {
+  const { ticker, period, timeframe, strategyType, stopLoss, positionSize, originalMessage } = params;
+  
+  const response = await fetch('https://stratify-backend-production-3ebd.up.railway.app/api/backtest/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ticker,
+      period,
+      timeframe,
+      strategy: {
+        type: strategyType,
+        stopLoss,
+        positionSize,
+        description: originalMessage,
+      },
+    }),
+  });
+  
+  const data = await response.json();
+  return data;
+};
+
+// Format backtest results as a nice message
+const formatBacktestResults = (data, params) => {
+  if (data.error) {
+    return `❌ **Backtest Error:** ${data.error}\n\nTry specifying a valid ticker and time period.`;
+  }
+  
+  const { summary, trades } = data;
+  const isProfit = parseFloat(summary?.totalPnL || 0) > 0;
+  const emoji = isProfit ? '📈' : '📉';
+  
+  let result = `## ${emoji} **${params.ticker} Backtest Results**\n\n`;
+  result += `**Period:** ${data.period || params.period} | **Timeframe:** ${data.timeframe || params.timeframe}\n`;
+  result += `**Bars Analyzed:** ${data.barsAnalyzed || 'N/A'}\n\n`;
+  
+  result += `### 💰 Performance Summary\n`;
+  result += `- **Total P&L:** ${isProfit ? '+' : ''}$${summary?.totalPnL || '0'}\n`;
+  result += `- **Return:** ${isProfit ? '+' : ''}${summary?.returnPercent || '0'}%\n`;
+  result += `- **Win Rate:** ${summary?.winRate || '0'}%\n`;
+  result += `- **Total Trades:** ${summary?.totalTrades || 0}\n`;
+  result += `- **Winning:** ${summary?.winningTrades || 0} | **Losing:** ${summary?.losingTrades || 0}\n`;
+  result += `- **Avg Win:** $${summary?.avgWin || '0'} | **Avg Loss:** $${summary?.avgLoss || '0'}\n`;
+  result += `- **Final Capital:** $${summary?.finalCash || '100,000'}\n\n`;
+  
+  if (trades && trades.length > 0) {
+    result += `### 📋 Recent Trades (${Math.min(trades.length, 5)} shown)\n`;
+    trades.slice(0, 5).forEach((t, i) => {
+      const pnlSign = t.pnl >= 0 ? '+' : '';
+      result += `${i + 1}. ${new Date(t.entryTime).toLocaleDateString()} → ${new Date(t.exitTime).toLocaleDateString()}: ${pnlSign}$${t.pnl?.toFixed(0) || 0} (${pnlSign}${t.pnlPercent?.toFixed(1) || 0}%)\n`;
+    });
+  }
+  
+  result += `\n*Data powered by Alpaca Markets (Live Feed)*`;
+  
+  return result;
+};
+
 const ALL_TICKERS = [
   { symbol: 'AAPL', name: 'Apple Inc.' },
   { symbol: 'MSFT', name: 'Microsoft Corporation' },
@@ -284,6 +446,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   const [selectedChartTimeframe, setSelectedChartTimeframe] = useState(null);
   const [selectedQuickStrategy, setSelectedQuickStrategy] = useState(null);
   const [messages, setMessages] = useState([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]);
+  const [lastBacktestContext, setLastBacktestContext] = useState(null); // Memory for follow-up questions
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isAwaitingFirstToken, setIsAwaitingFirstToken] = useState(false);
@@ -572,6 +735,49 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
       } catch (e) { setTabs(prev => prev.map(t => t.id === tabId ? { ...t, content: "Error generating strategy.", isTyping: false } : t)); }
       finally { setIsChatLoading(false); setIsAwaitingFirstToken(false); setStrategyName(''); setSelectedQuickStrategy(null); }
     } else {
+      // Check if this is a backtest request - run real Alpaca backtest instead of just chatting
+      const backtestParams = detectBacktestRequest(userMsg, lastBacktestContext);
+      if (backtestParams) {
+        const isFollowUp = lastBacktestContext && backtestParams.ticker === lastBacktestContext.ticker;
+        const loadingMsg = isFollowUp 
+          ? `🔄 Re-running ${backtestParams.ticker} backtest with ${backtestParams.stopLoss} stop loss...`
+          : `🔄 Running ${backtestParams.ticker} backtest with live Alpaca data...`;
+        
+        setMessages(prev => [...prev, { role: 'user', content: userMsg }, { role: 'assistant', content: loadingMsg, isTyping: true }]);
+        setIsChatLoading(true);
+        try {
+          const results = await runRealBacktest(backtestParams);
+          const formattedResults = formatBacktestResults(results, backtestParams);
+          setMessages(prev => {
+            const msgs = [...prev];
+            const lastIndex = msgs.length - 1;
+            if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+              msgs[lastIndex] = { role: 'assistant', content: formattedResults, isTyping: false };
+            }
+            return msgs;
+          });
+          // Save context for follow-up questions
+          setLastBacktestContext(backtestParams);
+          // Also set backtest results for Terminal view
+          if (results && !results.error) {
+            setBacktestResults(results);
+          }
+        } catch (err) {
+          setMessages(prev => {
+            const msgs = [...prev];
+            const lastIndex = msgs.length - 1;
+            if (lastIndex >= 0 && msgs[lastIndex].role === 'assistant') {
+              msgs[lastIndex] = { role: 'assistant', content: `❌ Backtest failed: ${err.message}`, isTyping: false };
+            }
+            return msgs;
+          });
+        } finally {
+          setIsChatLoading(false);
+        }
+        return;
+      }
+      
+      // Regular chat flow
       setMessages(prev => [...prev, { role: 'user', content: userMsg }, { role: 'assistant', content: '', isTyping: true }]);
       setIsChatLoading(true);
       setIsAwaitingFirstToken(true);
@@ -758,7 +964,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   const isGenerating = activeTab !== 'chat' && (isChatLoading || activeTabData?.isTyping);
 
   return (
-    <div className="w-96 h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden relative">
+    <div className="w-[480px] h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden relative">
       {/* Premium loading overlay */}
       <GrokLoadingOverlay isVisible={isGenerating} />
 
@@ -868,14 +1074,13 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
                 {activeTab === 'chat' ? (
                   <>
                     {messages.map((m, i) => (
-                      <div key={i} className="flex justify-start">
-                        <div className="max-w-[90%] text-left">
-                          {m.role === 'assistant' && m.isTyping && <div className="flex items-center gap-1 mb-1"><span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" /></div>}
-                          <div className={'text-sm leading-relaxed ' + (m.role === 'assistant' ? 'text-blue-400' : 'text-white/80')}>{renderContent(m.content, i)}</div>
-                        </div>
+                      <div key={i} className={`mb-3 ${m.role === 'user' ? 'bg-[#1a1a2e] rounded-lg p-3' : ''}`}>
+                        {m.role === 'user' && <div className="text-[10px] text-emerald-400 mb-1 uppercase tracking-wider">You</div>}
+                        {m.role === 'assistant' && <div className="text-[10px] text-blue-400 mb-1 uppercase tracking-wider flex items-center gap-1">{m.isTyping && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />}Grok</div>}
+                        <div className={'text-sm leading-relaxed whitespace-pre-wrap ' + (m.role === 'assistant' ? 'text-gray-200' : 'text-white/90')}>{renderContent(m.content, i)}</div>
                       </div>
                     ))}
-                    {isAwaitingFirstToken && <div className="flex justify-start"><div className="flex items-center gap-2 text-white/50 text-sm"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span>Grok is typing...</span></div></div>}
+                    {isAwaitingFirstToken && <div className="flex items-center gap-2 text-white/50 text-sm"><Loader2 className="w-4 h-4 text-emerald-400 animate-spin" /><span>Grok is thinking...</span></div>}
                   </>
                 ) : (
                   <>

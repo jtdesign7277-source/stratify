@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Sparkles, Zap, Play, Check, Loader2, Brain, LineChart, Code, Rocket, Shield, BarChart3 } from 'lucide-react';
 
-const LandingPage = ({ onEnter }) => {
+const LandingPage = ({ onEnter, onSignUp }) => {
   const [email, setEmail] = useState('');
   const [showIntro, setShowIntro] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
@@ -41,6 +41,14 @@ const LandingPage = ({ onEnter }) => {
     setTimeout(() => {
       if (introVideoRef.current) introVideoRef.current.play();
     }, 100);
+  };
+
+  const handlePrimaryCta = () => {
+    if (onSignUp) {
+      onSignUp();
+      return;
+    }
+    if (onEnter) onEnter();
   };
 
   const handleIntroEnd = () => onEnter && onEnter();
@@ -118,7 +126,7 @@ const LandingPage = ({ onEnter }) => {
             <a href="#how-it-works" className="text-white/60 hover:text-white transition-colors text-sm">How It Works</a>
             <a href="#pricing" className="text-white/60 hover:text-white transition-colors text-sm">Pricing</a>
             <button 
-              onClick={() => onEnter && onEnter()}
+              onClick={handlePrimaryCta}
               className="px-5 py-2.5 rounded-full border border-white/20 text-white text-sm hover:bg-white/5 transition-colors"
             >
               Get Started Free
@@ -588,7 +596,7 @@ const LandingPage = ({ onEnter }) => {
                   ))}
                 </ul>
                 <button 
-                  onClick={() => onEnter && onEnter()}
+                  onClick={handlePrimaryCta}
                   className="w-full py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors"
                 >
                   Get Started

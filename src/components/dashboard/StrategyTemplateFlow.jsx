@@ -173,11 +173,9 @@ const TIMEFRAMES = ["5m", "15m", "1H", "4H", "1D"];
 const PERIODS = ["1M", "3M", "6M", "1Y"];
 
 // ── API Configuration ──────────────────────────────────────────
-const API_BASE = "https://stratify-backend-production-3ebd.up.railway.app/api";
-
 const CRYPTO_TICKERS = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK", "ADA", "AVAX", "DOT"];
 
-// ── Fetch Real Historical Data ─────────────────────────────────
+// ── Fetch Real Historical Data from Alpaca via Vercel API ──────
 const fetchHistoricalBars = async (ticker, period, timeframe) => {
   const isCrypto = CRYPTO_TICKERS.includes(ticker);
 
@@ -186,7 +184,8 @@ const fetchHistoricalBars = async (ticker, period, timeframe) => {
   }
 
   try {
-    const url = `${API_BASE}/stocks/history/${ticker}?timeframe=${timeframe}&period=${period}`;
+    // Use Vercel API endpoint which hits Alpaca with live data
+    const url = `/api/history?symbol=${ticker}&timeframe=${timeframe}&period=${period}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json();
@@ -194,7 +193,7 @@ const fetchHistoricalBars = async (ticker, period, timeframe) => {
     if (!data.bars || data.bars.length === 0) throw new Error("No bars returned");
 
     return {
-      source: "alpaca",
+      source: "alpaca-live",
       bars: data.bars.map((b) => ({
         date: b.date,
         timestamp: b.timestamp || new Date(b.date).getTime(),
