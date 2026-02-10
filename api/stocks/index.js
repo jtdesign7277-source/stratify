@@ -73,13 +73,23 @@ export default async function handler(req, res) {
       let price, change, changePercent;
 
       if (isPreMarket) {
-        // During pre-market: main shows yesterday's close, pre-market shows live
-        price = prevClose || latestPrice || 0;
-        change = 0; // Yesterday's session ended flat relative to itself
-        changePercent = 0;
+        // During pre-market: 
+        // - Main price = current live price
+        // - Main change = yesterday's regular session change (close vs prev close)
+        // - Pre-market = today's pre-market move (live vs yesterday's close)
+        price = latestPrice || prevClose || 0;
         
-        // Pre-market: current live price vs yesterday's close
-        if (latestPrice && prevClose) {
+        // Yesterday's regular session change (what the stock did yesterday)
+        const prevPrevClose = prevDaily.o || prevClose; // Approximate prior day
+        change = dailyClose && prevClose ? dailyClose - prevClose : 0;
+        changePercent = prevClose && dailyClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
+        
+        // Pre-market: how much has it moved TODAY in pre-market from yesterday's close
+        if (latestPrice && dailyClose) {
+          preMarketPrice = latestPrice;
+          preMarketChange = latestPrice - dailyClose;
+          preMarketChangePercent = (preMarketChange / dailyClose) * 100;
+        } else if (latestPrice && prevClose) {
           preMarketPrice = latestPrice;
           preMarketChange = latestPrice - prevClose;
           preMarketChangePercent = (preMarketChange / prevClose) * 100;

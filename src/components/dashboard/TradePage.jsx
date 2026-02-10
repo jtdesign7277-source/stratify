@@ -803,18 +803,25 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                         {price > 0 ? `$${formatPrice(price)}` : '...'}
                       </div>
                       {price > 0 && (
-                        <div className={`text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
-                        </div>
-                      )}
-                      {price > 0 && showPreMarket && (
-                        <div className="mt-1 text-xs">
-                          <span className="text-blue-400">Pre: {preMarketPercentLabel}</span>
-                        </div>
-                      )}
-                      {price > 0 && showAfterHours && (
-                        <div className="mt-1 text-xs">
-                          <span className="text-purple-400">AH: {afterHoursPercentLabel}</span>
+                        <div className="flex flex-col items-end gap-1">
+                          {/* Regular hours change badge */}
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                          </span>
+                          {/* Pre-market badge */}
+                          {showPreMarket && (
+                            <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-400 flex items-center gap-1">
+                              <span>🌙</span>
+                              {preMarketPercentLabel}
+                            </span>
+                          )}
+                          {/* After-hours badge */}
+                          {showAfterHours && (
+                            <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/20 text-purple-400 flex items-center gap-1">
+                              <span>🌙</span>
+                              {afterHoursPercentLabel}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
