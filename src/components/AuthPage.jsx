@@ -135,7 +135,7 @@ export default function AuthPage({ onSkip, defaultMode = 'signin', onBack }) {
                     value={formState.full_name}
                     onChange={handleChange}
                     className={inputStyles}
-                    placeholder="Jeff Thompson"
+                    placeholder="Alex Morgan"
                     required
                   />
                 </div>

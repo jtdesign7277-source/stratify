@@ -630,7 +630,10 @@ const LandingPage = ({ onEnter, onSignUp }) => {
                     </li>
                   ))}
                 </ul>
-                <button className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg shadow-blue-500/25">
+                <button
+                  onClick={handlePrimaryCta}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg shadow-blue-500/25"
+                >
                   Upgrade to Pro
                 </button>
               </motion.div>
