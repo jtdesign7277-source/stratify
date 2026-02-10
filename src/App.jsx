@@ -1035,6 +1035,7 @@ function StratifyAppContent() {
           }
           openAuth('signup');
         }}
+        isAuthenticated={isAuthenticated}
       />
     ) : currentPage === 'auth' ? (
       <AuthPage

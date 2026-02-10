@@ -255,12 +255,28 @@ const BrokerBadge = ({ broker }) => {
 };
 
 const parseDropPayload = (event) => {
-  const jsonData = event.dataTransfer.getData('application/json') || event.dataTransfer.getData('text/plain');
-  if (!jsonData) return null;
-  try {
-    return JSON.parse(jsonData);
-  } catch {
-    return null;
+  const jsonData = event.dataTransfer.getData('text/stratify-game')
+    || event.dataTransfer.getData('application/json')
+    || event.dataTransfer.getData('text/plain');
+  if (jsonData) {
+    const trimmed = jsonData.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        // fall through to global payload
+      }
+    }
+  }
+  if (typeof window !== 'undefined' && window.__stratifyDragPayload) {
+    return window.__stratifyDragPayload;
+  }
+  return null;
+};
+
+const clearGlobalDragPayload = () => {
+  if (typeof window !== 'undefined') {
+    delete window.__stratifyDragPayload;
   }
 };
 
@@ -335,6 +351,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
             onDragOver={(e) => {
               if (slot >= 2) { // Only slots 2-5 can accept drops
                 e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
                 e.currentTarget.classList.add('border-emerald-500/50', 'bg-emerald-500/10');
               }
             }}
@@ -347,6 +364,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
               const payload = parseDropPayload(e);
               if (payload?.type === 'game' && onGameDrop && slot >= 2) {
                 onGameDrop(payload.data, slot);
+                clearGlobalDragPayload();
                 return;
               }
               const symbol = e.dataTransfer.getData('text/plain');

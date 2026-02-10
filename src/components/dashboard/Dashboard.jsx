@@ -905,11 +905,11 @@ export default function Dashboard({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Name</label>
-                      <input type="text" defaultValue="Jeff Thompson" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                      <input type="text" defaultValue="Alex Morgan" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
                     </div>
                     <div>
                       <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Email</label>
-                      <input type="email" defaultValue="jeff@stratify.associates" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                      <input type="email" defaultValue="alex@example.com" className="w-full rounded-lg border border-[#2a2a3d] bg-[#0b0b0b] px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
                     </div>
                     <div>
                       <label className="block text-xs text-white/50 uppercase tracking-wider mb-1">Phone</label>

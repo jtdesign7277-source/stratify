@@ -351,16 +351,29 @@ const GameCard = ({ game }) => {
   const isFinal = game.state === 'post';
 
   const handleGameDragStart = (e) => {
+    if (typeof window !== 'undefined') {
+      window.__stratifyDragPayload = { type: 'game', data: game };
+    }
+    if (!e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'copy';
     const payload = JSON.stringify({ type: 'game', data: game });
+    // Custom type helps the pill distinguish game drops from ticker symbols.
+    e.dataTransfer.setData('text/stratify-game', payload);
     e.dataTransfer.setData('application/json', payload);
     e.dataTransfer.setData('text/plain', payload);
+  };
+
+  const handleGameDragEnd = () => {
+    if (typeof window !== 'undefined') {
+      delete window.__stratifyDragPayload;
+    }
   };
   
   return (
     <div
       draggable
       onDragStart={handleGameDragStart}
+      onDragEnd={handleGameDragEnd}
       className={`p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
       isLive 
         ? 'bg-red-500/5 border-red-500/20' 
@@ -371,7 +384,7 @@ const GameCard = ({ game }) => {
         {/* Teams */}
         <div className="flex-1 space-y-1.5">
           <div className="flex items-center gap-2">
-            {game.awayLogo && <img src={game.awayLogo} alt="" className="w-5 h-5" />}
+            {game.awayLogo && <img src={game.awayLogo} alt="" className="w-5 h-5" draggable={false} />}
             <span className={`text-sm font-semibold ${
               isFinal && parseInt(game.awayScore) > parseInt(game.homeScore) ? 'text-white' : 'text-gray-400'
             }`}>{game.awayTeam}</span>
@@ -380,7 +393,7 @@ const GameCard = ({ game }) => {
             }`}>{game.awayScore}</span>
           </div>
           <div className="flex items-center gap-2">
-            {game.homeLogo && <img src={game.homeLogo} alt="" className="w-5 h-5" />}
+            {game.homeLogo && <img src={game.homeLogo} alt="" className="w-5 h-5" draggable={false} />}
             <span className={`text-sm font-semibold ${
               isFinal && parseInt(game.homeScore) > parseInt(game.awayScore) ? 'text-white' : 'text-gray-400'
             }`}>{game.homeTeam}</span>

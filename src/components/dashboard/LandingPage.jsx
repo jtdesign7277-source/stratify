@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Sparkles, Zap, Play, Check, Loader2, Brain, LineChart, Code, Rocket, Shield, BarChart3 } from 'lucide-react';
 
-const LandingPage = ({ onEnter, onSignUp }) => {
+const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
   const [email, setEmail] = useState('');
   const [showIntro, setShowIntro] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
@@ -129,7 +129,7 @@ const LandingPage = ({ onEnter, onSignUp }) => {
               onClick={handlePrimaryCta}
               className="px-5 py-2.5 rounded-full border border-white/20 text-white text-sm hover:bg-white/5 transition-colors"
             >
-              Sign Up
+              {isAuthenticated ? 'Dashboard' : 'Sign Up'}
             </button>
           </div>
         </nav>

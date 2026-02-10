@@ -339,7 +339,7 @@ const SignUpPage = ({ onBack, onSuccess }) => {
                       value={formState.full_name}
                       onChange={handleChange}
                       className={inputClass}
-                      placeholder="Jeff Thompson"
+                      placeholder="Alex Morgan"
                       autoComplete="name"
                       required
                     />
