@@ -479,46 +479,51 @@ export default function TrendScanner() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Reddit */}
-            {activeSources.has('reddit') && (trends?.reddit?.length || 0) > 0 && (
-              <section>
-                <SectionHeader icon={Flame} label="Reddit" count={trends.reddit.length} colorClass="orange" />
-                <div className="grid gap-2">
-                  {trends.reddit.map((post) => (
-                    <RedditCard key={post.id} post={post} accentColor="orange" />
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* 3-Column Layout: Reddit | WSB | X */}
+            {(activeSources.has('reddit') || activeSources.has('wsb') || activeSources.has('x')) && (
+              <div className="grid grid-cols-3 gap-4">
+                {/* Reddit Column */}
+                {activeSources.has('reddit') && (trends?.reddit?.length || 0) > 0 && (
+                  <section className="min-w-0">
+                    <SectionHeader icon={Flame} label="Reddit" count={trends.reddit.length} colorClass="orange" />
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+                      {trends.reddit.map((post) => (
+                        <RedditCard key={post.id} post={post} accentColor="orange" />
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-            {/* WallStreetBets */}
-            {activeSources.has('wsb') && (trends?.wsb?.length || 0) > 0 && (
-              <section>
-                <SectionHeader icon={WSBIcon} label="WallStreetBets" count={trends.wsb.length} colorClass="lime" />
-                <div className="grid gap-2">
-                  {trends.wsb.map((post) => (
-                    <RedditCard key={post.id} post={post} accentColor="lime" />
-                  ))}
-                </div>
-              </section>
-            )}
+                {/* WSB Column */}
+                {activeSources.has('wsb') && (trends?.wsb?.length || 0) > 0 && (
+                  <section className="min-w-0">
+                    <SectionHeader icon={WSBIcon} label="WSB" count={trends.wsb.length} colorClass="lime" />
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+                      {trends.wsb.map((post) => (
+                        <RedditCard key={post.id} post={post} accentColor="lime" />
+                      ))}
+                    </div>
+                  </section>
+                )}
 
-            {/* X / Twitter */}
-            {activeSources.has('x') && (trends?.x?.length || 0) > 0 && (
-              <section>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center">
-                    <XLogo className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <h2 className="text-[13px] font-semibold text-white/70">X / Twitter</h2>
-                  <span className="text-[10px] text-white/30 bg-white/[0.04] px-2 py-0.5 rounded-full">{trends.x.length}</span>
-                </div>
-                <div className="grid gap-2">
-                  {trends.x.map((topic) => (
-                    <XCard key={topic.id} topic={topic} />
-                  ))}
-                </div>
-              </section>
+                {/* X Column */}
+                {activeSources.has('x') && (trends?.x?.length || 0) > 0 && (
+                  <section className="min-w-0">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center">
+                        <XLogo className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <h2 className="text-[13px] font-semibold text-white/70">X</h2>
+                      <span className="text-[10px] text-white/30 bg-white/[0.04] px-2 py-0.5 rounded-full">{trends.x.length}</span>
+                    </div>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+                      {trends.x.map((topic) => (
+                        <XCard key={topic.id} topic={topic} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
             )}
 
             {/* Hacker News */}
