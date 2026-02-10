@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth, chat, market, notifications, social, users, websocket, kalshi
+from api import auth, chat, market, notifications, social, users, websocket, kalshi, news
 from core.config import settings
 from core.database import close_db, init_db
 from core.redis import redis_client
@@ -77,6 +77,7 @@ app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["
 app.include_router(websocket.router, prefix="/api/v1/ws", tags=["WebSocket"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Atlas AI"])
 app.include_router(kalshi.router, tags=["Kalshi Prediction Markets"])
+app.include_router(news.router, prefix="/api/news", tags=["News"])
 app.include_router(public.router, prefix="/api/public", tags=["Public"])
 
 

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
-// Mock breaking news (will be replaced with real API later)
-const mockNews = [
-  { id: 1, text: 'Fed signals potential rate pause in March meeting', type: 'news' },
-  { id: 2, text: 'NVDA earnings beat expectations, stock surges after hours', type: 'news' },
-  { id: 3, text: 'Bitcoin breaks $50K resistance level', type: 'news' },
-  { id: 4, text: 'Tesla announces new factory expansion in Texas', type: 'news' },
+const NEWS_REFRESH_MS = 5 * 60 * 1000;
+
+const fallbackNews = [
+  { id: 1, headline: 'Fed signals potential rate pause in March meeting', type: 'news' },
+  { id: 2, headline: 'NVDA earnings beat expectations, stock surges after hours', type: 'news' },
+  { id: 3, headline: 'Bitcoin breaks $50K resistance level', type: 'news' },
+  { id: 4, headline: 'Tesla announces new factory expansion in Texas', type: 'news' },
 ];
 
 const LiveAlertsTicker = () => {
@@ -16,7 +17,7 @@ const LiveAlertsTicker = () => {
     { id: 2, symbol: 'TSLA', pnl: -23.40, price: 245.30, type: 'trade' },
     { id: 3, symbol: 'META', pnl: 127.50, price: 542.15, type: 'trade' },
   ]);
-  const [news] = useState(mockNews);
+  const [news, setNews] = useState([]);
 
   // Fetch recent filled orders from Alpaca
   useEffect(() => {
@@ -53,6 +54,48 @@ const LiveAlertsTicker = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const normalizeNews = (items = []) => (
+      items
+        .filter(item => item && item.headline)
+        .map((item, index) => ({
+          id: item.id ?? item.url ?? index,
+          headline: item.headline,
+          source: item.source,
+          url: item.url,
+          datetime: item.datetime,
+          type: 'news'
+        }))
+    );
+
+    const fetchNews = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/news/market`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch news');
+        }
+        const data = await response.json();
+        const normalized = normalizeNews(Array.isArray(data) ? data : []);
+        if (isMounted) {
+          setNews(normalized.length ? normalized : fallbackNews);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setNews(fallbackNews);
+        }
+      }
+    };
+
+    fetchNews();
+    const interval = setInterval(fetchNews, NEWS_REFRESH_MS);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   // Combine trades and news
   const allItems = [
     ...alerts.map(a => ({
@@ -64,7 +107,7 @@ const LiveAlertsTicker = () => {
     })),
     ...news.map(n => ({
       ...n,
-      text: `📰 ${n.text}`,
+      text: `📰 ${n.headline}`,
       color: '#8ab4f8'
     }))
   ];

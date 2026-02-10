@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     alpaca_base_url: str = "https://paper-api.alpaca.markets"
     alpaca_data_url: str = "https://data.alpaca.markets"
 
+    # Finnhub API
+    finnhub_api_key: str = ""
+
     # Firebase
     firebase_credentials_path: str = "./firebase-credentials.json"
     firebase_project_id: str = ""
