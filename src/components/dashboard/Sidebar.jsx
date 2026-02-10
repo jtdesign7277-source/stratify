@@ -19,8 +19,10 @@ import {
   Trash2,
   Zap,
   TrendingUp,
-  Terminal
+  Terminal,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ 
   activeTab = 'home', 
@@ -31,8 +33,10 @@ const Sidebar = ({
   deployedStrategies = [],
   onRemoveSavedStrategy,
   grokPanelCollapsed = false,
-  onOpenFloatingGrok
+  onOpenFloatingGrok,
+  onLogout
 }) => {
+  const { signOut, isAuthenticated } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
@@ -138,6 +142,26 @@ const Sidebar = ({
               )}
             </button>
           </li>
+          {/* Logout button */}
+          {isAuthenticated && (
+            <li>
+              <button
+                onClick={async () => {
+                  await signOut();
+                  if (onLogout) onLogout();
+                }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium tracking-wide text-red-400 hover:bg-red-500/10 transition-all duration-200 hover:-translate-y-0.5 ${
+                  collapsed ? 'justify-center px-2' : ''
+                }`}
+                title={collapsed ? 'Log out' : undefined}
+              >
+                <LogOut className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.5} />
+                {!collapsed && (
+                  <span className="whitespace-nowrap overflow-hidden">Log out</span>
+                )}
+              </button>
+            </li>
+          )}
         </ul>
 
         <div className="h-px bg-white/10 mx-2 mb-2" />

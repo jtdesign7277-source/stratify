@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
+import { API_URL } from '../../config';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
 
@@ -12,9 +13,9 @@ const getMarketStatus = () => {
   const day = et.getDay();
   const time = hours * 60 + minutes;
   if (day === 0 || day === 6) return 'closed';
-  if (time >= 570 && time < 960) return 'open';
-  if (time >= 240 && time < 570) return 'premarket';
-  if (time >= 960 && time < 1200) return 'afterhours';
+  if (time >= 240 && time < 570) return 'pre_market';
+  if (time >= 570 && time < 960) return 'regular';
+  if (time >= 960 && time < 1200) return 'post_market';
   return 'closed';
 };
 
@@ -36,6 +37,12 @@ const formatCryptoPrice = (price) => {
 const formatPrice = (price) => {
   if (!price || price === 0) return '...';
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatExtendedPrice = (price) => {
+  if (!Number.isFinite(price)) return '...';
+  const formatted = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return formatted.replace(/^0(?=\.)/, '');
 };
 
 const STOCK_DATABASE = [
@@ -140,7 +147,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     return () => clearInterval(interval);
   }, []);
 
-  // ===== STOCK QUOTES via Vercel /api/stocks (Alpaca SIP) =====
+  // ===== STOCK QUOTES via API /api/public/quotes =====
   useEffect(() => {
     if (activeTab !== 'stocks' || activeWatchlist.length === 0) {
       setLoading(false);
@@ -150,7 +157,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     const fetchStockQuotes = async () => {
       try {
         const symbols = activeWatchlist.map(s => s.symbol).join(',');
-        const url = '/api/stocks?symbols=' + symbols;
+        const url = `${API_URL}/api/public/quotes?symbols=${encodeURIComponent(symbols)}`;
         console.log('[WatchlistPage] Fetching stocks:', url);
         const res = await fetch(url);
         if (!res.ok) {
@@ -165,9 +172,12 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         data.forEach(item => {
           if (item && item.symbol) {
             results[item.symbol] = {
-              price: item.price || 0,
-              change: item.change || 0,
-              changePercent: item.changePercent || 0,
+              latestPrice: item.latestPrice ?? item.price ?? 0,
+              change: item.change ?? 0,
+              changePercent: item.changePercent ?? 0,
+              marketSession: item.marketSession,
+              extendedHoursPrice: item.extendedHoursPrice,
+              extendedHoursChangePercent: item.extendedHoursChangePercent,
             };
           }
         });
@@ -280,13 +290,13 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             <div className="flex-1">
               <h1 className="font-semibold text-white text-xl">Watchlist</h1>
               <span className={`text-xs px-2 py-0.5 rounded inline-block mt-1 ${
-                marketStatus === 'open' ? 'bg-emerald-500/20 text-emerald-400' :
-                marketStatus === 'premarket' ? 'bg-blue-500/20 text-blue-400' :
-                marketStatus === 'afterhours' ? 'bg-purple-500/20 text-purple-400' :
+                marketStatus === 'regular' ? 'bg-emerald-500/20 text-emerald-400' :
+                marketStatus === 'pre_market' ? 'bg-blue-500/20 text-blue-400' :
+                marketStatus === 'post_market' ? 'bg-purple-500/20 text-purple-400' :
                 'bg-gray-500/20 text-gray-400'
               }`}>
-                {marketStatus === 'open' ? 'Market Open' : marketStatus === 'premarket' ? 'Pre-Market' :
-                 marketStatus === 'afterhours' ? 'After Hours' : 'Market Closed'}
+                {marketStatus === 'regular' ? 'Market Open' : marketStatus === 'pre_market' ? 'Pre-Market' :
+                 marketStatus === 'post_market' ? 'Post-Market' : 'Market Closed'}
               </span>
             </div>
           )}
@@ -413,10 +423,20 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           {/* Stock list */}
           {activeTab === 'stocks' && activeWatchlist.map((stock) => {
             const q = quotes[stock.symbol] || {};
-            const price = q.price || 0;
-            const change = q.change || 0;
-            const changePercent = q.changePercent || 0;
-            const pos = change >= 0;
+            const latestPrice = Number.isFinite(q.latestPrice) ? q.latestPrice : null;
+            const change = Number.isFinite(q.change) ? q.change : null;
+            const changePercent = Number.isFinite(q.changePercent) ? q.changePercent : null;
+            const pos = (change ?? 0) >= 0;
+            const marketSession = q.marketSession;
+            const extendedHoursPrice = Number.isFinite(q.extendedHoursPrice) ? q.extendedHoursPrice : null;
+            const extendedHoursChangePercent = Number.isFinite(q.extendedHoursChangePercent) ? q.extendedHoursChangePercent : null;
+            const showExtended = (marketSession === 'pre_market' || marketSession === 'post_market')
+              && Number.isFinite(extendedHoursPrice);
+            const extendedPos = extendedHoursChangePercent !== null ? extendedHoursChangePercent >= 0 : null;
+            const extendedLabel = marketSession === 'pre_market' ? 'Pre' : 'Post';
+            const extendedPercentLabel = extendedHoursChangePercent !== null
+              ? `${extendedPos ? '+' : ''}${extendedHoursChangePercent.toFixed(2)}%`
+              : '';
             const isSelected = selectedTicker === stock.symbol;
             const info = STOCK_DATABASE.find(s => s.symbol === stock.symbol);
             const name = info?.name || stock.name || stock.symbol;
@@ -431,8 +451,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 {isCollapsed ? (
                   <div className="w-full text-center">
                     <div className="text-white text-xs font-bold">${stock.symbol}</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${price > 0 ? (pos ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
-                      {price > 0 ? `$${formatPrice(price)}` : '...'}
+                    <div className={`text-[10px] font-medium mt-0.5 ${Number.isFinite(latestPrice) ? (pos ? 'text-emerald-400' : 'text-red-400') : 'text-white/50'}`}>
+                      {Number.isFinite(latestPrice) ? `$${formatPrice(latestPrice)}` : '...'}
                     </div>
                   </div>
                 ) : (
@@ -443,11 +463,16 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                     </div>
                     <div className="text-right flex-shrink-0 mr-3">
                       <div className="text-white font-semibold text-base font-mono">
-                        {price > 0 ? `$${formatPrice(price)}` : '...'}
+                        {Number.isFinite(latestPrice) ? `$${formatPrice(latestPrice)}` : '...'}
                       </div>
-                      {price > 0 && (
+                      {Number.isFinite(change) && Number.isFinite(changePercent) && (
                         <div className={`text-sm font-medium ${pos ? 'text-emerald-400' : 'text-red-400'}`}>
                           {pos ? '+' : ''}{change.toFixed(2)} ({pos ? '+' : ''}{changePercent.toFixed(2)}%)
+                        </div>
+                      )}
+                      {showExtended && (
+                        <div className={`text-xs font-medium mt-0.5 ${extendedPos === null ? 'text-gray-400' : (extendedPos ? 'text-emerald-400' : 'text-red-400')}`}>
+                          {extendedLabel} {formatExtendedPrice(extendedHoursPrice)} {extendedPercentLabel}
                         </div>
                       )}
                     </div>

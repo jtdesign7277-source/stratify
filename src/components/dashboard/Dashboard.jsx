@@ -821,6 +821,7 @@ export default function Dashboard({
           deployedStrategies={deployedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
           grokPanelCollapsed={isGrokPanelCollapsed}
+          onLogout={() => setCurrentPage('landing')}
         />
         
         {/* Main Content Area - Three Collapsible Panels */}
