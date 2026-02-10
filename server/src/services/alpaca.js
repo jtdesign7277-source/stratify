@@ -16,13 +16,6 @@ const PRE_MARKET_END_MINUTES = 9 * 60 + 30;
 const AFTER_HOURS_START_MINUTES = 16 * 60;
 const AFTER_HOURS_END_MINUTES = 20 * 60;
 
-const resolveLatestEntry = (collection, symbol, index) => {
-  if (!collection) return null;
-  if (Array.isArray(collection)) return collection[index];
-  if (collection.get) return collection.get(symbol);
-  return collection[symbol];
-};
-
 const getEasternMinutes = (timestamp) => {
   if (!timestamp) return null;
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
@@ -38,12 +31,18 @@ const getEasternMinutes = (timestamp) => {
   return hour * 60 + minute;
 };
 
-const resolveExtendedSession = (timestamp) => {
+const getMarketSessionForTimestamp = (timestamp) => {
+  if (!timestamp) return null;
   const minutes = getEasternMinutes(timestamp);
   if (minutes === null) return null;
-  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
-  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
-  return null;
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre_market';
+  if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'post_market';
+  return 'closed';
+};
+
+const getMarketSession = (timestamp = new Date()) => {
+  return getMarketSessionForTimestamp(timestamp) || 'closed';
 };
 
 const getEasternDateKey = (timestamp) => {
@@ -53,16 +52,9 @@ const getEasternDateKey = (timestamp) => {
   return date.toLocaleDateString('en-CA', { timeZone: EASTERN_TIMEZONE }); // YYYY-MM-DD
 };
 
-const getCurrentSession = () => {
-  const minutes = getEasternMinutes(new Date());
-  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
-  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
-  return null;
-};
-
-const getQuotePrice = (quote) => {
-  const bid = quote?.BidPrice;
-  const ask = quote?.AskPrice;
+const getV2QuotePrice = (quote) => {
+  const bid = quote?.bp;
+  const ask = quote?.ap;
   if (Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0) {
     return (bid + ask) / 2;
   }
@@ -71,8 +63,10 @@ const getQuotePrice = (quote) => {
   return null;
 };
 
-const buildExtendedHoursData = ({ trade, quote, prevClose, symbol }) => {
-  const nullResult = {
+const buildExtendedHoursSnapshotData = ({ marketSession, latestTrade, latestQuote, previousClose }) => {
+  const empty = {
+    extendedHoursPrice: null,
+    extendedHoursChangePercent: null,
     preMarketPrice: null,
     preMarketChange: null,
     preMarketChangePercent: null,
@@ -81,48 +75,32 @@ const buildExtendedHoursData = ({ trade, quote, prevClose, symbol }) => {
     afterHoursChangePercent: null,
   };
 
-  // Check if we're currently in extended hours
-  const currentSession = getCurrentSession();
+  if (marketSession !== 'pre_market' && marketSession !== 'post_market') return empty;
+
   const todayKey = getEasternDateKey(new Date());
-  
-  // Debug logging for first symbol
-  if (symbol === 'NVDA') {
-    console.log(`🕐 Extended hours debug for ${symbol}:`);
-    console.log(`   Current session: ${currentSession}, Today: ${todayKey}`);
-    console.log(`   Trade timestamp: ${trade?.Timestamp}, Trade price: ${trade?.Price}`);
-    console.log(`   Quote timestamp: ${quote?.Timestamp}, Bid: ${quote?.BidPrice}, Ask: ${quote?.AskPrice}`);
-    if (trade?.Timestamp) {
-      console.log(`   Trade date key: ${getEasternDateKey(trade?.Timestamp)}, Trade session: ${resolveExtendedSession(trade?.Timestamp)}`);
-    }
-  }
-  
-  if (!currentSession) return nullResult;
-
-  // Check trade first
-  const tradeSession = resolveExtendedSession(trade?.Timestamp);
-  const tradeDate = getEasternDateKey(trade?.Timestamp);
-  const tradeIsToday = tradeDate === todayKey && tradeSession === currentSession;
-
-  // Check quote
-  const quoteSession = resolveExtendedSession(quote?.Timestamp);
-  const quoteDate = getEasternDateKey(quote?.Timestamp);
-  const quoteIsToday = quoteDate === todayKey && quoteSession === currentSession;
-  const quotePrice = getQuotePrice(quote);
+  const tradeSession = getMarketSessionForTimestamp(latestTrade?.t);
+  const tradeDate = getEasternDateKey(latestTrade?.t);
+  const quoteSession = getMarketSessionForTimestamp(latestQuote?.t);
+  const quoteDate = getEasternDateKey(latestQuote?.t);
+  const tradePrice = Number.isFinite(latestTrade?.p) ? latestTrade.p : null;
+  const quotePrice = getV2QuotePrice(latestQuote);
 
   let price = null;
-  if (tradeIsToday && Number.isFinite(trade?.Price)) {
-    price = trade.Price;
-  } else if (quoteIsToday && Number.isFinite(quotePrice)) {
+  if (tradePrice !== null && tradeSession === marketSession && tradeDate === todayKey) {
+    price = tradePrice;
+  } else if (quotePrice !== null && quoteSession === marketSession && quoteDate === todayKey) {
     price = quotePrice;
   }
 
-  if (!Number.isFinite(price)) return nullResult;
+  if (!Number.isFinite(price)) return empty;
 
-  const change = prevClose > 0 ? price - prevClose : 0;
-  const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+  const change = previousClose > 0 ? price - previousClose : 0;
+  const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
-  if (currentSession === 'pre') {
+  if (marketSession === 'pre_market') {
     return {
+      extendedHoursPrice: price,
+      extendedHoursChangePercent: changePercent,
       preMarketPrice: price,
       preMarketChange: change,
       preMarketChangePercent: changePercent,
@@ -132,8 +110,10 @@ const buildExtendedHoursData = ({ trade, quote, prevClose, symbol }) => {
     };
   }
 
-  if (currentSession === 'after') {
+  if (marketSession === 'post_market') {
     return {
+      extendedHoursPrice: price,
+      extendedHoursChangePercent: changePercent,
       preMarketPrice: null,
       preMarketChange: null,
       preMarketChangePercent: null,
@@ -143,7 +123,92 @@ const buildExtendedHoursData = ({ trade, quote, prevClose, symbol }) => {
     };
   }
 
-  return nullResult;
+  return empty;
+};
+
+const buildEmptySnapshot = (symbol, marketSession) => ({
+  symbol,
+  latestPrice: 0,
+  previousClose: 0,
+  change: 0,
+  changePercent: 0,
+  extendedHoursPrice: null,
+  extendedHoursChangePercent: null,
+  marketSession,
+  price: 0,
+  prevClose: 0,
+  preMarketPrice: null,
+  preMarketChange: null,
+  preMarketChangePercent: null,
+  afterHoursPrice: null,
+  afterHoursChange: null,
+  afterHoursChangePercent: null,
+  open: 0,
+  high: 0,
+  low: 0,
+  volume: 0,
+});
+
+const normalizeSnapshot = ({ symbol, snapshot }) => {
+  const marketSession = getMarketSession();
+  if (!snapshot) return buildEmptySnapshot(symbol, marketSession);
+
+  const latestTrade = snapshot.latestTrade;
+  const latestQuote = snapshot.latestQuote;
+  const dailyBar = snapshot.dailyBar;
+  const prevDailyBar = snapshot.prevDailyBar;
+
+  const tradePrice = Number.isFinite(latestTrade?.p) ? latestTrade.p : null;
+  const quotePrice = getV2QuotePrice(latestQuote);
+  const fallbackPrice = Number.isFinite(dailyBar?.c)
+    ? dailyBar.c
+    : Number.isFinite(dailyBar?.o)
+      ? dailyBar.o
+      : Number.isFinite(prevDailyBar?.c)
+        ? prevDailyBar.c
+        : 0;
+  const latestPrice = Number.isFinite(tradePrice)
+    ? tradePrice
+    : Number.isFinite(quotePrice)
+      ? quotePrice
+      : fallbackPrice;
+  const previousClose = Number.isFinite(prevDailyBar?.c)
+    ? prevDailyBar.c
+    : Number.isFinite(dailyBar?.o)
+      ? dailyBar.o
+      : latestPrice;
+  const change = latestPrice - previousClose;
+  const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+
+  const extendedHours = buildExtendedHoursSnapshotData({
+    marketSession,
+    latestTrade,
+    latestQuote,
+    previousClose,
+  });
+
+  return {
+    symbol,
+    latestPrice,
+    previousClose,
+    change,
+    changePercent,
+    extendedHoursPrice: extendedHours.extendedHoursPrice,
+    extendedHoursChangePercent: extendedHours.extendedHoursChangePercent,
+    marketSession,
+    price: latestPrice,
+    prevClose: previousClose,
+    preMarketPrice: extendedHours.preMarketPrice,
+    preMarketChange: extendedHours.preMarketChange,
+    preMarketChangePercent: extendedHours.preMarketChangePercent,
+    afterHoursPrice: extendedHours.afterHoursPrice,
+    afterHoursChange: extendedHours.afterHoursChange,
+    afterHoursChangePercent: extendedHours.afterHoursChangePercent,
+    open: dailyBar?.o || 0,
+    high: dailyBar?.h || 0,
+    low: dailyBar?.l || 0,
+    volume: dailyBar?.v || 0,
+  };
 };
 
 export async function getQuotes() {
@@ -167,77 +232,8 @@ export async function getQuotes() {
 // Get snapshots with previous close for change calculation
 export async function getSnapshots(symbols = SYMBOLS) {
   try {
-    const [snapshots, latestTrades, latestQuotes] = await Promise.all([
-      alpaca.getSnapshots(symbols),
-      alpaca.getLatestTrades(symbols),
-      alpaca.getLatestQuotes(symbols),
-    ]);
-    
-    // DEBUG: Log raw response structure
-    console.log('📸 Raw snapshots type:', typeof snapshots, snapshots?.constructor?.name);
-    console.log('📸 Raw snapshots keys:', Object.keys(snapshots || {}));
-    
-    return symbols.map((symbol, index) => {
-      // Alpaca returns Array indexed by position, not by symbol name
-      const snapshot = resolveLatestEntry(snapshots, symbol, index);
-      const latestTradeData = resolveLatestEntry(latestTrades, symbol, index);
-      const latestQuoteData = resolveLatestEntry(latestQuotes, symbol, index);
-      
-      // DEBUG: Log first symbol's snapshot structure
-      if (index === 0) {
-        console.log(`📸 Snapshot for ${symbol}:`, JSON.stringify(snapshot, null, 2));
-      }
-      
-      if (!snapshot) {
-        return {
-          symbol,
-          price: 0,
-          prevClose: 0,
-          change: 0,
-          changePercent: 0,
-          preMarketPrice: null,
-          preMarketChange: null,
-          preMarketChangePercent: null,
-          afterHoursPrice: null,
-          afterHoursChange: null,
-          afterHoursChangePercent: null,
-        };
-      }
-      
-      const snapshotLatestTrade = snapshot.LatestTrade;
-      const dailyBar = snapshot.DailyBar;
-      const prevDailyBar = snapshot.PrevDailyBar;
-      
-      const currentPrice = snapshotLatestTrade?.Price || dailyBar?.ClosePrice || 0;
-      const prevClose = prevDailyBar?.ClosePrice || dailyBar?.OpenPrice || currentPrice;
-      const change = currentPrice - prevClose;
-      const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-      
-      const extendedHours = buildExtendedHoursData({
-        trade: latestTradeData,
-        quote: latestQuoteData,
-        prevClose,
-        symbol,
-      });
-
-      return {
-        symbol,
-        price: currentPrice,
-        prevClose,
-        change,
-        changePercent,
-        preMarketPrice: extendedHours.preMarketPrice,
-        preMarketChange: extendedHours.preMarketChange,
-        preMarketChangePercent: extendedHours.preMarketChangePercent,
-        afterHoursPrice: extendedHours.afterHoursPrice,
-        afterHoursChange: extendedHours.afterHoursChange,
-        afterHoursChangePercent: extendedHours.afterHoursChangePercent,
-        open: dailyBar?.OpenPrice || 0,
-        high: dailyBar?.HighPrice || 0,
-        low: dailyBar?.LowPrice || 0,
-        volume: dailyBar?.Volume || 0,
-      };
-    });
+    const snapshots = await Promise.all(symbols.map((symbol) => getSnapshot(symbol)));
+    return snapshots;
   } catch (error) {
     console.error('Error fetching snapshots:', error.message);
     throw error;
@@ -262,26 +258,7 @@ export async function getSnapshot(symbol) {
     }
     
     const data = await response.json();
-    const latestTrade = data.latestTrade;
-    const dailyBar = data.dailyBar;
-    const prevDailyBar = data.prevDailyBar;
-    
-    const currentPrice = latestTrade?.p || dailyBar?.c || 0;
-    const prevClose = prevDailyBar?.c || dailyBar?.o || currentPrice;
-    const change = currentPrice - prevClose;
-    const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-    
-    return {
-      symbol: sym,
-      price: currentPrice,
-      prevClose,
-      change,
-      changePercent,
-      open: dailyBar?.o || 0,
-      high: dailyBar?.h || 0,
-      low: dailyBar?.l || 0,
-      volume: dailyBar?.v || 0,
-    };
+    return normalizeSnapshot({ symbol: sym, snapshot: data });
   } catch (error) {
     console.error('Error fetching snapshot:', error.message);
     throw error;

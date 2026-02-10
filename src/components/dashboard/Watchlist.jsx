@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
+import { API_URL } from '../../config';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
-const API_BASE = '';
 
 const TrendUpIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -87,9 +87,9 @@ const getEasternMinutes = (date) => {
 
 const getMarketSession = () => {
   const minutes = getEasternMinutes(new Date());
-  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
+  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre_market';
   if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
-  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
+  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'post_market';
   return 'closed';
 };
 
@@ -109,13 +109,13 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
   const [cryptoQuotes, setCryptoQuotes] = useState({});
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('stocks');
-  const [marketSession, setMarketSession] = useState(getMarketSession);
+  const [localMarketSession, setLocalMarketSession] = useState(getMarketSession);
 
   const fetchStockQuotes = useCallback(async (symbolList) => {
     setStockLoading(true);
     try {
-      const query = symbolList && symbolList.length > 0 ? `?symbols=${symbolList.join(",")}` : "";
-      const res = await fetch(`/api/stocks${query}`);
+      const query = symbolList && symbolList.length > 0 ? `?symbols=${encodeURIComponent(symbolList.join(','))}` : '';
+      const res = await fetch(`${API_URL}/api/public/quotes${query}`);
       if (!res.ok) {
         throw new Error(`Failed to fetch stock snapshots: ${res.status}`);
       }
@@ -149,7 +149,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMarketSession(getMarketSession());
+      setLocalMarketSession(getMarketSession());
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -262,24 +262,22 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
         const isLoading = isCrypto ? (cryptoLoading && !quote.price) : (stockLoading && !quote.price);
         const hasData = isCrypto ? Number.isFinite(quote.price) : quote.price !== undefined;
         
-        const price = isCrypto ? quote.price : (quote.price || stock.price || 0);
-        const change = isCrypto ? (quote.changePercent ?? 0) : (quote.change || stock.change || 0);
-        const changePercent = isCrypto ? quote.changePercent : (quote.changePercent || stock.changePercent || 0);
+        const price = isCrypto ? quote.price : (quote.latestPrice ?? quote.price ?? stock.price ?? 0);
+        const change = isCrypto ? (quote.changePercent ?? 0) : (quote.change ?? stock.change ?? 0);
+        const changePercent = isCrypto ? quote.changePercent : (quote.changePercent ?? stock.changePercent ?? 0);
         const changePercentDisplay = isCrypto
           ? (Number.isFinite(changePercent) ? changePercent : null)
           : changePercent;
         const volume = isCrypto ? null : (quote.volume || stock.volume);
         const companyName = isCrypto ? stock.name : (quote.name || stock.name || '');
-        const preMarketPrice = isCrypto ? null : quote.preMarketPrice;
-        const preMarketChange = isCrypto ? null : quote.preMarketChange;
-        const preMarketChangePercent = isCrypto ? null : quote.preMarketChangePercent;
-        const afterHoursPrice = isCrypto ? null : quote.afterHoursPrice;
-        const afterHoursChange = isCrypto ? null : quote.afterHoursChange;
-        const afterHoursChangePercent = isCrypto ? null : quote.afterHoursChangePercent;
-        const showPreMarket = !isCrypto && marketSession === 'pre' && Number.isFinite(preMarketPrice);
-        const showAfterHours = !isCrypto && marketSession === 'after' && Number.isFinite(afterHoursPrice);
-        const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
-        const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
+        const resolvedMarketSession = isCrypto ? null : (quote.marketSession || localMarketSession);
+        const extendedHoursPrice = isCrypto ? null : quote.extendedHoursPrice;
+        const extendedHoursChangePercent = isCrypto ? null : quote.extendedHoursChangePercent;
+        const showExtendedHours = !isCrypto
+          && (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'post_market')
+          && Number.isFinite(extendedHoursPrice);
+        const extendedHoursPercentLabel = formatSignedPercent(extendedHoursChangePercent);
+        const extendedHoursLabel = resolvedMarketSession === 'pre_market' ? 'Pre' : 'AH';
         
         return (
           <div 
@@ -310,14 +308,9 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                         <span>{change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%</span>
                       </div>
                     )}
-                    {showPreMarket && preMarketPercentLabel && (
-                      <div className={`mt-1 text-xs ${getChangeColor(preMarketChange || 0)}`}>
-                        Pre: ${formatStockPrice(preMarketPrice)} {preMarketPercentLabel}
-                      </div>
-                    )}
-                    {showAfterHours && afterHoursPercentLabel && (
-                      <div className={`mt-1 text-xs ${getChangeColor(afterHoursChange || 0)}`}>
-                        AH: ${formatStockPrice(afterHoursPrice)} {afterHoursPercentLabel}
+                    {showExtendedHours && (
+                      <div className={`mt-1 text-xs ${getChangeColor(extendedHoursChangePercent || 0)}`}>
+                        {extendedHoursLabel}: ${formatStockPrice(extendedHoursPrice)} {extendedHoursPercentLabel || ''}
                       </div>
                     )}
                   </>

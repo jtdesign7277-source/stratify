@@ -10,7 +10,7 @@ import kalshiRouter from './routes/kalshi.js';
 import strategiesRouter from './routes/strategies.js';
 import strategyRouter from './routes/strategy.js';
 import trendsRouter, { setYahooFinance } from './routes/trends.js';
-import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice } from './services/alpaca.js';
+import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice, getSnapshot } from './services/alpaca.js';
 
 dotenv.config();
 
@@ -466,42 +466,37 @@ startAlpacaStream((data) => {
   });
 });
 
-// Yahoo Finance API endpoints (Google Finance style data)
+// Market data endpoints
 app.get('/api/public/quote/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
     const sym = symbol.toUpperCase();
-    
-    const quote = await yahooFinance.quote(sym);
-    
-    res.json({ 
-      symbol: sym,
-      name: quote.shortName || quote.longName || sym,
-      price: quote.regularMarketPrice || 0,
-      change: quote.regularMarketChange || 0,
-      changePercent: quote.regularMarketChangePercent || 0,
-      prevClose: quote.regularMarketPreviousClose || 0,
-      open: quote.regularMarketOpen || 0,
-      dayHigh: quote.regularMarketDayHigh || 0,
-      dayLow: quote.regularMarketDayLow || 0,
-      volume: quote.regularMarketVolume || 0,
-      avgVolume: quote.averageDailyVolume3Month || 0,
-      marketCap: quote.marketCap || 0,
-      fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh || 0,
-      fiftyTwoWeekLow: quote.fiftyTwoWeekLow || 0,
-      exchange: quote.exchange || '',
-      currency: quote.currency || 'USD',
-      marketState: quote.marketState || 'CLOSED',
-      // Pre/Post market data
-      preMarketPrice: quote.preMarketPrice,
-      preMarketChange: quote.preMarketChange,
-      preMarketChangePercent: quote.preMarketChangePercent,
-      postMarketPrice: quote.postMarketPrice,
-      postMarketChange: quote.postMarketChange,
-      postMarketChangePercent: quote.postMarketChangePercent,
-    });
+
+    const snapshot = await getSnapshot(sym);
+
+    res.json(snapshot);
   } catch (error) {
-    console.error('Yahoo Finance error:', error.message);
+    console.error('Alpaca snapshot error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/public/quotes', async (req, res) => {
+  try {
+    const rawSymbols = req.query?.symbols;
+    const symbols = typeof rawSymbols === 'string'
+      ? rawSymbols.split(',').map((sym) => String(sym || '').trim().toUpperCase()).filter(Boolean)
+      : [];
+
+    if (symbols.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const snapshots = await Promise.all(symbols.map((symbol) => getSnapshot(symbol)));
+    res.json(snapshots);
+  } catch (error) {
+    console.error('Alpaca snapshots error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
