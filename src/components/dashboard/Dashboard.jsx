@@ -36,6 +36,7 @@ import FloatingGrokChat from './FloatingGrokChat';
 import TerminalPage from './TerminalPage';
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
+import FredPage from './FredPage';
 
 const loadDashboardState = () => {
   try {
@@ -646,7 +647,8 @@ export default function Dashboard({
     // Handle both string (symbol) and object inputs
     const stockObj = typeof stock === 'string' ? { symbol: stock, name: stock } : stock;
     if (!watchlist.find(s => s.symbol === stockObj.symbol)) {
-      setWatchlist(prev => [...prev, stockObj]);
+      // Add new tickers to TOP of list (prepend)
+      setWatchlist(prev => [stockObj, ...prev]);
     }
   };
 
@@ -876,6 +878,7 @@ export default function Dashboard({
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
+          {activeTab === 'fred' && <FredPage />}
           {activeTab === 'terminal' && (
             <TerminalPage
               backtestResults={terminalBacktestResults}

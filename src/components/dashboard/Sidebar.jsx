@@ -8,6 +8,7 @@ import {
   LineChart, 
   Wallet, 
   History, 
+  Landmark,
   MoreHorizontal,
   ChevronsLeft,
   ChevronsRight,
@@ -54,6 +55,7 @@ const Sidebar = ({
     { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
+    { id: 'fred', label: 'FRED', icon: Landmark },
   ];
 
   const handleTabClick = (id) => {
