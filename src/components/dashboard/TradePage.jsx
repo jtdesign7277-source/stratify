@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import useBreakingNews from '../../hooks/useBreakingNews';
+import useAlpacaStream from '../../hooks/useAlpacaStream';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
@@ -313,6 +314,24 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const cryptoStocks = useMemo(() => (
     cryptoWatchlist.length > 0 ? cryptoWatchlist.map(normalizeWatchlistItem) : []
   ), [cryptoWatchlist]);
+  
+  // Real-time WebSocket streaming from Alpaca
+  const stockSymbolsForStream = useMemo(() => equityStocks.map(s => s.symbol), [equityStocks]);
+  const cryptoSymbolsForStream = useMemo(() => cryptoStocks.map(s => s.symbol), [cryptoStocks]);
+  
+  const {
+    stockQuotes: wsStockQuotes,
+    cryptoQuotes: wsCryptoQuotes,
+    stockConnected,
+    cryptoConnected,
+    isConnected: wsConnected,
+    error: wsError
+  } = useAlpacaStream({
+    stockSymbols: stockSymbolsForStream,
+    cryptoSymbols: cryptoSymbolsForStream,
+    enabled: true
+  });
+  
   const activeWatchlist = activeMarket === 'crypto' ? cryptoStocks : equityStocks;
   const activeDatabase = activeMarket === 'crypto' ? CRYPTO_DATABASE : STOCK_DATABASE;
   const defaultEquitySymbol = equityStocks[0]?.symbol || 'SPY';
@@ -375,10 +394,62 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const equitySymbolsKey = useMemo(() => equityStocks.map(s => s.symbol).join(','), [equityStocks]);
   const cryptoSymbolsKey = useMemo(() => cryptoStocks.map(s => s.symbol).join(','), [cryptoStocks]);
 
-  // Fetch equity quotes
+  // Merge WebSocket data with polling data for equity quotes
+  useEffect(() => {
+    if (Object.keys(wsStockQuotes).length > 0) {
+      setEquityQuotes(prev => {
+        const merged = { ...prev };
+        Object.entries(wsStockQuotes).forEach(([symbol, wsQuote]) => {
+          if (wsQuote.price) {
+            merged[symbol] = {
+              ...prev[symbol],
+              ...wsQuote,
+              // Keep previous day data if we have it
+              prevClose: prev[symbol]?.prevClose || wsQuote.prevClose,
+              change: wsQuote.price - (prev[symbol]?.prevClose || wsQuote.price),
+              changePercent: prev[symbol]?.prevClose 
+                ? ((wsQuote.price - prev[symbol].prevClose) / prev[symbol].prevClose) * 100 
+                : prev[symbol]?.changePercent || 0
+            };
+          }
+        });
+        return merged;
+      });
+      setEquityLoading(false);
+    }
+  }, [wsStockQuotes]);
+
+  // Merge WebSocket data with polling data for crypto quotes
+  useEffect(() => {
+    if (Object.keys(wsCryptoQuotes).length > 0) {
+      setCryptoQuotes(prev => {
+        const merged = { ...prev };
+        Object.entries(wsCryptoQuotes).forEach(([symbol, wsQuote]) => {
+          if (wsQuote.price) {
+            merged[symbol] = {
+              ...prev[symbol],
+              ...wsQuote,
+              prevClose: prev[symbol]?.prevClose || wsQuote.prevClose,
+              change: wsQuote.price - (prev[symbol]?.prevClose || wsQuote.price),
+              changePercent: prev[symbol]?.prevClose 
+                ? ((wsQuote.price - prev[symbol].prevClose) / prev[symbol].prevClose) * 100 
+                : prev[symbol]?.changePercent || 0
+            };
+          }
+        });
+        return merged;
+      });
+      setCryptoLoading(false);
+    }
+  }, [wsCryptoQuotes]);
+
+  // Fallback polling for equity quotes (runs on initial load and as backup)
   useEffect(() => {
     const fetchEquityQuotes = async () => {
-      setEquityLoading(true);
+      // Only show loading on initial fetch
+      if (Object.keys(equityQuotes).length === 0) {
+        setEquityLoading(true);
+      }
       const results = {};
       const snapshotData = await fetchSnapshot();
       const snapshotsBySymbol = {};
@@ -393,19 +464,23 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           results[stock.symbol] = quote;
         }
       });
-      setEquityQuotes(results);
+      setEquityQuotes(prev => ({ ...prev, ...results }));
       setEquityLoading(false);
     };
 
     fetchEquityQuotes();
-    const interval = setInterval(fetchEquityQuotes, 10000);
+    // Poll less frequently when WebSocket is connected (60s vs 10s)
+    const pollInterval = stockConnected ? 60000 : 10000;
+    const interval = setInterval(fetchEquityQuotes, pollInterval);
     return () => clearInterval(interval);
-  }, [equitySymbolsKey, fetchSnapshot]);
+  }, [equitySymbolsKey, fetchSnapshot, stockConnected]);
 
-  // Fetch crypto quotes
+  // Fallback polling for crypto quotes (runs on initial load and as backup)
   useEffect(() => {
     const fetchCryptoQuotes = async () => {
-      setCryptoLoading(true);
+      if (Object.keys(cryptoQuotes).length === 0) {
+        setCryptoLoading(true);
+      }
       const results = {};
       await Promise.all(
         cryptoStocks.map(async (stock) => {
@@ -415,14 +490,16 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           }
         })
       );
-      setCryptoQuotes(results);
+      setCryptoQuotes(prev => ({ ...prev, ...results }));
       setCryptoLoading(false);
     };
 
     fetchCryptoQuotes();
-    const interval = setInterval(fetchCryptoQuotes, 10000);
+    // Poll less frequently when WebSocket is connected
+    const pollInterval = cryptoConnected ? 60000 : 10000;
+    const interval = setInterval(fetchCryptoQuotes, pollInterval);
     return () => clearInterval(interval);
-  }, [cryptoSymbolsKey, fetchCryptoQuote]);
+  }, [cryptoSymbolsKey, fetchCryptoQuote, cryptoConnected]);
 
   useEffect(() => {
     localStorage.setItem('stratify-crypto-watchlist', JSON.stringify(cryptoWatchlist));
@@ -718,6 +795,25 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
               >
                 Crypto
               </button>
+            </div>
+            {/* WebSocket Connection Status */}
+            <div className="flex items-center justify-center gap-2 mt-2 text-[10px]">
+              {(activeMarket === 'equity' ? stockConnected : cryptoConnected) ? (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-emerald-400 font-medium">LIVE STREAMING</span>
+                </>
+              ) : (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
+                  </span>
+                  <span className="text-gray-500 font-medium">POLLING (10s)</span>
+                </>
+              )}
             </div>
           </div>
         )}
