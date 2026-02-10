@@ -212,6 +212,7 @@ const buildQuote = (quote) => {
 
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
+  const [chartInterval, setChartInterval] = useState('D');
   const [selectedEquity, setSelectedEquity] = useState(() => {
     // Check if coming from Active trades with a symbol
     const chartSymbol = localStorage.getItem('stratify_chart_symbol');
@@ -875,6 +876,22 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-lg bg-[#111111] border border-[#1f1f1f] p-1">
+              {['1', '5', '15', '30', '60', 'D', 'W', 'M'].map((interval) => (
+                <button
+                  key={interval}
+                  onClick={() => setChartInterval(interval)}
+                  className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors ${
+                    chartInterval === interval
+                      ? 'bg-[#1a1a1a] text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
+                  }`}
+                  aria-pressed={chartInterval === interval}
+                >
+                  {interval}
+                </button>
+              ))}
+            </div>
             {!isTradePanelOpen && (
               <button
                 onClick={() => setIsTradePanelOpen(true)}
@@ -889,7 +906,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
           <div className="flex-1 min-h-[360px] relative">
             <iframe
               key={chartSymbol}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${chartSymbol}&interval=D&show_ext=1&extended_hours=1&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=111118&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
+              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${chartSymbol}&interval=${chartInterval}&show_ext=1&extended_hours=1&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=111118&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
               style={{ width: '100%', height: '100%', border: 'none' }}
               allowFullScreen
             />
