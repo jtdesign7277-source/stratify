@@ -297,6 +297,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '' });
+  const [showDollarChange, setShowDollarChange] = useState(false); // Toggle % vs $ display
   const {
     breakingNews,
     isVisible: isBreakingNewsVisible,
@@ -804,9 +805,18 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                       </div>
                       {price > 0 && (
                         <div className="flex flex-col items-end gap-1">
-                          {/* Regular hours change badge */}
-                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                            {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                          {/* Regular hours change badge - clickable to toggle % / $ */}
+                          <span 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowDollarChange(!showDollarChange);
+                            }}
+                            className={`px-2 py-0.5 rounded text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
+                          >
+                            {showDollarChange 
+                              ? `${isPositive ? '+' : ''}$${Math.abs(change).toFixed(2)}`
+                              : `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`
+                            }
                           </span>
                           {/* Pre-market - just blue % */}
                           {showPreMarket && (
