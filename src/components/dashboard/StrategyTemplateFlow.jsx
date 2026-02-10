@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import RankAllStrategiesButton from "./RankAllStrategiesButton";
 
 /* ═══════════════════════════════════════════════════════════════
    STRATIFY — Strategy Template Detail Flow
@@ -807,7 +808,7 @@ const TemplatesGallery = ({ onSelect }) => (
 );
 
 // ── Strategy Detail View ───────────────────────────────────────
-const StrategyDetail = ({ template, onBack }) => {
+const StrategyDetail = ({ template, onBack, onSelectTemplate }) => {
   const [ticker, setTicker] = useState("TSLA");
   const [timeframe, setTimeframe] = useState("1H");
   const [period, setPeriod] = useState("6M");
@@ -853,6 +854,25 @@ const StrategyDetail = ({ template, onBack }) => {
 
   const Icon = template.icon;
 
+  const handleSelectStrategy = useCallback((selected) => {
+    if (!selected?.id) return;
+    const nextTemplate = TEMPLATES.find((t) => t.id === selected.id);
+    if (nextTemplate && onSelectTemplate) {
+      onSelectTemplate(nextTemplate);
+    }
+    if (selected.fullData?.bars?.length) {
+      setData(selected.fullData.bars);
+      setDataSource(selected.fullData.source || dataSource);
+      setFetchError(null);
+      setIsRunning(false);
+    }
+    if (typeof selected.fullData?.capital === "number") {
+      setCapital(selected.fullData.capital);
+    }
+    setActivated(false);
+    setShowTrades(false);
+  }, [onSelectTemplate, dataSource]);
+
   return (
     <div style={{ animation: "fadeSlideIn 0.35s ease both" }}>
       {/* Top bar */}
@@ -874,29 +894,41 @@ const StrategyDetail = ({ template, onBack }) => {
           </div>
         </div>
 
-        <button
-          onClick={() => setActivated(true)}
-          disabled={activated}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
-          style={{
-            background: activated ? "#16a34a20" : `linear-gradient(135deg, ${template.color}, ${template.color}cc)`,
-            color: activated ? "#34d399" : "#020817",
-            border: activated ? "1px solid #16a34a40" : "none",
-            opacity: activated ? 1 : undefined,
-          }}
-        >
-          {activated ? (
-            <>
-              <Icons.Check className="w-4 h-4" />
-              Strategy Activated
-            </>
-          ) : (
-            <>
-              <Icons.Play className="w-3.5 h-3.5" />
-              Activate Strategy
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <RankAllStrategiesButton
+            ticker={ticker}
+            timeframe={timeframe}
+            period={period}
+            capital={capital}
+            templates={TEMPLATES}
+            runBacktest={runBacktest}
+            fetchHistoricalBars={fetchHistoricalBars}
+            onSelectStrategy={handleSelectStrategy}
+          />
+          <button
+            onClick={() => setActivated(true)}
+            disabled={activated}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
+            style={{
+              background: activated ? "#16a34a20" : `linear-gradient(135deg, ${template.color}, ${template.color}cc)`,
+              color: activated ? "#34d399" : "#020817",
+              border: activated ? "1px solid #16a34a40" : "none",
+              opacity: activated ? 1 : undefined,
+            }}
+          >
+            {activated ? (
+              <>
+                <Icons.Check className="w-4 h-4" />
+                Strategy Activated
+              </>
+            ) : (
+              <>
+                <Icons.Play className="w-3.5 h-3.5" />
+                Activate Strategy
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Config Bar */}
@@ -1170,7 +1202,11 @@ export default function StrategyTemplateFlow() {
       <div className="relative z-10 p-4 lg:p-6 max-w-[1400px] mx-auto">
         {/* Content */}
         {selected ? (
-          <StrategyDetail template={selected} onBack={() => setSelected(null)} />
+          <StrategyDetail
+            template={selected}
+            onBack={() => setSelected(null)}
+            onSelectTemplate={setSelected}
+          />
         ) : (
           <TemplatesGallery onSelect={setSelected} />
         )}
