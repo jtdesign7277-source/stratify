@@ -818,15 +818,17 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                               : `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`
                             }
                           </span>
-                          {/* Pre-market - just blue % */}
+                          {/* Pre-market - blue % with yellow sun */}
                           {showPreMarket && (
-                            <span className="text-xs font-semibold text-blue-400">
+                            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                              <span className="text-yellow-400">☀️</span>
                               {preMarketPercentLabel}
                             </span>
                           )}
-                          {/* After-hours - just blue % */}
+                          {/* After-hours - blue % with purple moon */}
                           {showAfterHours && (
-                            <span className="text-xs font-semibold text-blue-400">
+                            <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                              <span className="text-purple-400">🌙</span>
                               {afterHoursPercentLabel}
                             </span>
                           )}
