@@ -61,11 +61,6 @@ export default async function handler(req, res) {
       const dailyClose = daily.c || 0;
       const prevClose = prevDaily.c || 0;
       
-      // Regular session price and change (based on prev close)
-      const price = latestPrice || dailyClose || 0;
-      const change = prevClose ? price - prevClose : 0;
-      const changePercent = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
-
       // Extended hours calculations
       let preMarketPrice = null;
       let preMarketChange = null;
@@ -74,18 +69,38 @@ export default async function handler(req, res) {
       let afterHoursChange = null;
       let afterHoursChangePercent = null;
 
-      // During pre-market: show change from previous close
-      if (isPreMarket && latestPrice && prevClose) {
-        preMarketPrice = latestPrice;
-        preMarketChange = latestPrice - prevClose;
-        preMarketChangePercent = (preMarketChange / prevClose) * 100;
-      }
+      // Determine what price/change to show as "main" based on session
+      let price, change, changePercent;
 
-      // During after-hours or closed: show change from today's close
-      if ((isAfterHours || isWeekend || (!isPreMarket && !isRegularHours && !isAfterHours)) && latestPrice && dailyClose && latestPrice !== dailyClose) {
-        afterHoursPrice = latestPrice;
-        afterHoursChange = latestPrice - dailyClose;
-        afterHoursChangePercent = (afterHoursChange / dailyClose) * 100;
+      if (isPreMarket) {
+        // During pre-market: main shows yesterday's close, pre-market shows live
+        price = prevClose || latestPrice || 0;
+        change = 0; // Yesterday's session ended flat relative to itself
+        changePercent = 0;
+        
+        // Pre-market: current live price vs yesterday's close
+        if (latestPrice && prevClose) {
+          preMarketPrice = latestPrice;
+          preMarketChange = latestPrice - prevClose;
+          preMarketChangePercent = (preMarketChange / prevClose) * 100;
+        }
+      } else if (isAfterHours) {
+        // During after-hours: main shows today's close, AH shows live movement from close
+        price = dailyClose || latestPrice || 0;
+        change = prevClose ? dailyClose - prevClose : 0;
+        changePercent = prevClose ? ((dailyClose - prevClose) / prevClose) * 100 : 0;
+        
+        // After-hours: current live price vs today's close
+        if (latestPrice && dailyClose && latestPrice !== dailyClose) {
+          afterHoursPrice = latestPrice;
+          afterHoursChange = latestPrice - dailyClose;
+          afterHoursChangePercent = (afterHoursChange / dailyClose) * 100;
+        }
+      } else {
+        // Regular hours or closed: show current/latest price
+        price = latestPrice || dailyClose || 0;
+        change = prevClose ? price - prevClose : 0;
+        changePercent = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
       }
 
       return {
