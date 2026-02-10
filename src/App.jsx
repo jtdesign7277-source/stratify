@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
-import KrakenDashboard from './components/dashboard/KrakenDashboard';
 import LandingPage from './components/dashboard/LandingPage';
+import SignUpPage from './components/auth/SignUpPage';
+import AuthPage from './components/AuthPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
@@ -971,7 +973,9 @@ export class TeslaEMAStrategy extends Strategy {
 };
 
 // Main App Component
-export default function StratifyApp() {
+function StratifyAppContent() {
+  const { isAuthenticated, loading } = useAuth();
+  const [guestSkipped, setGuestSkipped] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
@@ -1012,7 +1016,15 @@ export default function StratifyApp() {
 
   const mainContent =
     currentPage === 'landing' ? (
-      <LandingPage onEnter={() => setCurrentPage('dashboard')} />
+      <LandingPage
+        onEnter={() => setCurrentPage('dashboard')}
+        onSignUp={() => setCurrentPage('signup')}
+      />
+    ) : currentPage === 'signup' ? (
+      <SignUpPage
+        onBack={() => setCurrentPage('landing')}
+        onSuccess={() => setCurrentPage('dashboard')}
+      />
     ) : (
       <Dashboard
         setCurrentPage={setCurrentPage}
@@ -1029,6 +1041,32 @@ export default function StratifyApp() {
       />
     );
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      setCurrentPage('dashboard');
+    }
+  }, [isAuthenticated]);
+
+  const handleSkip = () => {
+    setGuestSkipped(true);
+    setCurrentPage('dashboard');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#07070a] text-white flex items-center justify-center">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-4 text-sm text-gray-300">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
+          Checking your session...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && !guestSkipped) {
+    return <AuthPage onSkip={handleSkip} />;
+  }
+
   return (
     <>
       {mainContent}
@@ -1042,5 +1080,13 @@ export default function StratifyApp() {
         onClose={() => setIsSocialFeedOpen(false)}
       />
     </>
+  );
+}
+
+export default function StratifyApp() {
+  return (
+    <AuthProvider>
+      <StratifyAppContent />
+    </AuthProvider>
   );
 }
