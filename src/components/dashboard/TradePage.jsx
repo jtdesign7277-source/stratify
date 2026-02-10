@@ -808,14 +808,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist }) 
                           <span className={`px-2 py-0.5 rounded text-xs font-semibold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                             {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
                           </span>
-                          {/* Pre-market badge */}
+                          {/* Pre-market badge - sun for morning */}
                           {showPreMarket && (
                             <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-400 flex items-center gap-1">
-                              <span>🌙</span>
+                              <span>☀️</span>
                               {preMarketPercentLabel}
                             </span>
                           )}
-                          {/* After-hours badge */}
+                          {/* After-hours badge - moon for evening */}
                           {showAfterHours && (
                             <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/20 text-purple-400 flex items-center gap-1">
                               <span>🌙</span>
