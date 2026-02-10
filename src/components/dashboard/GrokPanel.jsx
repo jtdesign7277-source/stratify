@@ -5,6 +5,7 @@ import {
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
   ChevronsLeft, ChevronsRight, RotateCcw, Save, Play, ArrowLeft
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const GROK_LOADING_STEPS = ['Analyzing', 'Building', 'Testing'];
 const GROK_WELCOME_MESSAGE = "Hey there! How can I help you today? Whether you need assistance with generating a trading strategy, executing a trade, or have questions about the markets, I'm here to help.";
@@ -443,6 +444,10 @@ const PANEL_WIDTHS = {
 };
 
 const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBacktestResults }) => {
+  // Get current user for per-user memory
+  const { user } = useAuth();
+  const userId = user?.id;
+  
   // 3-state panel: 'full' | 'half' | 'collapsed'
   const [panelState, setPanelState] = useState(() => {
     try {
@@ -475,7 +480,22 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   const [selectedTimeframe, setSelectedTimeframe] = useState(null);
   const [selectedChartTimeframe, setSelectedChartTimeframe] = useState(null);
   const [selectedQuickStrategy, setSelectedQuickStrategy] = useState(null);
-  const [messages, setMessages] = useState([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]);
+  
+  // Per-user chat memory - load from localStorage on mount
+  const [messages, setMessages] = useState(() => {
+    if (!userId) return [{ role: 'assistant', content: '', isTyping: true, isIntro: true }];
+    try {
+      const saved = localStorage.getItem(`stratify-grok-chat-${userId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Ensure we have valid messages array
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return [{ role: 'assistant', content: '', isTyping: true, isIntro: true }];
+  });
   const [lastBacktestContext, setLastBacktestContext] = useState(null); // Memory for follow-up questions
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -504,6 +524,42 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, tabs]);
+
+  // Persist messages to localStorage for logged-in users (debounced, skip during typing)
+  useEffect(() => {
+    if (!userId) return;
+    // Only save if we have real messages (not just the intro typing state)
+    const hasRealMessages = messages.some(m => m.content && !m.isTyping);
+    if (!hasRealMessages && messages.length === 1 && messages[0].isIntro) return;
+    
+    const timer = setTimeout(() => {
+      try {
+        // Filter out typing states for storage
+        const toSave = messages.filter(m => !m.isTyping || m.content);
+        localStorage.setItem(`stratify-grok-chat-${userId}`, JSON.stringify(toSave));
+      } catch {}
+    }, 500); // Debounce to avoid too many writes
+    
+    return () => clearTimeout(timer);
+  }, [messages, userId]);
+
+  // Reset/load messages when user changes
+  useEffect(() => {
+    if (userId) {
+      try {
+        const saved = localStorage.getItem(`stratify-grok-chat-${userId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+            return;
+          }
+        }
+      } catch {}
+    }
+    // No saved messages or not logged in - show welcome
+    setMessages([{ role: 'assistant', content: '', isTyping: true, isIntro: true }]);
+  }, [userId]);
 
   useEffect(() => {
     onCollapsedChange && onCollapsedChange(panelState === 'collapsed', panelState);
