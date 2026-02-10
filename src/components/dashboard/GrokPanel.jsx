@@ -435,8 +435,38 @@ const parseStrategyResponse = (content) => {
   return { summary: parsed, code, raw: content };
 };
 
+// Panel width constants
+const PANEL_WIDTHS = {
+  full: 480,
+  half: 280,
+  collapsed: 40
+};
+
 const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBacktestResults }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // 3-state panel: 'full' | 'half' | 'collapsed'
+  const [panelState, setPanelState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('stratify-grok-panel-state');
+      return saved && ['full', 'half', 'collapsed'].includes(saved) ? saved : 'full';
+    } catch { return 'full'; }
+  });
+  
+  // Persist panel state to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('stratify-grok-panel-state', panelState); } catch {}
+  }, [panelState]);
+  
+  // Cycle through states: full → half → collapsed → full
+  const cyclePanel = () => {
+    setPanelState(prev => {
+      if (prev === 'full') return 'half';
+      if (prev === 'half') return 'collapsed';
+      return 'full';
+    });
+  };
+  
+  // Expand from collapsed directly to full
+  const expandPanel = () => setPanelState('full');
   const [tickerSearch, setTickerSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedTickers, setSelectedTickers] = useState([]);
@@ -476,8 +506,8 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   }, [messages, tabs]);
 
   useEffect(() => {
-    onCollapsedChange && onCollapsedChange(isCollapsed);
-  }, [isCollapsed, onCollapsedChange]);
+    onCollapsedChange && onCollapsedChange(panelState === 'collapsed', panelState);
+  }, [panelState, onCollapsedChange]);
 
   useEffect(() => {
     const introIndex = messages.findIndex(m => m.isIntro);
@@ -951,12 +981,23 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   const activeTabData = tabs.find(t => t.id === activeTab);
   const isStrategyTab = activeTab !== 'chat' && activeTabData;
 
-  if (isCollapsed) {
+  // Collapsed state - thin vertical bar with expand button
+  if (panelState === 'collapsed') {
     return (
-      <div className="w-10 h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col items-center py-2">
-        <button onClick={() => setIsCollapsed(false)} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none"><ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
-        <div className="mt-2 p-1 bg-emerald-500/20 rounded"><Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} /></div>
-      </div>
+      <motion.div 
+        initial={{ width: PANEL_WIDTHS.half }}
+        animate={{ width: PANEL_WIDTHS.collapsed }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        className="h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col items-center py-2"
+      >
+        <button onClick={expandPanel} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Expand panel">
+          <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+        </button>
+        <div className="mt-2 p-1 bg-emerald-500/20 rounded">
+          <Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} />
+        </div>
+        <div className="mt-2 writing-mode-vertical text-[10px] text-gray-500 tracking-widest" style={{ writingMode: 'vertical-rl' }}>GROK</div>
+      </motion.div>
     );
   }
 
@@ -964,19 +1005,25 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
   const isGenerating = activeTab !== 'chat' && (isChatLoading || activeTabData?.isTyping);
 
   return (
-    <div className="w-[480px] h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden relative">
+    <motion.div 
+      initial={{ width: PANEL_WIDTHS.full }}
+      animate={{ width: PANEL_WIDTHS[panelState] }}
+      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      className="h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden relative"
+    >
       {/* Premium loading overlay */}
       <GrokLoadingOverlay isVisible={isGenerating} />
 
       <div className="flex-1 p-2 flex flex-col gap-1 min-h-0 overflow-hidden">
-        {activeTab === 'chat' && (
+        {/* Strategy builder sections - only show in full mode */}
+        {activeTab === 'chat' && panelState === 'full' && (
           <div className="flex-shrink-0 space-y-2 overflow-y-auto">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-gray-300 text-xs font-semibold">TICKER</span>
                 <div className="flex items-center gap-1">
                   <button onClick={handleReset} className="p-1 hover:bg-gray-800 rounded transition-colors text-white/50 hover:text-white" title="Reset"><RotateCcw className="w-3.5 h-3.5" strokeWidth={1.6} /></button>
-                  <button onClick={() => setIsCollapsed(true)} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Collapse"><ChevronsRight className="w-3.5 h-3.5 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
+                  <button onClick={cyclePanel} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Collapse to half"><ChevronsRight className="w-3.5 h-3.5 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" /></button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1 mb-1.5">
@@ -1057,7 +1104,21 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
         )}
 
         <div className="flex-1 flex flex-col min-h-0">
-          {activeTab === 'chat' && <label className="text-gray-300 text-xs font-semibold mb-1.5 block flex-shrink-0">GROK CHAT</label>}
+          {activeTab === 'chat' && (
+            <div className="flex items-center justify-between mb-1.5 flex-shrink-0">
+              <label className="text-gray-300 text-xs font-semibold block">GROK CHAT</label>
+              {panelState === 'half' && (
+                <div className="flex items-center gap-1">
+                  <button onClick={expandPanel} className="p-1 hover:bg-gray-800 rounded transition-colors text-white/50 hover:text-white" title="Expand to full">
+                    <ChevronsLeft className="w-3.5 h-3.5" strokeWidth={1.6} />
+                  </button>
+                  <button onClick={cyclePanel} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Collapse fully">
+                    <ChevronsRight className="w-3.5 h-3.5 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex-1 flex flex-col bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg overflow-hidden">
             {isStrategyTab && (
               <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#1f1f1f] flex-shrink-0">
@@ -1065,7 +1126,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
                 <button onClick={() => setActiveSubTab('code')} className={'px-2 py-0.5 rounded text-xs font-medium transition-all ' + (activeSubTab === 'code' ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:text-[#e5e5e5]')}>Code</button>
                 <div className="ml-auto flex items-center gap-1">
                   <button onClick={handleReset} className="p-1 hover:bg-gray-800 rounded transition-colors text-white/50 hover:text-white" title="Start Over"><RotateCcw className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} /></button>
-                  <button onClick={() => setIsCollapsed(true)} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Collapse"><ChevronsRight className="w-3.5 h-3.5" /></button>
+                  <button onClick={cyclePanel} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title={panelState === 'full' ? 'Collapse to half' : 'Collapse fully'}><ChevronsRight className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             )}
@@ -1148,7 +1209,7 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
