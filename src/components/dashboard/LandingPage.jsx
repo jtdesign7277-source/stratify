@@ -129,7 +129,7 @@ const LandingPage = ({ onEnter, onSignUp }) => {
               onClick={handlePrimaryCta}
               className="px-5 py-2.5 rounded-full border border-white/20 text-white text-sm hover:bg-white/5 transition-colors"
             >
-              Get Started Free
+              Sign Up
             </button>
           </div>
         </nav>
