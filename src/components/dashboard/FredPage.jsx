@@ -180,6 +180,48 @@ const ErrorState = ({ onRetry }) => (
   </div>
 );
 
+class FredErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+    this.handleReload = this.handleReload.bind(this);
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('FRED render failed', error, info);
+  }
+
+  handleReload() {
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative flex items-center justify-center">
+          <div className="rounded-2xl border border-gray-800/60 bg-[#0a1628] px-6 py-5 text-center flex flex-col items-center gap-3">
+            <span className="text-[11px] uppercase tracking-[0.3em] text-gray-400">FRED failed to load</span>
+            <button
+              onClick={this.handleReload}
+              className="px-4 py-2 rounded-lg border border-gray-700/60 bg-[#0a1628] text-gray-200 hover:text-white hover:border-blue-500/60 transition"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const SkeletonBlock = ({ className }) => (
   <div className={`animate-pulse rounded-md bg-gray-800/70 ${className}`} />
 );
@@ -259,7 +301,10 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
         >
           <div className="flex items-center justify-between text-gray-400 text-[11px] uppercase tracking-widest">
             <span>{card.label}</span>
-            <card.icon className="w-4 h-4" strokeWidth={1.5} fill="none" />
+            {(() => {
+              const Icon = card.icon || LineChart;
+              return <Icon className="w-4 h-4" strokeWidth={1.5} fill="none" />;
+            })()}
           </div>
           <div className="mt-2 flex items-end justify-between gap-2">
             <div>
@@ -917,44 +962,46 @@ const FredPage = () => {
   }), []);
 
   return (
-    <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
-      <div className="relative z-10 h-full p-6 grid grid-rows-[auto_1fr_1fr] gap-4">
-        <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
-        <motion.div
-          variants={panelStagger}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-3 gap-4 min-h-0"
-        >
-          <motion.div variants={panelVariants} className="col-span-2 min-h-0">
-            <YieldCurve data={yieldData} loading={loading} error={error} onRetry={reload} />
+    <FredErrorBoundary>
+      <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
+        <div className="relative z-10 h-full p-6 grid grid-rows-[auto_1fr_1fr] gap-4">
+          <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
+          <motion.div
+            variants={panelStagger}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-3 gap-4 min-h-0"
+          >
+            <motion.div variants={panelVariants} className="col-span-2 min-h-0">
+              <YieldCurve data={yieldData} loading={loading} error={error} onRetry={reload} />
+            </motion.div>
+            <motion.div variants={panelVariants} className="col-span-1 min-h-0">
+              <EconCalendar />
+            </motion.div>
           </motion.div>
-          <motion.div variants={panelVariants} className="col-span-1 min-h-0">
-            <EconCalendar />
+          <motion.div
+            variants={panelStagger}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-2 gap-4 min-h-0"
+          >
+            <motion.div variants={panelVariants} className="min-h-0">
+              <HistoricalTrends seriesMap={seriesMap} loading={loading} error={error} onRetry={reload} />
+            </motion.div>
+            <motion.div variants={panelVariants} className="min-h-0">
+              <FredSearch />
+            </motion.div>
           </motion.div>
-        </motion.div>
-        <motion.div
-          variants={panelStagger}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-2 gap-4 min-h-0"
-        >
-          <motion.div variants={panelVariants} className="min-h-0">
-            <HistoricalTrends seriesMap={seriesMap} loading={loading} error={error} onRetry={reload} />
-          </motion.div>
-          <motion.div variants={panelVariants} className="min-h-0">
-            <FredSearch />
-          </motion.div>
-        </motion.div>
+        </div>
       </div>
-    </div>
+    </FredErrorBoundary>
   );
 };
 
