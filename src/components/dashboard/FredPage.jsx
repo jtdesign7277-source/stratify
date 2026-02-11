@@ -315,9 +315,17 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 };
 
 const YieldCurve = () => {
+  const yieldTabs = useMemo(() => ([
+    { label: '2Y', symbol: 'TVC:US02Y' },
+    { label: '5Y', symbol: 'TVC:US05Y' },
+    { label: '10Y', symbol: 'TVC:US10Y' },
+    { label: '30Y', symbol: 'TVC:US30Y' },
+  ]), []);
+  const [activeSymbol, setActiveSymbol] = useState('TVC:US10Y');
+
   const config = useMemo(() => ({
     autosize: true,
-    symbol: 'TVC:US10Y',
+    symbol: activeSymbol,
     interval: 'D',
     timezone: 'America/New_York',
     theme: 'dark',
@@ -329,19 +337,14 @@ const YieldCurve = () => {
     hide_legend: false,
     save_image: false,
     hide_volume: true,
-    allow_symbol_change: true,
+    allow_symbol_change: false,
     enable_publishing: false,
     withdateranges: true,
     toolbar_bg: '#060d18',
     support_host: 'https://www.tradingview.com',
     isTransparent: true,
     studies: [],
-    compareSymbols: [
-      { symbol: 'TVC:US02Y', color: '#ef4444' },
-      { symbol: 'TVC:US05Y', color: '#f97316' },
-      { symbol: 'TVC:US30Y', color: '#22c55e' },
-    ],
-  }), []);
+  }), [activeSymbol]);
 
   return (
     <div className="h-full rounded-2xl border border-gray-800/30 bg-[#0a1628] p-4 flex flex-col">
@@ -350,19 +353,20 @@ const YieldCurve = () => {
           <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
           <span className="text-white text-sm font-semibold">Treasury Yields</span>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-gray-400">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />10Y
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500" />2Y
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-orange-500" />5Y
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />30Y
-          </span>
+        <div className="flex items-center gap-2">
+          {yieldTabs.map((tab) => (
+            <button
+              key={tab.symbol}
+              onClick={() => setActiveSymbol(tab.symbol)}
+              className={`px-2.5 py-1 rounded-full text-[10px] border ${
+                activeSymbol === tab.symbol
+                  ? 'border-blue-500/60 text-blue-300 bg-blue-500/10'
+                  : 'border-gray-700/50 text-gray-400'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
       <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
@@ -390,7 +394,9 @@ const EconCalendar = () => {
         <span className="text-white text-sm font-semibold">Econ Calendar</span>
       </div>
       <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
-        <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
+        <div className="h-full w-full pointer-events-none">
+          <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
+        </div>
       </div>
     </div>
   );
@@ -757,7 +763,7 @@ const FredPage = () => {
           <div className="h-[80px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </div>
-          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-4 min-h-0">
+          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-4 min-h-0 -mt-2">
             <div className="min-h-0">
               <YieldCurve />
             </div>
