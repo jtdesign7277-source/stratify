@@ -412,8 +412,9 @@ const EconCalendar = ({ collapsed, onToggle }) => {
         </button>
       </div>
       {!collapsed && (
-        <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden overflow-y-auto">
-          <div className="min-h-full pointer-events-none">
+        <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
+          <div className="relative h-full overflow-y-auto">
+            <div className="sticky top-0 z-10 h-8 bg-[#060d18]" />
             <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
           </div>
         </div>
