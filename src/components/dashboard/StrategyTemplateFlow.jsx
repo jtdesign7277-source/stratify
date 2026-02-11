@@ -172,176 +172,30 @@ const TICKERS = [
 const TIMEFRAMES = ["5m", "15m", "1H", "4H", "1D"];
 const PERIODS = ["1M", "3M", "6M", "1Y"];
 
-// ── API Configuration ──────────────────────────────────────────
-const CRYPTO_TICKERS = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK", "ADA", "AVAX", "DOT"];
-
 // ── Fetch Real Historical Data from Alpaca via Vercel API ──────
 const fetchHistoricalBars = async (ticker, period, timeframe) => {
-  const isCrypto = CRYPTO_TICKERS.includes(ticker);
-
-  if (isCrypto) {
-    return fetchCryptoBars(ticker, period, timeframe);
+  const url = `/api/history?symbol=${ticker}&timeframe=${timeframe}&period=${period}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `API ${res.status}`);
   }
-
-  try {
-    // Use Vercel API endpoint which hits Alpaca with live data
-    const url = `/api/history?symbol=${ticker}&timeframe=${timeframe}&period=${period}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    const data = await res.json();
-
-    if (!data.bars || data.bars.length === 0) throw new Error("No bars returned");
-
-    return {
-      source: "alpaca-live",
-      bars: data.bars.map((b) => ({
-        date: b.date,
-        timestamp: b.timestamp || new Date(b.date).getTime(),
-        open: +b.open,
-        high: +b.high,
-        low: +b.low,
-        close: +b.close,
-        volume: b.volume || 0,
-      })),
-    };
-  } catch (err) {
-    console.warn(`Alpaca fetch failed for ${ticker}, falling back to simulated:`, err.message);
-    return { source: "simulated", bars: generateSimulatedData(ticker, period, timeframe) };
+  const data = await res.json();
+  if (!data.bars || data.bars.length === 0) {
+    throw new Error("No bars returned");
   }
-};
-
-// ── Crypto via Crypto.com REST API ─────────────────────────────
-const fetchCryptoBars = async (ticker, period, timeframe) => {
-  try {
-    // Crypto.com instrument format: BTC_USD, ETH_USD, etc.
-    const instrument = `${ticker}_USD`;
-
-    // Map timeframe to Crypto.com interval
-    const intervalMap = {
-      "5m": "5m",
-      "15m": "15m",
-      "1H": "1h",
-      "4H": "4h",
-      "1D": "1D",
-    };
-    const interval = intervalMap[timeframe] || "1h";
-
-    const res = await fetch(
-      `https://api.crypto.com/exchange/v1/public/get-candlestick?instrument_name=${instrument}&timeframe=${interval}`
-    );
-
-    if (!res.ok) throw new Error(`Crypto.com API ${res.status}`);
-    const data = await res.json();
-
-    if (!data.result?.data || data.result.data.length === 0) {
-      throw new Error("No crypto candle data");
-    }
-
-    // Crypto.com returns: { t: timestamp, o, h, l, c, v }
-    const periodDays = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
-    const cutoff = Date.now() - (periodDays[period] || 180) * 24 * 60 * 60 * 1000;
-
-    const bars = data.result.data
-      .filter((c) => c.t >= cutoff)
-      .map((c) => ({
-        date: new Date(c.t).toISOString(),
-        timestamp: c.t,
-        open: +c.o,
-        high: +c.h,
-        low: +c.l,
-        close: +c.c,
-        volume: +c.v,
-      }))
-      .sort((a, b) => a.timestamp - b.timestamp);
-
-    if (bars.length === 0) throw new Error("No bars after filtering");
-
-    return { source: "crypto.com", bars };
-  } catch (err) {
-    console.warn(`Crypto.com fetch failed for ${ticker}, falling back to simulated:`, err.message);
-    return { source: "simulated", bars: generateSimulatedData(ticker, period, timeframe) };
-  }
-};
-
-// ── Simulated Fallback (keeps app working offline/if APIs fail) ─
-const generateSimulatedData = (ticker, period, timeframe = "1H") => {
-  // Seed based on ticker for consistent results per symbol
-  const seed = ticker.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  let rng = seed;
-  const rand = () => {
-    rng = (rng * 16807 + 0) % 2147483647;
-    return rng / 2147483647;
+  return {
+    source: "alpaca",
+    bars: data.bars.map((b) => ({
+      date: b.date,
+      timestamp: b.timestamp || new Date(b.date).getTime(),
+      open: +b.open,
+      high: +b.high,
+      low: +b.low,
+      close: +b.close,
+      volume: b.volume || 0,
+    })),
   };
-
-  const configs = {
-    TSLA: { start: 220, volatility: 0.018, trend: 0.0004 },
-    AAPL: { start: 185, volatility: 0.010, trend: 0.0003 },
-    NVDA: { start: 480, volatility: 0.022, trend: 0.0005 },
-    MSFT: { start: 420, volatility: 0.009, trend: 0.0002 },
-    GOOGL: { start: 170, volatility: 0.012, trend: 0.0003 },
-    AMZN: { start: 185, volatility: 0.013, trend: 0.0003 },
-    META: { start: 510, volatility: 0.015, trend: 0.0004 },
-    SPY: { start: 540, volatility: 0.007, trend: 0.0002 },
-    QQQ: { start: 460, volatility: 0.009, trend: 0.0003 },
-    BTC: { start: 62000, volatility: 0.025, trend: 0.0006 },
-    ETH: { start: 3200, volatility: 0.028, trend: 0.0005 },
-    SOL: { start: 145, volatility: 0.035, trend: 0.0007 },
-  };
-
-  const cfg = configs[ticker] || { start: 100, volatility: 0.015, trend: 0.0003 };
-  const periodDays = { "1M": 22, "3M": 66, "6M": 132, "1Y": 252 };
-  const days = periodDays[period] || 132;
-
-  // Candles per day based on timeframe (6.5hr market day)
-  const candlesPerDay = {
-    "5m": 78,   // 390 min / 5
-    "15m": 26,  // 390 min / 15
-    "1H": 7,    // ~6.5 rounded
-    "4H": 2,    // 2 candles per day
-    "1D": 1,    // daily
-  };
-  const cpd = candlesPerDay[timeframe] || 7;
-
-  // Scale volatility per candle — smaller timeframes = smaller per-candle moves
-  const volScale = Math.sqrt(1 / cpd); // volatility scales with sqrt of time
-  const trendScale = 1 / cpd; // trend distributes evenly
-
-  const points = [];
-  let price = cfg.start;
-
-  for (let d = 0; d < days; d++) {
-    const date = new Date(2025, 7, 1);
-    date.setDate(date.getDate() + d);
-    if (date.getDay() === 0 || date.getDay() === 6) continue;
-
-    for (let c = 0; c < cpd; c++) {
-      const r = (rand() - 0.5) * 2 * cfg.volatility * volScale * price;
-      const t = cfg.trend * trendScale * price * (0.5 + rand());
-      const cycle = Math.sin((d / days) * Math.PI * 3) * cfg.volatility * volScale * price * 0.3;
-      price = Math.max(price + r + t + cycle * 0.1, cfg.start * 0.5);
-
-      const noiseScale = volScale * 0.4;
-      const open = price + (rand() - 0.5) * price * noiseScale * 0.02;
-      const high = Math.max(price, open) + rand() * price * noiseScale * 0.03;
-      const low = Math.min(price, open) - rand() * price * noiseScale * 0.03;
-
-      // Set time based on candle position in the day
-      const minuteOffset = Math.floor((c / cpd) * 390); // 390 min market day
-      const candleDate = new Date(date);
-      candleDate.setHours(9, 30 + minuteOffset, 0, 0);
-
-      points.push({
-        date: candleDate.toISOString(),
-        timestamp: candleDate.getTime(),
-        open: +open.toFixed(2),
-        high: +high.toFixed(2),
-        low: +low.toFixed(2),
-        close: +price.toFixed(2),
-        volume: Math.floor((5000000 + rand() * 15000000) / cpd),
-      });
-    }
-  }
-  return points;
 };
 
 // ── Indicator Calculations ─────────────────────────────────────
@@ -833,11 +687,9 @@ const StrategyDetail = ({ template, onBack }) => {
       setIsRunning(false);
     }).catch((err) => {
       if (cancelled) return;
-      setFetchError(err.message);
-      // Fall back to simulated
-      const fallback = generateSimulatedData(ticker, period, timeframe);
-      setData(fallback);
-      setDataSource("simulated");
+      setFetchError(`Could not fetch data for $${ticker} (${timeframe}, ${period})`);
+      setData([]);
+      setDataSource("error");
       setIsRunning(false);
     });
 
@@ -938,11 +790,11 @@ const StrategyDetail = ({ template, onBack }) => {
 
         <div className="ml-auto flex items-center gap-2 text-xs tabular-nums" style={{ fontFamily: "monospace" }}>
           <span className="px-1.5 py-0.5 rounded" style={{
-            background: dataSource === "alpaca" ? "#16a34a15" : dataSource === "crypto.com" ? "#f59e0b15" : dataSource === "simulated" ? "#ef444415" : "#3b82f615",
-            color: dataSource === "alpaca" ? "#34d399" : dataSource === "crypto.com" ? "#fbbf24" : dataSource === "simulated" ? "#f87171" : "#60a5fa",
-            border: `1px solid ${dataSource === "alpaca" ? "#16a34a30" : dataSource === "crypto.com" ? "#f59e0b30" : dataSource === "simulated" ? "#ef444430" : "#3b82f630"}`,
+            background: dataSource === "alpaca" ? "#16a34a15" : dataSource === "error" ? "#ef444415" : "#3b82f615",
+            color: dataSource === "alpaca" ? "#34d399" : dataSource === "error" ? "#f87171" : "#60a5fa",
+            border: `1px solid ${dataSource === "alpaca" ? "#16a34a30" : dataSource === "error" ? "#ef444430" : "#3b82f630"}`,
           }}>
-            {dataSource === "alpaca" ? "LIVE DATA" : dataSource === "crypto.com" ? "CRYPTO.COM" : dataSource === "simulated" ? "SIMULATED" : "LOADING"}
+            {dataSource === "alpaca" ? "ALPACA" : dataSource === "error" ? "ERROR" : "LOADING"}
           </span>
           <span style={{ color: "#334155" }}>{data.length.toLocaleString()} candles</span>
           <span style={{ color: "#334155" }}>·</span>
@@ -961,7 +813,7 @@ const StrategyDetail = ({ template, onBack }) => {
               <div className="text-center">
                 <div className="w-6 h-6 mx-auto mb-2 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${template.color} transparent ${template.color} ${template.color}` }} />
                 <span className="text-xs" style={{ color: "#475569" }}>
-                  {fetchError ? `Error: ${fetchError} — using simulated data` : "Fetching market data..."}
+                  {fetchError || "Fetching historical data from Alpaca..."}
                 </span>
               </div>
             </div>
