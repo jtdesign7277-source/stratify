@@ -180,15 +180,21 @@ const ErrorState = ({ onRetry }) => (
   </div>
 );
 
+const InsufficientDataState = () => (
+  <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+    Insufficient data
+  </div>
+);
+
 class FredErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMessage: '' };
     this.handleReload = this.handleReload.bind(this);
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMessage: error?.message || 'Unexpected error' };
   }
 
   componentDidCatch(error, info) {
@@ -207,6 +213,9 @@ class FredErrorBoundary extends React.Component {
         <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative flex items-center justify-center">
           <div className="rounded-2xl border border-gray-800/60 bg-[#0a1628] px-6 py-5 text-center flex flex-col items-center gap-3">
             <span className="text-[11px] uppercase tracking-[0.3em] text-gray-400">FRED failed to load</span>
+            {this.state.errorMessage ? (
+              <span className="text-[11px] text-gray-500">{this.state.errorMessage}</span>
+            ) : null}
             <button
               onClick={this.handleReload}
               className="px-4 py-2 rounded-lg border border-gray-700/60 bg-[#0a1628] text-gray-200 hover:text-white hover:border-blue-500/60 transition"
@@ -362,6 +371,24 @@ const YieldCurve = ({ data, loading, error, onRetry }) => {
     );
   }
 
+  const hasInsufficientData = !data
+    || data.length < 2
+    || data.some((entry) => !Number.isFinite(entry.value));
+
+  if (hasInsufficientData) {
+    return (
+      <div className="h-full rounded-2xl border border-gray-800/50 bg-[#0a1628] p-4 flex flex-col">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
+          <span className="text-white text-sm font-semibold">Yield Curve</span>
+        </div>
+        <div className="flex-1">
+          <InsufficientDataState />
+        </div>
+      </div>
+    );
+  }
+
   const values = data.map((entry) => entry.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -481,8 +508,12 @@ const TrendChart = ({ data, stroke, fill, height = 170 }) => {
   const containerRef = useRef(null);
   const [hover, setHover] = useState(null);
 
+  const hasInsufficientData = !data
+    || data.length < 2
+    || data.some((entry) => !Number.isFinite(entry.value));
+
   const chart = useMemo(() => {
-    if (!data || data.length === 0) return null;
+    if (hasInsufficientData) return null;
     const width = 420;
     const padding = { top: 12, bottom: 22, left: 10, right: 10 };
     const values = data.map((d) => d.value);
@@ -497,7 +528,7 @@ const TrendChart = ({ data, stroke, fill, height = 170 }) => {
     const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`).join(' ');
     const areaPath = `${linePath} L ${points[points.length - 1].x},${height - padding.bottom} L ${points[0].x},${height - padding.bottom} Z`;
     return { width, height, points, linePath, areaPath };
-  }, [data, height]);
+  }, [data, height, hasInsufficientData]);
 
   const handleMove = (event) => {
     if (!containerRef.current || !chart) return;
@@ -509,6 +540,10 @@ const TrendChart = ({ data, stroke, fill, height = 170 }) => {
     const pxY = (point.y / chart.height) * rect.height;
     setHover({ point, pxX, pxY, rect });
   };
+
+  if (hasInsufficientData) {
+    return <InsufficientDataState />;
+  }
 
   if (!chart) return null;
 
