@@ -591,6 +591,18 @@ const HistoricalTrends = ({ seriesMap, loading, error, onRetry }) => {
   const [activeTrend, setActiveTrend] = useState('unemployment');
   const [range, setRange] = useState('5Y');
 
+  const activeConfig = trendOptions.find((trend) => trend.id === activeTrend) || trendOptions[0];
+  const rawSeries = parseObservations(seriesMap[TREND_SERIES[activeConfig.id]] || []);
+  const ascendingSeries = [...rawSeries].reverse();
+
+  const filteredSeries = useMemo(() => {
+    if (range === 'MAX') return ascendingSeries;
+    const years = Number(range.replace('Y', ''));
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - years);
+    return ascendingSeries.filter((entry) => new Date(`${entry.date}T00:00:00Z`) >= cutoff);
+  }, [ascendingSeries, range]);
+
   if (loading) {
     return (
       <div className="h-full rounded-2xl border border-gray-800/50 bg-[#0a1628] p-4">
@@ -614,18 +626,6 @@ const HistoricalTrends = ({ seriesMap, loading, error, onRetry }) => {
       </div>
     );
   }
-
-  const activeConfig = trendOptions.find((trend) => trend.id === activeTrend) || trendOptions[0];
-  const rawSeries = parseObservations(seriesMap[TREND_SERIES[activeConfig.id]] || []);
-  const ascendingSeries = [...rawSeries].reverse();
-
-  const filteredSeries = useMemo(() => {
-    if (range === 'MAX') return ascendingSeries;
-    const years = Number(range.replace('Y', ''));
-    const cutoff = new Date();
-    cutoff.setFullYear(cutoff.getFullYear() - years);
-    return ascendingSeries.filter((entry) => new Date(`${entry.date}T00:00:00Z`) >= cutoff);
-  }, [ascendingSeries, range]);
 
   return (
     <div className="h-full rounded-2xl border border-gray-800/50 bg-[#0a1628] p-4 flex flex-col">
