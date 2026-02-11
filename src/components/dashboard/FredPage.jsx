@@ -17,6 +17,22 @@ import {
 
 const FRED_PROXY = '/api/fred';
 
+// Quick access popular FRED series
+const QUICK_ACCESS_SERIES = [
+  { keyword: 'unemployment', label: 'Unemployment', description: 'UNRATE, state unemployment rates' },
+  { keyword: 'inflation', label: 'Inflation', description: 'CPI, PCE, inflation expectations' },
+  { keyword: 'GDP', label: 'GDP', description: 'Gross domestic product, real GDP, GDP growth' },
+  { keyword: 'fed funds rate', label: 'Fed Funds', description: 'Federal Reserve interest rate' },
+  { keyword: 'housing starts', label: 'Housing', description: 'New residential construction' },
+  { keyword: 'consumer confidence', label: 'Confidence', description: 'Consumer sentiment surveys' },
+  { keyword: 'oil price', label: 'Oil', description: 'Crude oil, WTI, Brent' },
+  { keyword: 'S&P 500', label: 'S&P 500', description: 'Stock market index' },
+  { keyword: 'money supply', label: 'Money Supply', description: 'M1, M2 monetary aggregates' },
+  { keyword: 'wage growth', label: 'Wages', description: 'Average hourly earnings' },
+  { keyword: 'retail sales', label: 'Retail Sales', description: 'Consumer spending data' },
+  { keyword: 'treasury yield', label: 'Treasury', description: '10Y, 2Y, 30Y bonds' },
+];
+
 const MACRO_SERIES = {
   fedFunds: 'FEDFUNDS',
   cpi: 'CPIAUCSL',
@@ -819,7 +835,21 @@ const FredSearch = () => {
         ) : error ? (
           <ErrorState onRetry={() => runSearch(query)} />
         ) : results.length === 0 ? (
-          <div className="text-xs text-gray-500">Type to search for any FRED series.</div>
+          <div className="space-y-3">
+            <div className="text-xs text-gray-500">Quick access to popular indicators:</div>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_ACCESS_SERIES.map((item) => (
+                <button
+                  key={item.keyword}
+                  onClick={() => setQuery(item.keyword)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700/60 bg-[#0b1325]/70 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all text-gray-300 hover:text-blue-300"
+                  title={item.description}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             {results.map((item) => (
