@@ -531,7 +531,7 @@ const HistoricalTrends = () => {
   );
 };
 
-const FredSearch = ({ onSelectSymbol }) => {
+const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -567,71 +567,92 @@ const FredSearch = ({ onSelectSymbol }) => {
   }, [query, runSearch]);
 
   return (
-    <div className="h-full rounded-2xl border border-gray-800/30 bg-[#0a1628] p-4 flex flex-col">
-      <div className="flex items-center gap-2 mb-4">
-        <Search className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-        <span className="text-white text-sm font-semibold">Explore</span>
+    <div
+      className={`rounded-2xl border border-gray-800/30 bg-[#0a1628] flex flex-col ${
+        collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
+      }`}
+    >
+      <div className={`flex items-center justify-between gap-2 ${collapsed ? 'mb-0' : 'mb-4'}`}>
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
+          <span className="text-white text-sm font-semibold">Explore</span>
+        </div>
+        <button
+          onClick={onToggle}
+          className="p-1 rounded-md border border-gray-800/30 text-gray-400 hover:text-white transition"
+          aria-label={collapsed ? 'Expand explore' : 'Collapse explore'}
+        >
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${collapsed ? '-rotate-90' : 'rotate-0'}`}
+            strokeWidth={1.5}
+            fill="none"
+          />
+        </button>
       </div>
-      <div className="flex items-center gap-2 bg-[#0b1325] border border-gray-800/30 rounded-xl px-3 py-2 mb-3">
-        <Search className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search FRED series"
-          className="flex-1 bg-transparent outline-none text-sm text-white placeholder-gray-500"
-        />
-        <kbd className="text-[10px] text-gray-500 border border-gray-700/60 rounded px-1.5 py-0.5">CMD K</kbd>
-      </div>
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <SkeletonBlock key={index} className="h-12 w-full" />
-            ))}
+      {!collapsed && (
+        <>
+          <div className="flex items-center gap-2 bg-[#0b1325] border border-gray-800/30 rounded-xl px-3 py-2 mb-3">
+            <Search className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search FRED series"
+              className="flex-1 bg-transparent outline-none text-sm text-white placeholder-gray-500"
+            />
+            <kbd className="text-[10px] text-gray-500 border border-gray-700/60 rounded px-1.5 py-0.5">CMD K</kbd>
           </div>
-        ) : error ? (
-          <ErrorState onRetry={() => runSearch(query)} />
-        ) : results.length === 0 ? (
-          <div className="space-y-3">
-            <div className="text-xs text-gray-500">Quick access to popular indicators:</div>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_ACCESS_SERIES.map((item) => (
-                <button
-                  key={item.keyword}
-                  onClick={() => {
-                    setQuery(item.keyword);
-                    if (item.symbol) {
-                      onSelectSymbol(item.symbol, item.label);
-                    }
-                  }}
-                  className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700/60 bg-[#0b1325]/70 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all text-gray-300 hover:text-blue-300"
-                  title={item.description}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {results.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
-                className="w-full text-left px-3 py-2 rounded-xl border border-gray-800/30 bg-[#0b1325]/70 hover:bg-[#12203a]/70 transition"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs text-blue-400 font-semibold">{item.id}</div>
-                    <div className="text-sm text-white truncate">{item.title}</div>
-                    <div className="text-[11px] text-gray-500">{item.frequency} - Updated {item.last_updated ? item.last_updated.split(' ')[0] : '--'}</div>
-                  </div>
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            {loading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <SkeletonBlock key={index} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : error ? (
+              <ErrorState onRetry={() => runSearch(query)} />
+            ) : results.length === 0 ? (
+              <div className="space-y-3">
+                <div className="text-xs text-gray-500">Quick access to popular indicators:</div>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_ACCESS_SERIES.map((item) => (
+                    <button
+                      key={item.keyword}
+                      onClick={() => {
+                        setQuery(item.keyword);
+                        if (item.symbol) {
+                          onSelectSymbol(item.symbol, item.label);
+                        }
+                      }}
+                      className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700/60 bg-[#0b1325]/70 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all text-gray-300 hover:text-blue-300"
+                      title={item.description}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
-              </button>
-            ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {results.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
+                    className="w-full text-left px-3 py-2 rounded-xl border border-gray-800/30 bg-[#0b1325]/70 hover:bg-[#12203a]/70 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-blue-400 font-semibold">{item.id}</div>
+                        <div className="text-sm text-white truncate">{item.title}</div>
+                        <div className="text-[11px] text-gray-500">{item.frequency} - Updated {item.last_updated ? item.last_updated.split(' ')[0] : '--'}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
@@ -769,7 +790,8 @@ const FredPage = () => {
   ].filter((value, index, array) => array.indexOf(value) === index), []);
 
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
-  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
+  const [calendarCollapsed, setCalendarCollapsed] = useState(true);
+  const [exploreCollapsed, setExploreCollapsed] = useState(true);
   const [activeSymbol, setActiveSymbol] = useState('FRED:DGS10');
   const [activeLabel, setActiveLabel] = useState('10Y Treasury');
 
@@ -807,7 +829,11 @@ const FredPage = () => {
                 onToggle={() => setCalendarCollapsed((prev) => !prev)}
               />
               <div className="flex-1 min-h-0">
-                <FredSearch onSelectSymbol={handleSelectSymbol} />
+                <FredSearch
+                  onSelectSymbol={handleSelectSymbol}
+                  collapsed={exploreCollapsed}
+                  onToggle={() => setExploreCollapsed((prev) => !prev)}
+                />
               </div>
             </div>
           </div>
