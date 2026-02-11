@@ -825,7 +825,7 @@ const FredSearch = () => {
         />
         <kbd className="text-[10px] text-gray-500 border border-gray-700/60 rounded px-1.5 py-0.5">CMD K</kbd>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, index) => (
