@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
-import { AnimatePresence } from 'framer-motion';
 import {
   Activity,
   ArrowDownRight,
@@ -12,26 +11,85 @@ import {
   Search,
   Thermometer,
   TrendingUp,
-  Users,
-  X
+  Users
 } from 'lucide-react';
 
 const FRED_PROXY = '/api/fred';
 
 // Quick access popular FRED series
 const QUICK_ACCESS_SERIES = [
-  { keyword: 'unemployment', label: 'Unemployment', description: 'UNRATE, state unemployment rates' },
-  { keyword: 'inflation', label: 'Inflation', description: 'CPI, PCE, inflation expectations' },
-  { keyword: 'GDP', label: 'GDP', description: 'Gross domestic product, real GDP, GDP growth' },
-  { keyword: 'fed funds rate', label: 'Fed Funds', description: 'Federal Reserve interest rate' },
-  { keyword: 'housing starts', label: 'Housing', description: 'New residential construction' },
-  { keyword: 'consumer confidence', label: 'Confidence', description: 'Consumer sentiment surveys' },
-  { keyword: 'oil price', label: 'Oil', description: 'Crude oil, WTI, Brent' },
-  { keyword: 'S&P 500', label: 'S&P 500', description: 'Stock market index' },
-  { keyword: 'money supply', label: 'Money Supply', description: 'M1, M2 monetary aggregates' },
-  { keyword: 'wage growth', label: 'Wages', description: 'Average hourly earnings' },
-  { keyword: 'retail sales', label: 'Retail Sales', description: 'Consumer spending data' },
-  { keyword: 'treasury yield', label: 'Treasury', description: '10Y, 2Y, 30Y bonds' },
+  {
+    keyword: 'unemployment',
+    label: 'Unemployment',
+    symbol: 'FRED:UNRATE',
+    description: 'UNRATE, state unemployment rates',
+  },
+  {
+    keyword: 'inflation',
+    label: 'Inflation',
+    symbol: 'FRED:CPIAUCSL',
+    description: 'CPI, PCE, inflation expectations',
+  },
+  {
+    keyword: 'GDP',
+    label: 'GDP',
+    symbol: 'FRED:GDP',
+    description: 'Gross domestic product, real GDP, GDP growth',
+  },
+  {
+    keyword: 'fed funds rate',
+    label: 'Fed Funds',
+    symbol: 'FRED:FEDFUNDS',
+    description: 'Federal Reserve interest rate',
+  },
+  {
+    keyword: 'housing starts',
+    label: 'Housing',
+    symbol: 'FRED:HOUST',
+    description: 'New residential construction',
+  },
+  {
+    keyword: 'consumer confidence',
+    label: 'Confidence',
+    symbol: 'FRED:UMCSENT',
+    description: 'Consumer sentiment surveys',
+  },
+  {
+    keyword: 'oil price',
+    label: 'Oil',
+    symbol: 'FRED:DCOILWTICO',
+    description: 'Crude oil, WTI, Brent',
+  },
+  {
+    keyword: 'S&P 500',
+    label: 'S&P 500',
+    symbol: 'SP:SPX',
+    description: 'Stock market index',
+  },
+  {
+    keyword: 'money supply',
+    label: 'Money Supply',
+    symbol: 'FRED:M2SL',
+    description: 'M1, M2 monetary aggregates',
+  },
+  {
+    keyword: 'wage growth',
+    label: 'Wages',
+    symbol: 'FRED:CES0500000003',
+    description: 'Average hourly earnings',
+  },
+  {
+    keyword: 'retail sales',
+    label: 'Retail Sales',
+    symbol: 'FRED:RSXFS',
+    description: 'Consumer spending data',
+  },
+  {
+    keyword: 'treasury yield',
+    label: 'Treasury',
+    symbol: 'FRED:DGS10',
+    description: '10Y, 2Y, 30Y bonds',
+  },
 ];
 
 const MACRO_SERIES = {
@@ -315,14 +373,13 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
   );
 };
 
-const YieldCurve = () => {
+const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
   const yieldTabs = useMemo(() => ([
-    { label: '10Y', symbol: 'FRED:DGS10' },
-    { label: '5Y', symbol: 'FRED:DGS5' },
-    { label: '30Y', symbol: 'FRED:DGS30' },
-    { label: '2Y', symbol: 'FRED:DGS2' },
+    { label: '10Y', symbol: 'FRED:DGS10', title: '10Y Treasury' },
+    { label: '5Y', symbol: 'FRED:DGS5', title: '5Y Treasury' },
+    { label: '30Y', symbol: 'FRED:DGS30', title: '30Y Treasury' },
+    { label: '2Y', symbol: 'FRED:DGS2', title: '2Y Treasury' },
   ]), []);
-  const [activeSymbol, setActiveSymbol] = useState('FRED:DGS10');
 
   const config = useMemo(() => ({
     autosize: true,
@@ -352,13 +409,13 @@ const YieldCurve = () => {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-          <span className="text-white text-sm font-semibold">Treasury Yields</span>
+          <span className="text-white text-sm font-semibold">{activeLabel || 'Treasury Yields'}</span>
         </div>
         <div className="flex items-center gap-2">
           {yieldTabs.map((tab) => (
             <button
               key={tab.symbol}
-              onClick={() => setActiveSymbol(tab.symbol)}
+              onClick={() => onSelectSymbol(tab.symbol, tab.title)}
               className={`px-2.5 py-1 rounded-full text-[10px] border ${
                 activeSymbol === tab.symbol
                   ? 'border-blue-500/60 text-blue-300 bg-blue-500/10'
@@ -474,71 +531,11 @@ const HistoricalTrends = () => {
   );
 };
 
-const SeriesModal = ({ series, onClose }) => {
-  const symbol = series ? `FRED:${series.id}` : '';
-  const config = useMemo(() => ({
-    autosize: true,
-    symbol,
-    interval: 'M',
-    timezone: 'America/New_York',
-    theme: 'dark',
-    style: '3',
-    locale: 'en',
-    backgroundColor: 'rgba(10, 22, 40, 1)',
-    hide_top_toolbar: false,
-    hide_legend: false,
-    save_image: false,
-    hide_volume: true,
-    allow_symbol_change: true,
-    enable_publishing: false,
-    withdateranges: true,
-    isTransparent: true,
-  }), [symbol]);
-
-  return (
-    <AnimatePresence>
-      {series && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            className="w-full max-w-4xl bg-[#0a1628] border border-gray-800/30 rounded-2xl overflow-hidden"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/30">
-              <div>
-                <div className="text-xs text-blue-400 font-mono">{symbol}</div>
-                <div className="text-sm text-white">{series.title}</div>
-                <div className="text-[11px] text-gray-500">{series.frequency} • Updated {series.last_updated ? series.last_updated.split(' ')[0] : '--'}</div>
-              </div>
-              <button onClick={onClose} className="text-gray-400 hover:text-white transition">
-                <X className="w-4 h-4" strokeWidth={1.5} fill="none" />
-              </button>
-            </div>
-            <div className="h-[440px]">
-              <TradingViewWidget scriptSrc={ADVANCED_CHART_SRC} config={config} />
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const FredSearch = () => {
+const FredSearch = ({ onSelectSymbol }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [selectedSeries, setSelectedSeries] = useState(null);
   const debounceRef = useRef(null);
 
   const runSearch = useCallback((text) => {
@@ -601,7 +598,12 @@ const FredSearch = () => {
               {QUICK_ACCESS_SERIES.map((item) => (
                 <button
                   key={item.keyword}
-                  onClick={() => setQuery(item.keyword)}
+                  onClick={() => {
+                    setQuery(item.keyword);
+                    if (item.symbol) {
+                      onSelectSymbol(item.symbol, item.label);
+                    }
+                  }}
                   className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700/60 bg-[#0b1325]/70 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all text-gray-300 hover:text-blue-300"
                   title={item.description}
                 >
@@ -615,7 +617,7 @@ const FredSearch = () => {
             {results.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setSelectedSeries(item)}
+                onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
                 className="w-full text-left px-3 py-2 rounded-xl border border-gray-800/30 bg-[#0b1325]/70 hover:bg-[#12203a]/70 transition"
               >
                 <div className="flex items-center justify-between">
@@ -630,7 +632,6 @@ const FredSearch = () => {
           </div>
         )}
       </div>
-      <SeriesModal series={selectedSeries} onClose={() => setSelectedSeries(null)} />
     </div>
   );
 };
@@ -769,6 +770,13 @@ const FredPage = () => {
 
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
   const [calendarCollapsed, setCalendarCollapsed] = useState(false);
+  const [activeSymbol, setActiveSymbol] = useState('FRED:DGS10');
+  const [activeLabel, setActiveLabel] = useState('10Y Treasury');
+
+  const handleSelectSymbol = useCallback((symbol, label) => {
+    setActiveSymbol(symbol);
+    if (label) setActiveLabel(label);
+  }, []);
 
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
   return (
@@ -787,7 +795,11 @@ const FredPage = () => {
           </div>
           <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-0 min-h-0 -mt-2">
             <div className="min-h-0">
-              <YieldCurve />
+              <YieldCurve
+                activeSymbol={activeSymbol}
+                activeLabel={activeLabel}
+                onSelectSymbol={handleSelectSymbol}
+              />
             </div>
             <div className="min-h-0 flex flex-col gap-0">
               <EconCalendar
@@ -795,7 +807,7 @@ const FredPage = () => {
                 onToggle={() => setCalendarCollapsed((prev) => !prev)}
               />
               <div className="flex-1 min-h-0">
-                <FredSearch />
+                <FredSearch onSelectSymbol={handleSelectSymbol} />
               </div>
             </div>
           </div>
