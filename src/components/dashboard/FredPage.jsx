@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   Activity,
   ArrowDownRight,
@@ -270,22 +270,11 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
   }
 
   return (
-    <motion.div
-      variants={{
-        hidden: {},
-        show: {
-          transition: { staggerChildren: 0.06 },
-        },
-      }}
-      initial="hidden"
-      animate="show"
-      className="grid grid-cols-6 gap-3"
-    >
+    <div className="grid grid-cols-6 gap-3">
       {cards.map((card) => (
-        <motion.div
+        <div
           key={card.label}
-          variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-          className="rounded-xl border border-gray-800/30 bg-[#0a1628] p-3 flex flex-col justify-between min-h-[120px]"
+          className="rounded-xl border border-gray-800/30 bg-[#0a1628] p-3 flex flex-col justify-between min-h-[80px]"
         >
           <div className="flex items-center justify-between text-gray-400 text-[11px] uppercase tracking-widest">
             <span>{card.label}</span>
@@ -315,13 +304,13 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
             </div>
           </div>
           {card.symbol && (
-            <div className="mt-2 h-14 rounded-lg border border-gray-800/30 bg-[#0b1325]/70 overflow-hidden">
+            <div className="mt-2 h-8 rounded-lg border border-gray-800/30 bg-[#0b1325]/70 overflow-hidden">
               <MiniChart symbol={card.symbol} />
             </div>
           )}
-        </motion.div>
+        </div>
       ))}
-    </motion.div>
+    </div>
   );
 };
 
@@ -754,42 +743,9 @@ const FredPage = () => {
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
 
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
-  const panelStagger = useMemo(() => ({
-    hidden: {},
-    show: { transition: { staggerChildren: 0.08 } },
-  }), []);
-  const panelVariants = useMemo(() => ({
-    hidden: { opacity: 0, y: 12 },
-    show: { opacity: 1, y: 0 },
-  }), []);
-
   return (
     <FredErrorBoundary>
-      <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative fred-scanline">
-        <style>{`
-          .fred-scanline .chart-container {
-            position: relative;
-            overflow: hidden;
-          }
-          .fred-scanline .chart-container::after {
-            content: '';
-            position: absolute;
-            left: -10%;
-            right: -10%;
-            top: -70%;
-            height: 70%;
-            background: linear-gradient(120deg, transparent 0%, rgba(56,189,248,0.08) 45%, rgba(148,163,184,0.16) 50%, rgba(56,189,248,0.08) 55%, transparent 100%);
-            opacity: 0.65;
-            animation: fred-scanline 6s linear infinite;
-            pointer-events: none;
-            mix-blend-mode: screen;
-            border-radius: inherit;
-          }
-          @keyframes fred-scanline {
-            0% { transform: translateY(-120%); }
-            100% { transform: translateY(220%); }
-          }
-        `}</style>
+      <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
@@ -797,34 +753,19 @@ const FredPage = () => {
             backgroundSize: '32px 32px',
           }}
         />
-        <div className="relative z-10 h-full p-6 grid grid-rows-[auto_1fr_1fr] gap-4">
-          <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
-          <motion.div
-            variants={panelStagger}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-3 gap-4 min-h-0"
-          >
-            <motion.div variants={panelVariants} className="col-span-2 min-h-0">
+        <div className="relative z-10 h-full p-6 grid grid-rows-[80px_1fr] gap-4">
+          <div className="h-[80px]">
+            <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
+          </div>
+          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-4 min-h-0">
+            <div className="min-h-0">
               <YieldCurve />
-            </motion.div>
-            <motion.div variants={panelVariants} className="col-span-1 min-h-0">
+            </div>
+            <div className="min-h-0 grid grid-rows-[1fr_1fr] gap-4">
               <EconCalendar />
-            </motion.div>
-          </motion.div>
-          <motion.div
-            variants={panelStagger}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-2 gap-4 min-h-0"
-          >
-            <motion.div variants={panelVariants} className="min-h-0">
-              <HistoricalTrends />
-            </motion.div>
-            <motion.div variants={panelVariants} className="min-h-0">
               <FredSearch />
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </FredErrorBoundary>
