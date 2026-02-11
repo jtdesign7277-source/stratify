@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Chart from 'react-apexcharts';
 import {
   Activity,
   ArrowDownRight,
@@ -66,8 +67,8 @@ const trendOptions = [
   {
     id: 'unemployment',
     label: 'Unemployment',
-    stroke: '#3b82f6',
-    fill: 'rgba(59,130,246,0.22)'
+    stroke: '#06b6d4',
+    fill: 'rgba(6,182,212,0.22)'
   },
   {
     id: 'inflation',
@@ -78,8 +79,8 @@ const trendOptions = [
   {
     id: 'gdp',
     label: 'GDP',
-    stroke: '#22c55e',
-    fill: 'rgba(34,197,94,0.22)'
+    stroke: '#10b981',
+    fill: 'rgba(16,185,129,0.22)'
   }
 ];
 
@@ -118,6 +119,8 @@ const formatDate = (value) => {
   const date = new Date(`${value}T00:00:00Z`);
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 };
+
+const chartFont = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 
 const parseObservations = (observations = []) => observations
   .map((entry) => ({
@@ -252,36 +255,165 @@ const SkeletonBlock = ({ className }) => (
 );
 
 const Sparkline = ({ data, stroke = '#3b82f6' }) => {
-  const points = useMemo(() => {
-    if (!data || data.length < 2) return '';
-    const values = data.map((d) => d.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-    return data
-      .map((d, i) => {
-        const x = (i / (data.length - 1)) * 100;
-        const y = 30 - ((d.value - min) / range) * 30;
-        return `${x},${y}`;
-      })
-      .join(' ');
+  const series = useMemo(() => {
+    if (!data || data.length < 2) return null;
+    return [
+      {
+        name: 'spark',
+        data: data.map((entry) => entry.value),
+      },
+    ];
   }, [data]);
 
-  if (!points) return null;
+  const options = useMemo(() => {
+    if (!series) return null;
+    return {
+      chart: {
+        type: 'area',
+        sparkline: { enabled: true },
+        toolbar: { show: false },
+        animations: { enabled: true, easing: 'easeinout', speed: 650 },
+        dropShadow: {
+          enabled: true,
+          top: 0,
+          left: 0,
+          blur: 8,
+          opacity: 0.6,
+          color: stroke,
+        },
+        fontFamily: chartFont,
+      },
+      stroke: {
+        curve: 'smooth',
+        width: 2.2,
+        colors: [stroke],
+      },
+      fill: {
+        type: 'gradient',
+        gradient: {
+          shadeIntensity: 0.7,
+          opacityFrom: 0.35,
+          opacityTo: 0.05,
+          stops: [0, 80, 100],
+        },
+      },
+      colors: [stroke],
+      grid: { show: false },
+      tooltip: { enabled: false },
+      dataLabels: { enabled: false },
+      markers: { size: 0 },
+    };
+  }, [series, stroke]);
+
+  if (!series || !options) return null;
 
   return (
-    <svg viewBox="0 0 100 30" className="w-24 h-8">
-      <polyline
-        fill="none"
-        stroke={stroke}
-        strokeWidth="1.6"
-        points={points}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className="chart-container w-24 h-8 rounded-md bg-[#0b1325]/60 px-1 shadow-[0_0_12px_rgba(59,130,246,0.18)]">
+      <Chart options={options} series={series} type="area" height={32} />
+    </div>
   );
 };
+
+const trendChartOptions = ({ stroke, fill, data, height = 170, label }) => ({
+  chart: {
+    type: 'area',
+    height,
+    toolbar: { show: false },
+    zoom: { enabled: false },
+    animations: { enabled: true, easing: 'easeinout', speed: 700 },
+    foreColor: '#94a3b8',
+    fontFamily: chartFont,
+    dropShadow: {
+      enabled: true,
+      top: 8,
+      left: 0,
+      blur: 14,
+      opacity: 0.3,
+      color: stroke,
+    },
+  },
+  stroke: {
+    curve: 'smooth',
+    width: 2.6,
+    colors: [stroke],
+  },
+  fill: {
+    type: 'gradient',
+    gradient: {
+      shadeIntensity: 0.6,
+      opacityFrom: 0.35,
+      opacityTo: 0.04,
+      stops: [0, 80, 100],
+      colorStops: [
+        { offset: 0, color: fill || stroke, opacity: 0.45 },
+        { offset: 80, color: fill || stroke, opacity: 0.12 },
+        { offset: 100, color: fill || stroke, opacity: 0.02 },
+      ],
+    },
+  },
+  colors: [stroke],
+  dataLabels: { enabled: false },
+  markers: { size: 0 },
+  grid: {
+    show: true,
+    borderColor: '#111827',
+    xaxis: { lines: { show: false } },
+    yaxis: { lines: { show: true } },
+    padding: { top: 6, bottom: 4, left: 6, right: 6 },
+  },
+  xaxis: {
+    type: 'datetime',
+    labels: {
+      show: true,
+      datetimeFormatter: {
+        year: 'yyyy',
+        month: 'MMM',
+      },
+      style: {
+        colors: '#64748b',
+        fontSize: '10px',
+        fontFamily: chartFont,
+      },
+    },
+    axisBorder: { show: false },
+    axisTicks: { show: false },
+    crosshairs: {
+      show: true,
+      position: 'front',
+      stroke: { color: stroke, width: 1, dashArray: 4 },
+    },
+  },
+  yaxis: {
+    labels: {
+      style: {
+        colors: '#64748b',
+        fontSize: '10px',
+        fontFamily: chartFont,
+      },
+      formatter: (val) => (Number.isFinite(val) ? `${val.toFixed(1)}%` : '--'),
+    },
+  },
+  tooltip: {
+    theme: 'dark',
+    custom: ({ series, seriesIndex, dataPointIndex }) => {
+      const point = data[dataPointIndex];
+      if (!point) return '';
+      const value = series[seriesIndex]?.[dataPointIndex];
+      const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(
+        new Date(point.date)
+      );
+      return `
+        <div style="padding:8px 10px;background:#0a1628;border:1px solid ${stroke};border-radius:9px;color:#e2e8f0;box-shadow:0 0 0 1px ${stroke}44, 0 0 16px ${stroke}66, 0 10px 24px rgba(15,23,42,0.35);font-family:${chartFont};font-size:11px;">
+          <div style="display:flex;justify-content:space-between;gap:10px;color:#94a3b8;margin-bottom:4px;">
+            <span>${label || 'Trend'}</span>
+            <span>${monthLabel}</span>
+          </div>
+          <div style="color:#ffffff;font-weight:600;font-size:12px;">${formatNumber(value, 2)}</div>
+        </div>
+      `;
+    },
+  },
+});
 
 const MacroPulse = ({ cards, loading, error, onRetry }) => {
   if (loading) {
@@ -363,6 +495,102 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 };
 
 const YieldCurve = ({ data, loading, error, onRetry }) => {
+  const safeData = Array.isArray(data) ? data : [];
+  const values = safeData.map((entry) => entry.value);
+  const twoYear = values[4];
+  const tenYear = values[8];
+  const isInverted = Number.isFinite(twoYear) && Number.isFinite(tenYear) ? twoYear > tenYear : false;
+  const lineColor = isInverted ? '#fb923c' : '#38bdf8';
+  const glowShadow = isInverted
+    ? 'shadow-[0_0_32px_rgba(249,115,22,0.32)]'
+    : 'shadow-[0_0_32px_rgba(56,189,248,0.22)]';
+  const badgeClass = isInverted ? 'yield-badge yield-badge--inverted' : 'yield-badge yield-badge--normal';
+  const scanlineClass = isInverted ? 'chart-container--warm' : 'chart-container--cool';
+
+  const series = useMemo(() => [
+    {
+      name: 'Yield',
+      data: safeData.map((entry) => entry.value),
+    },
+  ], [safeData]);
+
+  const options = useMemo(() => ({
+    chart: {
+      type: 'area',
+      toolbar: { show: false },
+      zoom: { enabled: false },
+      animations: { enabled: true, easing: 'easeinout', speed: 700 },
+      dropShadow: {
+        enabled: true,
+        top: 10,
+        left: 0,
+        blur: 18,
+        opacity: 0.35,
+        color: lineColor,
+      },
+      foreColor: '#94a3b8',
+      fontFamily: chartFont,
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 2.8,
+      colors: [lineColor],
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 0.65,
+        opacityFrom: 0.4,
+        opacityTo: 0.05,
+        stops: [0, 75, 100],
+      },
+    },
+    colors: [lineColor],
+    dataLabels: { enabled: false },
+    markers: { size: 0 },
+    grid: { show: false, padding: { top: 8, bottom: 6, left: 8, right: 8 } },
+    xaxis: {
+      categories: safeData.map((entry) => entry.label),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: {
+        style: {
+          colors: '#94a3b8',
+          fontSize: '10px',
+          fontFamily: chartFont,
+        },
+      },
+      tooltip: { enabled: false },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: '#94a3b8',
+          fontSize: '10px',
+          fontFamily: chartFont,
+        },
+        formatter: (val) => `${formatNumber(val, 2)}%`,
+      },
+    },
+    tooltip: {
+      theme: 'dark',
+      custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+        const value = series[seriesIndex]?.[dataPointIndex];
+        const label = w.globals.labels?.[dataPointIndex];
+        const labelText = label ? `${label} Treasury` : 'Treasury';
+        return `
+          <div style="padding:8px 10px;background:#0a1628;border:1px solid ${lineColor};border-radius:9px;color:#e2e8f0;box-shadow:0 0 0 1px ${lineColor}55, 0 0 18px ${lineColor}88, 0 10px 24px rgba(15,23,42,0.35);font-family:${chartFont};font-size:11px;">
+            <div style="color:#94a3b8;margin-bottom:2px;">${labelText}</div>
+            <div style="color:${lineColor};font-weight:600;font-size:12px;">${formatNumber(value, 2)}%</div>
+          </div>
+        `;
+      },
+    },
+  }), [safeData, lineColor]);
+
+  const hasInsufficientData = safeData.length < 2
+    || safeData.some((entry) => !Number.isFinite(entry.value));
+
   if (loading) {
     return (
       <div className="h-full rounded-2xl border border-gray-800/50 bg-[#0a1628] p-4">
@@ -387,10 +615,6 @@ const YieldCurve = ({ data, loading, error, onRetry }) => {
     );
   }
 
-  const hasInsufficientData = !data
-    || data.length < 2
-    || data.some((entry) => !Number.isFinite(entry.value));
-
   if (hasInsufficientData) {
     return (
       <div className="h-full rounded-2xl border border-gray-800/50 bg-[#0a1628] p-4 flex flex-col">
@@ -405,27 +629,6 @@ const YieldCurve = ({ data, loading, error, onRetry }) => {
     );
   }
 
-  const values = data.map((entry) => entry.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const isInverted = values[0] > values[values.length - 1];
-
-  const width = 500;
-  const height = 180;
-  const padding = { top: 16, right: 16, bottom: 32, left: 16 };
-
-  const points = data.map((entry, index) => {
-    const x = padding.left + (index / (data.length - 1)) * (width - padding.left - padding.right);
-    const y = padding.top + (1 - (entry.value - min) / range) * (height - padding.top - padding.bottom);
-    return { ...entry, x, y };
-  });
-
-  const linePath = points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
-    .join(' ');
-  const areaPath = `${linePath} L ${points[points.length - 1].x},${height - padding.bottom} L ${points[0].x},${height - padding.bottom} Z`;
-
   return (
     <div className="h-full rounded-2xl border border-gray-800/50 bg-[#0a1628] p-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -434,45 +637,36 @@ const YieldCurve = ({ data, loading, error, onRetry }) => {
           <span className="text-white text-sm font-semibold">Yield Curve</span>
         </div>
         <span
-          className={`text-[10px] px-2 py-1 rounded-full border ${
+          className={`text-[10px] px-2.5 py-1 rounded-full border font-semibold ${badgeClass} ${
             isInverted
-              ? 'border-red-500/40 text-red-300 bg-red-500/10'
-              : 'border-blue-500/40 text-blue-300 bg-blue-500/10'
+              ? 'border-orange-400/60 text-orange-100 bg-orange-500/10 animate-pulse'
+              : 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
           }`}
         >
-          {isInverted ? 'INVERTED' : 'NORMAL'}
+          {isInverted ? '⚠ INVERTED' : 'NORMAL'}
         </span>
       </div>
-      <div className="flex-1">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
-          <defs>
-            <linearGradient id="yieldNormal" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
-            </linearGradient>
-            <linearGradient id="yieldInverted" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-          <path d={areaPath} fill={isInverted ? 'url(#yieldInverted)' : 'url(#yieldNormal)'} />
-          <path d={linePath} fill="none" stroke={isInverted ? '#ef4444' : '#3b82f6'} strokeWidth="2" />
-          {points.map((point, index) => (
-            <circle key={point.label} cx={point.x} cy={point.y} r={3} fill={isInverted ? '#ef4444' : '#3b82f6'} />
-          ))}
-          {points.map((point) => (
-            <text
-              key={`label-${point.label}`}
-              x={point.x}
-              y={height - 10}
-              fill="#94a3b8"
-              fontSize="10"
-              textAnchor="middle"
-            >
-              {point.label}
-            </text>
-          ))}
-        </svg>
+      <div
+        className={`chart-container ${scanlineClass} relative flex-1 rounded-xl border ${glowShadow} overflow-hidden ${
+          isInverted
+            ? 'border-orange-500/40 bg-[#140b12]/70'
+            : 'border-cyan-500/30 bg-[#0b1325]/70'
+        } p-2`}
+      >
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-16"
+          style={{ background: `linear-gradient(180deg, ${lineColor}33, transparent)` }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-6 bottom-3 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${lineColor}, transparent)`,
+            boxShadow: `0 0 14px ${lineColor}cc`,
+          }}
+        />
+        <div className="relative z-10 h-full">
+          <Chart options={options} series={series} type="area" height={200} />
+        </div>
       </div>
     </div>
   );
@@ -503,11 +697,16 @@ const EconCalendar = () => {
             return (
               <div
                 key={item.id}
-                className={`grid grid-cols-[64px_1fr_72px_72px] items-center px-2 py-2 rounded-lg text-[11px] ${
+                className={`relative grid grid-cols-[64px_1fr_72px_72px] items-center px-2 py-2 rounded-lg text-[11px] ${
                   index % 2 === 0 ? 'bg-[#0b1a2e]/60' : 'bg-[#0a1426]/60'
-                } ${isToday ? 'border-l-2 border-blue-500' : 'border-l-2 border-transparent'}`}
+                }`}
               >
-                <span className="text-gray-400">{isToday ? 'TODAY' : formatDay(date)}</span>
+                {isToday && (
+                  <div className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full bg-gradient-to-b from-blue-400 via-blue-500/70 to-transparent shadow-[0_0_12px_rgba(59,130,246,0.7)]" />
+                )}
+                <span className={isToday ? 'text-blue-300 font-mono text-[10px] tracking-[0.2em]' : 'text-gray-400'}>
+                  {isToday ? 'TODAY' : formatDay(date)}
+                </span>
                 <span className="text-gray-200 truncate">{item.name}</span>
                 <span className="text-right text-gray-400">{item.previous}</span>
                 <span className="text-right text-gray-200">{item.consensus}</span>
@@ -520,85 +719,41 @@ const EconCalendar = () => {
   );
 };
 
-const TrendChart = ({ data, stroke, fill, height = 170 }) => {
-  const containerRef = useRef(null);
-  const [hover, setHover] = useState(null);
-
+const TrendChart = ({ data, stroke, fill, height = 170, label }) => {
   const hasInsufficientData = !data
     || data.length < 2
     || data.some((entry) => !Number.isFinite(entry.value));
 
-  const chart = useMemo(() => {
-    if (hasInsufficientData) return null;
-    const width = 420;
-    const padding = { top: 12, bottom: 22, left: 10, right: 10 };
-    const values = data.map((d) => d.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-    const points = data.map((d, index) => {
-      const x = padding.left + (index / (data.length - 1)) * (width - padding.left - padding.right);
-      const y = padding.top + (1 - (d.value - min) / range) * (height - padding.top - padding.bottom);
-      return { ...d, x, y };
-    });
-    const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`).join(' ');
-    const areaPath = `${linePath} L ${points[points.length - 1].x},${height - padding.bottom} L ${points[0].x},${height - padding.bottom} Z`;
-    return { width, height, points, linePath, areaPath };
-  }, [data, height, hasInsufficientData]);
+  const series = useMemo(() => {
+    if (hasInsufficientData) return [];
+    return [
+      {
+        name: 'Trend',
+        data: data.map((entry) => ({
+          x: new Date(entry.date).getTime(),
+          y: entry.value,
+        })),
+      },
+    ];
+  }, [data, hasInsufficientData]);
 
-  const handleMove = (event) => {
-    if (!containerRef.current || !chart) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
-    const index = Math.round((x / rect.width) * (chart.points.length - 1));
-    const point = chart.points[index];
-    const pxX = (point.x / chart.width) * rect.width;
-    const pxY = (point.y / chart.height) * rect.height;
-    setHover({ point, pxX, pxY, rect });
-  };
+  const options = useMemo(() => {
+    if (hasInsufficientData) return null;
+    return trendChartOptions({ stroke, data, height, fill, label });
+  }, [stroke, data, height, fill, label, hasInsufficientData]);
 
   if (hasInsufficientData) {
     return <InsufficientDataState />;
   }
 
-  if (!chart) return null;
+  if (!options) return null;
 
   return (
     <div
-      ref={containerRef}
-      className="relative h-full w-full"
-      onMouseMove={handleMove}
-      onMouseLeave={() => setHover(null)}
+      className="chart-container h-full w-full rounded-xl border border-cyan-500/20 bg-[#0b1325]/70 p-2"
+      style={{ boxShadow: `0 0 26px ${stroke}33` }}
     >
-      <svg viewBox={`0 0 ${chart.width} ${chart.height}`} className="w-full h-full">
-        <path d={chart.areaPath} fill={fill} />
-        <path d={chart.linePath} fill="none" stroke={stroke} strokeWidth="2" />
-        {hover && (
-          <>
-            <line
-              x1={hover.point.x}
-              x2={hover.point.x}
-              y1={10}
-              y2={chart.height - 18}
-              stroke="rgba(148,163,184,0.4)"
-              strokeDasharray="4 4"
-            />
-            <circle cx={hover.point.x} cy={hover.point.y} r={4} fill={stroke} />
-          </>
-        )}
-      </svg>
-      {hover && (
-        <div
-          className="absolute px-2 py-1 rounded-md text-[11px] bg-[#0a1628] border border-gray-800/70 text-gray-200 pointer-events-none"
-          style={{
-            left: Math.min(Math.max(hover.pxX - 40, 8), hover.rect.width - 90),
-            top: Math.max(hover.pxY - 40, 6),
-          }}
-        >
-          <div className="text-gray-400">{formatDate(hover.point.date)}</div>
-          <div className="text-white font-semibold">{formatNumber(hover.point.value, 2)}</div>
-        </div>
-      )}
+      <Chart options={options} series={series} type="area" height={height} />
     </div>
   );
 };
@@ -682,7 +837,12 @@ const HistoricalTrends = ({ seriesMap, loading, error, onRetry }) => {
         ))}
       </div>
       <div className="flex-1 min-h-0 pb-2">
-        <TrendChart data={filteredSeries} stroke={activeConfig.stroke} fill={activeConfig.fill} />
+        <TrendChart
+          data={filteredSeries}
+          stroke={activeConfig.stroke}
+          fill={activeConfig.fill}
+          label={activeConfig.label}
+        />
       </div>
     </div>
   );
@@ -763,7 +923,13 @@ const SeriesModal = ({ series, onClose }) => {
               ) : error ? (
                 <ErrorState onRetry={loadSeries} />
               ) : (
-                <TrendChart data={data} stroke="#3b82f6" fill="rgba(59,130,246,0.2)" height={240} />
+                <TrendChart
+                  data={data}
+                  stroke="#3b82f6"
+                  fill="rgba(59,130,246,0.2)"
+                  height={240}
+                  label={series?.title || series?.id}
+                />
               )}
             </div>
           </motion.div>
@@ -1028,7 +1194,42 @@ const FredPage = () => {
 
   return (
     <FredErrorBoundary>
-      <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative">
+      <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative fred-scanline">
+        <style>{`
+          .fred-scanline .chart-container {
+            position: relative;
+            overflow: hidden;
+          }
+          .fred-scanline .chart-container::after {
+            content: '';
+            position: absolute;
+            left: -10%;
+            right: -10%;
+            top: -70%;
+            height: 70%;
+            background: linear-gradient(120deg, transparent 0%, rgba(56,189,248,0.08) 45%, rgba(148,163,184,0.16) 50%, rgba(56,189,248,0.08) 55%, transparent 100%);
+            opacity: 0.65;
+            animation: fred-scanline 6s linear infinite;
+            pointer-events: none;
+            mix-blend-mode: screen;
+            border-radius: inherit;
+          }
+          .fred-scanline .chart-container--warm::after {
+            background: linear-gradient(120deg, transparent 0%, rgba(249,115,22,0.12) 45%, rgba(239,68,68,0.2) 50%, rgba(249,115,22,0.12) 55%, transparent 100%);
+          }
+          .fred-scanline .yield-badge {
+            letter-spacing: 0.28em;
+            font-family: ${chartFont};
+            box-shadow: 0 0 12px rgba(56,189,248,0.35), inset 0 0 12px rgba(56,189,248,0.18);
+          }
+          .fred-scanline .yield-badge--inverted {
+            box-shadow: 0 0 14px rgba(249,115,22,0.45), 0 0 26px rgba(239,68,68,0.35);
+          }
+          @keyframes fred-scanline {
+            0% { transform: translateY(-120%); }
+            100% { transform: translateY(220%); }
+          }
+        `}</style>
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
