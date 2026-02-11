@@ -316,12 +316,12 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 
 const YieldCurve = () => {
   const yieldTabs = useMemo(() => ([
-    { label: '2Y', symbol: 'TVC:US02Y' },
-    { label: '5Y', symbol: 'TVC:US05Y' },
-    { label: '10Y', symbol: 'TVC:US10Y' },
-    { label: '30Y', symbol: 'TVC:US30Y' },
+    { label: '10Y', symbol: 'CBOE:TNX' },
+    { label: '5Y', symbol: 'CBOE:FVX' },
+    { label: '30Y', symbol: 'CBOE:TYX' },
+    { label: '13W', symbol: 'CBOE:IRX' },
   ]), []);
-  const [activeSymbol, setActiveSymbol] = useState('TVC:US10Y');
+  const [activeSymbol, setActiveSymbol] = useState('CBOE:TNX');
 
   const config = useMemo(() => ({
     autosize: true,
