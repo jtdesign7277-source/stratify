@@ -391,12 +391,10 @@ const EconCalendar = () => {
     <div className="h-full rounded-2xl border border-gray-800/30 bg-[#0a1628] p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Calendar className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-        <span className="text-white text-sm font-semibold">Econ Calendar</span>
+        <span className="text-white text-sm font-semibold">Economic Calendar</span>
       </div>
       <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
-        <div className="h-full w-full pointer-events-none">
-          <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
-        </div>
+        <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
       </div>
     </div>
   );
@@ -763,11 +761,11 @@ const FredPage = () => {
           <div className="h-[80px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </div>
-          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-4 min-h-0 -mt-2">
+          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-1 min-h-0 -mt-2">
             <div className="min-h-0">
               <YieldCurve />
             </div>
-            <div className="min-h-0 grid grid-rows-[1fr_1fr] gap-4">
+            <div className="min-h-0 grid grid-rows-[1fr_1fr] gap-2">
               <EconCalendar />
               <FredSearch />
             </div>
