@@ -824,10 +824,6 @@ const FredPage = () => {
               />
             </div>
             <div className="min-h-0 flex flex-col gap-0">
-              <EconCalendar
-                collapsed={calendarCollapsed}
-                onToggle={() => setCalendarCollapsed((prev) => !prev)}
-              />
               <div className="flex-1 min-h-0">
                 <FredSearch
                   onSelectSymbol={handleSelectSymbol}
@@ -835,6 +831,10 @@ const FredPage = () => {
                   onToggle={() => setExploreCollapsed((prev) => !prev)}
                 />
               </div>
+              <EconCalendar
+                collapsed={calendarCollapsed}
+                onToggle={() => setCalendarCollapsed((prev) => !prev)}
+              />
             </div>
           </div>
         </div>
