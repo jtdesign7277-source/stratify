@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Calendar,
+  ChevronDown,
   LineChart,
   Percent,
   Search,
@@ -376,7 +377,7 @@ const YieldCurve = () => {
   );
 };
 
-const EconCalendar = () => {
+const EconCalendar = ({ collapsed, onToggle }) => {
   const config = useMemo(() => ({
     colorTheme: 'dark',
     isTransparent: true,
@@ -388,16 +389,35 @@ const EconCalendar = () => {
   }), []);
 
   return (
-    <div className="h-full rounded-2xl border border-gray-800/30 bg-[#0a1628] p-4 flex flex-col">
-      <div className="flex items-center gap-2 mb-3">
-        <Calendar className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
-        <span className="text-white text-sm font-semibold">Economic Calendar</span>
-      </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden overflow-y-auto">
-        <div className="min-h-full pointer-events-none">
-          <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
+    <div
+      className={`rounded-2xl border border-gray-800/30 bg-[#0a1628] flex flex-col ${
+        collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
+      }`}
+    >
+      <div className={`flex items-center justify-between gap-2 ${collapsed ? 'mb-0' : 'mb-3'}`}>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
+          <span className="text-white text-sm font-semibold">Economic Calendar</span>
         </div>
+        <button
+          onClick={onToggle}
+          className="p-1 rounded-md border border-gray-800/30 text-gray-400 hover:text-white transition"
+          aria-label={collapsed ? 'Expand calendar' : 'Collapse calendar'}
+        >
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${collapsed ? '-rotate-90' : 'rotate-0'}`}
+            strokeWidth={1.5}
+            fill="none"
+          />
+        </button>
       </div>
+      {!collapsed && (
+        <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden overflow-y-auto">
+          <div className="min-h-full pointer-events-none">
+            <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -747,6 +767,7 @@ const FredPage = () => {
   ].filter((value, index, array) => array.indexOf(value) === index), []);
 
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
 
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
   return (
@@ -767,9 +788,14 @@ const FredPage = () => {
             <div className="min-h-0">
               <YieldCurve />
             </div>
-            <div className="min-h-0 grid grid-rows-[1fr_1fr] gap-0">
-              <EconCalendar />
-              <FredSearch />
+            <div className="min-h-0 flex flex-col gap-0">
+              <EconCalendar
+                collapsed={calendarCollapsed}
+                onToggle={() => setCalendarCollapsed((prev) => !prev)}
+              />
+              <div className="flex-1 min-h-0">
+                <FredSearch />
+              </div>
             </div>
           </div>
         </div>
