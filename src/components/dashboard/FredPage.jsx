@@ -681,7 +681,7 @@ const HistoricalTrends = ({ seriesMap, loading, error, onRetry }) => {
           </button>
         ))}
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-h-0 pb-2">
         <TrendChart data={filteredSeries} stroke={activeConfig.stroke} fill={activeConfig.fill} />
       </div>
     </div>
