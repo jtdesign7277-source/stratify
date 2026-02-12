@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Send, Loader2, X, GripVertical, Bot, MessageCircle } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
@@ -236,27 +235,19 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        ref={containerRef}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.15 }}
-        className="fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none"
-        style={{
-          left: position.x,
-          top: position.y,
-          width: size.width,
-          height: size.height,
-          willChange: isDragging ? 'left, top' : 'auto',
-          transform: 'translateZ(0)', // Force GPU layer
-          backfaceVisibility: 'hidden',
-          background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(59, 130, 246, 0.1)',
-        }}
-      >
+    <div
+      ref={containerRef}
+      className="fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none"
+      style={{
+        left: position.x,
+        top: position.y,
+        width: size.width,
+        height: size.height,
+        background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
+        border: '1px solid rgba(59, 130, 246, 0.3)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.15)',
+      }}
+    >
         {/* Header - Draggable */}
         <div 
           className={`flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-transparent ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
@@ -379,8 +370,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
         >
           <GripVertical className="w-3 h-3 text-blue-400 rotate-[-45deg]" />
         </div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
   );
 };
 
