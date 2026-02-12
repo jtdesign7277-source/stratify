@@ -791,7 +791,7 @@ const FredPage = () => {
 
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
   const [calendarCollapsed, setCalendarCollapsed] = useState(true);
-  const [exploreCollapsed, setExploreCollapsed] = useState(true);
+  const [exploreCollapsed, setExploreCollapsed] = useState(false);
   const [activeSymbol, setActiveSymbol] = useState('FRED:DGS10');
   const [activeLabel, setActiveLabel] = useState('10Y Treasury');
 
