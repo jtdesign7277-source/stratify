@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
 import { API_URL } from '../../config';
+import useAlpacaStream from '../../hooks/useAlpacaStream';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
 
@@ -133,7 +134,62 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
   const activeWatchlist = activeTab === 'stocks' ? stockWatchlist : [];
   const footerCount = activeTab === 'crypto' ? cryptoList.length : activeWatchlist.length;
-  const footerLabel = activeTab === 'crypto' ? 'Crypto.com API' : 'Alpaca Data';
+  const footerLabel = activeTab === 'crypto' ? 'Crypto.com API' : 'Alpaca Live';
+
+  // Real-time WebSocket streaming from Alpaca
+  const stockSymbolsForStream = useMemo(() => stockWatchlist.map(s => s.symbol), [stockWatchlist]);
+  const cryptoSymbolsForStream = useMemo(() => cryptoList.map(c => c.symbol), [cryptoList]);
+  
+  const {
+    stockQuotes: wsStockQuotes,
+    cryptoQuotes: wsCryptoQuotes,
+    stockConnected,
+    cryptoConnected,
+  } = useAlpacaStream({
+    stockSymbols: stockSymbolsForStream,
+    cryptoSymbols: cryptoSymbolsForStream,
+    enabled: true
+  });
+
+  // Merge WebSocket data with polling data for stocks
+  useEffect(() => {
+    if (Object.keys(wsStockQuotes).length > 0) {
+      setQuotes(prev => {
+        const merged = { ...prev };
+        Object.entries(wsStockQuotes).forEach(([symbol, wsQuote]) => {
+          if (wsQuote.price) {
+            const prevClose = prev[symbol]?.prevClose || wsQuote.prevClose || wsQuote.price;
+            merged[symbol] = {
+              ...prev[symbol],
+              latestPrice: wsQuote.price,
+              change: wsQuote.price - prevClose,
+              changePercent: prevClose ? ((wsQuote.price - prevClose) / prevClose) * 100 : 0,
+            };
+          }
+        });
+        return merged;
+      });
+    }
+  }, [wsStockQuotes]);
+
+  // Merge WebSocket data with polling data for crypto
+  useEffect(() => {
+    if (Object.keys(wsCryptoQuotes).length > 0) {
+      setCryptoQuotes(prev => {
+        const merged = { ...prev };
+        Object.entries(wsCryptoQuotes).forEach(([symbol, wsQuote]) => {
+          if (wsQuote.price) {
+            merged[symbol] = {
+              ...prev[symbol],
+              price: wsQuote.price,
+              changePercent: prev[symbol]?.changePercent || 0,
+            };
+          }
+        });
+        return merged;
+      });
+    }
+  }, [wsCryptoQuotes]);
 
   // Cleanup ref
   useEffect(() => {
