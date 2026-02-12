@@ -55,63 +55,21 @@ export default function SupportChat({ compact = false }) {
     setIsLoading(true);
 
     try {
-      const conversationHistory = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...messages.filter(m => m.role !== 'system'),
-        userMessage
-      ];
-
       const response = await fetch(`${API_BASE}/api/v1/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: conversationHistory,
+          message: text,
           session_id: getSessionId()
         })
       });
 
       if (!response.ok) throw new Error('Failed to get response');
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
-              if (content) {
-                assistantContent += content;
-                setMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
-                  return updated;
-                });
-              }
-            } catch {}
-          }
-        }
-      }
-
-      if (!assistantContent) {
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: "I'm having trouble responding. Please try again or use the contact form." };
-          return updated;
-        });
-      }
+      const data = await response.json();
+      const assistantContent = data.response || "I'm having trouble responding. Please try again.";
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
 
     } catch (error) {
       console.error('Support chat error:', error);
