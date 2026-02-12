@@ -373,7 +373,16 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
               }
             }}
           >
-            {miniPills[slot] || null}
+            {miniPills[slot] || (slot >= 1 && (
+              <div className="flex items-center justify-center gap-1 px-3 text-white/20">
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </svg>
+              </div>
+            ))}
           </div>
         ))}
       </div>
