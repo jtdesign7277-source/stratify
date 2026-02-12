@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Send, Loader2, X, Bot, GripVertical } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
+const STORAGE_KEY = 'stratify-chat-v4';
+const DEFAULT_WIDTH = 380;
+const DEFAULT_HEIGHT = 480;
 
 const getSessionId = () => {
   let id = sessionStorage.getItem('grok-session-id');
@@ -12,48 +15,50 @@ const getSessionId = () => {
   return id;
 };
 
-const STORAGE_KEY = 'stratify-chat-v3';
-
 const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
-  const [messages, setMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const [position, setPosition] = useState({ x: 220, y: 150 });
-  const [size, setSize] = useState({ width: 380, height: 480 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  
   const containerRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const typingIntervalRef = useRef(null);
-  
-  const positionRef = useRef(position);
-  const sizeRef = useRef(size);
+  const positionRef = useRef({ x: 220, y: 150 });
+  const sizeRef = useRef({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
-  // Keep refs in sync
-  useEffect(() => { positionRef.current = position; }, [position]);
-  useEffect(() => { sizeRef.current = size; }, [size]);
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+  const [position, setPosition] = useState({ x: 220, y: 150 });
 
-  // Load saved state
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const typingIntervalRef = useRef(null);
+
+  useEffect(() => { sizeRef.current = size; }, [size]);
+  useEffect(() => { positionRef.current = position; }, [position]);
+
+  // Load saved position/size
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const { pos, sz } = JSON.parse(saved);
-        if (pos) { setPosition(pos); positionRef.current = pos; }
-        if (sz) { setSize(sz); sizeRef.current = sz; }
+        if (pos) setPosition(pos);
+        if (sz) setSize(sz);
       }
     } catch {}
   }, []);
 
-  const saveState = useCallback(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: positionRef.current, sz: sizeRef.current }));
-    } catch {}
+  const saveState = (pos = positionRef.current, sz = sizeRef.current) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos, sz })); } catch {}
+  };
+
+  const clampPosition = useCallback((pos, sz = sizeRef.current) => {
+    if (typeof window === "undefined") return pos;
+    return {
+      x: Math.min(Math.max(0, pos.x), window.innerWidth - sz.width),
+      y: Math.min(Math.max(0, pos.y), window.innerHeight - sz.height),
+    };
   }, []);
 
   // Focus input when opened
@@ -71,41 +76,34 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Cleanup
+  // Cleanup typing interval
   useEffect(() => {
     return () => { if (typingIntervalRef.current) clearInterval(typingIntervalRef.current); };
   }, []);
 
-  // Clamp position
-  const clampPosition = useCallback((pos) => ({
-    x: Math.max(0, Math.min(window.innerWidth - sizeRef.current.width, pos.x)),
-    y: Math.max(0, Math.min(window.innerHeight - sizeRef.current.height, pos.y)),
-  }), []);
-
   // ── Drag ─────────────────────────────────────────────────────
   const handleDragStart = (e) => {
-    if (e.target.closest('[data-no-drag]')) return;
-    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    if (e.target.closest("button") || e.target.closest("a") || e.target.closest("input") || e.target.closest("textarea")) return;
+    e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     dragOffset.current = { x: clientX - positionRef.current.x, y: clientY - positionRef.current.y };
     setIsDragging(true);
   };
 
   const handleDragMove = useCallback((e) => {
     if (!isDragging) return;
-    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     const newPos = clampPosition({ x: clientX - dragOffset.current.x, y: clientY - dragOffset.current.y });
     positionRef.current = newPos;
-    if (containerRef.current) {
-      containerRef.current.style.transform = `translate(${newPos.x}px, ${newPos.y}px)`;
-    }
+    if (containerRef.current) containerRef.current.style.transform = `translate(${newPos.x}px, ${newPos.y}px)`;
   }, [isDragging, clampPosition]);
 
   const handleDragEnd = useCallback(() => {
     if (isDragging) { setPosition({ ...positionRef.current }); saveState(); }
     setIsDragging(false);
-  }, [isDragging, saveState]);
+  }, [isDragging]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -125,29 +123,31 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   const handleResizeStart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     resizeStart.current = { x: clientX, y: clientY, width: sizeRef.current.width, height: sizeRef.current.height };
     setIsResizing(true);
   };
 
   const handleResizeMove = useCallback((e) => {
     if (!isResizing) return;
-    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    const newWidth = Math.max(300, Math.min(600, resizeStart.current.width + (clientX - resizeStart.current.x)));
-    const newHeight = Math.max(300, Math.min(700, resizeStart.current.height + (clientY - resizeStart.current.y)));
-    sizeRef.current = { width: newWidth, height: newHeight };
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const newSize = {
+      width: Math.max(300, Math.min(600, resizeStart.current.width + (clientX - resizeStart.current.x))),
+      height: Math.max(300, Math.min(800, resizeStart.current.height + (clientY - resizeStart.current.y))),
+    };
+    sizeRef.current = newSize;
     if (containerRef.current) {
-      containerRef.current.style.width = `${newWidth}px`;
-      containerRef.current.style.height = `${newHeight}px`;
+      containerRef.current.style.width = `${newSize.width}px`;
+      containerRef.current.style.height = `${newSize.height}px`;
     }
   }, [isResizing]);
 
   const handleResizeEnd = useCallback(() => {
     if (isResizing) { setSize({ ...sizeRef.current }); saveState(); }
     setIsResizing(false);
-  }, [isResizing, saveState]);
+  }, [isResizing]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -215,11 +215,11 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
         transform: `translate(${position.x}px, ${position.y}px)`,
         width: size.width,
         height: size.height,
-        background: 'linear-gradient(180deg, #12141a 0%, #0a0c10 100%)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
+        background: "linear-gradient(180deg, #12141a 0%, #0a0c10 100%)",
+        border: "1px solid rgba(59, 130, 246, 0.2)",
         left: 0,
         top: 0,
-        userSelect: isDragging || isResizing ? 'none' : 'auto',
+        userSelect: isDragging || isResizing ? "none" : "auto",
       }}
     >
       {/* Header (draggable) */}
@@ -233,11 +233,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
         <span className="text-[13px] font-semibold text-white">Chat</span>
         <span className="text-[11px] text-blue-400/60 ml-1">AI Assistant</span>
         <div className="ml-auto">
-          <button 
-            data-no-drag
-            onClick={onClose} 
-            className="p-1.5 rounded-md hover:bg-white/5 transition-colors"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-white/5 transition-colors">
             <X className="w-3.5 h-3.5 text-white/40 hover:text-white/70" strokeWidth={1.5} />
           </button>
         </div>
@@ -282,11 +278,10 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
       </div>
 
       {/* Input */}
-      <div className="p-2.5 border-t border-white/10" data-no-drag>
+      <div className="p-2.5 border-t border-white/10">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
-            data-no-drag
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
@@ -296,7 +291,6 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
             style={{ scrollbarWidth: 'none' }}
           />
           <button
-            data-no-drag
             onClick={handleSend}
             disabled={!chatInput.trim() || isLoading}
             className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all ${
