@@ -209,8 +209,8 @@ export default function Dashboard({
   
   // Handle dropping a ticker onto a pill slot
   const handleTickerDrop = (symbol, slotIndex) => {
-    if (slotIndex < 2) return; // Slots 0-1 are reserved for Grok/Feed
-    const tickerIndex = slotIndex - 2; // Map to miniTickers array
+    if (slotIndex < 1) return; // Slot 0 is reserved for Feed
+    const tickerIndex = slotIndex - 1; // Map to miniTickers array (slots 1-5 → indices 0-4)
     setPinnedGames(prev => {
       const next = [...prev];
       next[slotIndex] = null;
@@ -221,15 +221,15 @@ export default function Dashboard({
       // Remove if already exists elsewhere
       const existingIndex = newTickers.indexOf(symbol);
       if (existingIndex !== -1) newTickers.splice(existingIndex, 1);
-      // Add to new slot (max 4 tickers)
+      // Add to new slot (max 5 tickers now)
       while (newTickers.length < tickerIndex) newTickers.push(null);
       newTickers[tickerIndex] = symbol;
-      return newTickers.slice(0, 4);
+      return newTickers.slice(0, 5);
     });
   };
 
   const handleGameDrop = (game, slotIndex) => {
-    if (slotIndex < 2) return;
+    if (slotIndex < 1) return; // Slot 0 is reserved for Feed
     setPinnedGames(prev => {
       const next = [...prev];
       const existingIndex = next.findIndex(g => g?.id === game?.id);
@@ -757,7 +757,7 @@ export default function Dashboard({
     </div>
   );
 
-  [2, 3, 4, 5].forEach((slot) => {
+  [1, 2, 3, 4, 5].forEach((slot) => {
     if (pinnedGames[slot]) {
       miniPillSlots[slot] = (
         <MiniGamePill
@@ -769,7 +769,7 @@ export default function Dashboard({
       return;
     }
 
-    const tickerIndex = slot - 2;
+    const tickerIndex = slot - 1; // Slots 1-5 map to ticker indices 0-4
     const tickerSymbol = miniTickers[tickerIndex];
     if (tickerSymbol) {
       miniPillSlots[slot] = (
@@ -782,7 +782,7 @@ export default function Dashboard({
       return;
     }
 
-    if (slot === 2) {
+    if (slot === 1) {
       miniPillSlots[slot] = liveScoresPill;
     }
   });

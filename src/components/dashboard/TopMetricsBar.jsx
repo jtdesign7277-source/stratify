@@ -349,7 +349,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
             }`}
             data-pill-slot={slot}
             onDragOver={(e) => {
-              if (slot >= 2) { // Only slots 2-5 can accept drops
+              if (slot >= 1) { // Slots 1-5 can accept drops (slot 0 = Feed pill)
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
                 e.currentTarget.classList.add('border-emerald-500/50', 'bg-emerald-500/10');
@@ -362,13 +362,13 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
               e.preventDefault();
               e.currentTarget.classList.remove('border-emerald-500/50', 'bg-emerald-500/10');
               const payload = parseDropPayload(e);
-              if (payload?.type === 'game' && onGameDrop && slot >= 2) {
+              if (payload?.type === 'game' && onGameDrop && slot >= 1) {
                 onGameDrop(payload.data, slot);
                 clearGlobalDragPayload();
                 return;
               }
               const symbol = e.dataTransfer.getData('text/plain');
-              if (symbol && onTickerDrop && slot >= 2) {
+              if (symbol && onTickerDrop && slot >= 1) {
                 onTickerDrop(symbol, slot);
               }
             }}
