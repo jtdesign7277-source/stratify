@@ -949,15 +949,33 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                       }
                                     </span>
                                     {showPreMarket && (
-                                      <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                                      <span 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowDollarChange(!showDollarChange);
+                                        }}
+                                        className="text-xs font-semibold text-blue-400 flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                                      >
                                         <span className="text-yellow-400">☀️</span>
-                                        {preMarketPercentLabel}
+                                        {showDollarChange 
+                                          ? `${preMarketChange >= 0 ? '+' : ''}$${Math.abs(preMarketChange || 0).toFixed(2)}`
+                                          : preMarketPercentLabel
+                                        }
                                       </span>
                                     )}
                                     {showAfterHours && (
-                                      <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">
+                                      <span 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowDollarChange(!showDollarChange);
+                                        }}
+                                        className="text-xs font-semibold text-blue-400 flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                                      >
                                         <span className="text-purple-400">🌙</span>
-                                        {afterHoursPercentLabel}
+                                        {showDollarChange 
+                                          ? `${afterHoursChange >= 0 ? '+' : ''}$${Math.abs(afterHoursChange || 0).toFixed(2)}`
+                                          : afterHoursPercentLabel
+                                        }
                                       </span>
                                     )}
                                   </div>
