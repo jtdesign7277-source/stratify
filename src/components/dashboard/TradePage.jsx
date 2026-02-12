@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, GripVertical, FolderPlus, ChevronRight, Folder } from 'lucide-react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, GripVertical, FolderPlus, ChevronRight, Folder, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
@@ -962,6 +962,20 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                     )}
                                   </div>
                                 )}
+                              </div>
+
+                              {/* Pin to Mini Pill - Native drag */}
+                              <div
+                                draggable="true"
+                                onDragStart={(e) => {
+                                  e.stopPropagation();
+                                  e.dataTransfer.setData('text/plain', stock.symbol);
+                                  e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                                className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400 cursor-grab active:cursor-grabbing"
+                                title="Drag to mini pill"
+                              >
+                                <Pin className="w-4 h-4" strokeWidth={1.5} />
                               </div>
 
                               <button 

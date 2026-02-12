@@ -14,8 +14,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const ALPACA_KEY = process.env.ALPACA_API_KEY;
-  const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY;
+  const ALPACA_KEY = (process.env.ALPACA_API_KEY || '').trim();
+  const ALPACA_SECRET = (process.env.ALPACA_SECRET_KEY || '').trim();
 
   if (!ALPACA_KEY || !ALPACA_SECRET) {
     return res.status(500).json({ error: 'Alpaca API keys not configured' });
