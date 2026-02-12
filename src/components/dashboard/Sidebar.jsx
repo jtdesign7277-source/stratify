@@ -21,6 +21,7 @@ import {
   Zap,
   TrendingUp,
   Terminal,
+  MessageCircle,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -51,6 +52,7 @@ const Sidebar = ({
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'predictions', label: 'Predictions', icon: Zap },
+    { id: 'ai-chat', label: 'AI Chat', icon: MessageCircle },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },

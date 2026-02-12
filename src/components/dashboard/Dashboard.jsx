@@ -18,6 +18,7 @@ import StrategiesPage from './StrategiesPage';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
 import AIChat from './AIChat';
+import StratifyChat from './StratifyChat';
 import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './CommandPalette';
 import Home from './Home';
 import WatchlistPage from './WatchlistPage';
@@ -871,6 +872,7 @@ export default function Dashboard({
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
+          {activeTab === 'ai-chat' && <StratifyChat />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
           {activeTab === 'grok' && <DemoPanel />}
           {activeTab === 'portfolio' && (
