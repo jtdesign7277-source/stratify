@@ -65,7 +65,7 @@ Sent from Stratify Contact Form
     const draft = await response.json();
     
     // Send the draft
-    const sendResponse = await fetch(`https://api.agentmail.to/v0/inboxes/stratify@agentmail.to/drafts/${draft.id}/send`, {
+    const sendResponse = await fetch(`https://api.agentmail.to/v0/inboxes/stratify@agentmail.to/drafts/${draft.draft_id}/send`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
