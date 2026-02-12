@@ -1,13 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Send, Loader2, X, GripVertical } from 'lucide-react';
-
-// X (Twitter) logo for Grok
-const XLogo = ({ className }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
+import { Send, Loader2, X, GripVertical, Bot, MessageCircle } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -260,22 +253,22 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           transform: 'translateZ(0)', // Force GPU layer
           backfaceVisibility: 'hidden',
           background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.2)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(59, 130, 246, 0.1)',
         }}
       >
         {/* Header - Draggable */}
         <div 
-          className={`flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-emerald-500/10 to-transparent ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-transparent ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           onMouseDown={handleDragStart}
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-              <XLogo className="w-4 h-4 text-emerald-400" />
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-blue-400" />
             </div>
             <div>
-              <span className="text-white font-semibold text-sm">Grok</span>
-              <span className="text-emerald-400/60 text-xs ml-2">AI Assistant</span>
+              <span className="text-white font-semibold text-sm">Chat</span>
+              <span className="text-blue-400/60 text-xs ml-2">AI Assistant</span>
             </div>
           </div>
           <button
@@ -300,10 +293,10 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           <style>{`.floating-grok-messages::-webkit-scrollbar { display: none; }`}</style>
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
-                <XLogo className="w-8 h-8 text-emerald-400/50" />
+              <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
+                <Bot className="w-8 h-8 text-blue-400/50" />
               </div>
-              <p className="text-white/40 text-sm">Ask Grok anything about trading, markets, or strategies.</p>
+              <p className="text-white/40 text-sm">Ask anything about trading, markets, or strategies.</p>
             </div>
           )}
           
@@ -312,13 +305,13 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
               <div
                 className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   m.role === 'user'
-                    ? 'bg-emerald-600 text-white rounded-br-sm'
+                    ? 'bg-blue-600 text-white rounded-br-sm'
                     : 'bg-[#111111] text-[#e5e5e5] border border-white/5 rounded-bl-sm'
                 }`}
               >
                 <span className="whitespace-pre-wrap">{m.content}</span>
                 {m.role === 'assistant' && m.isTyping && (
-                  <span className="inline-block w-1.5 h-4 bg-emerald-400 ml-0.5 animate-pulse" />
+                  <span className="inline-block w-1.5 h-4 bg-blue-400 ml-0.5 animate-pulse" />
                 )}
               </div>
             </div>
@@ -327,7 +320,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           {isLoading && messages[messages.length - 1]?.role === 'user' && (
             <div className="flex justify-start">
               <div className="bg-[#111111] rounded-xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-2 border border-white/5">
-                <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
                 <span className="text-gray-400 text-sm">Thinking...</span>
               </div>
             </div>
@@ -349,9 +342,9 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
                   handleSend();
                 }
               }}
-              placeholder="Ask Grok..."
+              placeholder="Ask anything..."
               rows={1}
-              className="flex-1 min-h-[44px] max-h-24 rounded-xl bg-[#111111] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none transition-all"
+              className="flex-1 min-h-[44px] max-h-24 rounded-xl bg-[#111111] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 resize-none transition-all"
               style={{ scrollbarWidth: 'none' }}
             />
             <button
@@ -361,7 +354,7 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
               disabled={!chatInput.trim() || isLoading}
               className={`h-11 w-11 flex-shrink-0 flex items-center justify-center rounded-xl transition-all duration-200 ${
                 chatInput.trim() && !isLoading
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
                   : 'bg-[#111111] text-gray-600 border border-white/10'
               }`}
             >
@@ -380,11 +373,11 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           onMouseDown={handleResizeStart}
           className={`absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center cursor-se-resize opacity-40 hover:opacity-100 transition-opacity ${isResizing ? 'opacity-100' : ''}`}
           style={{ 
-            background: 'linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.3) 50%)',
+            background: 'linear-gradient(135deg, transparent 50%, rgba(59, 130, 246, 0.3) 50%)',
             borderRadius: '0 0 16px 0',
           }}
         >
-          <GripVertical className="w-3 h-3 text-emerald-400 rotate-[-45deg]" />
+          <GripVertical className="w-3 h-3 text-blue-400 rotate-[-45deg]" />
         </div>
       </motion.div>
     </AnimatePresence>
