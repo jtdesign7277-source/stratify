@@ -207,6 +207,23 @@ export default function Dashboard({
     localStorage.setItem('stratify-pinned-games', JSON.stringify(pinnedGames));
   }, [pinnedGames]);
   
+  // Handle pinning a ticker to the first available top mini pill slot (via double-click)
+  const handlePinToTop = (symbol) => {
+    setMiniTickers(prev => {
+      // Check if already pinned
+      if (prev.includes(symbol)) return prev;
+      // Find first empty slot (max 5)
+      const newTickers = [...prev];
+      if (newTickers.length < 5) {
+        newTickers.push(symbol);
+      } else {
+        // Replace the last one if full
+        newTickers[4] = symbol;
+      }
+      return newTickers;
+    });
+  };
+
   // Handle dropping a ticker onto a pill slot
   const handleTickerDrop = (symbol, slotIndex) => {
     if (slotIndex < 1) return; // Slot 0 is reserved for Feed
@@ -845,7 +862,7 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'trade' && (
-            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} onReorderWatchlist={reorderWatchlist} />
+            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} onReorderWatchlist={reorderWatchlist} onPinToTop={handlePinToTop} />
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}

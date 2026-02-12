@@ -212,7 +212,7 @@ const buildQuote = (quote) => {
   };
 };
 
-const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist }) => {
+const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist, onPinToTop }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
   const [chartInterval, setChartInterval] = useState('D');
   const [selectedEquity, setSelectedEquity] = useState(() => {
@@ -964,7 +964,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                 )}
                               </div>
 
-                              {/* Pin to Mini Pill - Native drag */}
+                              {/* Pin to Mini Pill - Double-click for top pills, drag for local pills */}
                               <div
                                 draggable="true"
                                 onDragStart={(e) => {
@@ -972,8 +972,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                   e.dataTransfer.setData('text/plain', stock.symbol);
                                   e.dataTransfer.effectAllowed = 'copy';
                                 }}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onPinToTop) onPinToTop(stock.symbol);
+                                }}
                                 className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400 cursor-grab active:cursor-grabbing"
-                                title="Drag to mini pill"
+                                title="Double-click to pin to top • Drag to local pills"
                               >
                                 <Pin className="w-4 h-4" strokeWidth={1.5} />
                               </div>
