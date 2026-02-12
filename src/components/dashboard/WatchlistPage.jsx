@@ -547,7 +547,21 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         {!isCollapsed && (
           <div className="p-3 border-t border-[#1f1f1f] flex items-center justify-between text-xs">
             <span className="text-gray-400">{footerCount} symbols</span>
-            <span className="text-blue-400">{footerLabel}</span>
+            <div className="flex items-center gap-2">
+              {activeTab === 'stocks' && (
+                <span className={`flex items-center gap-1 ${stockConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${stockConnected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+                  {stockConnected ? 'Live' : 'Connecting...'}
+                </span>
+              )}
+              {activeTab === 'crypto' && (
+                <span className={`flex items-center gap-1 ${cryptoConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cryptoConnected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+                  {cryptoConnected ? 'Live' : 'Connecting...'}
+                </span>
+              )}
+              <span className="text-blue-400">Alpaca</span>
+            </div>
           </div>
         )}
       </div>
