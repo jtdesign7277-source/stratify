@@ -154,10 +154,24 @@ async def handle_email_webhook(request: Request):
             
             print(f"📬 New email from {from_addr}: {subject}")
             
-            # Skip if it's from ourselves (avoid loops)
+            # Get reply-to address (for contact form submissions)
+            reply_to = data.get("reply_to", [])
+            reply_to_addr = reply_to[0] if reply_to else None
+            
+            # Determine who to reply to
+            # If it's from ourselves (contact form), reply to the reply-to address
+            # Otherwise reply to the sender
             if AGENTMAIL_INBOX in from_addr:
-                print("⏭️ Skipping self-sent email")
-                return {"status": "ok", "action": "skipped_self"}
+                if reply_to_addr:
+                    # Contact form submission - reply to the user
+                    recipient = reply_to_addr
+                    print(f"📝 Contact form from {reply_to_addr}")
+                else:
+                    # Self-sent with no reply-to, skip
+                    print("⏭️ Skipping self-sent email (no reply-to)")
+                    return {"status": "ok", "action": "skipped_self"}
+            else:
+                recipient = from_addr
             
             # Skip auto-replies and notifications
             if any(x in subject.lower() for x in ["auto-reply", "out of office", "delivery notification", "undeliverable"]):
@@ -168,8 +182,8 @@ async def handle_email_webhook(request: Request):
             user_query = f"Subject: {subject}\n\nMessage:\n{body}"
             ai_response = await generate_ai_response(user_query)
             
-            # Send reply
-            await send_email_reply(from_addr, subject, ai_response, thread_id)
+            # Send reply to the appropriate recipient
+            await send_email_reply(recipient, subject, ai_response, thread_id)
             
             return {"status": "ok", "action": "replied"}
             
