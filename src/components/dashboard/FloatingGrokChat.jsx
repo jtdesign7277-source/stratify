@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Send, Loader2, X, GripVertical, Bot, MessageCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Send, Loader2, X, Bot, GripVertical } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
-// Unique session ID for conversation memory
 const getSessionId = () => {
   let id = sessionStorage.getItem('grok-session-id');
   if (!id) {
@@ -12,206 +11,186 @@ const getSessionId = () => {
   }
   return id;
 };
-const STORAGE_KEY = 'stratify-grok-chat-v2';
+
+const STORAGE_KEY = 'stratify-chat-v3';
 
 const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [position, setPosition] = useState({ x: 220, y: 200 });
-  const [size, setSize] = useState({ width: 380, height: 500 });
+  
+  const [position, setPosition] = useState({ x: 220, y: 150 });
+  const [size, setSize] = useState({ width: 380, height: 480 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   
-  const messagesEndRef = useRef(null);
-  const typingIntervalRef = useRef(null);
-  const inputRef = useRef(null);
   const containerRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const typingIntervalRef = useRef(null);
+  
+  const positionRef = useRef(position);
+  const sizeRef = useRef(size);
   const dragOffset = useRef({ x: 0, y: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const dragStartPos = useRef({ x: 0, y: 0 });
 
-  // Load saved position/size
+  // Keep refs in sync
+  useEffect(() => { positionRef.current = position; }, [position]);
+  useEffect(() => { sizeRef.current = size; }, [size]);
+
+  // Load saved state
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const { pos, sz } = JSON.parse(saved);
-        if (pos) setPosition(pos);
-        if (sz) setSize(sz);
+        if (pos) { setPosition(pos); positionRef.current = pos; }
+        if (sz) { setSize(sz); sizeRef.current = sz; }
       }
     } catch {}
   }, []);
 
-  // Save position/size
-  const saveState = () => {
+  const saveState = useCallback(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: position, sz: size }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: positionRef.current, sz: sizeRef.current }));
     } catch {}
-  };
+  }, []);
 
   // Focus input when opened
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (isOpen) setTimeout(() => inputRef.current?.focus(), 100);
   }, [isOpen]);
 
-  // Report message count to parent
+  // Report message count
   useEffect(() => {
     onMessageCountChange?.(messages.length);
   }, [messages.length, onMessageCountChange]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Cleanup
   useEffect(() => {
-    return () => {
-      if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
-    };
+    return () => { if (typingIntervalRef.current) clearInterval(typingIntervalRef.current); };
   }, []);
 
-  // Drag handlers - use transform for buttery smooth movement
-  const currentPos = useRef(position);
-  const frameRef = useRef(null);
-  
+  // Clamp position
+  const clampPosition = useCallback((pos) => ({
+    x: Math.max(0, Math.min(window.innerWidth - sizeRef.current.width, pos.x)),
+    y: Math.max(0, Math.min(window.innerHeight - sizeRef.current.height, pos.y)),
+  }), []);
+
+  // ── Drag ─────────────────────────────────────────────────────
   const handleDragStart = (e) => {
     if (e.target.closest('[data-no-drag]')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    currentPos.current = { ...position };
-    dragOffset.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    };
-    
-    // Disable pointer events on iframe/content during drag
-    if (containerRef.current) {
-      containerRef.current.style.transition = 'none';
-    }
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    dragOffset.current = { x: clientX - positionRef.current.x, y: clientY - positionRef.current.y };
     setIsDragging(true);
   };
 
+  const handleDragMove = useCallback((e) => {
+    if (!isDragging) return;
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const newPos = clampPosition({ x: clientX - dragOffset.current.x, y: clientY - dragOffset.current.y });
+    positionRef.current = newPos;
+    if (containerRef.current) {
+      containerRef.current.style.transform = `translate(${newPos.x}px, ${newPos.y}px)`;
+    }
+  }, [isDragging, clampPosition]);
+
+  const handleDragEnd = useCallback(() => {
+    if (isDragging) { setPosition({ ...positionRef.current }); saveState(); }
+    setIsDragging(false);
+  }, [isDragging, saveState]);
+
   useEffect(() => {
     if (!isDragging) return;
-    
-    const handleMove = (e) => {
-      // Cancel previous frame
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      
-      // Use requestAnimationFrame for smooth 60fps updates
-      frameRef.current = requestAnimationFrame(() => {
-        const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.current.x));
-        const newY = Math.max(0, Math.min(window.innerHeight - size.height, e.clientY - dragOffset.current.y));
-        currentPos.current = { x: newX, y: newY };
-        
-        // Apply transform directly for GPU-accelerated smooth movement
-        if (containerRef.current) {
-          containerRef.current.style.left = `${newX}px`;
-          containerRef.current.style.top = `${newY}px`;
-        }
-      });
-    };
-    
-    const handleUp = () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      setPosition({ ...currentPos.current });
-      setIsDragging(false);
-      
-      // Re-enable transitions
-      if (containerRef.current) {
-        containerRef.current.style.transition = '';
-      }
-      
-      // Save after a short delay
-      setTimeout(saveState, 50);
-    };
-    
-    // Use capture phase for faster response
-    document.addEventListener('mousemove', handleMove, { capture: true, passive: true });
-    document.addEventListener('mouseup', handleUp, { capture: true });
-    
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
+    window.addEventListener("touchmove", handleDragMove, { passive: false });
+    window.addEventListener("touchend", handleDragEnd);
     return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      document.removeEventListener('mousemove', handleMove, { capture: true });
-      document.removeEventListener('mouseup', handleUp, { capture: true });
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+      window.removeEventListener("touchmove", handleDragMove);
+      window.removeEventListener("touchend", handleDragEnd);
     };
-  }, [isDragging, size]);
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
-  // Resize handlers
+  // ── Resize ───────────────────────────────────────────────────
   const handleResizeStart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    resizeStart.current = {
-      x: e.clientX,
-      y: e.clientY,
-      width: size.width,
-      height: size.height,
-    };
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    resizeStart.current = { x: clientX, y: clientY, width: sizeRef.current.width, height: sizeRef.current.height };
     setIsResizing(true);
   };
 
-  useEffect(() => {
+  const handleResizeMove = useCallback((e) => {
     if (!isResizing) return;
-    
-    const handleMove = (e) => {
-      const deltaX = e.clientX - resizeStart.current.x;
-      const deltaY = e.clientY - resizeStart.current.y;
-      const newWidth = Math.max(200, Math.min(600, resizeStart.current.width + deltaX));
-      const newHeight = Math.max(180, Math.min(800, resizeStart.current.height + deltaY));
-      setSize({ width: newWidth, height: newHeight });
-    };
-    
-    const handleUp = () => {
-      setIsResizing(false);
-      saveState();
-    };
-    
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const newWidth = Math.max(300, Math.min(600, resizeStart.current.width + (clientX - resizeStart.current.x)));
+    const newHeight = Math.max(300, Math.min(700, resizeStart.current.height + (clientY - resizeStart.current.y)));
+    sizeRef.current = { width: newWidth, height: newHeight };
+    if (containerRef.current) {
+      containerRef.current.style.width = `${newWidth}px`;
+      containerRef.current.style.height = `${newHeight}px`;
+    }
   }, [isResizing]);
 
+  const handleResizeEnd = useCallback(() => {
+    if (isResizing) { setSize({ ...sizeRef.current }); saveState(); }
+    setIsResizing(false);
+  }, [isResizing, saveState]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    window.addEventListener("mousemove", handleResizeMove);
+    window.addEventListener("mouseup", handleResizeEnd);
+    window.addEventListener("touchmove", handleResizeMove, { passive: false });
+    window.addEventListener("touchend", handleResizeEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleResizeMove);
+      window.removeEventListener("mouseup", handleResizeEnd);
+      window.removeEventListener("touchmove", handleResizeMove);
+      window.removeEventListener("touchend", handleResizeEnd);
+    };
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
+
+  // ── Send Message ─────────────────────────────────────────────
   const handleSend = async () => {
     if (!chatInput.trim() || isLoading) return;
     const userMsg = chatInput.trim();
     setChatInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
+    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
 
     try {
       const response = await fetch(API_BASE + '/api/v1/chat/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMsg,
-          session_id: getSessionId()
-        }),
+        body: JSON.stringify({ message: userMsg, session_id: getSessionId() }),
       });
       if (!response.ok) throw new Error('Failed');
       const data = await response.json();
       const fullContent = data.response || "Couldn't respond.";
       
-      setMessages((prev) => [...prev, { role: 'assistant', content: '', isTyping: true }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', isTyping: true }]);
 
       let idx = 0;
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       typingIntervalRef.current = setInterval(() => {
-        idx += 2;
-        setMessages((prev) => {
+        idx += 3;
+        setMessages(prev => {
           const next = [...prev];
           const done = idx >= fullContent.length;
-          next[next.length - 1] = {
-            role: 'assistant',
-            content: fullContent.slice(0, idx),
-            isTyping: !done,
-          };
+          next[next.length - 1] = { role: 'assistant', content: fullContent.slice(0, idx), isTyping: !done };
           return next;
         });
         if (idx >= fullContent.length) {
@@ -220,16 +199,10 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
           setIsLoading(false);
         }
       }, 15);
-    } catch (e) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Error connecting to Grok.', isError: true }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: "Couldn't connect. Try again." }]);
       setIsLoading(false);
     }
-  };
-
-  const handleClose = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -237,140 +210,118 @@ const FloatingGrokChat = ({ isOpen, onClose, onMessageCountChange }) => {
   return (
     <div
       ref={containerRef}
-      className="fixed z-[9999] flex flex-col rounded-2xl overflow-hidden select-none"
+      className="fixed z-[9999] flex flex-col rounded-xl overflow-hidden shadow-2xl shadow-black/50"
       style={{
-        left: position.x,
-        top: position.y,
+        transform: `translate(${position.x}px, ${position.y}px)`,
         width: size.width,
         height: size.height,
-        background: 'linear-gradient(180deg, #1a1a1f 0%, #0d0d12 100%)',
-        border: '1px solid rgba(59, 130, 246, 0.3)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.15)',
+        background: 'linear-gradient(180deg, #12141a 0%, #0a0c10 100%)',
+        border: '1px solid rgba(59, 130, 246, 0.2)',
+        left: 0,
+        top: 0,
+        userSelect: isDragging || isResizing ? 'none' : 'auto',
       }}
     >
-        {/* Header - Draggable */}
-        <div 
-          className={`flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-transparent ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-          onMouseDown={handleDragStart}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-blue-400" />
-            </div>
-            <div>
-              <span className="text-white font-semibold text-sm">Chat</span>
-              <span className="text-blue-400/60 text-xs ml-2">AI Assistant</span>
-            </div>
-          </div>
-          <button
-            type="button"
+      {/* Header (draggable) */}
+      <div
+        className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10 cursor-grab active:cursor-grabbing select-none"
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+      >
+        <GripVertical className="w-3.5 h-3.5 text-white/20" strokeWidth={1.5} />
+        <Bot className="w-4 h-4 text-blue-400" />
+        <span className="text-[13px] font-semibold text-white">Chat</span>
+        <span className="text-[11px] text-blue-400/60 ml-1">AI Assistant</span>
+        <div className="ml-auto">
+          <button 
             data-no-drag
-            onClick={handleClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-red-400 transition-all duration-200"
-            title="Close"
+            onClick={onClose} 
+            className="p-1.5 rounded-md hover:bg-white/5 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5 text-white/40 hover:text-white/70" strokeWidth={1.5} />
           </button>
         </div>
+      </div>
 
-        {/* Messages - NO SCROLLBAR */}
-        <div 
-          className="flex-1 overflow-y-auto p-4 space-y-3"
-          style={{ 
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
-        >
-          <style>{`.floating-grok-messages::-webkit-scrollbar { display: none; }`}</style>
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
-                <Bot className="w-8 h-8 text-blue-400/50" />
-              </div>
-              <p className="text-white/40 text-sm">Ask anything about trading, markets, or strategies.</p>
-            </div>
-          )}
-          
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                  m.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-sm'
-                    : 'bg-[#111111] text-[#e5e5e5] border border-white/5 rounded-bl-sm'
-                }`}
-              >
-                <span className="whitespace-pre-wrap">{m.content}</span>
-                {m.role === 'assistant' && m.isTyping && (
-                  <span className="inline-block w-1.5 h-4 bg-blue-400 ml-0.5 animate-pulse" />
-                )}
-              </div>
-            </div>
-          ))}
-          
-          {isLoading && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex justify-start">
-              <div className="bg-[#111111] rounded-xl rounded-bl-sm px-3.5 py-2.5 flex items-center gap-2 border border-white/5">
-                <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
-                <span className="text-gray-400 text-sm">Thinking...</span>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="p-3 border-t border-white/10 bg-[#0b0b0b]" data-no-drag>
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={inputRef}
-              data-no-drag
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Ask anything..."
-              rows={1}
-              className="flex-1 min-h-[44px] max-h-24 rounded-xl bg-[#111111] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 resize-none transition-all"
-              style={{ scrollbarWidth: 'none' }}
-            />
-            <button
-              type="button"
-              data-no-drag
-              onClick={handleSend}
-              disabled={!chatInput.trim() || isLoading}
-              className={`h-11 w-11 flex-shrink-0 flex items-center justify-center rounded-xl transition-all duration-200 ${
-                chatInput.trim() && !isLoading
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
-                  : 'bg-[#111111] text-gray-600 border border-white/10'
+      {/* Messages */}
+      <div 
+        className="flex-1 overflow-y-auto p-3 space-y-2"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <Bot className="w-10 h-10 text-blue-400/30 mb-3" />
+            <p className="text-white/30 text-sm">Ask anything about trading, markets, or strategies.</p>
+          </div>
+        )}
+        
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                m.role === 'user'
+                  ? 'bg-blue-600 text-white rounded-br-sm'
+                  : 'bg-white/5 text-white/90 border border-white/5 rounded-bl-sm'
               }`}
             >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
-              )}
-            </button>
+              {m.content}
+              {m.isTyping && <span className="inline-block w-1 h-3.5 bg-blue-400 ml-0.5 animate-pulse" />}
+            </div>
           </div>
-        </div>
+        ))}
+        
+        {isLoading && messages[messages.length - 1]?.role === 'user' && (
+          <div className="flex justify-start">
+            <div className="bg-white/5 rounded-lg px-3 py-2 flex items-center gap-2 border border-white/5">
+              <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+              <span className="text-white/40 text-sm">Thinking...</span>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
-        {/* Resize Handle */}
-        <div
-          data-no-drag
-          onMouseDown={handleResizeStart}
-          className={`absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center cursor-se-resize opacity-40 hover:opacity-100 transition-opacity ${isResizing ? 'opacity-100' : ''}`}
-          style={{ 
-            background: 'linear-gradient(135deg, transparent 50%, rgba(59, 130, 246, 0.3) 50%)',
-            borderRadius: '0 0 16px 0',
-          }}
-        >
-          <GripVertical className="w-3 h-3 text-blue-400 rotate-[-45deg]" />
+      {/* Input */}
+      <div className="p-2.5 border-t border-white/10" data-no-drag>
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            data-no-drag
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
+            placeholder="Ask anything..."
+            rows={1}
+            className="flex-1 min-h-[40px] max-h-20 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 resize-none"
+            style={{ scrollbarWidth: 'none' }}
+          />
+          <button
+            data-no-drag
+            onClick={handleSend}
+            disabled={!chatInput.trim() || isLoading}
+            className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all ${
+              chatInput.trim() && !isLoading
+                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                : 'bg-white/5 text-white/30 border border-white/10'
+            }`}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
         </div>
       </div>
+
+      {/* Resize handle */}
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+        onMouseDown={handleResizeStart}
+        onTouchStart={handleResizeStart}
+      >
+        <svg className="w-3 h-3 text-white/15 absolute bottom-0.5 right-0.5" viewBox="0 0 10 10">
+          <path d="M9 1v8H1" fill="none" stroke="currentColor" strokeWidth="1" />
+          <path d="M9 5v4H5" fill="none" stroke="currentColor" strokeWidth="1" />
+        </svg>
+      </div>
+    </div>
   );
 };
 
