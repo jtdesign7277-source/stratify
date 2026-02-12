@@ -342,43 +342,41 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
         {[0, 1, 2, 3, 4, 5].map((slot) => (
           <div 
             key={slot} 
-            className={`relative h-8 rounded-full transition-all ${
+            className={`h-8 rounded-full transition-all ${
               miniPills[slot] 
                 ? '' 
                 : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
             }`}
             data-pill-slot={slot}
+            onDragOver={(e) => {
+              if (slot >= 1) {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
+              }
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+            }}
+            onDrop={(e) => {
+              if (slot >= 1) {
+                e.preventDefault();
+                e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+                const payload = parseDropPayload(e);
+                if (payload?.type === 'game' && onGameDrop) {
+                  onGameDrop(payload.data, slot);
+                  clearGlobalDragPayload();
+                  return;
+                }
+                const symbol = e.dataTransfer.getData('text/plain');
+                if (symbol && onTickerDrop) {
+                  onTickerDrop(symbol, slot);
+                }
+              }
+            }}
           >
-            {/* Drop zone overlay - covers entire pill for drag & drop */}
-            {slot >= 1 && (
-              <div 
-                className="absolute inset-0 z-10 rounded-full"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                  e.currentTarget.parentElement.classList.add('ring-2', 'ring-emerald-500/50');
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.parentElement.classList.remove('ring-2', 'ring-emerald-500/50');
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.parentElement.classList.remove('ring-2', 'ring-emerald-500/50');
-                  const payload = parseDropPayload(e);
-                  if (payload?.type === 'game' && onGameDrop) {
-                    onGameDrop(payload.data, slot);
-                    clearGlobalDragPayload();
-                    return;
-                  }
-                  const symbol = e.dataTransfer.getData('text/plain');
-                  if (symbol && onTickerDrop) {
-                    onTickerDrop(symbol, slot);
-                  }
-                }}
-              />
-            )}
             {miniPills[slot] || (slot >= 1 && (
-              <div className="w-full h-full flex items-center justify-center gap-1 text-white/20">
+              <div className="w-full h-full flex items-center justify-center gap-1 text-white/20 pointer-events-none">
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
