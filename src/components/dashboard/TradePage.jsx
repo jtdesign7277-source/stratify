@@ -896,6 +896,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                         <div 
                           ref={provided.innerRef}
                           {...provided.draggableProps}
+                          draggable="true"
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', stock.symbol);
+                            e.dataTransfer.effectAllowed = 'copy';
+                          }}
                           className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
                             isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                           } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'} ${
@@ -982,9 +987,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         {watchlistState !== 'closed' && (
           <div className="p-3 border-t border-[#1f1f1f] flex items-center justify-between text-xs">
             <span className="text-gray-400">{activeWatchlist.length} symbols</span>
-            <span className={activeMarket === 'crypto' ? 'text-amber-400' : 'text-emerald-400'}>
-              {activeMarket === 'crypto' ? 'Crypto Data' : 'Alpaca Data'}
-            </span>
+            <div className="flex items-center gap-2">
+              {activeMarket === 'equity' && (
+                <span className={`flex items-center gap-1 ${stockConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${stockConnected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+                  {stockConnected ? 'Live' : 'Connecting...'}
+                </span>
+              )}
+              {activeMarket === 'crypto' && (
+                <span className={`flex items-center gap-1 ${cryptoConnected ? 'text-amber-400' : 'text-yellow-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cryptoConnected ? 'bg-amber-400 animate-pulse' : 'bg-yellow-400'}`} />
+                  {cryptoConnected ? 'Live' : 'Connecting...'}
+                </span>
+              )}
+              <span className={activeMarket === 'crypto' ? 'text-amber-400' : 'text-emerald-400'}>Alpaca</span>
+            </div>
           </div>
         )}
       </div>
