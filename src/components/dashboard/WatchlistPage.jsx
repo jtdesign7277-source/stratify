@@ -190,7 +190,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
     setLoading(true);
     fetchStockQuotes();
-    const interval = setInterval(fetchStockQuotes, 10000);
+    const interval = setInterval(fetchStockQuotes, 3000); // Update every 3 seconds
     return () => clearInterval(interval);
   }, [activeTab, activeWatchlist.map(s => s.symbol).join(',')]);
 
@@ -230,7 +230,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     };
 
     fetchAllCrypto();
-    const interval = setInterval(fetchAllCrypto, 15000);
+    const interval = setInterval(fetchAllCrypto, 5000); // Update every 5 seconds
     return () => clearInterval(interval);
   }, [activeTab]);
 
