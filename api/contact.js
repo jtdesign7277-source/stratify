@@ -49,10 +49,10 @@ Sent from Stratify Contact Form
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        to: [{ address: 'stratify@agentmail.to' }],
+        to: ['stratify@agentmail.to'],
         subject: `[Contact] ${subject} - from ${name}`,
         text: emailBody,
-        replyTo: [{ address: email, name: name }]
+        reply_to: [email]
       })
     });
 
