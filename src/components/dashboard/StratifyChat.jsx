@@ -134,6 +134,8 @@ export default function StratifyChat() {
     if (!userMessage || isStreaming) return;
     setInput('');
     const newMessages = [...messages, { role: 'user', content: userMessage }];
+    const firstUserIndex = newMessages.findIndex(m => m.role === 'user');
+    const apiMessages = firstUserIndex === -1 ? [] : newMessages.slice(firstUserIndex);
     setMessages(newMessages);
     setIsStreaming(true);
     setStreamingContent('');
@@ -142,7 +144,7 @@ export default function StratifyChat() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({ messages: apiMessages.map(m => ({ role: m.role, content: m.content })) }),
       });
 
       const reader = response.body.getReader();
