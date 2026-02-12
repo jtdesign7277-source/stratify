@@ -720,30 +720,6 @@ export default function Dashboard({
 
   miniPillSlots[0] = (
     <div
-      key="chat-pill"
-      onClick={() => setIsFloatingGrokOpen((prev) => !prev)}
-      className={`h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full border bg-black/90 cursor-pointer transition-all ${
-        isFloatingGrokOpen
-          ? 'border-blue-400/60 shadow-[0_0_12px_rgba(59,130,246,0.25)]'
-          : 'border-white/20 hover:border-white/40'
-      }`}
-    >
-      <div className="w-5 h-5 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
-        <svg viewBox="0 0 24 24" className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-      </div>
-      <span className="text-white font-medium text-xs">Chat</span>
-      {grokMessageCount > 0 && (
-        <span className="px-1.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-medium">
-          {grokMessageCount}
-        </span>
-      )}
-    </div>
-  );
-
-  miniPillSlots[1] = (
-    <div
       key="feed-pill"
       onClick={onToggleSocialFeed}
       className={`relative h-8 flex items-center gap-2 pl-2.5 pr-3 rounded-full cursor-pointer transition-all ${
