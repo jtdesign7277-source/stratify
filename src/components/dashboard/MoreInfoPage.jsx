@@ -9,8 +9,10 @@ import {
   Bell, 
   CheckCircle, 
   XCircle,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react';
+import SupportChat from './SupportChat';
 
 const faqs = [
   {
@@ -190,6 +192,16 @@ export default function MoreInfoPage() {
               </motion.div>
             )}
           </AnimatePresence>
+        </section>
+
+        {/* Live Chat Support */}
+        <section>
+          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-emerald-400" fill="none" strokeWidth={1.5} />
+            Live Chat Support
+          </h2>
+          <p className="text-gray-400 text-sm mb-4">Get instant answers about Stratify features, trading strategies, and how to use the platform.</p>
+          <SupportChat />
         </section>
 
         {/* Contact Info */}
