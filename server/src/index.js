@@ -10,6 +10,7 @@ import kalshiRouter from './routes/kalshi.js';
 import strategiesRouter from './routes/strategies.js';
 import strategyRouter from './routes/strategy.js';
 import trendsRouter, { setYahooFinance } from './routes/trends.js';
+import webhookRouter from './routes/webhook.js';
 import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice, getSnapshot } from './services/alpaca.js';
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/claude', chatRouter);
 app.use('/api/strategies', strategiesRouter);
 app.use('/api/strategy', strategyRouter);
 app.use('/api/trends', trendsRouter);
+app.use('/webhook', webhookRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
