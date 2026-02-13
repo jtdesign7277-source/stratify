@@ -1002,8 +1002,13 @@ const StrategyDetail = ({ template, onBack }) => {
 };
 
 // ── Main App ───────────────────────────────────────────────────
-export default function StrategyTemplateFlow() {
-  const [selected, setSelected] = useState(null);
+export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOnBack }) {
+  const [selected, setSelected] = useState(() => {
+    if (initialTemplate) {
+      return TEMPLATES.find(t => t.id === initialTemplate) || null;
+    }
+    return null;
+  });
 
   return (
     <div
@@ -1022,7 +1027,7 @@ export default function StrategyTemplateFlow() {
       <div className="relative z-10 p-4 lg:p-6 max-w-[1400px] mx-auto">
         {/* Content */}
         {selected ? (
-          <StrategyDetail template={selected} onBack={() => setSelected(null)} />
+          <StrategyDetail template={selected} onBack={() => { if (initialTemplate && parentOnBack) parentOnBack(); else setSelected(null); }} />
         ) : (
           <TemplatesGallery onSelect={setSelected} />
         )}
