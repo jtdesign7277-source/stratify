@@ -1120,20 +1120,29 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
           </div>
 
           <div
-            className={`bg-[#111111] overflow-hidden transition-all duration-300 ease-in-out ${
+            className={`bg-[#0b0b0b] overflow-hidden backdrop-blur-xl transition-[opacity,transform,max-height] duration-500 ease-out ${
               isTradePanelOpen
-                ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-[#1f1f1f] w-full xl:w-80'
+                ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-white/[0.06] w-full xl:w-80'
                 : 'opacity-0 max-h-0 xl:max-h-none border-transparent w-full xl:w-0 pointer-events-none translate-y-2 xl:translate-y-0 xl:translate-x-3'
             }`}
           >
-            <div className="p-4 border-b border-[#1f1f1f] flex items-start justify-between">
-              <div>
-                <h3 className="text-white font-semibold text-base">Trade Execution</h3>
-                <p className="text-gray-400 text-xs mt-1">Place a market or limit order.</p>
+            <div className="p-4 border-b border-white/[0.06] flex items-start justify-between gap-3 bg-white/[0.02] backdrop-blur-xl">
+              <div className="min-w-0">
+                <h3 className="text-white/90 font-semibold text-base truncate">
+                  <span className="text-emerald-400">{selectedDisplaySymbol}</span>
+                  <span className="text-white/60"> — </span>
+                  <span className="text-white/80">{selectedName}</span>
+                </h3>
+                <div className="mt-1 flex items-center gap-2 text-xs">
+                  <span className="text-white/40">Live</span>
+                  <span className="text-white/90 font-semibold">
+                    {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : '—'}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setIsTradePanelOpen(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors"
+                className="p-1.5 rounded-lg text-white/40 hover:text-white/90 hover:bg-white/[0.08] transition-colors"
                 aria-label="Collapse trade panel"
               >
                 <ChevronsRight className="w-4 h-4" />
@@ -1144,20 +1153,20 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setOrderSide('buy')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
                     orderSide === 'buy'
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                      : 'bg-[#060d18] text-gray-400 border-[#2a2a2a] hover:text-white'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.35)]'
+                      : 'bg-white/[0.03] text-white/60 border-white/[0.06] hover:text-white/90 hover:border-white/[0.2]'
                   }`}
                 >
                   Buy
                 </button>
                 <button
                   onClick={() => setOrderSide('sell')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
                     orderSide === 'sell'
-                      ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                      : 'bg-[#060d18] text-gray-400 border-[#2a2a2a] hover:text-white'
+                      ? 'bg-red-500/20 text-red-300 border-red-400/40 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
+                      : 'bg-white/[0.03] text-white/60 border-white/[0.06] hover:text-white/90 hover:border-white/[0.2]'
                   }`}
                 >
                   Sell
@@ -1165,37 +1174,37 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               </div>
 
               <div>
-                <label className="text-xs text-gray-400">Quantity</label>
+                <label className="text-xs text-white/40">Quantity</label>
                 <input
                   type="number"
                   min="0"
                   step="1"
                   value={orderQty}
                   onChange={(e) => setOrderQty(e.target.value)}
-                  className="mt-1 w-full bg-[#060d18] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
+                  className="mt-1 w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-white/90 text-sm outline-none transition-colors focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-400/20"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-gray-400">Order Type</label>
+                <label className="text-xs text-white/40">Order Type</label>
                 <select
                   value={orderType}
                   onChange={(e) => setOrderType(e.target.value)}
-                  className="mt-1 w-full bg-[#060d18] border border-[#2a2a2a] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-400"
+                  className="mt-1 w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-white/90 text-sm outline-none transition-colors focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-400/20"
                 >
                   <option value="market">Market</option>
                   <option value="limit">Limit</option>
                 </select>
               </div>
 
-              <div className="rounded-lg border border-[#1f1f1f] bg-[#060d18] p-3">
-                <div className="flex items-center justify-between text-xs text-gray-400">
+              <div className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-3 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                <div className="flex items-center justify-between text-xs text-white/40">
                   <span>Est. Total</span>
-                  <span className="text-white font-semibold">
+                  <span className="text-white/90 font-semibold">
                     {estimatedTotal > 0 ? `$${formatPrice(estimatedTotal)}` : '...'}
                   </span>
                 </div>
-                <div className="text-[11px] text-white/50 mt-2">
+                <div className="text-[11px] text-white/40 mt-2">
                   Based on {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : 'current'} price.
                 </div>
               </div>
@@ -1203,10 +1212,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               <button
                 onClick={handlePlaceOrder}
                 disabled={!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting'}
-                className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                className={`w-full py-2.5 rounded-lg text-sm font-semibold text-white/90 transition-all ${
                   orderSide === 'buy'
-                    ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    ? 'bg-gradient-to-r from-emerald-500/80 to-emerald-600/80 hover:shadow-[0_0_24px_rgba(52,211,153,0.45)]'
+                    : 'bg-gradient-to-r from-red-500/80 to-red-600/80 hover:shadow-[0_0_24px_rgba(248,113,113,0.45)]'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {orderStatus.state === 'submitting' ? 'Placing Order...' : 'Place Order'}
