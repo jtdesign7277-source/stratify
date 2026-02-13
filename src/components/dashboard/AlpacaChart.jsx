@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { createChart } from 'lightweight-charts';
+import { createChart, CandlestickSeries } from 'lightweight-charts';
 
 // ── Timeframe options ──────────────────────────────────────────────
 const TIMEFRAMES = [
@@ -468,7 +468,7 @@ export default function AlpacaChart({ symbol = 'AAPL', height = 500 }) {
       handleScale: true,
     });
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor:         '#00DC82',
       downColor:       '#FF3B5C',
       borderUpColor:   '#00DC82',
