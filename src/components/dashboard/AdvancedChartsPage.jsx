@@ -258,7 +258,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   }, [quote]);
 
   const displayPrice = useMemo(() => {
-    if (orderType === 'limit' && limitPriceNumber > 0) return limitPriceNumber;
+    if (orderType === 'limit') return limitPriceNumber;
     return marketPrice;
   }, [orderType, limitPriceNumber, marketPrice]);
 
@@ -724,8 +724,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
             <div className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-emerald-200">
               Alpaca Live
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
             {!isTradePanelOpen && (
               <button
                 type="button"
@@ -756,7 +754,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 </svg>
               </button>
               {isTimeframeOpen && (
-                <div className="absolute right-0 top-full z-30 mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#1a1a1a] p-4 shadow-2xl">
+                <div className="absolute left-0 top-full z-30 mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#1a1a1a] p-4 shadow-2xl">
                   {TIMEFRAME_GROUPS.map((group) => (
                     <div key={group.title} className="mb-4 last:mb-0">
                       <div className="mb-2 text-xs font-semibold text-white">
@@ -808,7 +806,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 );
               })}
             </div>
-            {/* Trade button moved to left side of toolbar */}
           </div>
         </div>
         <div
