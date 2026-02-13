@@ -205,42 +205,45 @@ export default function MoreInfoPage() {
           </div>
         </div>
 
-        {/* FAQ Section */}
-        <div className="flex-1 bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-3 overflow-hidden flex flex-col">
-          <h3 className="text-white font-medium text-xs mb-2">Frequently Asked Questions</h3>
-          
-          <div className="flex-1 overflow-y-auto space-y-1.5" style={{ scrollbarWidth: 'none' }}>
-            <style>{`.faq-scroll::-webkit-scrollbar { display: none; }`}</style>
-            
-            {faqs.map((faq, i) => (
-              <div key={i} className="border border-[#1f1f1f] rounded-lg overflow-hidden">
-                <button 
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full px-3 py-2 flex items-center justify-between text-left text-white hover:bg-[#111118] transition-colors"
-                >
-                  <span className="text-xs font-medium">{faq.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {openFaq === i && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <p className="px-3 pb-2 text-gray-400 text-[11px] leading-relaxed">{faq.a}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* FAQ & User Profile - Side by Side */}
+        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
 
-        {/* User Profile */}
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-3 text-white">
+          {/* FAQ Section */}
+          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-3 overflow-hidden flex flex-col">
+            <h3 className="text-white font-medium text-xs mb-2">Frequently Asked Questions</h3>
+            
+            <div className="flex-1 overflow-y-auto space-y-1.5" style={{ scrollbarWidth: 'none' }}>
+              <style>{`.faq-scroll::-webkit-scrollbar { display: none; }`}</style>
+              
+              {faqs.map((faq, i) => (
+                <div key={i} className="border border-[#1f1f1f] rounded-lg overflow-hidden">
+                  <button 
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    className="w-full px-3 py-2 flex items-center justify-between text-left text-white hover:bg-[#111118] transition-colors"
+                  >
+                    <span className="text-xs font-medium">{faq.q}</span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {openFaq === i && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="px-3 pb-2 text-gray-400 text-[11px] leading-relaxed">{faq.a}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* User Profile */}
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-3 text-white">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-white font-medium text-xs flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
@@ -313,6 +316,8 @@ export default function MoreInfoPage() {
             <p className="text-gray-500 text-xs">Sign in to view your profile</p>
           )}
         </div>
+
+        </div>{/* close grid */}
 
       </div>
     </div>
