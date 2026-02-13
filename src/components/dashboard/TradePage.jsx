@@ -1024,18 +1024,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
           <div className="p-3 border-t border-[#1f1f1f] flex items-center justify-between text-xs">
             <span className="text-gray-400">{activeWatchlist.length} symbols</span>
             <div className="flex items-center gap-2">
-              {activeMarket === 'equity' && (
-                <span className={`flex items-center gap-1 ${stockConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${stockConnected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-                  {stockConnected ? 'Live' : 'Connecting...'}
-                </span>
-              )}
-              {activeMarket === 'crypto' && (
-                <span className={`flex items-center gap-1 ${cryptoConnected ? 'text-amber-400' : 'text-yellow-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${cryptoConnected ? 'bg-amber-400 animate-pulse' : 'bg-yellow-400'}`} />
-                  {cryptoConnected ? 'Live' : 'Connecting...'}
-                </span>
-              )}
+              <span className="flex items-center gap-1 text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live
+              </span>
               <span className={activeMarket === 'crypto' ? 'text-amber-400' : 'text-emerald-400'}>Alpaca</span>
             </div>
           </div>
