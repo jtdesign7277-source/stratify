@@ -41,6 +41,7 @@ import TerminalPage from './TerminalPage';
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
+import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 
 const loadDashboardState = () => {
   try {
@@ -165,6 +166,7 @@ export default function Dashboard({
   }, []);
   
   const { user } = useAuth();
+  const { trades, addTrade } = useTradeHistoryStore();
   const { watchlist, setWatchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop, loaded } = useWatchlistSync(user);
   
   // Mini ticker pills (slots 2-5, slots 0-1 are Grok and Feed)
@@ -803,7 +805,14 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'trade' && (
-            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} onReorderWatchlist={reorderWatchlist} onPinToTop={pinToTop} />
+            <TradePage
+              watchlist={watchlist}
+              onAddToWatchlist={addToWatchlist}
+              onRemoveFromWatchlist={removeFromWatchlist}
+              onReorderWatchlist={reorderWatchlist}
+              onPinToTop={pinToTop}
+              addTrade={addTrade}
+            />
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
@@ -817,6 +826,7 @@ export default function Dashboard({
               connectedBrokers={connectedBrokers}
               onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
               onBrokerDisconnect={(brokerId) => setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId))}
+              tradeHistory={trades}
             />
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}

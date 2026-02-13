@@ -11,7 +11,18 @@ import strategiesRouter from './routes/strategies.js';
 import strategyRouter from './routes/strategy.js';
 import trendsRouter, { setYahooFinance } from './routes/trends.js';
 import webhookRouter from './routes/webhook.js';
-import { startAlpacaStream, submitOrder, getOrder, cancelOrder, getOrders, closePosition, getLatestPrice, getSnapshot } from './services/alpaca.js';
+import {
+  startAlpacaStream,
+  submitOrder,
+  getOrder,
+  cancelOrder,
+  getOrders,
+  closePosition,
+  getLatestPrice,
+  getSnapshot,
+  getAccount,
+  getPositions,
+} from './services/alpaca.js';
 
 dotenv.config();
 
@@ -49,6 +60,28 @@ app.use('/webhook', webhookRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ==================== ALPACA ACCOUNT ENDPOINTS ====================
+
+app.get('/api/account', async (req, res) => {
+  try {
+    const account = await getAccount();
+    res.json(account);
+  } catch (error) {
+    console.error('Error fetching account:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/positions', async (req, res) => {
+  try {
+    const positions = await getPositions();
+    res.json(positions);
+  } catch (error) {
+    console.error('Error fetching positions:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const buildFallbackSocialFeed = (symbols = []) => {

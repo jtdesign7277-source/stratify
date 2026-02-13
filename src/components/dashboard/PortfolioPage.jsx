@@ -1,138 +1,130 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Wallet, TrendingUp, TrendingDown, Plus, 
-  RefreshCcw, Loader2, MoreHorizontal, Unlink
+import React, { useMemo, useState } from 'react';
+import {
+  Wallet,
+  DollarSign,
+  CreditCard,
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  Unlink,
+  History,
 } from 'lucide-react';
-import { getQuotes } from '../../services/marketData';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
-import PortfolioChart from './PortfolioChart';
 
-const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerConnect, onBrokerDisconnect }) => {
-  const [prices, setPrices] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(null);
+const toNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCurrency = (value) => new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}).format(Number.isFinite(value) ? value : 0);
+
+const formatNumber = (value, decimals = 2) => new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: decimals,
+  maximumFractionDigits: decimals,
+}).format(Number.isFinite(value) ? value : 0);
+
+const formatSigned = (value, suffix = '') => {
+  if (!Number.isFinite(value)) return `0${suffix}`;
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}${Math.abs(value).toFixed(2)}${suffix}`;
+};
+
+const formatSignedCurrency = (value) => {
+  if (!Number.isFinite(value)) return formatCurrency(0);
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}${formatCurrency(Math.abs(value))}`;
+};
+
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return '—';
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
+const getCompanyName = (position) => (
+  position?.name
+  || position?.companyName
+  || position?.company
+  || position?.asset_name
+  || position?.assetName
+  || position?.symbol
+  || '—'
+);
+
+const normalizePercent = (value, fallback) => {
+  if (Number.isFinite(value)) {
+    const abs = Math.abs(value);
+    return abs <= 1 ? value * 100 : value;
+  }
+  return Number.isFinite(fallback) ? fallback : 0;
+};
+
+const PortfolioPage = ({
+  themeClasses: _themeClasses,
+  alpacaData,
+  connectedBrokers = [],
+  onBrokerConnect = () => {},
+  onBrokerDisconnect = () => {},
+  tradeHistory = [],
+}) => {
   const [showBrokerModal, setShowBrokerModal] = useState(false);
 
-  const [mockData, setMockData] = useState({
-    netLiq: 125840.00,
-    buyingPower: 251680.00,
-    dailyPnL: 1247.83
-  });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMockData(prev => ({
-        netLiq: prev.netLiq + (Math.random() - 0.45) * 100,
-        buyingPower: prev.buyingPower + (Math.random() - 0.5) * 50,
-        dailyPnL: prev.dailyPnL + (Math.random() - 0.45) * 50
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const demoHoldings = [
-    { symbol: 'AAPL', name: 'Apple Inc.', shares: 150, avgCost: 178.50 },
-    { symbol: 'NVDA', name: 'NVIDIA Corp.', shares: 45, avgCost: 485.00 },
-    { symbol: 'MSFT', name: 'Microsoft', shares: 75, avgCost: 378.25 },
-    { symbol: 'GOOGL', name: 'Alphabet', shares: 100, avgCost: 141.00 },
-    { symbol: 'TSLA', name: 'Tesla Inc.', shares: 60, avgCost: 195.00 },
-    { symbol: 'META', name: 'Meta Platforms', shares: 35, avgCost: 485.00 },
-  ];
-
   const account = alpacaData?.account || {};
-  const hasRealData = account.equity && account.equity > 0;
-  const positions = alpacaData?.positions?.length > 0 ? alpacaData.positions : null;
-  
-  const netLiquidity = hasRealData ? account.equity : mockData.netLiq;
-  const buyingPower = hasRealData ? (account.buying_power ?? 0) : mockData.buyingPower;
-  const cash = hasRealData ? (account.cash ?? 0) : mockData.buyingPower * 0.5;
-  const dailyPnL = hasRealData ? (account.daily_pnl ?? 0) : mockData.dailyPnL;
+  const rawPositions = Array.isArray(alpacaData?.positions) ? alpacaData.positions : [];
 
-  const holdings = useMemo(() => {
-    if (positions) {
-      return positions.map(pos => ({
-        symbol: pos.symbol,
-        name: pos.symbol,
-        shares: parseFloat(pos.qty) || 0,
-        avgCost: parseFloat(pos.avg_entry_price) || 0,
-        currentPrice: parseFloat(pos.current_price) || 0,
-        unrealizedPL: parseFloat(pos.unrealized_pl) || 0,
-        unrealizedPLPercent: parseFloat(pos.unrealized_plpc) * 100 || 0,
-        marketValue: parseFloat(pos.market_value) || 0,
-      }));
-    }
-    return demoHoldings;
-  }, [positions]);
+  const equity = toNumber(account.equity ?? account.portfolio_value);
+  const cash = toNumber(account.cash);
+  const buyingPower = toNumber(account.buying_power);
+  const dailyPnL = Number.isFinite(Number(account.daily_pnl))
+    ? toNumber(account.daily_pnl)
+    : toNumber(account.equity) - toNumber(account.last_equity);
+  const dailyPnLPercent = toNumber(account.last_equity) > 0
+    ? (dailyPnL / toNumber(account.last_equity)) * 100
+    : 0;
 
-  const fetchPrices = async () => {
-    if (positions) {
-      setLoading(false);
-      setLastUpdate(new Date());
-      return;
-    }
-    setLoading(true);
-    try {
-      const symbols = holdings.map(h => h.symbol);
-      const quotes = await getQuotes(symbols);
-      const priceMap = {};
-      quotes.forEach(q => {
-        if (q && q.symbol) {
-          priceMap[q.symbol] = {
-            price: q.price || 0,
-            change: q.change || 0,
-            changePercent: q.changePercent || 0,
-          };
-        }
-      });
-      setPrices(priceMap);
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('Error fetching prices:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const positions = useMemo(() => rawPositions
+    .map((pos) => {
+      const shares = toNumber(pos.qty ?? pos.shares ?? pos.quantity);
+      const avgEntry = toNumber(pos.avg_entry_price ?? pos.avgCost ?? pos.avgEntryPrice);
+      const currentPrice = toNumber(pos.current_price ?? pos.currentPrice ?? pos.price);
+      const marketValue = toNumber(pos.market_value ?? (shares * currentPrice));
+      const unrealizedPL = toNumber(pos.unrealized_pl ?? pos.pnl ?? (marketValue - (shares * avgEntry)));
+      const rawPercent = Number(pos.unrealized_plpc ?? pos.pnlPercent);
+      const fallbackPercent = avgEntry > 0 ? ((currentPrice - avgEntry) / avgEntry) * 100 : 0;
 
-  useEffect(() => {
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 30000);
-    return () => clearInterval(interval);
-  }, [positions]);
+      return {
+        symbol: String(pos.symbol ?? pos.ticker ?? '').toUpperCase(),
+        companyName: getCompanyName(pos),
+        shares,
+        avgEntry,
+        currentPrice,
+        marketValue,
+        unrealizedPL,
+        unrealizedPLPercent: normalizePercent(rawPercent, fallbackPercent),
+      };
+    })
+    .filter((pos) => pos.symbol && pos.shares > 0), [rawPositions]);
 
-  const portfolioData = useMemo(() => {
-    let holdingsValue = 0;
-    let totalCost = 0;
-    holdings.forEach(holding => {
-      if (holding.marketValue !== undefined) {
-        holdingsValue += holding.marketValue;
-        totalCost += holding.avgCost * holding.shares;
-      } else {
-        const priceData = prices[holding.symbol] || {};
-        const currentPrice = priceData.price || holding.avgCost;
-        holdingsValue += currentPrice * holding.shares;
-        totalCost += holding.avgCost * holding.shares;
-      }
-    });
-    const totalPL = holdingsValue - totalCost;
-    const totalPLPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
-    const todayChangePercent = netLiquidity > 0 ? (dailyPnL / netLiquidity) * 100 : 0;
-    return {
-      totalValue: netLiquidity,
-      totalPL,
-      totalPLPercent,
-      todayChange: dailyPnL,
-      todayChangePercent,
-    };
-  }, [holdings, prices, netLiquidity, dailyPnL]);
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', { 
-      style: 'currency', 
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2 
-    }).format(value);
-  };
+  const recentTrades = useMemo(() => {
+    if (!Array.isArray(tradeHistory)) return [];
+    return [...tradeHistory]
+      .filter(Boolean)
+      .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+      .slice(0, 12);
+  }, [tradeHistory]);
 
   const handleBrokerConnect = (broker) => {
     onBrokerConnect(broker);
@@ -143,31 +135,87 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
     onBrokerDisconnect(brokerId);
   };
 
-  const totalConnectedValue = connectedBrokers.reduce((sum, b) => sum + (b.value || 0), 0) + portfolioData.totalValue;
+  const dailyIsPositive = dailyPnL >= 0;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] overflow-auto">
-      <div className="px-6 pt-6 pb-4">
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl overflow-hidden p-4">
-          <PortfolioChart initialValue={totalConnectedValue} />
+    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-auto">
+      <div className="px-6 pt-6 pb-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-white/40">Portfolio</div>
+            <h2 className="text-2xl font-semibold">Account Summary</h2>
+          </div>
+          <div className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
+            dailyIsPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+          }`}>
+            {dailyIsPositive ? (
+              <TrendingUp className="w-4 h-4" strokeWidth={1.5} />
+            ) : (
+              <TrendingDown className="w-4 h-4" strokeWidth={1.5} />
+            )}
+            {formatSigned(dailyPnLPercent, '%')} today
+          </div>
         </div>
-      </div>
 
-      <div className="px-6 pb-6 flex-1">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Connected Accounts</h2>
-          <button
-            onClick={fetchPrices}
-            disabled={loading}
-            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-400 hover:text-white disabled:opacity-50"
-            title="Refresh"
-          >
-            <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-          </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Equity</div>
+                <div className="text-xl font-semibold font-mono">{formatCurrency(equity)}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-white/70" strokeWidth={1.5} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Cash</div>
+                <div className="text-xl font-semibold font-mono">{formatCurrency(cash)}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-white/70" strokeWidth={1.5} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Buying Power</div>
+                <div className="text-xl font-semibold font-mono">{formatCurrency(buyingPower)}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-white/70" strokeWidth={1.5} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Daily P&L</div>
+                <div className={`text-xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatSignedCurrency(dailyPnL)}
+                </div>
+              </div>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${dailyIsPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+                {dailyIsPositive ? (
+                  <TrendingUp className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
+                ) : (
+                  <TrendingDown className="w-5 h-5 text-red-400" strokeWidth={1.5} />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(hasRealData || true) && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Connected Accounts</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -182,79 +230,193 @@ const PortfolioPage = ({ themeClasses, alpacaData, connectedBrokers, onBrokerCon
                     </div>
                   </div>
                 </div>
-                <button className="p-1 text-white/50 hover:text-white transition-colors">
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Portfolio</span>
-                  <span className="text-white font-medium">{formatCurrency(portfolioData.totalValue)}</span>
+                  <span className="text-white font-medium font-mono">{formatCurrency(equity)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Buying Power</span>
-                  <span className="text-white font-medium">{formatCurrency(buyingPower)}</span>
+                  <span className="text-white font-medium font-mono">{formatCurrency(buyingPower)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Cash</span>
-                  <span className="text-white font-medium">{formatCurrency(cash)}</span>
+                  <span className="text-white font-medium font-mono">{formatCurrency(cash)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm">Daily Change</span>
-                  <span className={`font-medium ${portfolioData.todayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {portfolioData.todayChange >= 0 ? '+' : ''}{formatCurrency(portfolioData.todayChange)}
+                  <span className={`font-medium font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatSignedCurrency(dailyPnL)}
                   </span>
                 </div>
               </div>
             </div>
-          )}
 
-          {connectedBrokers.map(broker => (
-            <div key={broker.id} className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
-                    <BrokerIcon broker={broker.id} className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">{broker.name}</div>
-                    <div className="text-white/50 text-sm flex items-center gap-1">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                      Connected
+            {connectedBrokers.map((broker) => (
+              <div key={broker.id} className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
+                      <BrokerIcon broker={broker.id} className="w-10 h-10" />
+                    </div>
+                    <div>
+                      <div className="text-white font-medium">{broker.name}</div>
+                      <div className="text-white/50 text-sm flex items-center gap-1">
+                        <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                        Connected
+                      </div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleDisconnectBroker(broker.id)}
+                    className="p-1 text-white/50 hover:text-red-400 transition-colors"
+                    title="Disconnect"
+                  >
+                    <Unlink className="w-4 h-4" strokeWidth={1.5} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => handleDisconnectBroker(broker.id)}
-                  className="p-1 text-white/50 hover:text-red-400 transition-colors"
-                  title="Disconnect"
-                >
-                  <Unlink className="w-4 h-4" />
-                </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm">Portfolio</span>
+                    <span className="text-white font-medium font-mono">{formatCurrency(broker.value || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm">Cash</span>
+                    <span className="text-white font-medium font-mono">{formatCurrency(broker.cash || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-sm">Buying Power</span>
+                    <span className="text-white font-medium font-mono">{formatCurrency(broker.available || 0)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Portfolio</span>
-                  <span className="text-white font-medium">{formatCurrency(broker.value || 0)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Buying Power</span>
-                  <span className="text-white font-medium">{formatCurrency(broker.available || 0)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
 
-          <button
-            onClick={() => setShowBrokerModal(true)}
-            className="bg-[#111111] border border-dashed border-[#2a2a2a] rounded-xl p-4 hover:border-emerald-500/50 hover:bg-white/5 transition-all flex flex-col items-center justify-center min-h-[160px] group"
-          >
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
-              <Plus className="w-6 h-6 text-emerald-400" />
+            <button
+              onClick={() => setShowBrokerModal(true)}
+              className="bg-[#111111] border border-dashed border-[#2a2a2a] rounded-xl p-4 hover:border-emerald-500/50 hover:bg-white/5 transition-all flex flex-col items-center justify-center min-h-[160px] group"
+            >
+              <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
+                <Plus className="w-6 h-6 text-emerald-400" strokeWidth={1.5} />
+              </div>
+              <div className="text-white font-medium mb-1">Connect a Broker</div>
+              <div className="text-white/50 text-sm text-center">Link your accounts for unified tracking</div>
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-white/40">Positions</div>
+              <h3 className="text-lg font-semibold">Live Holdings</h3>
             </div>
-            <div className="text-white font-medium mb-1">Connect a Broker</div>
-            <div className="text-white/50 text-sm text-center">Link your accounts for unified tracking</div>
-          </button>
+            <div className="text-xs text-white/40">{positions.length} positions</div>
+          </div>
+
+          {positions.length === 0 ? (
+            <div className="text-sm text-white/50 py-6 text-center">No positions yet. Place a trade to populate your portfolio.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40">
+                    <th className="py-3 pr-4">Ticker</th>
+                    <th className="py-3 pr-4">Company</th>
+                    <th className="py-3 pr-4">Shares</th>
+                    <th className="py-3 pr-4">Avg Entry</th>
+                    <th className="py-3 pr-4">Current</th>
+                    <th className="py-3 pr-4">Market Value</th>
+                    <th className="py-3 pr-4">Unrealized P&L</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map((pos) => {
+                    const isPositive = pos.unrealizedPL >= 0;
+                    return (
+                      <tr key={pos.symbol} className="border-t border-[#1f1f1f]">
+                        <td className="py-4 pr-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${isPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                            <span className="font-semibold">{pos.symbol}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 pr-4 text-white/70">{pos.companyName}</td>
+                        <td className="py-4 pr-4 font-mono">{formatNumber(pos.shares, 2)}</td>
+                        <td className="py-4 pr-4 font-mono">{formatCurrency(pos.avgEntry)}</td>
+                        <td className="py-4 pr-4 font-mono">{formatCurrency(pos.currentPrice)}</td>
+                        <td className="py-4 pr-4 font-mono">{formatCurrency(pos.marketValue)}</td>
+                        <td className="py-4 pr-4">
+                          <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono ${
+                            isPositive ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
+                          }`}>
+                            {formatSignedCurrency(pos.unrealizedPL)}
+                            <span className="text-xs">({formatSigned(pos.unrealizedPLPercent, '%')})</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-white/60" strokeWidth={1.5} />
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-white/40">Trade History</div>
+                <h3 className="text-lg font-semibold">Recent Activity</h3>
+              </div>
+            </div>
+            <div className="text-xs text-white/40">{recentTrades.length} trades</div>
+          </div>
+
+          {recentTrades.length === 0 ? (
+            <div className="text-sm text-white/50 py-6 text-center">No trades recorded yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40">
+                    <th className="py-3 pr-4">Date</th>
+                    <th className="py-3 pr-4">Ticker</th>
+                    <th className="py-3 pr-4">Side</th>
+                    <th className="py-3 pr-4">Shares</th>
+                    <th className="py-3 pr-4">Price</th>
+                    <th className="py-3 pr-4">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTrades.map((trade) => {
+                    const side = String(trade.side || '').toLowerCase();
+                    const isBuy = side === 'buy';
+                    const total = toNumber(trade.total ?? (trade.shares * trade.price));
+                    return (
+                      <tr key={trade.id || `${trade.symbol}-${trade.timestamp}`} className="border-t border-[#1f1f1f]">
+                        <td className="py-4 pr-4 text-white/70">{formatTimestamp(trade.timestamp)}</td>
+                        <td className="py-4 pr-4 font-semibold">{trade.symbol}</td>
+                        <td className="py-4 pr-4">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${
+                            isBuy ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
+                          }`}>
+                            {isBuy ? 'Buy' : 'Sell'}
+                          </span>
+                        </td>
+                        <td className="py-4 pr-4 font-mono">{formatNumber(trade.shares, 2)}</td>
+                        <td className="py-4 pr-4 font-mono">{formatCurrency(trade.price)}</td>
+                        <td className="py-4 pr-4 font-mono">{formatCurrency(total)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

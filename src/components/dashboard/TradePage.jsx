@@ -262,7 +262,7 @@ const buildQuote = (quote) => {
   };
 };
 
-const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist, onPinToTop }) => {
+const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist, onPinToTop, addTrade }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
   const [chartInterval, setChartInterval] = useState('D');
   const [selectedEquity, setSelectedEquity] = useState(() => {
@@ -683,12 +683,25 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         const text = await res.text();
         throw new Error(text || 'Order failed');
       }
+      const payload = await res.json();
+      const candidatePrice = toNumber(payload?.filled_avg_price ?? payload?.estimatedPrice ?? selectedQuote?.price);
+      const executionPrice = Number.isFinite(candidatePrice) && candidatePrice > 0 ? candidatePrice : null;
+      const executedAt = payload?.filled_at ?? payload?.submitted_at ?? new Date().toISOString();
+      const recordedTrade = executionPrice && typeof addTrade === 'function'
+        ? addTrade({
+          symbol: selectedTicker,
+          shares: orderQtyNumber,
+          side: orderSide,
+          price: executionPrice,
+          timestamp: executedAt,
+        })
+        : null;
       setOrderStatus({
         state: 'success',
         message: 'Order placed successfully.',
-        executedAt: new Date(),
+        executedAt: recordedTrade?.timestamp ?? executedAt,
         symbol: selectedDisplaySymbol,
-        price: selectedQuote?.price,
+        price: recordedTrade?.price ?? executionPrice ?? selectedQuote?.price,
         qty: orderQtyNumber,
         side: orderSide,
       });
