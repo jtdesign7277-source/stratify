@@ -475,63 +475,58 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <span className="text-white/50">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
             </div>
           )}
-          
-          {/* Deploy Prompt */}
-          {showDeployPrompt && !isTyping && backtestResults && !backtestResults.error && (
-            <div className="mt-3 p-2.5 border border-emerald-500/20 rounded-lg bg-gradient-to-br from-emerald-500/5 to-transparent">
-              <div className="flex items-center gap-2 mb-2">
-                <Rocket className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400 font-mono text-xs font-medium">DEPLOY THIS STRATEGY?</span>
+        </div>
+
+        {/* Deploy Prompt - pinned below terminal */}
+        {showDeployPrompt && !isTyping && backtestResults && !backtestResults.error && (
+          <div className="shrink-0 p-2.5 border-t border-emerald-500/20 bg-[#0b0b0b]">
+            <div className="flex items-center gap-3">
+              <Rocket className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <div className="flex-1">
+                <label className="text-white/40 text-[9px] font-mono uppercase tracking-wider mb-0.5 block">Name</label>
+                <input
+                  type="text"
+                  value={editableStrategy.name || `${editableStrategy.ticker || ticker} Strategy`}
+                  onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-2 py-1 bg-black/40 border border-white/10 rounded text-white font-mono text-xs focus:outline-none focus:border-emerald-500/50"
+                  placeholder="Strategy name"
+                />
               </div>
-              <div className="flex gap-2 mb-2">
-                <div className="flex-1">
-                  <label className="text-white/40 text-[9px] font-mono uppercase tracking-wider mb-0.5 block">Name</label>
+              <div className="w-32 shrink-0">
+                <label className="text-white/40 text-[9px] font-mono uppercase tracking-wider mb-0.5 block">Allocation</label>
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-400 font-mono text-xs">$</span>
                   <input
                     type="text"
-                    value={editableStrategy.name || `${editableStrategy.ticker || ticker} Strategy`}
-                    onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-2 py-1.5 bg-black/40 border border-white/10 rounded text-white font-mono text-xs focus:outline-none focus:border-emerald-500/50"
-                    placeholder="Strategy name"
+                    inputMode="decimal"
+                    value={editableStrategy.allocation || ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, '');
+                      const parts = raw.split('.');
+                      const intPart = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
+                      const formatted = parts.length > 1 ? `${intPart}.${parts[1].slice(0, 2)}` : intPart;
+                      setEditableStrategy(prev => ({ ...prev, allocation: formatted }));
+                    }}
+                    className="w-full pl-5 pr-2 py-1 bg-black/40 border border-white/10 rounded text-white font-mono text-xs focus:outline-none focus:border-emerald-500/50"
+                    placeholder="0.00"
                   />
                 </div>
-                <div className="w-36">
-                  <label className="text-white/40 text-[9px] font-mono uppercase tracking-wider mb-0.5 block">Allocation</label>
-                  <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-400 font-mono text-xs">$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={editableStrategy.allocation || ''}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/[^0-9.]/g, '');
-                        const parts = raw.split('.');
-                        const intPart = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
-                        const formatted = parts.length > 1 ? `${intPart}.${parts[1].slice(0, 2)}` : intPart;
-                        setEditableStrategy(prev => ({ ...prev, allocation: formatted }));
-                      }}
-                      className="w-full pl-5 pr-2 py-1.5 bg-black/40 border border-white/10 rounded text-white font-mono text-xs focus:outline-none focus:border-emerald-500/50"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleDeploy}
-                  className="flex-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded text-emerald-400 font-mono text-xs font-medium transition-all hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                >
-                  Deploy
-                </button>
-                <button
-                  onClick={() => setShowDeployPrompt(false)}
-                  className="flex-1 px-3 py-1.5 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/50 rounded text-gray-400 font-mono text-xs font-medium transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
+              <button
+                onClick={handleDeploy}
+                className="shrink-0 px-4 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded text-emerald-400 font-mono text-xs font-medium transition-all hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+              >
+                Deploy
+              </button>
+              <button
+                onClick={() => setShowDeployPrompt(false)}
+                className="shrink-0 px-4 py-1.5 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/50 rounded text-gray-400 font-mono text-xs font-medium transition-all"
+              >
+                Cancel
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
