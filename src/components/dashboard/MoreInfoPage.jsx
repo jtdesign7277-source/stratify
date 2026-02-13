@@ -86,7 +86,7 @@ export default function MoreInfoPage() {
   };
 
   return (
-    <div className="h-full bg-[#0b0b0b] p-4 flex flex-col overflow-hidden">
+    <div className="h-full bg-[#0b0b0b] p-4 pb-2 flex flex-col overflow-hidden">
       <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-3 min-h-0">
         
         {/* Header Row */}
@@ -120,7 +120,7 @@ export default function MoreInfoPage() {
         </div>
 
         {/* Top Row - Contact Form & Chat (Compact) */}
-        <div className="grid grid-cols-2 gap-3" style={{ height: '220px' }}>
+        <div className="grid grid-cols-2 gap-3" style={{ height: '300px' }}>
           
           {/* Contact Form */}
           <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-3 flex flex-col">
@@ -206,10 +206,10 @@ export default function MoreInfoPage() {
         </div>
 
         {/* FAQ & User Profile - Side by Side */}
-        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
+        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 items-stretch">
 
           {/* FAQ Section */}
-          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-3 overflow-hidden flex flex-col">
+          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-3 overflow-hidden flex flex-col min-h-0 h-full">
             <h3 className="text-white font-medium text-xs mb-2">Frequently Asked Questions</h3>
             
             <div className="flex-1 overflow-y-auto space-y-1.5" style={{ scrollbarWidth: 'none' }}>
@@ -243,7 +243,7 @@ export default function MoreInfoPage() {
           </div>
 
           {/* User Profile */}
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-3 text-white">
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-3 text-white flex flex-col min-h-0 h-full">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-white font-medium text-xs flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
