@@ -5,15 +5,40 @@ import * as am5stock from '@amcharts/amcharts5/stock';
 import am5themes_Dark from '@amcharts/amcharts5/themes/Dark';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 
-const TIMEFRAMES = [
-  { label: '1m', alpaca: '1Min', unit: 'minute', count: 1 },
-  { label: '5m', alpaca: '5Min', unit: 'minute', count: 5 },
-  { label: '15m', alpaca: '15Min', unit: 'minute', count: 15 },
-  { label: '1H', alpaca: '1Hour', unit: 'hour', count: 1 },
-  { label: '4H', alpaca: '4Hour', unit: 'hour', count: 4 },
-  { label: '1D', alpaca: '1Day', unit: 'day', count: 1 },
-  { label: '1W', alpaca: '1Week', unit: 'week', count: 1 },
+const TIMEFRAME_GROUPS = [
+  {
+    title: 'MINUTE',
+    options: [
+      { key: '1m', label: '1 min', alpaca: '1Min', unit: 'minute', count: 1 },
+      { key: '2m', label: '2 mins', alpaca: '1Min', unit: 'minute', count: 1 },
+      { key: '3m', label: '3 mins', alpaca: '1Min', unit: 'minute', count: 1 },
+      { key: '5m', label: '5 mins', alpaca: '5Min', unit: 'minute', count: 5 },
+      { key: '10m', label: '10 mins', alpaca: '5Min', unit: 'minute', count: 5 },
+      { key: '15m', label: '15 mins', alpaca: '15Min', unit: 'minute', count: 15 },
+      { key: '20m', label: '20 mins', alpaca: '15Min', unit: 'minute', count: 15 },
+      { key: '30m', label: '30 mins', alpaca: '15Min', unit: 'minute', count: 15 },
+    ],
+  },
+  {
+    title: 'HOUR',
+    options: [
+      { key: '1h', label: '1 hour', alpaca: '1Hour', unit: 'hour', count: 1 },
+      { key: '2h', label: '2 hours', alpaca: '1Hour', unit: 'hour', count: 1 },
+      { key: '4h', label: '4 hours', alpaca: '4Hour', unit: 'hour', count: 4 },
+    ],
+  },
+  {
+    title: 'DAY',
+    options: [
+      { key: '1d', label: 'Daily', alpaca: '1Day', unit: 'day', count: 1 },
+      { key: '1w', label: 'Weekly', alpaca: '1Week', unit: 'week', count: 1 },
+      { key: '1mo', label: 'Monthly', alpaca: '1Month', unit: 'month', count: 1 },
+      { key: '1q', label: 'Quarterly', alpaca: '1Month', unit: 'month', count: 1 },
+    ],
+  },
 ];
+
+const TIMEFRAMES = TIMEFRAME_GROUPS.flatMap((group) => group.options);
 
 const RANGE_PRESETS = [
   { key: '1D', label: '1D', days: 1, tradingDays: true },
@@ -26,7 +51,7 @@ const RANGE_PRESETS = [
 ];
 
 const getTimeframe = (value) =>
-  TIMEFRAMES.find((timeframe) => timeframe.alpaca === value) || TIMEFRAMES[0];
+  TIMEFRAMES.find((timeframe) => timeframe.key === value) || TIMEFRAMES[0];
 
 const getRangePreset = (key) =>
   RANGE_PRESETS.find((preset) => preset.key === key) || RANGE_PRESETS[1];
@@ -72,6 +97,7 @@ const estimateLimit = (rangePreset, timeframe) => {
   if (tf.unit === 'minute') barsPerDay = Math.max(1, Math.floor(390 / tf.count));
   if (tf.unit === 'hour') barsPerDay = Math.max(1, Math.floor(6.5 / tf.count));
   if (tf.unit === 'week') barsPerDay = 1 / 5;
+  if (tf.unit === 'month') barsPerDay = 1 / 21;
 
   const estimate = Math.ceil(tradingDays * barsPerDay);
   return Math.min(Math.max(estimate, 200), 5000);
@@ -92,7 +118,7 @@ const formatNumber = (value) => {
 
 export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [ticker, setTicker] = useState(activeTicker);
-  const [timeframe, setTimeframe] = useState('1Min');
+  const [timeframe, setTimeframe] = useState('1m');
   const [rangeKey, setRangeKey] = useState('5D');
   const [quote, setQuote] = useState(null);
   const [quoteStatus, setQuoteStatus] = useState({ state: 'idle', message: '' });
@@ -101,6 +127,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState('idle');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isTimeframeOpen, setIsTimeframeOpen] = useState(false);
   const blurTimeoutRef = useRef(null);
 
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(true);
@@ -112,6 +139,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '', data: null });
   const [orderError, setOrderError] = useState('');
 
+  const timeframeRef = useRef(null);
   const toolbarRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -198,6 +226,17 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     };
   }, [searchQuery]);
 
+  useEffect(() => {
+    if (!isTimeframeOpen) return undefined;
+    const handleClick = (event) => {
+      if (timeframeRef.current && !timeframeRef.current.contains(event.target)) {
+        setIsTimeframeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isTimeframeOpen]);
+
   const handleSearchSelect = (symbol) => {
     if (!symbol) return;
     const next = symbol.toUpperCase();
@@ -219,10 +258,14 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     return Number.isFinite(parsed) ? parsed : 0;
   }, [limitPrice]);
 
+  const marketPrice = useMemo(() => {
+    return quote?.last ?? quote?.ask ?? quote?.bid ?? 0;
+  }, [quote]);
+
   const displayPrice = useMemo(() => {
     if (orderType === 'limit' && limitPriceNumber > 0) return limitPriceNumber;
-    return quote?.last ?? quote?.ask ?? quote?.bid ?? 0;
-  }, [orderType, limitPriceNumber, quote]);
+    return marketPrice;
+  }, [orderType, limitPriceNumber, marketPrice]);
 
   const estimatedTotal = orderQtyNumber > 0 ? orderQtyNumber * displayPrice : 0;
 
