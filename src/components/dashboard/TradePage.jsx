@@ -61,6 +61,16 @@ const STOCK_DATABASE = [
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
 ];
 
+const DEFAULT_EQUITY_WATCHLIST = [
+  { symbol: 'AAPL', name: 'Apple Inc.' },
+  { symbol: 'MSFT', name: 'Microsoft Corporation' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+  { symbol: 'AMZN', name: 'Amazon.com, Inc.' },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+  { symbol: 'META', name: 'Meta Platforms, Inc.' },
+  { symbol: 'TSLA', name: 'Tesla, Inc.' },
+];
+
 const CRYPTO_DATABASE = TOP_CRYPTO_BY_MARKET_CAP.map((crypto) => ({
   symbol: `${crypto.symbol}-USD`,
   name: crypto.name,
@@ -350,7 +360,9 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   } = useBreakingNews();
   
   const equityStocks = useMemo(() => (
-    watchlist.length > 0 ? watchlist.map(normalizeWatchlistItem) : []
+    watchlist.length > 0
+      ? watchlist.map(normalizeWatchlistItem)
+      : DEFAULT_EQUITY_WATCHLIST.map(normalizeWatchlistItem)
   ), [watchlist]);
   const cryptoStocks = useMemo(() => (
     cryptoWatchlist.length > 0 ? cryptoWatchlist.map(normalizeWatchlistItem) : []
@@ -375,7 +387,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   
   const activeWatchlist = activeMarket === 'crypto' ? cryptoStocks : equityStocks;
   const activeDatabase = activeMarket === 'crypto' ? CRYPTO_DATABASE : STOCK_DATABASE;
-  const defaultEquitySymbol = equityStocks[0]?.symbol || 'SPY';
+  const defaultEquitySymbol = equityStocks.find(s => s.symbol === 'NVDA')?.symbol || equityStocks[0]?.symbol || 'NVDA';
   const defaultCryptoSymbol = cryptoStocks[0]?.symbol || 'BTC-USD';
   const selectedTicker = activeMarket === 'crypto' ? (selectedCrypto || defaultCryptoSymbol) : (selectedEquity || defaultEquitySymbol);
   const activeQuotes = activeMarket === 'crypto' ? cryptoQuotes : equityQuotes;

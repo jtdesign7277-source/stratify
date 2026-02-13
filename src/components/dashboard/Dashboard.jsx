@@ -165,13 +165,12 @@ export default function Dashboard({
   const [watchlist, setWatchlist] = useState(() => {
     const DEFAULT_WATCHLIST = [
       { symbol: 'AAPL', name: 'Apple Inc.' },
+      { symbol: 'MSFT', name: 'Microsoft Corporation' },
       { symbol: 'GOOGL', name: 'Alphabet Inc.' },
       { symbol: 'AMZN', name: 'Amazon.com, Inc.' },
       { symbol: 'NVDA', name: 'NVIDIA Corporation' },
       { symbol: 'META', name: 'Meta Platforms, Inc.' },
       { symbol: 'TSLA', name: 'Tesla, Inc.' },
-      { symbol: 'MSFT', name: 'Microsoft Corporation' },
-      { symbol: 'HOOD', name: 'Robinhood Markets, Inc.' },
     ];
     try {
       const saved = localStorage.getItem('stratify-watchlist');
