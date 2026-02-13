@@ -45,6 +45,31 @@ const getTradingDaysAgo = (days) => {
   return date;
 };
 
+const parseTimestamp = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 1e12 ? value * 1000 : value;
+  }
+
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric < 1e12 ? numeric * 1000 : numeric;
+    }
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const toNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
 const fetchBars = async ({ symbol, timeframe, limit, start, signal }) => {
   const params = new URLSearchParams({
     symbol,
@@ -78,14 +103,24 @@ const fetchBars = async ({ symbol, timeframe, limit, start, signal }) => {
   }
 
   const bars = payload?.bars || [];
-  return bars.map((bar) => ({
-    Date: new Date(bar.Timestamp).getTime(),
-    Open: bar.OpenPrice,
-    High: bar.HighPrice,
-    Low: bar.LowPrice,
-    Close: bar.ClosePrice,
-    Volume: bar.Volume,
-  }));
+  return bars
+    .map((bar) => ({
+      Date: parseTimestamp(bar.Timestamp),
+      Open: toNumber(bar.OpenPrice),
+      High: toNumber(bar.HighPrice),
+      Low: toNumber(bar.LowPrice),
+      Close: toNumber(bar.ClosePrice),
+      Volume: toNumber(bar.Volume),
+    }))
+    .filter(
+      (bar) =>
+        Number.isFinite(bar.Date) &&
+        Number.isFinite(bar.Open) &&
+        Number.isFinite(bar.High) &&
+        Number.isFinite(bar.Low) &&
+        Number.isFinite(bar.Close) &&
+        Number.isFinite(bar.Volume)
+    );
 };
 
 class ADXIndicator extends am5stock.ChartIndicator {
@@ -259,6 +294,32 @@ const applyAxisStyling = (renderer) => {
 };
 
 const applyCandleColors = (series) => {
+  if (series?.columns?.template) {
+    series.columns.template.setAll({
+      fill: DOWN_COLOR,
+      stroke: DOWN_COLOR,
+    });
+
+    const riseFromOpenState = series.columns.template.states.create(
+      'riseFromOpen',
+      {
+        fill: UP_COLOR,
+        stroke: UP_COLOR,
+      }
+    );
+
+    const dropFromOpenState = series.columns.template.states.create(
+      'dropFromOpen',
+      {
+        fill: DOWN_COLOR,
+        stroke: DOWN_COLOR,
+      }
+    );
+
+    series.set('riseFromOpenState', riseFromOpenState);
+    series.set('dropFromOpenState', dropFromOpenState);
+  }
+
   series.columns.template.adapters.add('fill', (fill, target) => {
     const dataItem = target.dataItem;
     if (!dataItem) {
@@ -266,7 +327,13 @@ const applyCandleColors = (series) => {
     }
     const open = dataItem.get('openValueY');
     const close = dataItem.get('valueY');
-    return close >= open ? UP_COLOR : DOWN_COLOR;
+    if (close > open) {
+      return UP_COLOR;
+    }
+    if (close < open) {
+      return DOWN_COLOR;
+    }
+    return fill;
   });
 
   series.columns.template.adapters.add('stroke', (stroke, target) => {
@@ -276,7 +343,13 @@ const applyCandleColors = (series) => {
     }
     const open = dataItem.get('openValueY');
     const close = dataItem.get('valueY');
-    return close >= open ? UP_COLOR : DOWN_COLOR;
+    if (close > open) {
+      return UP_COLOR;
+    }
+    if (close < open) {
+      return DOWN_COLOR;
+    }
+    return stroke;
   });
 };
 
@@ -585,20 +658,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       ],
     });
 
-    const periodSelector = am5stock.PeriodSelector.new(root, {
-      stockChart,
-      periods: [
-        { timeUnit: 'day', count: 1, name: '1D' },
-        { timeUnit: 'day', count: 5, name: '5D' },
-        { timeUnit: 'month', count: 1, name: '1M' },
-        { timeUnit: 'month', count: 3, name: '3M' },
-        { timeUnit: 'month', count: 6, name: '6M' },
-        { timeUnit: 'year', count: 1, name: '1Y' },
-        { timeUnit: 'ytd', name: 'YTD' },
-        { timeUnit: 'max', name: 'ALL' },
-      ],
-    });
-
     const chartTypeControl = am5stock.SeriesTypeControl.new(root, {
       stockChart,
       currentItem: 'candlestick',
@@ -697,7 +756,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       container: toolbarRef.current,
       stockChart,
       controls: [
-        periodSelector,
         comparisonControl,
         indicatorControl,
         chartTypeControl,
@@ -749,6 +807,15 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       stockSeries.set('name', activeTicker.toUpperCase());
     }
 
+    dateAxis.set('baseInterval', {
+      timeUnit: selected.unit,
+      count: selected.count,
+    });
+    volumeDateAxis.set('baseInterval', {
+      timeUnit: selected.unit,
+      count: selected.count,
+    });
+
     const loadBars = async () => {
       setIsLoading(true);
       setErrorMessage('');
@@ -772,14 +839,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
           currentSeries.set('name', activeTicker.toUpperCase());
         }
         volumeSeries.data.setAll(data);
-        dateAxis.set('baseInterval', {
-          timeUnit: selected.unit,
-          count: selected.count,
-        });
-        volumeDateAxis.set('baseInterval', {
-          timeUnit: selected.unit,
-          count: selected.count,
-        });
       } catch (err) {
         if (controller.signal.aborted || err?.name === 'AbortError') {
           return;
