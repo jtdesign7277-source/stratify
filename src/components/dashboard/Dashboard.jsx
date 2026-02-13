@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
+import useWatchlistSync from '../../hooks/useWatchlistSync';
+import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
 import LiveAlertsTicker from './LiveAlertsTicker';
@@ -162,25 +164,8 @@ export default function Dashboard({
     }));
   }, []);
   
-  const [watchlist, setWatchlist] = useState(() => {
-    const DEFAULT_WATCHLIST = [
-      { symbol: 'AAPL', name: 'Apple Inc.' },
-      { symbol: 'MSFT', name: 'Microsoft Corporation' },
-      { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-      { symbol: 'AMZN', name: 'Amazon.com, Inc.' },
-      { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-      { symbol: 'META', name: 'Meta Platforms, Inc.' },
-      { symbol: 'TSLA', name: 'Tesla, Inc.' },
-    ];
-    try {
-      const saved = localStorage.getItem('stratify-watchlist');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.length > 0 ? parsed : DEFAULT_WATCHLIST;
-      }
-      return DEFAULT_WATCHLIST;
-    } catch { return DEFAULT_WATCHLIST; }
-  });
+  const { user } = useAuth();
+  const { watchlist, setWatchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop, loaded } = useWatchlistSync(user);
   
   // Mini ticker pills (slots 2-5, slots 0-1 are Grok and Feed)
   const [miniTickers, setMiniTickers] = useState(() => {
@@ -206,23 +191,6 @@ export default function Dashboard({
     localStorage.setItem('stratify-pinned-games', JSON.stringify(pinnedGames));
   }, [pinnedGames]);
   
-  // Handle pinning a ticker to the first available top mini pill slot (via double-click)
-  const handlePinToTop = (symbol) => {
-    setMiniTickers(prev => {
-      // Check if already pinned
-      if (prev.includes(symbol)) return prev;
-      // Find first empty slot (max 5)
-      const newTickers = [...prev];
-      if (newTickers.length < 5) {
-        newTickers.push(symbol);
-      } else {
-        // Replace the last one if full
-        newTickers[4] = symbol;
-      }
-      return newTickers;
-    });
-  };
-
   // Handle dropping a ticker onto a pill slot
   const handleTickerDrop = (symbol, slotIndex) => {
     if (slotIndex < 1) return; // Slot 0 is reserved for Feed
@@ -661,32 +629,6 @@ export default function Dashboard({
     setRightPanelWidth(Math.min(500, Math.max(280, newWidth)));
   };
 
-  const addToWatchlist = (stock) => {
-    // Handle both string (symbol) and object inputs
-    const stockObj = typeof stock === 'string' ? { symbol: stock, name: stock } : stock;
-    if (!watchlist.find(s => s.symbol === stockObj.symbol)) {
-      // Add new tickers to TOP of list (prepend)
-      setWatchlist(prev => [stockObj, ...prev]);
-    }
-  };
-
-  const removeFromWatchlist = (symbol) => {
-    setWatchlist(prev => prev.filter(s => {
-      // Handle both string items and object items
-      const itemSymbol = typeof s === 'string' ? s : s.symbol;
-      return itemSymbol !== symbol;
-    }));
-  };
-
-  const reorderWatchlist = (sourceIndex, destIndex) => {
-    setWatchlist(prev => {
-      const reordered = Array.from(prev);
-      const [removed] = reordered.splice(sourceIndex, 1);
-      reordered.splice(destIndex, 0, removed);
-      return reordered;
-    });
-  };
-
   const handleMouseUp = () => {
     setIsDragging(false);
     document.body.style.cursor = 'default';
@@ -861,7 +803,7 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'trade' && (
-            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} onReorderWatchlist={reorderWatchlist} onPinToTop={handlePinToTop} />
+            <TradePage watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} onReorderWatchlist={reorderWatchlist} onPinToTop={pinToTop} />
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
