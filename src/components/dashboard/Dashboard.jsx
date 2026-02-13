@@ -885,6 +885,8 @@ export default function Dashboard({
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
+          {activeTab === 'advanced-trade' && <AlpacaChart symbol="AAPL" height={600} />}
+          {activeTab === 'advanced-trade' && <AlpacaChart symbol="AAPL" height={600} />}
           {activeTab === 'terminal' && (
             <TerminalPage
               backtestResults={terminalBacktestResults}
