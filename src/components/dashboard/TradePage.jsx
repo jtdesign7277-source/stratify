@@ -332,6 +332,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     });
   };
   const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
+  const [socialCollapsed, setSocialCollapsed] = useState(false);
   const [equityQuotes, setEquityQuotes] = useState({});
   const [cryptoQuotes, setCryptoQuotes] = useState({});
   const [equityLoading, setEquityLoading] = useState(true);
@@ -1183,9 +1184,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             <TradingViewWidget symbol={chartSymbol} interval={chartInterval} />
           </div>
 
-          <div className="w-full xl:w-80 border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] p-3 min-h-0">
+          <div className={`border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] p-1.5 min-h-0 transition-all duration-300 ${
+            socialCollapsed ? 'w-full xl:w-14' : 'w-full xl:w-80'
+          }`}>
             <div className="h-[360px] xl:h-full min-h-0">
-              <SocialSentiment activeTicker={selectedDisplaySymbol} />
+              <SocialSentiment activeTicker={selectedDisplaySymbol} onCollapseChange={setSocialCollapsed} />
             </div>
           </div>
 

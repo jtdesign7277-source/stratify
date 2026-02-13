@@ -168,7 +168,7 @@ function TweetCard({ tweet, index }) {
   );
 }
 
-export default function SocialSentiment({ activeTicker = 'NVDA' }) {
+export default function SocialSentiment({ activeTicker = 'NVDA', onCollapseChange }) {
   const [ticker, setTicker] = useState(activeTicker);
   const [inputValue, setInputValue] = useState('');
   const [data, setData] = useState(null);
@@ -222,13 +222,16 @@ export default function SocialSentiment({ activeTicker = 'NVDA' }) {
   if (collapsed) {
     return (
       <div
-        className="flex flex-col items-center justify-start h-full bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg py-3 px-1 cursor-pointer hover:border-[#2a2a2a] transition-colors"
-        onClick={() => setCollapsed(false)}
+        className="flex flex-col items-center justify-center h-full w-10 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-blue-500/40 transition-all group"
+        onClick={() => { setCollapsed(false); onCollapseChange?.(false); }}
         title="Expand Social Pulse"
       >
-        <svg className="w-5 h-5 text-white/50 hover:text-white/80 transition-colors" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-md group-hover:bg-blue-500/40 transition-all" />
+          <svg className="relative w-5 h-5 text-white/60 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+        </div>
       </div>
     );
   }
@@ -239,7 +242,7 @@ export default function SocialSentiment({ activeTicker = 'NVDA' }) {
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setCollapsed(true)}
+            onClick={() => { setCollapsed(true); onCollapseChange?.(true); }}
             className="hover:opacity-80 transition-opacity"
             title="Collapse"
           >
