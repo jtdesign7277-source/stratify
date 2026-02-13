@@ -670,7 +670,15 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         const text = await res.text();
         throw new Error(text || 'Order failed');
       }
-      setOrderStatus({ state: 'success', message: 'Order placed successfully.' });
+      setOrderStatus({
+        state: 'success',
+        message: 'Order placed successfully.',
+        executedAt: new Date(),
+        symbol: selectedDisplaySymbol,
+        price: selectedQuote?.price,
+        qty: orderQtyNumber,
+        side: orderSide,
+      });
     } catch (err) {
       setOrderStatus({ state: 'error', message: err?.message || 'Order failed.' });
     }
@@ -684,6 +692,36 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const formatSignedPercent = (value) => {
     if (!Number.isFinite(value)) return null;
     return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+  };
+
+  const formatOrderSide = (side) => {
+    if (!side) return '';
+    return `${side.charAt(0).toUpperCase()}${side.slice(1)}`;
+  };
+
+  const formatExecutionTimestamp = (timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    const timeZone = 'America/New_York';
+    const datePart = date.toLocaleDateString('en-US', {
+      timeZone,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = date.toLocaleTimeString('en-US', {
+      timeZone,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short',
+    });
+    return `${datePart} · ${timePart}`;
+  };
+
+  const formatExecutionPrice = (price) => {
+    if (!Number.isFinite(price)) return '...';
+    return `$${formatPrice(price)}`;
   };
 
   const getChangeColor = (value) => {
@@ -1222,11 +1260,23 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               </button>
 
               {orderStatus.state !== 'idle' && (
-                <div className={`text-xs ${
-                  orderStatus.state === 'success' ? 'text-emerald-400' : 'text-red-400'
-                }`}>
-                  {orderStatus.message}
-                </div>
+                orderStatus.state === 'success' ? (
+                  <div className="text-xs space-y-1">
+                    <div className="text-emerald-400">{orderStatus.message}</div>
+                    <div className="text-white/60">
+                      {orderStatus.symbol} · {formatOrderSide(orderStatus.side)} {orderStatus.qty} @ {formatExecutionPrice(orderStatus.price)}
+                    </div>
+                    {orderStatus.executedAt && (
+                      <div className="text-white/40">
+                        {formatExecutionTimestamp(orderStatus.executedAt)}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-red-400">
+                    {orderStatus.message}
+                  </div>
+                )
               )}
             </div>
           </div>
