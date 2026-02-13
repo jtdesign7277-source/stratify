@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   } = req.query;
 
   const ALPACA_KEY    = process.env.ALPACA_API_KEY    || process.env.APCA_API_KEY_ID;
-  const ALPACA_SECRET = process.env.ALPACA_API_SECRET || process.env.APCA_API_SECRET_KEY;
+  const ALPACA_SECRET = process.env.ALPACA_API_SECRET || process.env.ALPACA_SECRET_KEY || process.env.APCA_API_SECRET_KEY;
 
   if (!ALPACA_KEY || !ALPACA_SECRET) {
     return res.status(500).json({ error: 'Alpaca API keys not configured' });
