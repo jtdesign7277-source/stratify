@@ -886,7 +886,6 @@ export default function Dashboard({
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'advanced-trade' && <AlpacaChart symbol="AAPL" height={600} />}
-          {activeTab === 'advanced-trade' && <AlpacaChart symbol="AAPL" height={600} />}
           {activeTab === 'terminal' && (
             <TerminalPage
               backtestResults={terminalBacktestResults}
