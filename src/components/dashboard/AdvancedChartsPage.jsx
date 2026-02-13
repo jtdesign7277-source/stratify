@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import * as am5stock from '@amcharts/amcharts5/stock';
@@ -12,16 +12,6 @@ const UP_COLOR = am5.color(0x34d399);
 const DOWN_COLOR = am5.color(0xf87171);
 const VOLUME_COLOR = am5.color(0x3b82f6);
 
-const mulberry32 = (seed) => {
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6d2b79f5;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
 const hashString = (value) => {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -31,42 +21,71 @@ const hashString = (value) => {
   return Math.abs(hash) || 1;
 };
 
-const generateNvdaData = (points = 252, seed = 42) => {
-  const random = mulberry32(seed);
-  const data = [];
+const TIMEFRAME_OPTIONS = [
+  { label: '1m', value: '1Min', unit: 'minute', count: 1, intraday: true },
+  { label: '5m', value: '5Min', unit: 'minute', count: 5, intraday: true },
+  { label: '15m', value: '15Min', unit: 'minute', count: 15, intraday: true },
+  { label: '1H', value: '1Hour', unit: 'hour', count: 1, intraday: true },
+  { label: '4H', value: '4Hour', unit: 'hour', count: 4, intraday: true },
+  { label: '1D', value: '1Day', unit: 'day', count: 1, intraday: false },
+  { label: '1W', value: '1Week', unit: 'week', count: 1, intraday: false },
+];
+
+const getTradingDaysAgo = (days) => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
-  let price = 680 + random() * 40;
-
-  while (data.length < points) {
+  let remaining = days;
+  while (remaining > 0) {
     date.setDate(date.getDate() - 1);
     const day = date.getDay();
-    if (day === 0 || day === 6) {
-      continue;
+    if (day !== 0 && day !== 6) {
+      remaining -= 1;
     }
+  }
+  return date;
+};
 
-    const gap = (random() - 0.5) * 0.02;
-    const open = Math.max(10, price * (1 + gap));
-    const intradayMove = (random() - 0.5) * 0.05;
-    const close = Math.max(10, open * (1 + intradayMove));
-    const high = Math.max(open, close) * (1 + random() * 0.02);
-    const low = Math.min(open, close) * (1 - random() * 0.02);
-    const volumeBase = 30_000_000 + random() * 20_000_000;
-    const volume = Math.round(volumeBase + Math.abs(intradayMove) * 90_000_000);
+const fetchBars = async ({ symbol, timeframe, limit, start, signal }) => {
+  const params = new URLSearchParams({
+    symbol,
+    timeframe,
+    limit: String(limit),
+  });
 
-    data.push({
-      Date: date.getTime(),
-      Open: Number(open.toFixed(2)),
-      High: Number(high.toFixed(2)),
-      Low: Number(low.toFixed(2)),
-      Close: Number(close.toFixed(2)),
-      Volume: volume,
-    });
-
-    price = close;
+  if (start) {
+    params.append('start', start);
   }
 
-  return data.reverse();
+  const response = await fetch(`/api/bars?${params.toString()}`, { signal });
+  let payload = null;
+
+  try {
+    payload = await response.json();
+  } catch (err) {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      payload?.error ||
+      payload?.detail ||
+      `Failed to fetch bars (${response.status})`;
+    throw new Error(message);
+  }
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  const bars = payload?.bars || [];
+  return bars.map((bar) => ({
+    Date: new Date(bar.Timestamp).getTime(),
+    Open: bar.OpenPrice,
+    High: bar.HighPrice,
+    Low: bar.LowPrice,
+    Close: bar.ClosePrice,
+    Volume: bar.Volume,
+  }));
 };
 
 class ADXIndicator extends am5stock.ChartIndicator {
@@ -272,6 +291,15 @@ const createComparisonData = (baseData, seed) => {
 export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const chartRef = useRef(null);
   const toolbarRef = useRef(null);
+  const stockChartRef = useRef(null);
+  const volumeSeriesRef = useRef(null);
+  const dateAxisRef = useRef(null);
+  const volumeDateAxisRef = useRef(null);
+  const dataRef = useRef([]);
+  const initialTickerRef = useRef(activeTicker);
+  const [timeframe, setTimeframe] = useState('1Day');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!chartRef.current || !toolbarRef.current) {
@@ -343,7 +371,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
 
     const valueSeries = mainPanel.series.push(
       am5xy.CandlestickSeries.new(root, {
-        name: activeTicker.toUpperCase(),
+        name: initialTickerRef.current.toUpperCase(),
         clustered: false,
         valueXField: 'Date',
         valueYField: 'Close',
@@ -456,9 +484,14 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       })
     );
 
-    const chartData = generateNvdaData(252, hashString(activeTicker));
-    valueSeries.data.setAll(chartData);
-    volumeSeries.data.setAll(chartData);
+    dataRef.current = [];
+    valueSeries.data.setAll([]);
+    volumeSeries.data.setAll([]);
+
+    stockChartRef.current = stockChart;
+    volumeSeriesRef.current = volumeSeries;
+    dateAxisRef.current = dateAxis;
+    volumeDateAxisRef.current = volumeDateAxis;
 
     const comparisonTickers = [
       { label: 'Apple', subLabel: 'AAPL', id: 'AAPL' },
@@ -496,7 +529,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
 
       const comparingSeries = stockChart.addComparingSeries(series);
       comparingSeries.data.setAll(
-        createComparisonData(chartData, hashString(symbol))
+        createComparisonData(dataRef.current, hashString(symbol))
       );
     });
 
@@ -683,8 +716,88 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       if (toolbarRef.current) {
         toolbarRef.current.innerHTML = '';
       }
+      stockChartRef.current = null;
+      volumeSeriesRef.current = null;
+      dateAxisRef.current = null;
+      volumeDateAxisRef.current = null;
+      dataRef.current = [];
     };
-  }, [activeTicker]);
+  }, []);
+
+  useEffect(() => {
+    const stockChart = stockChartRef.current;
+    const volumeSeries = volumeSeriesRef.current;
+    const dateAxis = dateAxisRef.current;
+    const volumeDateAxis = volumeDateAxisRef.current;
+
+    if (!stockChart || !volumeSeries || !dateAxis || !volumeDateAxis) {
+      return undefined;
+    }
+
+    const selected =
+      TIMEFRAME_OPTIONS.find((option) => option.value === timeframe) ||
+      TIMEFRAME_OPTIONS[5];
+    const limit = selected.intraday ? 1000 : 500;
+    const start = selected.intraday
+      ? getTradingDaysAgo(5).toISOString()
+      : undefined;
+
+    const controller = new AbortController();
+
+    const stockSeries = stockChart.get('stockSeries');
+    if (stockSeries) {
+      stockSeries.set('name', activeTicker.toUpperCase());
+    }
+
+    const loadBars = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+      try {
+        const data = await fetchBars({
+          symbol: activeTicker,
+          timeframe: selected.value,
+          limit,
+          start,
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        dataRef.current = data;
+        const currentSeries = stockChart.get('stockSeries');
+        if (currentSeries) {
+          currentSeries.data.setAll(data);
+          currentSeries.set('name', activeTicker.toUpperCase());
+        }
+        volumeSeries.data.setAll(data);
+        dateAxis.set('baseInterval', {
+          timeUnit: selected.unit,
+          count: selected.count,
+        });
+        volumeDateAxis.set('baseInterval', {
+          timeUnit: selected.unit,
+          count: selected.count,
+        });
+      } catch (err) {
+        if (controller.signal.aborted || err?.name === 'AbortError') {
+          return;
+        }
+        setErrorMessage(err?.message || 'Failed to load bars.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadBars();
+
+    return () => {
+      controller.abort();
+    };
+  }, [activeTicker, timeframe]);
 
   return (
     <div className="bg-[#060a10] h-full w-full overflow-hidden flex flex-col">
@@ -750,20 +863,59 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
           padding: 6px 8px;
         }
       `}</style>
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#1f1f1f]">
-        <div className="text-xs uppercase tracking-[0.3em] text-white/60">
-          {activeTicker} Advanced
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f1f1f]">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.3em] text-white/50">
+            Advanced Chart
+          </div>
+          <div className="text-base font-semibold text-white">
+            {activeTicker.toUpperCase()}
+          </div>
         </div>
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] text-white/30">
           <div className="h-4 w-4 rounded-sm border border-white/20" />
           amCharts
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-[#1f1f1f]">
+        {TIMEFRAME_OPTIONS.map((option) => {
+          const isActive = timeframe === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setTimeframe(option.value)}
+              aria-pressed={isActive}
+              className={`text-xs uppercase tracking-[0.2em] px-3 py-1 rounded-md border transition ${
+                isActive
+                  ? 'bg-white/10 text-white border-white/20'
+                  : 'bg-[#0b0b0b] border-[#1f1f1f] text-white/50'
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
       <div
         ref={toolbarRef}
         className="advanced-chart-toolbar px-3 py-2 border-b border-[#1f1f1f]"
       />
-      <div ref={chartRef} className="flex-1 min-h-0" />
+      <div className="relative flex-1 min-h-0">
+        <div ref={chartRef} className="absolute inset-0" />
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#060a10]/70">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          </div>
+        )}
+        {errorMessage && (
+          <div className="absolute inset-x-0 top-3 flex justify-center">
+            <div className="rounded-md border border-red-500/30 bg-[#0b0b0b]/90 px-4 py-2 text-xs text-red-300">
+              {errorMessage}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
