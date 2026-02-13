@@ -472,11 +472,11 @@ const BacktestChart = ({ data, result, template }) => {
       {/* Hover tooltip */}
       {hd && (
         <div className="absolute top-2 left-3 flex items-center gap-4 text-xs z-10 pointer-events-none" style={{ fontFamily: "monospace" }}>
-          <span style={{ color: "#64748b" }}>{new Date(hd.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-          <span style={{ color: "#94a3b8" }}>O {hd.open.toFixed(2)}</span>
+          <span style={{ color: "rgba(255,255,255,0.4)" }}>{new Date(hd.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+          <span style={{ color: "rgba(255,255,255,0.5)" }}>O {hd.open.toFixed(2)}</span>
           <span style={{ color: "#34d399" }}>H {hd.high.toFixed(2)}</span>
           <span style={{ color: "#f87171" }}>L {hd.low.toFixed(2)}</span>
-          <span style={{ color: "#e2e8f0" }}>C {hd.close.toFixed(2)}</span>
+          <span style={{ color: "rgba(255,255,255,0.9)" }}>C {hd.close.toFixed(2)}</span>
           {heq && (
             <span style={{ color: template.color }}>
               Equity ${heq.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -500,15 +500,15 @@ const BacktestChart = ({ data, result, template }) => {
         {/* Grid lines */}
         {yLabels.map(({ val, yp }, i) => (
           <g key={i}>
-            <line x1={pad.left} y1={yp} x2={w - pad.right} y2={yp} stroke="#1e293b" strokeWidth="0.5" />
-            <text x={w - pad.right + 5} y={yp + 3} fill="#475569" fontSize="9" fontFamily="monospace">
+            <line x1={pad.left} y1={yp} x2={w - pad.right} y2={yp} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+            <text x={w - pad.right + 5} y={yp + 3} fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="monospace">
               {val >= 1000 ? `$${(val / 1000).toFixed(1)}k` : `$${val.toFixed(0)}`}
             </text>
           </g>
         ))}
 
         {Object.values(monthLabels).map((m, i) => (
-          <text key={i} x={m.xp} y={h - 6} fill="#475569" fontSize="9" fontFamily="monospace" textAnchor="middle">
+          <text key={i} x={m.xp} y={h - 6} fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="monospace" textAnchor="middle">
             {m.label}
           </text>
         ))}
@@ -541,7 +541,7 @@ const BacktestChart = ({ data, result, template }) => {
         {/* Hover crosshair */}
         {hover != null && (
           <>
-            <line x1={x(hover)} y1={pad.top} x2={x(hover)} y2={h - pad.bottom} stroke="#334155" strokeWidth="0.5" strokeDasharray="3,3" />
+            <line x1={x(hover)} y1={pad.top} x2={x(hover)} y2={h - pad.bottom} stroke="rgba(255,255,255,0.25)" strokeWidth="0.5" strokeDasharray="3,3" />
             <circle cx={x(hover)} cy={y(sampled[hover].close)} r="3" fill="#3b82f6" stroke="#0f172a" strokeWidth="2" />
           </>
         )}
@@ -552,10 +552,10 @@ const BacktestChart = ({ data, result, template }) => {
 
 // ── Stat Card ──────────────────────────────────────────────────
 const StatCard = ({ label, value, sub, color }) => (
-  <div className="px-2.5 py-1.5 rounded-lg" style={{ background: "#0d1829", border: "1px solid #1e293b" }}>
-    <div className="text-[10px] mb-0.5" style={{ color: "#475569" }}>{label}</div>
-    <div className="text-sm font-semibold tabular-nums" style={{ color: color || "#e2e8f0", fontFamily: "monospace" }}>{value}</div>
-    {sub && <div className="text-[10px]" style={{ color: "#475569" }}>{sub}</div>}
+  <div className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] backdrop-blur">
+    <div className="text-[10px] mb-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</div>
+    <div className="text-sm font-semibold tabular-nums" style={{ color: color || "rgba(255,255,255,0.9)", fontFamily: "monospace" }}>{value}</div>
+    {sub && <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>{sub}</div>}
   </div>
 );
 
@@ -576,14 +576,14 @@ const Dropdown = ({ value, options, onChange, renderOption, width = "w-32" }) =>
     <div ref={ref} className={`relative ${width}`}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all"
-        style={{ background: "#0d1829", border: "1px solid #1e293b", color: "#e2e8f0" }}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all bg-white/[0.04] border border-white/[0.06] backdrop-blur"
+        style={{ color: "rgba(255,255,255,0.9)" }}
       >
         <span className="truncate">{label}</span>
-        <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "#475569" }} />
+        <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} style={{ color: "rgba(255,255,255,0.4)" }} />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 w-full rounded-lg overflow-hidden z-50 max-h-60 overflow-y-auto" style={{ background: "#0d1829", border: "1px solid #1e293b", boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
+        <div className="absolute top-full mt-1 left-0 w-full rounded-lg overflow-hidden z-50 max-h-60 overflow-y-auto bg-white/[0.04] border border-white/[0.08] backdrop-blur" style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
           {options.map((opt) => {
             const optVal = typeof opt === "object" ? opt.symbol || opt.value : opt;
             const optLabel = renderOption ? renderOption(opt) : optVal;
@@ -592,7 +592,7 @@ const Dropdown = ({ value, options, onChange, renderOption, width = "w-32" }) =>
                 key={optVal}
                 onClick={() => { onChange(optVal); setOpen(false); }}
                 className="w-full text-left px-3 py-2 text-sm transition-all hover:bg-white/5"
-                style={{ color: optVal === value ? "#3b82f6" : "#94a3b8" }}
+                style={{ color: optVal === value ? "#34d399" : "rgba(255,255,255,0.5)" }}
               >
                 {optLabel}
               </button>
@@ -712,17 +712,16 @@ const StrategyDetail = ({ template, onBack }) => {
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-lg transition-all hover:bg-white/5"
-            style={{ border: "1px solid #1e293b" }}
+            className="p-2 rounded-lg transition-all hover:bg-white/5 border border-white/[0.06] backdrop-blur"
           >
-            <Icons.ArrowLeft className="w-4 h-4" style={{ color: "#94a3b8" }} />
+            <Icons.ArrowLeft className="w-4 h-4" style={{ color: "rgba(255,255,255,0.5)" }} />
           </button>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: template.color + "15" }}>
             <Icon style={{ color: template.color, width: 16, height: 16 }} />
           </div>
           <div>
-            <h2 className="text-base font-semibold" style={{ color: "#e2e8f0" }}>{template.name}</h2>
-            <p className="text-xs" style={{ color: "#475569" }}>{template.logic}</p>
+            <h2 className="text-base font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>{template.name}</h2>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{template.logic}</p>
           </div>
         </div>
 
@@ -767,8 +766,8 @@ const StrategyDetail = ({ template, onBack }) => {
         <Dropdown value={timeframe} options={TIMEFRAMES} onChange={setTimeframe} width="w-20" />
         <Dropdown value={period} options={PERIODS} onChange={setPeriod} width="w-20" />
 
-        <div className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm" style={{ background: "#0d1829", border: "1px solid #1e293b" }}>
-          <Icons.DollarSign className="w-3.5 h-3.5" style={{ color: "#475569" }} />
+        <div className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm bg-white/[0.03] border border-white/[0.06] backdrop-blur">
+          <Icons.DollarSign className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.4)" }} />
           <input
             type="text"
             value={capital.toLocaleString()}
@@ -777,7 +776,7 @@ const StrategyDetail = ({ template, onBack }) => {
               if (!isNaN(v) && v > 0) setCapital(v);
             }}
             className="w-24 bg-transparent text-sm outline-none tabular-nums"
-            style={{ color: "#e2e8f0", fontFamily: "monospace" }}
+            style={{ color: "rgba(255,255,255,0.9)", fontFamily: "monospace" }}
           />
         </div>
 
@@ -796,15 +795,15 @@ const StrategyDetail = ({ template, onBack }) => {
           }}>
             {dataSource === "alpaca" ? "ALPACA" : dataSource === "error" ? "ERROR" : "LOADING"}
           </span>
-          <span style={{ color: "#334155" }}>{data.length.toLocaleString()} candles</span>
-          <span style={{ color: "#334155" }}>·</span>
-          <span style={{ color: "#334155" }}>{timeframe} × {period}</span>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>{data.length.toLocaleString()} candles</span>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>{timeframe} × {period}</span>
         </div>
       </div>
 
       {/* Chart - collapses when trade log is open */}
       {!showTrades && (
-      <div className="rounded-xl overflow-hidden mb-3" style={{ background: "#0a1628", border: "1px solid #1e293b", opacity: isRunning ? 0.5 : 1, transition: "opacity 0.3s" }}>
+      <div className="rounded-xl overflow-hidden mb-3 bg-white/[0.02] border border-white/[0.06] backdrop-blur" style={{ opacity: isRunning ? 0.5 : 1, transition: "opacity 0.3s" }}>
         <div className="h-[340px]">
           {data.length > 0 && result ? (
             <BacktestChart data={data} result={result} template={template} />
@@ -812,7 +811,7 @@ const StrategyDetail = ({ template, onBack }) => {
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="w-6 h-6 mx-auto mb-2 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${template.color} transparent ${template.color} ${template.color}` }} />
-                <span className="text-xs" style={{ color: "#475569" }}>
+                <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
                   {fetchError || "Fetching historical data from Alpaca..."}
                 </span>
               </div>
@@ -820,26 +819,26 @@ const StrategyDetail = ({ template, onBack }) => {
           )}
         </div>
         {/* Legend */}
-        <div className="flex items-center gap-4 px-4 py-2 text-xs" style={{ borderTop: "1px solid #1e293b" }}>
+        <div className="flex items-center gap-4 px-4 py-2 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-0.5 rounded" style={{ background: "#3b82f6" }} />
-            <span style={{ color: "#64748b" }}>Price</span>
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>Price</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-0.5 rounded" style={{ background: template.color }} />
-            <span style={{ color: "#64748b" }}>Equity Curve</span>
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>Equity Curve</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: template.color }} />
-            <span style={{ color: "#64748b" }}>Buy</span>
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>Buy</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: "#34d399" }} />
-            <span style={{ color: "#64748b" }}>Sell (profit)</span>
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>Sell (profit)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: "#f87171" }} />
-            <span style={{ color: "#64748b" }}>Sell (loss)</span>
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>Sell (loss)</span>
           </div>
         </div>
       </div>
@@ -851,7 +850,7 @@ const StrategyDetail = ({ template, onBack }) => {
         <StatCard label="Total P&L" value={`${result.pnl >= 0 ? "+" : ""}${fmt(result.pnl)}`} color={result.pnl >= 0 ? "#34d399" : "#f87171"} />
         <StatCard label="Return" value={`${result.pnl >= 0 ? "+" : ""}${result.pctReturn}%`} color={result.pnl >= 0 ? "#34d399" : "#f87171"} />
         <StatCard label="Final Value" value={fmt(result.finalEquity)} />
-        <StatCard label="Win Rate" value={`${result.winRate}%`} color="#94a3b8" />
+        <StatCard label="Win Rate" value={`${result.winRate}%`} color="rgba(255,255,255,0.5)" />
         <StatCard label="Trades" value={result.totalTrades} sub={`${result.wins}W / ${result.losses}L`} />
         <StatCard label="Max Drawdown" value={`-${result.maxDD}%`} color="#f87171" />
         <StatCard label="Sharpe Ratio" value={result.sharpe} color={parseFloat(result.sharpe) > 1 ? "#34d399" : "#f59e0b"} />
@@ -861,15 +860,15 @@ const StrategyDetail = ({ template, onBack }) => {
 
       {/* Trade Log */}
       {result && (
-      <div className="rounded-xl overflow-hidden" style={{ background: "#0a1628", border: "1px solid #1e293b" }}>
+      <div className="rounded-xl overflow-hidden bg-white/[0.03] border border-white/[0.06] backdrop-blur">
         <button
           onClick={() => setShowTrades(!showTrades)}
           className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium transition-all hover:bg-white/[0.02]"
-          style={{ color: "#94a3b8" }}
+          style={{ color: "rgba(255,255,255,0.5)" }}
         >
           <div className="flex items-center gap-3">
             <span>TRADE LOG</span>
-            <span className="px-1.5 py-0.5 rounded" style={{ background: "#1e293b", color: "#64748b" }}>
+            <span className="px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>
               {result.roundTrips.length} round-trips
             </span>
             <span className="px-1.5 py-0.5 rounded" style={{ background: result.pnl >= 0 ? "#16a34a15" : "#ef444415", color: result.pnl >= 0 ? "#34d399" : "#f87171" }}>
@@ -879,13 +878,13 @@ const StrategyDetail = ({ template, onBack }) => {
           <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTrades ? "rotate-180" : ""}`} />
         </button>
         {showTrades && (
-          <div className="overflow-x-auto" style={{ borderTop: "1px solid #1e293b" }}>
-            <div className="max-h-[360px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#1e293b #0a1628" }}>
+          <div className="overflow-x-auto" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="max-h-[360px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) #0b0b0b" }}>
               <table className="w-full text-xs" style={{ fontFamily: "monospace", minWidth: 900 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #1e293b", position: "sticky", top: 0, background: "#0a1628", zIndex: 2 }}>
+                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", position: "sticky", top: 0, background: "#0b0b0b", zIndex: 2 }}>
                     {["#", "Type", "Open", "Close", "Entry", "Exit", "Shares", "Open $", "Close $", "P&L", "P&L %", "Hold Time"].map((h) => (
-                      <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap" style={{ color: "#475569", fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</th>
+                      <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap" style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -898,9 +897,9 @@ const StrategyDetail = ({ template, onBack }) => {
                     const fmtTime = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
                     return (
-                      <tr key={rt.id} className="transition-colors hover:bg-white/[0.02] group" style={{ borderBottom: "1px solid #0f172a08" }}>
+                      <tr key={rt.id} className="transition-colors hover:bg-white/[0.02] group" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         {/* # */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "#334155" }}>{rt.id}</td>
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.25)" }}>{rt.id}</td>
 
                         {/* Type */}
                         <td className="px-3 py-2">
@@ -916,18 +915,18 @@ const StrategyDetail = ({ template, onBack }) => {
 
                         {/* Open date/time */}
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <div style={{ color: "#94a3b8" }}>{fmtDate(entryDt)}</div>
-                          <div style={{ color: "#475569", fontSize: 9 }}>{fmtTime(entryDt)}</div>
+                          <div style={{ color: "rgba(255,255,255,0.5)" }}>{fmtDate(entryDt)}</div>
+                          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9 }}>{fmtTime(entryDt)}</div>
                         </td>
 
                         {/* Close date/time */}
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <div style={{ color: "#94a3b8" }}>{fmtDate(exitDt)}</div>
-                          <div style={{ color: "#475569", fontSize: 9 }}>{fmtTime(exitDt)}</div>
+                          <div style={{ color: "rgba(255,255,255,0.5)" }}>{fmtDate(exitDt)}</div>
+                          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9 }}>{fmtTime(exitDt)}</div>
                         </td>
 
                         {/* Entry price */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "#e2e8f0" }}>
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.9)" }}>
                           ${rt.entryPrice.toFixed(2)}
                         </td>
 
@@ -937,17 +936,17 @@ const StrategyDetail = ({ template, onBack }) => {
                         </td>
 
                         {/* Shares */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "#64748b" }}>
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.4)" }}>
                           {rt.shares.toLocaleString()}
                         </td>
 
                         {/* Open $ value */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "#94a3b8" }}>
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.5)" }}>
                           {fmt(rt.openValue)}
                         </td>
 
                         {/* Close $ value */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "#94a3b8" }}>
+                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.5)" }}>
                           {fmt(rt.closeValue)}
                         </td>
 
@@ -964,9 +963,9 @@ const StrategyDetail = ({ template, onBack }) => {
                         </td>
 
                         {/* Duration */}
-                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: "#475569" }}>
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: "rgba(255,255,255,0.4)" }}>
                           <div className="flex items-center gap-1">
-                            <Icons.Clock style={{ width: 10, height: 10, color: "#334155" }} />
+                            <Icons.Clock style={{ width: 10, height: 10, color: "rgba(255,255,255,0.25)" }} />
                             {rt.duration}
                           </div>
                         </td>
@@ -978,20 +977,20 @@ const StrategyDetail = ({ template, onBack }) => {
             </div>
 
             {/* Summary row */}
-            <div className="flex items-center justify-between px-4 py-2.5 text-xs" style={{ borderTop: "1px solid #1e293b", background: "#080f1e" }}>
+            <div className="flex items-center justify-between px-4 py-2.5 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "#0b0b0b" }}>
               <div className="flex items-center gap-4">
-                <span style={{ color: "#475569" }}>Avg Trade:</span>
+                <span style={{ color: "rgba(255,255,255,0.4)" }}>Avg Trade:</span>
                 <span className="tabular-nums font-medium" style={{ color: result.avgTrade >= 0 ? "#34d399" : "#f87171", fontFamily: "monospace" }}>
                   {result.avgTrade >= 0 ? "+" : ""}{fmt(result.avgTrade)}
                 </span>
-                <span style={{ color: "#1e293b" }}>|</span>
-                <span style={{ color: "#475569" }}>Best:</span>
+                <span style={{ color: "rgba(255,255,255,0.06)" }}>|</span>
+                <span style={{ color: "rgba(255,255,255,0.4)" }}>Best:</span>
                 <span className="tabular-nums font-medium" style={{ color: "#34d399", fontFamily: "monospace" }}>+{fmt(result.bestTrade)}</span>
-                <span style={{ color: "#1e293b" }}>|</span>
-                <span style={{ color: "#475569" }}>Worst:</span>
+                <span style={{ color: "rgba(255,255,255,0.06)" }}>|</span>
+                <span style={{ color: "rgba(255,255,255,0.4)" }}>Worst:</span>
                 <span className="tabular-nums font-medium" style={{ color: "#f87171", fontFamily: "monospace" }}>{fmt(result.worstTrade)}</span>
               </div>
-              <span style={{ color: "#334155" }}>{result.roundTrips.length} completed trades</span>
+              <span style={{ color: "rgba(255,255,255,0.25)" }}>{result.roundTrips.length} completed trades</span>
             </div>
           </div>
         )}
@@ -1014,15 +1013,10 @@ export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOn
     <div
       className="min-h-screen w-full text-white"
       style={{
-        background: "linear-gradient(180deg, #020817 0%, #0a1628 40%, #060d18 100%)",
+        background: "#0b0b0b",
         fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
       }}
     >
-      {/* Subtle grid */}
-      <div className="fixed inset-0 pointer-events-none" style={{
-        backgroundImage: "linear-gradient(rgba(59,130,246,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.02) 1px, transparent 1px)",
-        backgroundSize: "48px 48px",
-      }} />
 
       <div className="relative z-10 p-4 lg:p-6 max-w-[1400px] mx-auto">
         {/* Content */}
@@ -1041,8 +1035,8 @@ export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOn
         }
         input[type="text"]:focus { outline: none; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0a1628; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #0b0b0b; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
       `}</style>
     </div>
   );
