@@ -206,22 +206,21 @@ export default function MoreInfoPage() {
         </div>
 
         {/* FAQ & User Profile - Side by Side */}
-        <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 items-stretch">
+        <div className="grid grid-cols-2 gap-3">
 
           {/* FAQ Section */}
-          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-3 overflow-hidden flex flex-col min-h-0 h-full">
-            <h3 className="text-white font-medium text-xs mb-2">Frequently Asked Questions</h3>
+          <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-4">
+            <h3 className="text-white font-medium text-sm mb-3">Frequently Asked Questions</h3>
             
-            <div className="flex-1 overflow-y-auto space-y-1.5" style={{ scrollbarWidth: 'none' }}>
-              <style>{`.faq-scroll::-webkit-scrollbar { display: none; }`}</style>
+            <div className="space-y-2">
               
               {faqs.map((faq, i) => (
                 <div key={i} className="border border-[#1f1f1f] rounded-lg overflow-hidden">
                   <button 
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                    className="w-full px-3 py-2 flex items-center justify-between text-left text-white hover:bg-[#111118] transition-colors"
+                    className="w-full px-4 py-3 flex items-center justify-between text-left text-white hover:bg-[#111118] transition-colors"
                   >
-                    <span className="text-xs font-medium">{faq.q}</span>
+                    <span className="text-sm font-medium">{faq.q}</span>
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} />
                   </button>
                   <AnimatePresence>
@@ -233,7 +232,7 @@ export default function MoreInfoPage() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <p className="px-3 pb-2 text-gray-400 text-[11px] leading-relaxed">{faq.a}</p>
+                        <p className="px-4 pb-3 text-gray-400 text-xs leading-relaxed">{faq.a}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -243,79 +242,79 @@ export default function MoreInfoPage() {
           </div>
 
           {/* User Profile */}
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-3 text-white flex flex-col min-h-0 h-full">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-white font-medium text-xs flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
-              User Profile
-            </h3>
-            {isAuthenticated && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
-                <Shield className="w-3 h-3" strokeWidth={1.5} />
-                Paper Account
-              </span>
-            )}
-          </div>
+          <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 text-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-medium text-sm flex items-center gap-2">
+                <User className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
+                User Profile
+              </h3>
+              {isAuthenticated && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300">
+                  <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />
+                  Paper Account
+                </span>
+              )}
+            </div>
 
-          {isAuthenticated && user ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
-                  {initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                  <p className="text-[11px] text-gray-400 truncate">{email}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-2">
-                  <div className="flex items-center gap-1 text-gray-400 text-[11px]">
-                    <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    Account Type
+            {isAuthenticated && user ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-lg font-semibold">
+                    {initials}
                   </div>
-                  <span className="mt-1 inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
-                    Paper Account
-                  </span>
-                </div>
-                <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-2">
-                  <div className="flex items-center gap-1 text-gray-400 text-[11px]">
-                    <Calendar className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    Member Since
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold text-white truncate">{displayName}</p>
+                    <p className="text-sm text-gray-400 truncate">{email}</p>
                   </div>
-                  <p className="mt-1 text-xs text-white font-medium">{memberSince}</p>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-2">
-                <div>
-                  <p className="text-gray-400 text-[11px]">User ID</p>
-                  <p className="text-xs text-white font-mono">{truncatedId}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
+                      <Shield className="w-4 h-4" strokeWidth={1.5} />
+                      Account Type
+                    </div>
+                    <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300">
+                      Paper Account
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
+                      <Calendar className="w-4 h-4" strokeWidth={1.5} />
+                      Member Since
+                    </div>
+                    <p className="text-sm text-white font-medium">{memberSince}</p>
+                  </div>
                 </div>
+
+                <div className="flex items-center justify-between rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                  <div>
+                    <p className="text-gray-400 text-xs mb-0.5">User ID</p>
+                    <p className="text-sm text-white font-mono">{truncatedId}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyId}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 px-3 py-1.5 text-emerald-400 text-xs hover:border-emerald-400 hover:text-emerald-300 transition-all"
+                  >
+                    <Copy className="w-4 h-4" strokeWidth={1.5} />
+                    Copy
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={handleCopyId}
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 text-emerald-400 text-[11px] hover:border-emerald-400 hover:text-emerald-300 transition-all"
+                  disabled
+                  className="w-full rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Copy className="w-3.5 h-3.5" strokeWidth={1.5} />
-                  Copy
+                  <Edit3 className="w-4 h-4" strokeWidth={1.5} />
+                  Edit Profile
                 </button>
               </div>
-
-              <button
-                type="button"
-                disabled
-                className="w-full rounded-md border border-emerald-500/40 px-2.5 py-1.5 text-emerald-400 text-[11px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Edit3 className="w-3.5 h-3.5" strokeWidth={1.5} />
-                Edit Profile
-              </button>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-xs">Sign in to view your profile</p>
-          )}
-        </div>
+            ) : (
+              <p className="text-gray-500 text-sm">Sign in to view your profile</p>
+            )}
+          </div>
 
         </div>{/* close grid */}
 
