@@ -135,6 +135,12 @@ const PortfolioPage = ({
     onBrokerDisconnect(brokerId);
   };
 
+  const totalMarketValue = useMemo(() => positions.reduce((sum, p) => sum + p.marketValue, 0), [positions]);
+  const totalUnrealizedPL = useMemo(() => positions.reduce((sum, p) => sum + p.unrealizedPL, 0), [positions]);
+  const totalCostBasis = useMemo(() => positions.reduce((sum, p) => sum + (p.avgEntry * p.shares), 0), [positions]);
+  const totalUnrealizedPLPercent = totalCostBasis > 0 ? (totalUnrealizedPL / totalCostBasis) * 100 : 0;
+  const totalPLIsPositive = totalUnrealizedPL >= 0;
+
   const dailyIsPositive = dailyPnL >= 0;
 
   return (
@@ -314,6 +320,28 @@ const PortfolioPage = ({
             </div>
             <div className="text-xs text-white/40">{positions.length} positions</div>
           </div>
+
+          {positions.length > 0 && (
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Total Market Value</div>
+                <div className="text-lg font-semibold font-mono text-white">{formatCurrency(totalMarketValue)}</div>
+              </div>
+              <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Unrealized P&L</div>
+                <div className={`text-lg font-semibold font-mono ${totalPLIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatSignedCurrency(totalUnrealizedPL)}
+                </div>
+                <div className={`text-[10px] font-mono ${totalPLIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                  {formatSigned(totalUnrealizedPLPercent, '%')}
+                </div>
+              </div>
+              <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Cost Basis</div>
+                <div className="text-lg font-semibold font-mono text-white">{formatCurrency(totalCostBasis)}</div>
+              </div>
+            </div>
+          )}
 
           {positions.length === 0 ? (
             <div className="text-sm text-white/50 py-6 text-center">No positions yet. Place a trade to populate your portfolio.</div>
