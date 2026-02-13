@@ -385,20 +385,20 @@ const PortfolioPage = ({
                         <td className="py-4 pr-4 font-mono">{formatCurrency(pos.currentPrice)}</td>
                         <td className="py-4 pr-4 font-mono">{formatCurrency(pos.marketValue)}</td>
                         <td className="py-4 pr-4">
-                          <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono ${
-                            pos.dailyChange >= 0 ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
-                          }`}>
+                          <span className={`font-mono ${pos.dailyChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatSignedCurrency(pos.dailyChange)}
-                            <span className="text-xs">({formatSigned(pos.dailyChangePct, '%')})</span>
-                          </div>
+                          </span>
+                          <span className={`text-xs font-mono ${pos.dailyChange >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                            ({formatSigned(pos.dailyChangePct, '%')})
+                          </span>
                         </td>
                         <td className="py-4 pr-4">
-                          <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono ${
-                            isPositive ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
-                          }`}>
+                          <span className={`font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                             {formatSignedCurrency(pos.unrealizedPL)}
-                            <span className="text-xs">({formatSigned(pos.unrealizedPLPercent, '%')})</span>
-                          </div>
+                          </span>
+                          <span className={`text-xs font-mono ${isPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                            ({formatSigned(pos.unrealizedPLPercent, '%')})
+                          </span>
                         </td>
                       </tr>
                     );
@@ -416,20 +416,20 @@ const PortfolioPage = ({
                     <td className="py-4 pr-4 font-mono text-white/30">—</td>
                     <td className="py-4 pr-4 font-mono font-semibold">{formatCurrency(totalMarketValue)}</td>
                     <td className="py-4 pr-4">
-                      <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono font-semibold ${
-                        totalDailyChange >= 0 ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
-                      }`}>
+                      <span className={`font-mono font-semibold ${totalDailyChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatSignedCurrency(totalDailyChange)}
-                        <span className="text-xs">({formatSigned(totalDailyChangePct, '%')})</span>
-                      </div>
+                      </span>
+                      <span className={`text-xs font-mono ${totalDailyChange >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                        {' '}({formatSigned(totalDailyChangePct, '%')})
+                      </span>
                     </td>
                     <td className="py-4 pr-4">
-                      <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono font-semibold ${
-                        totalPLIsPositive ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
-                      }`}>
+                      <span className={`font-mono font-semibold ${totalPLIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatSignedCurrency(totalUnrealizedPL)}
-                        <span className="text-xs">({formatSigned(totalUnrealizedPLPercent, '%')})</span>
-                      </div>
+                      </span>
+                      <span className={`text-xs font-mono ${totalPLIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                        {' '}({formatSigned(totalUnrealizedPLPercent, '%')})
+                      </span>
                     </td>
                   </tr>
                 </tbody>
