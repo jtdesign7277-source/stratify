@@ -787,25 +787,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-[#0c1220] p-1">
-              {RANGE_PRESETS.map((range) => {
-                const isActive = range.key === rangeKey;
-                return (
-                  <button
-                    key={range.key}
-                    type="button"
-                    onClick={() => setRangeKey(range.key)}
-                    className={`px-2 py-1 text-[11px] font-semibold rounded-md transition ${
-                      isActive
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/50 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {range.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
         <div
