@@ -6,9 +6,15 @@ import {
   CheckCircle, 
   XCircle,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  User,
+  Shield,
+  Calendar,
+  Copy,
+  Edit3
 } from 'lucide-react';
 import SupportChat from './SupportChat';
+import { useAuth } from '../../context/AuthContext';
 
 const faqs = [
   {
@@ -33,6 +39,26 @@ export default function MoreInfoPage() {
   const [formData, setFormData] = useState({ name: '', email: '', subject: 'General Inquiry', message: '' });
   const [status, setStatus] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
+  const { user, isAuthenticated } = useAuth();
+
+  const fullName = user?.user_metadata?.full_name?.trim();
+  const displayName = fullName || 'Stratify User';
+  const email = user?.email || '';
+  const initialSource = (fullName || email || 'S').trim();
+  const initials = initialSource ? initialSource[0].toUpperCase() : 'S';
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+  const truncatedId = user?.id ? `${user.id.slice(0, 8)}...${user.id.slice(-4)}` : '—';
+
+  const handleCopyId = async () => {
+    if (!user?.id || !navigator?.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(user.id);
+    } catch {
+      // no-op
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -211,6 +237,81 @@ export default function MoreInfoPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* User Profile */}
+        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-3 text-white">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-white font-medium text-xs flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
+              User Profile
+            </h3>
+            {isAuthenticated && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                <Shield className="w-3 h-3" strokeWidth={1.5} />
+                Paper Account
+              </span>
+            )}
+          </div>
+
+          {isAuthenticated && user ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+                  <p className="text-[11px] text-gray-400 truncate">{email}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-2">
+                  <div className="flex items-center gap-1 text-gray-400 text-[11px]">
+                    <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    Account Type
+                  </div>
+                  <span className="mt-1 inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                    Paper Account
+                  </span>
+                </div>
+                <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-2">
+                  <div className="flex items-center gap-1 text-gray-400 text-[11px]">
+                    <Calendar className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    Member Since
+                  </div>
+                  <p className="mt-1 text-xs text-white font-medium">{memberSince}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-2">
+                <div>
+                  <p className="text-gray-400 text-[11px]">User ID</p>
+                  <p className="text-xs text-white font-mono">{truncatedId}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyId}
+                  className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 text-emerald-400 text-[11px] hover:border-emerald-400 hover:text-emerald-300 transition-all"
+                >
+                  <Copy className="w-3.5 h-3.5" strokeWidth={1.5} />
+                  Copy
+                </button>
+              </div>
+
+              <button
+                type="button"
+                disabled
+                className="w-full rounded-md border border-emerald-500/40 px-2.5 py-1.5 text-emerald-400 text-[11px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Edit3 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                Edit Profile
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-xs">Sign in to view your profile</p>
+          )}
         </div>
 
       </div>
