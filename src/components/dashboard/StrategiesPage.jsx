@@ -387,7 +387,6 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         </div>
       </div>
       </>}
-      </>}
     </div>
   );
 };
