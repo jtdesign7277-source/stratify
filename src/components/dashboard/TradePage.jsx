@@ -978,7 +978,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                   const afterHoursPrice = quote.afterHoursPrice;
                   const afterHoursChange = quote.afterHoursChange;
                   const afterHoursChangePercent = quote.afterHoursChangePercent;
-                  const isPositive = change >= 0;
+                  const isPositive = changePercent !== 0 ? changePercent >= 0 : change >= 0;
                   const isSelected = selectedTicker === stock.symbol;
                   const stockInfo = activeMarket === 'crypto'
                     ? CRYPTO_DATABASE.find(s => s.symbol === stock.symbol || s.displaySymbol === stock.symbol)

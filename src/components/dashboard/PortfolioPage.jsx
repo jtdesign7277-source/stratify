@@ -105,6 +105,10 @@ const PortfolioPage = ({
       const rawPercent = Number(pos.unrealized_plpc ?? pos.pnlPercent);
       const fallbackPercent = avgEntry > 0 ? ((currentPrice - avgEntry) / avgEntry) * 100 : 0;
 
+      const changeTodayPct = toNumber(pos.change_today ?? pos.changeToday) * 100;
+      const prevPrice = changeTodayPct !== 0 ? currentPrice / (1 + toNumber(pos.change_today ?? pos.changeToday)) : currentPrice;
+      const dailyChange = (currentPrice - prevPrice) * shares;
+
       return {
         symbol: String(pos.symbol ?? pos.ticker ?? '').toUpperCase(),
         companyName: getCompanyName(pos),
@@ -114,6 +118,8 @@ const PortfolioPage = ({
         marketValue,
         unrealizedPL,
         unrealizedPLPercent: normalizePercent(rawPercent, fallbackPercent),
+        dailyChange,
+        dailyChangePct: changeTodayPct,
       };
     })
     .filter((pos) => pos.symbol && pos.shares > 0), [rawPositions]);
@@ -139,6 +145,8 @@ const PortfolioPage = ({
   const totalUnrealizedPL = useMemo(() => positions.reduce((sum, p) => sum + p.unrealizedPL, 0), [positions]);
   const totalCostBasis = useMemo(() => positions.reduce((sum, p) => sum + (p.avgEntry * p.shares), 0), [positions]);
   const totalUnrealizedPLPercent = totalCostBasis > 0 ? (totalUnrealizedPL / totalCostBasis) * 100 : 0;
+  const totalDailyChange = useMemo(() => positions.reduce((sum, p) => sum + p.dailyChange, 0), [positions]);
+  const totalDailyChangePct = totalMarketValue > 0 ? (totalDailyChange / (totalMarketValue - totalDailyChange)) * 100 : 0;
   const totalPLIsPositive = totalUnrealizedPL >= 0;
 
   const dailyIsPositive = dailyPnL >= 0;
@@ -356,7 +364,8 @@ const PortfolioPage = ({
                     <th className="py-3 pr-4">Avg Entry</th>
                     <th className="py-3 pr-4">Current</th>
                     <th className="py-3 pr-4">Market Value</th>
-                    <th className="py-3 pr-4">Unrealized P&L</th>
+                    <th className="py-3 pr-4">Daily P&L</th>
+                    <th className="py-3 pr-4">Total P&L</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -377,6 +386,14 @@ const PortfolioPage = ({
                         <td className="py-4 pr-4 font-mono">{formatCurrency(pos.marketValue)}</td>
                         <td className="py-4 pr-4">
                           <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono ${
+                            pos.dailyChange >= 0 ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
+                          }`}>
+                            {formatSignedCurrency(pos.dailyChange)}
+                            <span className="text-xs">({formatSigned(pos.dailyChangePct, '%')})</span>
+                          </div>
+                        </td>
+                        <td className="py-4 pr-4">
+                          <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono ${
                             isPositive ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
                           }`}>
                             {formatSignedCurrency(pos.unrealizedPL)}
@@ -394,12 +411,18 @@ const PortfolioPage = ({
                       </div>
                     </td>
                     <td className="py-4 pr-4 text-white/50 text-xs">{positions.length} positions</td>
-                    <td className="py-4 pr-4 font-mono font-semibold">
-                      {formatNumber(positions.reduce((s, p) => s + p.shares, 0), 2)}
-                    </td>
-                    <td className="py-4 pr-4 font-mono font-semibold text-white/70">{formatCurrency(totalCostBasis)}</td>
+                    <td className="py-4 pr-4"></td>
+                    <td className="py-4 pr-4"></td>
                     <td className="py-4 pr-4 font-mono text-white/30">—</td>
                     <td className="py-4 pr-4 font-mono font-semibold">{formatCurrency(totalMarketValue)}</td>
+                    <td className="py-4 pr-4">
+                      <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono font-semibold ${
+                        totalDailyChange >= 0 ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
+                      }`}>
+                        {formatSignedCurrency(totalDailyChange)}
+                        <span className="text-xs">({formatSigned(totalDailyChangePct, '%')})</span>
+                      </div>
+                    </td>
                     <td className="py-4 pr-4">
                       <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono font-semibold ${
                         totalPLIsPositive ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
