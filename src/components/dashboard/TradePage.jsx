@@ -3,6 +3,7 @@ import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, Gr
 import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
+import SocialSentiment from './SocialSentiment';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
@@ -1155,6 +1156,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
           <div className="flex-1 min-h-[360px] relative">
             <TradingViewWidget symbol={chartSymbol} interval={chartInterval} />
+          </div>
+
+          <div className="w-full xl:w-80 border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] p-3 min-h-0">
+            <div className="h-[360px] xl:h-full min-h-0">
+              <SocialSentiment activeTicker={selectedDisplaySymbol} />
+            </div>
           </div>
 
           <div
