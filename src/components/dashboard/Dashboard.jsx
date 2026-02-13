@@ -29,6 +29,7 @@ import PredictionsPage from './PredictionsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
+import AdvancedChartsPage from './AdvancedChartsPage';
 import TradePage from './TradePage';
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
@@ -818,6 +819,7 @@ export default function Dashboard({
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
           {activeTab === 'ai-chat' && <StratifyChat />}
           {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
+          {activeTab === 'advanced' && <AdvancedChartsPage />}
           {activeTab === 'grok' && <DemoPanel />}
           {activeTab === 'portfolio' && (
             <PortfolioPage
