@@ -111,11 +111,6 @@ const formatPrice = (value) => {
   });
 };
 
-const formatNumber = (value) => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
-  return Number(value).toLocaleString('en-US');
-};
-
 export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [ticker, setTicker] = useState(activeTicker);
   const [timeframe, setTimeframe] = useState('1m');
@@ -660,10 +655,8 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     };
   }, [ticker, timeframe, rangeKey]);
 
-  const bidAskMid = useMemo(() => {
-    if (!quote?.bid || !quote?.ask) return null;
-    return (quote.bid + quote.ask) / 2;
-  }, [quote]);
+  const buyingPower = quote?.buying_power ?? quote?.buyingPower ?? null;
+  const activeTimeframe = getTimeframe(timeframe);
 
   return (
     <div className="flex h-full w-full bg-[#060a12] text-white">
@@ -733,24 +726,68 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-[#0c1220] p-1">
-              {TIMEFRAMES.map((option) => {
-                const isActive = option.alpaca === timeframe;
-                return (
-                  <button
-                    key={option.alpaca}
-                    type="button"
-                    onClick={() => setTimeframe(option.alpaca)}
-                    className={`px-2 py-1 text-[11px] font-semibold rounded-md transition ${
-                      isActive
-                        ? 'bg-emerald-500/20 text-emerald-200'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
+            {!isTradePanelOpen && (
+              <button
+                type="button"
+                onClick={() => setIsTradePanelOpen(true)}
+                className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 transition-all shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+              >
+                Trade
+              </button>
+            )}
+            <div className="relative" ref={timeframeRef}>
+              <button
+                type="button"
+                onClick={() => setIsTimeframeOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0c1220] px-3 py-2 text-xs font-semibold text-white/80 hover:text-white"
+              >
+                <span>{activeTimeframe.label}</span>
+                <svg
+                  aria-hidden="true"
+                  className="h-3 w-3 text-white/70"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+              {isTimeframeOpen && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#1a1a1a] p-4 shadow-2xl">
+                  {TIMEFRAME_GROUPS.map((group) => (
+                    <div key={group.title} className="mb-4 last:mb-0">
+                      <div className="mb-2 text-xs font-semibold text-white">
+                        {group.title}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {group.options.map((option) => {
+                          const isActive = option.key === timeframe;
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => {
+                                setTimeframe(option.key);
+                                setIsTimeframeOpen(false);
+                              }}
+                              className={`rounded-full border bg-white/10 px-3 py-1 text-[11px] font-semibold transition ${
+                                isActive
+                                  ? 'border-blue-400 text-blue-300'
+                                  : 'border-transparent text-white/80 hover:text-white'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-[#0c1220] p-1">
               {RANGE_PRESETS.map((range) => {
@@ -771,15 +808,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 );
               })}
             </div>
-            {!isTradePanelOpen && (
-              <button
-                type="button"
-                onClick={() => setIsTradePanelOpen(true)}
-                className="rounded-lg border border-white/10 bg-[#0c1220] px-3 py-2 text-xs font-semibold text-white/80 hover:text-white"
-              >
-                Trade
-              </button>
-            )}
+            {/* Trade button moved to left side of toolbar */}
           </div>
         </div>
         <div
@@ -795,110 +824,128 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
           isTradePanelOpen ? 'w-[280px] opacity-100' : 'w-0 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold">Order Ticket</div>
-            <div className="text-[11px] text-white/50">{ticker} | {orderType.toUpperCase()}</div>
+        <div className="border-b border-white/10 px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.2em]">
+              <button
+                type="button"
+                onClick={() => setOrderSide('buy')}
+                className={`transition ${
+                  orderSide === 'buy'
+                    ? 'text-emerald-400'
+                    : 'text-white/40 hover:text-white/70'
+                }`}
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrderSide('sell')}
+                className={`transition ${
+                  orderSide === 'sell'
+                    ? 'text-red-400'
+                    : 'text-white/40 hover:text-white/70'
+                }`}
+              >
+                Sell
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsTradePanelOpen(false)}
+              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:text-white"
+            >
+              Collapse
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsTradePanelOpen(false)}
-            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:text-white"
-          >
-            Collapse
-          </button>
-        </div>
-
-        <div className="border-b border-white/5 px-4 py-3">
-          <div className="flex items-center justify-between text-xs text-white/60">
-            <span>Bid</span>
-            <span className="font-semibold text-emerald-300">{formatPrice(quote?.bid)}</span>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-white/60">
-            <span>Ask</span>
-            <span className="font-semibold text-red-300">{formatPrice(quote?.ask)}</span>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-white/40">
-            <span>Last</span>
-            <span className="font-semibold text-white/80">{formatPrice(quote?.last)}</span>
+          <div className="mt-4 text-center text-2xl font-semibold">
+            {orderSide === 'buy' ? 'Buy' : 'Sell'} {ticker}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {orderStep === 'entry' && (
             <>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOrderSide('buy')}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    orderSide === 'buy'
-                      ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-200'
-                      : 'border-white/10 bg-white/5 text-white/60 hover:text-white'
-                  }`}
-                >
-                  Buy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderSide('sell')}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                    orderSide === 'sell'
-                      ? 'border-red-400/40 bg-red-500/20 text-red-200'
-                      : 'border-white/10 bg-white/5 text-white/60 hover:text-white'
-                  }`}
-                >
-                  Sell
-                </button>
+              <div className="rounded-full bg-white/10 p-1">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setOrderType('market')}
+                    className={`flex-1 rounded-full px-3 py-2 text-left transition ${
+                      orderType === 'market'
+                        ? 'bg-white/20 text-white'
+                        : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-xs font-semibold">Buy now</div>
+                    <div className="text-[10px] text-white/50">+ 5% collar</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOrderType('limit')}
+                    className={`flex-1 rounded-full px-3 py-2 text-left transition ${
+                      orderType === 'limit'
+                        ? 'bg-white/20 text-white'
+                        : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-xs font-semibold">Limit</div>
+                    <div className="text-[10px] text-white/50">Set manual price</div>
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[11px] uppercase tracking-[0.2em] text-white/40">Quantity</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={orderQty}
-                  onChange={(e) => setOrderQty(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-emerald-400/60 focus:outline-none"
-                />
-              </div>
+              <div className="border-b border-white/10" />
 
-              <div>
-                <label className="text-[11px] uppercase tracking-[0.2em] text-white/40">Order Type</label>
-                <select
-                  value={orderType}
-                  onChange={(e) => setOrderType(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-emerald-400/60 focus:outline-none"
-                >
-                  <option value="market">Market</option>
-                  <option value="limit">Limit</option>
-                </select>
-              </div>
-
-              {orderType === 'limit' && (
-                <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-white/40">Limit Price</label>
+              {orderType === 'market' ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Market price</span>
+                    <span className="text-2xl font-semibold text-white">
+                      {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-blue-400">
+                    Bid {formatPrice(quote?.bid)} • Ask {formatPrice(quote?.ask)}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Limit price</span>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={limitPrice}
                     onChange={(e) => setLimitPrice(e.target.value)}
-                    className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-emerald-400/60 focus:outline-none"
+                    className="w-24 rounded-full border border-white/20 bg-[#0c1220] px-3 py-1 text-right text-sm text-white focus:border-emerald-400/60 focus:outline-none"
                   />
                 </div>
               )}
 
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="flex items-center justify-between text-xs text-white/60">
-                  <span>Est. Total</span>
-                  <span className="font-semibold text-white">{estimatedTotal ? `$${formatPrice(estimatedTotal)}` : '--'}</span>
-                </div>
-                <div className="mt-1 text-[11px] text-white/40">
-                  Mid: {bidAskMid ? `$${formatPrice(bidAskMid)}` : '--'}
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Quantity</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={orderQty}
+                  onChange={(e) => setOrderQty(e.target.value)}
+                  className="w-20 rounded-full border border-white/20 bg-[#0c1220] px-3 py-1 text-right text-sm text-white focus:border-emerald-400/60 focus:outline-none"
+                />
               </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/60">Est. order amount</span>
+                <span className="font-semibold text-white">
+                  {estimatedTotal ? `$${formatPrice(estimatedTotal)}` : '--'}
+                </span>
+              </div>
+              <div className="text-xs text-white/40">
+                Buying power: {buyingPower ? `$${formatPrice(buyingPower)}` : '--'}
+              </div>
+
+              <div className="border-b border-white/10" />
 
               {orderError && <div className="text-xs text-red-300">{orderError}</div>}
 
@@ -906,11 +953,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 type="button"
                 onClick={handleReview}
                 disabled={!canReview}
-                className={`w-full rounded-lg py-2.5 text-sm font-semibold transition ${
-                  orderSide === 'buy'
-                    ? 'bg-emerald-500/80 text-white hover:bg-emerald-400 disabled:bg-emerald-500/30'
-                    : 'bg-red-500/80 text-white hover:bg-red-400 disabled:bg-red-500/30'
-                } disabled:cursor-not-allowed`}
+                className="w-full rounded-lg bg-emerald-500/80 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/30"
               >
                 Review Order
               </button>
@@ -1009,9 +1052,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
           )}
         </div>
 
-        <div className="border-t border-white/10 px-4 py-3 text-[11px] text-white/40">
-          Daily volume: {formatNumber(quote?.volume)} | High {formatPrice(quote?.high)} | Low {formatPrice(quote?.low)}
-        </div>
       </div>
     </div>
   );
