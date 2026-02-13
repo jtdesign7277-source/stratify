@@ -199,17 +199,6 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                   className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors cursor-grab active:cursor-grabbing"
                   title="Double-click to deploy"
                 >
-                  {/* Strategy Icon */}
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    strategy.status === 'active' ? 'bg-emerald-500/20' : 'bg-gray-800'
-                  }`}>
-                    {strategy.status === 'active' ? (
-                      <Zap className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
-                    ) : (
-                      <TrendingUp className="w-4 h-4 text-white/50" strokeWidth={1.5} />
-                    )}
-                  </div>
-
                   {/* Strategy Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -244,7 +233,6 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                     className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center gap-1"
                     title="Deploy to Active"
                   >
-                    <Zap className="w-3 h-3" strokeWidth={2} />
                     Deploy
                   </button>
 
