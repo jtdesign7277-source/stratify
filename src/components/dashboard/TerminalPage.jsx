@@ -208,6 +208,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         exit: editableStrategy.exit,
         stopLoss: editableStrategy.stopLoss,
         positionSize: editableStrategy.positionSize,
+        allocation: editableStrategy.allocation || null,
         backtestResults: backtestResults,
         deployed: true,
         runStatus: 'running',
@@ -485,19 +486,39 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <p className="text-white/50 text-xs mb-3 font-mono">
                 Strategy will begin live trading with your configured parameters.
               </p>
+              {/* Strategy Name */}
+              <div className="mb-3">
+                <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider mb-1 block">Strategy Name</label>
+                <input
+                  type="text"
+                  value={editableStrategy.name || `${editableStrategy.ticker || ticker} Strategy`}
+                  onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-emerald-500/50"
+                  placeholder="Enter strategy name"
+                />
+              </div>
+              {/* Allocation */}
+              <div className="mb-3">
+                <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider mb-1 block">Allocation ($)</label>
+                <input
+                  type="number"
+                  value={editableStrategy.allocation || ''}
+                  onChange={(e) => setEditableStrategy(prev => ({ ...prev, allocation: e.target.value }))}
+                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-emerald-500/50"
+                  placeholder="Enter amount to allocate"
+                />
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleDeploy}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 rounded-lg text-emerald-400 font-mono text-sm font-medium transition-all hover:shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                 >
-                  <span className="font-bold">Y</span>
                   <span>Deploy</span>
                 </button>
                 <button
                   onClick={() => setShowDeployPrompt(false)}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/50 rounded-lg text-gray-400 font-mono text-sm font-medium transition-all"
                 >
-                  <span className="font-bold">N</span>
                   <span>Cancel</span>
                 </button>
               </div>
