@@ -450,6 +450,8 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           )}
         </div>
 
+        {/* Terminal + Deploy wrapper */}
+        <div className="flex-1 flex flex-col overflow-hidden">
         {/* Terminal Output */}
         <div
           ref={terminalRef}
@@ -477,9 +479,9 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           )}
         </div>
 
-        {/* Deploy Prompt - pinned below terminal */}
+        {/* Deploy Prompt - pinned at bottom */}
         {showDeployPrompt && !isTyping && backtestResults && !backtestResults.error && (
-          <div className="shrink-0 p-2.5 border-t border-emerald-500/20 bg-[#0b0b0b]">
+          <div className="shrink-0 p-2.5 border-t border-emerald-500/20 bg-[#0d0d0d]">
             <div className="flex items-center gap-3">
               <Rocket className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <div className="flex-1">
@@ -527,6 +529,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
