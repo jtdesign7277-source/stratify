@@ -48,7 +48,6 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: deployedStrategies.length },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
-    { id: 'templates', label: 'Templates', icon: Layout },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'predictions', label: 'Predictions', icon: Zap },

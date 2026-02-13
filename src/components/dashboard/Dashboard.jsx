@@ -879,7 +879,7 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
-          {activeTab === 'templates' && <StrategyTemplateFlow />}
+          {/* templates now inside StrategiesPage */}
           {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}

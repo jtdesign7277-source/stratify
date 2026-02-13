@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, FolderOpen, Folder, ChevronRight, Play, Pause, Edit3, Trash2, MoreHorizontal, Star, Zap, TrendingUp, Clock, X } from 'lucide-react';
+import { Search, Plus, FolderOpen, Folder, ChevronRight, Play, Pause, Edit3, Trash2, MoreHorizontal, Star, Zap, TrendingUp, Clock, X, Layout } from 'lucide-react';
+import StrategyTemplateFlow from './StrategyTemplateFlow';
 
 const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeployStrategy, onEditStrategy, onRemoveSavedStrategy, setActiveTab }) => {
+  const [subTab, setSubTab] = useState('my-strategies');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -268,7 +270,20 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-semibold text-white">Strategies</h1>
-          <p className="text-gray-400 text-sm">Manage and deploy your trading strategies</p>
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              onClick={() => setSubTab('my-strategies')}
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition-all ${subTab === 'my-strategies' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'text-white/40 hover:text-white/60'}`}
+            >
+              My Strategies
+            </button>
+            <button
+              onClick={() => setSubTab('templates')}
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition-all ${subTab === 'templates' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'text-white/40 hover:text-white/60'}`}
+            >
+              Templates
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
@@ -281,6 +296,15 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
         </div>
       </div>
 
+      {/* Templates Sub-Tab */}
+      {subTab === 'templates' && (
+        <div className="flex-1 overflow-hidden">
+          <StrategyTemplateFlow />
+        </div>
+      )}
+
+      {/* My Strategies Sub-Tab */}
+      {subTab !== 'templates' && <>
       {/* New Folder Input */}
       {showNewFolder && (
         <div className="mb-4 bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
@@ -344,6 +368,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
           </span>
         </div>
       </div>
+      </>}
     </div>
   );
 };
