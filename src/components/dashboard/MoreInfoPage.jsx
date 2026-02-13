@@ -174,7 +174,7 @@ export default function MoreInfoPage() {
                 <button 
                   type="submit"
                   disabled={status === 'loading'}
-                  className="px-2.5 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-white text-[11px] font-medium transition-all flex items-center gap-1"
+                  className="px-2.5 py-1 rounded-md border border-emerald-500/40 hover:border-emerald-400 disabled:opacity-50 text-emerald-400 hover:text-emerald-300 text-[11px] font-medium transition-all flex items-center gap-1"
                 >
                   {status === 'loading' ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Sending...</>
