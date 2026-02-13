@@ -79,6 +79,16 @@ export const AuthProvider = ({ children }) => {
     return { data, error: error || profileError };
   };
 
+  const updateProfile = async ({ full_name }) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: { full_name },
+    });
+    if (!error && data?.user) {
+      setUser(data.user);
+    }
+    return { data, error };
+  };
+
   const signOut = async () => {
     setLoading(true);
     const result = await supabase.auth.signOut();
@@ -95,6 +105,7 @@ export const AuthProvider = ({ children }) => {
       signIn,
       signUp,
       signOut,
+      updateProfile,
     }),
     [session, user, loading]
   );

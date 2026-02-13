@@ -199,10 +199,14 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   }, [searchQuery]);
 
   const handleSearchSelect = (symbol) => {
+    if (!symbol) return;
     const next = symbol.toUpperCase();
     setTicker(next);
     setSearchQuery(next);
     setIsSearchOpen(false);
+    setOrderStep('entry');
+    setOrderStatus({ state: 'idle', message: '', data: null });
+    setOrderError('');
   };
 
   const orderQtyNumber = useMemo(() => {
@@ -916,13 +920,14 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 <button
                   type="button"
                   onClick={handleSubmitOrder}
+                  disabled={orderStatus.state === 'submitting'}
                   className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white transition ${
                     orderSide === 'buy'
                       ? 'bg-emerald-500/80 hover:bg-emerald-400'
                       : 'bg-red-500/80 hover:bg-red-400'
-                  }`}
+                  } ${orderStatus.state === 'submitting' ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  Submit
+                  {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit'}
                 </button>
               </div>
             </>

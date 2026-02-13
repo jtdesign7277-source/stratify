@@ -16,6 +16,8 @@ import {
 import SupportChat from './SupportChat';
 import { useAuth } from '../../context/AuthContext';
 
+const UPGRADE_URL = '/pricing'; // Pro subscription page
+
 const faqs = [
   {
     q: "How do I connect my broker?",
@@ -39,7 +41,10 @@ export default function MoreInfoPage() {
   const [formData, setFormData] = useState({ name: '', email: '', subject: 'General Inquiry', message: '' });
   const [status, setStatus] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
-  const { user, isAuthenticated } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editStatus, setEditStatus] = useState(null);
+  const { user, isAuthenticated, updateProfile } = useAuth();
 
   const fullName = user?.user_metadata?.full_name?.trim();
   const displayName = fullName || 'Stratify User';
@@ -258,18 +263,34 @@ export default function MoreInfoPage() {
 
             {isAuthenticated && user ? (
               <div className="space-y-4">
+                {/* Avatar + Name (editable) */}
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-lg font-semibold">
+                  <div className="h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0">
                     {initials}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-base font-semibold text-white truncate">{displayName}</p>
-                    <p className="text-sm text-gray-400 truncate">{email}</p>
+                  <div className="min-w-0 flex-1">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/60 transition-all"
+                        placeholder="Display name"
+                        autoFocus
+                      />
+                    ) : (
+                      <p className="text-base font-semibold text-white truncate">{displayName}</p>
+                    )}
+                    <p className="text-sm text-gray-400 truncate mt-0.5">{email}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                  {/* Account Type — clickable to upgrade */}
+                  <a
+                    href={UPGRADE_URL}
+                    className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block"
+                  >
                     <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
                       <Shield className="w-4 h-4" strokeWidth={1.5} />
                       Account Type
@@ -277,7 +298,10 @@ export default function MoreInfoPage() {
                     <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300">
                       Paper Account
                     </span>
-                  </div>
+                    <p className="text-[10px] text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
+                      Upgrade to Pro →
+                    </p>
+                  </a>
                   <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
                     <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
                       <Calendar className="w-4 h-4" strokeWidth={1.5} />
@@ -302,14 +326,54 @@ export default function MoreInfoPage() {
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  disabled
-                  className="w-full rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Edit3 className="w-4 h-4" strokeWidth={1.5} />
-                  Edit Profile
-                </button>
+                {/* Edit Profile / Save button */}
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setEditStatus('saving');
+                        const { error } = await updateProfile({ full_name: editName });
+                        if (!error) {
+                          setIsEditing(false);
+                          setEditStatus(null);
+                        } else {
+                          setEditStatus('error');
+                          setTimeout(() => setEditStatus(null), 3000);
+                        }
+                      }}
+                      disabled={editStatus === 'saving'}
+                      className="flex-1 rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-300 transition-all disabled:opacity-50"
+                    >
+                      {editStatus === 'saving' ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4" strokeWidth={1.5} /> Save Changes</>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsEditing(false); setEditStatus(null); }}
+                      className="rounded-md border border-[#2a2a3d] px-3 py-2.5 text-gray-400 text-sm font-medium hover:border-red-500/40 hover:text-red-400 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditing(true); setEditName(fullName || ''); }}
+                    className="w-full rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-300 transition-all"
+                  >
+                    <Edit3 className="w-4 h-4" strokeWidth={1.5} />
+                    Edit Profile
+                  </button>
+                )}
+                {editStatus === 'error' && (
+                  <p className="text-red-400 text-xs flex items-center gap-1">
+                    <XCircle className="w-3.5 h-3.5" /> Failed to update profile
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-gray-500 text-sm">Sign in to view your profile</p>
