@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, FolderOpen, Folder, ChevronRight, Play, Pause, Edit3, Trash2, MoreHorizontal, Star, Zap, TrendingUp, Clock, X, Layout } from 'lucide-react';
+import { Search, Plus, FolderOpen, Folder, ChevronRight, Play, Pause, Edit3, Trash2, MoreHorizontal, Star, Zap, TrendingUp, Clock, X, Layout, Activity, Target, Layers, BarChart2 } from 'lucide-react';
 import StrategyTemplateFlow from './StrategyTemplateFlow';
 
+const TEMPLATES = [
+  { id: 'momentum', name: 'Momentum Trend', icon: TrendingUp, color: '#22d3ee', winRate: '62%', avgReturn: '+18.4%' },
+  { id: 'rsi-bounce', name: 'RSI Bounce', icon: Activity, color: '#34d399', winRate: '68%', avgReturn: '+24.1%' },
+  { id: 'macd-cross', name: 'MACD Crossover', icon: BarChart2, color: '#f59e0b', winRate: '58%', avgReturn: '+15.7%' },
+  { id: 'mean-reversion', name: 'Mean Reversion', icon: Target, color: '#a78bfa', winRate: '65%', avgReturn: '+21.3%' },
+  { id: 'breakout', name: 'Breakout Hunter', icon: Zap, color: '#f472b6', winRate: '52%', avgReturn: '+28.6%' },
+  { id: 'scalper', name: 'Scalping Engine', icon: Layers, color: '#fb923c', winRate: '71%', avgReturn: '+31.2%' },
+];
+
 const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeployStrategy, onEditStrategy, onRemoveSavedStrategy, setActiveTab }) => {
-  const [subTab, setSubTab] = useState('my-strategies');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -267,44 +276,53 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Strategies</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <button
-              onClick={() => setSubTab('my-strategies')}
-              className={`px-3 py-1 rounded text-xs font-mono font-medium transition-all ${subTab === 'my-strategies' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'text-white/40 hover:text-white/60'}`}
-            >
-              My Strategies
-            </button>
-            <button
-              onClick={() => setSubTab('templates')}
-              className={`px-3 py-1 rounded text-xs font-mono font-medium transition-all ${subTab === 'templates' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'text-white/40 hover:text-white/60'}`}
-            >
-              Templates
-            </button>
-          </div>
+      {/* If a template is selected, show the full StrategyTemplateFlow detail */}
+      {selectedTemplate && (
+        <div className="flex-1 overflow-hidden">
+          <StrategyTemplateFlow initialTemplate={selectedTemplate} onBack={() => setSelectedTemplate(null)} />
         </div>
+      )}
+
+      {!selectedTemplate && <>
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-xl font-semibold text-white">Strategies</h1>
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowNewFolder(!showNewFolder)}
-            className="px-4 py-2 bg-[#111111] hover:bg-[#1f1f1f] text-gray-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 bg-[#111111] hover:bg-[#1f1f1f] text-gray-300 rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
           >
-            <FolderOpen className="w-4 h-4" strokeWidth={1.5} />
+            <FolderOpen className="w-3.5 h-3.5" strokeWidth={1.5} />
             New Folder
           </button>
         </div>
       </div>
 
-      {/* Templates Sub-Tab */}
-      {subTab === 'templates' && (
-        <div className="flex-1 overflow-hidden">
-          <StrategyTemplateFlow />
-        </div>
-      )}
+      {/* Template Cards - compact row */}
+      <div className="grid grid-cols-6 gap-2 mb-3">
+        {TEMPLATES.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setSelectedTemplate(t.id)}
+              className="group text-left p-2 rounded-lg transition-all duration-200 hover:scale-[1.02]"
+              style={{ background: '#0a1628', border: '1px solid #1e293b' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.color + '50'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#1e293b'; }}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <Icon className="w-3 h-3" style={{ color: t.color }} fill="none" strokeWidth={1.5} />
+                <span className="text-[10px] font-medium text-white/80 truncate">{t.name}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[9px] text-white/40">
+                <span style={{ color: '#34d399' }}>{t.avgReturn}</span>
+                <span>{t.winRate} win</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* My Strategies Sub-Tab */}
-      {subTab !== 'templates' && <>
       {/* New Folder Input */}
       {showNewFolder && (
         <div className="mb-4 bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
@@ -368,6 +386,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
           </span>
         </div>
       </div>
+      </>}
       </>}
     </div>
   );
