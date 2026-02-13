@@ -386,6 +386,29 @@ const PortfolioPage = ({
                       </tr>
                     );
                   })}
+                  <tr className="border-t-2 border-[#2a2a2a] bg-[#0d0d0d]">
+                    <td className="py-4 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${totalPLIsPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                        <span className="font-semibold text-white/80">TOTAL</span>
+                      </div>
+                    </td>
+                    <td className="py-4 pr-4 text-white/50 text-xs">{positions.length} positions</td>
+                    <td className="py-4 pr-4 font-mono font-semibold">
+                      {formatNumber(positions.reduce((s, p) => s + p.shares, 0), 2)}
+                    </td>
+                    <td className="py-4 pr-4 font-mono font-semibold text-white/70">{formatCurrency(totalCostBasis)}</td>
+                    <td className="py-4 pr-4 font-mono text-white/30">—</td>
+                    <td className="py-4 pr-4 font-mono font-semibold">{formatCurrency(totalMarketValue)}</td>
+                    <td className="py-4 pr-4">
+                      <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full font-mono font-semibold ${
+                        totalPLIsPositive ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
+                      }`}>
+                        {formatSignedCurrency(totalUnrealizedPL)}
+                        <span className="text-xs">({formatSigned(totalUnrealizedPLPercent, '%')})</span>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
