@@ -199,7 +199,7 @@ export default function SocialSentiment({ activeTicker = 'NVDA' }) {
 
   // Auto-refresh every 60 seconds
   useEffect(() => {
-    const interval = setInterval(() => fetchFeed(ticker), 60000);
+    const interval = setInterval(() => fetchFeed(ticker), 300000);
     return () => clearInterval(interval);
   }, [ticker, fetchFeed]);
 
@@ -300,7 +300,7 @@ export default function SocialSentiment({ activeTicker = 'NVDA' }) {
       {/* Footer */}
       <div className="px-3 py-1.5 border-t border-white/[0.04] flex items-center justify-between">
         <span className="text-[9px] text-white/15 font-mono">
-          {data?.count || 0} posts · auto-refresh 60s
+          {data?.count || 0} posts · auto-refresh 5m
         </span>
         {data?.sentiment && (
           <span
