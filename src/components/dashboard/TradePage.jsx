@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, GripVertical, FolderPlus, ChevronRight, Folder, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -132,6 +132,45 @@ const getCryptoDisplaySymbol = (symbol) => {
   if (normalized.endsWith('USDT')) return normalized.slice(0, -4);
   if (normalized.endsWith('USD')) return normalized.slice(0, -3);
   return normalized;
+};
+
+
+// TradingView Advanced Chart Widget (replaces basic iframe embed)
+const TradingViewWidget = ({ symbol, interval }) => {
+  const containerRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.innerHTML = '';
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: symbol,
+      interval: interval,
+      timezone: 'America/New_York',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      backgroundColor: 'rgba(11, 11, 11, 1)',
+      gridColor: 'rgba(30, 30, 30, 0.3)',
+      hide_top_toolbar: false,
+      hide_legend: false,
+      allow_symbol_change: false,
+      save_image: true,
+      calendar: false,
+      hide_volume: false,
+      support_host: 'https://www.tradingview.com',
+      withdateranges: true,
+      details: true,
+      hotlist: false,
+      show_popup_button: false,
+      studies: ['STD;MACD'],
+    });
+    containerRef.current.appendChild(script);
+  }, [symbol, interval]);
+  return <div ref={containerRef} className="tradingview-widget-container" style={{ height: '100%', width: '100%' }} />;
 };
 
 const getTradingViewSymbol = (symbol, market) => {
@@ -1077,12 +1116,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         </div>
         <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
           <div className="flex-1 min-h-[360px] relative">
-            <iframe
-              key={chartSymbol}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${chartSymbol}&interval=${chartInterval}&show_ext=1&extended_hours=1&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=111118&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en&hide_top_toolbar=0&hide_legend=0&allow_symbol_change=0`}
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              allowFullScreen
-            />
+            <TradingViewWidget symbol={chartSymbol} interval={chartInterval} />
           </div>
 
           <div
