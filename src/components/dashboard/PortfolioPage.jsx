@@ -475,8 +475,8 @@ const PortfolioPage = ({
                         <td className="py-4 pr-4 text-white/70">{formatTimestamp(trade.timestamp)}</td>
                         <td className="py-4 pr-4 font-semibold">{trade.symbol}</td>
                         <td className="py-4 pr-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${
-                            isBuy ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
+                          <span className={`text-xs font-semibold uppercase tracking-[0.2em] ${
+                            isBuy ? 'text-emerald-400' : 'text-red-400'
                           }`}>
                             {isBuy ? 'Buy' : 'Sell'}
                           </span>
