@@ -1,4 +1,6 @@
+import AlpacaChart from './AlpacaChart';
 import { useState, useEffect, useCallback } from 'react';
+import AlpacaChart from './AlpacaChart';
 import { X } from 'lucide-react';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
