@@ -49,7 +49,6 @@ const Sidebar = ({
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
-    { id: 'advanced-trade', label: 'Adv Trade', icon: LineChart, isNew: true },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'predictions', label: 'Predictions', icon: Zap },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },

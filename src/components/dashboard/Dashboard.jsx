@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import AlpacaChart from './AlpacaChart';
 import { X } from 'lucide-react';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
@@ -885,7 +884,6 @@ export default function Dashboard({
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
-          {activeTab === 'advanced-trade' && <AlpacaChart symbol="AAPL" height={600} />}
           {activeTab === 'terminal' && (
             <TerminalPage
               backtestResults={terminalBacktestResults}
