@@ -230,7 +230,7 @@ const StrategiesPage = ({ savedStrategies = [], deployedStrategies = [], onDeplo
                       e.stopPropagation();
                       onDeployStrategy?.(strategy, true);
                     }}
-                    className="px-2.5 py-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center gap-1"
+                    className="text-emerald-400 text-[10px] font-semibold uppercase tracking-wider transition-all hover:text-emerald-300"
                     title="Deploy to Active"
                   >
                     Deploy
