@@ -499,14 +499,24 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               </div>
               {/* Allocation */}
               <div className="mb-3">
-                <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider mb-1 block">Allocation ($)</label>
-                <input
-                  type="number"
-                  value={editableStrategy.allocation || ''}
-                  onChange={(e) => setEditableStrategy(prev => ({ ...prev, allocation: e.target.value }))}
-                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-emerald-500/50"
-                  placeholder="Enter amount to allocate"
-                />
+                <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider mb-1 block">Allocation</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-mono text-sm">$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editableStrategy.allocation || ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, '');
+                      const parts = raw.split('.');
+                      const intPart = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
+                      const formatted = parts.length > 1 ? `${intPart}.${parts[1].slice(0, 2)}` : intPart;
+                      setEditableStrategy(prev => ({ ...prev, allocation: formatted }));
+                    }}
+                    className="w-full pl-7 pr-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-emerald-500/50"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
               <div className="flex gap-2">
                 <button
