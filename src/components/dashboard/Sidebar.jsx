@@ -46,7 +46,7 @@ const Sidebar = ({
   onLogout
 }) => {
   const { signOut, isAuthenticated } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
 
