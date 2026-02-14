@@ -18,22 +18,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const AGENTMAIL_API_KEY = process.env.AGENTMAIL_API_KEY;
-  
-  if (!AGENTMAIL_API_KEY) {
-    console.error('AGENTMAIL_API_KEY not configured');
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY not configured');
     return res.status(500).json({ error: 'Email service not configured' });
   }
 
   try {
-    // Send email via AgentMail API
     const emailBody = `
 New Contact Form Submission
 ============================
 
 From: ${name}
 Email: ${email}
-Subject: ${subject}
+Inquiry Type: ${subject || 'Not provided'}
 
 Message:
 ${message}
@@ -42,39 +41,23 @@ ${message}
 Sent from Stratify Contact Form
     `.trim();
 
-    const response = await fetch('https://api.agentmail.to/v0/inboxes/stratify@agentmail.to/drafts', {
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        to: ['stratify@agentmail.to'],
-        subject: `[Contact] ${subject} - from ${name}`,
-        text: emailBody,
-        reply_to: [email]
+        from: 'Stratify Contact <no-reply@stratify.associates>',
+        to: ['jeff@stratify-associates.com'],
+        subject: `New Contact Form: ${name}`,
+        text: emailBody
       })
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('AgentMail API error:', response.status, errorData);
-      return res.status(500).json({ error: 'Failed to send email' });
-    }
-
-    const draft = await response.json();
-    
-    // Send the draft
-    const sendResponse = await fetch(`https://api.agentmail.to/v0/inboxes/stratify@agentmail.to/drafts/${draft.draft_id}/send`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${AGENTMAIL_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!sendResponse.ok) {
-      console.error('Failed to send draft:', sendResponse.status);
+      console.error('Resend API error:', response.status, errorData);
       return res.status(500).json({ error: 'Failed to send email' });
     }
 
