@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Send, Loader2, Copy, Check, Zap, Search, X, Plus, Brain,
+  Send, Loader2, Copy, Check, Search, X, Plus, Brain,
   TrendingUp, BarChart3, RefreshCcw, Rocket, Activity, Target,
   ChevronsLeft, ChevronsRight, RotateCcw, Save, Play, ArrowLeft
 } from 'lucide-react';
@@ -1049,8 +1049,12 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
         <button onClick={expandPanel} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Expand panel">
           <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
         </button>
-        <div className="mt-2 p-1 bg-emerald-500/20 rounded">
-          <Zap className="w-4 h-4 text-emerald-400" strokeWidth={2} />
+        <div className="mt-2 p-1.5 bg-emerald-500/20 rounded-lg relative group">
+          <div className="absolute inset-0 rounded-lg bg-emerald-500/20 blur-sm" />
+          <svg className="relative w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="5" y1="19" x2="19" y2="5" />
+          </svg>
         </div>
         <div className="mt-2 writing-mode-vertical text-[10px] text-gray-500 tracking-widest" style={{ writingMode: 'vertical-rl' }}>GROK</div>
       </motion.div>
