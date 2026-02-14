@@ -1318,23 +1318,18 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                 )}
                               </div>
 
-                              {/* Pin to Mini Pill - Double-click for top pills, drag for local pills */}
-                              <div
-                                draggable="true"
-                                onDragStart={(e) => {
-                                  e.stopPropagation();
-                                  e.dataTransfer.setData('text/plain', stock.symbol);
-                                  e.dataTransfer.effectAllowed = 'copy';
-                                }}
-                                onDoubleClick={(e) => {
+                              {/* Pin to top + local pills */}
+                              <button
+                                onClick={(e) => {
                                   e.stopPropagation();
                                   if (onPinToTop) onPinToTop(stock.symbol);
+                                  addPinnedTab(stock.symbol);
                                 }}
-                                className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400 cursor-grab active:cursor-grabbing"
-                                title="Double-click to pin to top • Drag to local pills"
+                                className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400"
+                                title="Pin to top"
                               >
                                 <Pin className="w-4 h-4" strokeWidth={1.5} />
-                              </div>
+                              </button>
 
                               <button 
                                 onClick={(e) => handleRemoveStock(stock.symbol, e)}
