@@ -287,9 +287,22 @@ export default function MoreInfoPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Account Type — clickable to upgrade */}
-                  <a
-                    href={UPGRADE_URL}
-                    className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block"
+                  <a<button
+                    onClick={async () => {
+                      try {
+                        const resp = await (await import('../../lib/supabaseClient')).supabase.auth.getUser();
+                        const u = resp.data.user;
+                        if (u === null) { window.location.href = '/signup'; return; }
+                        const res = await fetch('/api/create-checkout-session', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ priceId: 'price_1T0jBTRdPxQfs9UeRln3Uj68', userId: u.id, userEmail: u.email })
+                        });
+                        const data = await res.json();
+                        if (data.url) window.location.href = data.url;
+                      } catch (e) { console.error('Checkout error:', e); }
+                    }}
+                    className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block text-left w-full"
                   >
                     <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
                       <Shield className="w-4 h-4" strokeWidth={1.5} />
