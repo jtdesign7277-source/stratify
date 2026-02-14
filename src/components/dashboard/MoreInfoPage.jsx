@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import SupportChat from './SupportChat';
 import { useAuth } from '../../context/AuthContext';
+import useSubscription from '../../hooks/useSubscription';
 
 const UPGRADE_URL = null; // Handled by click handler
 
@@ -45,6 +46,7 @@ export default function MoreInfoPage() {
   const [editName, setEditName] = useState('');
   const [editStatus, setEditStatus] = useState(null);
   const { user, isAuthenticated, updateProfile } = useAuth();
+  const { isProUser } = useSubscription();
 
   const fullName = user?.user_metadata?.full_name?.trim();
   const displayName = fullName || 'Stratify User';
@@ -55,6 +57,17 @@ export default function MoreInfoPage() {
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
   const truncatedId = user?.id ? `${user.id.slice(0, 8)}...${user.id.slice(-4)}` : '—';
+  const accountBadge = isProUser
+    ? {
+        label: 'Pro Account',
+        badgeClass: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
+        iconClass: 'text-sky-300',
+      }
+    : {
+        label: 'Free Account',
+        badgeClass: 'border-amber-500/30 bg-white/5 text-amber-300',
+        iconClass: 'text-amber-300',
+      };
 
   const handleCopyId = async () => {
     if (!user?.id || !navigator?.clipboard) return;
@@ -254,9 +267,9 @@ export default function MoreInfoPage() {
                 User Profile
               </h3>
               {isAuthenticated && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300">
-                  <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />
-                  Paper Account
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${accountBadge.badgeClass}`}>
+                  <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                  {accountBadge.label}
                 </span>
               )}
             </div>
@@ -308,8 +321,9 @@ export default function MoreInfoPage() {
                       <Shield className="w-4 h-4" strokeWidth={1.5} />
                       Account Type
                     </div>
-                    <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300">
-                      Paper Account
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${accountBadge.badgeClass}`}>
+                      <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                      {accountBadge.label}
                     </span>
                     <p className="text-[10px] text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
                       Upgrade to Pro →

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, ChevronRight, PlayCircle, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, PlayCircle, Shield, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import useSubscription from '../../hooks/useSubscription';
 
 const seedStrategies = [
   {
@@ -50,6 +51,7 @@ const DemoPanel = () => {
   const [pnlDelta, setPnlDelta] = useState(0);
   const [introComplete, setIntroComplete] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
+  const { isProUser } = useSubscription();
 
   const audioRef = useRef(null);
   const confettiCanvasRef = useRef(null);
@@ -58,6 +60,17 @@ const DemoPanel = () => {
   const confettiIntervalRef = useRef(null);
   const fadeTimeoutRef = useRef(null);
   const fadeAnimationRef = useRef(null);
+  const accountBadge = isProUser
+    ? {
+        label: 'Pro Account',
+        badgeClass: 'border-sky-400/40 bg-sky-500/10 text-sky-200',
+        iconClass: 'text-sky-200',
+      }
+    : {
+        label: 'Free Account',
+        badgeClass: 'border-amber-400/40 bg-white/5 text-amber-200',
+        iconClass: 'text-amber-200',
+      };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -296,8 +309,9 @@ const DemoPanel = () => {
             </div>
             <div className="grid gap-4">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                  Paper Account
+                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.3em] ${accountBadge.badgeClass}`}>
+                  <Shield className={`h-3 w-3 ${accountBadge.iconClass}`} />
+                  {accountBadge.label}
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-emerald-300">
                   {formatMoney(balance)}
