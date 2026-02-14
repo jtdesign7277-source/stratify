@@ -191,71 +191,29 @@ const PortfolioPage = ({
         </div>
 
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-white/40">Portfolio</div>
-            <h2 className="text-2xl font-semibold">Account Summary</h2>
-          </div>
-          <div className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
-            dailyIsPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-          }`}>
-            {dailyIsPositive ? (
-              <TrendingUp className="w-4 h-4" strokeWidth={1.5} />
-            ) : (
-              <TrendingDown className="w-4 h-4" strokeWidth={1.5} />
-            )}
-            {formatSigned(dailyPnLPercent, '%')} today
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Equity</div>
-                <div className="text-xl font-semibold font-mono">{formatCurrency(equity)}</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white/70" strokeWidth={1.5} />
-              </div>
+          <div className="flex items-center gap-6">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Net Liquidation</div>
+              <div className="text-2xl font-semibold font-mono">{formatCurrency(equity)}</div>
+            </div>
+            <div className="w-px h-8 bg-white/10"></div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Buying Power</div>
+              <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(buyingPower)}</div>
+            </div>
+            <div className="w-px h-8 bg-white/10"></div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Cash</div>
+              <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(cash)}</div>
             </div>
           </div>
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Cash</div>
-                <div className="text-xl font-semibold font-mono">{formatCurrency(cash)}</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white/70" strokeWidth={1.5} />
-              </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Daily P&L</div>
+            <div className={`text-2xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatSignedCurrency(dailyPnL)}
             </div>
-          </div>
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Buying Power</div>
-                <div className="text-xl font-semibold font-mono">{formatCurrency(buyingPower)}</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-white/70" strokeWidth={1.5} />
-              </div>
-            </div>
-          </div>
-          <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-white/40 uppercase tracking-[0.2em]">Daily P&L</div>
-                <div className={`text-xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatSignedCurrency(dailyPnL)}
-                </div>
-              </div>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${dailyIsPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-                {dailyIsPositive ? (
-                  <TrendingUp className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
-                ) : (
-                  <TrendingDown className="w-5 h-5 text-red-400" strokeWidth={1.5} />
-                )}
-              </div>
+            <div className={`text-xs font-mono ${dailyIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+              {formatSigned(dailyPnLPercent, '%')}
             </div>
           </div>
         </div>
