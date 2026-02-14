@@ -1184,46 +1184,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             <TradingViewWidget symbol={chartSymbol} interval={chartInterval} />
           </div>
 
-          <div className={`border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] min-h-0 transition-all duration-300 ${
-            socialCollapsed ? 'w-full xl:w-14 p-1' : 'w-full xl:w-80 p-1.5'
+          <div className={`border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] p-1.5 min-h-0 transition-all duration-300 ${
+            socialCollapsed ? 'w-full xl:w-14' : 'w-full xl:w-80'
           }`}>
-            {socialCollapsed ? (
-              <div className="h-[360px] xl:h-full flex flex-col items-center gap-3 pt-2">
-                {/* X Social Pulse collapsed icon */}
-                <div
-                  className="flex flex-col items-center justify-center w-10 h-10 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-blue-500/40 transition-all group"
-                  onClick={() => setSocialCollapsed(false)}
-                  title="Expand Social Pulse"
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-md group-hover:bg-blue-500/40 transition-all" />
-                    <svg className="relative w-5 h-5 text-white/60 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                  </div>
-                </div>
-                {/* Grok collapsed icon */}
-                {!isTradePanelOpen && (
-                  <div
-                    className="flex flex-col items-center justify-center w-10 h-10 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-emerald-500/40 transition-all group"
-                    onClick={() => setIsTradePanelOpen(true)}
-                    title="Open Trade Panel"
-                  >
-                    <div className="relative">
-                      <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-md group-hover:bg-emerald-500/40 transition-all" />
-                      <svg className="relative w-5 h-5 text-emerald-400/60 group-hover:text-emerald-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="5" y1="19" x2="19" y2="5" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="h-[360px] xl:h-full min-h-0">
-                <SocialSentiment activeTicker={selectedDisplaySymbol} onCollapseChange={setSocialCollapsed} />
-              </div>
-            )}
+            <div className="h-[360px] xl:h-full min-h-0">
+              <SocialSentiment activeTicker={selectedDisplaySymbol} onCollapseChange={setSocialCollapsed} />
+            </div>
           </div>
 
           <div
