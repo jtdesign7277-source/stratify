@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mail, 
   Send, 
   CheckCircle, 
   XCircle,
+  X,
   Loader2,
   ChevronDown,
   User,
@@ -16,8 +17,16 @@ import {
 import SupportChat from './SupportChat';
 import { useAuth } from '../../context/AuthContext';
 import useSubscription from '../../hooks/useSubscription';
+import { supabase } from '../../lib/supabaseClient';
 
 const UPGRADE_URL = null; // Handled by click handler
+
+const avatarOptions = [
+  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=avatar${i + 1}`),
+  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=avatar${i + 7}`),
+  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=avatar${i + 13}`),
+  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/fun-emoji/svg?seed=avatar${i + 19}`),
+];
 
 const faqs = [
   {
@@ -45,6 +54,9 @@ export default function MoreInfoPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editStatus, setEditStatus] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [avatarStatus, setAvatarStatus] = useState(null);
   const { user, isAuthenticated, updateProfile } = useAuth();
   const { isProUser } = useSubscription();
 
@@ -75,6 +87,50 @@ export default function MoreInfoPage() {
       await navigator.clipboard.writeText(user.id);
     } catch {
       // no-op
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setAvatarUrl(null);
+      return;
+    }
+    let isMounted = true;
+    const loadAvatar = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+      if (!isMounted) return;
+      if (!error) {
+        setAvatarUrl(data?.avatar_url ?? null);
+      }
+    };
+    loadAvatar();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  const handleAvatarSelect = async (selectedUrl) => {
+    setAvatarStatus('saving');
+    const { data } = await supabase.auth.getUser();
+    const currentUser = data?.user;
+    if (!currentUser) {
+      setAvatarStatus(null);
+      return;
+    }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: selectedUrl })
+      .eq('id', currentUser.id);
+    if (!error) {
+      setAvatarUrl(selectedUrl);
+      setAvatarStatus(null);
+    } else {
+      setAvatarStatus('error');
+      setTimeout(() => setAvatarStatus(null), 3000);
     }
   };
 
@@ -278,9 +334,23 @@ export default function MoreInfoPage() {
               <div className="space-y-4">
                 {/* Avatar + Name (editable) */}
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-xl font-semibold flex-shrink-0">
-                    {initials}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => isAuthenticated && setIsAvatarPickerOpen(true)}
+                    disabled={!isAuthenticated}
+                    className="h-14 w-14 rounded-full flex items-center justify-center text-white text-xl font-semibold flex-shrink-0 bg-gradient-to-br from-emerald-400 to-blue-500 hover:ring-2 hover:ring-blue-500/60 transition-all disabled:cursor-not-allowed"
+                    aria-label="Change avatar"
+                  >
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt="User avatar"
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      initials
+                    )}
+                  </button>
                   <div className="min-w-0 flex-1">
                     {isEditing ? (
                       <input
@@ -410,6 +480,64 @@ export default function MoreInfoPage() {
         </div>{/* close grid */}
 
       </div>
+
+      <AnimatePresence>
+        {isAvatarPickerOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-start justify-end bg-black/50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsAvatarPickerOpen(false)}
+          >
+            <motion.div
+              className="w-[360px] max-w-full h-full bg-[#0b0b0b] border border-white/10 rounded-xl p-4 text-white shadow-2xl flex flex-col"
+              initial={{ x: 40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 40, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold">Choose Your Avatar</h4>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarPickerOpen(false)}
+                  className="h-8 w-8 rounded-full border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:border-blue-500 transition-all"
+                  aria-label="Close avatar picker"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {avatarOptions.map((url) => {
+                  const isSelected = avatarUrl === url;
+                  return (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => handleAvatarSelect(url)}
+                      className={`h-[60px] w-[60px] rounded-full border ${isSelected ? 'border-blue-500' : 'border-transparent'} hover:border-blue-500 transition-all`}
+                      aria-pressed={isSelected}
+                    >
+                      <img
+                        src={url}
+                        alt="Avatar option"
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              {avatarStatus === 'error' && (
+                <p className="text-red-400 text-sm mt-3 flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5" /> Failed to update avatar
+                </p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
