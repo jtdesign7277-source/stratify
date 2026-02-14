@@ -771,6 +771,7 @@ export default function Dashboard({
           deployedStrategies={deployedStrategies}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
           grokPanelCollapsed={isGrokPanelCollapsed}
+          onOpenFloatingGrok={() => setIsFloatingGrokOpen(prev => !prev)}
           onLogout={() => setCurrentPage('landing')}
         />
         

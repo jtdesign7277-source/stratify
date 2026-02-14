@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, ChevronRight } from 'lucide-react';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import * as am5stock from '@amcharts/amcharts5/stock';
@@ -111,12 +112,63 @@ const formatPrice = (value) => {
   });
 };
 
+const formatUsd = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+};
+
+const formatTimestamp = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return '--';
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/New_York',
+    timeZoneName: 'short',
+  });
+  const parts = formatter.formatToParts(date);
+  const lookup = parts.reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${lookup.month} ${lookup.day}, ${lookup.year} at ${lookup.hour}:${lookup.minute} ${lookup.dayPeriod} ${lookup.timeZoneName}`;
+};
+
+const ORDER_TYPE_LABELS = {
+  market: 'Market',
+  limit: 'Limit',
+  stop: 'Stop',
+  stop_limit: 'Stop Limit',
+  trailing_stop: 'Trailing Stop',
+};
+
+const ORDER_TYPE_OPTIONS = [
+  { value: 'market', label: 'Market' },
+  { value: 'limit', label: 'Limit' },
+  { value: 'stop', label: 'Stop' },
+  { value: 'stop_limit', label: 'Stop Limit' },
+  { value: 'trailing_stop', label: 'Trailing Stop' },
+];
+
 export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [ticker, setTicker] = useState(activeTicker);
   const [timeframe, setTimeframe] = useState('1m');
   const [rangeKey, setRangeKey] = useState('5D');
   const [quote, setQuote] = useState(null);
   const [quoteStatus, setQuoteStatus] = useState({ state: 'idle', message: '' });
+  const [account, setAccount] = useState(null);
+  const [accountStatus, setAccountStatus] = useState({ state: 'idle', message: '' });
+  const [positions, setPositions] = useState([]);
+  const [positionsStatus, setPositionsStatus] = useState({ state: 'idle', message: '' });
 
   const [searchQuery, setSearchQuery] = useState(activeTicker);
   const [searchResults, setSearchResults] = useState([]);
@@ -130,13 +182,21 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [orderType, setOrderType] = useState('market');
   const [orderQty, setOrderQty] = useState('1');
   const [limitPrice, setLimitPrice] = useState('');
+  const [stopPrice, setStopPrice] = useState('');
+  const [trailAmount, setTrailAmount] = useState('');
   const [orderStep, setOrderStep] = useState('entry');
-  const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '', data: null });
+  const [orderStatus, setOrderStatus] = useState({
+    state: 'idle',
+    message: '',
+    data: null,
+    timestamp: null,
+  });
   const [orderError, setOrderError] = useState('');
 
   const timeframeRef = useRef(null);
   const toolbarRef = useRef(null);
   const chartRef = useRef(null);
+  const lastPriceRef = useRef(null);
 
   useEffect(() => {
     setTicker(activeTicker);
@@ -155,7 +215,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   }, [timeframe]);
 
   useEffect(() => {
-    if (!ticker) return;
+    if (!ticker || !isTradePanelOpen) return;
     let cancelled = false;
 
     const loadQuote = async () => {
@@ -184,7 +244,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [ticker]);
+  }, [ticker, isTradePanelOpen]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -239,9 +299,45 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     setSearchQuery(next);
     setIsSearchOpen(false);
     setOrderStep('entry');
-    setOrderStatus({ state: 'idle', message: '', data: null });
+    setOrderStatus({ state: 'idle', message: '', data: null, timestamp: null });
     setOrderError('');
   };
+
+  const refreshAccount = useCallback(async () => {
+    try {
+      setAccountStatus({ state: 'loading', message: '' });
+      const response = await fetch('/api/account');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to fetch account');
+      }
+      setAccount(data);
+      setAccountStatus({ state: 'success', message: '' });
+    } catch (err) {
+      setAccountStatus({ state: 'error', message: err.message });
+    }
+  }, []);
+
+  const refreshPositions = useCallback(async () => {
+    try {
+      setPositionsStatus({ state: 'loading', message: '' });
+      const response = await fetch('/api/positions');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to fetch positions');
+      }
+      setPositions(Array.isArray(data) ? data : []);
+      setPositionsStatus({ state: 'success', message: '' });
+    } catch (err) {
+      setPositionsStatus({ state: 'error', message: err.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isTradePanelOpen) return;
+    refreshAccount();
+    refreshPositions();
+  }, [isTradePanelOpen, refreshAccount, refreshPositions]);
 
   const orderQtyNumber = useMemo(() => {
     const parsed = parseFloat(orderQty);
@@ -253,22 +349,118 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     return Number.isFinite(parsed) ? parsed : 0;
   }, [limitPrice]);
 
+  const stopPriceNumber = useMemo(() => {
+    const parsed = parseFloat(stopPrice);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [stopPrice]);
+
+  const trailAmountNumber = useMemo(() => {
+    const parsed = parseFloat(trailAmount);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [trailAmount]);
+
   const marketPrice = useMemo(() => {
     return quote?.last ?? quote?.ask ?? quote?.bid ?? 0;
   }, [quote]);
 
-  const displayPrice = useMemo(() => {
-    if (orderType === 'limit') return limitPriceNumber;
-    return marketPrice;
-  }, [orderType, limitPriceNumber, marketPrice]);
+  const bidPrice = quote?.bid ?? null;
+  const askPrice = quote?.ask ?? null;
 
-  const estimatedTotal = orderQtyNumber > 0 ? orderQtyNumber * displayPrice : 0;
+  const priceDirection = useMemo(() => {
+    const reference = quote?.open ?? lastPriceRef.current;
+    if (!marketPrice || !reference) return 'neutral';
+    if (marketPrice > reference) return 'up';
+    if (marketPrice < reference) return 'down';
+    return 'neutral';
+  }, [marketPrice, quote?.open]);
+
+  useEffect(() => {
+    if (marketPrice) {
+      lastPriceRef.current = marketPrice;
+    }
+  }, [marketPrice]);
+
+  useEffect(() => {
+    if (orderType !== 'limit' && orderType !== 'stop_limit') return;
+    if (limitPrice !== '') return;
+    const next = orderSide === 'buy' ? askPrice : bidPrice;
+    if (Number.isFinite(next) && next > 0) {
+      setLimitPrice(next.toFixed(2));
+    }
+  }, [orderType, orderSide, askPrice, bidPrice, limitPrice]);
+
+  const priceForEstimate = useMemo(() => {
+    if (orderType === 'limit') return limitPriceNumber;
+    if (orderType === 'stop') return stopPriceNumber;
+    if (orderType === 'stop_limit') return limitPriceNumber;
+    if (orderType === 'trailing_stop') return marketPrice;
+    return marketPrice;
+  }, [orderType, limitPriceNumber, stopPriceNumber, marketPrice]);
+
+  const estimatedTotal =
+    orderQtyNumber > 0 && priceForEstimate > 0 ? orderQtyNumber * priceForEstimate : 0;
+
+  const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
+  const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
+  const requiresTrail = orderType === 'trailing_stop';
+
+  const isPriceMissing =
+    (requiresLimit && limitPriceNumber <= 0) ||
+    (requiresStop && stopPriceNumber <= 0) ||
+    (requiresTrail && trailAmountNumber <= 0);
 
   const canReview =
-    ticker &&
-    orderQtyNumber > 0 &&
-    (orderType !== 'limit' || limitPriceNumber > 0) &&
-    orderStep === 'entry';
+    ticker && orderQtyNumber > 0 && !isPriceMissing && orderStep === 'entry';
+
+  const positionForTicker = useMemo(() => {
+    return positions.find(
+      (position) => position?.symbol?.toUpperCase() === ticker?.toUpperCase()
+    );
+  }, [positions, ticker]);
+
+  const availableShares = useMemo(() => {
+    const rawQty =
+      positionForTicker?.qty_available ??
+      positionForTicker?.qty ??
+      positionForTicker?.quantity;
+    const parsed = parseFloat(rawQty);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [positionForTicker]);
+
+  const availableSharesDisplay =
+    positionsStatus.state === 'loading'
+      ? '...'
+      : availableShares === null
+        ? '--'
+        : availableShares.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4,
+          });
+
+  const priceTextClass =
+    priceDirection === 'up'
+      ? 'text-emerald-400'
+      : priceDirection === 'down'
+        ? 'text-red-400'
+        : 'text-white';
+
+  const actionButtonClass =
+    orderSide === 'buy'
+      ? 'bg-emerald-500 hover:bg-emerald-400'
+      : 'bg-red-500 hover:bg-red-400';
+
+  const orderTypeLabel = ORDER_TYPE_LABELS[orderType] || 'Market';
+
+  const orderTimestamp =
+    orderStatus.data?.filled_at ||
+    orderStatus.data?.submitted_at ||
+    orderStatus.data?.created_at ||
+    orderStatus.timestamp;
+
+  const inputBaseClass =
+    'w-28 rounded-md border border-white/10 bg-transparent px-2 py-1 text-right text-sm text-white focus:border-white/30 focus:outline-none';
+  const selectBaseClass =
+    'w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none';
 
   const handleReview = () => {
     if (!ticker) {
@@ -276,19 +468,34 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       return;
     }
     if (orderQtyNumber <= 0) {
-      setOrderError('Enter a valid quantity.');
+      setOrderError('Enter a valid share quantity.');
       return;
     }
-    if (orderType === 'limit' && limitPriceNumber <= 0) {
+    if (requiresLimit && limitPriceNumber <= 0) {
       setOrderError('Enter a valid limit price.');
+      return;
+    }
+    if (requiresStop && stopPriceNumber <= 0) {
+      setOrderError('Enter a valid stop price.');
+      return;
+    }
+    if (requiresTrail && trailAmountNumber <= 0) {
+      setOrderError('Enter a valid trail amount.');
       return;
     }
     setOrderError('');
     setOrderStep('review');
   };
 
+  const clearOrderError = () => {
+    if (orderError) {
+      setOrderError('');
+    }
+  };
+
   const handleSubmitOrder = async () => {
-    setOrderStatus({ state: 'submitting', message: '', data: null });
+    const submittedAt = new Date().toISOString();
+    setOrderStatus({ state: 'submitting', message: '', data: null, timestamp: submittedAt });
     try {
       const payload = {
         symbol: ticker,
@@ -297,8 +504,14 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
         type: orderType,
         time_in_force: 'day',
       };
-      if (orderType === 'limit') {
+      if (requiresLimit) {
         payload.limit_price = limitPriceNumber;
+      }
+      if (requiresStop) {
+        payload.stop_price = stopPriceNumber;
+      }
+      if (orderType === 'trailing_stop') {
+        payload.trail_price = trailAmountNumber;
       }
 
       const response = await fetch('/api/orders', {
@@ -314,17 +527,31 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
         throw new Error(data?.error || 'Order failed');
       }
 
-      setOrderStatus({ state: 'success', message: 'Order submitted.', data });
+      setOrderStatus({
+        state: 'success',
+        message: 'Order submitted.',
+        data,
+        timestamp: data?.submitted_at || submittedAt,
+      });
       setOrderStep('confirm');
+      refreshAccount();
+      refreshPositions();
     } catch (err) {
-      setOrderStatus({ state: 'error', message: err.message, data: null });
+      setOrderStatus({
+        state: 'error',
+        message: err.message,
+        data: null,
+        timestamp: submittedAt,
+      });
       setOrderStep('confirm');
+      refreshAccount();
+      refreshPositions();
     }
   };
 
   const handleResetOrder = () => {
     setOrderStep('entry');
-    setOrderStatus({ state: 'idle', message: '', data: null });
+    setOrderStatus({ state: 'idle', message: '', data: null, timestamp: null });
     setOrderError('');
   };
 
@@ -655,7 +882,16 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     };
   }, [ticker, timeframe, rangeKey]);
 
-  const buyingPower = quote?.buying_power ?? quote?.buyingPower ?? null;
+  const buyingPower =
+    account?.buying_power ?? account?.buyingPower ?? account?.cash ?? null;
+  const buyingPowerDisplay =
+    accountStatus.state === 'loading'
+      ? '...'
+      : accountStatus.state === 'error'
+        ? '--'
+        : buyingPower !== null && buyingPower !== undefined
+          ? formatUsd(buyingPower)
+          : '--';
   const activeTimeframe = getTimeframe(timeframe);
 
   return (
@@ -798,16 +1034,21 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       </div>
 
       <div
-        className={`relative flex flex-col border-l border-white/10 bg-[#0a0f1a] transition-all duration-300 ${
-          isTradePanelOpen ? 'w-[280px] opacity-100' : 'w-0 opacity-0 pointer-events-none'
+        className={`relative flex flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
+          isTradePanelOpen
+            ? 'w-[300px] border-l border-white/10 opacity-100'
+            : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
         }`}
       >
         <div className="border-b border-white/10 px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.2em]">
+            <div className="flex items-center gap-4 text-xs font-medium">
               <button
                 type="button"
-                onClick={() => setOrderSide('buy')}
+                onClick={() => {
+                  clearOrderError();
+                  setOrderSide('buy');
+                }}
                 className={`transition ${
                   orderSide === 'buy'
                     ? 'text-emerald-400'
@@ -818,7 +1059,10 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
               </button>
               <button
                 type="button"
-                onClick={() => setOrderSide('sell')}
+                onClick={() => {
+                  clearOrderError();
+                  setOrderSide('sell');
+                }}
                 className={`transition ${
                   orderSide === 'sell'
                     ? 'text-red-400'
@@ -831,205 +1075,342 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
             <button
               type="button"
               onClick={() => setIsTradePanelOpen(false)}
-              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:text-white"
+              aria-label="Collapse trade panel"
+              className="text-white/40 hover:text-white/70 transition"
             >
-              Collapse
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-4 text-center text-2xl font-semibold">
-            {orderSide === 'buy' ? 'Buy' : 'Sell'} {ticker}
+          <div className="mt-4">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-bold text-white">{ticker}</span>
+              <span className={`text-xl ${priceTextClass}`}>
+                {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-white/40">
+              Bid {formatPrice(bidPrice)} · Ask {formatPrice(askPrice)}
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {orderStep === 'entry' && (
-            <>
-              <div className="rounded-full bg-white/10 p-1">
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setOrderType('market')}
-                    className={`flex-1 rounded-full px-3 py-2 text-left transition ${
-                      orderType === 'market'
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/70 hover:text-white'
-                    }`}
-                  >
-                    <div className="text-xs font-semibold">Buy now</div>
-                    <div className="text-[10px] text-white/50">+ 5% collar</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOrderType('limit')}
-                    className={`flex-1 rounded-full px-3 py-2 text-left transition ${
-                      orderType === 'limit'
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/70 hover:text-white'
-                    }`}
-                  >
-                    <div className="text-xs font-semibold">Limit</div>
-                    <div className="text-[10px] text-white/50">Set manual price</div>
-                  </button>
-                </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div
+            className={`space-y-4 overflow-hidden transition-all duration-300 ${
+              orderStep === 'entry'
+                ? 'max-h-[1200px] opacity-100'
+                : 'max-h-0 opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Order Type</label>
+              <select
+                value={orderType}
+                onChange={(e) => {
+                  clearOrderError();
+                  setOrderType(e.target.value);
+                }}
+                className={selectBaseClass}
+              >
+                {ORDER_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-[#0a0f1a]">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {orderType === 'limit' && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Limit Price</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={limitPrice}
+                  onChange={(e) => {
+                    clearOrderError();
+                    setLimitPrice(e.target.value);
+                  }}
+                  className={inputBaseClass}
+                />
               </div>
+            )}
 
-              <div className="border-b border-white/10" />
+            {orderType === 'stop' && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Stop Price</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={stopPrice}
+                  onChange={(e) => {
+                    clearOrderError();
+                    setStopPrice(e.target.value);
+                  }}
+                  className={inputBaseClass}
+                />
+              </div>
+            )}
 
-              {orderType === 'market' ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-white/60">Market price</span>
-                    <span className="text-2xl font-semibold text-white">
-                      {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
-                    </span>
-                  </div>
-                  <div className="text-xs text-blue-400">
-                    Bid {formatPrice(quote?.bid)} • Ask {formatPrice(quote?.ask)}
-                  </div>
-                </>
-              ) : (
+            {orderType === 'stop_limit' && (
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/60">Limit price</span>
+                  <span className="text-sm text-white/60">Stop Price</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={stopPrice}
+                    onChange={(e) => {
+                      clearOrderError();
+                      setStopPrice(e.target.value);
+                    }}
+                    className={inputBaseClass}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Limit Price</span>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={limitPrice}
-                    onChange={(e) => setLimitPrice(e.target.value)}
-                    className="w-24 rounded-full border border-white/20 bg-[#0c1220] px-3 py-1 text-right text-sm text-white focus:border-emerald-400/60 focus:outline-none"
+                    onChange={(e) => {
+                      clearOrderError();
+                      setLimitPrice(e.target.value);
+                    }}
+                    className={inputBaseClass}
                   />
                 </div>
-              )}
+              </div>
+            )}
 
+            {orderType === 'trailing_stop' && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Quantity</span>
+                <span className="text-sm text-white/60">Trail Amount ($)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={trailAmount}
+                  onChange={(e) => {
+                    clearOrderError();
+                    setTrailAmount(e.target.value);
+                  }}
+                  className={inputBaseClass}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Shares</span>
                 <input
                   type="number"
                   min="0"
                   step="1"
                   value={orderQty}
-                  onChange={(e) => setOrderQty(e.target.value)}
-                  className="w-20 rounded-full border border-white/20 bg-[#0c1220] px-3 py-1 text-right text-sm text-white focus:border-emerald-400/60 focus:outline-none"
+                  onChange={(e) => {
+                    clearOrderError();
+                    setOrderQty(e.target.value);
+                  }}
+                  className={`${inputBaseClass} w-24`}
                 />
               </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-white/60">Est. order amount</span>
-                <span className="font-semibold text-white">
-                  {estimatedTotal ? `$${formatPrice(estimatedTotal)}` : '--'}
-                </span>
-              </div>
-              <div className="text-xs text-white/40">
-                Buying power: {buyingPower ? `$${formatPrice(buyingPower)}` : '--'}
-              </div>
-
-              <div className="border-b border-white/10" />
-
-              {orderError && <div className="text-xs text-red-300">{orderError}</div>}
-
-              <button
-                type="button"
-                onClick={handleReview}
-                disabled={!canReview}
-                className="w-full rounded-lg bg-emerald-500/80 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/30"
-              >
-                Review Order
-              </button>
-            </>
-          )}
-
-          {orderStep === 'review' && (
-            <>
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Symbol</span>
-                  <span className="font-semibold">{ticker}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Side</span>
-                  <span className={orderSide === 'buy' ? 'text-emerald-300' : 'text-red-300'}>
-                    {orderSide.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Quantity</span>
-                  <span>{orderQtyNumber}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Type</span>
-                  <span>{orderType.toUpperCase()}</span>
-                </div>
-                {orderType === 'limit' && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Limit</span>
-                    <span>${formatPrice(limitPriceNumber)}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Est. Total</span>
-                  <span className="font-semibold">{estimatedTotal ? `$${formatPrice(estimatedTotal)}` : '--'}</span>
-                </div>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-white/50">
-                Quotes update every 5s. Review carefully before confirming.
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOrderStep('entry')}
-                  className="flex-1 rounded-lg border border-white/10 bg-white/5 py-2 text-xs text-white/70 hover:text-white"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmitOrder}
-                  disabled={orderStatus.state === 'submitting'}
-                  className={`flex-1 rounded-lg py-2 text-xs font-semibold text-white transition ${
-                    orderSide === 'buy'
-                      ? 'bg-emerald-500/80 hover:bg-emerald-400'
-                      : 'bg-red-500/80 hover:bg-red-400'
-                  } ${orderStatus.state === 'submitting' ? 'opacity-60 cursor-not-allowed' : ''}`}
-                >
-                  {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit'}
-                </button>
-              </div>
-            </>
-          )}
-
-          {orderStep === 'confirm' && (
-            <>
-              <div
-                className={`rounded-lg border p-3 text-sm ${
-                  orderStatus.state === 'success'
-                    ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
-                    : 'border-red-400/30 bg-red-500/10 text-red-200'
-                }`}
-              >
-                <div className="font-semibold">
-                  {orderStatus.state === 'success' ? 'Order Confirmed' : 'Order Failed'}
-                </div>
-                <div className="mt-1 text-xs">
-                  {orderStatus.message || 'Check the order status in your broker.'}
-                </div>
-              </div>
-              {orderStatus.data && (
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-white/60">
-                  <div>Order ID: {orderStatus.data.id || '--'}</div>
-                  <div>Status: {orderStatus.data.status || '--'}</div>
+              {orderSide === 'sell' && (
+                <div className="text-xs text-white/40">
+                  {availableSharesDisplay} shares available
                 </div>
               )}
-              <button
-                type="button"
-                onClick={handleResetOrder}
-                className="w-full rounded-lg border border-white/10 bg-white/5 py-2 text-xs text-white/70 hover:text-white"
-              >
-                Place Another Order
-              </button>
-            </>
-          )}
-        </div>
+            </div>
 
+            <div className="border-t border-white/10 pt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Market Price</span>
+                <span className="text-sm text-white">
+                  {marketPrice > 0 ? formatUsd(marketPrice) : '--'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Estimated Cost</span>
+                <span className="text-sm text-white">
+                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Buying Power</span>
+                <span className="text-sm text-white/40">{buyingPowerDisplay}</span>
+              </div>
+              <div className="border-t border-white/10 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white">Estimated Total</span>
+                  <span className="text-lg font-semibold text-white">
+                    {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {orderError && <div className="text-xs text-red-300">{orderError}</div>}
+
+            <button
+              type="button"
+              onClick={handleReview}
+              disabled={!canReview}
+              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${
+                !canReview ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              Review Order
+            </button>
+          </div>
+
+          <div
+            className={`space-y-4 overflow-hidden transition-all duration-300 ${
+              orderStep === 'review'
+                ? 'max-h-[1200px] opacity-100'
+                : 'max-h-0 opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="space-y-3 rounded-lg border border-white/10 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Side</span>
+                <span className={orderSide === 'buy' ? 'text-emerald-300' : 'text-red-300'}>
+                  {orderSide === 'buy' ? 'Buy' : 'Sell'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Ticker</span>
+                <span className="text-white">{ticker}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Order Type</span>
+                <span className="text-white">{orderTypeLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Shares</span>
+                <span className="text-white">{orderQtyNumber}</span>
+              </div>
+              {orderType === 'limit' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Limit Price</span>
+                  <span className="text-white">{formatUsd(limitPriceNumber)}</span>
+                </div>
+              )}
+              {orderType === 'stop' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Stop Price</span>
+                  <span className="text-white">{formatUsd(stopPriceNumber)}</span>
+                </div>
+              )}
+              {orderType === 'stop_limit' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Stop Price</span>
+                    <span className="text-white">{formatUsd(stopPriceNumber)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Limit Price</span>
+                    <span className="text-white">{formatUsd(limitPriceNumber)}</span>
+                  </div>
+                </>
+              )}
+              {orderType === 'trailing_stop' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Trail Amount</span>
+                  <span className="text-white">{formatUsd(trailAmountNumber)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Estimated Total</span>
+                <span className="text-white">
+                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setOrderStep('entry')}
+              className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitOrder}
+              disabled={orderStatus.state === 'submitting'}
+              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${
+                orderStatus.state === 'submitting' ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit Order'}
+            </button>
+          </div>
+
+          <div
+            className={`space-y-4 overflow-hidden transition-all duration-300 ${
+              orderStep === 'confirm'
+                ? 'max-h-[1200px] opacity-100'
+                : 'max-h-0 opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="mt-1 h-5 w-5 text-emerald-400" />
+              <div>
+                <div className="text-lg font-medium text-white">
+                  {orderStatus.state === 'success' ? 'Order Submitted' : 'Order Failed'}
+                </div>
+                {orderStatus.state === 'error' && (
+                  <div className="mt-1 text-sm text-red-300">{orderStatus.message}</div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Ticker</span>
+                <span className="text-white">{ticker}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Side</span>
+                <span className="text-white">{orderSide === 'buy' ? 'Buy' : 'Sell'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Shares</span>
+                <span className="text-white">{orderQtyNumber}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Order Type</span>
+                <span className="text-white">{orderTypeLabel}</span>
+              </div>
+              {orderStatus.data?.filled_avg_price && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Fill Price</span>
+                  <span className="text-white">
+                    {formatUsd(orderStatus.data.filled_avg_price)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Timestamp</span>
+                <span className="text-white">
+                  {orderTimestamp ? formatTimestamp(orderTimestamp) : '--'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleResetOrder}
+              className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
+            >
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
