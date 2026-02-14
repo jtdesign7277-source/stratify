@@ -179,6 +179,141 @@ const StrategiesPage = ({
 
   const filteredFolderItems = (folderId) => getStrategiesInFolder(folderId).filter(matchesSearch);
 
+  const getTemplateForStrategy = (strategy) => {
+    const type = (strategy.type || strategy.templateId || strategy.template || '').toLowerCase().replace(/[\s-_]/g, '');
+    return TEMPLATES.find(t => {
+      const tid = t.id.toLowerCase().replace(/[\s-_]/g, '');
+      const tname = t.name.toLowerCase().replace(/[\s-_]/g, '');
+      return tid === type || tname === type || type.includes(tid) || tid.includes(type);
+    }) || TEMPLATES[0];
+  };
+
+  const renderActiveStrategies = () => {
+    const open = expandedFolders['active'];
+    const items = filteredFolderItems('active');
+
+    return (
+      <div key="active" className="mb-1">
+        <button
+          onClick={() => toggleFolder('active')}
+          className="group w-full flex items-center gap-2 px-3 py-1.5 rounded-md transition-all text-[11px] tracking-wide hover:bg-white/[0.03]"
+        >
+          <ChevronRight
+            className={`w-3 h-3 text-white/30 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+            strokeWidth={2}
+          />
+          <Play className="w-3.5 h-3.5" fill="none" stroke="#10B981" strokeWidth={1.5} />
+          <span className="flex-1 text-left text-white/70 font-medium truncate">Active Strategies</span>
+          <span className="text-[10px] text-white/20 tabular-nums">{items.length}</span>
+        </button>
+
+        {open && items.length > 0 && (
+          <div className="mt-2 ml-1 bg-[#111111] border border-[#1f1f1f] rounded-xl overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[2fr_1fr_80px_100px_100px_90px] gap-2 px-4 py-2 border-b border-[#1f1f1f] text-[10px] uppercase tracking-[0.15em] text-white/30">
+              <span>Strategy</span>
+              <span>Type</span>
+              <span>Status</span>
+              <span className="text-right">P&L</span>
+              <span className="text-right">Win Rate</span>
+              <span></span>
+            </div>
+            {/* Rows */}
+            {items.map((s) => {
+              const tmpl = getTemplateForStrategy(s);
+              const Icon = tmpl.icon;
+              const isActive = s.status === 'active';
+              const isPaused = s.status === 'paused';
+              const symbols = s.symbols || s.tickers || s.symbol || s.ticker || null;
+              const symbolStr = Array.isArray(symbols) ? symbols.map(x => `$${x}`).join(' ') : symbols ? `$${symbols}` : null;
+
+              return (
+                <div
+                  key={s.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, s)}
+                  onDoubleClick={() => { if (s.status !== 'active') onDeployStrategy?.(s, true); }}
+                  className="group grid grid-cols-[2fr_1fr_80px_100px_100px_90px] gap-2 items-center px-4 py-2.5 border-b border-[#1f1f1f]/50 hover:bg-white/[0.02] transition-colors cursor-grab active:cursor-grabbing"
+                  style={{ borderLeft: `3px solid ${tmpl.color}33` }}
+                >
+                  {/* Strategy name + icon */}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${tmpl.color}15`, boxShadow: `0 0 8px ${tmpl.color}20` }}
+                    >
+                      <Icon className="w-3.5 h-3.5" style={{ color: tmpl.color }} fill="none" strokeWidth={1.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-white/90 truncate">{s.name}</div>
+                      {symbolStr && <div className="text-[10px] text-white/30 font-mono truncate">{symbolStr}</div>}
+                    </div>
+                  </div>
+
+                  {/* Type */}
+                  <div className="flex items-center">
+                    <span
+                      className="text-[10px] font-medium px-2 py-0.5 rounded border"
+                      style={{ color: tmpl.color, borderColor: `${tmpl.color}40`, background: `${tmpl.color}10` }}
+                    >
+                      {tmpl.name}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : isPaused ? 'bg-amber-400' : 'bg-white/20'}`}></span>
+                    <span className={`text-[10px] ${isActive ? 'text-emerald-400' : isPaused ? 'text-amber-400' : 'text-white/40'}`}>
+                      {s.status || 'draft'}
+                    </span>
+                  </div>
+
+                  {/* P&L */}
+                  <div className="text-right">
+                    <span className={`text-xs font-mono font-semibold ${(s.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {(s.pnl || 0) >= 0 ? '+' : ''}{(s.pnl || 0).toFixed(2)}%
+                    </span>
+                  </div>
+
+                  {/* Win Rate */}
+                  <div className="text-right">
+                    <span className="text-[10px] font-mono text-white/50">{tmpl.winRate}</span>
+                    <span className="text-[9px] text-white/20 ml-1">WR</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span
+                      onClick={(e) => { e.stopPropagation(); onDeployStrategy?.(s, true); }}
+                      className="text-[9px] text-emerald-500/60 hover:text-emerald-400 uppercase tracking-wider font-semibold cursor-pointer px-1"
+                    >
+                      Deploy
+                    </span>
+                    <Edit3
+                      onClick={(e) => { e.stopPropagation(); onEditStrategy?.(s); }}
+                      className="w-3 h-3 text-white/20 hover:text-emerald-400 cursor-pointer"
+                      strokeWidth={1.5}
+                    />
+                    <Trash2
+                      onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(s.id); }}
+                      className="w-3 h-3 text-white/20 hover:text-red-400 cursor-pointer"
+                      strokeWidth={1.5}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {open && items.length === 0 && (
+          <div className="ml-4 pl-2 py-2 text-[10px] text-white/15 border-l border-white/[0.04]">
+            {normalizedQuery ? 'No matches' : 'No active strategies'}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderFolder = (folder, isSystem = false) => {
     const items = filteredFolderItems(folder.id);
     const open = expandedFolders[folder.id];
@@ -403,7 +538,7 @@ const StrategiesPage = ({
         >
           <div className="text-[10px] uppercase tracking-[0.2em] text-white/25 mb-2">Folders</div>
           {renderFolder({ id: 'stratify-templates', name: 'STRATIFY', color: '#EF4444', icon: 'zap' }, true)}
-          {renderFolder({ id: 'active', name: 'Active Strategies', color: '#10B981', icon: 'play' }, true)}
+          {renderActiveStrategies()}
           {renderFolder({ id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' }, true)}
           {folders.filter((f) => !['favorites', 'active', 'stratify-templates'].includes(f.id)).map((f) => renderFolder(f))}
           {renderFolder({ id: 'uncategorized', name: 'Uncategorized', color: '#6B7280', icon: 'folder' }, true)}
