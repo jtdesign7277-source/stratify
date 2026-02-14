@@ -241,10 +241,60 @@ export async function getSnapshots(symbols = SYMBOLS) {
 }
 
 // Get single snapshot
+const CRYPTO_PATTERN = /^(BTC|ETH|SOL|XRP|DOGE|ADA|AVAX|DOT|MATIC|LINK|UNI|SHIB|LTC|ATOM|NEAR|APT|ARB|OP|FIL|ALGO)[\/-]?USD[T]?$/i;
+
+function isCryptoSymbol(symbol) {
+  return CRYPTO_PATTERN.test(symbol);
+}
+
+function toCryptoAlpacaSymbol(symbol) {
+  // Convert BTC-USD, BTCUSD, BTC/USD → BTC/USD (Alpaca format)
+  const base = symbol.toUpperCase().replace(/[-\/]?USD[T]?$/, '');
+  return `${base}/USD`;
+}
+
+export async function getCryptoSnapshot(symbol) {
+  try {
+    const alpacaSym = toCryptoAlpacaSymbol(symbol);
+    const url = `https://data.alpaca.markets/v1beta3/crypto/us/snapshots?symbols=${encodeURIComponent(alpacaSym)}`;
+    const response = await fetch(url, {
+      headers: {
+        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('Alpaca crypto snapshot error:', response.status, text);
+      throw new Error(`Alpaca crypto API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const snapshots = data.snapshots || data;
+    const snapshot = snapshots[alpacaSym] || Object.values(snapshots)[0];
+
+    if (!snapshot) {
+      throw new Error(`No crypto snapshot data for ${alpacaSym}`);
+    }
+
+    return normalizeSnapshot({ symbol: symbol.toUpperCase(), snapshot });
+  } catch (error) {
+    console.error('Error fetching crypto snapshot:', error.message);
+    throw error;
+  }
+}
+
 export async function getSnapshot(symbol) {
   try {
-    // Use direct API call instead of SDK to avoid 401 issues
     const sym = symbol.toUpperCase();
+
+    // Route crypto symbols to the crypto endpoint
+    if (isCryptoSymbol(sym)) {
+      return getCryptoSnapshot(sym);
+    }
+
+    // Use direct API call instead of SDK to avoid 401 issues
     const response = await fetch(`https://data.alpaca.markets/v2/stocks/${sym}/snapshot`, {
       headers: {
         'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
