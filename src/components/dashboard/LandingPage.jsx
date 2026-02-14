@@ -1,12 +1,18 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Sparkles, Zap, Play, Check, Loader2, Brain, LineChart, Code, Rocket, Shield, BarChart3 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+
+const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 
 const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
   const [email, setEmail] = useState('');
   const [showIntro, setShowIntro] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState(null);
   const introVideoRef = useRef(null);
+  const { user } = useAuth();
 
   const bgVideoSrc = '/runway-bg.mp4';
   const introVideoSrc = '/stratify-the-drop.mp4';
@@ -49,6 +55,49 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
       return;
     }
     if (onEnter) onEnter();
+  };
+
+  const handleUpgradeCta = async () => {
+    if (!user?.id || !user?.email) {
+      if (onSignUp) {
+        onSignUp();
+        return;
+      }
+      if (onEnter) onEnter();
+      return;
+    }
+
+    setUpgradeLoading(true);
+    setUpgradeError(null);
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId: PRO_PRICE_ID,
+          userId: user.id,
+          userEmail: user.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to start checkout.');
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
+        return;
+      }
+
+      throw new Error('Stripe checkout URL missing.');
+    } catch (err) {
+      setUpgradeError(err.message || 'Upgrade failed. Please try again.');
+    } finally {
+      setUpgradeLoading(false);
+    }
   };
 
   const handleIntroEnd = () => onEnter && onEnter();
@@ -398,7 +447,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
               </p>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 gap-8">
               {/* Step 1 */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -570,7 +619,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
               </p>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
               {/* Free Tier */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -619,8 +668,8 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
                   <p className="text-white/40 text-sm">For serious traders</p>
                 </div>
                 <div className="mb-6">
-                  <span className="text-4xl font-light text-white">$29</span>
-                  <span className="text-white/40 text-sm">/month</span>
+                  <span className="text-4xl font-light text-white">$9.99</span>
+                  <span className="text-white/40 text-sm">/mo</span>
                 </div>
                 <ul className="space-y-3 mb-8">
                   {['Unlimited strategies', 'Live trading', 'Advanced backtesting', 'Real-time alerts', 'Priority support'].map((feature, i) => (
@@ -631,39 +680,15 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
                   ))}
                 </ul>
                 <button
-                  onClick={handlePrimaryCta}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg shadow-blue-500/25"
+                  onClick={handleUpgradeCta}
+                  disabled={upgradeLoading}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg shadow-blue-500/25 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Upgrade to Pro
+                  {upgradeLoading ? 'Redirecting...' : 'Upgrade to Pro'}
                 </button>
-              </motion.div>
-              
-              {/* Enterprise Tier */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="p-8 rounded-2xl bg-white/[0.02] border border-white/10"
-              >
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-white mb-1">Enterprise</h3>
-                  <p className="text-white/40 text-sm">For teams & funds</p>
-                </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-light text-white">Custom</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {['Everything in Pro', 'Team collaboration', 'Custom integrations', 'Dedicated account manager', 'SLA guarantee'].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-white/60 text-sm">
-                      <Check className="w-4 h-4 text-purple-400" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button className="w-full py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors">
-                  Contact Sales
-                </button>
+                {upgradeError ? (
+                  <p className="mt-3 text-xs text-red-300">{upgradeError}</p>
+                ) : null}
               </motion.div>
             </div>
           </div>
