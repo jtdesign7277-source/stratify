@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, GripVertical, FolderPlus, ChevronRight, Folder, Pin } from 'lucide-react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, Wifi, WifiOff, GripVertical, FolderPlus, ChevronRight, CheckCircle2, Folder, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
@@ -262,6 +262,54 @@ const buildQuote = (quote) => {
   };
 };
 
+
+const ORDER_TYPE_LABELS = {
+  market: 'Market',
+  limit: 'Limit',
+  stop: 'Stop',
+  stop_limit: 'Stop Limit',
+  trailing_stop: 'Trailing Stop',
+};
+
+const ORDER_TYPE_OPTIONS = [
+  { value: 'market', label: 'Market' },
+  { value: 'limit', label: 'Limit' },
+  { value: 'stop', label: 'Stop' },
+  { value: 'stop_limit', label: 'Stop Limit' },
+  { value: 'trailing_stop', label: 'Trailing Stop' },
+];
+
+const formatUsd = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+};
+
+const formatTimestamp = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return '--';
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/New_York',
+    timeZoneName: 'short',
+  });
+  const parts = formatter.formatToParts(date);
+  const lookup = parts.reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${lookup.month} ${lookup.day}, ${lookup.year} at ${lookup.hour}:${lookup.minute} ${lookup.dayPeriod} ${lookup.timeZoneName}`;
+};
+
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist, onPinToTop, addTrade }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
   const [chartInterval, setChartInterval] = useState('D');
@@ -350,7 +398,17 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const [orderSide, setOrderSide] = useState('buy');
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
-  const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '' });
+  const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '', data: null, timestamp: null });
+  const [limitPrice, setLimitPrice] = useState('');
+  const [stopPrice, setStopPrice] = useState('');
+  const [trailAmount, setTrailAmount] = useState('');
+  const [orderStep, setOrderStep] = useState('entry');
+  const [orderError, setOrderError] = useState('');
+  const [account, setAccount] = useState(null);
+  const [accountStatus, setAccountStatus] = useState({ state: 'idle', message: '' });
+  const [tradePositions, setTradePositions] = useState([]);
+  const [positionsStatus, setPositionsStatus] = useState({ state: 'idle', message: '' });
+  const lastPriceRef = useRef(null);
   const [showDollarChange, setShowDollarChange] = useState(false); // Toggle % vs $ display
   const {
     breakingNews,
@@ -411,7 +469,133 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     const parsed = parseFloat(orderQty);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }, [orderQty]);
-  const estimatedTotal = selectedQuote?.price ? selectedQuote.price * orderQtyNumber : 0;
+  const limitPriceNumber = useMemo(() => {
+    const parsed = parseFloat(limitPrice);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [limitPrice]);
+
+  const stopPriceNumber = useMemo(() => {
+    const parsed = parseFloat(stopPrice);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [stopPrice]);
+
+  const trailAmountNumber = useMemo(() => {
+    const parsed = parseFloat(trailAmount);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [trailAmount]);
+
+  const marketPrice = useMemo(() => {
+    return selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.ask ?? selectedQuote?.bid ?? 0;
+  }, [selectedQuote]);
+
+  const bidPrice = selectedQuote?.bid ?? null;
+  const askPrice = selectedQuote?.ask ?? null;
+
+  const priceDirection = useMemo(() => {
+    const reference = selectedQuote?.open ?? lastPriceRef.current;
+    if (!marketPrice || !reference) return 'neutral';
+    if (marketPrice > reference) return 'up';
+    if (marketPrice < reference) return 'down';
+    return 'neutral';
+  }, [marketPrice, selectedQuote?.open]);
+
+  useEffect(() => {
+    if (marketPrice) {
+      lastPriceRef.current = marketPrice;
+    }
+  }, [marketPrice]);
+
+  useEffect(() => {
+    if (orderType !== 'limit' && orderType !== 'stop_limit') return;
+    if (limitPrice !== '') return;
+    const next = orderSide === 'buy' ? askPrice : bidPrice;
+    if (Number.isFinite(next) && next > 0) {
+      setLimitPrice(next.toFixed(2));
+    }
+  }, [orderType, orderSide, askPrice, bidPrice, limitPrice]);
+
+  const priceForEstimate = useMemo(() => {
+    if (orderType === 'limit') return limitPriceNumber;
+    if (orderType === 'stop') return stopPriceNumber;
+    if (orderType === 'stop_limit') return limitPriceNumber;
+    if (orderType === 'trailing_stop') return marketPrice;
+    return marketPrice;
+  }, [orderType, limitPriceNumber, stopPriceNumber, marketPrice]);
+
+  const estimatedTotal = orderQtyNumber > 0 && priceForEstimate > 0 ? orderQtyNumber * priceForEstimate : 0;
+
+  const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
+  const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
+  const requiresTrail = orderType === 'trailing_stop';
+
+  const isPriceMissing =
+    (requiresLimit && limitPriceNumber <= 0) ||
+    (requiresStop && stopPriceNumber <= 0) ||
+    (requiresTrail && trailAmountNumber <= 0);
+
+  const canReview =
+    selectedTicker && orderQtyNumber > 0 && !isPriceMissing && orderStep === 'entry';
+
+  const positionForTicker = useMemo(() => {
+    return tradePositions.find(
+      (position) => position?.symbol?.toUpperCase() === selectedTicker?.toUpperCase()
+    );
+  }, [tradePositions, selectedTicker]);
+
+  const availableShares = useMemo(() => {
+    const rawQty =
+      positionForTicker?.qty_available ??
+      positionForTicker?.qty ??
+      positionForTicker?.quantity;
+    const parsed = parseFloat(rawQty);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [positionForTicker]);
+
+  const availableSharesDisplay =
+    positionsStatus.state === 'loading'
+      ? '...'
+      : availableShares === null
+        ? '--'
+        : availableShares.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4,
+          });
+
+  const priceTextClass =
+    priceDirection === 'up'
+      ? 'text-emerald-400'
+      : priceDirection === 'down'
+        ? 'text-red-400'
+        : 'text-white';
+
+  const actionButtonClass =
+    orderSide === 'buy'
+      ? 'bg-emerald-500 hover:bg-emerald-400'
+      : 'bg-red-500 hover:bg-red-400';
+
+  const orderTypeLabel = ORDER_TYPE_LABELS[orderType] || 'Market';
+
+  const orderTimestamp =
+    orderStatus.data?.filled_at ||
+    orderStatus.data?.submitted_at ||
+    orderStatus.data?.created_at ||
+    orderStatus.timestamp;
+
+  const inputBaseClass =
+    'w-28 rounded-md border border-white/10 bg-transparent px-2 py-1 text-right text-sm text-white focus:border-white/30 focus:outline-none';
+  const selectBaseClass =
+    'w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none';
+
+  const buyingPower =
+    account?.buying_power ?? account?.buyingPower ?? account?.cash ?? null;
+  const buyingPowerDisplay =
+    accountStatus.state === 'loading'
+      ? '...'
+      : accountStatus.state === 'error'
+        ? '--'
+        : buyingPower !== null && buyingPower !== undefined
+          ? formatUsd(buyingPower)
+          : '--';
 
   // Fetch quote snapshot via Railway backend
   const fetchSnapshot = useCallback(async () => {
@@ -666,49 +850,97 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     }
   }, [activeMarket, onReorderWatchlist]);
 
-  const handlePlaceOrder = async () => {
-    if (!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting') return;
-    setOrderStatus({ state: 'submitting', message: '' });
+  const refreshAccount = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/trades/execute`, {
+      setAccountStatus({ state: 'loading', message: '' });
+      const response = await fetch('/api/account');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Failed to fetch account');
+      setAccount(data);
+      setAccountStatus({ state: 'success', message: '' });
+    } catch (err) {
+      setAccountStatus({ state: 'error', message: err.message });
+    }
+  }, []);
+
+  const refreshPositions = useCallback(async () => {
+    try {
+      setPositionsStatus({ state: 'loading', message: '' });
+      const response = await fetch('/api/positions');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Failed to fetch positions');
+      setTradePositions(Array.isArray(data) ? data : []);
+      setPositionsStatus({ state: 'success', message: '' });
+    } catch (err) {
+      setPositionsStatus({ state: 'error', message: err.message });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isTradePanelOpen) return;
+    refreshAccount();
+    refreshPositions();
+  }, [isTradePanelOpen, refreshAccount, refreshPositions]);
+
+  const handleReview = () => {
+    if (!selectedTicker) { setOrderError('Select a ticker to continue.'); return; }
+    if (orderQtyNumber <= 0) { setOrderError('Enter a valid share quantity.'); return; }
+    if (requiresLimit && limitPriceNumber <= 0) { setOrderError('Enter a valid limit price.'); return; }
+    if (requiresStop && stopPriceNumber <= 0) { setOrderError('Enter a valid stop price.'); return; }
+    if (requiresTrail && trailAmountNumber <= 0) { setOrderError('Enter a valid trail amount.'); return; }
+    setOrderError('');
+    setOrderStep('review');
+  };
+
+  const clearOrderError = () => { if (orderError) setOrderError(''); };
+
+  const handleSubmitOrder = async () => {
+    const submittedAt = new Date().toISOString();
+    setOrderStatus({ state: 'submitting', message: '', data: null, timestamp: submittedAt });
+    try {
+      const payload = {
+        symbol: selectedTicker,
+        qty: orderQtyNumber,
+        side: orderSide,
+        type: orderType,
+        time_in_force: 'day',
+      };
+      if (requiresLimit) payload.limit_price = limitPriceNumber;
+      if (requiresStop) payload.stop_price = stopPriceNumber;
+      if (orderType === 'trailing_stop') payload.trail_price = trailAmountNumber;
+
+      const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: selectedTicker,
-          qty: orderQtyNumber,
-          side: orderSide,
-          type: orderType,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Order failed');
-      }
-      const payload = await res.json();
-      const candidatePrice = toNumber(payload?.filled_avg_price ?? payload?.estimatedPrice ?? selectedQuote?.price);
-      const executionPrice = Number.isFinite(candidatePrice) && candidatePrice > 0 ? candidatePrice : null;
-      const executedAt = payload?.filled_at ?? payload?.submitted_at ?? new Date().toISOString();
-      const recordedTrade = executionPrice && typeof addTrade === 'function'
-        ? addTrade({
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Order failed');
+
+      if (typeof addTrade === 'function') {
+        addTrade({
           symbol: selectedTicker,
           shares: orderQtyNumber,
           side: orderSide,
-          price: executionPrice,
-          timestamp: executedAt,
-        })
-        : null;
-      setOrderStatus({
-        state: 'success',
-        message: 'Order placed successfully.',
-        executedAt: recordedTrade?.timestamp ?? executedAt,
-        symbol: selectedDisplaySymbol,
-        price: recordedTrade?.price ?? executionPrice ?? selectedQuote?.price,
-        qty: orderQtyNumber,
-        side: orderSide,
-      });
+          price: data?.filled_avg_price ?? marketPrice,
+          timestamp: data?.submitted_at || submittedAt,
+        });
+      }
+
+      setOrderStatus({ state: 'success', message: 'Order submitted.', data, timestamp: data?.submitted_at || submittedAt });
+      setOrderStep('confirm');
+      refreshAccount();
+      refreshPositions();
     } catch (err) {
-      setOrderStatus({ state: 'error', message: err?.message || 'Order failed.' });
+      setOrderStatus({ state: 'error', message: err.message, data: null, timestamp: submittedAt });
+      setOrderStep('confirm');
     }
+  };
+
+  const handleResetOrder = () => {
+    setOrderStep('entry');
+    setOrderStatus({ state: 'idle', message: '', data: null, timestamp: null });
+    setOrderError('');
   };
 
   const formatPrice = (price) => {
@@ -1210,129 +1442,298 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             )}
           </div>
 
-          <div
-            className={`bg-[#0b0b0b] overflow-hidden backdrop-blur-xl transition-[opacity,transform,max-height] duration-500 ease-out ${
-              isTradePanelOpen
-                ? 'opacity-100 max-h-[1000px] border-t xl:border-t-0 xl:border-l border-white/[0.06] w-full xl:w-80'
-                : 'opacity-0 max-h-0 xl:max-h-none border-transparent w-full xl:w-0 pointer-events-none translate-y-2 xl:translate-y-0 xl:translate-x-3'
-            }`}
-          >
-            <div className="p-4 border-b border-white/[0.06] flex items-start justify-between gap-3 bg-white/[0.02] backdrop-blur-xl">
-              <div className="min-w-0">
-                <h3 className="text-white/90 font-semibold text-base truncate">
-                  <span className="text-emerald-400">{selectedDisplaySymbol}</span>
-                  <span className="text-white/60"> — </span>
-                  <span className="text-white/80">{selectedName}</span>
-                </h3>
-                <div className="mt-1 flex items-center gap-2 text-xs">
-                  <span className="text-white/40">Live</span>
-                  <span className="text-white/90 font-semibold">
-                    {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : '—'}
-                  </span>
-                </div>
-              </div>
+      <div
+        className={`relative flex flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
+          isTradePanelOpen
+            ? 'w-[300px] border-l border-white/10 opacity-100'
+            : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="border-b border-white/10 px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-xs font-medium">
               <button
-                onClick={() => setIsTradePanelOpen(false)}
-                className="p-1.5 rounded-lg text-white/40 hover:text-white/90 hover:bg-white/[0.08] transition-colors"
-                aria-label="Collapse trade panel"
+                type="button"
+                onClick={() => { clearOrderError(); setOrderSide('buy'); }}
+                className={`transition ${orderSide === 'buy' ? 'text-emerald-400' : 'text-white/40 hover:text-white/70'}`}
               >
-                <ChevronsRight className="w-4 h-4" />
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={() => { clearOrderError(); setOrderSide('sell'); }}
+                className={`transition ${orderSide === 'sell' ? 'text-red-400' : 'text-white/40 hover:text-white/70'}`}
+              >
+                Sell
               </button>
             </div>
-
-            <div className="p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setOrderSide('buy')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
-                    orderSide === 'buy'
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.35)]'
-                      : 'bg-white/[0.03] text-white/60 border-white/[0.06] hover:text-white/90 hover:border-white/[0.2]'
-                  }`}
-                >
-                  Buy
-                </button>
-                <button
-                  onClick={() => setOrderSide('sell')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
-                    orderSide === 'sell'
-                      ? 'bg-red-500/20 text-red-300 border-red-400/40 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
-                      : 'bg-white/[0.03] text-white/60 border-white/[0.06] hover:text-white/90 hover:border-white/[0.2]'
-                  }`}
-                >
-                  Sell
-                </button>
-              </div>
-
-              <div>
-                <label className="text-xs text-white/40">Quantity</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={orderQty}
-                  onChange={(e) => setOrderQty(e.target.value)}
-                  className="mt-1 w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-white/90 text-sm outline-none transition-colors focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-400/20"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-white/40">Order Type</label>
-                <select
-                  value={orderType}
-                  onChange={(e) => setOrderType(e.target.value)}
-                  className="mt-1 w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-white/90 text-sm outline-none transition-colors focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-400/20"
-                >
-                  <option value="market">Market</option>
-                  <option value="limit">Limit</option>
-                </select>
-              </div>
-
-              <div className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-3 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                <div className="flex items-center justify-between text-xs text-white/40">
-                  <span>Est. Total</span>
-                  <span className="text-white/90 font-semibold">
-                    {estimatedTotal > 0 ? `$${formatPrice(estimatedTotal)}` : '...'}
-                  </span>
-                </div>
-                <div className="text-[11px] text-white/40 mt-2">
-                  Based on {selectedQuote?.price ? `$${formatPrice(selectedQuote.price)}` : 'current'} price.
-                </div>
-              </div>
-
-              <button
-                onClick={handlePlaceOrder}
-                disabled={!selectedTicker || orderQtyNumber <= 0 || orderStatus.state === 'submitting'}
-                className={`w-full py-2.5 rounded-lg text-sm font-semibold text-white/90 transition-all ${
-                  orderSide === 'buy'
-                    ? 'bg-gradient-to-r from-emerald-500/80 to-emerald-600/80 hover:shadow-[0_0_24px_rgba(52,211,153,0.45)]'
-                    : 'bg-gradient-to-r from-red-500/80 to-red-600/80 hover:shadow-[0_0_24px_rgba(248,113,113,0.45)]'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {orderStatus.state === 'submitting' ? 'Placing Order...' : 'Place Order'}
-              </button>
-
-              {orderStatus.state !== 'idle' && (
-                orderStatus.state === 'success' ? (
-                  <div className="text-xs space-y-1">
-                    <div className="text-emerald-400">{orderStatus.message}</div>
-                    <div className="text-white/60">
-                      {orderStatus.symbol} · {formatOrderSide(orderStatus.side)} {orderStatus.qty} @ {formatExecutionPrice(orderStatus.price)}
-                    </div>
-                    {orderStatus.executedAt && (
-                      <div className="text-white/40">
-                        {formatExecutionTimestamp(orderStatus.executedAt)}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-xs text-red-400">
-                    {orderStatus.message}
-                  </div>
-                )
-              )}
+            <button
+              type="button"
+              onClick={() => setIsTradePanelOpen(false)}
+              aria-label="Collapse trade panel"
+              className="text-white/40 hover:text-white/70 transition"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-4">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-bold text-white">{selectedDisplaySymbol}</span>
+              <span className={`text-xl ${priceTextClass}`}>
+                {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-white/40">
+              Bid {formatPrice(bidPrice)} · Ask {formatPrice(askPrice)}
             </div>
           </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {/* Entry Step */}
+          <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
+            orderStep === 'entry' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+          }`}>
+            <div className="space-y-2">
+              <label className="text-sm text-white/60">Order Type</label>
+              <select
+                value={orderType}
+                onChange={(e) => { clearOrderError(); setOrderType(e.target.value); }}
+                className={selectBaseClass}
+              >
+                {ORDER_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value} className="bg-[#0a0f1a]">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {orderType === 'limit' && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Limit Price</span>
+                <input type="number" min="0" step="0.01" value={limitPrice}
+                  onChange={(e) => { clearOrderError(); setLimitPrice(e.target.value); }}
+                  className={inputBaseClass} />
+              </div>
+            )}
+
+            {orderType === 'stop' && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Stop Price</span>
+                <input type="number" min="0" step="0.01" value={stopPrice}
+                  onChange={(e) => { clearOrderError(); setStopPrice(e.target.value); }}
+                  className={inputBaseClass} />
+              </div>
+            )}
+
+            {orderType === 'stop_limit' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Stop Price</span>
+                  <input type="number" min="0" step="0.01" value={stopPrice}
+                    onChange={(e) => { clearOrderError(); setStopPrice(e.target.value); }}
+                    className={inputBaseClass} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Limit Price</span>
+                  <input type="number" min="0" step="0.01" value={limitPrice}
+                    onChange={(e) => { clearOrderError(); setLimitPrice(e.target.value); }}
+                    className={inputBaseClass} />
+                </div>
+              </div>
+            )}
+
+            {orderType === 'trailing_stop' && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Trail Amount ($)</span>
+                <input type="number" min="0" step="0.01" value={trailAmount}
+                  onChange={(e) => { clearOrderError(); setTrailAmount(e.target.value); }}
+                  className={inputBaseClass} />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Shares</span>
+                <input type="number" min="0" step="1" value={orderQty}
+                  onChange={(e) => { clearOrderError(); setOrderQty(e.target.value); }}
+                  className={`${inputBaseClass} w-24`} />
+              </div>
+              {orderSide === 'sell' && (
+                <div className="text-xs text-white/40">
+                  {availableSharesDisplay} shares available
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-white/10 pt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Market Price</span>
+                <span className="text-sm text-white">
+                  {marketPrice > 0 ? formatUsd(marketPrice) : '--'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Estimated Cost</span>
+                <span className="text-sm text-white">
+                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Buying Power</span>
+                <span className="text-sm text-white/40">{buyingPowerDisplay}</span>
+              </div>
+              <div className="border-t border-white/10 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white">Estimated Total</span>
+                  <span className="text-lg font-semibold text-white">
+                    {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {orderError && <div className="text-xs text-red-300">{orderError}</div>}
+
+            <button type="button" onClick={handleReview} disabled={!canReview}
+              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${!canReview ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Review Order
+            </button>
+          </div>
+
+          {/* Review Step */}
+          <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
+            orderStep === 'review' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+          }`}>
+            <div className="space-y-3 rounded-lg border border-white/10 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Side</span>
+                <span className={orderSide === 'buy' ? 'text-emerald-300' : 'text-red-300'}>
+                  {orderSide === 'buy' ? 'Buy' : 'Sell'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Ticker</span>
+                <span className="text-white">{selectedDisplaySymbol}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Order Type</span>
+                <span className="text-white">{orderTypeLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Shares</span>
+                <span className="text-white">{orderQtyNumber}</span>
+              </div>
+              {orderType === 'limit' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Limit Price</span>
+                  <span className="text-white">{formatUsd(limitPriceNumber)}</span>
+                </div>
+              )}
+              {orderType === 'stop' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Stop Price</span>
+                  <span className="text-white">{formatUsd(stopPriceNumber)}</span>
+                </div>
+              )}
+              {orderType === 'stop_limit' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Stop Price</span>
+                    <span className="text-white">{formatUsd(stopPriceNumber)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Limit Price</span>
+                    <span className="text-white">{formatUsd(limitPriceNumber)}</span>
+                  </div>
+                </>
+              )}
+              {orderType === 'trailing_stop' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Trail Amount</span>
+                  <span className="text-white">{formatUsd(trailAmountNumber)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Estimated Total</span>
+                <span className="text-white">
+                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                </span>
+              </div>
+            </div>
+
+            <button type="button" onClick={() => setOrderStep('entry')}
+              className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
+            >
+              Edit
+            </button>
+            <button type="button" onClick={handleSubmitOrder}
+              disabled={orderStatus.state === 'submitting'}
+              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${
+                orderStatus.state === 'submitting' ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit Order'}
+            </button>
+          </div>
+
+          {/* Confirm Step */}
+          <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
+            orderStep === 'confirm' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+          }`}>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className={`mt-1 h-5 w-5 ${orderStatus.state === 'success' ? 'text-emerald-400' : 'text-red-400'}`} />
+              <div>
+                <div className="text-lg font-medium text-white">
+                  {orderStatus.state === 'success' ? 'Order Submitted' : 'Order Failed'}
+                </div>
+                {orderStatus.state === 'error' && (
+                  <div className="mt-1 text-sm text-red-300">{orderStatus.message}</div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Ticker</span>
+                <span className="text-white">{selectedDisplaySymbol}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Side</span>
+                <span className="text-white">{orderSide === 'buy' ? 'Buy' : 'Sell'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Shares</span>
+                <span className="text-white">{orderQtyNumber}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Order Type</span>
+                <span className="text-white">{orderTypeLabel}</span>
+              </div>
+              {orderStatus.data?.filled_avg_price && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Fill Price</span>
+                  <span className="text-white">{formatUsd(orderStatus.data.filled_avg_price)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Timestamp</span>
+                <span className="text-white">
+                  {orderTimestamp ? formatTimestamp(orderTimestamp) : '--'}
+                </span>
+              </div>
+            </div>
+
+            <button type="button" onClick={handleResetOrder}
+              className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
