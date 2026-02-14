@@ -1371,15 +1371,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
           <div className="flex items-center gap-3">
             <h2 className="text-white font-bold text-lg">${selectedDisplaySymbol}</h2>
             <span className="text-gray-400 text-sm">{selectedName}</span>
-            <span className={`text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border ${
-              activeMarket === 'crypto'
-                ? 'border-amber-500/40 text-amber-300 bg-amber-500/10'
-                : 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'
+            <span className={`text-[10px] uppercase tracking-[0.2em] ${
+              activeMarket === 'crypto' ? 'text-amber-400' : 'text-white/40'
             }`}>
               {activeMarket === 'crypto' ? 'Crypto' : 'Equity'}
             </span>
-          </div>
-          <div className="flex items-center gap-3">
             {!isTradePanelOpen && (
               <button
                 onClick={() => setIsTradePanelOpen(true)}
