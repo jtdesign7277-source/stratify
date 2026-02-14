@@ -43,8 +43,7 @@ const MOCK_ACTIVITY = [
 // ============== PLAN CONFIG ==============
 const PLANS = {
   free: { name: 'Free', price: 0, color: 'gray', features: ['$100K Paper Money', '3 Active Strategies', '10 Backtests/mo', '50 AI Queries'] },
-  pro: { name: 'Pro', price: 29, color: 'cyan', badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', features: ['Unlimited Strategies', '500 Backtests/mo', '1000 AI Queries', 'Arbitrage Scanner'] },
-  elite: { name: 'Elite', price: 99, color: 'purple', badge: 'bg-purple-500/20 text-purple-400 border-purple-500/30', features: ['Everything Unlimited', 'API Access', 'Priority Support', 'White-glove Onboarding'] },
+  pro: { name: 'Pro', price: 9.99, color: 'cyan', badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', features: ['Unlimited Strategies', '500 Backtests/mo', '1000 AI Queries', 'Arbitrage Scanner'] },
 };
 
 // ============== SUB-COMPONENTS ==============
@@ -369,10 +368,9 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
       )}
 
       {/* Plan Cards */}
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 gap-5">
         {Object.entries(PLANS).map(([key, plan]) => {
           const isCurrentPlan = currentPlan === key;
-          const isElite = key === 'elite';
           
           return (
             <div 
@@ -413,11 +411,7 @@ function BillingView({ onClose, currentPlan, setCurrentPlan }) {
               ) : (
                 <button 
                   onClick={() => handleSelectPlan(key)}
-                  className={`w-full py-3 text-sm font-semibold rounded-xl transition-all ${
-                    isElite
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/25'
-                      : 'bg-white hover:bg-gray-100 text-black'
-                  }`}
+                  className="w-full py-3 text-sm font-semibold rounded-xl transition-all bg-white hover:bg-gray-100 text-black"
                 >
                   {PLANS[key].price > PLANS[currentPlan].price ? 'Upgrade' : 'Downgrade'}
                 </button>
@@ -906,7 +900,6 @@ export default function SettingsPage({ themeClasses, onClose }) {
             <button className="w-full py-3 bg-[#1e1e2d] hover:bg-[#2a2a3d] text-white text-sm font-medium rounded-xl transition-colors border border-[#2a2a3d]">
               Generate API Key
             </button>
-            <p className="text-xs text-gray-600 mt-3 text-center">Available on Elite plan</p>
           </div>
         </div>
       </div>

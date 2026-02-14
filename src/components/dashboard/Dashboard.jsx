@@ -17,6 +17,7 @@ import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import SettingsPage from './SettingsPage';
 import StrategiesPage from './StrategiesPage';
+import ProGate from '../ProGate';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
 import AIChat from './AIChat';
@@ -807,19 +808,38 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'trade' && (
-            <TradePage
-              watchlist={watchlist}
-              onAddToWatchlist={addToWatchlist}
-              onRemoveFromWatchlist={removeFromWatchlist}
-              onReorderWatchlist={reorderWatchlist}
-              onPinToTop={pinToTop}
-              addTrade={addTrade}
-            />
+            <ProGate
+              featureName="Paper Trading"
+              description="Practice trading with virtual capital and real market data."
+            >
+              <TradePage
+                watchlist={watchlist}
+                onAddToWatchlist={addToWatchlist}
+                onRemoveFromWatchlist={removeFromWatchlist}
+                onReorderWatchlist={reorderWatchlist}
+                onPinToTop={pinToTop}
+                addTrade={addTrade}
+              />
+            </ProGate>
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
-          {activeTab === 'ai-chat' && <StratifyChat />}
-          {activeTab === 'analytics' && <AnalyticsPage themeClasses={themeClasses} />}
+          {activeTab === 'ai-chat' && (
+            <ProGate
+              featureName="AI Chat"
+              description="Get real-time AI-powered market analysis and trading insights."
+            >
+              <StratifyChat />
+            </ProGate>
+          )}
+          {activeTab === 'analytics' && (
+            <ProGate
+              featureName="Analytics"
+              description="Deep portfolio analytics, performance metrics, and risk analysis."
+            >
+              <AnalyticsPage themeClasses={themeClasses} />
+            </ProGate>
+          )}
           {activeTab === 'advanced' && <AdvancedChartsPage />}
           {activeTab === 'grok' && <DemoPanel />}
           {activeTab === 'portfolio' && (
@@ -834,7 +854,18 @@ export default function Dashboard({
           )}
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
           {/* templates now inside StrategiesPage */}
-          {activeTab === 'active' && <ActiveTrades setActiveTab={setActiveTab} strategies={deployedStrategies} setStrategies={setDeployedStrategies} />}
+          {activeTab === 'active' && (
+            <ProGate
+              featureName="Active Trades"
+              description="Monitor and manage your live trading strategies in real-time."
+            >
+              <ActiveTrades
+                setActiveTab={setActiveTab}
+                strategies={deployedStrategies}
+                setStrategies={setDeployedStrategies}
+              />
+            </ProGate>
+          )}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
