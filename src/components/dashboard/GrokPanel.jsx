@@ -1050,13 +1050,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
           <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
         </button>
         <div className="mt-2 p-1.5 bg-emerald-500/20 rounded-lg relative group">
-          <div className="absolute inset-0 rounded-lg bg-emerald-500/20 blur-sm" />
-          <svg className="relative w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="5" y1="19" x2="19" y2="5" />
-          </svg>
-        </div>
-        <div className="mt-2 writing-mode-vertical text-[10px] text-gray-500 tracking-widest" style={{ writingMode: 'vertical-rl' }}>GROK</div>
       </motion.div>
     );
   }
