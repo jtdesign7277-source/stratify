@@ -8,7 +8,7 @@ export const config = {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
 );
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Stripe webhook not configured' });
   }
 
-  if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(500).json({ error: 'Supabase server keys not configured' });
   }
 
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        const userId = session.client_reference_id;
+        const userId = session.client_reference_id || session.metadata?.supabase_user_id;
         const customerId = session.customer;
         const subscriptionId = session.subscription;
 
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
             console.error('Supabase update error (checkout.session.completed):', error);
           }
         } else {
-          console.error('Missing client_reference_id on checkout.session.completed');
+          console.error('Missing user ID on checkout.session.completed (client_reference_id or metadata)');
         }
         break;
       }
@@ -88,13 +88,34 @@ export default async function handler(req, res) {
         const customerId = subscription.customer;
         const subscriptionStatus = ['active', 'trialing'].includes(status) ? 'pro' : 'free';
 
+        if (!customerId) {
+          console.error('Missing customer ID on customer.subscription.updated');
+          break;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('stripe_customer_id', customerId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('Supabase lookup error (customer.subscription.updated):', profileError);
+          break;
+        }
+
+        if (!profile?.id) {
+          console.error('No profile found for customer.subscription.updated:', customerId);
+          break;
+        }
+
         const { error } = await supabase
           .from('profiles')
           .update({
             subscription_status: subscriptionStatus,
             stripe_subscription_id: subscription.id || null,
           })
-          .eq('stripe_customer_id', customerId);
+          .eq('id', profile.id);
 
         if (error) {
           console.error('Supabase update error (customer.subscription.updated):', error);
@@ -105,6 +126,27 @@ export default async function handler(req, res) {
         const subscription = event.data.object;
         const customerId = subscription.customer;
 
+        if (!customerId) {
+          console.error('Missing customer ID on customer.subscription.deleted');
+          break;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('stripe_customer_id', customerId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('Supabase lookup error (customer.subscription.deleted):', profileError);
+          break;
+        }
+
+        if (!profile?.id) {
+          console.error('No profile found for customer.subscription.deleted:', customerId);
+          break;
+        }
+
         const { error } = await supabase
           .from('profiles')
           .update({
@@ -112,7 +154,7 @@ export default async function handler(req, res) {
             stripe_customer_id: null,
             stripe_subscription_id: null,
           })
-          .eq('stripe_customer_id', customerId);
+          .eq('id', profile.id);
 
         if (error) {
           console.error('Supabase update error (customer.subscription.deleted):', error);

@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -36,7 +37,7 @@ export default async function handler(req, res) {
       cancel_url: `${origin}/pricing`,
       client_reference_id: userId,
       customer_email: userEmail,
-      metadata: { userId },
+      metadata: { supabase_user_id: userId },
     });
 
     return res.status(200).json({ sessionId: session.id, url: session.url });
