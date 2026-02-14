@@ -287,7 +287,7 @@ export default function MoreInfoPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Account Type — clickable to upgrade */}
-                  <a<button
+                  <button
                     onClick={async () => {
                       try {
                         const resp = await (await import('../../lib/supabaseClient')).supabase.auth.getUser();
