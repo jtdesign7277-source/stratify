@@ -1049,7 +1049,6 @@ const GrokPanel = ({ onSaveStrategy, onDeployStrategy, onCollapsedChange, onBack
         <button onClick={expandPanel} className="p-1 text-emerald-400 hover:text-blue-400 transition-colors focus:outline-none" title="Expand panel">
           <ChevronsLeft className="w-4 h-4 animate-pulse drop-shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
         </button>
-        <div className="mt-2 p-1.5 bg-emerald-500/20 rounded-lg relative group">
       </motion.div>
     );
   }
