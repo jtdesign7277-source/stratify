@@ -16,7 +16,7 @@ import {
 import SupportChat from './SupportChat';
 import { useAuth } from '../../context/AuthContext';
 
-const UPGRADE_URL = '/pricing'; // Pro subscription page
+const UPGRADE_URL = null; // Handled by click handler
 
 const faqs = [
   {
@@ -301,7 +301,7 @@ export default function MoreInfoPage() {
                     <p className="text-[10px] text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
                       Upgrade to Pro →
                     </p>
-                  </a>
+                  </button>
                   <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
                     <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
                       <Calendar className="w-4 h-4" strokeWidth={1.5} />
