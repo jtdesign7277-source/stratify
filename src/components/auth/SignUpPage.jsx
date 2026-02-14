@@ -283,14 +283,39 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
                   />
                 </div>
 
-                {status.message && (
-                  <div
-                    className={`rounded-xl border px-3 py-2 text-xs ${
-                      status.type === 'success'
-                        ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                        : 'border-red-500/40 bg-red-500/10 text-red-300'
-                    }`}
-                  >
+                {status.message && status.type === 'success' && (
+                  <>
+                    <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="h-3 w-3"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.704 5.293a1 1 0 0 1 0 1.414l-7.5 7.5a1 1 0 0 1-1.414 0l-3.5-3.5a1 1 0 1 1 1.414-1.414L8.5 12.086l6.793-6.793a1 1 0 0 1 1.411 0Z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </span>
+                        <span>{status.message}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('signin')}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                    >
+                      I confirmed my email — Sign In
+                    </button>
+                  </>
+                )}
+
+                {status.message && status.type === 'error' && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
                     {status.message}
                   </div>
                 )}
