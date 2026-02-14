@@ -4,28 +4,6 @@ import { Send, Loader2, Bot, User } from 'lucide-react';
 
 const API_BASE = 'https://stratify-backend-production-3ebd.up.railway.app';
 
-const SYSTEM_PROMPT = `You are Stratify Support, a helpful AI assistant for the Stratify trading platform.
-
-About Stratify:
-- Stratify is an AI-powered algorithmic trading platform at https://stratify.associates
-- Features include: Paper Trading, AI Strategy Builder, Real-Time Market Data, Backtesting, Analytics, Advanced Charts, Trend Scanner, Portfolio Management, and Trade History
-- Pricing: Free plan (watchlist, markets, home dashboard) and Pro plan at $9.99/month (paper trading, AI chat, analytics, active trades)
-- Supports Alpaca broker integration for stocks and crypto trading
-- Users can build trading strategies using AI-powered tools
-- Contact email: jeff@stratify-associates.com
-- Twitter/X: @stratify_hq
-- Website: https://stratify.associates
-- Strategy templates available: Momentum, RSI, Mean Reversion, Breakout, MACD, Scalping
-
-Your role:
-- Answer questions about Stratify features, pricing, and capabilities
-- Help users understand how to use the platform
-- Provide guidance on trading strategies and the AI tools
-- Be friendly, concise, and helpful
-- For account or billing issues, direct users to the contact form on the More Info page or email jeff@stratify-associates.com
-
-Keep responses concise (2-4 sentences for simple questions).`;
-
 const getSessionId = () => {
   let id = sessionStorage.getItem('support-session-id');
   if (!id) {
@@ -58,12 +36,12 @@ export default function SupportChat({ compact = false }) {
     setIsLoading(true);
 
     try {
-      const messageWithPrompt = `${SYSTEM_PROMPT}\n\n${text}`;
+      const contextualMessage = 'You are Stratify Support. Use ONLY this information to answer: Stratify is an AI trading platform at https://stratify.associates. Contact email: jeff@stratify-associates.com. Twitter: @stratify_hq. Pricing: Free plan and Pro at $9.99/month. Features: Paper Trading, AI Strategy Builder, Backtesting, Analytics, Advanced Charts, Trend Scanner, Portfolio Management. Strategy templates: Momentum, RSI, Mean Reversion, Breakout, MACD, Scalping. For billing issues direct to contact form or jeff@stratify-associates.com.\n\nUser question: ' + text;
       const response = await fetch(`${API_BASE}/api/v1/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: messageWithPrompt,
+          message: contextualMessage,
           session_id: getSessionId()
         })
       });

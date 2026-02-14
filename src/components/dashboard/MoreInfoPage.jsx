@@ -117,11 +117,11 @@ export default function MoreInfoPage() {
           {/* Quick Links */}
           <div className="flex items-center gap-2">
             <a 
-              href="mailto:stratify@agentmail.to" 
+              href="mailto:jeff@stratify-associates.com" 
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-xs transition-all"
             >
               <Mail className="w-3.5 h-3.5" strokeWidth={1.5} />
-              stratify@agentmail.to
+              jeff@stratify-associates.com
             </a>
             <a 
               href="https://x.com/stratify_hq" 
