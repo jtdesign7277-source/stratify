@@ -36,7 +36,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
     resetStatus();
 
     if (formState.password !== formState.confirmPassword) {
-      setStatus({ type: 'error', message: 'Passwords do not match.' });
+      setStatus({ type: 'error', message: 'Passwords do not match' });
       return;
     }
 
@@ -270,7 +270,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
 
                 <div>
                   <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    Confirm Password
+                    CONFIRM PASSWORD
                   </label>
                   <input
                     type="password"
