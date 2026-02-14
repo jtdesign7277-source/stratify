@@ -1153,22 +1153,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 rounded-lg bg-[#111111] border border-[#1f1f1f] p-1">
-              {['1', '5', '15', '30', '60', 'D', 'W', 'M'].map((interval) => (
-                <button
-                  key={interval}
-                  onClick={() => setChartInterval(interval)}
-                  className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors ${
-                    chartInterval === interval
-                      ? 'bg-[#1a1a1a] text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'
-                  }`}
-                  aria-pressed={chartInterval === interval}
-                >
-                  {interval}
-                </button>
-              ))}
-            </div>
             {!isTradePanelOpen && (
               <button
                 onClick={() => setIsTradePanelOpen(true)}
