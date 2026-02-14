@@ -306,6 +306,16 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
             )}
           </AnimatePresence>
         </div>
+
+        <div className="mt-6 text-center text-xs text-white/60">
+          <button
+            type="button"
+            onClick={() => (onBackToLanding ? onBackToLanding() : window.location.assign('/'))}
+            className="text-white/70 transition hover:text-white"
+          >
+            Continue as guest
+          </button>
+        </div>
       </div>
     </div>
   );

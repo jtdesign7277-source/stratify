@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
-import AuthPage from './components/AuthPage';
+import SignUpPage from './components/auth/SignUpPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
 // XPill removed - was blocking Grok panel clicks
@@ -974,9 +974,7 @@ export class TeslaEMAStrategy extends Strategy {
 // Main App Component
 function StratifyAppContent() {
   const { isAuthenticated, loading } = useAuth();
-  const [guestSkipped, setGuestSkipped] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
-  const [authDefaultMode, setAuthDefaultMode] = useState('signin');
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1014,14 +1012,8 @@ function StratifyAppContent() {
     realized_pl: 0,
   };
 
-  const openAuth = (mode = 'signin') => {
-    setAuthDefaultMode(mode);
+  const openAuth = () => {
     setCurrentPage('auth');
-  };
-
-  const handleSkip = () => {
-    setGuestSkipped(true);
-    setCurrentPage('dashboard');
   };
 
   const mainContent =
@@ -1038,10 +1030,9 @@ function StratifyAppContent() {
         isAuthenticated={isAuthenticated}
       />
     ) : currentPage === 'auth' ? (
-      <AuthPage
-        defaultMode={authDefaultMode}
-        onSkip={handleSkip}
-        onBack={() => setCurrentPage('landing')}
+      <SignUpPage
+        onSuccess={() => setCurrentPage('dashboard')}
+        onBackToLanding={() => setCurrentPage('landing')}
       />
     ) : (
       <Dashboard
@@ -1066,10 +1057,10 @@ function StratifyAppContent() {
   }, [currentPage, isAuthenticated]);
 
   useEffect(() => {
-    if (currentPage === 'dashboard' && !isAuthenticated && !guestSkipped) {
+    if (currentPage === 'dashboard' && !isAuthenticated) {
       openAuth('signin');
     }
-  }, [currentPage, guestSkipped, isAuthenticated]);
+  }, [currentPage, isAuthenticated]);
 
   if (loading) {
     return (
