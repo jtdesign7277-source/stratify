@@ -110,15 +110,15 @@ export default function MoreInfoPage() {
         {/* Header Row */}
         <div className="flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-white">Contact & Support</h2>
-            <p className="text-gray-500 text-xs">Get help or reach out to our team</p>
+            <h2 className="text-xl font-semibold text-white">Contact & Support</h2>
+            <p className="text-gray-500 text-sm">Get help or reach out to our team</p>
           </div>
           
           {/* Quick Links */}
           <div className="flex items-center gap-2">
             <a 
               href="mailto:jeff@stratify-associates.com" 
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-xs transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-sm transition-all"
             >
               <Mail className="w-3.5 h-3.5" strokeWidth={1.5} />
               jeff@stratify-associates.com
@@ -127,7 +127,7 @@ export default function MoreInfoPage() {
               href="https://x.com/stratify_hq" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-xs transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#111118] border border-[#2a2a3d] hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 text-sm transition-all"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -142,7 +142,7 @@ export default function MoreInfoPage() {
           
           {/* Contact Form */}
           <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-4 flex flex-col">
-            <h3 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+            <h3 className="text-white font-medium text-lg mb-3 flex items-center gap-2">
               <Mail className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
               Send us a message
             </h3>
@@ -154,7 +154,7 @@ export default function MoreInfoPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all" 
+                  className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all" 
                   placeholder="Name"
                 />
                 <input 
@@ -162,7 +162,7 @@ export default function MoreInfoPage() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
-                  className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all" 
+                  className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all" 
                   placeholder="Email"
                 />
               </div>
@@ -170,7 +170,7 @@ export default function MoreInfoPage() {
               <select 
                 value={formData.subject}
                 onChange={(e) => setFormData(p => ({ ...p, subject: e.target.value }))}
-                className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-xs focus:outline-none focus:border-emerald-500/60 transition-all"
+                className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/60 transition-all"
               >
                 <option>General Inquiry</option>
                 <option>Technical Support</option>
@@ -185,14 +185,14 @@ export default function MoreInfoPage() {
                 value={formData.message}
                 onChange={(e) => setFormData(p => ({ ...p, message: e.target.value }))}
                 placeholder="How can we help?" 
-                className="flex-1 w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all resize-none" 
+                className="flex-1 w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-emerald-500/60 transition-all resize-none" 
               />
               
               <div className="flex items-center gap-2">
                 <button 
                   type="submit"
                   disabled={status === 'loading'}
-                  className="px-2.5 py-1 rounded-md border border-emerald-500/40 hover:border-emerald-400 disabled:opacity-50 text-emerald-400 hover:text-emerald-300 text-xs font-medium transition-all flex items-center gap-1.5"
+                  className="px-2.5 py-1 rounded-md border border-emerald-500/40 hover:border-emerald-400 disabled:opacity-50 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-all flex items-center gap-1.5"
                 >
                   {status === 'loading' ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Sending...</>
@@ -203,12 +203,12 @@ export default function MoreInfoPage() {
                 
                 <AnimatePresence>
                   {status === 'success' && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-emerald-400 text-xs flex items-center gap-1">
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-emerald-400 text-sm flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Sent!
                     </motion.span>
                   )}
                   {status === 'error' && (
-                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-400 text-xs flex items-center gap-1">
+                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-400 text-sm flex items-center gap-1">
                       <XCircle className="w-3 h-3" /> Failed
                     </motion.span>
                   )}
@@ -218,7 +218,7 @@ export default function MoreInfoPage() {
           </div>
 
           {/* Live Chat */}
-          <div className="min-h-0 flex flex-col">
+          <div className="min-h-0 flex flex-col [&_*]:text-sm [&>div>div:first-child>span]:text-lg [&>div>div:first-child>div>span:last-child]:text-xs">
             <SupportChat compact className="flex-1" />
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function MoreInfoPage() {
 
           {/* FAQ Section */}
           <div className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-xl p-4 flex flex-col">
-            <h3 className="text-white font-medium text-sm mb-3">Frequently Asked Questions</h3>
+            <h3 className="text-white font-medium text-lg mb-3">Frequently Asked Questions</h3>
             
             <div className="flex-1 flex flex-col justify-between space-y-2">
               
@@ -238,7 +238,7 @@ export default function MoreInfoPage() {
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
                     className="w-full px-4 py-3 flex items-center justify-between text-left text-white hover:bg-[#111118] transition-colors"
                   >
-                    <span className="text-sm font-medium">{faq.q}</span>
+                    <span className="text-base font-medium">{faq.q}</span>
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} />
                   </button>
                   <AnimatePresence>
@@ -250,7 +250,7 @@ export default function MoreInfoPage() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <p className="px-4 pb-3 text-gray-400 text-xs leading-relaxed">{faq.a}</p>
+                        <p className="px-4 pb-3 text-gray-400 text-sm leading-relaxed">{faq.a}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -262,12 +262,12 @@ export default function MoreInfoPage() {
           {/* User Profile */}
           <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 text-white">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-medium text-sm flex items-center gap-2">
+              <h3 className="text-white font-medium text-lg flex items-center gap-2">
                 <User className="w-4 h-4 text-emerald-400" strokeWidth={1.5} />
                 User Profile
               </h3>
               {isAuthenticated && (
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${accountBadge.badgeClass}`}>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
                   <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
                   {accountBadge.label}
                 </span>
@@ -278,7 +278,7 @@ export default function MoreInfoPage() {
               <div className="space-y-4">
                 {/* Avatar + Name (editable) */}
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0">
+                  <div className="h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white text-xl font-semibold flex-shrink-0">
                     {initials}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -287,14 +287,14 @@ export default function MoreInfoPage() {
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/60 transition-all"
+                        className="w-full rounded-md border border-[#2a2a3d] bg-[#111118] px-3 py-2 text-white text-base focus:outline-none focus:border-emerald-500/60 transition-all"
                         placeholder="Display name"
                         autoFocus
                       />
                     ) : (
-                      <p className="text-base font-semibold text-white truncate">{displayName}</p>
+                      <p className="text-lg font-semibold text-white truncate">{displayName}</p>
                     )}
-                    <p className="text-sm text-gray-400 truncate mt-0.5">{email}</p>
+                    <p className="text-base text-gray-400 truncate mt-0.5">{email}</p>
                   </div>
                 </div>
 
@@ -317,36 +317,36 @@ export default function MoreInfoPage() {
                     }}
                     className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block text-left w-full"
                   >
-                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
                       <Shield className="w-4 h-4" strokeWidth={1.5} />
                       Account Type
                     </div>
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${accountBadge.badgeClass}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
                       <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
                       {accountBadge.label}
                     </span>
-                    <p className="text-[10px] text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
+                    <p className="text-sm text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
                       Upgrade to Pro →
                     </p>
                   </button>
                   <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
-                    <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
                       <Calendar className="w-4 h-4" strokeWidth={1.5} />
                       Member Since
                     </div>
-                    <p className="text-sm text-white font-medium">{memberSince}</p>
+                    <p className="text-base text-white font-medium">{memberSince}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
                   <div>
-                    <p className="text-gray-400 text-xs mb-0.5">User ID</p>
-                    <p className="text-sm text-white font-mono">{truncatedId}</p>
+                    <p className="text-gray-400 text-sm mb-0.5">User ID</p>
+                    <p className="text-base text-white font-mono">{truncatedId}</p>
                   </div>
                   <button
                     type="button"
                     onClick={handleCopyId}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 px-3 py-1.5 text-emerald-400 text-xs hover:border-emerald-400 hover:text-emerald-300 transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 px-3 py-1.5 text-emerald-400 text-sm hover:border-emerald-400 hover:text-emerald-300 transition-all"
                   >
                     <Copy className="w-4 h-4" strokeWidth={1.5} />
                     Copy
@@ -370,7 +370,7 @@ export default function MoreInfoPage() {
                         }
                       }}
                       disabled={editStatus === 'saving'}
-                      className="flex-1 rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-300 transition-all disabled:opacity-50"
+                      className="flex-1 rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-base font-medium flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-300 transition-all disabled:opacity-50"
                     >
                       {editStatus === 'saving' ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
@@ -381,7 +381,7 @@ export default function MoreInfoPage() {
                     <button
                       type="button"
                       onClick={() => { setIsEditing(false); setEditStatus(null); }}
-                      className="rounded-md border border-[#2a2a3d] px-3 py-2.5 text-gray-400 text-sm font-medium hover:border-red-500/40 hover:text-red-400 transition-all"
+                      className="rounded-md border border-[#2a2a3d] px-3 py-2.5 text-gray-400 text-base font-medium hover:border-red-500/40 hover:text-red-400 transition-all"
                     >
                       Cancel
                     </button>
@@ -390,20 +390,20 @@ export default function MoreInfoPage() {
                   <button
                     type="button"
                     onClick={() => { setIsEditing(true); setEditName(fullName || ''); }}
-                    className="w-full rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-sm font-medium flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-300 transition-all"
+                    className="w-full rounded-md border border-emerald-500/40 px-3 py-2.5 text-emerald-400 text-base font-medium flex items-center justify-center gap-2 hover:border-emerald-400 hover:text-emerald-300 transition-all"
                   >
                     <Edit3 className="w-4 h-4" strokeWidth={1.5} />
                     Edit Profile
                   </button>
                 )}
                 {editStatus === 'error' && (
-                  <p className="text-red-400 text-xs flex items-center gap-1">
+                  <p className="text-red-400 text-sm flex items-center gap-1">
                     <XCircle className="w-3.5 h-3.5" /> Failed to update profile
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">Sign in to view your profile</p>
+              <p className="text-gray-500 text-base">Sign in to view your profile</p>
             )}
           </div>
 
