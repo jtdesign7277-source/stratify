@@ -154,6 +154,42 @@ const PortfolioPage = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-auto">
       <div className="px-6 pt-6 pb-8 space-y-6">
+        {/* Connected Accounts — compact row */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-1.5">
+            <div className="w-5 h-5 bg-yellow-500 rounded flex items-center justify-center">
+              <BrokerIcon broker="alpaca" className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-medium text-white">Alpaca</span>
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+            <span className="text-xs text-white/50 font-mono">{formatCurrency(equity)}</span>
+          </div>
+          {connectedBrokers.map((broker) => (
+            <div key={broker.id} className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-1.5 group">
+              <div className="w-5 h-5 rounded flex items-center justify-center overflow-hidden">
+                <BrokerIcon broker={broker.id} className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-medium text-white">{broker.name}</span>
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+              <span className="text-xs text-white/50 font-mono">{formatCurrency(broker.value || 0)}</span>
+              <button
+                onClick={() => handleDisconnectBroker(broker.id)}
+                className="text-white/0 group-hover:text-white/40 hover:!text-red-400 transition-colors"
+                title="Disconnect"
+              >
+                <Unlink className="w-3 h-3" strokeWidth={1.5} />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setShowBrokerModal(true)}
+            className="flex items-center gap-1.5 border border-dashed border-[#2a2a2a] rounded-lg px-3 py-1.5 hover:border-emerald-500/50 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
+            <span className="text-xs text-white/50">Add Broker</span>
+          </button>
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-white/40">Portfolio</div>
@@ -224,101 +260,6 @@ const PortfolioPage = ({
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Connected Accounts</h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
-                    <BrokerIcon broker="alpaca" className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">Alpaca</div>
-                    <div className="text-white/50 text-sm flex items-center gap-1">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                      Connected
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Portfolio</span>
-                  <span className="text-white font-medium font-mono">{formatCurrency(equity)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Buying Power</span>
-                  <span className="text-white font-medium font-mono">{formatCurrency(buyingPower)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Cash</span>
-                  <span className="text-white font-medium font-mono">{formatCurrency(cash)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Daily Change</span>
-                  <span className={`font-medium font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatSignedCurrency(dailyPnL)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {connectedBrokers.map((broker) => (
-              <div key={broker.id} className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4 hover:border-[#2a2a2a] transition-colors">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
-                      <BrokerIcon broker={broker.id} className="w-10 h-10" />
-                    </div>
-                    <div>
-                      <div className="text-white font-medium">{broker.name}</div>
-                      <div className="text-white/50 text-sm flex items-center gap-1">
-                        <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                        Connected
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDisconnectBroker(broker.id)}
-                    className="p-1 text-white/50 hover:text-red-400 transition-colors"
-                    title="Disconnect"
-                  >
-                    <Unlink className="w-4 h-4" strokeWidth={1.5} />
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Portfolio</span>
-                    <span className="text-white font-medium font-mono">{formatCurrency(broker.value || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Cash</span>
-                    <span className="text-white font-medium font-mono">{formatCurrency(broker.cash || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Buying Power</span>
-                    <span className="text-white font-medium font-mono">{formatCurrency(broker.available || 0)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <button
-              onClick={() => setShowBrokerModal(true)}
-              className="bg-[#111111] border border-dashed border-[#2a2a2a] rounded-xl p-4 hover:border-emerald-500/50 hover:bg-white/5 transition-all flex flex-col items-center justify-center min-h-[160px] group"
-            >
-              <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
-                <Plus className="w-6 h-6 text-emerald-400" strokeWidth={1.5} />
-              </div>
-              <div className="text-white font-medium mb-1">Connect a Broker</div>
-              <div className="text-white/50 text-sm text-center">Link your accounts for unified tracking</div>
-            </button>
-          </div>
-        </div>
 
         <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
           <div className="flex items-center justify-between mb-4">
