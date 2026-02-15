@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, 
@@ -52,6 +52,8 @@ const Sidebar = ({
   const [internalCollapsed, setInternalCollapsed] = useState(true);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
+  const [isGrokPulseActive, setIsGrokPulseActive] = useState(false);
+  const grokPulseTimeoutRef = useRef(null);
   const isControlled = typeof expanded === 'boolean';
   const collapsed = isControlled ? !expanded : internalCollapsed;
 
@@ -68,6 +70,29 @@ const Sidebar = ({
   const resolvedActiveCount = Number.isFinite(activeStrategyCount)
     ? activeStrategyCount
     : deployedStrategies.length;
+
+  useEffect(() => {
+    const triggerPulseBurst = () => {
+      setIsGrokPulseActive(true);
+      if (grokPulseTimeoutRef.current) {
+        window.clearTimeout(grokPulseTimeoutRef.current);
+      }
+
+      // 3 pulses x 2s each + tiny buffer for the final fade-out
+      grokPulseTimeoutRef.current = window.setTimeout(() => {
+        setIsGrokPulseActive(false);
+      }, 6200);
+    };
+
+    const pulseInterval = window.setInterval(triggerPulseBurst, 120000);
+
+    return () => {
+      window.clearInterval(pulseInterval);
+      if (grokPulseTimeoutRef.current) {
+        window.clearTimeout(grokPulseTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -202,7 +227,7 @@ const Sidebar = ({
           }`}
           title={collapsed ? 'Grok AI Chat' : undefined}
         >
-          <div className="relative flex-shrink-0">
+          <div className={`relative flex-shrink-0 ${isGrokPulseActive ? 'grok-attention-pulse-active' : ''}`}>
             <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-sm group-hover:bg-emerald-500/40 transition-all" />
             <GrokIcon className="relative w-[18px] h-[18px] text-emerald-400" />
           </div>

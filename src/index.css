@@ -98,3 +98,27 @@ h1, h2, h3, h4, h5, h6 {
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out forwards;
 }
+
+/* Subtle Grok/X attention pulse burst (triggered every 120s from Sidebar.jsx) */
+@keyframes subtle-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(52, 211, 153, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+.grok-attention-pulse-active {
+  border-radius: 9999px;
+  animation: subtle-pulse 2s ease-in-out 0s 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grok-attention-pulse-active {
+    animation: none;
+  }
+}
