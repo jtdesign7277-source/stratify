@@ -449,10 +449,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const defaultEquitySymbol = equityStocks.find(s => s.symbol === 'NVDA')?.symbol || equityStocks[0]?.symbol || 'NVDA';
   const defaultCryptoSymbol = cryptoStocks[0]?.symbol || 'BTC-USD';
   const selectedTicker = activeMarket === 'crypto' ? (selectedCrypto || defaultCryptoSymbol) : (selectedEquity || defaultEquitySymbol);
+  const selectedWatchlistTicker = useMemo(() => {
+    const selected = activeMarket === 'crypto' ? selectedCrypto : selectedEquity;
+    if (!selected) return null;
+    return activeWatchlist.some((stock) => stock.symbol === selected) ? selected : null;
+  }, [activeMarket, activeWatchlist, selectedCrypto, selectedEquity]);
   const activeQuotes = activeMarket === 'crypto' ? cryptoQuotes : equityQuotes;
   const selectedQuote = selectedTicker ? activeQuotes[selectedTicker] : null;
   const activeLoading = activeMarket === 'crypto' ? cryptoLoading : equityLoading;
   const selectedDisplaySymbol = activeMarket === 'crypto' ? getCryptoDisplaySymbol(selectedTicker) : selectedTicker;
+  const selectedWatchlistDisplaySymbol = selectedWatchlistTicker
+    ? (activeMarket === 'crypto' ? getCryptoDisplaySymbol(selectedWatchlistTicker) : selectedWatchlistTicker)
+    : '';
+  const canUseWatchlistActions = Boolean(selectedWatchlistTicker);
+  const pinTooltip = canUseWatchlistActions ? `Pin ${selectedWatchlistDisplaySymbol}` : 'Pin';
+  const removeTooltip = canUseWatchlistActions ? `Remove ${selectedWatchlistDisplaySymbol}` : 'Remove';
   const selectedName = useMemo(() => {
     if (!selectedTicker) return '';
     if (activeMarket === 'crypto') {
@@ -811,15 +822,14 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     setSearchResults([]);
   };
 
-  const handleRemoveStock = (symbol, e) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleRemoveStock = useCallback((symbol) => {
+    if (!symbol) return;
     if (activeMarket === 'crypto') {
       setCryptoWatchlist(prev => prev.filter(s => s.symbol !== symbol));
     } else if (onRemoveFromWatchlist) {
       onRemoveFromWatchlist(symbol);
     }
-  };
+  }, [activeMarket, onRemoveFromWatchlist]);
 
   const handleSelectSymbol = useCallback((symbol) => {
     if (activeMarket === 'crypto') {
@@ -828,6 +838,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       setSelectedEquity(symbol);
     }
   }, [activeMarket]);
+
+  const handlePinSelectedTicker = useCallback(() => {
+    if (!selectedWatchlistTicker) return;
+    if (pinnedTabs.includes(selectedWatchlistTicker)) {
+      removePinnedTab(selectedWatchlistTicker);
+      return;
+    }
+    if (onPinToTop) onPinToTop(selectedWatchlistTicker);
+    addPinnedTab(selectedWatchlistTicker);
+  }, [selectedWatchlistTicker, pinnedTabs, onPinToTop, addPinnedTab, removePinnedTab]);
+
+  const handleRemoveSelectedTicker = useCallback(() => {
+    if (!selectedWatchlistTicker) return;
+    handleRemoveStock(selectedWatchlistTicker);
+  }, [selectedWatchlistTicker, handleRemoveStock]);
 
   // Handle drag & drop reordering
   const handleDragEnd = useCallback((result) => {
@@ -1173,6 +1198,28 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                   <span className="text-gray-500 font-medium">POLLING (10s)</span>
                 </>
               )}
+              <button
+                type="button"
+                onClick={handlePinSelectedTicker}
+                disabled={!canUseWatchlistActions}
+                className={`text-emerald-400 transition-opacity ${
+                  canUseWatchlistActions ? 'opacity-40 hover:opacity-100' : 'opacity-20 cursor-not-allowed'
+                }`}
+                title={pinTooltip}
+              >
+                <Pin className="w-3.5 h-3.5" strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveSelectedTicker}
+                disabled={!canUseWatchlistActions}
+                className={`text-emerald-400 transition-opacity ${
+                  canUseWatchlistActions ? 'opacity-40 hover:opacity-100' : 'opacity-20 cursor-not-allowed'
+                }`}
+                title={removeTooltip}
+              >
+                <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} />
+              </button>
             </div>
           </div>
         )}
@@ -1212,7 +1259,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                   const afterHoursChange = quote.afterHoursChange;
                   const afterHoursChangePercent = quote.afterHoursChangePercent;
                   const isPositive = changePercent !== 0 ? changePercent >= 0 : change >= 0;
-                  const isSelected = selectedTicker === stock.symbol;
+                  const isSelected = selectedWatchlistTicker === stock.symbol;
                   const stockInfo = activeMarket === 'crypto'
                     ? CRYPTO_DATABASE.find(s => s.symbol === stock.symbol || s.displaySymbol === stock.symbol)
                     : STOCK_DATABASE.find(s => s.symbol === stock.symbol);
@@ -1318,27 +1365,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                 )}
                               </div>
 
-                              {/* Pin/remove actions appear only when hovering this action area */}
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2 w-[4.75rem] flex items-center justify-end gap-1 opacity-0 hover:opacity-100 transition-opacity duration-200">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onPinToTop) onPinToTop(stock.symbol);
-                                    addPinnedTab(stock.symbol);
-                                  }}
-                                  className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400"
-                                  title="Pin to top"
-                                >
-                                  <Pin className="w-4 h-4" strokeWidth={1.5} />
-                                </button>
-
-                                <button
-                                  onClick={(e) => handleRemoveStock(stock.symbol, e)}
-                                  className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400"
-                                >
-                                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                                </button>
-                              </div>
                             </>
                           )}
                         </div>
