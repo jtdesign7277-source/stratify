@@ -1237,7 +1237,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                             e.dataTransfer.setData('text/plain', stock.symbol);
                             e.dataTransfer.effectAllowed = 'copy';
                           }}
-                          className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                          className={`relative flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
                             isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                           } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'} ${
                             snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
@@ -1266,7 +1266,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                 <div className="text-white/50 text-sm truncate">{name}</div>
                               </div>
 
-                              <div className="text-right flex-shrink-0 mr-3">
+                              <div className="ml-auto pr-3 text-right flex-shrink-0">
                                 <div className="text-white font-semibold text-base font-mono">
                                   {price > 0 ? `$${formatPrice(price)}` : '...'}
                                 </div>
@@ -1319,7 +1319,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                               </div>
 
                               {/* Pin/remove actions appear only when hovering this action area */}
-                              <div className="ml-1 w-[4.75rem] flex items-center justify-end gap-1 opacity-0 hover:opacity-100 transition-opacity duration-200">
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 w-[4.75rem] flex items-center justify-end gap-1 opacity-0 hover:opacity-100 transition-opacity duration-200">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
