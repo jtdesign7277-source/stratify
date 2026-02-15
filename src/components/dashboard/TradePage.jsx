@@ -1237,7 +1237,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                             e.dataTransfer.setData('text/plain', stock.symbol);
                             e.dataTransfer.effectAllowed = 'copy';
                           }}
-                          className={`flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                          className={`group flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
                             isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                           } ${watchlistState === 'closed' ? 'px-2 py-3' : 'px-4 py-3'} ${
                             snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
@@ -1318,25 +1318,27 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                                 )}
                               </div>
 
-                              {/* Pin to top + local pills */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onPinToTop) onPinToTop(stock.symbol);
-                                  addPinnedTab(stock.symbol);
-                                }}
-                                className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400"
-                                title="Pin to top"
-                              >
-                                <Pin className="w-4 h-4" strokeWidth={1.5} />
-                              </button>
+                              {/* Pin/remove actions appear on row hover */}
+                              <div className="ml-1 flex items-center gap-1 overflow-hidden max-w-0 opacity-0 pointer-events-none transition-all duration-200 group-hover:max-w-24 group-hover:opacity-100 group-hover:pointer-events-auto">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onPinToTop) onPinToTop(stock.symbol);
+                                    addPinnedTab(stock.symbol);
+                                  }}
+                                  className="p-2 hover:bg-emerald-500/20 rounded-lg transition-colors text-gray-600 hover:text-emerald-400"
+                                  title="Pin to top"
+                                >
+                                  <Pin className="w-4 h-4" strokeWidth={1.5} />
+                                </button>
 
-                              <button 
-                                onClick={(e) => handleRemoveStock(stock.symbol, e)}
-                                className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400"
-                              >
-                                <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                              </button>
+                                <button
+                                  onClick={(e) => handleRemoveStock(stock.symbol, e)}
+                                  className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400"
+                                >
+                                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>

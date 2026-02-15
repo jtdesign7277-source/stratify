@@ -500,7 +500,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
               <div key={stock.symbol}
                 draggable
                 onDragStart={(e) => { e.dataTransfer.setData('text/plain', stock.symbol); e.dataTransfer.effectAllowed = 'copy'; }}
-                className={`flex items-center justify-between cursor-grab active:cursor-grabbing transition-all border-b border-[#1f1f1f]/30 ${
+                className={`group flex items-center justify-between cursor-grab active:cursor-grabbing transition-all border-b border-[#1f1f1f]/30 ${
                   isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-[#111111]'
                 } ${isCollapsed ? 'px-2 py-3' : 'px-4 py-3'}`}
                 onClick={() => setSelectedTicker(stock.symbol)}>
@@ -532,10 +532,12 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                         </div>
                       )}
                     </div>
-                    <button onClick={(e) => handleRemoveStock(stock.symbol, e)}
-                      className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400">
-                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                    </button>
+                    <div className="ml-1 flex items-center overflow-hidden max-w-0 opacity-0 pointer-events-none transition-all duration-200 group-hover:max-w-12 group-hover:opacity-100 group-hover:pointer-events-auto">
+                      <button onClick={(e) => handleRemoveStock(stock.symbol, e)}
+                        className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-600 hover:text-red-400">
+                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
