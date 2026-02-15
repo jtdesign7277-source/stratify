@@ -1,12 +1,46 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
+import {
+  createChart,
+  CandlestickSeries,
+  HistogramSeries,
+  ColorType,
+} from 'lightweight-charts';
 
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
 const VOLUME_UP = 'rgba(34, 197, 94, 0.3)';
 const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
 
-const AlpacaLightweightChart = ({ symbol, interval = '1Day' }) => {
+class ChartErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    // Avoid taking down the whole app when charts fail to initialize.
+    console.error('Lightweight chart error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="relative h-full w-full bg-[#060d18]">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 bg-[#060d18]/80">
+            Chart failed to load.
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -17,57 +51,66 @@ const AlpacaLightweightChart = ({ symbol, interval = '1Day' }) => {
   useEffect(() => {
     if (!containerRef.current) return undefined;
 
-    const chart = createChart(containerRef.current, {
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: '#060d18' },
-        textColor: '#9ca3af',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255,255,255,0.03)' },
-        horzLines: { color: 'rgba(255,255,255,0.03)' },
-      },
-      crosshair: {
-        vertLine: { color: 'rgba(255,255,255,0.15)', width: 1 },
-        horzLine: { color: 'rgba(255,255,255,0.15)', width: 1 },
-      },
-      rightPriceScale: {
-        borderVisible: false,
-        scaleMargins: { top: 0.08, bottom: 0.2 },
-      },
-      timeScale: {
-        borderVisible: false,
-      },
-    });
+    try {
+      const chart = createChart(containerRef.current, {
+        autoSize: true,
+        layout: {
+          background: { type: ColorType.Solid, color: '#060d18' },
+          textColor: '#9ca3af',
+        },
+        grid: {
+          vertLines: { color: 'rgba(255,255,255,0.03)' },
+          horzLines: { color: 'rgba(255,255,255,0.03)' },
+        },
+        crosshair: {
+          vertLine: { color: 'rgba(255,255,255,0.15)', width: 1 },
+          horzLine: { color: 'rgba(255,255,255,0.15)', width: 1 },
+        },
+        rightPriceScale: {
+          borderVisible: false,
+          scaleMargins: { top: 0.08, bottom: 0.2 },
+        },
+        timeScale: {
+          borderVisible: false,
+        },
+      });
 
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: UP_COLOR,
-      downColor: DOWN_COLOR,
-      wickUpColor: UP_COLOR,
-      wickDownColor: DOWN_COLOR,
-      borderUpColor: UP_COLOR,
-      borderDownColor: DOWN_COLOR,
-    });
+      const candleSeries = chart.addSeries(CandlestickSeries, {
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
+        wickUpColor: UP_COLOR,
+        wickDownColor: DOWN_COLOR,
+        borderUpColor: UP_COLOR,
+        borderDownColor: DOWN_COLOR,
+      });
 
-    const volumeSeries = chart.addHistogramSeries({
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-    });
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'volume',
+      });
 
-    chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
+      chart.priceScale('volume').applyOptions({
+        scaleMargins: { top: 0.8, bottom: 0 },
+      });
 
-    chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
-    volumeSeriesRef.current = volumeSeries;
+      chartRef.current = chart;
+      candleSeriesRef.current = candleSeries;
+      volumeSeriesRef.current = volumeSeries;
 
-    return () => {
-      chart.remove();
-      chartRef.current = null;
-      candleSeriesRef.current = null;
-      volumeSeriesRef.current = null;
-    };
+      return () => {
+        chart.remove();
+        chartRef.current = null;
+        candleSeriesRef.current = null;
+        volumeSeriesRef.current = null;
+      };
+    } catch (err) {
+      console.error('Failed to initialize lightweight chart:', err);
+      setStatus({
+        loading: false,
+        error: err?.message || 'Failed to initialize chart',
+      });
+      return undefined;
+    }
   }, []);
 
   useEffect(() => {
@@ -214,5 +257,11 @@ const AlpacaLightweightChart = ({ symbol, interval = '1Day' }) => {
     </div>
   );
 };
+
+const AlpacaLightweightChart = (props) => (
+  <ChartErrorBoundary>
+    <AlpacaLightweightChartInner {...props} />
+  </ChartErrorBoundary>
+);
 
 export default AlpacaLightweightChart;
