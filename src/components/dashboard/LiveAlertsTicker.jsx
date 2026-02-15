@@ -5,11 +5,54 @@ const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const NEWS_REFRESH_MS = 5 * 60 * 1000;
 
 const fallbackNews = [
-  { id: 1, headline: 'Fed signals potential rate pause in March meeting', type: 'news' },
-  { id: 2, headline: 'NVDA earnings beat expectations, stock surges after hours', type: 'news' },
-  { id: 3, headline: 'Bitcoin breaks $50K resistance level', type: 'news' },
-  { id: 4, headline: 'Tesla announces new factory expansion in Texas', type: 'news' },
+  { id: 1, text: 'Fed signals potential rate pause in March meeting', category: 'breaking' },
+  { id: 2, text: 'NVDA earnings beat expectations, stock surges after hours', category: 'bullish' },
+  { id: 3, text: 'Bitcoin breaks $50K resistance level', category: 'crypto' },
+  { id: 4, text: 'Tesla announces new factory expansion in Texas', category: 'breaking' },
 ];
+
+const normalizeCategory = (category) => {
+  const normalized = String(category || '').toLowerCase();
+  if (normalized === 'bullish' || normalized === 'bearish' || normalized === 'crypto') {
+    return normalized;
+  }
+  return 'breaking';
+};
+
+const categoryIconStyles = {
+  bullish: {
+    color: '#00C853',
+    className: 'w-1.5 h-1.5 rounded-full',
+  },
+  bearish: {
+    color: '#F44336',
+    className: 'w-1.5 h-1.5 rounded-full',
+  },
+  crypto: {
+    color: '#1E88E5',
+    className: 'w-1.5 h-1.5 rounded-[2px]',
+  },
+  breaking: {
+    color: '#9C27B0',
+    className: 'w-1.5 h-1.5 rounded-full',
+  },
+};
+
+const normalizeTrendingNews = (items = []) => (
+  items
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null;
+      const text = String(item.text || item.headline || '').trim();
+      if (!text) return null;
+
+      return {
+        id: item.id ?? index,
+        text,
+        category: normalizeCategory(item.category),
+      };
+    })
+    .filter(Boolean)
+);
 
 const LiveAlertsTicker = () => {
   const [alerts, setAlerts] = useState([
@@ -17,7 +60,7 @@ const LiveAlertsTicker = () => {
     { id: 2, symbol: 'TSLA', pnl: -23.40, price: 245.30, type: 'trade' },
     { id: 3, symbol: 'META', pnl: 127.50, price: 542.15, type: 'trade' },
   ]);
-  const [news, setNews] = useState([]);
+  const [news, setNews] = useState(fallbackNews);
 
   // Fetch recent filled orders from Alpaca
   useEffect(() => {
@@ -57,27 +100,14 @@ const LiveAlertsTicker = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const normalizeNews = (items = []) => (
-      items
-        .filter(item => item && item.headline)
-        .map((item, index) => ({
-          id: item.id ?? item.url ?? index,
-          headline: item.headline,
-          source: item.source,
-          url: item.url,
-          datetime: item.datetime,
-          type: 'news'
-        }))
-    );
-
-    const fetchNews = async () => {
+    const fetchTrendingNews = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/news/market`);
+        const response = await fetch('/api/trending');
         if (!response.ok) {
-          throw new Error('Failed to fetch news');
+          throw new Error('Failed to fetch trending headlines');
         }
         const data = await response.json();
-        const normalized = normalizeNews(Array.isArray(data) ? data : []);
+        const normalized = normalizeTrendingNews(Array.isArray(data) ? data : []);
         if (isMounted) {
           setNews(normalized.length ? normalized : fallbackNews);
         }
@@ -88,8 +118,8 @@ const LiveAlertsTicker = () => {
       }
     };
 
-    fetchNews();
-    const interval = setInterval(fetchNews, NEWS_REFRESH_MS);
+    fetchTrendingNews();
+    const interval = setInterval(fetchTrendingNews, NEWS_REFRESH_MS);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -107,8 +137,8 @@ const LiveAlertsTicker = () => {
     })),
     ...news.map(n => ({
       ...n,
-      text: `📰 ${n.headline}`,
-      color: '#8ab4f8'
+      type: 'news',
+      color: '#E8EAED'
     }))
   ];
 
@@ -150,6 +180,12 @@ const LiveAlertsTicker = () => {
           {/* Duplicate items for seamless loop */}
           {[...allItems, ...allItems].map((item, idx) => (
             <span key={`${item.id}-${idx}`} className="flex items-center">
+              {item.type === 'news' && (
+                <span
+                  className={`inline-block mr-1.5 shrink-0 ${categoryIconStyles[item.category]?.className || categoryIconStyles.breaking.className}`}
+                  style={{ backgroundColor: categoryIconStyles[item.category]?.color || categoryIconStyles.breaking.color }}
+                />
+              )}
               <span 
                 className="text-xs font-medium"
                 style={{ color: item.color }}
