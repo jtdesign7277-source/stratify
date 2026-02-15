@@ -38,22 +38,34 @@ const LiveAvatarChat = () => {
 
       // Handle avatar video + audio
       room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        console.log('[LiveAvatar] Track subscribed:', track.kind, track.sid, participant?.identity);
         if (track.kind === Track.Kind.Video) {
-          const el = track.attach();
           if (videoRef.current) {
-            videoRef.current.innerHTML = '';
+            // Clear previous
+            videoRef.current.querySelectorAll('video').forEach(v => v.remove());
+            const el = track.attach();
             el.style.width = '100%';
             el.style.height = '100%';
             el.style.objectFit = 'cover';
             el.style.borderRadius = '16px';
+            el.autoplay = true;
+            el.playsInline = true;
             videoRef.current.appendChild(el);
+            console.log('[LiveAvatar] Video element attached');
           }
         }
         if (track.kind === Track.Kind.Audio) {
           const audioEl = track.attach();
+          audioEl.autoplay = true;
           audioEl.style.display = 'none';
           document.body.appendChild(audioEl);
+          console.log('[LiveAvatar] Audio element attached');
         }
+      });
+
+      // Also listen for tracks already published
+      room.on(RoomEvent.TrackPublished, (publication, participant) => {
+        console.log('[LiveAvatar] Track published:', publication.kind, publication.trackSid, participant?.identity);
       });
 
       // Listen for data messages (captions/text from avatar)
@@ -84,6 +96,25 @@ const LiveAvatarChat = () => {
       });
 
       room.on(RoomEvent.Disconnected, () => setStatus('idle'));
+
+      // Log all participants and their tracks when connected
+      room.on(RoomEvent.ParticipantConnected, (participant) => {
+        console.log('[LiveAvatar] Participant connected:', participant.identity);
+        participant.trackPublications.forEach((pub) => {
+          console.log('[LiveAvatar] Existing track:', pub.kind, pub.trackSid, pub.isSubscribed);
+          if (pub.track) {
+            if (pub.track.kind === Track.Kind.Video && videoRef.current) {
+              const el = pub.track.attach();
+              el.style.width = '100%';
+              el.style.height = '100%';
+              el.style.objectFit = 'cover';
+              el.autoplay = true;
+              el.playsInline = true;
+              videoRef.current.appendChild(el);
+            }
+          }
+        });
+      });
 
       const url = livekitData.url || livekitData.livekit_url;
       const token = livekitData.access_token || livekitData.token || livekitData.livekit_client_token;
