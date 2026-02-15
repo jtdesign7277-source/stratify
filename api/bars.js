@@ -5,7 +5,15 @@ import Alpaca from '@alpacahq/alpaca-trade-api';
 
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 10000;
-const ALLOWED_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour', '1Day', '1Week']);
+const TIMEFRAME_MAP = {
+  '1Min': '1Min',
+  '5Min': '5Min',
+  '15Min': '15Min',
+  '1Hour': '1Hour',
+  '1Day': '1Day',
+  '1Week': '1Week',
+};
+const ALLOWED_TIMEFRAMES = new Set(Object.keys(TIMEFRAME_MAP));
 
 const parseLimit = (value) => {
   const parsed = Number(value);
@@ -16,7 +24,7 @@ const parseLimit = (value) => {
 const parseDate = (value) => {
   if (!value) return null;
   const ts = Date.parse(value);
-  return Number.isNaN(ts) ? null : value;
+  return Number.isNaN(ts) ? null : new Date(ts).toISOString();
 };
 
 export default async function handler(req, res) {
@@ -49,6 +57,7 @@ export default async function handler(req, res) {
       error: `Invalid timeframe. Must be one of: ${Array.from(ALLOWED_TIMEFRAMES).join(', ')}`,
     });
   }
+  const mappedTimeframe = TIMEFRAME_MAP[normalizedTimeframe];
 
   const startIso = parseDate(start);
   const endIso = parseDate(end);
@@ -83,7 +92,7 @@ export default async function handler(req, res) {
     });
 
     const options = {
-      timeframe: normalizedTimeframe,
+      timeframe: mappedTimeframe,
       limit: parseLimit(limit),
       adjustment: 'split',
       feed: 'sip',

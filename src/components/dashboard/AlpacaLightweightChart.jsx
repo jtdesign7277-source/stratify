@@ -10,6 +10,35 @@ const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
 const VOLUME_UP = 'rgba(34, 197, 94, 0.3)';
 const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
+const INTRADAY_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour']);
+const TRADING_DAYS_LOOKBACK = 5;
+const YEARS_LOOKBACK = 2;
+
+const getStartForInterval = (timeframe) => {
+  const now = new Date();
+
+  if (INTRADAY_TIMEFRAMES.has(timeframe)) {
+    const start = new Date(now);
+    let remaining = TRADING_DAYS_LOOKBACK;
+
+    while (remaining > 0) {
+      const day = start.getDay();
+      if (day !== 0 && day !== 6) {
+        remaining -= 1;
+        if (remaining === 0) break;
+      }
+      start.setDate(start.getDate() - 1);
+    }
+
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  const start = new Date(now);
+  start.setFullYear(start.getFullYear() - YEARS_LOOKBACK);
+  start.setHours(0, 0, 0, 0);
+  return start;
+};
 
 class ChartErrorBoundary extends React.Component {
   constructor(props) {
@@ -128,10 +157,19 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
       lastBarRef.current = null;
 
       try {
-        const response = await fetch(
-          `/api/bars?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(interval)}&limit=500`
-        );
+        const start = getStartForInterval(interval);
+        const end = new Date();
+        const params = new URLSearchParams({
+          symbol,
+          timeframe: interval,
+          limit: '500',
+          start: start.toISOString(),
+          end: end.toISOString(),
+        });
+
+        const response = await fetch(`/api/bars?${params.toString()}`);
         const data = await response.json();
+        console.log('Bars API response', { symbol, interval, data });
 
         if (!response.ok) {
           throw new Error(data?.error || 'Failed to load bars');
@@ -141,6 +179,15 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         }
 
         if (cancelled) return;
+
+        if (data.length === 0) {
+          candleSeriesRef.current?.setData([]);
+          volumeSeriesRef.current?.setData([]);
+          chartRef.current?.timeScale().fitContent();
+          lastBarRef.current = null;
+          setStatus({ loading: false, error: 'No data available.' });
+          return;
+        }
 
         const candleData = data.map((bar) => ({
           time: bar.time,
@@ -164,7 +211,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
         setStatus({
           loading: false,
-          error: data.length === 0 ? 'No data available for this symbol.' : null,
+          error: null,
         });
       } catch (err) {
         if (cancelled) return;
