@@ -76,7 +76,6 @@ const Sidebar = ({
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
-    { id: 'predictions', label: 'Predictions', icon: GrokIcon },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },

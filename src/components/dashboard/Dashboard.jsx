@@ -29,7 +29,6 @@ import CommandPalette, { useCommandPalette, KeyboardShortcutsModal } from './Com
 import Home from './Home';
 import WatchlistPage from './WatchlistPage';
 import MarketsPage from './MarketsPage';
-import PredictionsPage from './PredictionsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
@@ -90,6 +89,13 @@ const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 const PAPER_TRADING_BALANCE = 100000;
 const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+const HIDDEN_TABS = new Set(['predictions']);
+
+const sanitizeActiveTab = (tab, fallback = 'trade') => {
+  const normalized = String(tab || '').trim();
+  if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
+  return normalized;
+};
 
 const normalizeStrategyIdentity = (strategy) => {
   if (!strategy || typeof strategy !== 'object') return null;
@@ -394,7 +400,7 @@ export default function Dashboard({
   
   const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
-  const [activeTab, setActiveTab] = useState(savedState?.activeTab ?? 'trade');
+  const [activeTab, setActiveTab] = useState(() => sanitizeActiveTab(savedState?.activeTab));
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
@@ -592,7 +598,7 @@ export default function Dashboard({
     if (!state || typeof state !== 'object') return;
     if (typeof state.sidebarExpanded === 'boolean') setSidebarExpanded(state.sidebarExpanded);
     if (Number.isFinite(Number(state.rightPanelWidth))) setRightPanelWidth(Number(state.rightPanelWidth));
-    if (state.activeTab) setActiveTab(String(state.activeTab));
+    if (state.activeTab) setActiveTab(sanitizeActiveTab(state.activeTab));
     if (state.activeSection) setActiveSection(String(state.activeSection));
     if (state.theme === 'dark' || state.theme === 'light') setTheme(state.theme);
     const nextPaperBalance = toNumberOrNull(state.paperTradingBalance);
@@ -646,6 +652,12 @@ export default function Dashboard({
   useEffect(() => {
     if (activeTab === 'templates') {
       setIsGrokPanelCollapsed(true);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'predictions') {
+      setActiveTab('trade');
     }
   }, [activeTab]);
   const [grokMessageCount, setGrokMessageCount] = useState(0);
@@ -1784,7 +1796,6 @@ export default function Dashboard({
             </ProGate>
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
-          {activeTab === 'predictions' && <PredictionsPage themeClasses={themeClasses} />}
           {activeTab === 'ai-chat' && (
             <ProGate
               featureName="AI Chat"
