@@ -100,6 +100,7 @@ export const AuthProvider = ({ children }) => {
             email,
             full_name: full_name || null,
             referral: referral || null,
+            paper_trading_balance: 100000,
             created_at: new Date().toISOString(),
           },
           { onConflict: 'id' }

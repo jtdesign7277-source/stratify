@@ -58,6 +58,12 @@ const saveLocalDashboardState = (state) => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
 };
 
+const stripPaperBalanceForRemoteState = (state) => {
+  if (!state || typeof state !== 'object') return {};
+  const { paperTradingBalance: _paperTradingBalance, ...rest } = state;
+  return rest;
+};
+
 const isMissingColumnError = (error, columnName) => {
   const message = String(error?.message || '').toLowerCase();
   return message.includes(columnName.toLowerCase()) && message.includes('column');
@@ -76,8 +82,8 @@ export default function useDashboardStateSync(user, dashboardState, onHydrate) {
   const saveToSupabase = useCallback(async (userId, payload, serializedPayload) => {
     if (!userId || !supabase) return;
 
+    const userStatePayload = stripPaperBalanceForRemoteState(payload);
     const baseUpdate = {
-      paper_trading_balance: payload.paperTradingBalance,
       updated_at: new Date().toISOString(),
     };
 
@@ -86,7 +92,7 @@ export default function useDashboardStateSync(user, dashboardState, onHydrate) {
         .from('profiles')
         .update({
           ...baseUpdate,
-          user_state: payload,
+          user_state: userStatePayload,
         })
         .eq('id', userId);
 
@@ -164,12 +170,12 @@ export default function useDashboardStateSync(user, dashboardState, onHydrate) {
         const remoteState = profileData?.user_state && typeof profileData.user_state === 'object'
           ? profileData.user_state
           : {};
+        const persistedPaperBalance = toFiniteNumber(profileData?.paper_trading_balance, null);
 
         const hydrated = normalizeDashboardState({
           ...local,
           ...remoteState,
-          paperTradingBalance: profileData?.paper_trading_balance
-            ?? remoteState.paperTradingBalance
+          paperTradingBalance: persistedPaperBalance
             ?? local.paperTradingBalance,
         });
 

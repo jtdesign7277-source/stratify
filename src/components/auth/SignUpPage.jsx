@@ -66,6 +66,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
               email: formState.email,
               full_name: formState.fullName,
               subscription_status: 'free',
+              paper_trading_balance: 100000,
             },
             { onConflict: 'id' }
           );
