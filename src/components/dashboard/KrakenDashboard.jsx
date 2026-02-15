@@ -1026,7 +1026,7 @@ const ArbOppsPanel = ({ onClose }) => {
 };
 
 // Main Dashboard Component - with ALL existing functionality
-export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
+export default function KrakenDashboard({ setCurrentPage, alpacaData, demoMode = false }) {
   const savedState = loadDashboardState();
   
   // ALL state from original Dashboard
@@ -1167,6 +1167,9 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
 
   const handleDeleteStrategy = (strategyId) => {
     setStrategies(prev => prev.filter(s => s.id !== strategyId));
+
+    if (!demoMode) return;
+
     setTimeout(() => {
       setStrategies(prev => {
         if (prev.length < 3) {
@@ -1258,29 +1261,31 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
 
   // Auto-populate demo data
   useEffect(() => {
-    if (strategies.length === 0) {
-      const timer = setTimeout(() => {
-        setStrategies([
-          generateRandomStrategy(),
-          generateRandomStrategy(),
-          generateRandomStrategy(),
-        ]);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [strategies.length]);
+    if (!demoMode || strategies.length !== 0) return;
+
+    const timer = setTimeout(() => {
+      setStrategies([
+        generateRandomStrategy(),
+        generateRandomStrategy(),
+        generateRandomStrategy(),
+      ]);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [demoMode, strategies.length]);
 
   useEffect(() => {
-    if (deployedStrategies.length === 0) {
-      const timer = setTimeout(() => {
-        setDeployedStrategies([
-          generateRandomDeployedStrategy(),
-          generateRandomDeployedStrategy(),
-        ]);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [deployedStrategies.length]);
+    if (!demoMode || deployedStrategies.length !== 0) return;
+
+    const timer = setTimeout(() => {
+      setDeployedStrategies([
+        generateRandomDeployedStrategy(),
+        generateRandomDeployedStrategy(),
+      ]);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [demoMode, deployedStrategies.length]);
 
   useEffect(() => {
     localStorage.setItem('stratify-deployed-strategies', JSON.stringify(deployedStrategies));

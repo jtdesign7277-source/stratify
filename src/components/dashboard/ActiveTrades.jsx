@@ -36,7 +36,7 @@ const ChartPreview = ({ symbol, position }) => {
   );
 };
 
-export const strategiesSeed = [
+const DEMO_STRATEGIES_SEED = [
   { id: 'nvda', symbol: 'NVDA', name: 'NVDA Momentum', status: 'Live', pnl: 1824.32, pnlPct: 2.8, heat: 88 },
   { id: 'aapl', symbol: 'AAPL', name: 'AAPL Mean Revert', status: 'Scaling', pnl: 642.15, pnlPct: 1.2, heat: 61 },
   { id: 'tsla', symbol: 'TSLA', name: 'TSLA Breakout', status: 'Cooling', pnl: -412.5, pnlPct: -0.9, heat: 92 },
@@ -46,7 +46,7 @@ export const strategiesSeed = [
 ];
 
 // Completed trades with entry and exit prices (realistic current prices)
-const tradesByStrategy = {
+const DEMO_TRADES_BY_STRATEGY = {
   nvda: [
     { id: 'nvda-1', timestamp: '2026-02-05T15:42:00', qty: 30, entryPrice: 170.25, exitPrice: 171.88, pnl: 48.9 },
     { id: 'nvda-2', timestamp: '2026-02-05T14:18:00', qty: 20, entryPrice: 172.50, exitPrice: 174.30, pnl: 36.0 },
@@ -179,16 +179,21 @@ const SignalBars = ({ heat }) => {
   );
 };
 
-const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies: propSetStrategies }) => {
+const ActiveTrades = ({
+  setActiveTab,
+  strategies: propStrategies,
+  setStrategies: propSetStrategies,
+  enableDemoData = false,
+}) => {
   const { user } = useAuth();
   const isControlled = Array.isArray(propStrategies);
   const displayName = user?.user_metadata?.full_name?.trim()
     || user?.user_metadata?.name?.trim()
     || user?.email?.split('@')[0]
     || 'trader';
-  const [totalPnl, setTotalPnl] = useState(isControlled ? 0 : 4823.12);
+  const [totalPnl, setTotalPnl] = useState(isControlled ? 0 : (enableDemoData ? 4823.12 : 0));
   const [pnlDelta, setPnlDelta] = useState(0);
-  const [internalStrategies, setInternalStrategies] = useState(strategiesSeed);
+  const [internalStrategies, setInternalStrategies] = useState(enableDemoData ? DEMO_STRATEGIES_SEED : []);
   
   // Use props when available (including empty arrays) to avoid demo fallback for real user data.
   const strategies = isControlled ? propStrategies : internalStrategies;
@@ -202,6 +207,13 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
   const hoverTimeout = useRef(null);
   const confettiCanvasRef = useRef(null);
   const confettiInstanceRef = useRef(null);
+
+  useEffect(() => {
+    if (isControlled) return;
+    setInternalStrategies(enableDemoData ? DEMO_STRATEGIES_SEED : []);
+    setTotalPnl(enableDemoData ? 4823.12 : 0);
+    setPnlDelta(0);
+  }, [enableDemoData, isControlled]);
 
   // Fetch live prices for all symbols
   useEffect(() => {
@@ -243,7 +255,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
   }, [strategies]);
 
   useEffect(() => {
-    if (isControlled) return undefined;
+    if (isControlled || !enableDemoData) return undefined;
 
     const interval = setInterval(() => {
       const delta = Number((Math.random() * 380 - 90).toFixed(2));
@@ -259,7 +271,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
       );
     }, 2400);
     return () => clearInterval(interval);
-  }, [isControlled, setStrategies]);
+  }, [enableDemoData, isControlled, setStrategies]);
 
   useEffect(() => {
     if (!isControlled) return;
@@ -305,9 +317,14 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
   
   const activeTrades = useMemo(() => {
     if (!tradePanelStrategy) return [];
-    const trades = tradesByStrategy[tradePanelStrategy.id] || [];
+    const strategyTrades = Array.isArray(tradePanelStrategy.trades) ? tradePanelStrategy.trades : [];
+    if (strategyTrades.length > 0) {
+      return [...strategyTrades].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }
+    if (!enableDemoData) return [];
+    const trades = DEMO_TRADES_BY_STRATEGY[tradePanelStrategy.id] || [];
     return [...trades].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  }, [tradePanelStrategy]);
+  }, [enableDemoData, tradePanelStrategy]);
 
   return (
     <div className="relative h-screen bg-[#0b0b0b] text-white overflow-hidden flex flex-col">
@@ -567,61 +584,67 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4 space-y-3">
-                {activeTrades.map((trade) => {
-                  const pnlColor = trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-                  const isProfit = trade.pnl >= 0;
+                {activeTrades.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-[#1f1f1f] bg-[#0b0b0b] p-6 text-center text-sm text-white/50">
+                    No completed trades for this strategy yet.
+                  </div>
+                ) : (
+                  activeTrades.map((trade) => {
+                    const pnlColor = trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                    const isProfit = trade.pnl >= 0;
 
-                  return (
-                    <div
-                      key={trade.id}
-                      className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-4 transition hover:border-emerald-500/30 hover:shadow-[0_0_18px_rgba(16,185,129,0.08)]"
-                    >
-                      {/* Header: Date + P&L */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="text-sm font-semibold text-white">{formatTimestamp(trade.timestamp)}</div>
-                        <div className={`text-base font-bold ${pnlColor}`}>{formatMoney(trade.pnl)}</div>
-                      </div>
-                      
-                      {/* Entry / Exit prices */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1f1f1f] p-2.5">
-                          <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">Entry</div>
-                          <div className="text-sm font-semibold text-white">{formatPrice(trade.entryPrice)}</div>
+                    return (
+                      <div
+                        key={trade.id}
+                        className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-4 transition hover:border-emerald-500/30 hover:shadow-[0_0_18px_rgba(16,185,129,0.08)]"
+                      >
+                        {/* Header: Date + P&L */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-sm font-semibold text-white">{formatTimestamp(trade.timestamp)}</div>
+                          <div className={`text-base font-bold ${pnlColor}`}>{formatMoney(trade.pnl)}</div>
                         </div>
-                        <div className="text-white/50">→</div>
-                        <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1f1f1f] p-2.5">
-                          <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">Exit</div>
-                          <div className={`text-sm font-semibold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>{formatPrice(trade.exitPrice)}</div>
+                        
+                        {/* Entry / Exit prices */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1f1f1f] p-2.5">
+                            <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">Entry</div>
+                            <div className="text-sm font-semibold text-white">{formatPrice(trade.entryPrice)}</div>
+                          </div>
+                          <div className="text-white/50">→</div>
+                          <div className="flex-1 rounded-md bg-[#0f0f16] border border-[#1f1f1f] p-2.5">
+                            <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">Exit</div>
+                            <div className={`text-sm font-semibold ${isProfit ? 'text-emerald-400' : 'text-red-400'}`}>{formatPrice(trade.exitPrice)}</div>
+                          </div>
+                        </div>
+                        
+                        {/* Qty + Ticker */}
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">
+                            Quantity: <span className="text-white font-medium">{trade.qty} shares</span>
+                          </span>
+                          <motion.button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Store symbol and navigate to trade page
+                              localStorage.setItem('stratify_chart_symbol', tradePanelStrategy.symbol);
+                              if (setActiveTab) {
+                                setActiveTab('trade');
+                              } else {
+                                // Fallback to TradingView if no navigation available
+                                window.open(`https://www.tradingview.com/chart/?symbol=${tradePanelStrategy.symbol}`, '_blank');
+                              }
+                            }}
+                            animate={{ opacity: [0.85, 1, 0.85] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                            className="text-xs font-bold tracking-wide text-sky-400 hover:text-sky-300 hover:underline transition"
+                          >
+                            ${tradePanelStrategy.symbol} ↗
+                          </motion.button>
                         </div>
                       </div>
-                      
-                      {/* Qty + Ticker */}
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-400">
-                          Quantity: <span className="text-white font-medium">{trade.qty} shares</span>
-                        </span>
-                        <motion.button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Store symbol and navigate to trade page
-                            localStorage.setItem('stratify_chart_symbol', tradePanelStrategy.symbol);
-                            if (setActiveTab) {
-                              setActiveTab('trade');
-                            } else {
-                              // Fallback to TradingView if no navigation available
-                              window.open(`https://www.tradingview.com/chart/?symbol=${tradePanelStrategy.symbol}`, '_blank');
-                            }
-                          }}
-                          animate={{ opacity: [0.85, 1, 0.85] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="text-xs font-bold tracking-wide text-sky-400 hover:text-sky-300 hover:underline transition"
-                        >
-                          ${tradePanelStrategy.symbol} ↗
-                        </motion.button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </motion.aside>
           </>

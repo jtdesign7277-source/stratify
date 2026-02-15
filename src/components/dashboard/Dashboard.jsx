@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X } from 'lucide-react';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
+import useSubscription from '../../hooks/useSubscription';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
 import TopMetricsBar from './TopMetricsBar';
@@ -44,6 +45,7 @@ import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
+import UpgradePrompt from '../UpgradePrompt';
 
 const loadDashboardState = () => {
   try {
@@ -56,6 +58,42 @@ const loadDashboardState = () => {
 
 const saveDashboardState = (state) => {
   localStorage.setItem('stratify-dashboard-state', JSON.stringify(state));
+};
+
+const FREE_STRATEGY_LIMIT = 3;
+const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+
+const normalizeStrategyIdentity = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return null;
+
+  if (strategy.id !== null && strategy.id !== undefined && String(strategy.id).trim()) {
+    return `id:${String(strategy.id).trim()}`;
+  }
+
+  const name = String(strategy.name || '').trim().toLowerCase();
+  if (!name) return null;
+
+  const tickerSource = strategy.ticker || strategy.symbol || strategy.asset || strategy.tickers;
+  const ticker = Array.isArray(tickerSource)
+    ? tickerSource.join(',').trim().toLowerCase()
+    : String(tickerSource || '').trim().toLowerCase();
+
+  return `name:${name}|ticker:${ticker}`;
+};
+
+const buildStrategyIdentitySet = (...strategyLists) => {
+  const identities = new Set();
+
+  strategyLists.forEach((list) => {
+    if (!Array.isArray(list)) return;
+
+    list.forEach((strategy) => {
+      const identity = normalizeStrategyIdentity(strategy);
+      if (identity) identities.add(identity);
+    });
+  });
+
+  return identities;
 };
 
 export default function Dashboard({
@@ -112,6 +150,7 @@ export default function Dashboard({
   }, []);
   
   const { user } = useAuth();
+  const { subscriptionStatus } = useSubscription();
   const { trades, addTrade } = useTradeHistoryStore();
   const { watchlist, setWatchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop, loaded } = useWatchlistSync(user);
   
@@ -213,6 +252,7 @@ export default function Dashboard({
       return [];
     }
   });
+  const [showStrategyLimitModal, setShowStrategyLimitModal] = useState(false);
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
@@ -227,6 +267,32 @@ export default function Dashboard({
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
+
+  const isPaidTier = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
+  const strategyIdentitySet = useMemo(
+    () => buildStrategyIdentitySet(strategies, savedStrategies, deployedStrategies),
+    [strategies, savedStrategies, deployedStrategies],
+  );
+  const strategyCount = strategyIdentitySet.size;
+
+  const canCreateStrategy = useCallback(
+    (candidateStrategy) => {
+      const candidateIdentity = normalizeStrategyIdentity(candidateStrategy);
+      if (candidateIdentity && strategyIdentitySet.has(candidateIdentity)) {
+        return true;
+      }
+
+      if (isPaidTier) return true;
+
+      if (strategyCount >= FREE_STRATEGY_LIMIT) {
+        setShowStrategyLimitModal(true);
+        return false;
+      }
+
+      return true;
+    },
+    [isPaidTier, strategyCount, strategyIdentitySet],
+  );
   
   // Collapse Grok panel when on templates page
   useEffect(() => {
@@ -247,8 +313,7 @@ export default function Dashboard({
         setActiveSection('strategies');
         break;
       case 'builder':
-        setActiveSection('watchlist');
-        setPanelStates(prev => ({ ...prev, strategyBuilder: true }));
+        setActiveTab('builder');
         break;
       case 'arbitrage':
         setActiveSection('watchlist');
@@ -266,8 +331,7 @@ export default function Dashboard({
   const handleCommandAction = useCallback((action, data) => {
     switch (action) {
       case 'newStrategy':
-        setActiveSection('watchlist');
-        setPanelStates(prev => ({ ...prev, strategyBuilder: true }));
+        setActiveTab('builder');
         break;
       case 'openAI':
         setActiveSection('watchlist');
@@ -313,6 +377,8 @@ export default function Dashboard({
   });
 
   const handleStrategyGenerated = (strategy) => {
+    if (!canCreateStrategy(strategy)) return;
+
     setStrategies(prev => {
       if (prev.some(s => s.name === strategy.name)) return prev;
       return [...prev, { ...strategy, status: 'draft' }];
@@ -343,6 +409,8 @@ export default function Dashboard({
   };
 
   const handleSaveToSidebar = (strategy) => {
+    if (!canCreateStrategy(strategy)) return;
+
     setSavedStrategies(prev => {
       if (prev.some(s => s.id === strategy.id)) return prev;
       const maxDrawdown = parseFloat(strategy.metrics?.maxDrawdown) || 15;
@@ -375,6 +443,8 @@ export default function Dashboard({
       savedAt: Date.now(),
     };
 
+    if (!canCreateStrategy(templateStrategy)) return;
+
     setSavedStrategies(prev => {
       const existing = prev.find(s => s.id === templateStrategy.id);
       if (existing) {
@@ -391,6 +461,8 @@ export default function Dashboard({
   };
 
   const handleDeployStrategy = (strategy, navigateToActive = false) => {
+    if (!canCreateStrategy(strategy)) return;
+
     const strategyId = strategy.id || `strat-${Date.now()}`;
     
     // Convert saved strategy to active trade format
@@ -706,6 +778,17 @@ export default function Dashboard({
               setActiveTab={setActiveTab}
             />
           )}
+          {activeTab === 'builder' && (
+            <StrategyBuilder
+              strategies={strategies}
+              deployedStrategies={deployedStrategies}
+              onStrategyGenerated={handleStrategyGenerated}
+              onDeleteStrategy={handleDeleteStrategy}
+              onDeployStrategy={handleDeployStrategy}
+              onUpdateStrategy={handleUpdateStrategy}
+              themeClasses={themeClasses}
+            />
+          )}
           {activeTab === 'trade' && (
             <ProGate
               featureName="Paper Trading"
@@ -776,6 +859,7 @@ export default function Dashboard({
               onRunBacktest={handleTerminalBacktest}
               isLoading={isTerminalLoading}
               onDeploy={(strategy) => {
+                if (!canCreateStrategy(strategy)) return;
                 setDeployedStrategies(prev => [...prev, strategy]);
               }}
               onNavigateToActive={() => setActiveTab('active')}
@@ -795,6 +879,8 @@ export default function Dashboard({
             setTimeout(() => setActiveTab('terminal'), 50);
           }}
           onSaveStrategy={(strategy) => {
+            if (!canCreateStrategy(strategy)) return;
+
             setSavedStrategies(prev => {
               // Don't add if already exists
               if (prev.some(s => s.id === strategy.id)) {
@@ -804,6 +890,8 @@ export default function Dashboard({
             });
           }}
           onDeployStrategy={(strategy) => {
+            if (!canCreateStrategy(strategy)) return;
+
             // Add to saved strategies
             setSavedStrategies(prev => {
               if (prev.some(s => s.id === strategy.id)) {
@@ -822,6 +910,30 @@ export default function Dashboard({
         />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
+
+      {showStrategyLimitModal && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowStrategyLimitModal(false)}
+        >
+          <div className="relative w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setShowStrategyLimitModal(false)}
+              className="absolute right-4 top-4 z-10 p-1.5 rounded-md bg-black/30 hover:bg-black/50 text-white/60 hover:text-white transition-colors"
+              aria-label="Close upgrade modal"
+            >
+              <X className="w-4 h-4" strokeWidth={1.8} />
+            </button>
+            <UpgradePrompt
+              featureName="Free Strategy Limit Reached"
+              description="You have reached your free strategy limit (3/3). Upgrade to Pro for unlimited strategies, advanced backtesting, and more."
+              priceId={PRO_PRICE_ID}
+              className="mx-auto"
+            />
+          </div>
+        </div>
+      )}
 
       {selectedStock && (
         <StockDetailView 

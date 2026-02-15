@@ -526,7 +526,7 @@ const StrategiesPage = ({
 
         {strategies.length === 0 && (
           <div className="mb-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4 flex items-center justify-between gap-3">
-            <div className="text-sm text-white/70">Create your first strategy</div>
+            <div className="text-sm text-white/70">No strategies yet. Create your first strategy to get started.</div>
             <button
               type="button"
               onClick={() => setActiveTab?.('builder')}
