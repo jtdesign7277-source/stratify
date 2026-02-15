@@ -289,6 +289,35 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
 
         </div>
 
+        {/* ============ PROMO VIDEO SECTION ============ */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="relative py-24 px-8 bg-[#060d18]"
+        >
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-white/30 text-xs tracking-[0.3em] uppercase mb-4">
+              See It In Action
+            </p>
+            <h2 className="text-3xl md:text-4xl font-light text-white mb-10">
+              Meet <span className="bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">Stratify</span>
+            </h2>
+            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(16,185,129,0.15)]">
+              <video
+                controls
+                playsInline
+                preload="metadata"
+                poster=""
+                className="w-full aspect-video bg-black"
+              >
+                <source src="/stratify-promo.mp4" type="video/mp4" />
+              </video>
+            </div>
+          </div>
+        </motion.section>
+
         {/* ============ INFO SECTION ============ */}
         <motion.section
           initial={{ opacity: 0 }}
