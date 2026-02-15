@@ -37,25 +37,9 @@ export default async function handler(req, res) {
       return res.status(response.status || 500).json({ error: data.message || 'Token generation failed' });
     }
 
-    // Now start the session
-    const startRes = await fetch('https://api.liveavatar.com/v1/sessions/start', {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'authorization': `Bearer ${data.data.session_token}`,
-      },
-    });
-
-    const startData = await startRes.json();
-
-    if (!startRes.ok || startData.code !== 1000) {
-      return res.status(startRes.status || 500).json({ error: startData.message || 'Session start failed' });
-    }
-
+    // Only return the token - SDK handles session.start() on the client
     return res.status(200).json({
-      session_id: data.data.session_id,
       session_token: data.data.session_token,
-      livekit: startData.data,
     });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to connect to LiveAvatar API: ' + err.message });
