@@ -117,8 +117,29 @@ h1, h2, h3, h4, h5, h6 {
   animation: subtle-pulse 2s ease-in-out 0s 3;
 }
 
+@keyframes tradeGlow {
+  0% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.trade-tab-active-glow {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+  animation: tradeGlow 3s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .grok-attention-pulse-active {
+    animation: none;
+  }
+
+  .trade-tab-active-glow {
     animation: none;
   }
 }

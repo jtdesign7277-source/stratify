@@ -133,6 +133,18 @@ const Sidebar = ({
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             const isLegend = item.id === 'legend';
+            const isTrade = item.id === 'trade';
+            const isTradeActive = isTrade && isActive;
+            const activeTabClasses = isLegend
+              ? 'text-amber-400 bg-amber-500/10 border border-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
+              : isTradeActive
+                ? 'text-white bg-blue-500/10 border border-blue-400/30 trade-tab-active-glow'
+                : 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20';
+            const activeIconClass = isLegend
+              ? 'text-amber-400'
+              : isTradeActive
+                ? 'text-blue-300'
+                : 'text-emerald-300';
             
             return (
               <li key={item.id}>
@@ -140,15 +152,13 @@ const Sidebar = ({
                   onClick={() => handleTabClick(item.id)}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 min-h-[36px] rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
-                      ? isLegend
-                        ? 'text-amber-400 bg-amber-500/10 border border-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
-                        : 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20'
+                      ? activeTabClasses
                       : 'text-white hover:bg-white/5 border border-transparent'
                   } ${collapsed ? 'justify-center px-2' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
                   <Icon 
-                    className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? (isLegend ? 'text-amber-400' : 'text-emerald-300') : ''}`} 
+                    className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? activeIconClass : ''}`} 
                     strokeWidth={1.5}
                     fill="none"
                   />

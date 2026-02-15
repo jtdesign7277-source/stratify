@@ -1393,6 +1393,299 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             <TradingViewWidget symbol={chartSymbol} interval={chartInterval} />
           </div>
 
+          <div
+            className={`relative flex flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
+              isTradePanelOpen
+                ? 'w-[300px] border-l border-white/10 opacity-100'
+                : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="border-b border-white/10 px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => { clearOrderError(); setOrderSide('buy'); }}
+                    className={`transition ${orderSide === 'buy' ? 'text-emerald-400' : 'text-white/40 hover:text-white/70'}`}
+                  >
+                    Buy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { clearOrderError(); setOrderSide('sell'); }}
+                    className={`transition ${orderSide === 'sell' ? 'text-red-400' : 'text-white/40 hover:text-white/70'}`}
+                  >
+                    Sell
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTradePanelOpen(false)}
+                  aria-label="Collapse trade panel"
+                  className="text-white/40 hover:text-white/70 transition"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-bold text-white">{selectedDisplaySymbol}</span>
+                  <span className={`text-xl ${priceTextClass}`}>
+                    {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-white/40">
+                  Bid {formatPrice(bidPrice)} · Ask {formatPrice(askPrice)}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {/* Entry Step */}
+              <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
+                orderStep === 'entry' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+              }`}>
+                <div className="space-y-2">
+                  <label className="text-sm text-white/60">Order Type</label>
+                  <select
+                    value={orderType}
+                    onChange={(e) => { clearOrderError(); setOrderType(e.target.value); }}
+                    className={selectBaseClass}
+                  >
+                    {ORDER_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value} className="bg-[#0a0f1a]">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {orderType === 'limit' && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Limit Price</span>
+                    <input type="number" min="0" step="0.01" value={limitPrice}
+                      onChange={(e) => { clearOrderError(); setLimitPrice(e.target.value); }}
+                      className={inputBaseClass} />
+                  </div>
+                )}
+
+                {orderType === 'stop' && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Stop Price</span>
+                    <input type="number" min="0" step="0.01" value={stopPrice}
+                      onChange={(e) => { clearOrderError(); setStopPrice(e.target.value); }}
+                      className={inputBaseClass} />
+                  </div>
+                )}
+
+                {orderType === 'stop_limit' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-white/60">Stop Price</span>
+                      <input type="number" min="0" step="0.01" value={stopPrice}
+                        onChange={(e) => { clearOrderError(); setStopPrice(e.target.value); }}
+                        className={inputBaseClass} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-white/60">Limit Price</span>
+                      <input type="number" min="0" step="0.01" value={limitPrice}
+                        onChange={(e) => { clearOrderError(); setLimitPrice(e.target.value); }}
+                        className={inputBaseClass} />
+                    </div>
+                  </div>
+                )}
+
+                {orderType === 'trailing_stop' && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Trail Amount ($)</span>
+                    <input type="number" min="0" step="0.01" value={trailAmount}
+                      onChange={(e) => { clearOrderError(); setTrailAmount(e.target.value); }}
+                      className={inputBaseClass} />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Shares</span>
+                    <input type="number" min="0" step="1" value={orderQty}
+                      onChange={(e) => { clearOrderError(); setOrderQty(e.target.value); }}
+                      className={`${inputBaseClass} w-24`} />
+                  </div>
+                  {orderSide === 'sell' && (
+                    <div className="text-xs text-white/40">
+                      {availableSharesDisplay} shares available
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-white/10 pt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Market Price</span>
+                    <span className="text-sm text-white">
+                      {marketPrice > 0 ? formatUsd(marketPrice) : '--'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Estimated Cost</span>
+                    <span className="text-sm text-white">
+                      {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Buying Power</span>
+                    <span className="text-sm text-white/40">{buyingPowerDisplay}</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-white">Estimated Total</span>
+                      <span className="text-lg font-semibold text-white">
+                        {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {orderError && <div className="text-xs text-red-300">{orderError}</div>}
+
+                <button type="button" onClick={handleReview} disabled={!canReview}
+                  className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${!canReview ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Review Order
+                </button>
+              </div>
+
+              {/* Review Step */}
+              <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
+                orderStep === 'review' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+              }`}>
+                <div className="space-y-3 rounded-lg border border-white/10 p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Side</span>
+                    <span className={orderSide === 'buy' ? 'text-emerald-300' : 'text-red-300'}>
+                      {orderSide === 'buy' ? 'Buy' : 'Sell'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Ticker</span>
+                    <span className="text-white">{selectedDisplaySymbol}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Order Type</span>
+                    <span className="text-white">{orderTypeLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Shares</span>
+                    <span className="text-white">{orderQtyNumber}</span>
+                  </div>
+                  {orderType === 'limit' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/60">Limit Price</span>
+                      <span className="text-white">{formatUsd(limitPriceNumber)}</span>
+                    </div>
+                  )}
+                  {orderType === 'stop' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/60">Stop Price</span>
+                      <span className="text-white">{formatUsd(stopPriceNumber)}</span>
+                    </div>
+                  )}
+                  {orderType === 'stop_limit' && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60">Stop Price</span>
+                        <span className="text-white">{formatUsd(stopPriceNumber)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60">Limit Price</span>
+                        <span className="text-white">{formatUsd(limitPriceNumber)}</span>
+                      </div>
+                    </>
+                  )}
+                  {orderType === 'trailing_stop' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/60">Trail Amount</span>
+                      <span className="text-white">{formatUsd(trailAmountNumber)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Estimated Total</span>
+                    <span className="text-white">
+                      {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
+                    </span>
+                  </div>
+                </div>
+
+                <button type="button" onClick={() => setOrderStep('entry')}
+                  className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
+                >
+                  Edit
+                </button>
+                <button type="button" onClick={handleSubmitOrder}
+                  disabled={orderStatus.state === 'submitting'}
+                  className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${
+                    orderStatus.state === 'submitting' ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit Order'}
+                </button>
+              </div>
+
+              {/* Confirm Step */}
+              <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
+                orderStep === 'confirm' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className={`mt-1 h-5 w-5 ${orderStatus.state === 'success' ? 'text-emerald-400' : 'text-red-400'}`} />
+                  <div>
+                    <div className="text-lg font-medium text-white">
+                      {orderStatus.state === 'success' ? 'Order Submitted' : 'Order Failed'}
+                    </div>
+                    {orderStatus.state === 'error' && (
+                      <div className="mt-1 text-sm text-red-300">{orderStatus.message}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Ticker</span>
+                    <span className="text-white">{selectedDisplaySymbol}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Side</span>
+                    <span className="text-white">{orderSide === 'buy' ? 'Buy' : 'Sell'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Shares</span>
+                    <span className="text-white">{orderQtyNumber}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Order Type</span>
+                    <span className="text-white">{orderTypeLabel}</span>
+                  </div>
+                  {orderStatus.data?.filled_avg_price && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/60">Fill Price</span>
+                      <span className="text-white">{formatUsd(orderStatus.data.filled_avg_price)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Timestamp</span>
+                    <span className="text-white">
+                      {orderTimestamp ? formatTimestamp(orderTimestamp) : '--'}
+                    </span>
+                  </div>
+                </div>
+
+                <button type="button" onClick={handleResetOrder}
+                  className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className={`border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] min-h-0 transition-all duration-300 ${
             socialCollapsed ? 'w-full xl:w-14 p-1' : 'w-full xl:w-80 p-1.5'
           }`}>
@@ -1434,299 +1727,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               </div>
             )}
           </div>
-
-      <div
-        className={`relative flex flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
-          isTradePanelOpen
-            ? 'w-[300px] border-l border-white/10 opacity-100'
-            : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="border-b border-white/10 px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => { clearOrderError(); setOrderSide('buy'); }}
-                className={`transition ${orderSide === 'buy' ? 'text-emerald-400' : 'text-white/40 hover:text-white/70'}`}
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={() => { clearOrderError(); setOrderSide('sell'); }}
-                className={`transition ${orderSide === 'sell' ? 'text-red-400' : 'text-white/40 hover:text-white/70'}`}
-              >
-                Sell
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsTradePanelOpen(false)}
-              aria-label="Collapse trade panel"
-              className="text-white/40 hover:text-white/70 transition"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-white">{selectedDisplaySymbol}</span>
-              <span className={`text-xl ${priceTextClass}`}>
-                {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
-              </span>
-            </div>
-            <div className="mt-1 text-xs text-white/40">
-              Bid {formatPrice(bidPrice)} · Ask {formatPrice(askPrice)}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {/* Entry Step */}
-          <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
-            orderStep === 'entry' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}>
-            <div className="space-y-2">
-              <label className="text-sm text-white/60">Order Type</label>
-              <select
-                value={orderType}
-                onChange={(e) => { clearOrderError(); setOrderType(e.target.value); }}
-                className={selectBaseClass}
-              >
-                {ORDER_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-[#0a0f1a]">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {orderType === 'limit' && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Limit Price</span>
-                <input type="number" min="0" step="0.01" value={limitPrice}
-                  onChange={(e) => { clearOrderError(); setLimitPrice(e.target.value); }}
-                  className={inputBaseClass} />
-              </div>
-            )}
-
-            {orderType === 'stop' && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Stop Price</span>
-                <input type="number" min="0" step="0.01" value={stopPrice}
-                  onChange={(e) => { clearOrderError(); setStopPrice(e.target.value); }}
-                  className={inputBaseClass} />
-              </div>
-            )}
-
-            {orderType === 'stop_limit' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/60">Stop Price</span>
-                  <input type="number" min="0" step="0.01" value={stopPrice}
-                    onChange={(e) => { clearOrderError(); setStopPrice(e.target.value); }}
-                    className={inputBaseClass} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/60">Limit Price</span>
-                  <input type="number" min="0" step="0.01" value={limitPrice}
-                    onChange={(e) => { clearOrderError(); setLimitPrice(e.target.value); }}
-                    className={inputBaseClass} />
-                </div>
-              </div>
-            )}
-
-            {orderType === 'trailing_stop' && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Trail Amount ($)</span>
-                <input type="number" min="0" step="0.01" value={trailAmount}
-                  onChange={(e) => { clearOrderError(); setTrailAmount(e.target.value); }}
-                  className={inputBaseClass} />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Shares</span>
-                <input type="number" min="0" step="1" value={orderQty}
-                  onChange={(e) => { clearOrderError(); setOrderQty(e.target.value); }}
-                  className={`${inputBaseClass} w-24`} />
-              </div>
-              {orderSide === 'sell' && (
-                <div className="text-xs text-white/40">
-                  {availableSharesDisplay} shares available
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-white/10 pt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Market Price</span>
-                <span className="text-sm text-white">
-                  {marketPrice > 0 ? formatUsd(marketPrice) : '--'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Estimated Cost</span>
-                <span className="text-sm text-white">
-                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Buying Power</span>
-                <span className="text-sm text-white/40">{buyingPowerDisplay}</span>
-              </div>
-              <div className="border-t border-white/10 pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-white">Estimated Total</span>
-                  <span className="text-lg font-semibold text-white">
-                    {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {orderError && <div className="text-xs text-red-300">{orderError}</div>}
-
-            <button type="button" onClick={handleReview} disabled={!canReview}
-              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${!canReview ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              Review Order
-            </button>
-          </div>
-
-          {/* Review Step */}
-          <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
-            orderStep === 'review' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}>
-            <div className="space-y-3 rounded-lg border border-white/10 p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Side</span>
-                <span className={orderSide === 'buy' ? 'text-emerald-300' : 'text-red-300'}>
-                  {orderSide === 'buy' ? 'Buy' : 'Sell'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Ticker</span>
-                <span className="text-white">{selectedDisplaySymbol}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Order Type</span>
-                <span className="text-white">{orderTypeLabel}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Shares</span>
-                <span className="text-white">{orderQtyNumber}</span>
-              </div>
-              {orderType === 'limit' && (
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Limit Price</span>
-                  <span className="text-white">{formatUsd(limitPriceNumber)}</span>
-                </div>
-              )}
-              {orderType === 'stop' && (
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Stop Price</span>
-                  <span className="text-white">{formatUsd(stopPriceNumber)}</span>
-                </div>
-              )}
-              {orderType === 'stop_limit' && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Stop Price</span>
-                    <span className="text-white">{formatUsd(stopPriceNumber)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60">Limit Price</span>
-                    <span className="text-white">{formatUsd(limitPriceNumber)}</span>
-                  </div>
-                </>
-              )}
-              {orderType === 'trailing_stop' && (
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Trail Amount</span>
-                  <span className="text-white">{formatUsd(trailAmountNumber)}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Estimated Total</span>
-                <span className="text-white">
-                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
-                </span>
-              </div>
-            </div>
-
-            <button type="button" onClick={() => setOrderStep('entry')}
-              className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
-            >
-              Edit
-            </button>
-            <button type="button" onClick={handleSubmitOrder}
-              disabled={orderStatus.state === 'submitting'}
-              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${
-                orderStatus.state === 'submitting' ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit Order'}
-            </button>
-          </div>
-
-          {/* Confirm Step */}
-          <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
-            orderStep === 'confirm' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className={`mt-1 h-5 w-5 ${orderStatus.state === 'success' ? 'text-emerald-400' : 'text-red-400'}`} />
-              <div>
-                <div className="text-lg font-medium text-white">
-                  {orderStatus.state === 'success' ? 'Order Submitted' : 'Order Failed'}
-                </div>
-                {orderStatus.state === 'error' && (
-                  <div className="mt-1 text-sm text-red-300">{orderStatus.message}</div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Ticker</span>
-                <span className="text-white">{selectedDisplaySymbol}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Side</span>
-                <span className="text-white">{orderSide === 'buy' ? 'Buy' : 'Sell'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Shares</span>
-                <span className="text-white">{orderQtyNumber}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Order Type</span>
-                <span className="text-white">{orderTypeLabel}</span>
-              </div>
-              {orderStatus.data?.filled_avg_price && (
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Fill Price</span>
-                  <span className="text-white">{formatUsd(orderStatus.data.filled_avg_price)}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Timestamp</span>
-                <span className="text-white">
-                  {orderTimestamp ? formatTimestamp(orderTimestamp) : '--'}
-                </span>
-              </div>
-            </div>
-
-            <button type="button" onClick={handleResetOrder}
-              className="w-full rounded-lg border border-white/20 py-2 text-sm text-white/60 hover:text-white transition"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </div>
         </div>
       </div>
     </div>
