@@ -47,7 +47,7 @@ setYahooFinance(yahooFinance);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 app.use('/api/stocks', stocksRouter);
@@ -60,7 +60,11 @@ app.use('/api/trends', trendsRouter);
 app.use('/webhook', webhookRouter);
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    connections: wss.clients.size,
+  });
 });
 
 // ==================== ALPACA ACCOUNT ENDPOINTS ====================
@@ -484,23 +488,60 @@ app.post('/api/atlas/chat', async (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Stratify API running on http://localhost:${PORT}`);
+  console.log('Stratify API running on port ' + PORT);
 });
 
 const wss = new WebSocketServer({ server });
 
+const clientSubscriptions = new Map();
+
 wss.on('connection', (ws) => {
-  console.log('Client connected to WebSocket');
-  ws.on('close', () => console.log('Client disconnected'));
+  console.log('Client connected. Total:', wss.clients.size);
+  clientSubscriptions.set(ws, new Set(['*']));
+  let heartbeat = null;
+
+  ws.on('message', (msg) => {
+    try {
+      const raw = typeof msg === 'string' ? msg : msg.toString();
+      const data = JSON.parse(raw);
+      if (data.action === 'subscribe' && data.symbols) {
+        const subs = clientSubscriptions.get(ws);
+        data.symbols.forEach((s) => subs.add(s.toUpperCase()));
+      }
+    } catch (e) {}
+  });
+
+  ws.on('close', () => {
+    if (heartbeat) clearInterval(heartbeat);
+    clientSubscriptions.delete(ws);
+    console.log('Client disconnected. Total:', wss.clients.size);
+  });
+
+  // Send heartbeat every 30s to keep connection alive
+  heartbeat = setInterval(() => {
+    if (ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() }));
+    } else {
+      clearInterval(heartbeat);
+    }
+  }, 30000);
 });
 
-startAlpacaStream((data) => {
+function broadcast(data) {
   wss.clients.forEach((client) => {
     if (client.readyState === 1) {
-      client.send(JSON.stringify(data));
+      const subs = clientSubscriptions.get(client);
+      if (subs && (subs.has(data.symbol) || subs.has('*'))) {
+        client.send(JSON.stringify(data));
+      }
     }
   });
-});
+}
+
+startAlpacaStream(
+  (quote) => broadcast(quote),
+  (bar) => broadcast(bar)
+);
 
 // Market data endpoints
 app.get('/api/public/quote/:symbol', async (req, res) => {
