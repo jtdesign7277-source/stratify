@@ -282,41 +282,30 @@ const clearGlobalDragPayload = () => {
 
 export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop, onGameDrop }) {
   const account = alpacaData?.account || {};
-  
-  // Mock live P&L data
-  const [mockPnL, setMockPnL] = useState({
-    daily: 1247.83,
-    unrealized: 3892.45,
-    realized: 856.22,
-    netLiq: 125840.00,
-    buyingPower: 251680.00
-  });
 
-  // Animate P&L values
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMockPnL(prev => ({
-        daily: prev.daily + (Math.random() - 0.45) * 50,
-        unrealized: prev.unrealized + (Math.random() - 0.48) * 80,
-        realized: prev.realized + (Math.random() - 0.5) * 20,
-        netLiq: prev.netLiq + (Math.random() - 0.45) * 100,
-        buyingPower: prev.buyingPower + (Math.random() - 0.5) * 50
-      }));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Use real data if available and non-zero, otherwise use mock
-  const hasRealData = account.equity && account.equity > 0;
-  const dailyPnL = hasRealData ? (account.daily_pnl ?? 0) : mockPnL.daily;
-  const unrealizedPnL = hasRealData ? (account.unrealized_pl ?? 0) : mockPnL.unrealized;
-  const realizedPnL = hasRealData ? (account.realized_pl ?? 0) : mockPnL.realized;
-  const netLiquidity = hasRealData ? account.equity : mockPnL.netLiq;
-  const buyingPower = hasRealData ? (account.buying_power ?? 0) : mockPnL.buyingPower;
+  // Use broker values only when we have real account data.
+  const hasRealData = Number(account.equity) > 0;
+  const zeroDisplay = '-$0.00';
+  const dailyPnL = hasRealData ? Number(account.daily_pnl ?? 0) : 0;
+  const unrealizedPnL = hasRealData ? Number(account.unrealized_pl ?? 0) : 0;
+  const netLiquidity = hasRealData ? Number(account.equity ?? 0) : 0;
+  const buyingPower = hasRealData ? Number(account.buying_power ?? 0) : 0;
   
   const metrics = [
-    { label: 'Daily P&L', value: formatCurrency(dailyPnL), change: dailyPnL },
-    { label: 'Buying Power', value: formatCurrencyNeutral(buyingPower) },
+    {
+      label: 'Daily P&L',
+      value: hasRealData ? formatCurrency(dailyPnL) : zeroDisplay,
+      change: hasRealData ? dailyPnL : undefined,
+    },
+    {
+      label: 'Buying Power',
+      value: hasRealData ? formatCurrencyNeutral(buyingPower) : zeroDisplay,
+    },
+    {
+      label: 'Unrealized P&L',
+      value: hasRealData ? formatCurrency(unrealizedPnL) : zeroDisplay,
+      change: hasRealData ? unrealizedPnL : undefined,
+    },
   ];
 
   const getValueColor = (change) => {
@@ -335,6 +324,9 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
             <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
           </div>
         ))}
+        {!hasRealData && (
+          <span className={`text-[10px] ${themeClasses.textMuted}`}>Connect broker to see live data</span>
+        )}
       </div>
       
       {/* Mini Pills Bar - 6 slots for minimized widgets */}
@@ -410,7 +402,9 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
           <div className="flex items-center gap-2">
             <div className="text-right">
               <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
-              <p className={`text-sm font-semibold ${themeClasses.text}`}>{formatCurrencyNeutral(netLiquidity)}</p>
+              <p className={`text-sm font-semibold ${themeClasses.text}`}>
+                {hasRealData ? formatCurrencyNeutral(netLiquidity) : zeroDisplay}
+              </p>
             </div>
           </div>
         </div>

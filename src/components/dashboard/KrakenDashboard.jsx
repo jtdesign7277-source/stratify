@@ -368,76 +368,51 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
     return colors[brokerId] || 'from-gray-500 to-gray-700';
   };
 
-  // Generate account balances from connected brokers
-  // Show 3 default accounts that sum to portfolioValue
-  const defaultAccounts = [
-    {
-      broker: 'Alpaca',
-      brokerId: 'alpaca',
-      icon: getBrokerIcon('alpaca'),
-      colorClass: getBrokerColor('alpaca'),
-      balance: portfolioValue * 0.45, // 45% of portfolio
-      change: 2.14,
-      accountType: 'Margin Account'
-    },
-    {
-      broker: 'Robinhood',
-      brokerId: 'robinhood',
-      icon: getBrokerIcon('robinhood'),
-      colorClass: getBrokerColor('robinhood'),
-      balance: portfolioValue * 0.35, // 35% of portfolio
-      change: 1.87,
-      accountType: 'Cash Account'
-    },
-    {
-      broker: 'Coinbase',
-      brokerId: 'coinbase',
-      icon: getBrokerIcon('coinbase'),
-      colorClass: getBrokerColor('coinbase'),
-      balance: portfolioValue * 0.20, // 20% of portfolio
-      change: -0.42,
-      accountType: 'Crypto'
-    }
-  ];
+  const hasPortfolioData = Number(portfolioValue) > 0;
+  const zeroDisplay = '-$0.00';
 
-  // Use real connected brokers if available, otherwise show defaults
+  // Use connected brokers when available; do not synthesize fake accounts for new users.
   const spotBalances = connectedBrokers.length > 0 
-    ? connectedBrokers.map((broker, index) => {
+    ? connectedBrokers.map((broker) => {
         // For Alpaca, use real data if available
         if (broker.id === 'alpaca' && alpacaData?.account) {
+          const accountEquity = Number(alpacaData.account.equity ?? 0);
+          const accountLastEquity = Number(alpacaData.account.last_equity ?? 0);
+          const accountChangePct = accountEquity > 0 && accountLastEquity > 0
+            ? (((accountEquity - accountLastEquity) / accountLastEquity) * 100).toFixed(2)
+            : 0;
+
           return {
             broker: broker.name,
             brokerId: broker.id,
             icon: getBrokerIcon(broker.id),
             colorClass: getBrokerColor(broker.id),
-            balance: parseFloat(alpacaData.account.equity) || 0,
-            change: alpacaData.account.equity && alpacaData.account.last_equity 
-              ? (((alpacaData.account.equity - alpacaData.account.last_equity) / alpacaData.account.last_equity) * 100).toFixed(2)
-              : 0,
+            balance: accountEquity,
+            change: accountChangePct,
             accountType: alpacaData.account.account_type || 'Trading'
           };
         }
-        // For other brokers, distribute portfolio value (demo mode)
-        const brokerShare = portfolioValue / connectedBrokers.length;
+        // For other brokers, only show zero/default values until real balances are wired.
+        const brokerShare = connectedBrokers.length > 0 ? portfolioValue / connectedBrokers.length : 0;
         return {
           broker: broker.name,
           brokerId: broker.id,
           icon: getBrokerIcon(broker.id),
           colorClass: getBrokerColor(broker.id),
           balance: brokerShare,
-          change: (Math.random() * 4 - 1).toFixed(2),
+          change: 0,
           accountType: broker.accountType || 'Trading'
         };
       })
-    : defaultAccounts;
+    : [];
   
   // Total is sum of all connected account balances
   const totalSpot = spotBalances.reduce((sum, acc) => sum + acc.balance, 0);
   
   // For Trading Stats, use first account or Alpaca data
-  const primaryAccount = spotBalances[0];
-  const cashAvailable = alpacaData?.account?.cash || (totalSpot * 0.35);
-  const buyingPower = alpacaData?.account?.buying_power || (cashAvailable * 2);
+  const cashAvailable = hasPortfolioData ? Number(alpacaData?.account?.cash ?? 0) : 0;
+  const buyingPower = hasPortfolioData ? Number(alpacaData?.account?.buying_power ?? 0) : 0;
+  const dayChangeColor = dayChange > 0 ? 'text-emerald-400' : dayChange < 0 ? 'text-red-400' : 'text-[#9ca3af]';
   
   return (
     <motion.div
@@ -474,14 +449,18 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
         {/* Total Balance */}
         <div className="mb-8">
           <div className="text-4xl font-bold text-white font-mono mb-2">
-            ${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {hasPortfolioData
+              ? `$${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : zeroDisplay}
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-lg font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {dayChange >= 0 ? '+' : ''}${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <span className={`text-lg font-medium ${hasPortfolioData ? dayChangeColor : 'text-[#9ca3af]'}`}>
+              {hasPortfolioData
+                ? `${dayChange >= 0 ? '+' : ''}$${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : zeroDisplay}
             </span>
-            <span className={`px-2 py-0.5 rounded text-sm font-medium ${dayChange >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-              {dayChange >= 0 ? '+' : ''}{dayChangePercent}%
+            <span className={`px-2 py-0.5 rounded text-sm font-medium ${hasPortfolioData ? (dayChange >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400') : 'bg-[#1e1e2d] text-[#9ca3af]'}`}>
+              {hasPortfolioData ? `${dayChange >= 0 ? '+' : ''}${dayChangePercent}%` : '0.00%'}
             </span>
             <span className="text-[#6b6b80] text-sm">today</span>
           </div>
@@ -493,25 +472,35 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
           <div className="bg-[#06060c] rounded-xl p-4 border border-[#1f1f1f]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-[#6b6b80] uppercase tracking-wider">Connected Accounts</h3>
-              <span className="text-white font-mono font-medium">${totalSpot.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="text-white font-mono font-medium">
+                {hasPortfolioData
+                  ? `$${totalSpot.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : zeroDisplay}
+              </span>
             </div>
             <div className="space-y-3">
-              {spotBalances.map((account, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-[#1f1f1f] last:border-0">
-                  <div>
-                    <div className="text-white font-medium">{account.broker}</div>
-                    <div className="text-xs text-[#6b6b80]">{account.accountType}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-white font-mono">${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                    {account.change != 0 && (
-                      <div className={`text-xs ${parseFloat(account.change) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {parseFloat(account.change) >= 0 ? '+' : ''}{account.change}%
-                      </div>
-                    )}
-                  </div>
+              {spotBalances.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-[#2a2a3d] px-3 py-4 text-center text-xs text-[#6b6b80]">
+                  Connect broker to see live data
                 </div>
-              ))}
+              ) : (
+                spotBalances.map((account, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-[#1f1f1f] last:border-0">
+                    <div>
+                      <div className="text-white font-medium">{account.broker}</div>
+                      <div className="text-xs text-[#6b6b80]">{account.accountType}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white font-mono">${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                      {account.change != 0 && (
+                        <div className={`text-xs ${parseFloat(account.change) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {parseFloat(account.change) >= 0 ? '+' : ''}{account.change}%
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
               {/* Add Account Button */}
               <button 
                 onClick={onOpenBrokerModal}
@@ -529,15 +518,23 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Buying Power</span>
-                <span className="text-white font-mono">${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-white font-mono">
+                  {hasPortfolioData
+                    ? `$${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : zeroDisplay}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Cash Available</span>
-                <span className="text-white font-mono">${cashAvailable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-white font-mono">
+                  {hasPortfolioData
+                    ? `$${cashAvailable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : zeroDisplay}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Connected Accounts</span>
-                <span className="text-white font-mono">{spotBalances.length}</span>
+                <span className="text-white font-mono">{connectedBrokers.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Day Trades Left</span>
@@ -545,8 +542,10 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#6b6b80]">Today's P&L</span>
-                <span className={`font-mono font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {dayChange >= 0 ? '+' : ''}${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <span className={`font-mono font-medium ${hasPortfolioData ? dayChangeColor : 'text-[#9ca3af]'}`}>
+                  {hasPortfolioData
+                    ? `${dayChange >= 0 ? '+' : ''}$${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : zeroDisplay}
                 </span>
               </div>
             </div>
@@ -572,14 +571,24 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-white font-mono">${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              <span className={`text-xs font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {dayChange >= 0 ? '+' : ''}{dayChangePercent}%
+              <span className="text-white font-mono">
+                {hasPortfolioData
+                  ? `$${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : zeroDisplay}
+              </span>
+              <span className={`text-xs font-medium ${hasPortfolioData ? dayChangeColor : 'text-[#9ca3af]'}`}>
+                {hasPortfolioData ? `${dayChange >= 0 ? '+' : ''}${dayChangePercent}%` : '0.00%'}
               </span>
             </div>
           </div>
           <div className="h-[140px]">
-            <PortfolioGrowthChart height={140} />
+            {hasPortfolioData ? (
+              <PortfolioGrowthChart height={140} />
+            ) : (
+              <div className="h-full w-full rounded-lg border border-dashed border-[#2a2a3d] bg-[#0a0a11] flex items-center justify-center text-center text-xs text-[#6b6b80] px-4">
+                Connect broker to see live data
+              </div>
+            )}
           </div>
         </div>
         
@@ -1316,9 +1325,19 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const draftStrategiesCount = strategies.filter(s => s.status !== 'deployed').length;
 
   // Portfolio stats (calculated)
-  const portfolioValue = alpacaData?.account?.equity || 127432.18;
-  const dayChange = alpacaData?.account?.equity ? (alpacaData.account.equity - alpacaData.account.last_equity) : 1823.45;
-  const dayChangePercent = portfolioValue > 0 ? ((dayChange / portfolioValue) * 100).toFixed(2) : 1.45;
+  const equity = Number(alpacaData?.account?.equity ?? 0);
+  const lastEquity = Number(alpacaData?.account?.last_equity ?? 0);
+  const hasRealPortfolioData = equity > 0;
+  const portfolioValue = hasRealPortfolioData ? equity : 0;
+  const dayChange = hasRealPortfolioData ? (equity - lastEquity) : 0;
+  const dayChangePercent = hasRealPortfolioData && portfolioValue > 0 ? ((dayChange / portfolioValue) * 100).toFixed(2) : '0.00';
+  const zeroDisplay = '-$0.00';
+  const portfolioValueDisplay = hasRealPortfolioData
+    ? `$${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : zeroDisplay;
+  const todayPnlDisplay = hasRealPortfolioData
+    ? `${dayChange >= 0 ? '+' : ''}$${Math.abs(dayChange).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : zeroDisplay;
 
   return (
     <div className={`h-screen w-screen flex overflow-hidden ${themeClasses.bg} ${themeClasses.text}`}>
@@ -1384,8 +1403,8 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
           <div className="px-6 py-4 flex gap-4 overflow-x-auto">
             <IndexCard
               title="Portfolio"
-              value={`$${portfolioValue.toLocaleString()}`}
-              change={parseFloat(dayChangePercent)}
+              value={portfolioValueDisplay}
+              change={hasRealPortfolioData ? parseFloat(dayChangePercent) : undefined}
               color="purple"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
               onClick={() => setExpandedCard(expandedCard === 'portfolio' ? null : 'portfolio')}
@@ -1418,8 +1437,8 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
             />
             <IndexCard
               title="Today's P&L"
-              value={`${dayChange >= 0 ? '+' : ''}$${Math.abs(dayChange).toLocaleString()}`}
-              change={parseFloat(dayChangePercent)}
+              value={todayPnlDisplay}
+              change={hasRealPortfolioData ? parseFloat(dayChangePercent) : undefined}
               color="amber"
               icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>}
               onClick={() => setExpandedCard(expandedCard === 'pnl' ? null : 'pnl')}
@@ -1505,9 +1524,9 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-white font-mono text-lg">${portfolioValue.toLocaleString()}</span>
-                    <span className={`text-sm font-medium ${dayChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {dayChange >= 0 ? '+' : ''}{dayChangePercent}% today
+                    <span className="text-white font-mono text-lg">{portfolioValueDisplay}</span>
+                    <span className={`text-sm font-medium ${hasRealPortfolioData ? (dayChange >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-[#9ca3af]'}`}>
+                      {hasRealPortfolioData ? `${dayChange >= 0 ? '+' : ''}${dayChangePercent}% today` : '0.00% today'}
                     </span>
                   </div>
                 </div>
@@ -1521,7 +1540,13 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                       exit="hidden"
                       variants={contentFadeVariants}
                     >
-                      <PortfolioGrowthChart height={200} />
+                      {hasRealPortfolioData ? (
+                        <PortfolioGrowthChart height={200} />
+                      ) : (
+                        <div className="h-full w-full rounded-lg border border-dashed border-[#2a2a3d] bg-[#0a0a11] flex items-center justify-center text-center text-sm text-[#6b6b80] px-4">
+                          Connect broker to see live data
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

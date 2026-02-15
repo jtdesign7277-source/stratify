@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Share2, X, Pause, Play } from 'lucide-react';
 import { PnLShareCard } from './PnLShareCard';
+import { useAuth } from '../../context/AuthContext';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -179,6 +180,11 @@ const SignalBars = ({ heat }) => {
 };
 
 const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies: propSetStrategies }) => {
+  const { user } = useAuth();
+  const displayName = user?.user_metadata?.full_name?.trim()
+    || user?.user_metadata?.name?.trim()
+    || user?.email?.split('@')[0]
+    || 'trader';
   const [totalPnl, setTotalPnl] = useState(4823.12);
   const [pnlDelta, setPnlDelta] = useState(0);
   const [internalStrategies, setInternalStrategies] = useState(strategiesSeed);
@@ -385,7 +391,7 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                           avgHoldTime: '1h 42m',
                           volume: Math.floor(Math.random() * 500000) + 100000,
                           chartData: [100, 102, 98, 105, 108, 104, 112, 115, 118, 120, 117, 124],
-                          username: 'jeff_trades',
+                          username: displayName,
                         });
                         setShareOpen(true);
                       }}

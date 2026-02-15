@@ -3,7 +3,7 @@ import { createChart, AreaSeries } from 'lightweight-charts';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
-const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' }) => {
+const PortfolioChart = ({ initialValue = 0, onSaveSnapshot, className = '' }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const seriesRef = useRef(null);
@@ -73,50 +73,31 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
     }
   }, [initialValue]);
 
-  // Generate mock data if no history - ends at real initialValue
-  const generateMockData = (days) => {
-    const data = [];
-    const now = new Date();
-    const startValue = initialValue * 0.92; // Start 8% lower
-    const endValue = initialValue; // End at real current value
-
-    for (let i = days; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-
-      // Linear interpolation with decreasing noise toward end
-      const progress = (days - i) / days;
-      const baseValue = startValue + (endValue - startValue) * progress;
-      const noise = (Math.random() - 0.5) * initialValue * 0.015;
-      const value = baseValue + noise * (1 - progress * 0.9);
-
-      data.push({
-        time: date.toISOString().split('T')[0],
-        value: i === 0 ? endValue : value, // Force last point to exact value
-      });
-    }
-    return data;
-  };
-
   // Load data on mount
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       const history = await fetchHistory();
       setLoading(false);
-      
+
       if (history.length === 0) {
-        // Use mock data if no history yet
-        const mockData = generateMockData(getDaysForTimeframe(selectedTimeframe));
-        setHistoryData(mockData.map(d => ({ date: d.time, totalValue: d.value })));
+        setCurrentValue(initialValue > 0 ? initialValue : 0);
+        setChangeAmount(0);
+        setChangePercent(0);
       }
     };
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (historyData.length === 0) {
+      setCurrentValue(initialValue > 0 ? initialValue : 0);
+    }
+  }, [historyData.length, initialValue]);
+
   // Build chart
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current || historyData.length === 0) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -164,14 +145,9 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
-    let filteredData = historyData
+    const filteredData = historyData
       .filter(h => new Date(h.date) >= cutoff)
       .map(h => ({ time: h.date, value: h.totalValue }));
-
-    // If no real data, generate mock
-    if (filteredData.length === 0) {
-      filteredData = generateMockData(days);
-    }
 
     areaSeries.setData(filteredData);
     chart.timeScale().fitContent();
@@ -181,7 +157,11 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
       const firstValue = filteredData[0].value;
       setCurrentValue(lastValue);
       setChangeAmount(lastValue - firstValue);
-      setChangePercent(((lastValue - firstValue) / firstValue) * 100);
+      setChangePercent(firstValue !== 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0);
+    } else {
+      setCurrentValue(initialValue > 0 ? initialValue : 0);
+      setChangeAmount(0);
+      setChangePercent(0);
     }
 
     chart.subscribeCrosshairMove((param) => {
@@ -218,18 +198,25 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
     }).format(value);
   };
 
+  const hasHistoryData = historyData.length > 0;
+  const totalValueDisplay = hasHistoryData ? formatCurrency(currentValue) : '-$0.00';
+
   return (
     <div className={className}>
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="text-sm text-gray-400 mb-1">Total value</div>
-          <div className="text-3xl font-bold text-white">{formatCurrency(currentValue)}</div>
-          <div className={`text-sm ${changeAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {changeAmount >= 0 ? '+' : ''}{formatCurrency(changeAmount)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
-            <span className="text-white/50 ml-1">
-              {historyData.length > 1 ? `· ${historyData.length} days tracked` : '· Demo data'}
-            </span>
-          </div>
+          <div className="text-3xl font-bold text-white">{totalValueDisplay}</div>
+          {hasHistoryData ? (
+            <div className={`text-sm ${changeAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {changeAmount >= 0 ? '+' : ''}{formatCurrency(changeAmount)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
+              <span className="text-white/50 ml-1">
+                {historyData.length > 1 ? `· ${historyData.length} days tracked` : '· 1 day tracked'}
+              </span>
+            </div>
+          ) : (
+            <div className="text-sm text-white/50">-$0.00 (0.00%)</div>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {timeframes.map((tf) => (
@@ -247,7 +234,17 @@ const PortfolioChart = ({ initialValue = 126093, onSaveSnapshot, className = '' 
           ))}
         </div>
       </div>
-      <div ref={chartContainerRef} className="w-full" />
+      {loading ? (
+        <div className="h-[220px] w-full flex items-center justify-center text-sm text-white/40">
+          Loading portfolio history...
+        </div>
+      ) : hasHistoryData ? (
+        <div ref={chartContainerRef} className="w-full" />
+      ) : (
+        <div className="h-[220px] w-full rounded-lg border border-dashed border-white/10 bg-white/[0.02] flex items-center justify-center text-center text-sm text-white/55 px-6">
+          Connect a broker or start paper trading to track your portfolio
+        </div>
+      )}
     </div>
   );
 };
