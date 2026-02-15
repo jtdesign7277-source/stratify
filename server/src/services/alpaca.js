@@ -1,6 +1,4 @@
 import Alpaca from '@alpacahq/alpaca-trade-api';
-import WebSocket from 'ws';
-
 console.log('🔑 Alpaca init - Key ID:', process.env.ALPACA_API_KEY?.slice(0, 8) + '...');
 console.log('🔑 Alpaca init - Paper mode: true (SIP)');
 
@@ -402,25 +400,46 @@ export function startAlpacaStream(onQuote, onBar) {
   const handleQuote = typeof onQuote === 'function' ? onQuote : () => {};
   const handleBar = typeof onBar === 'function' ? onBar : () => {};
 
-  // STOCK stream (SIP feed)
-  const stockStream = alpaca.data_stream_v2;
+  const stream = alpaca.data_stream_v2;
 
-  stockStream.onConnect(() => {
-    console.log('Connected to Alpaca STOCK SIP stream');
-    stockStream.subscribeForQuotes(['*']);
-    stockStream.subscribeForBars(['*']);
+  const STREAM_STOCK_SYMBOLS = [
+    'AAPL',
+    'TSLA',
+    'NVDA',
+    'MSFT',
+    'META',
+    'GOOGL',
+    'AMZN',
+    'AMD',
+    'COIN',
+    'SOFI',
+    'PYPL',
+    'NFLX',
+    'SPY',
+    'QQQ',
+    'DIA',
+  ];
+
+  const STREAM_CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'DOGE/USD', 'XRP/USD'];
+
+  stream.onConnect(() => {
+    console.log('Connected to Alpaca stream');
+    stream.subscribeForQuotes(STREAM_STOCK_SYMBOLS);
+    stream.subscribeForBars(STREAM_STOCK_SYMBOLS);
+    stream.subscribeForCryptoQuotes(STREAM_CRYPTO_SYMBOLS);
+    stream.subscribeForCryptoBars(STREAM_CRYPTO_SYMBOLS);
   });
 
-  stockStream.onError((err) => {
-    console.error('Stock stream error:', err);
+  stream.onError((err) => {
+    console.error('Stream error:', err);
   });
 
-  stockStream.onDisconnect(() => {
-    console.log('Stock stream disconnected, reconnecting in 5s...');
-    setTimeout(() => stockStream.connect(), 5000);
+  stream.onDisconnect(() => {
+    console.log('Stream disconnected, reconnecting in 5s...');
+    setTimeout(() => stream.connect(), 5000);
   });
 
-  stockStream.onQuote((quote) => {
+  stream.onStockQuote((quote) => {
     handleQuote({
       type: 'quote',
       asset: 'stock',
@@ -434,7 +453,7 @@ export function startAlpacaStream(onQuote, onBar) {
     });
   });
 
-  stockStream.onBar((bar) => {
+  stream.onStockBar((bar) => {
     handleBar({
       type: 'bar',
       asset: 'stock',
@@ -448,112 +467,37 @@ export function startAlpacaStream(onQuote, onBar) {
     });
   });
 
-  stockStream.connect();
-
-  // CRYPTO stream (separate connection)
-  const CRYPTO_SYMBOLS = [
-    'BTC/USD',
-    'ETH/USD',
-    'SOL/USD',
-    'XRP/USD',
-    'DOGE/USD',
-    'LINK/USD',
-    'ADA/USD',
-    'AVAX/USD',
-    'DOT/USD',
-  ];
-
-  const CRYPTO_WS_URL = 'wss://stream.data.alpaca.markets/v1beta3/crypto/us';
-  let cryptoWs = null;
-  let cryptoReconnectTimer = null;
-
-  const scheduleCryptoReconnect = () => {
-    if (cryptoReconnectTimer) clearTimeout(cryptoReconnectTimer);
-    cryptoReconnectTimer = setTimeout(connectCryptoStream, 5000);
-  };
-
-  const connectCryptoStream = () => {
-    if (cryptoWs && (cryptoWs.readyState === WebSocket.OPEN || cryptoWs.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
-
-    cryptoWs = new WebSocket(CRYPTO_WS_URL);
-
-    cryptoWs.on('open', () => {
-      console.log('Crypto WS opened, authenticating...');
-      cryptoWs.send(
-        JSON.stringify({
-          action: 'auth',
-          key: process.env.ALPACA_API_KEY,
-          secret: process.env.ALPACA_SECRET_KEY,
-        })
-      );
+  stream.onCryptoQuote((quote) => {
+    const symbol = typeof quote.Symbol === 'string' ? quote.Symbol.replace('/', '') : quote.Symbol;
+    handleQuote({
+      type: 'quote',
+      asset: 'crypto',
+      symbol,
+      askPrice: quote.AskPrice,
+      bidPrice: quote.BidPrice,
+      price: quote.AskPrice || quote.BidPrice,
+      askSize: quote.AskSize,
+      bidSize: quote.BidSize,
+      timestamp: quote.Timestamp,
     });
+  });
 
-    cryptoWs.on('message', (raw) => {
-      const payload = typeof raw === 'string' ? raw : raw.toString('utf8');
-      let messages;
-      try {
-        messages = JSON.parse(payload);
-      } catch (error) {
-        console.error('Crypto stream parse error:', error.message);
-        return;
-      }
-
-      for (const msg of messages) {
-        if (msg.T === 'success' && msg.msg === 'authenticated') {
-          console.log('Crypto stream authenticated');
-          cryptoWs.send(
-            JSON.stringify({
-              action: 'subscribe',
-              quotes: CRYPTO_SYMBOLS,
-              bars: CRYPTO_SYMBOLS,
-            })
-          );
-        }
-
-        if (msg.T === 'q') {
-          handleQuote({
-            type: 'quote',
-            asset: 'crypto',
-            symbol: msg.S.replace('/', ''),
-            askPrice: msg.ap,
-            bidPrice: msg.bp,
-            price: msg.ap || msg.bp,
-            askSize: msg.as,
-            bidSize: msg.bs,
-            timestamp: msg.t,
-          });
-        }
-
-        if (msg.T === 'b') {
-          handleBar({
-            type: 'bar',
-            asset: 'crypto',
-            symbol: msg.S.replace('/', ''),
-            open: msg.o,
-            high: msg.h,
-            low: msg.l,
-            close: msg.c,
-            volume: msg.v,
-            timestamp: msg.t,
-          });
-        }
-      }
+  stream.onCryptoBar((bar) => {
+    const symbol = typeof bar.Symbol === 'string' ? bar.Symbol.replace('/', '') : bar.Symbol;
+    handleBar({
+      type: 'bar',
+      asset: 'crypto',
+      symbol,
+      open: bar.OpenPrice,
+      high: bar.HighPrice,
+      low: bar.LowPrice,
+      close: bar.ClosePrice,
+      volume: bar.Volume,
+      timestamp: bar.Timestamp,
     });
+  });
 
-    cryptoWs.on('close', () => {
-      console.log('Crypto stream disconnected, reconnecting in 5s...');
-      cryptoWs = null;
-      scheduleCryptoReconnect();
-    });
-
-    cryptoWs.on('error', (err) => {
-      console.error('Crypto stream error:', err.message);
-    });
-  };
-
-  connectCryptoStream();
+  stream.connect();
 }
 
 // ==================== TRADE EXECUTION ====================
