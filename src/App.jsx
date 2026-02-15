@@ -528,35 +528,27 @@ export class TeslaEMAStrategy extends Strategy {
   const strategyFolders = {
     favorites: {
       name: 'Favorites',
-      count: 2,
+      count: 0,
       strategies: []
     },
     momentum: {
       name: 'Momentum Strategies',
-      count: 3,
-      strategies: [
-        { id: 1, name: 'RSI Breakout', risk: 'Medium Risk', active: true },
-        { id: 2, name: 'MACD Crossover', risk: 'Low Risk', active: false },
-        { id: 3, name: 'Volume Spike', risk: 'High Risk', active: false },
-      ]
+      count: 0,
+      strategies: []
     },
     meanReversion: {
       name: 'Mean Reversion',
-      count: 2,
+      count: 0,
       strategies: []
     },
     scalping: {
       name: 'Scalping',
-      count: 2,
+      count: 0,
       strategies: []
     }
   };
 
-  const activeStrategies = [
-    { name: 'RSI Breakout', profit: 691.49, duration: '176m running', active: true },
-    { name: 'Bollinger Bounce', profit: 480.51, duration: '180m running', active: true },
-    { name: 'VWAP Scalper', profit: 773.76, duration: '174m running', active: true },
-  ];
+  const activeStrategies = [];
 
   const toggleFolder = (folder) => {
     setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
@@ -730,7 +722,7 @@ export class TeslaEMAStrategy extends Strategy {
             </div>
             <div>
               <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">My Strategies</div>
-              <div className="text-sm text-gray-400">3/5 running</div>
+              <div className="text-sm text-gray-400">{activeStrategies.length}/5 running</div>
             </div>
           </div>
 
@@ -868,7 +860,7 @@ export class TeslaEMAStrategy extends Strategy {
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    Active Strategies (3)
+                    Active Strategies ({activeStrategies.length})
                   </button>
                   <button
                     onClick={() => setBottomTab('terminal')}
@@ -948,7 +940,7 @@ export class TeslaEMAStrategy extends Strategy {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                 </svg>
               </button>
-              <span className="text-xs text-gray-400">Active Strategies (3) • Terminal</span>
+              <span className="text-xs text-gray-400">Active Strategies ({activeStrategies.length}) • Terminal</span>
             </div>
             <div className="flex items-center gap-2">
               {activeStrategies.map((strategy, i) => (

@@ -36,15 +36,6 @@ const ChartPreview = ({ symbol, position }) => {
   );
 };
 
-const DEMO_STRATEGIES_SEED = [
-  { id: 'nvda', symbol: 'NVDA', name: 'NVDA Momentum', status: 'Live', pnl: 1824.32, pnlPct: 2.8, heat: 88 },
-  { id: 'aapl', symbol: 'AAPL', name: 'AAPL Mean Revert', status: 'Scaling', pnl: 642.15, pnlPct: 1.2, heat: 61 },
-  { id: 'tsla', symbol: 'TSLA', name: 'TSLA Breakout', status: 'Cooling', pnl: -412.5, pnlPct: -0.9, heat: 92 },
-  { id: 'spy', symbol: 'SPY', name: 'SPY Drift', status: 'Hedged', pnl: 318.22, pnlPct: 0.4, heat: 48 },
-  { id: 'meta', symbol: 'META', name: 'META Scalper', status: 'Live', pnl: 956.80, pnlPct: 1.8, heat: 72 },
-  { id: 'amzn', symbol: 'AMZN', name: 'AMZN Swing', status: 'Scaling', pnl: 1247.55, pnlPct: 2.1, heat: 55 },
-];
-
 // Completed trades with entry and exit prices (realistic current prices)
 const DEMO_TRADES_BY_STRATEGY = {
   nvda: [
@@ -191,9 +182,9 @@ const ActiveTrades = ({
     || user?.user_metadata?.name?.trim()
     || user?.email?.split('@')[0]
     || 'trader';
-  const [totalPnl, setTotalPnl] = useState(isControlled ? 0 : (enableDemoData ? 4823.12 : 0));
+  const [totalPnl, setTotalPnl] = useState(0);
   const [pnlDelta, setPnlDelta] = useState(0);
-  const [internalStrategies, setInternalStrategies] = useState(enableDemoData ? DEMO_STRATEGIES_SEED : []);
+  const [internalStrategies, setInternalStrategies] = useState([]);
   
   // Use props when available (including empty arrays) to avoid demo fallback for real user data.
   const strategies = isControlled ? propStrategies : internalStrategies;
@@ -210,8 +201,8 @@ const ActiveTrades = ({
 
   useEffect(() => {
     if (isControlled) return;
-    setInternalStrategies(enableDemoData ? DEMO_STRATEGIES_SEED : []);
-    setTotalPnl(enableDemoData ? 4823.12 : 0);
+    setInternalStrategies([]);
+    setTotalPnl(0);
     setPnlDelta(0);
   }, [enableDemoData, isControlled]);
 

@@ -299,7 +299,7 @@ const StrategiesPage = ({
         )}
         {open && items.length === 0 && (
           <div className="ml-4 pl-2 py-2 text-[10px] text-white/15 border-l border-white/[0.04]">
-            {normalizedQuery ? 'No matches' : 'No active strategies running'}
+            {normalizedQuery ? 'No matches' : 'No strategies yet'}
           </div>
         )}
       </div>
@@ -395,7 +395,7 @@ const StrategiesPage = ({
         )}
         {open && items.length === 0 && (
           <div className="ml-4 pl-2 py-2 text-[10px] text-white/15 border-l border-white/[0.04]">
-            {dropping ? 'Drop here' : normalizedQuery ? 'No matches' : 'Empty'}
+            {dropping ? 'Drop here' : normalizedQuery ? 'No matches' : 'No strategies yet'}
           </div>
         )}
       </div>

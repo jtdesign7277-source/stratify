@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
+import useStrategySync from '../../hooks/useStrategySync';
 // Import ALL existing working components
 import Sidebar from './Sidebar';
 import WatchlistPage from './WatchlistPage';
@@ -82,62 +84,6 @@ const loadDashboardState = () => {
 const saveDashboardState = (state) => {
   localStorage.setItem('stratify-dashboard-state', JSON.stringify(state));
 };
-
-// Strategy generators (from original Dashboard)
-const STRATEGY_TEMPLATES = [
-  { name: 'MACD Crossover', symbol: 'TSLA', type: 'Momentum' },
-  { name: 'RSI Divergence', symbol: 'NVDA', type: 'Mean Reversion' },
-  { name: 'Bollinger Squeeze', symbol: 'AAPL', type: 'Volatility' },
-  { name: 'Golden Cross', symbol: 'SPY', type: 'Trend Following' },
-  { name: 'VWAP Bounce', symbol: 'AMD', type: 'Scalping' },
-  { name: 'Gap Fill', symbol: 'MSFT', type: 'Mean Reversion' },
-  { name: 'Breakout Hunter', symbol: 'META', type: 'Momentum' },
-  { name: 'Support Bounce', symbol: 'GOOGL', type: 'Technical' },
-  { name: 'EMA Ribbon', symbol: 'QQQ', type: 'Trend Following' },
-  { name: 'Stochastic Pop', symbol: 'AMZN', type: 'Momentum' },
-];
-
-const generateRandomStrategy = () => {
-  const template = STRATEGY_TEMPLATES[Math.floor(Math.random() * STRATEGY_TEMPLATES.length)];
-  const winRate = (55 + Math.random() * 25).toFixed(1);
-  const totalReturn = (10 + Math.random() * 40).toFixed(1);
-  const maxDrawdown = (5 + Math.random() * 15).toFixed(1);
-  const sharpeRatio = (1 + Math.random() * 1.5).toFixed(2);
-  
-  return {
-    id: `strategy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: `${template.name} ${template.symbol}`,
-    symbol: template.symbol,
-    type: template.type,
-    status: 'draft',
-    metrics: {
-      winRate: `${winRate}%`,
-      totalReturn: `${totalReturn}%`,
-      maxDrawdown: maxDrawdown,
-      sharpeRatio: sharpeRatio,
-      trades: Math.floor(50 + Math.random() * 150),
-    }
-  };
-};
-
-const generateRandomDeployedStrategy = () => {
-  const strategy = generateRandomStrategy();
-  const staggeredTimes = [
-    Date.now() - (14 * 24 * 60 * 60 * 1000) - Math.random() * (3 * 60 * 60 * 1000),
-    Date.now() - (3 * 24 * 60 * 60 * 1000) - Math.random() * (7 * 60 * 60 * 1000),
-    Date.now() - (45 * 60 * 1000) - Math.random() * (30 * 60 * 1000),
-    Date.now() - (7 * 24 * 60 * 60 * 1000) - Math.random() * (11 * 60 * 60 * 1000),
-    Date.now() - (1 * 24 * 60 * 60 * 1000) - Math.random() * (2 * 60 * 60 * 1000),
-  ];
-  return {
-    ...strategy,
-    status: 'deployed',
-    runStatus: 'running',
-    deployedAt: staggeredTimes[Math.floor(Math.random() * staggeredTimes.length)]
-  };
-};
-
-const RESPAWN_DELAY_MS = 60000;
 
 // Portfolio Growth Chart (Custom SVG with gradient)
 const PortfolioGrowthChart = ({ data, height = 180 }) => {
@@ -1026,8 +972,9 @@ const ArbOppsPanel = ({ onClose }) => {
 };
 
 // Main Dashboard Component - with ALL existing functionality
-export default function KrakenDashboard({ setCurrentPage, alpacaData, demoMode = false }) {
+export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const savedState = loadDashboardState();
+  const { user } = useAuth();
   
   // ALL state from original Dashboard
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -1085,40 +1032,14 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData, demoMode =
   const [selectedStock, setSelectedStock] = useState(null);
   
   // Strategies state
-  const [strategies, setStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-strategies');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-  
-  // Deployed strategies
-  const [deployedStrategies, setDeployedStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-deployed-strategies');
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      const staggeredTimes = [
-        Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000),
-        Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),
-        Date.now() - (45 * 60 * 1000),
-        Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000),
-        Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),
-      ];
-      return parsed.map((s, i) => ({
-        ...s,
-        deployedAt: staggeredTimes[i % staggeredTimes.length]
-      }));
-    } catch { return []; }
-  });
-  
-  // Saved strategies
-  const [savedStrategies, setSavedStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-saved-strategies');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const {
+    strategies,
+    setStrategies,
+    deployedStrategies,
+    setDeployedStrategies,
+    savedStrategies,
+    setSavedStrategies,
+  } = useStrategySync(user);
   
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
@@ -1167,17 +1088,6 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData, demoMode =
 
   const handleDeleteStrategy = (strategyId) => {
     setStrategies(prev => prev.filter(s => s.id !== strategyId));
-
-    if (!demoMode) return;
-
-    setTimeout(() => {
-      setStrategies(prev => {
-        if (prev.length < 3) {
-          return [...prev, generateRandomStrategy()];
-        }
-        return prev;
-      });
-    }, RESPAWN_DELAY_MS);
   };
 
   const handleEditStrategy = (strategy) => {
@@ -1254,46 +1164,6 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData, demoMode =
   useEffect(() => {
     localStorage.setItem('stratify-watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
-
-  useEffect(() => {
-    localStorage.setItem('stratify-strategies', JSON.stringify(strategies));
-  }, [strategies]);
-
-  // Auto-populate demo data
-  useEffect(() => {
-    if (!demoMode || strategies.length !== 0) return;
-
-    const timer = setTimeout(() => {
-      setStrategies([
-        generateRandomStrategy(),
-        generateRandomStrategy(),
-        generateRandomStrategy(),
-      ]);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [demoMode, strategies.length]);
-
-  useEffect(() => {
-    if (!demoMode || deployedStrategies.length !== 0) return;
-
-    const timer = setTimeout(() => {
-      setDeployedStrategies([
-        generateRandomDeployedStrategy(),
-        generateRandomDeployedStrategy(),
-      ]);
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [demoMode, deployedStrategies.length]);
-
-  useEffect(() => {
-    localStorage.setItem('stratify-deployed-strategies', JSON.stringify(deployedStrategies));
-  }, [deployedStrategies]);
-
-  useEffect(() => {
-    localStorage.setItem('stratify-saved-strategies', JSON.stringify(savedStrategies));
-  }, [savedStrategies]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

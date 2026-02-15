@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X } from 'lucide-react';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
+import useStrategySync from '../../hooks/useStrategySync';
 import useSubscription from '../../hooks/useSubscription';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
@@ -152,7 +153,15 @@ export default function Dashboard({
   const { user } = useAuth();
   const { subscriptionStatus } = useSubscription();
   const { trades, addTrade } = useTradeHistoryStore();
-  const { watchlist, setWatchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop, loaded } = useWatchlistSync(user);
+  const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop } = useWatchlistSync(user);
+  const {
+    strategies,
+    setStrategies,
+    savedStrategies,
+    setSavedStrategies,
+    deployedStrategies,
+    setDeployedStrategies,
+  } = useStrategySync(user);
   
   // Mini ticker pills (slots 2-5, slots 0-1 are Grok and Feed)
   const [miniTickers, setMiniTickers] = useState(() => {
@@ -230,28 +239,6 @@ export default function Dashboard({
   };
   
   const [selectedStock, setSelectedStock] = useState(null);
-  const [strategies, setStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-strategies');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-  const [deployedStrategies, setDeployedStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-deployed-strategies-v2');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [savedStrategies, setSavedStrategies] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-saved-strategies');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
   const [showStrategyLimitModal, setShowStrategyLimitModal] = useState(false);
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
@@ -577,18 +564,6 @@ export default function Dashboard({
   useEffect(() => {
     localStorage.setItem('stratify-watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
-
-  useEffect(() => {
-    localStorage.setItem('stratify-strategies', JSON.stringify(strategies));
-  }, [strategies]);
-
-  useEffect(() => {
-    localStorage.setItem('stratify-deployed-strategies-v2', JSON.stringify(deployedStrategies));
-  }, [deployedStrategies]);
-
-  useEffect(() => {
-    localStorage.setItem('stratify-saved-strategies', JSON.stringify(savedStrategies));
-  }, [savedStrategies]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
