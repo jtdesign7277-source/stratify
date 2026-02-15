@@ -45,6 +45,7 @@ import TerminalPage from './TerminalPage';
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
+import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
 import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
@@ -1699,6 +1700,7 @@ export default function Dashboard({
 
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
+      <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <TopMetricsBar 
         alpacaData={alpacaData} 
         onAddToWatchlist={addToWatchlist} 

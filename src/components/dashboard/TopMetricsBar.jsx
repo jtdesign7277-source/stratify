@@ -456,6 +456,7 @@ export default function TopMetricsBar({
             ))}
           </div>
         ))}
+        <div id="earnings-alert-pill-anchor" className="flex items-center" />
       </div>
       <div className="flex items-center gap-4 ml-auto flex-shrink-0">
         <div className="flex items-center gap-4">
