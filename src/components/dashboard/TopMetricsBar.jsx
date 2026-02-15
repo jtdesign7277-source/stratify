@@ -220,15 +220,28 @@ const NotificationButton = ({ themeClasses }) => {
   );
 };
 
+const MONEY_EPSILON = 0.01;
+
+const normalizeCurrencyValue = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.abs(numeric) < MONEY_EPSILON ? 0 : numeric;
+};
+
 const formatCurrency = (value) => {
-  if (value === null || value === undefined || isNaN(value)) return '--';
-  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(Math.abs(value));
-  return value < 0 ? `-${formatted}` : `+${formatted}`;
+  const normalizedValue = normalizeCurrencyValue(value);
+  if (normalizedValue === null) return '--';
+  if (normalizedValue === 0) return '$0.00';
+  const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(Math.abs(normalizedValue));
+  return normalizedValue < 0 ? `-${formatted}` : `+${formatted}`;
 };
 
 const formatCurrencyNeutral = (value) => {
-  if (value === null || value === undefined || isNaN(value)) return '--';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
+  const normalizedValue = normalizeCurrencyValue(value);
+  if (normalizedValue === null) return '--';
+  if (normalizedValue === 0) return '$0.00';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(normalizedValue);
 };
 
 const toMetricNumber = (value) => {
@@ -329,7 +342,7 @@ export default function TopMetricsBar({
   const shouldShowPaperMetrics = isPaperTradingMode && hasPaperMetrics;
   const shouldShowBrokerMetrics = hasConnectedBroker;
   const hasDisplayData = shouldShowPaperMetrics || shouldShowBrokerMetrics;
-  const zeroDisplay = '-$0.00';
+  const zeroDisplay = '$0.00';
   const dailyPnL = shouldShowPaperMetrics
     ? (toMetricNumber(paperMetrics?.dailyPnl) ?? 0)
     : (shouldShowBrokerMetrics ? Number(account.daily_pnl ?? 0) : 0);

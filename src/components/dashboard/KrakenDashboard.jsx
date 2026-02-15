@@ -337,7 +337,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
   };
 
   const hasPortfolioData = Number(portfolioValue) > 0;
-  const zeroDisplay = '-$0.00';
+  const zeroDisplay = '$0.00';
 
   // Use connected brokers when available; do not synthesize fake accounts for new users.
   const spotBalances = connectedBrokers.length > 0 
@@ -1242,7 +1242,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const portfolioValue = hasRealPortfolioData ? equity : 0;
   const dayChange = hasRealPortfolioData ? (equity - lastEquity) : 0;
   const dayChangePercent = hasRealPortfolioData && portfolioValue > 0 ? ((dayChange / portfolioValue) * 100).toFixed(2) : '0.00';
-  const zeroDisplay = '-$0.00';
+  const zeroDisplay = '$0.00';
   const portfolioValueDisplay = hasRealPortfolioData
     ? `$${portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : zeroDisplay;
