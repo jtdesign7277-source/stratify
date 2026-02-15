@@ -3,7 +3,7 @@
 
 import Alpaca from '@alpacahq/alpaca-trade-api';
 
-const DEFAULT_LIMIT = 500;
+const DEFAULT_LIMIT = 2000;
 const MAX_LIMIT = 10000;
 const TIMEFRAME_MAP = {
   '1Min': '1Min',
@@ -13,6 +13,8 @@ const TIMEFRAME_MAP = {
   '1Day': '1Day',
   '1Week': '1Week',
 };
+const INTRADAY_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour']);
+const INTRADAY_LOOKBACK_DAYS = 21;
 const ALLOWED_TIMEFRAMES = new Set(Object.keys(TIMEFRAME_MAP));
 
 const parseLimit = (value) => {
@@ -25,6 +27,13 @@ const parseDate = (value) => {
   if (!value) return null;
   const ts = Date.parse(value);
   return Number.isNaN(ts) ? null : new Date(ts).toISOString();
+};
+
+const getLookbackStartIso = (days) => {
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  start.setHours(0, 0, 0, 0);
+  return start.toISOString();
 };
 
 export default async function handler(req, res) {
@@ -59,8 +68,12 @@ export default async function handler(req, res) {
   }
   const mappedTimeframe = TIMEFRAME_MAP[normalizedTimeframe];
 
-  const startIso = parseDate(start);
+  let startIso = parseDate(start);
   const endIso = parseDate(end);
+
+  if (!startIso && INTRADAY_TIMEFRAMES.has(normalizedTimeframe)) {
+    startIso = getLookbackStartIso(INTRADAY_LOOKBACK_DAYS);
+  }
 
   if (start && !startIso) {
     return res.status(400).json({ error: 'Invalid start date' });

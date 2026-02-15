@@ -11,7 +11,7 @@ const DOWN_COLOR = '#ef4444';
 const VOLUME_UP = 'rgba(34, 197, 94, 0.3)';
 const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
 const INTRADAY_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour']);
-const TRADING_DAYS_LOOKBACK = 5;
+const INTRADAY_LOOKBACK_DAYS = 21;
 const YEARS_LOOKBACK = 2;
 
 const getStartForInterval = (timeframe) => {
@@ -19,17 +19,7 @@ const getStartForInterval = (timeframe) => {
 
   if (INTRADAY_TIMEFRAMES.has(timeframe)) {
     const start = new Date(now);
-    let remaining = TRADING_DAYS_LOOKBACK;
-
-    while (remaining > 0) {
-      const day = start.getDay();
-      if (day !== 0 && day !== 6) {
-        remaining -= 1;
-        if (remaining === 0) break;
-      }
-      start.setDate(start.getDate() - 1);
-    }
-
+    start.setDate(start.getDate() - INTRADAY_LOOKBACK_DAYS);
     start.setHours(0, 0, 0, 0);
     return start;
   }
@@ -162,7 +152,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         const params = new URLSearchParams({
           symbol,
           timeframe: interval,
-          limit: '500',
+          limit: '2000',
           start: start.toISOString(),
           end: end.toISOString(),
         });
