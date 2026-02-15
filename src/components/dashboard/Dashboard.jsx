@@ -359,6 +359,27 @@ const isActiveOrPausedStrategy = (strategy) => {
     || runStatus === 'paused';
 };
 
+const hasBrokerAccountData = (data) => {
+  const account = data?.account;
+  if (!account || typeof account !== 'object') return false;
+
+  const identityCandidates = [
+    account.account_number,
+    account.accountNumber,
+    account.id,
+    account.uuid,
+    account.broker_id,
+    account.brokerId,
+  ];
+
+  if (identityCandidates.some((value) => String(value || '').trim())) {
+    return true;
+  }
+
+  const status = String(account.status || '').toLowerCase();
+  return ['active', 'connected', 'approved', 'open'].includes(status);
+};
+
 export default function Dashboard({
   setCurrentPage,
   alpacaData,
@@ -414,7 +435,7 @@ export default function Dashboard({
   }, []);
   
   const { user } = useAuth();
-  const { subscriptionStatus } = useSubscription();
+  const { subscriptionStatus, loading: subscriptionLoading } = useSubscription();
   const { trades, addTrade } = useTradeHistoryStore();
   const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop } = useWatchlistSync(user);
   const {
@@ -524,6 +545,15 @@ export default function Dashboard({
   const allocationResolverRef = useRef(null);
 
   const isPaidTier = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
+  const hasConnectedBroker = useMemo(
+    () => connectedBrokers.length > 0 || hasBrokerAccountData(alpacaData),
+    [connectedBrokers, alpacaData],
+  );
+  const isPaperTradingMode = useMemo(() => {
+    if (hasConnectedBroker) return false;
+    if (subscriptionLoading) return false;
+    return !isPaidTier;
+  }, [hasConnectedBroker, isPaidTier, subscriptionLoading]);
   const strategyIdentitySet = useMemo(
     () => buildStrategyIdentitySet(strategies, savedStrategies, deployedStrategies),
     [strategies, savedStrategies, deployedStrategies],
@@ -1669,12 +1699,14 @@ export default function Dashboard({
         onTickerDrop={handleTickerDrop}
         onGameDrop={handleGameDrop}
         deployedStrategies={deployedStrategies}
-        paperTradingBalance={normalizedPaperTradingBalance}
-        paperMetrics={{
+        hasConnectedBroker={hasConnectedBroker}
+        isPaperTradingMode={isPaperTradingMode}
+        paperTradingBalance={isPaperTradingMode ? normalizedPaperTradingBalance : null}
+        paperMetrics={isPaperTradingMode ? {
           dailyPnl: totalTopBarDailyPnL,
           buyingPower: availablePaperBalance,
           unrealizedPnl: totalTopBarUnrealizedPnL,
-        }}
+        } : null}
       />
       <LiveAlertsTicker />
       <div className="flex flex-1 overflow-hidden">

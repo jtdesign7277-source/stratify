@@ -319,22 +319,25 @@ export default function TopMetricsBar({
   paperMetrics = null,
   deployedStrategies = [],
   paperTradingBalance = null,
+  hasConnectedBroker = false,
+  isPaperTradingMode = false,
 }) {
   const account = alpacaData?.account || {};
   const hasPaperMetrics = paperMetrics && typeof paperMetrics === 'object';
   const parsedPaperTradingBalance = Number(paperTradingBalance);
   const hasPaperTradingBalance = Number.isFinite(parsedPaperTradingBalance);
-
-  // Use broker values only when we have real account data.
-  const hasRealData = Number(account.equity) > 0;
-  const hasDisplayData = hasRealData || hasPaperMetrics;
+  const shouldShowPaperMetrics = isPaperTradingMode && hasPaperMetrics;
+  const shouldShowBrokerMetrics = hasConnectedBroker;
+  const hasDisplayData = shouldShowPaperMetrics || shouldShowBrokerMetrics;
   const zeroDisplay = '-$0.00';
-  const dailyPnL = toMetricNumber(paperMetrics?.dailyPnl)
-    ?? (hasRealData ? Number(account.daily_pnl ?? 0) : 0);
-  const unrealizedPnL = toMetricNumber(paperMetrics?.unrealizedPnl)
-    ?? (hasRealData ? Number(account.unrealized_pl ?? 0) : dailyPnL);
+  const dailyPnL = shouldShowPaperMetrics
+    ? (toMetricNumber(paperMetrics?.dailyPnl) ?? 0)
+    : (shouldShowBrokerMetrics ? Number(account.daily_pnl ?? 0) : 0);
+  const unrealizedPnL = shouldShowPaperMetrics
+    ? (toMetricNumber(paperMetrics?.unrealizedPnl) ?? dailyPnL)
+    : (shouldShowBrokerMetrics ? Number(account.unrealized_pl ?? account.daily_pnl ?? 0) : 0);
   const calculatedBuyingPower = useMemo(() => {
-    if (!hasPaperTradingBalance) return null;
+    if (!shouldShowPaperMetrics || !hasPaperTradingBalance) return null;
     const activeStrategies = Array.isArray(deployedStrategies)
       ? deployedStrategies.filter(isActiveOrPausedStrategy)
       : [];
@@ -343,10 +346,14 @@ export default function TopMetricsBar({
       0,
     );
     return Math.max(0, parsedPaperTradingBalance - totalAllocated);
-  }, [deployedStrategies, hasPaperTradingBalance, parsedPaperTradingBalance]);
-  const buyingPower = calculatedBuyingPower
-    ?? toMetricNumber(paperMetrics?.buyingPower)
-    ?? (hasRealData ? Number(account.buying_power ?? 0) : 0);
+  }, [deployedStrategies, hasPaperTradingBalance, parsedPaperTradingBalance, shouldShowPaperMetrics]);
+  const buyingPower = shouldShowPaperMetrics
+    ? (
+      calculatedBuyingPower
+      ?? toMetricNumber(paperMetrics?.buyingPower)
+      ?? 0
+    )
+    : (shouldShowBrokerMetrics ? Number(account.buying_power ?? account.cash ?? 0) : 0);
   
   const metrics = [
     {
