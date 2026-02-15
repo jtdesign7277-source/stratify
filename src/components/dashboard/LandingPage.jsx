@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Sparkles, Zap, Play, Check, Loader2, Brain, LineChart, Code, Rocket, Shield, BarChart3 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import LiveAvatarChat from './LiveAvatarChat';
 
 const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 
@@ -737,8 +736,6 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
         </footer>
       </div>
 
-      {/* LiveAvatar Chat Widget */}
-      <LiveAvatarChat />
     </div>
   );
 };
