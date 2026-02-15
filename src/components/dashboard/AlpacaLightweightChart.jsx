@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CandlestickSeries, VolumeSeries } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
@@ -40,7 +40,7 @@ const AlpacaLightweightChart = ({ symbol, interval = '1Day' }) => {
       },
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
+    const candleSeries = chart.addCandlestickSeries({
       upColor: UP_COLOR,
       downColor: DOWN_COLOR,
       wickUpColor: UP_COLOR,
@@ -49,7 +49,7 @@ const AlpacaLightweightChart = ({ symbol, interval = '1Day' }) => {
       borderDownColor: DOWN_COLOR,
     });
 
-    const volumeSeries = chart.addSeries(VolumeSeries, {
+    const volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
     });
