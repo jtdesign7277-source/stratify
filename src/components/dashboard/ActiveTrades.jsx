@@ -2,6 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pause, Play, Square } from 'lucide-react';
 import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
 
+const formatCurrency = (value = 0) => {
+  const amount = Number(value) || 0;
+  return `$${amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 const formatMoney = (value = 0) => {
   const amount = Number(value) || 0;
   return `${amount >= 0 ? '+' : '-'}$${Math.abs(amount).toLocaleString('en-US', {
@@ -74,16 +82,31 @@ const resolveStatus = (strategy) => {
   };
 };
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const sanitizeCurrencyInput = (value) => String(value || '').replace(/[^0-9.]/g, '');
+
+const getStrategyAllocation = (strategy) => {
+  const allocation = Number(strategy?.paper?.allocation ?? strategy?.allocation ?? 0);
+  return Number.isFinite(allocation) && allocation > 0 ? allocation : 0;
+};
+
 const ActiveTrades = ({
   setActiveTab,
   strategies = [],
   setStrategies,
   onTogglePause,
   onStopStrategy,
+  onAllocationChange,
+  availableBalance = 0,
+  totalPaperBalance = 100000,
+  minimumAllocation = 100,
   marketStatus,
   nextMarketOpen,
 }) => {
   const [now, setNow] = useState(Date.now());
+  const [allocationDrafts, setAllocationDrafts] = useState({});
+  const [allocationErrors, setAllocationErrors] = useState({});
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60000);
@@ -96,6 +119,37 @@ const ActiveTrades = ({
       .filter((strategy) => strategy && typeof strategy === 'object')
       .sort((a, b) => Number(b.activatedAt || b.deployedAt || 0) - Number(a.activatedAt || a.deployedAt || 0));
   }, [strategies]);
+  const totalAllocated = useMemo(
+    () => activeStrategies.reduce((sum, strategy) => sum + getStrategyAllocation(strategy), 0),
+    [activeStrategies],
+  );
+  const normalizedAvailableBalance = Math.max(0, Number(availableBalance) || 0);
+  const normalizedPaperBalance = Math.max(0, Number(totalPaperBalance) || 0);
+  const displayedAllocated = normalizedPaperBalance > 0
+    ? Math.max(0, normalizedPaperBalance - normalizedAvailableBalance)
+    : totalAllocated;
+
+  useEffect(() => {
+    setAllocationDrafts((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      activeStrategies.forEach((strategy) => {
+        const id = String(strategy.id);
+        const allocation = Math.round(getStrategyAllocation(strategy));
+        if (next[id] !== String(allocation)) {
+          next[id] = String(allocation);
+          changed = true;
+        }
+      });
+      Object.keys(next).forEach((id) => {
+        if (!activeStrategies.some((strategy) => String(strategy.id) === id)) {
+          delete next[id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [activeStrategies]);
 
   const resolvedMarketStatus = marketStatus || getMarketStatus();
   const resolvedNextOpen = nextMarketOpen || getNextMarketOpen();
@@ -134,6 +188,55 @@ const ActiveTrades = ({
     setStrategies((prev) => prev.filter((strategy) => String(strategy.id) !== String(strategyId)));
   };
 
+  const submitAllocation = (strategy) => {
+    if (!onAllocationChange) return;
+
+    const strategyId = String(strategy.id);
+    const currentAllocation = getStrategyAllocation(strategy);
+    const maxAllocation = Math.max(minimumAllocation, normalizedAvailableBalance + currentAllocation);
+    const parsed = Number(sanitizeCurrencyInput(allocationDrafts[strategyId]));
+    const rounded = Math.round(parsed);
+
+    if (!Number.isFinite(rounded)) {
+      setAllocationErrors((prev) => ({ ...prev, [strategyId]: 'Enter a valid dollar amount.' }));
+      return;
+    }
+
+    if (rounded < minimumAllocation) {
+      setAllocationErrors((prev) => ({
+        ...prev,
+        [strategyId]: `Minimum allocation is ${formatCurrency(minimumAllocation)}.`,
+      }));
+      return;
+    }
+
+    if (rounded > maxAllocation) {
+      setAllocationErrors((prev) => ({
+        ...prev,
+        [strategyId]: `Maximum available is ${formatCurrency(maxAllocation)}.`,
+      }));
+      return;
+    }
+
+    const result = onAllocationChange(strategy.id, rounded);
+    if (result?.success === false) {
+      setAllocationErrors((prev) => ({
+        ...prev,
+        [strategyId]: result.message || 'Unable to update allocation.',
+      }));
+      return;
+    }
+
+    const resolvedAmount = Number(result?.allocation ?? rounded);
+    setAllocationDrafts((prev) => ({ ...prev, [strategyId]: String(Math.round(resolvedAmount)) }));
+    setAllocationErrors((prev) => {
+      if (!prev[strategyId]) return prev;
+      const next = { ...prev };
+      delete next[strategyId];
+      return next;
+    });
+  };
+
   return (
     <div className="h-full bg-[#0b0b0b] text-white flex flex-col overflow-hidden">
       <div className="px-6 py-5 border-b border-[#1f1f1f] flex items-center justify-between">
@@ -146,6 +249,11 @@ const ActiveTrades = ({
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-[0.16em] text-white/45">Active Count</div>
           <div className="text-2xl font-semibold text-emerald-300">{activeStrategies.length}</div>
+          <div className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/45">Available Balance</div>
+          <div className="text-sm font-semibold text-emerald-200">{formatCurrency(normalizedAvailableBalance)}</div>
+          <div className="text-[11px] text-white/45 mt-0.5">
+            Allocated: {formatCurrency(displayedAllocated)}
+          </div>
         </div>
       </div>
 
@@ -178,16 +286,30 @@ const ActiveTrades = ({
               const pnl = Number(strategy?.paper?.pnl ?? strategy?.pnl ?? 0);
               const pnlPct = Number(strategy?.paper?.pnlPercent ?? strategy?.pnlPct ?? 0);
               const startedAt = strategy?.activatedAt || strategy?.deployedAt || Date.now();
+              const allocation = getStrategyAllocation(strategy);
+              const strategyId = String(strategy.id);
+              const maxAllocation = Math.max(minimumAllocation, normalizedAvailableBalance + allocation);
+              const sliderMax = Math.max(minimumAllocation, Math.floor(maxAllocation));
+              const rawInput = allocationDrafts[strategyId] ?? String(Math.round(allocation));
+              const parsedInput = Number(sanitizeCurrencyInput(rawInput));
+              const sliderValue = clamp(
+                Number.isFinite(parsedInput) ? Math.round(parsedInput) : Math.round(allocation || minimumAllocation),
+                minimumAllocation,
+                sliderMax,
+              );
               const isPnlPositive = pnl >= 0;
 
               return (
                 <div
                   key={strategy.id}
-                  className="rounded-xl border border-[#1f1f1f] bg-[#111111] px-4 py-3 grid grid-cols-[2fr_1.1fr_1fr_1fr_0.9fr_auto] gap-3 items-center"
+                  className="rounded-xl border border-[#1f1f1f] bg-[#111111] px-4 py-3 grid grid-cols-1 xl:grid-cols-[1.8fr_1fr_1fr_1.1fr_1.6fr_auto] gap-3 items-start xl:items-center"
                 >
                   <div>
                     <div className="text-sm font-semibold text-white/95">{strategy.name || 'Untitled Strategy'}</div>
                     <div className="text-xs text-white/45 mt-0.5">{strategy.symbol || strategy.ticker || 'N/A'} • {strategy.type || strategy.strategyType || 'Custom'}</div>
+                    <div className="mt-2 text-sm font-semibold text-emerald-300">
+                      Allocated: {formatCurrency(allocation)}
+                    </div>
                   </div>
 
                   <div>
@@ -213,11 +335,66 @@ const ActiveTrades = ({
                   </div>
 
                   <div>
+                    <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Allocation</div>
+                    <input
+                      type="text"
+                      value={rawInput}
+                      onChange={(event) => {
+                        const cleaned = sanitizeCurrencyInput(event.target.value);
+                        setAllocationDrafts((prev) => ({ ...prev, [strategyId]: cleaned }));
+                        setAllocationErrors((prev) => {
+                          if (!prev[strategyId]) return prev;
+                          const next = { ...prev };
+                          delete next[strategyId];
+                          return next;
+                        });
+                      }}
+                      onBlur={() => submitAllocation(strategy)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') submitAllocation(strategy);
+                      }}
+                      className="mt-1 w-full rounded-md border border-white/15 bg-[#0b0b0b] px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500/40"
+                    />
+                    <input
+                      type="range"
+                      min={minimumAllocation}
+                      max={sliderMax}
+                      step={100}
+                      value={sliderValue}
+                      onChange={(event) => {
+                        const nextValue = Number(event.target.value);
+                        setAllocationDrafts((prev) => ({ ...prev, [strategyId]: String(nextValue) }));
+                        const result = onAllocationChange?.(strategy.id, nextValue);
+                        if (result?.success === false) {
+                          setAllocationErrors((prev) => ({
+                            ...prev,
+                            [strategyId]: result.message || 'Unable to update allocation.',
+                          }));
+                          return;
+                        }
+                        setAllocationErrors((prev) => {
+                          if (!prev[strategyId]) return prev;
+                          const next = { ...prev };
+                          delete next[strategyId];
+                          return next;
+                        });
+                      }}
+                      className="mt-2 w-full accent-emerald-400"
+                    />
+                    <div className="mt-1 text-[10px] text-white/45">
+                      Min {formatCurrency(minimumAllocation)} • Max {formatCurrency(maxAllocation)}
+                    </div>
+                    {allocationErrors[strategyId] && (
+                      <div className="mt-1 text-[11px] text-red-300">{allocationErrors[strategyId]}</div>
+                    )}
+                  </div>
+
+                  <div>
                     <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Time Active</div>
                     <div className="text-xs text-white/75 mt-0.5">{formatTimeActive(startedAt, now)}</div>
                   </div>
 
-                  <div className="flex items-center gap-2 justify-end">
+                  <div className="flex items-center gap-2 justify-end w-full xl:w-auto">
                     <button
                       type="button"
                       disabled={status.isMarketPaused}

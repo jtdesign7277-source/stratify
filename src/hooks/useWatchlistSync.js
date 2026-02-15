@@ -115,7 +115,7 @@ export default function useWatchlistSync(user) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         saveToSupabase(user.id, watchlist);
-      }, 1500); // 1.5s debounce
+      }, 2000); // 2s debounce
     }
 
     return () => {

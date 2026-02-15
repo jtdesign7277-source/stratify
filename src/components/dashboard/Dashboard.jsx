@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
+import useDashboardStateSync from '../../hooks/useDashboardStateSync';
 import useSubscription from '../../hooks/useSubscription';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from './Sidebar';
@@ -87,6 +88,7 @@ const getInitialSidebarExpanded = (savedState) => {
 const FREE_STRATEGY_LIMIT = 3;
 const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 const PAPER_TRADING_BALANCE = 100000;
+const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const normalizeStrategyIdentity = (strategy) => {
@@ -182,6 +184,18 @@ const toNumberOrNull = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const formatCurrency = (value = 0) => {
+  const amount = Number(value) || 0;
+  return `$${amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const sanitizeCurrencyInput = (value) => String(value || '').replace(/[^0-9.]/g, '');
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 const parsePositionAllocation = (strategy, accountBalance = PAPER_TRADING_BALANCE) => {
   const raw = strategy?.allocation ?? strategy?.positionSize ?? strategy?.size ?? null;
   if (raw === null || raw === undefined) return Math.min(accountBalance * 0.1, accountBalance);
@@ -254,6 +268,18 @@ const buildRuntimeStatus = ({ isEquity, marketOpen, pausedReason }) => {
   return { status: 'active', runStatus: 'running', pausedReason: null, statusLabel: 'Active' };
 };
 
+const getStrategyAllocation = (strategy, accountBalance = PAPER_TRADING_BALANCE) => {
+  const explicit = toNumberOrNull(strategy?.paper?.allocation)
+    ?? toNumberOrNull(strategy?.allocation);
+  if (explicit !== null && explicit > 0) return explicit;
+  return parsePositionAllocation(strategy, accountBalance);
+};
+
+const calculateTotalAllocated = (strategies = []) => strategies.reduce(
+  (sum, strategy) => sum + getStrategyAllocation(strategy, PAPER_TRADING_BALANCE),
+  0,
+);
+
 export default function Dashboard({
   setCurrentPage,
   alpacaData,
@@ -268,10 +294,11 @@ export default function Dashboard({
   
   const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
-  const [activeTab, setActiveTab] = useState('trade');
+  const [activeTab, setActiveTab] = useState(savedState?.activeTab ?? 'trade');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
+  const [paperTradingBalance, setPaperTradingBalance] = useState(savedState?.paperTradingBalance ?? PAPER_TRADING_BALANCE);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   
   // Terminal backtest state
@@ -318,6 +345,7 @@ export default function Dashboard({
     setSavedStrategies,
     deployedStrategies,
     setDeployedStrategies,
+    loaded: strategiesLoaded,
   } = useStrategySync(user);
   
   // Mini ticker pills (slots 2-5, slots 0-1 are Grok and Feed)
@@ -413,7 +441,9 @@ export default function Dashboard({
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
   const [currentMarketStatus, setCurrentMarketStatus] = useState(() => getMarketStatus());
   const [nextMarketOpenAt, setNextMarketOpenAt] = useState(() => getNextMarketOpen());
+  const [allocationPrompt, setAllocationPrompt] = useState(null);
   const deployedStrategiesRef = useRef(deployedStrategies);
+  const allocationResolverRef = useRef(null);
 
   const isPaidTier = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
   const strategyIdentitySet = useMemo(
@@ -425,6 +455,45 @@ export default function Dashboard({
     [deployedStrategies],
   );
   const activeStrategiesCount = deployedStrategies.length;
+  const totalAllocatedBalance = useMemo(
+    () => calculateTotalAllocated(deployedStrategies),
+    [deployedStrategies],
+  );
+  const availablePaperBalance = useMemo(
+    () => Math.max(0, PAPER_TRADING_BALANCE - totalAllocatedBalance),
+    [totalAllocatedBalance],
+  );
+
+  useEffect(() => {
+    if (!strategiesLoaded) return;
+    setPaperTradingBalance((prev) => (
+      Math.abs(prev - availablePaperBalance) < 0.01 ? prev : availablePaperBalance
+    ));
+  }, [strategiesLoaded, availablePaperBalance]);
+
+  const hydrateDashboardState = useCallback((state) => {
+    if (!state || typeof state !== 'object') return;
+    if (typeof state.sidebarExpanded === 'boolean') setSidebarExpanded(state.sidebarExpanded);
+    if (Number.isFinite(Number(state.rightPanelWidth))) setRightPanelWidth(Number(state.rightPanelWidth));
+    if (state.activeTab) setActiveTab(String(state.activeTab));
+    if (state.activeSection) setActiveSection(String(state.activeSection));
+    if (state.theme === 'dark' || state.theme === 'light') setTheme(state.theme);
+    const nextPaperBalance = toNumberOrNull(state.paperTradingBalance);
+    if (nextPaperBalance !== null && nextPaperBalance >= 0) {
+      setPaperTradingBalance(nextPaperBalance);
+    }
+  }, []);
+
+  const dashboardSyncState = useMemo(() => ({
+    sidebarExpanded,
+    rightPanelWidth,
+    activeTab,
+    activeSection,
+    theme,
+    paperTradingBalance,
+  }), [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme, paperTradingBalance]);
+
+  useDashboardStateSync(user, dashboardSyncState, hydrateDashboardState);
 
   const canCreateStrategy = useCallback(
     (candidateStrategy) => {
@@ -681,7 +750,100 @@ export default function Dashboard({
     }, {});
   }, [fetchQuoteForSymbol]);
 
-  const buildActivatedStrategy = useCallback(async (strategy, existingStrategy = null) => {
+  const getRemainingAllocationCapacity = useCallback((excludeStrategy = null) => {
+    const excludeId = excludeStrategy?.id !== undefined && excludeStrategy?.id !== null
+      ? String(excludeStrategy.id)
+      : null;
+    const excludeIdentity = normalizeStrategyIdentity(excludeStrategy);
+
+    const allocatedElsewhere = deployedStrategiesRef.current.reduce((sum, strategy) => {
+      const sameId = excludeId && strategy?.id !== undefined && strategy?.id !== null
+        ? String(strategy.id) === excludeId
+        : false;
+      const sameIdentity = excludeIdentity && normalizeStrategyIdentity(strategy) === excludeIdentity;
+      if (sameId || sameIdentity) return sum;
+      return sum + getStrategyAllocation(strategy, PAPER_TRADING_BALANCE);
+    }, 0);
+
+    return Math.max(0, PAPER_TRADING_BALANCE - allocatedElsewhere);
+  }, []);
+
+  const resolveAllocationPrompt = useCallback((value = null) => {
+    const resolver = allocationResolverRef.current;
+    allocationResolverRef.current = null;
+    setAllocationPrompt(null);
+    if (resolver) resolver(value);
+  }, []);
+
+  const requestStrategyAllocation = useCallback(async ({
+    strategy,
+    maxAllocation,
+    suggestedAllocation = null,
+  }) => {
+    const cap = Math.max(0, Number(maxAllocation) || 0);
+    if (cap < MIN_STRATEGY_ALLOCATION) {
+      window.alert(
+        `Insufficient available paper balance. Minimum allocation is ${formatCurrency(MIN_STRATEGY_ALLOCATION)}.`,
+      );
+      return null;
+    }
+
+    const initial = clamp(
+      toNumberOrNull(suggestedAllocation) ?? Math.min(10000, cap),
+      MIN_STRATEGY_ALLOCATION,
+      cap,
+    );
+
+    return new Promise((resolve) => {
+      allocationResolverRef.current = resolve;
+      setAllocationPrompt({
+        strategyName: strategy?.name || `${resolveStrategySymbol(strategy)} Strategy`,
+        symbol: resolveStrategySymbol(strategy),
+        minAllocation: MIN_STRATEGY_ALLOCATION,
+        maxAllocation: cap,
+        value: String(Math.round(initial)),
+        error: '',
+      });
+    });
+  }, []);
+
+  const handleAllocationPromptConfirm = useCallback(() => {
+    if (!allocationPrompt) return;
+
+    const parsed = Number(sanitizeCurrencyInput(allocationPrompt.value));
+    if (!Number.isFinite(parsed)) {
+      setAllocationPrompt((prev) => (
+        prev ? { ...prev, error: 'Enter a valid dollar amount.' } : prev
+      ));
+      return;
+    }
+
+    const rounded = Math.round(parsed);
+    if (rounded < MIN_STRATEGY_ALLOCATION) {
+      setAllocationPrompt((prev) => (
+        prev ? { ...prev, error: `Minimum allocation is ${formatCurrency(MIN_STRATEGY_ALLOCATION)}.` } : prev
+      ));
+      return;
+    }
+
+    if (rounded > allocationPrompt.maxAllocation) {
+      setAllocationPrompt((prev) => (
+        prev ? { ...prev, error: `Maximum available is ${formatCurrency(allocationPrompt.maxAllocation)}.` } : prev
+      ));
+      return;
+    }
+
+    resolveAllocationPrompt(rounded);
+  }, [allocationPrompt, resolveAllocationPrompt]);
+
+  useEffect(() => () => {
+    if (allocationResolverRef.current) {
+      allocationResolverRef.current(null);
+      allocationResolverRef.current = null;
+    }
+  }, []);
+
+  const buildActivatedStrategy = useCallback(async (strategy, existingStrategy = null, allocationOverride = null) => {
     const now = Date.now();
     const symbol = resolveStrategySymbol(strategy);
     const equity = isEquityStrategy(strategy);
@@ -690,8 +852,13 @@ export default function Dashboard({
     const quote = await fetchQuoteForSymbol(symbol);
     const quotePrice = extractQuotePrice(quote);
 
-    const allocation = toNumberOrNull(existingStrategy?.paper?.allocation)
-      ?? parsePositionAllocation(strategy, PAPER_TRADING_BALANCE);
+    const allocation = clamp(
+      toNumberOrNull(allocationOverride)
+        ?? toNumberOrNull(existingStrategy?.paper?.allocation)
+        ?? parsePositionAllocation(strategy, PAPER_TRADING_BALANCE),
+      MIN_STRATEGY_ALLOCATION,
+      PAPER_TRADING_BALANCE,
+    );
     const entryPrice = toNumberOrNull(existingStrategy?.paper?.entryPrice)
       ?? quotePrice
       ?? 0;
@@ -743,6 +910,7 @@ export default function Dashboard({
       runStatus: runtimeStatus.runStatus,
       pausedReason: runtimeStatus.pausedReason ?? null,
       statusLabel: runtimeStatus.statusLabel,
+      allocation,
       paper,
       pnl: paper.pnl,
       pnlPct: paper.pnlPercent,
@@ -765,7 +933,25 @@ export default function Dashboard({
       return false;
     }
 
-    const activatedStrategy = await buildActivatedStrategy(strategy, existingActive || null);
+    const maxAllocation = getRemainingAllocationCapacity(existingActive || null);
+    const suggestedAllocation = existingActive
+      ? getStrategyAllocation(existingActive, PAPER_TRADING_BALANCE)
+      : null;
+    const selectedAllocation = await requestStrategyAllocation({
+      strategy,
+      maxAllocation,
+      suggestedAllocation,
+    });
+
+    if (!Number.isFinite(selectedAllocation)) {
+      return false;
+    }
+
+    const activatedStrategy = await buildActivatedStrategy(
+      strategy,
+      existingActive || null,
+      selectedAllocation,
+    );
 
     setDeployedStrategies((prev) => {
       const existingIndex = prev.findIndex((item) => {
@@ -812,6 +998,7 @@ export default function Dashboard({
           stoppedAt: null,
           pnl: activatedStrategy.pnl,
           pnlPct: activatedStrategy.pnlPct,
+          allocation: activatedStrategy.paper?.allocation ?? activatedStrategy.allocation,
           paper: activatedStrategy.paper,
           folderId: next[existingIndex].folderId || 'active',
         };
@@ -838,6 +1025,7 @@ export default function Dashboard({
           ticker: activatedStrategy.ticker,
           pnl: activatedStrategy.pnl,
           pnlPct: activatedStrategy.pnlPct,
+          allocation: activatedStrategy.paper?.allocation ?? activatedStrategy.allocation,
           paper: activatedStrategy.paper,
           folderId: strategy.folderId || 'active',
           savedAt: Date.now(),
@@ -851,7 +1039,15 @@ export default function Dashboard({
 
     setAutoBacktestStrategy(null);
     return true;
-  }, [buildActivatedStrategy, canActivateStrategy, canCreateStrategy, setDeployedStrategies, setSavedStrategies]);
+  }, [
+    buildActivatedStrategy,
+    canActivateStrategy,
+    canCreateStrategy,
+    getRemainingAllocationCapacity,
+    requestStrategyAllocation,
+    setDeployedStrategies,
+    setSavedStrategies,
+  ]);
 
   const handleToggleActivatedStrategyPause = useCallback((strategyId) => {
     setDeployedStrategies((prev) => prev.map((strategy) => {
@@ -903,6 +1099,86 @@ export default function Dashboard({
         : strategy
     )));
   }, [setDeployedStrategies, setSavedStrategies]);
+
+  const handleUpdateStrategyAllocation = useCallback((strategyId, nextAllocation) => {
+    const target = deployedStrategiesRef.current.find((strategy) => String(strategy.id) === String(strategyId));
+    if (!target) return { success: false, message: 'Strategy not found.' };
+
+    const parsed = toNumberOrNull(nextAllocation);
+    if (parsed === null) {
+      return { success: false, message: 'Enter a valid dollar amount.' };
+    }
+
+    const requested = Math.round(parsed);
+    if (requested < MIN_STRATEGY_ALLOCATION) {
+      return {
+        success: false,
+        message: `Minimum allocation is ${formatCurrency(MIN_STRATEGY_ALLOCATION)}.`,
+      };
+    }
+
+    const maxAllocation = getRemainingAllocationCapacity(target);
+    if (requested > maxAllocation) {
+      return {
+        success: false,
+        message: `Maximum available is ${formatCurrency(maxAllocation)}.`,
+      };
+    }
+
+    let updated = null;
+    const now = Date.now();
+    setDeployedStrategies((prev) => prev.map((strategy) => {
+      if (String(strategy.id) !== String(strategyId)) return strategy;
+
+      const entryPrice = toNumberOrNull(strategy?.paper?.entryPrice)
+        ?? toNumberOrNull(strategy?.paper?.lastPrice)
+        ?? 0;
+      const lastPrice = toNumberOrNull(strategy?.paper?.lastPrice)
+        ?? entryPrice;
+      const quantity = entryPrice > 0 ? Math.max(1, Math.floor(requested / entryPrice)) : 1;
+      const pnl = quantity > 0 ? (lastPrice - entryPrice) * quantity : 0;
+      const notional = entryPrice * quantity;
+      const pnlPct = notional > 0 ? (pnl / notional) * 100 : 0;
+
+      updated = {
+        ...strategy,
+        allocation: requested,
+        pnl: Number(pnl.toFixed(2)),
+        pnlPct: Number(pnlPct.toFixed(2)),
+        paper: {
+          ...strategy.paper,
+          balanceStart: toNumberOrNull(strategy?.paper?.balanceStart) ?? PAPER_TRADING_BALANCE,
+          provider: strategy?.paper?.provider || 'alpaca-paper',
+          allocation: requested,
+          quantity,
+          entryPrice,
+          lastPrice,
+          pnl: Number(pnl.toFixed(2)),
+          pnlPercent: Number(pnlPct.toFixed(2)),
+          updatedAt: now,
+        },
+      };
+
+      return updated;
+    }));
+
+    if (updated) {
+      setSavedStrategies((prev) => prev.map((strategy) => (
+        String(strategy.id) === String(strategyId)
+          ? {
+              ...strategy,
+              allocation: updated.paper?.allocation ?? updated.allocation,
+              pnl: updated.pnl,
+              pnlPct: updated.pnlPct,
+              paper: updated.paper,
+            }
+          : strategy
+      )));
+      return { success: true, allocation: requested };
+    }
+
+    return { success: false, message: 'Unable to update allocation.' };
+  }, [getRemainingAllocationCapacity, setDeployedStrategies, setSavedStrategies]);
 
   const handleDemoStateChange = (state) => {
     setDemoState(state);
@@ -978,12 +1254,16 @@ export default function Dashboard({
         const deployedStatus = String(deployed.status || '').toLowerCase();
         const savedRunStatus = String(saved.runStatus || '').toLowerCase();
         const deployedRunStatus = String(deployed.runStatus || '').toLowerCase();
+        const savedAllocation = toNumberOrNull(saved?.paper?.allocation) ?? toNumberOrNull(saved?.allocation) ?? 0;
+        const deployedAllocation = toNumberOrNull(deployed?.paper?.allocation) ?? toNumberOrNull(deployed?.allocation) ?? 0;
 
         if (
           savedStatus === deployedStatus
           && savedRunStatus === deployedRunStatus
           && Boolean(saved.deployed) === true
           && Number(saved.pnl || 0) === Number(deployed.pnl || 0)
+          && Number(saved.pnlPct || 0) === Number(deployed.pnlPct || 0)
+          && Number(savedAllocation) === Number(deployedAllocation)
         ) {
           return saved;
         }
@@ -1002,6 +1282,7 @@ export default function Dashboard({
           stoppedAt: null,
           pnl: deployed.pnl,
           pnlPct: deployed.pnlPct,
+          allocation: deployed.paper?.allocation ?? deployed.allocation,
           paper: deployed.paper,
         };
       });
@@ -1036,8 +1317,7 @@ export default function Dashboard({
       const symbol = resolveStrategySymbol(strategy);
       const quote = quotesBySymbol[symbol];
       const quotePrice = extractQuotePrice(quote);
-      const allocation = toNumberOrNull(strategy?.paper?.allocation)
-        ?? parsePositionAllocation(strategy, PAPER_TRADING_BALANCE);
+      const allocation = getStrategyAllocation(strategy, PAPER_TRADING_BALANCE);
       const entryPrice = toNumberOrNull(strategy?.paper?.entryPrice)
         ?? quotePrice
         ?? 0;
@@ -1063,6 +1343,7 @@ export default function Dashboard({
         pausedReason: runtime.pausedReason ?? null,
         statusLabel: runtime.statusLabel,
         timeActive: formatDuration(strategy.activatedAt || strategy.deployedAt || now, now),
+        allocation,
         pnl: Number(pnl.toFixed(2)),
         pnlPct: Number(pnlPct.toFixed(2)),
         paper: {
@@ -1101,8 +1382,15 @@ export default function Dashboard({
   }, [sidebarExpanded]);
 
   useEffect(() => {
-    saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
-  }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme]);
+    saveDashboardState({
+      sidebarExpanded,
+      rightPanelWidth,
+      activeTab,
+      activeSection,
+      theme,
+      paperTradingBalance,
+    });
+  }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme, paperTradingBalance]);
 
   useEffect(() => {
     localStorage.setItem('stratify-connected-brokers', JSON.stringify(connectedBrokers));
@@ -1167,6 +1455,17 @@ export default function Dashboard({
     greenBg: 'bg-[#137333]/10',
     redBg: 'bg-[#A50E0E]/10',
   };
+
+  const allocationPromptSliderMax = allocationPrompt
+    ? Math.max(MIN_STRATEGY_ALLOCATION, Math.floor(allocationPrompt.maxAllocation))
+    : MIN_STRATEGY_ALLOCATION;
+  const allocationPromptValue = allocationPrompt
+    ? clamp(
+        Number(sanitizeCurrencyInput(allocationPrompt.value)) || MIN_STRATEGY_ALLOCATION,
+        MIN_STRATEGY_ALLOCATION,
+        allocationPromptSliderMax,
+      )
+    : MIN_STRATEGY_ALLOCATION;
 
   const draftStrategiesCount = strategies.filter(s => s.status !== 'deployed').length;
 
@@ -1377,6 +1676,10 @@ export default function Dashboard({
               setStrategies={setDeployedStrategies}
               onTogglePause={handleToggleActivatedStrategyPause}
               onStopStrategy={handleStopActivatedStrategy}
+              onAllocationChange={handleUpdateStrategyAllocation}
+              availableBalance={availablePaperBalance}
+              totalPaperBalance={PAPER_TRADING_BALANCE}
+              minimumAllocation={MIN_STRATEGY_ALLOCATION}
               marketStatus={currentMarketStatus}
               nextMarketOpen={nextMarketOpenAt}
             />
@@ -1446,6 +1749,88 @@ export default function Dashboard({
               priceId={PRO_PRICE_ID}
               className="mx-auto"
             />
+          </div>
+        </div>
+      )}
+
+      {allocationPrompt && (
+        <div
+          className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => resolveAllocationPrompt(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111111] p-5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="text-[10px] uppercase tracking-[0.16em] text-emerald-300/80">Paper Allocation</div>
+            <h2 className="text-lg font-semibold mt-2">Allocate Capital</h2>
+            <p className="text-sm text-white/60 mt-1">
+              {allocationPrompt.strategyName} ({allocationPrompt.symbol})
+            </p>
+
+            <div className="mt-4 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-[0.12em] text-white/45">Available Balance</div>
+              <div className="text-base font-semibold text-emerald-300 mt-0.5">
+                {formatCurrency(allocationPrompt.maxAllocation)}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="text-xs text-white/55">Dollar amount</label>
+              <input
+                type="text"
+                value={allocationPrompt.value}
+                onChange={(event) => {
+                  const cleaned = sanitizeCurrencyInput(event.target.value);
+                  setAllocationPrompt((prev) => (
+                    prev ? { ...prev, value: cleaned, error: '' } : prev
+                  ));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') handleAllocationPromptConfirm();
+                  if (event.key === 'Escape') resolveAllocationPrompt(null);
+                }}
+                placeholder="10000"
+                className="mt-1 w-full rounded-lg border border-white/15 bg-[#0b0b0b] px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/40"
+              />
+              <input
+                type="range"
+                min={MIN_STRATEGY_ALLOCATION}
+                max={allocationPromptSliderMax}
+                step={100}
+                value={allocationPromptValue}
+                onChange={(event) => {
+                  setAllocationPrompt((prev) => (
+                    prev ? { ...prev, value: event.target.value, error: '' } : prev
+                  ));
+                }}
+                className="mt-3 w-full accent-emerald-400"
+              />
+              <div className="mt-1 flex justify-between text-[11px] text-white/45">
+                <span>Min {formatCurrency(MIN_STRATEGY_ALLOCATION)}</span>
+                <span>Max {formatCurrency(allocationPrompt.maxAllocation)}</span>
+              </div>
+              {allocationPrompt.error && (
+                <div className="mt-2 text-xs text-red-300">{allocationPrompt.error}</div>
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => resolveAllocationPrompt(null)}
+                className="px-3 py-1.5 rounded-lg border border-white/15 text-xs text-white/75 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAllocationPromptConfirm}
+                className="px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/20 text-xs text-emerald-200 hover:bg-emerald-500/30"
+              >
+                Activate Strategy
+              </button>
+            </div>
           </div>
         </div>
       )}

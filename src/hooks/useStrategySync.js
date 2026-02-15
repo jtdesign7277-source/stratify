@@ -73,6 +73,14 @@ const saveLocalState = (payload) => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
 };
 
+const hasStrategyData = (payload) => (
+  Array.isArray(payload?.strategies) && payload.strategies.length > 0
+) || (
+  Array.isArray(payload?.savedStrategies) && payload.savedStrategies.length > 0
+) || (
+  Array.isArray(payload?.deployedStrategies) && payload.deployedStrategies.length > 0
+);
+
 export default function useStrategySync(user) {
   const [strategies, setStrategies] = useState([]);
   const [savedStrategies, setSavedStrategies] = useState([]);
@@ -142,16 +150,27 @@ export default function useStrategySync(user) {
         }
 
         const next = normalizeStrategyPayload(data?.strategies);
+        const local = loadLocalState();
+        const useLocal = !hasStrategyData(next) && hasStrategyData(local);
+        const resolved = useLocal ? local : next;
         if (cancelled) return;
 
-        setStrategies(next.strategies);
-        setSavedStrategies(next.savedStrategies);
-        setDeployedStrategies(next.deployedStrategies);
+        setStrategies(resolved.strategies);
+        setSavedStrategies(resolved.savedStrategies);
+        setDeployedStrategies(resolved.deployedStrategies);
         lastSaved.current = JSON.stringify({
-          strategies: next.strategies,
-          savedStrategies: next.savedStrategies,
-          deployedStrategies: next.deployedStrategies,
+          strategies: resolved.strategies,
+          savedStrategies: resolved.savedStrategies,
+          deployedStrategies: resolved.deployedStrategies,
         });
+
+        if (useLocal) {
+          saveToSupabase(user.id, {
+            strategies: local.strategies,
+            savedStrategies: local.savedStrategies,
+            deployedStrategies: local.deployedStrategies,
+          });
+        }
       } catch (error) {
         if (!cancelled) {
           console.warn('[StrategySync] Load failed:', error);
@@ -170,7 +189,7 @@ export default function useStrategySync(user) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, saveToSupabase]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -192,7 +211,7 @@ export default function useStrategySync(user) {
         return;
       }
       saveToSupabase(user.id, payload);
-    }, 1200);
+    }, 2000);
 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
