@@ -7,77 +7,83 @@ const LiveAvatarChat = () => {
   const [status, setStatus] = useState('idle'); // idle | connecting | connected | error
   const [isMuted, setIsMuted] = useState(false);
   const [textInput, setTextInput] = useState('');
-  const [messages, setMessages] = useState([]);
   const [error, setError] = useState(null);
   const videoRef = useRef(null);
-  const sessionRef = useRef(null);
-  const pcRef = useRef(null);
+  const roomRef = useRef(null);
+  const sessionTokenRef = useRef(null);
 
   const startSession = useCallback(async () => {
     setStatus('connecting');
     setError(null);
 
     try {
-      // Get session token from our API
-      const tokenRes = await fetch('/api/liveavatar-token', { method: 'POST' });
-      const tokenData = await tokenRes.json();
+      // Get session token + livekit credentials from our API
+      const res = await fetch('/api/liveavatar-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
 
-      if (!tokenRes.ok) {
-        throw new Error(tokenData.error || 'Failed to get session token');
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to get session');
       }
 
-      sessionRef.current = tokenData;
+      sessionTokenRef.current = data.session_token;
+      const livekitData = data.livekit;
 
-      // Start the session
-      const startRes = await fetch('https://api.liveavatar.com/v1/sessions/start', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'authorization': `Bearer ${tokenData.session_token}`,
-        },
+      if (!livekitData) {
+        throw new Error('No LiveKit data received');
+      }
+
+      // Dynamic import livekit-client
+      const { Room, RoomEvent, Track } = await import('livekit-client');
+
+      const room = new Room();
+      roomRef.current = room;
+
+      // Handle remote tracks (avatar video + audio)
+      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        if (track.kind === Track.Kind.Video) {
+          const el = track.attach();
+          if (videoRef.current) {
+            videoRef.current.innerHTML = '';
+            el.style.width = '100%';
+            el.style.height = '100%';
+            el.style.objectFit = 'cover';
+            videoRef.current.appendChild(el);
+          }
+        }
+        if (track.kind === Track.Kind.Audio) {
+          const audioEl = track.attach();
+          audioEl.style.display = 'none';
+          document.body.appendChild(audioEl);
+        }
       });
 
-      const startData = await startRes.json();
+      room.on(RoomEvent.Disconnected, () => {
+        setStatus('idle');
+      });
 
-      if (!startRes.ok) {
-        throw new Error(startData.message || 'Failed to start session');
+      // Connect to LiveKit room
+      const url = livekitData.url || livekitData.livekit_url;
+      const token = livekitData.access_token || livekitData.token || livekitData.livekit_client_token;
+
+      if (!url || !token) {
+        console.error('LiveKit data:', livekitData);
+        throw new Error('Missing LiveKit URL or token');
       }
 
-      // Connect via LiveKit WebRTC
-      const { livekit_url, livekit_client_token } = startData.data || startData;
+      await room.connect(url, token);
 
-      if (livekit_url && livekit_client_token) {
-        // Dynamic import of LiveKit client
-        const { Room, RoomEvent, Track } = await import('livekit-client');
-        
-        const room = new Room();
-        pcRef.current = room;
-
-        room.on(RoomEvent.TrackSubscribed, (track) => {
-          if (track.kind === Track.Kind.Video && videoRef.current) {
-            track.attach(videoRef.current);
-          }
-          if (track.kind === Track.Kind.Audio) {
-            const audioEl = track.attach();
-            document.body.appendChild(audioEl);
-          }
-        });
-
-        room.on(RoomEvent.Disconnected, () => {
-          setStatus('idle');
-        });
-
-        await room.connect(livekit_url, livekit_client_token);
-        
-        // Enable microphone
+      // Enable microphone for voice chat
+      try {
         await room.localParticipant.setMicrophoneEnabled(true);
-        
-        setStatus('connected');
-        setMessages(prev => [...prev, {
-          role: 'avatar',
-          text: "Hi! I'm here to help you learn about Stratify. Ask me anything about our AI-powered trading platform!",
-        }]);
+      } catch (micErr) {
+        console.warn('Mic access denied, text-only mode:', micErr);
+        setIsMuted(true);
       }
+
+      setStatus('connected');
     } catch (err) {
       console.error('LiveAvatar error:', err);
       setError(err.message);
@@ -86,34 +92,34 @@ const LiveAvatarChat = () => {
   }, []);
 
   const endSession = useCallback(async () => {
-    if (pcRef.current) {
-      await pcRef.current.disconnect();
-      pcRef.current = null;
+    if (roomRef.current) {
+      await roomRef.current.disconnect();
+      roomRef.current = null;
     }
-    sessionRef.current = null;
+    sessionTokenRef.current = null;
     setStatus('idle');
-    setMessages([]);
+    if (videoRef.current) videoRef.current.innerHTML = '';
   }, []);
 
   const toggleMute = useCallback(async () => {
-    if (pcRef.current) {
-      await pcRef.current.localParticipant.setMicrophoneEnabled(isMuted);
+    if (roomRef.current) {
+      await roomRef.current.localParticipant.setMicrophoneEnabled(isMuted);
       setIsMuted(!isMuted);
     }
   }, [isMuted]);
 
   const sendText = useCallback(async () => {
-    if (!textInput.trim() || !sessionRef.current) return;
+    if (!textInput.trim() || !sessionTokenRef.current) return;
 
     const msg = textInput.trim();
     setTextInput('');
-    setMessages(prev => [...prev, { role: 'user', text: msg }]);
 
     try {
+      // Send text message via LiveAvatar chat API
       await fetch('https://api.liveavatar.com/v1/sessions/chat', {
         method: 'POST',
         headers: {
-          'authorization': `Bearer ${sessionRef.current.session_token}`,
+          'authorization': `Bearer ${sessionTokenRef.current}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({ text: msg }),
@@ -125,7 +131,7 @@ const LiveAvatarChat = () => {
 
   useEffect(() => {
     return () => {
-      if (pcRef.current) pcRef.current.disconnect();
+      if (roomRef.current) roomRef.current.disconnect();
     };
   }, []);
 
@@ -147,11 +153,7 @@ const LiveAvatarChat = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        {isOpen ? (
-          <X className="w-6 h-6" />
-        ) : (
-          <MessageCircle className="w-6 h-6" />
-        )}
+        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
       </motion.button>
 
       {/* Chat Window */}
@@ -171,16 +173,16 @@ const LiveAvatarChat = () => {
                   <span className="text-white text-xs font-bold">S</span>
                 </div>
                 <div>
-                  <div className="text-white text-sm font-medium">Stratify Assistant</div>
-                  <div className="text-emerald-400 text-xs flex items-center gap-1">
+                  <div className="text-white text-sm font-medium">Katya · Stratify Assistant</div>
+                  <div className="text-xs flex items-center gap-1">
                     {status === 'connected' && (
-                      <>
+                      <span className="text-emerald-400 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         Live
-                      </>
+                      </span>
                     )}
-                    {status === 'connecting' && 'Connecting...'}
-                    {status === 'idle' && 'Click Start to chat'}
+                    {status === 'connecting' && <span className="text-yellow-400">Connecting...</span>}
+                    {status === 'idle' && <span className="text-white/40">Click Start to chat</span>}
                     {status === 'error' && <span className="text-red-400">Connection failed</span>}
                   </div>
                 </div>
@@ -190,15 +192,10 @@ const LiveAvatarChat = () => {
               </button>
             </div>
 
-            {/* Video Area */}
+            {/* Video / Content Area */}
             <div className="relative flex-1 bg-black">
               {status === 'connected' ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                <div ref={videoRef} className="w-full h-full" />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
                   {status === 'idle' && (
@@ -207,7 +204,7 @@ const LiveAvatarChat = () => {
                         <MessageCircle className="w-8 h-8 text-emerald-400" />
                       </div>
                       <p className="text-white/60 text-sm text-center">
-                        Chat with our AI assistant about Stratify's features, pricing, and trading strategies
+                        Talk to Katya about Stratify's AI trading features, pricing, and strategies
                       </p>
                       <button
                         onClick={startSession}
@@ -220,7 +217,7 @@ const LiveAvatarChat = () => {
                   {status === 'connecting' && (
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-                      <p className="text-white/60 text-sm">Connecting to avatar...</p>
+                      <p className="text-white/60 text-sm">Connecting to Katya...</p>
                     </div>
                   )}
                   {status === 'error' && (
