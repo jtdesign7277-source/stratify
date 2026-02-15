@@ -231,6 +231,11 @@ const formatCurrencyNeutral = (value) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
 };
 
+const toMetricNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 // Mini broker badge for connected accounts
 const BrokerBadge = ({ broker }) => {
   const colors = {
@@ -280,31 +285,50 @@ const clearGlobalDragPayload = () => {
   }
 };
 
-export default function TopMetricsBar({ alpacaData, theme, themeClasses, onThemeToggle, onLogout, onAddToWatchlist, onLegendClick, connectedBrokers = [], miniPills = [], onTickerDrop, onGameDrop }) {
+export default function TopMetricsBar({
+  alpacaData,
+  theme,
+  themeClasses,
+  onThemeToggle,
+  onLogout,
+  onAddToWatchlist,
+  onLegendClick,
+  connectedBrokers = [],
+  miniPills = [],
+  onTickerDrop,
+  onGameDrop,
+  paperMetrics = null,
+}) {
   const account = alpacaData?.account || {};
+  const hasPaperMetrics = paperMetrics && typeof paperMetrics === 'object';
 
   // Use broker values only when we have real account data.
   const hasRealData = Number(account.equity) > 0;
+  const hasDisplayData = hasRealData || hasPaperMetrics;
   const zeroDisplay = '-$0.00';
-  const dailyPnL = hasRealData ? Number(account.daily_pnl ?? 0) : 0;
-  const unrealizedPnL = hasRealData ? Number(account.unrealized_pl ?? 0) : 0;
-  const netLiquidity = hasRealData ? Number(account.equity ?? 0) : 0;
-  const buyingPower = hasRealData ? Number(account.buying_power ?? 0) : 0;
+  const dailyPnL = toMetricNumber(paperMetrics?.dailyPnl)
+    ?? (hasRealData ? Number(account.daily_pnl ?? 0) : 0);
+  const unrealizedPnL = toMetricNumber(paperMetrics?.unrealizedPnl)
+    ?? (hasRealData ? Number(account.unrealized_pl ?? 0) : dailyPnL);
+  const netLiquidity = toMetricNumber(paperMetrics?.netLiquidity)
+    ?? (hasRealData ? Number(account.equity ?? 0) : 0);
+  const buyingPower = toMetricNumber(paperMetrics?.buyingPower)
+    ?? (hasRealData ? Number(account.buying_power ?? 0) : 0);
   
   const metrics = [
     {
       label: 'Daily P&L',
-      value: hasRealData ? formatCurrency(dailyPnL) : zeroDisplay,
-      change: hasRealData ? dailyPnL : undefined,
+      value: hasDisplayData ? formatCurrency(dailyPnL) : zeroDisplay,
+      change: hasDisplayData ? dailyPnL : undefined,
     },
     {
       label: 'Buying Power',
-      value: hasRealData ? formatCurrencyNeutral(buyingPower) : zeroDisplay,
+      value: hasDisplayData ? formatCurrencyNeutral(buyingPower) : zeroDisplay,
     },
     {
       label: 'Unrealized P&L',
-      value: hasRealData ? formatCurrency(unrealizedPnL) : zeroDisplay,
-      change: hasRealData ? unrealizedPnL : undefined,
+      value: hasDisplayData ? formatCurrency(unrealizedPnL) : zeroDisplay,
+      change: hasDisplayData ? unrealizedPnL : undefined,
     },
   ];
 
@@ -324,7 +348,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
             <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
           </div>
         ))}
-        {!hasRealData && (
+        {!hasDisplayData && (
           <span className={`text-[10px] ${themeClasses.textMuted}`}>Connect broker to see live data</span>
         )}
       </div>
@@ -403,7 +427,7 @@ export default function TopMetricsBar({ alpacaData, theme, themeClasses, onTheme
             <div className="text-right">
               <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
               <p className={`text-sm font-semibold ${themeClasses.text}`}>
-                {hasRealData ? formatCurrencyNeutral(netLiquidity) : zeroDisplay}
+                {hasDisplayData ? formatCurrencyNeutral(netLiquidity) : zeroDisplay}
               </p>
             </div>
           </div>

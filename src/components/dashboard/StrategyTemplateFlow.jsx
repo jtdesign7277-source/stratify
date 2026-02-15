@@ -719,6 +719,7 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
       timeframe,
       period,
       capital,
+      backtestAmount: capital,
       description: template.description,
       logic: template.logic,
       indicators: template.indicators,
