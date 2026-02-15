@@ -38,6 +38,8 @@ const Sidebar = ({
   setActiveTab, 
   onTabChange, 
   onNavigate,
+  expanded,
+  onToggle,
   savedStrategies = [],
   deployedStrategies = [],
   activeStrategyCount,
@@ -47,9 +49,22 @@ const Sidebar = ({
   onLogout
 }) => {
   const { signOut, isAuthenticated } = useAuth();
-  const [collapsed, setCollapsed] = useState(true);
+  const [internalCollapsed, setInternalCollapsed] = useState(true);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
+  const isControlled = typeof expanded === 'boolean';
+  const collapsed = isControlled ? !expanded : internalCollapsed;
+
+  const setCollapsed = (nextCollapsed) => {
+    const resolvedNext = typeof nextCollapsed === 'function' ? nextCollapsed(collapsed) : nextCollapsed;
+
+    if (!isControlled) {
+      setInternalCollapsed(resolvedNext);
+    }
+
+    onToggle?.(!resolvedNext);
+  };
+
   const resolvedActiveCount = Number.isFinite(activeStrategyCount)
     ? activeStrategyCount
     : deployedStrategies.length;

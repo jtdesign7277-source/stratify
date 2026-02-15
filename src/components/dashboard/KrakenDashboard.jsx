@@ -85,6 +85,28 @@ const saveDashboardState = (state) => {
   localStorage.setItem('stratify-dashboard-state', JSON.stringify(state));
 };
 
+const SIDEBAR_SEEN_KEY = 'stratify-sidebar-seen';
+const SIDEBAR_EXPANDED_KEY = 'stratify-sidebar-expanded';
+
+const getInitialSidebarExpanded = (savedState) => {
+  try {
+    const hasSeenSidebar = localStorage.getItem(SIDEBAR_SEEN_KEY);
+    if (!hasSeenSidebar) return true;
+
+    const savedExpanded = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
+    if (savedExpanded === 'true') return true;
+    if (savedExpanded === 'false') return false;
+  } catch {
+    return true;
+  }
+
+  if (typeof savedState?.sidebarExpanded === 'boolean') {
+    return savedState.sidebarExpanded;
+  }
+
+  return false;
+};
+
 // Portfolio Growth Chart (Custom SVG with gradient)
 const PortfolioGrowthChart = ({ data, height = 180 }) => {
   const width = 800;
@@ -977,7 +999,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const { user } = useAuth();
   
   // ALL state from original Dashboard
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState('strategies');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
@@ -1151,6 +1173,20 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
       return [...prev, broker];
     });
   };
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(SIDEBAR_SEEN_KEY)) {
+        localStorage.setItem(SIDEBAR_SEEN_KEY, 'true');
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_EXPANDED_KEY, String(sidebarExpanded));
+    } catch {}
+  }, [sidebarExpanded]);
 
   // Persist all state
   useEffect(() => {

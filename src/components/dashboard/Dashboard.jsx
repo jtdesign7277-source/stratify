@@ -62,6 +62,28 @@ const saveDashboardState = (state) => {
   localStorage.setItem('stratify-dashboard-state', JSON.stringify(state));
 };
 
+const SIDEBAR_SEEN_KEY = 'stratify-sidebar-seen';
+const SIDEBAR_EXPANDED_KEY = 'stratify-sidebar-expanded';
+
+const getInitialSidebarExpanded = (savedState) => {
+  try {
+    const hasSeenSidebar = localStorage.getItem(SIDEBAR_SEEN_KEY);
+    if (!hasSeenSidebar) return true;
+
+    const savedExpanded = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
+    if (savedExpanded === 'true') return true;
+    if (savedExpanded === 'false') return false;
+  } catch {
+    return true;
+  }
+
+  if (typeof savedState?.sidebarExpanded === 'boolean') {
+    return savedState.sidebarExpanded;
+  }
+
+  return false;
+};
+
 const FREE_STRATEGY_LIMIT = 3;
 const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 const PAPER_TRADING_BALANCE = 100000;
@@ -244,7 +266,7 @@ export default function Dashboard({
 }) {
   const savedState = loadDashboardState();
   
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState('trade');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
@@ -1065,6 +1087,20 @@ export default function Dashboard({
   }, [runStrategyRuntimeTick]);
 
   useEffect(() => {
+    try {
+      if (!localStorage.getItem(SIDEBAR_SEEN_KEY)) {
+        localStorage.setItem(SIDEBAR_SEEN_KEY, 'true');
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_EXPANDED_KEY, String(sidebarExpanded));
+    } catch {}
+  }, [sidebarExpanded]);
+
+  useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
   }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme]);
 
@@ -1222,6 +1258,8 @@ export default function Dashboard({
       <LiveAlertsTicker />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
+          expanded={sidebarExpanded}
+          onToggle={(val) => setSidebarExpanded(val)}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           savedStrategies={savedStrategies}
