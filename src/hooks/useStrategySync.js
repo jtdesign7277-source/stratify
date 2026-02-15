@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+const LOCAL_STORAGE_KEY = 'stratify-strategy-sync';
+
 const EMPTY_STATE = {
   strategies: [],
   savedStrategies: [],
@@ -18,7 +20,11 @@ const isDeployedStrategy = (strategy) => {
     status === 'deployed' ||
     status === 'active' ||
     status === 'live' ||
+    status === 'paused' ||
     runStatus === 'running'
+    || runStatus === 'paused'
+    || Number.isFinite(Number(strategy.activatedAt))
+    || Number.isFinite(Number(strategy.deployedAt))
   );
 };
 
@@ -48,6 +54,23 @@ const normalizeStrategyPayload = (raw) => {
     savedStrategies,
     deployedStrategies,
   };
+};
+
+const loadLocalState = () => {
+  if (typeof window === 'undefined') return { ...EMPTY_STATE };
+
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) return { ...EMPTY_STATE };
+    return normalizeStrategyPayload(JSON.parse(raw));
+  } catch {
+    return { ...EMPTY_STATE };
+  }
+};
+
+const saveLocalState = (payload) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
 };
 
 export default function useStrategySync(user) {
@@ -83,9 +106,15 @@ export default function useStrategySync(user) {
 
   useEffect(() => {
     if (!user?.id || !supabase) {
-      setStrategies([]);
-      setSavedStrategies([]);
-      setDeployedStrategies([]);
+      const local = loadLocalState();
+      setStrategies(local.strategies);
+      setSavedStrategies(local.savedStrategies);
+      setDeployedStrategies(local.deployedStrategies);
+      lastSaved.current = JSON.stringify({
+        strategies: local.strategies,
+        savedStrategies: local.savedStrategies,
+        deployedStrategies: local.deployedStrategies,
+      });
       setLoaded(true);
       return;
     }
@@ -144,7 +173,7 @@ export default function useStrategySync(user) {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id || !supabase || !loaded) return;
+    if (!loaded) return;
 
     const payload = {
       strategies,
@@ -157,6 +186,11 @@ export default function useStrategySync(user) {
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      if (!user?.id || !supabase) {
+        saveLocalState(payload);
+        lastSaved.current = serialized;
+        return;
+      }
       saveToSupabase(user.id, payload);
     }, 1200);
 
@@ -175,4 +209,3 @@ export default function useStrategySync(user) {
     loaded,
   };
 }
-

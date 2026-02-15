@@ -31,6 +31,7 @@ const StrategiesPage = ({
   savedStrategies = [],
   deployedStrategies = [],
   onDeployStrategy,
+  onActivateTemplate,
   onEditStrategy,
   onRemoveSavedStrategy,
   setActiveTab,
@@ -164,8 +165,11 @@ const StrategiesPage = ({
   };
 
   const statusStyle = (s) => {
-    if (s === 'active') return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20';
-    if (s === 'paused') return 'bg-amber-500/15 text-amber-400 border border-amber-500/20';
+    const normalized = String(s || '').toLowerCase();
+    if (normalized === 'active' || normalized === 'live' || normalized === 'running') {
+      return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20';
+    }
+    if (normalized === 'paused') return 'bg-amber-500/15 text-amber-400 border border-amber-500/20';
     return 'bg-white/5 text-white/40 border border-white/5';
   };
 
@@ -279,7 +283,7 @@ const StrategiesPage = ({
                       onClick={(e) => { e.stopPropagation(); onDeployStrategy?.(s, true); }}
                       className="text-[9px] text-emerald-500/60 hover:text-emerald-400 uppercase tracking-wider font-semibold cursor-pointer px-1"
                     >
-                      Deploy
+                      Activate
                     </span>
                     <Edit3
                       onClick={(e) => { e.stopPropagation(); onEditStrategy?.(s); }}
@@ -369,7 +373,7 @@ const StrategiesPage = ({
                   }}
                   className="text-[9px] text-emerald-500/60 hover:text-emerald-400 uppercase tracking-wider font-semibold cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  Deploy
+                  Activate
                 </span>
                 <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Edit3
@@ -405,7 +409,11 @@ const StrategiesPage = ({
   if (selectedTemplate) {
     return (
       <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] overflow-hidden">
-        <StrategyTemplateFlow initialTemplate={selectedTemplate} onBack={() => setSelectedTemplate(null)} />
+        <StrategyTemplateFlow
+          initialTemplate={selectedTemplate}
+          onBack={() => setSelectedTemplate(null)}
+          onActivateStrategy={onActivateTemplate}
+        />
       </div>
     );
   }
@@ -555,11 +563,14 @@ const StrategiesPage = ({
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1 text-[10px] text-white/30">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            {deployedStrategies.filter((s) => s.status !== 'Paused').length} live
+            {deployedStrategies.filter((s) => {
+              const normalized = String(s.runStatus || s.status || '').toLowerCase();
+              return normalized === 'running' || normalized === 'active' || normalized === 'live';
+            }).length} live
           </span>
           <span className="flex items-center gap-1 text-[10px] text-white/30">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            {deployedStrategies.filter((s) => s.status === 'Paused').length} paused
+            {deployedStrategies.filter((s) => String(s.runStatus || s.status || '').toLowerCase() === 'paused').length} paused
           </span>
           <span className="flex items-center gap-1 text-[10px] text-white/30">
             <span className="w-1.5 h-1.5 rounded-full bg-white/20" />

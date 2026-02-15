@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
@@ -47,6 +47,7 @@ import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
+import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
 
 const loadDashboardState = () => {
   try {
@@ -63,6 +64,8 @@ const saveDashboardState = (state) => {
 
 const FREE_STRATEGY_LIMIT = 3;
 const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+const PAPER_TRADING_BALANCE = 100000;
+const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const normalizeStrategyIdentity = (strategy) => {
   if (!strategy || typeof strategy !== 'object') return null;
@@ -95,6 +98,138 @@ const buildStrategyIdentitySet = (...strategyLists) => {
   });
 
   return identities;
+};
+
+const formatDuration = (startedAt, now = Date.now()) => {
+  const safeStart = Number(startedAt);
+  if (!Number.isFinite(safeStart) || safeStart <= 0) return '0m';
+
+  const elapsedMs = Math.max(0, now - safeStart);
+  const totalMinutes = Math.floor(elapsedMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
+const resolveStrategySymbol = (strategy) => {
+  const symbolCandidate = strategy?.symbol
+    || strategy?.ticker
+    || strategy?.asset
+    || strategy?.tickers?.[0]
+    || strategy?.symbols?.[0];
+
+  if (!symbolCandidate) return 'SPY';
+  return String(symbolCandidate).replace(/\$/g, '').split(',')[0].trim().toUpperCase();
+};
+
+const resolveStrategyType = (strategy) => {
+  return String(
+    strategy?.type
+    || strategy?.strategyType
+    || strategy?.templateId
+    || strategy?.category
+    || 'Custom',
+  );
+};
+
+const isLikelyCryptoSymbol = (symbol = '') => {
+  const normalized = String(symbol).trim().toUpperCase();
+  if (!normalized) return false;
+  if (normalized.includes('-USD') || normalized.includes('/USD')) return true;
+  return ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT', 'LINK'].includes(normalized);
+};
+
+const isEquityStrategy = (strategy) => {
+  const explicitAssetClass = String(strategy?.assetClass || strategy?.market || '').toLowerCase();
+  if (explicitAssetClass.includes('crypto')) return false;
+  if (explicitAssetClass.includes('equity') || explicitAssetClass.includes('stock')) return true;
+
+  const type = String(strategy?.type || strategy?.strategyType || '').toLowerCase();
+  if (type.includes('crypto')) return false;
+
+  const symbol = resolveStrategySymbol(strategy);
+  return !isLikelyCryptoSymbol(symbol);
+};
+
+const toNumberOrNull = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parsePositionAllocation = (strategy, accountBalance = PAPER_TRADING_BALANCE) => {
+  const raw = strategy?.allocation ?? strategy?.positionSize ?? strategy?.size ?? null;
+  if (raw === null || raw === undefined) return Math.min(accountBalance * 0.1, accountBalance);
+
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    if (raw <= 1) return accountBalance * raw;
+    if (raw <= 100) return accountBalance * (raw / 100);
+    return Math.min(raw, accountBalance);
+  }
+
+  const text = String(raw).trim();
+  if (!text) return Math.min(accountBalance * 0.1, accountBalance);
+
+  if (text.endsWith('%')) {
+    const pct = Number(text.replace('%', '').trim());
+    if (Number.isFinite(pct) && pct > 0) {
+      return accountBalance * (pct / 100);
+    }
+  }
+
+  const numeric = Number(text.replace(/[^0-9.-]/g, ''));
+  if (Number.isFinite(numeric) && numeric > 0) {
+    if (numeric <= 1) return accountBalance * numeric;
+    if (numeric <= 100) return accountBalance * (numeric / 100);
+    return Math.min(numeric, accountBalance);
+  }
+
+  return Math.min(accountBalance * 0.1, accountBalance);
+};
+
+const extractQuotePrice = (quote) => {
+  if (!quote || typeof quote !== 'object') return null;
+  const candidates = [
+    quote.latestPrice,
+    quote.price,
+    quote.last,
+    quote.lastPrice,
+    quote.regularMarketPrice,
+    quote.ask,
+    quote.bid,
+  ];
+  for (const candidate of candidates) {
+    const parsed = toNumberOrNull(candidate);
+    if (parsed !== null && parsed > 0) return parsed;
+  }
+  return null;
+};
+
+const buildRuntimeStatus = ({ isEquity, marketOpen, pausedReason }) => {
+  if (!isEquity) {
+    if (pausedReason === 'user') {
+      return { status: 'paused', runStatus: 'paused', statusLabel: 'Paused' };
+    }
+    return { status: 'active', runStatus: 'running', statusLabel: 'Active' };
+  }
+
+  if (!marketOpen && pausedReason !== 'user') {
+    return {
+      status: 'paused',
+      runStatus: 'paused',
+      pausedReason: 'market_closed',
+      statusLabel: 'Paused - Market Closed',
+    };
+  }
+
+  if (pausedReason === 'user') {
+    return { status: 'paused', runStatus: 'paused', pausedReason: 'user', statusLabel: 'Paused' };
+  }
+
+  return { status: 'active', runStatus: 'running', pausedReason: null, statusLabel: 'Active' };
 };
 
 export default function Dashboard({
@@ -254,13 +389,20 @@ export default function Dashboard({
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
+  const [currentMarketStatus, setCurrentMarketStatus] = useState(() => getMarketStatus());
+  const [nextMarketOpenAt, setNextMarketOpenAt] = useState(() => getNextMarketOpen());
+  const deployedStrategiesRef = useRef(deployedStrategies);
 
   const isPaidTier = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
   const strategyIdentitySet = useMemo(
     () => buildStrategyIdentitySet(strategies, savedStrategies, deployedStrategies),
     [strategies, savedStrategies, deployedStrategies],
   );
-  const strategyCount = strategyIdentitySet.size;
+  const activeStrategyIdentitySet = useMemo(
+    () => buildStrategyIdentitySet(deployedStrategies),
+    [deployedStrategies],
+  );
+  const activeStrategiesCount = deployedStrategies.length;
 
   const canCreateStrategy = useCallback(
     (candidateStrategy) => {
@@ -268,17 +410,28 @@ export default function Dashboard({
       if (candidateIdentity && strategyIdentitySet.has(candidateIdentity)) {
         return true;
       }
+      return true;
+    },
+    [strategyIdentitySet],
+  );
+
+  const canActivateStrategy = useCallback(
+    (candidateStrategy) => {
+      const candidateIdentity = normalizeStrategyIdentity(candidateStrategy);
+      if (candidateIdentity && activeStrategyIdentitySet.has(candidateIdentity)) {
+        return true;
+      }
 
       if (isPaidTier) return true;
 
-      if (strategyCount >= FREE_STRATEGY_LIMIT) {
+      if (activeStrategiesCount >= FREE_STRATEGY_LIMIT) {
         setShowStrategyLimitModal(true);
         return false;
       }
 
       return true;
     },
-    [isPaidTier, strategyCount, strategyIdentitySet],
+    [isPaidTier, activeStrategiesCount, activeStrategyIdentitySet],
   );
   
   // Collapse Grok panel when on templates page
@@ -447,55 +600,221 @@ export default function Dashboard({
     setActiveTab('strategies');
   };
 
-  const handleDeployStrategy = (strategy, navigateToActive = false) => {
-    if (!canCreateStrategy(strategy)) return;
+  const fetchQuoteForSymbol = useCallback(async (symbol) => {
+    if (!symbol) return null;
+    const normalized = String(symbol).trim().toUpperCase();
+    if (!normalized) return null;
 
-    const strategyId = strategy.id || `strat-${Date.now()}`;
-    
-    // Convert saved strategy to active trade format
-    const activeStrategy = {
-      id: strategyId,
-      symbol: strategy.symbol || strategy.ticker || strategy.name?.split(' ')[0] || 'CUSTOM',
-      name: strategy.name,
-      status: 'Live',
-      pnl: 0,
-      pnlPct: 0,
-      heat: Math.floor(Math.random() * 40) + 50,
-      deployedAt: Date.now(),
-    };
+    const endpoints = [
+      `${API_URL}/api/public/quote/${encodeURIComponent(normalized)}`,
+      `/api/quote?symbol=${encodeURIComponent(normalized)}`,
+    ];
 
-    setDeployedStrategies(prev => {
-      if (prev.some(s => s.id === activeStrategy.id)) return prev;
-      return [...prev, activeStrategy];
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint);
+        if (!response.ok) continue;
+        const data = await response.json();
+        const price = extractQuotePrice(data);
+        if (price !== null) return { ...data, price };
+      } catch {
+        // Ignore endpoint failure and keep trying.
+      }
+    }
+
+    return null;
+  }, []);
+
+  const fetchQuoteMap = useCallback(async (symbols = []) => {
+    const uniqueSymbols = [...new Set(symbols.filter(Boolean).map((symbol) => String(symbol).toUpperCase()))];
+    if (uniqueSymbols.length === 0) return {};
+
+    try {
+      const query = encodeURIComponent(uniqueSymbols.join(','));
+      const response = await fetch(`${API_URL}/api/public/quotes?symbols=${query}`);
+      if (response.ok) {
+        const snapshots = await response.json();
+        if (Array.isArray(snapshots)) {
+          return snapshots.reduce((acc, snapshot) => {
+            const symbol = String(snapshot?.symbol || '').toUpperCase();
+            if (symbol) acc[symbol] = snapshot;
+            return acc;
+          }, {});
+        }
+      }
+    } catch {
+      // Fall back to one-by-one requests.
+    }
+
+    const entries = await Promise.all(
+      uniqueSymbols.map(async (symbol) => {
+        const quote = await fetchQuoteForSymbol(symbol);
+        return [symbol, quote];
+      }),
+    );
+
+    return entries.reduce((acc, [symbol, quote]) => {
+      if (quote) acc[symbol] = quote;
+      return acc;
+    }, {});
+  }, [fetchQuoteForSymbol]);
+
+  const buildActivatedStrategy = useCallback(async (strategy, existingStrategy = null) => {
+    const now = Date.now();
+    const symbol = resolveStrategySymbol(strategy);
+    const equity = isEquityStrategy(strategy);
+    const marketOpenNow = equity ? isMarketOpen() : true;
+    const marketStatus = equity ? getMarketStatus() : 'Open';
+    const quote = await fetchQuoteForSymbol(symbol);
+    const quotePrice = extractQuotePrice(quote);
+
+    const allocation = toNumberOrNull(existingStrategy?.paper?.allocation)
+      ?? parsePositionAllocation(strategy, PAPER_TRADING_BALANCE);
+    const entryPrice = toNumberOrNull(existingStrategy?.paper?.entryPrice)
+      ?? quotePrice
+      ?? 0;
+    const quantity = toNumberOrNull(existingStrategy?.paper?.quantity)
+      ?? (entryPrice > 0 ? Math.max(1, Math.floor(allocation / entryPrice)) : 1);
+    const runtimeStatus = buildRuntimeStatus({
+      isEquity: equity,
+      marketOpen: marketOpenNow,
+      pausedReason: existingStrategy?.pausedReason === 'user' ? 'user' : null,
     });
 
-    // Auto-save to savedStrategies in "Uncategorized" folder if not already saved
-    setSavedStrategies(prev => {
-      const exists = prev.some(s => s.id === strategyId);
-      if (exists) {
-        // Mark as deployed
-        return prev.map(s => s.id === strategyId ? { ...s, status: 'active', deployed: true } : s);
-      } else {
-        // Add new strategy to Uncategorized folder
-        const newSavedStrategy = {
-          id: strategyId,
-          name: strategy.name || `${strategy.ticker || 'Custom'} Strategy`,
-          type: strategy.type || 'Custom',
-          status: 'active',
-          deployed: true,
-          winRate: strategy.backtestResults?.winRate || 0,
-          trades: strategy.backtestResults?.totalTrades || 0,
-          pnl: strategy.backtestResults?.totalPnL || 0,
-          folderId: 'uncategorized',
-          ticker: strategy.ticker,
-          entry: strategy.entry,
-          exit: strategy.exit,
-          stopLoss: strategy.stopLoss,
-          positionSize: strategy.positionSize,
-          createdAt: Date.now(),
-        };
-        return [...prev, newSavedStrategy];
+    const paper = {
+      balanceStart: toNumberOrNull(existingStrategy?.paper?.balanceStart) ?? PAPER_TRADING_BALANCE,
+      provider: 'alpaca-paper',
+      allocation,
+      quantity,
+      entryPrice,
+      lastPrice: quotePrice ?? toNumberOrNull(existingStrategy?.paper?.lastPrice) ?? entryPrice,
+      pnl: 0,
+      pnlPercent: 0,
+      updatedAt: now,
+    };
+
+    const lastPrice = toNumberOrNull(paper.lastPrice) ?? entryPrice;
+    const pnl = quantity > 0 ? (lastPrice - entryPrice) * quantity : 0;
+    const notional = entryPrice * quantity;
+    paper.pnl = Number(pnl.toFixed(2));
+    paper.pnlPercent = Number((notional > 0 ? (pnl / notional) * 100 : 0).toFixed(2));
+
+    return {
+      ...strategy,
+      id: existingStrategy?.id || strategy.id || `strat-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      name: strategy.name || `${symbol} Strategy`,
+      type: resolveStrategyType(strategy),
+      strategyType: strategy.strategyType || resolveStrategyType(strategy),
+      symbol,
+      ticker: symbol,
+      symbols: strategy.symbols || strategy.tickers || [symbol],
+      deployed: true,
+      marketType: equity ? 'equity' : 'other',
+      marketEnforced: equity,
+      marketStatus,
+      activatedAt: existingStrategy?.activatedAt || strategy.activatedAt || now,
+      deployedAt: existingStrategy?.deployedAt || strategy.deployedAt || now,
+      source: strategy.source || existingStrategy?.source || 'saved',
+      status: runtimeStatus.status,
+      runStatus: runtimeStatus.runStatus,
+      pausedReason: runtimeStatus.pausedReason ?? null,
+      statusLabel: runtimeStatus.statusLabel,
+      paper,
+      pnl: paper.pnl,
+      pnlPct: paper.pnlPercent,
+      timeActive: formatDuration(existingStrategy?.activatedAt || now, now),
+    };
+  }, [fetchQuoteForSymbol]);
+
+  const handleDeployStrategy = useCallback(async (strategy, navigateToActive = false) => {
+    if (!strategy || !canCreateStrategy(strategy)) return false;
+
+    const candidateIdentity = normalizeStrategyIdentity(strategy);
+    const existingActive = deployedStrategiesRef.current.find((item) => {
+      const existingIdentity = normalizeStrategyIdentity(item);
+      if (candidateIdentity && existingIdentity === candidateIdentity) return true;
+      if (strategy.id && item.id && String(strategy.id) === String(item.id)) return true;
+      return false;
+    });
+
+    if (!existingActive && !canActivateStrategy(strategy)) {
+      return false;
+    }
+
+    const activatedStrategy = await buildActivatedStrategy(strategy, existingActive || null);
+
+    setDeployedStrategies((prev) => {
+      const existingIndex = prev.findIndex((item) => {
+        if (item.id && activatedStrategy.id && String(item.id) === String(activatedStrategy.id)) return true;
+        const itemIdentity = normalizeStrategyIdentity(item);
+        const activeIdentity = normalizeStrategyIdentity(activatedStrategy);
+        return activeIdentity && itemIdentity === activeIdentity;
+      });
+
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = { ...next[existingIndex], ...activatedStrategy };
+        return next;
       }
+
+      return [...prev, activatedStrategy];
+    });
+
+    setSavedStrategies((prev) => {
+      const existingIndex = prev.findIndex((item) => {
+        if (item.id && activatedStrategy.id && String(item.id) === String(activatedStrategy.id)) return true;
+        const itemIdentity = normalizeStrategyIdentity(item);
+        const activeIdentity = normalizeStrategyIdentity(activatedStrategy);
+        return activeIdentity && itemIdentity === activeIdentity;
+      });
+
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = {
+          ...next[existingIndex],
+          ...strategy,
+          id: activatedStrategy.id,
+          symbol: activatedStrategy.symbol,
+          ticker: activatedStrategy.ticker,
+          type: activatedStrategy.type,
+          status: activatedStrategy.status,
+          runStatus: activatedStrategy.runStatus,
+          statusLabel: activatedStrategy.statusLabel,
+          pausedReason: activatedStrategy.pausedReason,
+          deployed: true,
+          activatedAt: activatedStrategy.activatedAt,
+          deployedAt: activatedStrategy.deployedAt,
+          pnl: activatedStrategy.pnl,
+          pnlPct: activatedStrategy.pnlPct,
+          paper: activatedStrategy.paper,
+          folderId: next[existingIndex].folderId || 'active',
+        };
+        return next;
+      }
+
+      return [
+        ...prev,
+        {
+          ...strategy,
+          id: activatedStrategy.id,
+          name: activatedStrategy.name,
+          type: activatedStrategy.type,
+          status: activatedStrategy.status,
+          runStatus: activatedStrategy.runStatus,
+          statusLabel: activatedStrategy.statusLabel,
+          pausedReason: activatedStrategy.pausedReason,
+          deployed: true,
+          activatedAt: activatedStrategy.activatedAt,
+          deployedAt: activatedStrategy.deployedAt,
+          symbol: activatedStrategy.symbol,
+          ticker: activatedStrategy.ticker,
+          pnl: activatedStrategy.pnl,
+          pnlPct: activatedStrategy.pnlPct,
+          paper: activatedStrategy.paper,
+          folderId: strategy.folderId || 'active',
+          savedAt: Date.now(),
+        },
+      ];
     });
 
     if (navigateToActive) {
@@ -503,7 +822,56 @@ export default function Dashboard({
     }
 
     setAutoBacktestStrategy(null);
-  };
+    return true;
+  }, [buildActivatedStrategy, canActivateStrategy, canCreateStrategy, setDeployedStrategies, setSavedStrategies]);
+
+  const handleToggleActivatedStrategyPause = useCallback((strategyId) => {
+    setDeployedStrategies((prev) => prev.map((strategy) => {
+      if (String(strategy.id) !== String(strategyId)) return strategy;
+
+      if (strategy.pausedReason === 'market_closed') return strategy;
+
+      const currentlyPaused = String(strategy.runStatus || strategy.status || '').toLowerCase() === 'paused';
+      if (currentlyPaused) {
+        const runtime = buildRuntimeStatus({
+          isEquity: isEquityStrategy(strategy),
+          marketOpen: isMarketOpen(),
+          pausedReason: null,
+        });
+        return {
+          ...strategy,
+          status: runtime.status,
+          runStatus: runtime.runStatus,
+          pausedReason: runtime.pausedReason ?? null,
+          statusLabel: runtime.statusLabel,
+        };
+      }
+
+      return {
+        ...strategy,
+        status: 'paused',
+        runStatus: 'paused',
+        pausedReason: 'user',
+        statusLabel: 'Paused',
+      };
+    }));
+  }, [setDeployedStrategies]);
+
+  const handleStopActivatedStrategy = useCallback((strategyId) => {
+    setDeployedStrategies((prev) => prev.filter((strategy) => String(strategy.id) !== String(strategyId)));
+    setSavedStrategies((prev) => prev.map((strategy) => (
+      String(strategy.id) === String(strategyId)
+        ? {
+            ...strategy,
+            deployed: false,
+            status: 'draft',
+            runStatus: 'stopped',
+            statusLabel: 'Draft',
+            pausedReason: null,
+          }
+        : strategy
+    )));
+  }, [setDeployedStrategies, setSavedStrategies]);
 
   const handleDemoStateChange = (state) => {
     setDemoState(state);
@@ -552,6 +920,138 @@ export default function Dashboard({
       setIsTerminalLoading(false);
     }
   };
+
+  useEffect(() => {
+    deployedStrategiesRef.current = deployedStrategies;
+  }, [deployedStrategies]);
+
+  useEffect(() => {
+    setSavedStrategies((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+      const deployedByIdentity = new Map();
+      deployedStrategies.forEach((strategy) => {
+        const identity = normalizeStrategyIdentity(strategy);
+        if (identity) deployedByIdentity.set(identity, strategy);
+      });
+
+      let changed = false;
+      const next = prev.map((saved) => {
+        const identity = normalizeStrategyIdentity(saved);
+        const deployed = (identity && deployedByIdentity.get(identity))
+          || deployedStrategies.find((item) => String(item.id) === String(saved.id));
+
+        if (!deployed) return saved;
+
+        const savedStatus = String(saved.status || '').toLowerCase();
+        const deployedStatus = String(deployed.status || '').toLowerCase();
+        const savedRunStatus = String(saved.runStatus || '').toLowerCase();
+        const deployedRunStatus = String(deployed.runStatus || '').toLowerCase();
+
+        if (
+          savedStatus === deployedStatus
+          && savedRunStatus === deployedRunStatus
+          && Boolean(saved.deployed) === true
+          && Number(saved.pnl || 0) === Number(deployed.pnl || 0)
+        ) {
+          return saved;
+        }
+
+        changed = true;
+        return {
+          ...saved,
+          deployed: true,
+          status: deployed.status,
+          runStatus: deployed.runStatus,
+          statusLabel: deployed.statusLabel,
+          pausedReason: deployed.pausedReason,
+          activatedAt: deployed.activatedAt,
+          deployedAt: deployed.deployedAt,
+          pnl: deployed.pnl,
+          pnlPct: deployed.pnlPct,
+          paper: deployed.paper,
+        };
+      });
+
+      return changed ? next : prev;
+    });
+  }, [deployedStrategies, setSavedStrategies]);
+
+  const runStrategyRuntimeTick = useCallback(async () => {
+    const now = Date.now();
+    const marketStatus = getMarketStatus();
+    const nextOpen = getNextMarketOpen();
+    const current = deployedStrategiesRef.current;
+
+    setCurrentMarketStatus(marketStatus);
+    setNextMarketOpenAt(nextOpen);
+
+    if (!Array.isArray(current) || current.length === 0) return;
+
+    const symbols = current.map((strategy) => resolveStrategySymbol(strategy));
+    const quotesBySymbol = await fetchQuoteMap(symbols);
+    const marketOpenNow = isMarketOpen();
+
+    setDeployedStrategies((prev) => prev.map((strategy) => {
+      const equity = isEquityStrategy(strategy);
+      const runtime = buildRuntimeStatus({
+        isEquity: equity,
+        marketOpen: equity ? marketOpenNow : true,
+        pausedReason: strategy.pausedReason,
+      });
+
+      const symbol = resolveStrategySymbol(strategy);
+      const quote = quotesBySymbol[symbol];
+      const quotePrice = extractQuotePrice(quote);
+      const allocation = toNumberOrNull(strategy?.paper?.allocation)
+        ?? parsePositionAllocation(strategy, PAPER_TRADING_BALANCE);
+      const entryPrice = toNumberOrNull(strategy?.paper?.entryPrice)
+        ?? quotePrice
+        ?? 0;
+      const quantity = toNumberOrNull(strategy?.paper?.quantity)
+        ?? (entryPrice > 0 ? Math.max(1, Math.floor(allocation / entryPrice)) : 1);
+      const lastPrice = quotePrice
+        ?? toNumberOrNull(strategy?.paper?.lastPrice)
+        ?? entryPrice;
+
+      const pnl = quantity > 0 ? (lastPrice - entryPrice) * quantity : 0;
+      const notional = entryPrice * quantity;
+      const pnlPct = notional > 0 ? (pnl / notional) * 100 : 0;
+
+      return {
+        ...strategy,
+        symbol,
+        ticker: symbol,
+        marketType: equity ? 'equity' : 'other',
+        marketEnforced: equity,
+        marketStatus: equity ? marketStatus : 'Open',
+        status: runtime.status,
+        runStatus: runtime.runStatus,
+        pausedReason: runtime.pausedReason ?? null,
+        statusLabel: runtime.statusLabel,
+        timeActive: formatDuration(strategy.activatedAt || strategy.deployedAt || now, now),
+        pnl: Number(pnl.toFixed(2)),
+        pnlPct: Number(pnlPct.toFixed(2)),
+        paper: {
+          balanceStart: toNumberOrNull(strategy?.paper?.balanceStart) ?? PAPER_TRADING_BALANCE,
+          provider: 'alpaca-paper',
+          allocation,
+          quantity,
+          entryPrice,
+          lastPrice,
+          pnl: Number(pnl.toFixed(2)),
+          pnlPercent: Number(pnlPct.toFixed(2)),
+          updatedAt: now,
+        },
+      };
+    }));
+  }, [fetchQuoteMap, setDeployedStrategies]);
+
+  useEffect(() => {
+    runStrategyRuntimeTick();
+    const interval = setInterval(runStrategyRuntimeTick, 30000);
+    return () => clearInterval(interval);
+  }, [runStrategyRuntimeTick]);
 
   useEffect(() => {
     saveDashboardState({ sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme });
@@ -715,6 +1215,7 @@ export default function Dashboard({
           setActiveTab={setActiveTab}
           savedStrategies={savedStrategies}
           deployedStrategies={deployedStrategies}
+          activeStrategyCount={activeStrategiesCount}
           onRemoveSavedStrategy={handleRemoveSavedStrategy}
           grokPanelCollapsed={isGrokPanelCollapsed}
           onOpenFloatingGrok={() => setIsFloatingGrokOpen(prev => !prev)}
@@ -745,6 +1246,7 @@ export default function Dashboard({
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
               onDeployStrategy={handleDeployStrategy}
+              onActivateTemplate={(strategy) => handleDeployStrategy(strategy, true)}
               onEditStrategy={(strategy) => {
                 setActiveTab('builder');
                 // Could add edit logic here
@@ -820,6 +1322,10 @@ export default function Dashboard({
                 setActiveTab={setActiveTab}
                 strategies={deployedStrategies}
                 setStrategies={setDeployedStrategies}
+                onTogglePause={handleToggleActivatedStrategyPause}
+                onStopStrategy={handleStopActivatedStrategy}
+                marketStatus={currentMarketStatus}
+                nextMarketOpen={nextMarketOpenAt}
               />
             </ProGate>
           )}
@@ -833,10 +1339,7 @@ export default function Dashboard({
               ticker={terminalTicker}
               onRunBacktest={handleTerminalBacktest}
               isLoading={isTerminalLoading}
-              onDeploy={(strategy) => {
-                if (!canCreateStrategy(strategy)) return;
-                setDeployedStrategies(prev => [...prev, strategy]);
-              }}
+              onDeploy={(strategy) => handleDeployStrategy(strategy, true)}
               onNavigateToActive={() => setActiveTab('active')}
             />
           )}
@@ -865,22 +1368,7 @@ export default function Dashboard({
             });
           }}
           onDeployStrategy={(strategy) => {
-            if (!canCreateStrategy(strategy)) return;
-
-            // Add to saved strategies
-            setSavedStrategies(prev => {
-              if (prev.some(s => s.id === strategy.id)) {
-                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, deployed: true } : s);
-              }
-              return [...prev, strategy];
-            });
-            // Also add to deployed strategies
-            setDeployedStrategies(prev => {
-              if (prev.some(s => s.id === strategy.id)) {
-                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy, runStatus: 'running' } : s);
-              }
-              return [...prev, { ...strategy, status: 'deployed', runStatus: 'running' }];
-            });
+            handleDeployStrategy(strategy, true);
           }}
         />
       </div>
@@ -901,8 +1389,8 @@ export default function Dashboard({
               <X className="w-4 h-4" strokeWidth={1.8} />
             </button>
             <UpgradePrompt
-              featureName="Free Strategy Limit Reached"
-              description="You have reached your free strategy limit (3/3). Upgrade to Pro for unlimited strategies, advanced backtesting, and more."
+              featureName="Active Strategy Limit Reached"
+              description="Free accounts can run up to 3 active strategies at once. Upgrade to Pro for unlimited active strategy slots."
               priceId={PRO_PRICE_ID}
               className="mx-auto"
             />

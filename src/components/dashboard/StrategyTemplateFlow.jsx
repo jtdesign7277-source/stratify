@@ -661,7 +661,7 @@ const TemplatesGallery = ({ onSelect }) => (
 );
 
 // ── Strategy Detail View ───────────────────────────────────────
-const StrategyDetail = ({ template, onBack }) => {
+const StrategyDetail = ({ template, onBack, onActivate }) => {
   const [ticker, setTicker] = useState("TSLA");
   const [timeframe, setTimeframe] = useState("1H");
   const [period, setPeriod] = useState("6M");
@@ -669,6 +669,7 @@ const StrategyDetail = ({ template, onBack }) => {
   const [showTrades, setShowTrades] = useState(false);
   const [isRunning, setIsRunning] = useState(true);
   const [activated, setActivated] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [data, setData] = useState([]);
   const [dataSource, setDataSource] = useState("loading");
   const [fetchError, setFetchError] = useState(null);
@@ -704,6 +705,43 @@ const StrategyDetail = ({ template, onBack }) => {
   const fmt = (v) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
 
   const Icon = template.icon;
+  const canActivate = !activated && !activating;
+
+  const handleActivate = async () => {
+    if (!canActivate) return;
+
+    const strategyToActivate = {
+      id: `template-${template.id}-${ticker}-${timeframe}-${period}`.toLowerCase(),
+      name: `${template.name} · ${ticker}`,
+      type: template.name,
+      templateId: template.id,
+      ticker,
+      symbol: ticker,
+      timeframe,
+      period,
+      capital,
+      description: template.description,
+      logic: template.logic,
+      indicators: template.indicators,
+      source: 'template',
+      status: 'active',
+      backtestResults: result ? {
+        totalPnL: result.pnl,
+        returnPercent: result.pctReturn,
+        winRate: result.winRate,
+        totalTrades: result.totalTrades,
+      } : null,
+    };
+
+    setActivating(true);
+    try {
+      const didActivate = await onActivate?.(strategyToActivate);
+      if (didActivate === false) return;
+      setActivated(true);
+    } finally {
+      setActivating(false);
+    }
+  };
 
   return (
     <div style={{ animation: "fadeSlideIn 0.35s ease both" }}>
@@ -726,20 +764,25 @@ const StrategyDetail = ({ template, onBack }) => {
         </div>
 
         <button
-          onClick={() => setActivated(true)}
-          disabled={activated}
+          onClick={handleActivate}
+          disabled={!canActivate}
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
           style={{
             background: activated ? "#16a34a20" : `linear-gradient(135deg, ${template.color}, ${template.color}cc)`,
             color: activated ? "#34d399" : "#020817",
             border: activated ? "1px solid #16a34a40" : "none",
-            opacity: activated ? 1 : undefined,
+            opacity: canActivate ? 1 : 0.85,
           }}
         >
           {activated ? (
             <>
               <Icons.Check className="w-4 h-4" />
               Strategy Activated
+            </>
+          ) : activating ? (
+            <>
+              <div className="w-3.5 h-3.5 rounded-full border-2 border-[#020817] border-t-transparent animate-spin" />
+              Activating...
             </>
           ) : (
             <>
@@ -1001,7 +1044,7 @@ const StrategyDetail = ({ template, onBack }) => {
 };
 
 // ── Main App ───────────────────────────────────────────────────
-export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOnBack }) {
+export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOnBack, onActivateStrategy }) {
   const [selected, setSelected] = useState(() => {
     if (initialTemplate) {
       return TEMPLATES.find(t => t.id === initialTemplate) || null;
@@ -1021,7 +1064,11 @@ export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOn
       <div className="relative z-10 p-4 lg:p-6 max-w-[1400px] mx-auto">
         {/* Content */}
         {selected ? (
-          <StrategyDetail template={selected} onBack={() => { if (initialTemplate && parentOnBack) parentOnBack(); else setSelected(null); }} />
+          <StrategyDetail
+            template={selected}
+            onActivate={onActivateStrategy}
+            onBack={() => { if (initialTemplate && parentOnBack) parentOnBack(); else setSelected(null); }}
+          />
         ) : (
           <TemplatesGallery onSelect={setSelected} />
         )}

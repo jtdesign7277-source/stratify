@@ -40,6 +40,7 @@ const Sidebar = ({
   onNavigate,
   savedStrategies = [],
   deployedStrategies = [],
+  activeStrategyCount,
   onRemoveSavedStrategy,
   grokPanelCollapsed = false,
   onOpenFloatingGrok,
@@ -49,10 +50,13 @@ const Sidebar = ({
   const [collapsed, setCollapsed] = useState(true);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
+  const resolvedActiveCount = Number.isFinite(activeStrategyCount)
+    ? activeStrategyCount
+    : deployedStrategies.length;
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'active', label: 'Active', icon: Play, badge: deployedStrategies.length },
+    { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
