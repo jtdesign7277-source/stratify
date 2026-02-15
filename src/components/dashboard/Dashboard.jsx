@@ -354,6 +354,7 @@ const isActiveOrPausedStrategy = (strategy) => {
   return status === 'active'
     || status === 'paused'
     || status === 'deployed'
+    || status === 'running'
     || runStatus === 'running'
     || runStatus === 'paused';
 };
@@ -555,10 +556,6 @@ export default function Dashboard({
   const totalTopBarDailyPnL = useMemo(
     () => calculateTotalDailyPnL(topBarStrategies),
     [topBarStrategies],
-  );
-  const topBarNetLiquidity = useMemo(
-    () => normalizedPaperTradingBalance + totalTopBarUnrealizedPnL,
-    [normalizedPaperTradingBalance, totalTopBarUnrealizedPnL],
   );
 
   const hydrateDashboardState = useCallback((state) => {
@@ -1671,11 +1668,12 @@ export default function Dashboard({
         miniPills={miniPillSlots}
         onTickerDrop={handleTickerDrop}
         onGameDrop={handleGameDrop}
+        deployedStrategies={deployedStrategies}
+        paperTradingBalance={normalizedPaperTradingBalance}
         paperMetrics={{
           dailyPnl: totalTopBarDailyPnL,
           buyingPower: availablePaperBalance,
           unrealizedPnl: totalTopBarUnrealizedPnL,
-          netLiquidity: topBarNetLiquidity,
         }}
       />
       <LiveAlertsTicker />

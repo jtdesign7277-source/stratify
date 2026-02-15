@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import SearchBar from "./SearchBar";
 
 // Notification Settings Dropdown
@@ -236,6 +236,25 @@ const toMetricNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const getStrategyAllocation = (strategy) => {
+  const allocation = Number(strategy?.paper?.allocation ?? strategy?.allocation ?? 0);
+  return Number.isFinite(allocation) && allocation > 0 ? allocation : 0;
+};
+
+const isActiveOrPausedStrategy = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return false;
+  const status = String(strategy.status || '').toLowerCase();
+  const runStatus = String(strategy.runStatus || '').toLowerCase();
+  if (!status && !runStatus) return true;
+
+  return status === 'active'
+    || status === 'paused'
+    || status === 'deployed'
+    || status === 'running'
+    || runStatus === 'running'
+    || runStatus === 'paused';
+};
+
 // Mini broker badge for connected accounts
 const BrokerBadge = ({ broker }) => {
   const colors = {
@@ -298,9 +317,13 @@ export default function TopMetricsBar({
   onTickerDrop,
   onGameDrop,
   paperMetrics = null,
+  deployedStrategies = [],
+  paperTradingBalance = null,
 }) {
   const account = alpacaData?.account || {};
   const hasPaperMetrics = paperMetrics && typeof paperMetrics === 'object';
+  const parsedPaperTradingBalance = Number(paperTradingBalance);
+  const hasPaperTradingBalance = Number.isFinite(parsedPaperTradingBalance);
 
   // Use broker values only when we have real account data.
   const hasRealData = Number(account.equity) > 0;
@@ -310,9 +333,19 @@ export default function TopMetricsBar({
     ?? (hasRealData ? Number(account.daily_pnl ?? 0) : 0);
   const unrealizedPnL = toMetricNumber(paperMetrics?.unrealizedPnl)
     ?? (hasRealData ? Number(account.unrealized_pl ?? 0) : dailyPnL);
-  const netLiquidity = toMetricNumber(paperMetrics?.netLiquidity)
-    ?? (hasRealData ? Number(account.equity ?? 0) : 0);
-  const buyingPower = toMetricNumber(paperMetrics?.buyingPower)
+  const calculatedBuyingPower = useMemo(() => {
+    if (!hasPaperTradingBalance) return null;
+    const activeStrategies = Array.isArray(deployedStrategies)
+      ? deployedStrategies.filter(isActiveOrPausedStrategy)
+      : [];
+    const totalAllocated = activeStrategies.reduce(
+      (sum, strategy) => sum + getStrategyAllocation(strategy),
+      0,
+    );
+    return Math.max(0, parsedPaperTradingBalance - totalAllocated);
+  }, [deployedStrategies, hasPaperTradingBalance, parsedPaperTradingBalance]);
+  const buyingPower = calculatedBuyingPower
+    ?? toMetricNumber(paperMetrics?.buyingPower)
     ?? (hasRealData ? Number(account.buying_power ?? 0) : 0);
   
   const metrics = [
@@ -423,14 +456,6 @@ export default function TopMetricsBar({
               </div>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="text-right">
-              <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>NET LIQ</span>
-              <p className={`text-sm font-semibold ${themeClasses.text}`}>
-                {hasDisplayData ? formatCurrencyNeutral(netLiquidity) : zeroDisplay}
-              </p>
-            </div>
-          </div>
         </div>
         {/* Notification Bell */}
         <NotificationButton themeClasses={themeClasses} />
