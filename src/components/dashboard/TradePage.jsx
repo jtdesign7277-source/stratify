@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import SocialSentiment from './SocialSentiment';
+import AlpacaLightweightChart from './AlpacaLightweightChart';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
@@ -105,6 +106,24 @@ const CRYPTO_TV_MAP = {
   MATIC: 'COINBASE:MATICUSD',
   'MATIC-USD': 'COINBASE:MATICUSD',
 };
+
+const CHART_INTERVALS = ['1m', '5m', '15m', '1H', '1D', '1W'];
+const CHART_INTERVAL_TO_ALPACA = {
+  '1m': '1Min',
+  '5m': '5Min',
+  '15m': '15Min',
+  '1H': '1Hour',
+  '1D': '1Day',
+  '1W': '1Week',
+  '1': '1Min',
+  '5': '5Min',
+  '15': '15Min',
+  '60': '1Hour',
+  'D': '1Day',
+  'W': '1Week',
+};
+
+const resolveAlpacaInterval = (value) => CHART_INTERVAL_TO_ALPACA[value] || '1Day';
 
 const EASTERN_TIMEZONE = 'America/New_York';
 const PRE_MARKET_START_MINUTES = 4 * 60;
@@ -312,7 +331,7 @@ const formatTimestamp = (value) => {
 
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist, onPinToTop, addTrade }) => {
   const [activeMarket, setActiveMarket] = useState('equity');
-  const [chartInterval, setChartInterval] = useState('D');
+  const [chartInterval, setChartInterval] = useState('1D');
   const [selectedEquity, setSelectedEquity] = useState(() => {
     // Check if coming from Active trades with a symbol
     const chartSymbol = localStorage.getItem('stratify_chart_symbol');
@@ -475,7 +494,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       || equityStocks.find(s => s.symbol === selectedTicker)?.name
       || 'S&P 500 ETF';
   }, [activeMarket, cryptoStocks, equityStocks, selectedTicker]);
-  const chartSymbol = useMemo(() => getTradingViewSymbol(selectedTicker, activeMarket), [selectedTicker, activeMarket]);
+  const selectedSymbol = selectedTicker;
+  const selectedInterval = useMemo(() => resolveAlpacaInterval(chartInterval), [chartInterval]);
   const orderQtyNumber = useMemo(() => {
     const parsed = parseFloat(orderQty);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -1416,7 +1436,26 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         </div>
         <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
           <div className="flex-1 min-h-[360px] relative">
-            <TradingViewWidget symbol={chartSymbol} interval={chartInterval} />
+            <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border border-gray-800 bg-[#060d18]/90 p-1 backdrop-blur">
+              {CHART_INTERVALS.map((interval) => {
+                const isActive = chartInterval === interval;
+                return (
+                  <button
+                    key={interval}
+                    type="button"
+                    onClick={() => setChartInterval(interval)}
+                    className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors ${
+                      isActive
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                        : 'text-gray-400 border border-transparent hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {interval}
+                  </button>
+                );
+              })}
+            </div>
+            <AlpacaLightweightChart symbol={selectedSymbol} interval={selectedInterval} />
           </div>
 
           <div

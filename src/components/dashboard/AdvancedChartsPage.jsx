@@ -846,13 +846,15 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
         if (!response.ok) {
           throw new Error(json?.error || 'Failed to load bars');
         }
-        const data = (json.bars || []).map((b) => ({
-          Date: new Date(b.Timestamp).getTime(),
-          Open: b.OpenPrice,
-          High: b.HighPrice,
-          Low: b.LowPrice,
-          Close: b.ClosePrice,
-          Volume: b.Volume,
+
+        const bars = Array.isArray(json) ? json : json.bars || [];
+        const data = bars.map((b) => ({
+          Date: (Number.isFinite(b.time) ? b.time * 1000 : new Date(b.Timestamp).getTime()),
+          Open: b.open ?? b.OpenPrice,
+          High: b.high ?? b.HighPrice,
+          Low: b.low ?? b.LowPrice,
+          Close: b.close ?? b.ClosePrice,
+          Volume: b.volume ?? b.Volume,
         }));
 
         if (cancelled) return;
