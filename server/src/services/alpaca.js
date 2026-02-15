@@ -420,14 +420,22 @@ export function startAlpacaStream(onQuote, onBar) {
     'DIA',
   ];
 
-  const STREAM_CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'DOGE/USD', 'XRP/USD'];
+  const CRYPTO_SYMBOLS = [
+    'BTC/USD',
+    'ETH/USD',
+    'SOL/USD',
+    'XRP/USD',
+    'DOGE/USD',
+    'LINK/USD',
+    'ADA/USD',
+    'AVAX/USD',
+    'DOT/USD',
+  ];
 
   stream.onConnect(() => {
     console.log('Connected to Alpaca stream');
     stream.subscribeForQuotes(STREAM_STOCK_SYMBOLS);
     stream.subscribeForBars(STREAM_STOCK_SYMBOLS);
-    stream.subscribeForCryptoQuotes(STREAM_CRYPTO_SYMBOLS);
-    stream.subscribeForCryptoBars(STREAM_CRYPTO_SYMBOLS);
   });
 
   stream.onError((err) => {
@@ -467,37 +475,80 @@ export function startAlpacaStream(onQuote, onBar) {
     });
   });
 
-  stream.onCryptoQuote((quote) => {
-    const symbol = typeof quote.Symbol === 'string' ? quote.Symbol.replace('/', '') : quote.Symbol;
-    handleQuote({
-      type: 'quote',
-      asset: 'crypto',
-      symbol,
-      askPrice: quote.AskPrice,
-      bidPrice: quote.BidPrice,
-      price: quote.AskPrice || quote.BidPrice,
-      askSize: quote.AskSize,
-      bidSize: quote.BidSize,
-      timestamp: quote.Timestamp,
-    });
-  });
-
-  stream.onCryptoBar((bar) => {
-    const symbol = typeof bar.Symbol === 'string' ? bar.Symbol.replace('/', '') : bar.Symbol;
-    handleBar({
-      type: 'bar',
-      asset: 'crypto',
-      symbol,
-      open: bar.OpenPrice,
-      high: bar.HighPrice,
-      low: bar.LowPrice,
-      close: bar.ClosePrice,
-      volume: bar.Volume,
-      timestamp: bar.Timestamp,
-    });
-  });
-
   stream.connect();
+
+  const normalizeCryptoSymbol = (symbol) => {
+    if (typeof symbol !== 'string') return symbol;
+    return symbol.replace('/', '');
+  };
+
+  const getQuotePrice = (quote, field) => {
+    if (Number.isFinite(quote?.[field])) return quote[field];
+    return null;
+  };
+
+  // Poll crypto quotes via REST since streaming doesnt support crypto on this SDK version
+  const pollCryptoQuotes = async () => {
+    try {
+      let quotes;
+      if (typeof alpaca.getLatestCryptoQuotes === 'function') {
+        quotes = await alpaca.getLatestCryptoQuotes(CRYPTO_SYMBOLS, { feed: 'us' });
+      } else if (typeof alpaca.getLatestQuotes === 'function') {
+        quotes = await alpaca.getLatestQuotes(CRYPTO_SYMBOLS);
+      }
+
+      if (!quotes) {
+        const symbolsParam = CRYPTO_SYMBOLS.join(',');
+        const response = await fetch(
+          `https://data.alpaca.markets/v1beta3/crypto/us/latest/quotes?symbols=${encodeURIComponent(symbolsParam)}`,
+          {
+            headers: {
+              'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
+              'APCA-API-SECRET-KEY': process.env.ALPACA_SECRET_KEY,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Alpaca crypto quotes error: ${response.status} ${text}`);
+        }
+
+        const data = await response.json();
+        quotes = data.quotes || data;
+      }
+
+      const entries = quotes instanceof Map ? quotes.entries() : Object.entries(quotes || {});
+
+      for (const [symbol, quote] of entries) {
+        const askPrice = Number.isFinite(quote?.AskPrice)
+          ? quote.AskPrice
+          : Number.isFinite(quote?.ap)
+            ? quote.ap
+            : getQuotePrice(quote, 'askPrice');
+        const bidPrice = Number.isFinite(quote?.BidPrice)
+          ? quote.BidPrice
+          : Number.isFinite(quote?.bp)
+            ? quote.bp
+            : getQuotePrice(quote, 'bidPrice');
+
+        handleQuote({
+          type: 'quote',
+          asset: 'crypto',
+          symbol: normalizeCryptoSymbol(symbol),
+          askPrice,
+          bidPrice,
+          price: askPrice || bidPrice,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.error('Crypto poll error:', err.message);
+    }
+  };
+
+  pollCryptoQuotes();
+  setInterval(pollCryptoQuotes, 10000);
 }
 
 // ==================== TRADE EXECUTION ====================
