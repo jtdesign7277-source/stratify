@@ -714,6 +714,8 @@ export default function Dashboard({
       marketStatus,
       activatedAt: existingStrategy?.activatedAt || strategy.activatedAt || now,
       deployedAt: existingStrategy?.deployedAt || strategy.deployedAt || now,
+      endedAt: null,
+      stoppedAt: null,
       source: strategy.source || existingStrategy?.source || 'saved',
       status: runtimeStatus.status,
       runStatus: runtimeStatus.runStatus,
@@ -784,6 +786,8 @@ export default function Dashboard({
           deployed: true,
           activatedAt: activatedStrategy.activatedAt,
           deployedAt: activatedStrategy.deployedAt,
+          endedAt: null,
+          stoppedAt: null,
           pnl: activatedStrategy.pnl,
           pnlPct: activatedStrategy.pnlPct,
           paper: activatedStrategy.paper,
@@ -806,6 +810,8 @@ export default function Dashboard({
           deployed: true,
           activatedAt: activatedStrategy.activatedAt,
           deployedAt: activatedStrategy.deployedAt,
+          endedAt: null,
+          stoppedAt: null,
           symbol: activatedStrategy.symbol,
           ticker: activatedStrategy.ticker,
           pnl: activatedStrategy.pnl,
@@ -858,6 +864,7 @@ export default function Dashboard({
   }, [setDeployedStrategies]);
 
   const handleStopActivatedStrategy = useCallback((strategyId) => {
+    const stoppedAt = Date.now();
     setDeployedStrategies((prev) => prev.filter((strategy) => String(strategy.id) !== String(strategyId)));
     setSavedStrategies((prev) => prev.map((strategy) => (
       String(strategy.id) === String(strategyId)
@@ -868,6 +875,8 @@ export default function Dashboard({
             runStatus: 'stopped',
             statusLabel: 'Draft',
             pausedReason: null,
+            stoppedAt,
+            endedAt: stoppedAt,
           }
         : strategy
     )));
@@ -967,6 +976,8 @@ export default function Dashboard({
           pausedReason: deployed.pausedReason,
           activatedAt: deployed.activatedAt,
           deployedAt: deployed.deployedAt,
+          endedAt: null,
+          stoppedAt: null,
           pnl: deployed.pnl,
           pnlPct: deployed.pnlPct,
           paper: deployed.paper,
@@ -1311,7 +1322,15 @@ export default function Dashboard({
               tradeHistory={trades}
             />
           )}
-          {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
+          {activeTab === 'history' && (
+            <HistoryPage
+              themeClasses={themeClasses}
+              tradeHistory={trades}
+              savedStrategies={savedStrategies}
+              deployedStrategies={deployedStrategies}
+              alpacaData={alpacaData}
+            />
+          )}
           {/* templates now inside StrategiesPage */}
           {activeTab === 'active' && (
             <ActiveTrades

@@ -666,7 +666,6 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
   const [timeframe, setTimeframe] = useState("1H");
   const [period, setPeriod] = useState("6M");
   const [capital, setCapital] = useState(100000);
-  const [showTrades, setShowTrades] = useState(false);
   const [isRunning, setIsRunning] = useState(true);
   const [activated, setActivated] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -844,8 +843,7 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
         </div>
       </div>
 
-      {/* Chart - collapses when trade log is open */}
-      {!showTrades && (
+      {/* Chart */}
       <div className="rounded-xl overflow-hidden mb-3 bg-white/[0.02] border border-white/[0.06] backdrop-blur" style={{ opacity: isRunning ? 0.5 : 1, transition: "opacity 0.3s" }}>
         <div className="h-[340px]">
           {data.length > 0 && result ? (
@@ -885,7 +883,6 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
           </div>
         </div>
       </div>
-      )}
 
       {/* Stats Grid */}
       {result && (
@@ -898,145 +895,6 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
         <StatCard label="Max Drawdown" value={`-${result.maxDD}%`} color="#f87171" />
         <StatCard label="Sharpe Ratio" value={result.sharpe} color={parseFloat(result.sharpe) > 1 ? "#34d399" : "#f59e0b"} />
         <StatCard label="Best Trade" value={`+${fmt(result.bestTrade)}`} color="#34d399" />
-      </div>
-      )}
-
-      {/* Trade Log */}
-      {result && (
-      <div className="rounded-xl overflow-hidden bg-white/[0.03] border border-white/[0.06] backdrop-blur">
-        <button
-          onClick={() => setShowTrades(!showTrades)}
-          className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium transition-all hover:bg-white/[0.02]"
-          style={{ color: "rgba(255,255,255,0.5)" }}
-        >
-          <div className="flex items-center gap-3">
-            <span>TRADE LOG</span>
-            <span className="px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>
-              {result.roundTrips.length} round-trips
-            </span>
-            <span className="px-1.5 py-0.5 rounded" style={{ background: result.pnl >= 0 ? "#16a34a15" : "#ef444415", color: result.pnl >= 0 ? "#34d399" : "#f87171" }}>
-              {result.wins}W / {result.losses}L
-            </span>
-          </div>
-          <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTrades ? "rotate-180" : ""}`} />
-        </button>
-        {showTrades && (
-          <div className="overflow-x-auto" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="max-h-[360px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) #0b0b0b" }}>
-              <table className="w-full text-xs" style={{ fontFamily: "monospace", minWidth: 900 }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", position: "sticky", top: 0, background: "#0b0b0b", zIndex: 2 }}>
-                    {["#", "Type", "Open", "Close", "Entry", "Exit", "Shares", "Open $", "Close $", "P&L", "P&L %", "Hold Time"].map((h) => (
-                      <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap" style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.roundTrips.map((rt) => {
-                    const isWin = rt.pnl >= 0;
-                    const entryDt = new Date(rt.entryDate);
-                    const exitDt = new Date(rt.exitDate);
-                    const fmtDate = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                    const fmtTime = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-
-                    return (
-                      <tr key={rt.id} className="transition-colors hover:bg-white/[0.02] group" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        {/* # */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.25)" }}>{rt.id}</td>
-
-                        {/* Type */}
-                        <td className="px-3 py-2">
-                          <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{
-                            background: "#22d3ee12",
-                            color: "#22d3ee",
-                            fontSize: 10,
-                            letterSpacing: "0.05em",
-                          }}>
-                            {rt.type}
-                          </span>
-                        </td>
-
-                        {/* Open date/time */}
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <div style={{ color: "rgba(255,255,255,0.5)" }}>{fmtDate(entryDt)}</div>
-                          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9 }}>{fmtTime(entryDt)}</div>
-                        </td>
-
-                        {/* Close date/time */}
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <div style={{ color: "rgba(255,255,255,0.5)" }}>{fmtDate(exitDt)}</div>
-                          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9 }}>{fmtTime(exitDt)}</div>
-                        </td>
-
-                        {/* Entry price */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.9)" }}>
-                          ${rt.entryPrice.toFixed(2)}
-                        </td>
-
-                        {/* Exit price */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: isWin ? "#34d399" : "#f87171" }}>
-                          ${rt.exitPrice.toFixed(2)}
-                        </td>
-
-                        {/* Shares */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.4)" }}>
-                          {rt.shares.toLocaleString()}
-                        </td>
-
-                        {/* Open $ value */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.5)" }}>
-                          {fmt(rt.openValue)}
-                        </td>
-
-                        {/* Close $ value */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: "rgba(255,255,255,0.5)" }}>
-                          {fmt(rt.closeValue)}
-                        </td>
-
-                        {/* P&L $ */}
-                        <td className="px-3 py-2 tabular-nums font-semibold" style={{ color: isWin ? "#34d399" : "#f87171" }}>
-                          {isWin ? "+" : ""}{fmt(rt.pnl)}
-                        </td>
-
-                        {/* P&L % */}
-                        <td className="px-3 py-2 tabular-nums" style={{ color: isWin ? "#34d399" : "#f87171" }}>
-                          <span className="px-1.5 py-0.5 rounded" style={{ background: isWin ? "#34d39910" : "#f8717110" }}>
-                            {isWin ? "+" : ""}{rt.pnlPct}%
-                          </span>
-                        </td>
-
-                        {/* Duration */}
-                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: "rgba(255,255,255,0.4)" }}>
-                          <div className="flex items-center gap-1">
-                            <Icons.Clock style={{ width: 10, height: 10, color: "rgba(255,255,255,0.25)" }} />
-                            {rt.duration}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Summary row */}
-            <div className="flex items-center justify-between px-4 py-2.5 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "#0b0b0b" }}>
-              <div className="flex items-center gap-4">
-                <span style={{ color: "rgba(255,255,255,0.4)" }}>Avg Trade:</span>
-                <span className="tabular-nums font-medium" style={{ color: result.avgTrade >= 0 ? "#34d399" : "#f87171", fontFamily: "monospace" }}>
-                  {result.avgTrade >= 0 ? "+" : ""}{fmt(result.avgTrade)}
-                </span>
-                <span style={{ color: "rgba(255,255,255,0.06)" }}>|</span>
-                <span style={{ color: "rgba(255,255,255,0.4)" }}>Best:</span>
-                <span className="tabular-nums font-medium" style={{ color: "#34d399", fontFamily: "monospace" }}>+{fmt(result.bestTrade)}</span>
-                <span style={{ color: "rgba(255,255,255,0.06)" }}>|</span>
-                <span style={{ color: "rgba(255,255,255,0.4)" }}>Worst:</span>
-                <span className="tabular-nums font-medium" style={{ color: "#f87171", fontFamily: "monospace" }}>{fmt(result.worstTrade)}</span>
-              </div>
-              <span style={{ color: "rgba(255,255,255,0.25)" }}>{result.roundTrips.length} completed trades</span>
-            </div>
-          </div>
-        )}
       </div>
       )}
     </div>
