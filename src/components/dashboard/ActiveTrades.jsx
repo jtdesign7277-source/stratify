@@ -162,7 +162,7 @@ const ActiveTrades = ({
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         {activeStrategies.length === 0 ? (
           <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
-            <div className="text-sm text-white/70">No active strategies.</div>
+            <div className="text-sm text-white/70">No active strategies. Go to Strategies to activate your first one.</div>
             <button
               type="button"
               onClick={() => setActiveTab?.('strategies')}

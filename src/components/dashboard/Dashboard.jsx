@@ -1314,20 +1314,15 @@ export default function Dashboard({
           {activeTab === 'history' && <HistoryPage themeClasses={themeClasses} />}
           {/* templates now inside StrategiesPage */}
           {activeTab === 'active' && (
-            <ProGate
-              featureName="Active Trades"
-              description="Monitor and manage your live trading strategies in real-time."
-            >
-              <ActiveTrades
-                setActiveTab={setActiveTab}
-                strategies={deployedStrategies}
-                setStrategies={setDeployedStrategies}
-                onTogglePause={handleToggleActivatedStrategyPause}
-                onStopStrategy={handleStopActivatedStrategy}
-                marketStatus={currentMarketStatus}
-                nextMarketOpen={nextMarketOpenAt}
-              />
-            </ProGate>
+            <ActiveTrades
+              setActiveTab={setActiveTab}
+              strategies={deployedStrategies}
+              setStrategies={setDeployedStrategies}
+              onTogglePause={handleToggleActivatedStrategyPause}
+              onStopStrategy={handleStopActivatedStrategy}
+              marketStatus={currentMarketStatus}
+              nextMarketOpen={nextMarketOpenAt}
+            />
           )}
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
