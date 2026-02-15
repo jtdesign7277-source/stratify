@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // Bet Slip Modal Component
 const BetSlipModal = ({ market, onClose }) => {
@@ -491,6 +491,83 @@ Why it works: Institutional rebalancing and short covering typically kicks in th
   }
 ];
 
+// Sophia Weekly Recap Video Component
+function SophiaRecapVideo() {
+  const videoRef = useRef(null);
+  const [latestRecap, setLatestRecap] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    // Check for latest Sophia recap video
+    // Videos are stored as /sophia-recaps/sophia-recap-DD-MM-YYYY.mp4
+    const today = new Date();
+    const candidates = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      candidates.push({
+        date: `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+        path: `/sophia-recaps/sophia-recap-${dd}-${mm}-${yyyy}.mp4`
+      });
+    }
+
+    // Try to find the most recent one
+    const tryLoad = async () => {
+      for (const c of candidates) {
+        try {
+          const resp = await fetch(c.path, { method: 'HEAD' });
+          if (resp.ok) {
+            setLatestRecap(c);
+            return;
+          }
+        } catch {}
+      }
+    };
+    tryLoad();
+  }, []);
+
+  if (!latestRecap) return null;
+
+  return (
+    <div className="mb-4 bg-[#303134] border border-[#5f6368] rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-medium rounded">VIDEO</span>
+          <h2 className="text-base font-medium text-white">Sophia's Weekly Market Recap</h2>
+        </div>
+        <span className="text-[#9AA0A6] text-xs">{latestRecap.date}</span>
+      </div>
+      <div className="relative aspect-video bg-black">
+        <video
+          ref={videoRef}
+          src={latestRecap.path}
+          className="w-full h-full object-contain"
+          playsInline
+          controls
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+        />
+        {!isPlaying && (
+          <button
+            onClick={() => videoRef.current?.play()}
+            className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/20 transition-colors group"
+          >
+            <div className="w-16 h-16 rounded-full bg-emerald-500/90 group-hover:bg-emerald-400/90 flex items-center justify-center transition-colors shadow-lg shadow-emerald-500/30">
+              <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function NewsletterPage({ themeClasses, onClose }) {
   const [selectedNewsletter, setSelectedNewsletter] = useState(NEWSLETTERS[0]);
   const [showArchive, setShowArchive] = useState(false);
@@ -527,6 +604,9 @@ export default function NewsletterPage({ themeClasses, onClose }) {
             <span className="text-xs text-[#E8EAED]">Archive ({NEWSLETTERS.length})</span>
           </button>
         </div>
+
+        {/* Sophia Weekly Recap Video */}
+        <SophiaRecapVideo />
 
         {/* Current Newsletter */}
         <div className="bg-[#303134] border border-[#5f6368] rounded-xl overflow-hidden">
