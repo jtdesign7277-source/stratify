@@ -1,154 +1,109 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import useAlpacaStream from '../../hooks/useAlpacaStream';
 
-const SNAPSHOT_REFRESH_MS = 30000;
-const INDEX_SYMBOLS = ['SPY', 'QQQ', 'DIA'];
+const REFRESH_MS = 5 * 60 * 1000;
 
-const normalizeSymbol = (value) => {
-  if (!value) return null;
-  const symbol = String(value).trim().toUpperCase();
-  return symbol ? symbol : null;
+const SOURCE_COLORS = [
+  { match: /reuters/i, className: 'bg-amber-400' },
+  { match: /bloomberg/i, className: 'bg-blue-400' },
+  { match: /wall street journal|wsj/i, className: 'bg-orange-400' },
+  { match: /cnbc/i, className: 'bg-sky-400' },
+  { match: /finnhub/i, className: 'bg-cyan-400' },
+  { match: /alpaca/i, className: 'bg-indigo-400' },
+  { match: /xai|grok|twitter|x\b/i, className: 'bg-emerald-400' },
+];
+
+const SYMBOL_COLORS = ['text-emerald-300', 'text-sky-300'];
+
+const getDotClass = (source) => {
+  if (!source) return 'bg-emerald-400';
+  const match = SOURCE_COLORS.find((entry) => entry.match.test(source));
+  return match ? match.className : 'bg-emerald-400';
 };
 
-const buildSymbolList = (watchlist = []) => {
-  const seen = new Set();
-  const ordered = [];
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  const addSymbol = (value) => {
-    const symbol = normalizeSymbol(value);
-    if (!symbol || seen.has(symbol)) return;
-    seen.add(symbol);
-    ordered.push(symbol);
-  };
+const highlightSymbols = (text, symbols) => {
+  if (!text) return '';
+  if (!Array.isArray(symbols) || symbols.length === 0) return text;
 
-  watchlist.forEach((item) => {
-    if (typeof item === 'string') {
-      addSymbol(item);
-      return;
-    }
-    if (item && typeof item === 'object') {
-      addSymbol(item.symbol || item.ticker || item.Symbol);
-    }
+  const cleanSymbols = Array.from(
+    new Set(
+      symbols
+        .map((symbol) => String(symbol || '').trim())
+        .filter(Boolean)
+        .map((symbol) => symbol.toUpperCase())
+    )
+  );
+
+  if (cleanSymbols.length === 0) return text;
+
+  const symbolSet = new Set(cleanSymbols);
+  const pattern = new RegExp(`(\\$?(?:${cleanSymbols.map(escapeRegExp).join('|')}))\\b`, 'gi');
+  const parts = String(text).split(pattern);
+
+  return parts.map((part, idx) => {
+    const normalized = part.replace('$', '').toUpperCase();
+    if (!symbolSet.has(normalized)) return part;
+    const colorClass = SYMBOL_COLORS[normalized.charCodeAt(0) % SYMBOL_COLORS.length];
+    return (
+      <span key={`${normalized}-${idx}`} className={`font-semibold ${colorClass}`}>
+        {part}
+      </span>
+    );
   });
-
-  INDEX_SYMBOLS.forEach(addSymbol);
-
-  return ordered.slice(0, 200);
 };
 
-const formatChange = (value) => {
-  const numeric = Number(value);
-  const safeValue = Number.isFinite(numeric) ? numeric : 0;
-  const sign = safeValue >= 0 ? '+' : '-';
-  return `${sign}${Math.abs(safeValue).toFixed(2)}`;
-};
-
-const formatPrice = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return '...';
-  return numeric.toFixed(2);
-};
-
-const LiveAlertsTicker = ({ watchlist = [] }) => {
-  const symbols = useMemo(() => buildSymbolList(watchlist), [watchlist]);
-  const symbolsKey = useMemo(() => symbols.join(','), [symbols]);
-
-  const { stockQuotes } = useAlpacaStream({
-    stockSymbols: symbols,
-    cryptoSymbols: [],
-    enabled: symbols.length > 0,
-  });
-
-  const [snapshots, setSnapshots] = useState({});
-  const [prevCloseMap, setPrevCloseMap] = useState({});
+const LiveAlertsTicker = () => {
+  const [items, setItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchSnapshots = async () => {
-      if (symbols.length === 0) {
-        if (isMounted) {
-          setSnapshots({});
-          setPrevCloseMap({});
-        }
-        return;
-      }
+    const fetchTrending = async (showLoading = false) => {
+      if (showLoading && isMounted) setIsLoading(true);
 
       try {
-        const response = await fetch(`/api/stocks?symbols=${encodeURIComponent(symbolsKey)}`);
-        if (!response.ok) {
-          throw new Error(`Snapshot fetch failed: ${response.status}`);
-        }
+        const response = await fetch('/api/trending');
+        if (!response.ok) throw new Error(`Trending fetch failed: ${response.status}`);
         const data = await response.json();
-        if (!Array.isArray(data)) return;
-
-        const nextSnapshots = {};
-        const nextPrevClose = {};
-
-        data.forEach((item) => {
-          const symbol = normalizeSymbol(item?.symbol);
-          if (!symbol) return;
-          const price = Number(item?.price ?? item?.latestPrice ?? item?.last ?? item?.close);
-          const change = Number(item?.change ?? item?.changeAmount ?? item?.changeDollar);
-          const prevClose = Number(item?.prevClose);
-
-          nextSnapshots[symbol] = {
-            price: Number.isFinite(price) ? price : undefined,
-            change: Number.isFinite(change) ? change : undefined,
-          };
-
-          if (Number.isFinite(prevClose)) {
-            nextPrevClose[symbol] = prevClose;
-          } else if (Number.isFinite(price) && Number.isFinite(change)) {
-            nextPrevClose[symbol] = price - change;
-          }
-        });
+        const nextItems = Array.isArray(data?.items) ? data.items : [];
 
         if (isMounted) {
-          setSnapshots(nextSnapshots);
-          setPrevCloseMap(nextPrevClose);
+          setItems(nextItems);
         }
       } catch (error) {
-        console.error('[LiveAlertsTicker] Snapshot fetch error:', error);
+        console.error('[LiveAlertsTicker] Trending fetch error:', error);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    fetchSnapshots();
-    const interval = setInterval(fetchSnapshots, SNAPSHOT_REFRESH_MS);
+    fetchTrending(true);
+    const interval = setInterval(() => fetchTrending(false), REFRESH_MS);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [symbolsKey, symbols.length]);
+  }, []);
 
-  const tickerItems = useMemo(() => (
-    symbols.map((symbol) => {
-      const snapshot = snapshots[symbol] || {};
-      const wsQuote = stockQuotes[symbol] || {};
-      const price = Number.isFinite(wsQuote.price)
-        ? wsQuote.price
-        : snapshot.price;
-      const prevClose = prevCloseMap[symbol];
-      const derivedChange = (Number.isFinite(prevClose) && Number.isFinite(price))
-        ? price - prevClose
-        : snapshot.change;
+  const baseItems = useMemo(() => {
+    if (items.length > 0) return items;
+    if (isLoading) {
+      return [{ text: 'Loading latest news...', source: 'Loading', symbols: [] }];
+    }
+    return [{ text: 'No headlines available right now.', source: 'Status', symbols: [] }];
+  }, [items, isLoading]);
 
-      return {
-        symbol,
-        price,
-        change: derivedChange,
-      };
-    })
-  ), [symbols, snapshots, prevCloseMap, stockQuotes]);
-
-  const allItems = tickerItems.length > 0 ? [...tickerItems, ...tickerItems] : [];
+  const allItems = baseItems.length > 0 ? [...baseItems, ...baseItems] : [];
 
   return (
     <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
       <style>{`
         @keyframes ticker-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+          from { transform: translateX(-50%); }
+          to { transform: translateX(0); }
         }
         .live-ticker-track {
           display: flex;
@@ -166,30 +121,26 @@ const LiveAlertsTicker = ({ watchlist = [] }) => {
           animation-play-state: paused;
         }
       `}</style>
-      
+
       {/* LIVE Badge */}
       <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3 bg-gradient-to-r from-[#151518] via-[#151518] to-transparent">
         <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#1e1e2d] border border-[#2a2a3d] rounded">
           <div className="w-1.5 h-1.5 rounded-full bg-[#00C853] animate-pulse shadow-[0_0_6px_rgba(0,200,83,0.6)]" />
-          <span className="text-[10px] font-semibold text-[#E8EAED] uppercase tracking-wider">Live</span>
+          <span className="text-[10px] font-semibold text-[#E8EAED] uppercase tracking-wider">LIVE</span>
         </div>
       </div>
-      
+
       {/* Scrolling Content */}
       <div className="live-ticker-track pl-20">
         <div className="live-ticker-content">
-          {/* Duplicate items for seamless loop */}
           {allItems.map((item, idx) => {
-            const changeValue = Number.isFinite(item.change) ? item.change : 0;
-            const isPositive = changeValue >= 0;
-            const dotClass = isPositive ? 'bg-emerald-400' : 'bg-red-400';
-            const textClass = isPositive ? 'text-emerald-400' : 'text-red-400';
+            const dotClass = getDotClass(item.source);
 
             return (
-              <span key={`${item.symbol}-${idx}`} className="flex items-center">
+              <span key={`${item.text}-${idx}`} className="flex items-center">
                 <span className={`inline-block mr-2 shrink-0 w-1.5 h-1.5 rounded-full ${dotClass}`} />
-                <span className={`text-xs font-medium ${textClass}`}>
-                  {item.symbol} {formatChange(changeValue)} @ {formatPrice(item.price)}
+                <span className="text-xs font-medium text-[#E8EAED]">
+                  {highlightSymbols(item.text, item.symbols)}
                 </span>
                 <span className="mx-4 text-[#5f6368]">•</span>
               </span>
@@ -197,7 +148,7 @@ const LiveAlertsTicker = ({ watchlist = [] }) => {
           })}
         </div>
       </div>
-      
+
       {/* Right fade */}
       <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#151518] to-transparent" />
     </div>
