@@ -1,146 +1,147 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import useAlpacaStream from '../../hooks/useAlpacaStream';
 
-const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+const SNAPSHOT_REFRESH_MS = 30000;
+const INDEX_SYMBOLS = ['SPY', 'QQQ', 'DIA'];
 
-const NEWS_REFRESH_MS = 5 * 60 * 1000;
-
-const fallbackNews = [
-  { id: 1, text: 'Fed signals potential rate pause in March meeting', category: 'breaking' },
-  { id: 2, text: 'NVDA earnings beat expectations, stock surges after hours', category: 'bullish' },
-  { id: 3, text: 'Bitcoin breaks $50K resistance level', category: 'crypto' },
-  { id: 4, text: 'Tesla announces new factory expansion in Texas', category: 'breaking' },
-];
-
-const normalizeCategory = (category) => {
-  const normalized = String(category || '').toLowerCase();
-  if (normalized === 'bullish' || normalized === 'bearish' || normalized === 'crypto') {
-    return normalized;
-  }
-  return 'breaking';
+const normalizeSymbol = (value) => {
+  if (!value) return null;
+  const symbol = String(value).trim().toUpperCase();
+  return symbol ? symbol : null;
 };
 
-const categoryIconStyles = {
-  bullish: {
-    color: '#00C853',
-    className: 'w-1.5 h-1.5 rounded-full',
-  },
-  bearish: {
-    color: '#F44336',
-    className: 'w-1.5 h-1.5 rounded-full',
-  },
-  crypto: {
-    color: '#1E88E5',
-    className: 'w-1.5 h-1.5 rounded-[2px]',
-  },
-  breaking: {
-    color: '#9C27B0',
-    className: 'w-1.5 h-1.5 rounded-full',
-  },
+const buildSymbolList = (watchlist = []) => {
+  const seen = new Set();
+  const ordered = [];
+
+  const addSymbol = (value) => {
+    const symbol = normalizeSymbol(value);
+    if (!symbol || seen.has(symbol)) return;
+    seen.add(symbol);
+    ordered.push(symbol);
+  };
+
+  watchlist.forEach((item) => {
+    if (typeof item === 'string') {
+      addSymbol(item);
+      return;
+    }
+    if (item && typeof item === 'object') {
+      addSymbol(item.symbol || item.ticker || item.Symbol);
+    }
+  });
+
+  INDEX_SYMBOLS.forEach(addSymbol);
+
+  return ordered.slice(0, 200);
 };
 
-const normalizeTrendingNews = (items = []) => (
-  items
-    .map((item, index) => {
-      if (!item || typeof item !== 'object') return null;
-      const text = String(item.text || item.headline || '').trim();
-      if (!text) return null;
+const formatChange = (value) => {
+  const numeric = Number(value);
+  const safeValue = Number.isFinite(numeric) ? numeric : 0;
+  const sign = safeValue >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(safeValue).toFixed(2)}`;
+};
 
-      return {
-        id: item.id ?? index,
-        text,
-        category: normalizeCategory(item.category),
-      };
-    })
-    .filter(Boolean)
-);
+const formatPrice = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '...';
+  return numeric.toFixed(2);
+};
 
-const LiveAlertsTicker = () => {
-  const [alerts, setAlerts] = useState([
-    { id: 1, symbol: 'NVDA', pnl: 48.90, price: 171.88, type: 'trade' },
-    { id: 2, symbol: 'TSLA', pnl: -23.40, price: 245.30, type: 'trade' },
-    { id: 3, symbol: 'META', pnl: 127.50, price: 542.15, type: 'trade' },
-  ]);
-  const [news, setNews] = useState(fallbackNews);
+const LiveAlertsTicker = ({ watchlist = [] }) => {
+  const symbols = useMemo(() => buildSymbolList(watchlist), [watchlist]);
+  const symbolsKey = useMemo(() => symbols.join(','), [symbols]);
 
-  // Fetch recent filled orders from Alpaca
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/trades/orders?status=filled`);
-        if (response.ok) {
-          const orders = await response.json();
-          const tradeAlerts = orders.slice(0, 6).map(order => ({
-            id: order.orderId || order.id,
-            symbol: order.symbol,
-            pnl: order.filledAvgPrice && order.qty ? 
-              (order.side === 'buy' ? -1 : 1) * order.filledAvgPrice * order.qty * 0.02 : // Estimate P&L
-              Math.random() * 100 - 20,
-            price: order.filledAvgPrice || order.price || 0,
-            type: 'trade'
-          }));
-          setAlerts(tradeAlerts);
-        }
-      } catch (error) {
-        // Use mock data on error
-        setAlerts([
-          { id: 1, symbol: 'NVDA', pnl: 48.90, price: 171.88, type: 'trade' },
-          { id: 2, symbol: 'TSLA', pnl: -23.40, price: 245.30, type: 'trade' },
-          { id: 3, symbol: 'META', pnl: 127.50, price: 542.15, type: 'trade' },
-          { id: 4, symbol: 'AAPL', pnl: 34.20, price: 227.84, type: 'trade' },
-          { id: 5, symbol: 'AMD', pnl: -15.80, price: 168.42, type: 'trade' },
-        ]);
-      }
-    };
+  const { stockQuotes } = useAlpacaStream({
+    stockSymbols: symbols,
+    cryptoSymbols: [],
+    enabled: symbols.length > 0,
+  });
 
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, []);
+  const [snapshots, setSnapshots] = useState({});
+  const [prevCloseMap, setPrevCloseMap] = useState({});
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchTrendingNews = async () => {
+    const fetchSnapshots = async () => {
+      if (symbols.length === 0) {
+        if (isMounted) {
+          setSnapshots({});
+          setPrevCloseMap({});
+        }
+        return;
+      }
+
       try {
-        const response = await fetch('/api/trending');
+        const response = await fetch(`/api/stocks?symbols=${encodeURIComponent(symbolsKey)}`);
         if (!response.ok) {
-          throw new Error('Failed to fetch trending headlines');
+          throw new Error(`Snapshot fetch failed: ${response.status}`);
         }
         const data = await response.json();
-        const normalized = normalizeTrendingNews(Array.isArray(data) ? data : []);
+        if (!Array.isArray(data)) return;
+
+        const nextSnapshots = {};
+        const nextPrevClose = {};
+
+        data.forEach((item) => {
+          const symbol = normalizeSymbol(item?.symbol);
+          if (!symbol) return;
+          const price = Number(item?.price ?? item?.latestPrice ?? item?.last ?? item?.close);
+          const change = Number(item?.change ?? item?.changeAmount ?? item?.changeDollar);
+          const prevClose = Number(item?.prevClose);
+
+          nextSnapshots[symbol] = {
+            price: Number.isFinite(price) ? price : undefined,
+            change: Number.isFinite(change) ? change : undefined,
+          };
+
+          if (Number.isFinite(prevClose)) {
+            nextPrevClose[symbol] = prevClose;
+          } else if (Number.isFinite(price) && Number.isFinite(change)) {
+            nextPrevClose[symbol] = price - change;
+          }
+        });
+
         if (isMounted) {
-          setNews(normalized.length ? normalized : fallbackNews);
+          setSnapshots(nextSnapshots);
+          setPrevCloseMap(nextPrevClose);
         }
       } catch (error) {
-        if (isMounted) {
-          setNews(fallbackNews);
-        }
+        console.error('[LiveAlertsTicker] Snapshot fetch error:', error);
       }
     };
 
-    fetchTrendingNews();
-    const interval = setInterval(fetchTrendingNews, NEWS_REFRESH_MS);
+    fetchSnapshots();
+    const interval = setInterval(fetchSnapshots, SNAPSHOT_REFRESH_MS);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [symbolsKey, symbols.length]);
 
-  // Combine trades and news
-  const allItems = [
-    ...alerts.map(a => ({
-      ...a,
-      text: a.pnl >= 0 
-        ? `🟢 ${a.symbol} +$${Math.abs(a.pnl).toFixed(2)} @ $${a.price.toFixed(2)}`
-        : `🔴 ${a.symbol} -$${Math.abs(a.pnl).toFixed(2)} @ $${a.price.toFixed(2)}`,
-      color: a.pnl >= 0 ? '#00C853' : '#F44336'
-    })),
-    ...news.map(n => ({
-      ...n,
-      type: 'news',
-      color: '#E8EAED'
-    }))
-  ];
+  const tickerItems = useMemo(() => (
+    symbols.map((symbol) => {
+      const snapshot = snapshots[symbol] || {};
+      const wsQuote = stockQuotes[symbol] || {};
+      const price = Number.isFinite(wsQuote.price)
+        ? wsQuote.price
+        : snapshot.price;
+      const prevClose = prevCloseMap[symbol];
+      const derivedChange = (Number.isFinite(prevClose) && Number.isFinite(price))
+        ? price - prevClose
+        : snapshot.change;
+
+      return {
+        symbol,
+        price,
+        change: derivedChange,
+      };
+    })
+  ), [symbols, snapshots, prevCloseMap, stockQuotes]);
+
+  const allItems = tickerItems.length > 0 ? [...tickerItems, ...tickerItems] : [];
 
   return (
     <div className="relative h-8 overflow-hidden bg-[#151518] border-b border-[#1f1f1f]">
@@ -178,23 +179,22 @@ const LiveAlertsTicker = () => {
       <div className="live-ticker-track pl-20">
         <div className="live-ticker-content">
           {/* Duplicate items for seamless loop */}
-          {[...allItems, ...allItems].map((item, idx) => (
-            <span key={`${item.id}-${idx}`} className="flex items-center">
-              {item.type === 'news' && (
-                <span
-                  className={`inline-block mr-1.5 shrink-0 ${categoryIconStyles[item.category]?.className || categoryIconStyles.breaking.className}`}
-                  style={{ backgroundColor: categoryIconStyles[item.category]?.color || categoryIconStyles.breaking.color }}
-                />
-              )}
-              <span 
-                className="text-xs font-medium"
-                style={{ color: item.color }}
-              >
-                {item.text}
+          {allItems.map((item, idx) => {
+            const changeValue = Number.isFinite(item.change) ? item.change : 0;
+            const isPositive = changeValue >= 0;
+            const dotClass = isPositive ? 'bg-emerald-400' : 'bg-red-400';
+            const textClass = isPositive ? 'text-emerald-400' : 'text-red-400';
+
+            return (
+              <span key={`${item.symbol}-${idx}`} className="flex items-center">
+                <span className={`inline-block mr-2 shrink-0 w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                <span className={`text-xs font-medium ${textClass}`}>
+                  {item.symbol} {formatChange(changeValue)} @ {formatPrice(item.price)}
+                </span>
+                <span className="mx-4 text-[#5f6368]">•</span>
               </span>
-              <span className="mx-4 text-[#5f6368]">•</span>
-            </span>
-          ))}
+            );
+          })}
         </div>
       </div>
       

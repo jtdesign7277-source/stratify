@@ -5,130 +5,70 @@ import { X, Mic, MicOff, Send, Loader2 } from 'lucide-react';
 const LiveAvatarChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState('idle');
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [textInput, setTextInput] = useState('');
   const [error, setError] = useState(null);
   const [captions, setCaptions] = useState('');
-  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
+  const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const videoRef = useRef(null);
-  const roomRef = useRef(null);
-  const sessionTokenRef = useRef(null);
-  const captionRef = useRef(null);
+  const sessionObjRef = useRef(null);
 
   const startSession = useCallback(async () => {
     setStatus('connecting');
     setError(null);
 
     try {
+      // Get session token from our API
       const res = await fetch('/api/liveavatar-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || 'Failed to get session');
 
-      sessionTokenRef.current = data.session_token;
-      const livekitData = data.livekit;
-      if (!livekitData) throw new Error('No LiveKit data received');
+      // Import the SDK
+      const { LiveAvatarSession, SessionEvent, AgentEventsEnum } = await import('@heygen/liveavatar-web-sdk');
 
-      const { Room, RoomEvent, Track, DataPacket_Kind } = await import('livekit-client');
-      const room = new Room();
-      roomRef.current = room;
+      // Create session with the token
+      const session = new LiveAvatarSession(data.session_token, {
+        voiceChat: true,
+      });
+      sessionObjRef.current = session;
 
-      // Handle avatar video + audio
-      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        console.log('[LiveAvatar] Track subscribed:', track.kind, track.sid, participant?.identity);
-        if (track.kind === Track.Kind.Video) {
-          if (videoRef.current) {
-            // Clear previous
-            videoRef.current.querySelectorAll('video').forEach(v => v.remove());
-            const el = track.attach();
-            el.style.width = '100%';
-            el.style.height = '100%';
-            el.style.objectFit = 'cover';
-            el.style.borderRadius = '16px';
-            el.autoplay = true;
-            el.playsInline = true;
-            videoRef.current.appendChild(el);
-            console.log('[LiveAvatar] Video element attached');
-          }
-        }
-        if (track.kind === Track.Kind.Audio) {
-          const audioEl = track.attach();
-          audioEl.autoplay = true;
-          audioEl.style.display = 'none';
-          document.body.appendChild(audioEl);
-          console.log('[LiveAvatar] Audio element attached');
+      // Listen for state changes
+      session.on(SessionEvent.SESSION_STATE_CHANGED, (state) => {
+        console.log('[LiveAvatar] State:', state);
+        if (state === 'DISCONNECTED') {
+          setStatus('idle');
+          setCaptions('');
+          setIsAvatarTalking(false);
         }
       });
 
-      // Also listen for tracks already published
-      room.on(RoomEvent.TrackPublished, (publication, participant) => {
-        console.log('[LiveAvatar] Track published:', publication.kind, publication.trackSid, participant?.identity);
-      });
-
-      // Listen for data messages (captions/text from avatar)
-      room.on(RoomEvent.DataReceived, (payload, participant, kind) => {
-        try {
-          const text = new TextDecoder().decode(payload);
-          const parsed = JSON.parse(text);
-          if (parsed.type === 'transcript' || parsed.type === 'caption' || parsed.text) {
-            const captionText = parsed.text || parsed.content || text;
-            setCaptions(captionText);
-            setIsAvatarSpeaking(true);
-            // Clear after a delay
-            if (captionRef.current) clearTimeout(captionRef.current);
-            captionRef.current = setTimeout(() => {
-              setIsAvatarSpeaking(false);
-            }, 3000);
-          }
-        } catch {
-          // Raw text caption
-          const text = new TextDecoder().decode(payload);
-          if (text.length > 0 && text.length < 500) {
-            setCaptions(text);
-            setIsAvatarSpeaking(true);
-            if (captionRef.current) clearTimeout(captionRef.current);
-            captionRef.current = setTimeout(() => setIsAvatarSpeaking(false), 3000);
-          }
+      // Listen for stream ready → attach video
+      session.on(SessionEvent.SESSION_STREAM_READY, () => {
+        console.log('[LiveAvatar] Stream ready!');
+        if (videoRef.current) {
+          session.attach(videoRef.current);
         }
+        setStatus('connected');
       });
 
-      room.on(RoomEvent.Disconnected, () => setStatus('idle'));
-
-      // Log all participants and their tracks when connected
-      room.on(RoomEvent.ParticipantConnected, (participant) => {
-        console.log('[LiveAvatar] Participant connected:', participant.identity);
-        participant.trackPublications.forEach((pub) => {
-          console.log('[LiveAvatar] Existing track:', pub.kind, pub.trackSid, pub.isSubscribed);
-          if (pub.track) {
-            if (pub.track.kind === Track.Kind.Video && videoRef.current) {
-              const el = pub.track.attach();
-              el.style.width = '100%';
-              el.style.height = '100%';
-              el.style.objectFit = 'cover';
-              el.autoplay = true;
-              el.playsInline = true;
-              videoRef.current.appendChild(el);
-            }
-          }
-        });
+      // Listen for avatar speaking events for captions
+      session.on(AgentEventsEnum.AVATAR_SPEAK_STARTED, (eventData) => {
+        console.log('[LiveAvatar] Avatar speaking:', eventData);
+        setIsAvatarTalking(true);
+        if (eventData?.text) setCaptions(eventData.text);
       });
 
-      const url = livekitData.url || livekitData.livekit_url;
-      const token = livekitData.access_token || livekitData.token || livekitData.livekit_client_token;
-      if (!url || !token) throw new Error('Missing LiveKit credentials');
+      session.on(AgentEventsEnum.AVATAR_SPEAK_ENDED, () => {
+        setIsAvatarTalking(false);
+      });
 
-      await room.connect(url, token);
+      // Start the session
+      await session.start();
+      console.log('[LiveAvatar] Session started');
 
-      try {
-        await room.localParticipant.setMicrophoneEnabled(true);
-      } catch {
-        setIsMuted(true);
-      }
-
-      setStatus('connected');
     } catch (err) {
       console.error('LiveAvatar error:', err);
       setError(err.message);
@@ -137,38 +77,57 @@ const LiveAvatarChat = () => {
   }, []);
 
   const endSession = useCallback(async () => {
-    if (roomRef.current) {
-      await roomRef.current.disconnect();
-      roomRef.current = null;
+    if (sessionObjRef.current) {
+      try {
+        await sessionObjRef.current.stop();
+      } catch (e) { /* ignore */ }
+      sessionObjRef.current = null;
     }
-    sessionTokenRef.current = null;
     setStatus('idle');
     setCaptions('');
-    setIsAvatarSpeaking(false);
-    if (videoRef.current) videoRef.current.innerHTML = '';
+    setIsAvatarTalking(false);
   }, []);
 
   const toggleMute = useCallback(async () => {
-    if (roomRef.current) {
-      await roomRef.current.localParticipant.setMicrophoneEnabled(isMuted);
-      setIsMuted(!isMuted);
+    if (!sessionObjRef.current?.voiceChat) return;
+    try {
+      if (isMuted) {
+        await sessionObjRef.current.voiceChat.unmute();
+        setIsMuted(false);
+      } else {
+        await sessionObjRef.current.voiceChat.mute();
+        setIsMuted(true);
+      }
+    } catch (err) {
+      console.error('Mute toggle error:', err);
     }
   }, [isMuted]);
 
   const sendText = useCallback(async () => {
-    if (!textInput.trim() || !sessionTokenRef.current) return;
+    if (!textInput.trim() || !sessionObjRef.current) return;
     const msg = textInput.trim();
     setTextInput('');
 
     try {
-      await fetch('https://api.liveavatar.com/v1/sessions/chat', {
-        method: 'POST',
-        headers: {
-          'authorization': `Bearer ${sessionTokenRef.current}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ text: msg }),
-      });
+      // Use SDK's text chat
+      if (sessionObjRef.current.sendMessage) {
+        await sessionObjRef.current.sendMessage(msg);
+      } else if (sessionObjRef.current.chat) {
+        await sessionObjRef.current.chat(msg);
+      } else {
+        // Fallback: direct API call
+        const token = sessionObjRef.current._accessToken || sessionObjRef.current.accessToken;
+        if (token) {
+          await fetch('https://api.liveavatar.com/v1/sessions/chat', {
+            method: 'POST',
+            headers: {
+              'authorization': `Bearer ${token}`,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({ text: msg }),
+          });
+        }
+      }
     } catch (err) {
       console.error('Send error:', err);
     }
@@ -176,8 +135,9 @@ const LiveAvatarChat = () => {
 
   useEffect(() => {
     return () => {
-      if (roomRef.current) roomRef.current.disconnect();
-      if (captionRef.current) clearTimeout(captionRef.current);
+      if (sessionObjRef.current) {
+        try { sessionObjRef.current.stop(); } catch (e) { /* ignore */ }
+      }
     };
   }, []);
 
@@ -202,18 +162,14 @@ const LiveAvatarChat = () => {
             onClick={handleToggle}
             className="fixed bottom-6 right-6 z-50 group"
           >
-            {/* Glow ring */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 opacity-40 blur-md group-hover:opacity-60 transition-opacity" />
             <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-[#0f1a2e] to-[#0b0f1a] border border-emerald-500/40 shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-all overflow-hidden flex items-center justify-center">
-              {/* Katya silhouette / avatar icon */}
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-emerald-400">
                 <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
                 <path d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
-              {/* Pulse dot */}
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
-            {/* Label */}
             <div className="absolute -top-8 right-0 px-3 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 text-white text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               Chat with Katya
             </div>
@@ -231,7 +187,7 @@ const LiveAvatarChat = () => {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed bottom-6 right-6 z-50 w-[400px] rounded-2xl overflow-hidden border border-white/10 bg-[#080c14] shadow-2xl shadow-black/60"
           >
-            {/* Close button */}
+            {/* Close */}
             <button
               onClick={handleToggle}
               className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm text-white/50 hover:text-white flex items-center justify-center transition-colors"
@@ -239,19 +195,24 @@ const LiveAvatarChat = () => {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Video Area */}
+            {/* Video */}
             <div className="relative aspect-[4/3] bg-black">
               {status === 'connected' ? (
                 <>
-                  <div ref={videoRef} className="w-full h-full" />
-                  
-                  {/* Live indicator */}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Live badge */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-emerald-400 text-[10px] font-medium tracking-wider uppercase">Live</span>
                   </div>
 
-                  {/* Captions overlay */}
+                  {/* Captions */}
                   <AnimatePresence>
                     {captions && (
                       <motion.div
@@ -263,7 +224,7 @@ const LiveAvatarChat = () => {
                         <div className="bg-black/70 backdrop-blur-md rounded-xl px-4 py-3 border border-white/5">
                           <p className="text-white text-sm leading-relaxed">
                             {captions}
-                            {isAvatarSpeaking && (
+                            {isAvatarTalking && (
                               <motion.span
                                 animate={{ opacity: [1, 0] }}
                                 transition={{ repeat: Infinity, duration: 0.8 }}
@@ -321,7 +282,7 @@ const LiveAvatarChat = () => {
               )}
             </div>
 
-            {/* Input bar */}
+            {/* Input */}
             {status === 'connected' && (
               <div className="px-3 py-3 bg-[#080c14] border-t border-white/5">
                 <div className="flex items-center gap-2">

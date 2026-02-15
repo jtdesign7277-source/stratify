@@ -1722,7 +1722,7 @@ export default function Dashboard({
           unrealizedPnl: totalTopBarUnrealizedPnL,
         } : null}
       />
-      <LiveAlertsTicker />
+      <LiveAlertsTicker watchlist={watchlist} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           expanded={sidebarExpanded}
