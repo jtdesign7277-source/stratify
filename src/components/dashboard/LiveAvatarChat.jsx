@@ -45,12 +45,9 @@ const LiveAvatarChat = () => {
         }
       });
 
-      // Listen for stream ready → attach video
+      // Listen for stream ready → set connected, attach in useEffect
       session.on(SessionEvent.SESSION_STREAM_READY, () => {
         console.log('[LiveAvatar] Stream ready!');
-        if (videoRef.current) {
-          session.attach(videoRef.current);
-        }
         setStatus('connected');
       });
 
@@ -132,6 +129,14 @@ const LiveAvatarChat = () => {
       console.error('Send error:', err);
     }
   }, [textInput]);
+
+  // Attach video when connected and video element is rendered
+  useEffect(() => {
+    if (status === 'connected' && videoRef.current && sessionObjRef.current) {
+      console.log('[LiveAvatar] Attaching video element');
+      sessionObjRef.current.attach(videoRef.current);
+    }
+  }, [status]);
 
   useEffect(() => {
     return () => {
