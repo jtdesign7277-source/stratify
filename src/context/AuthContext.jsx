@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { initNewUser } from '../lib/initNewUser';
 
 const AuthContext = createContext(null);
 
@@ -7,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const initializedUsersRef = useRef(new Set());
 
   useEffect(() => {
     let isMounted = true;
@@ -35,6 +37,36 @@ export const AuthProvider = ({ children }) => {
       data?.subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (initializedUsersRef.current.has(user.id)) return;
+
+    initializedUsersRef.current.add(user.id);
+
+    const ensureUserInitialized = async () => {
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('initialized')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        if (profile?.initialized !== true) {
+          await initNewUser(user.id);
+        }
+      } catch (error) {
+        initializedUsersRef.current.delete(user.id);
+        console.error('[Auth] Failed to initialize user profile:', error);
+      }
+    };
+
+    ensureUserInitialized();
+  }, [user?.id]);
 
   const signIn = async ({ email, password }) => {
     setLoading(true);

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
 import YahooFinance from 'yahoo-finance2';
 import OpenAI from 'openai';
+import { createClient } from '@supabase/supabase-js';
 import stocksRouter from './routes/stocks.js';
 import chatRouter from './routes/chat.js';
 import kalshiRouter from './routes/kalshi.js';
@@ -648,6 +649,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORTFOLIO_FILE = path.join(__dirname, '../data/portfolio_history.json');
+const supabaseProjectUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseAuthClient = supabaseProjectUrl && supabaseAnonKey
+  ? createClient(supabaseProjectUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  : null;
 
 // Ensure data directory exists
 const dataDir = path.join(__dirname, '../data');
@@ -659,7 +667,8 @@ if (!fs.existsSync(dataDir)) {
 const loadPortfolioHistory = () => {
   try {
     if (fs.existsSync(PORTFOLIO_FILE)) {
-      return JSON.parse(fs.readFileSync(PORTFOLIO_FILE, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(PORTFOLIO_FILE, 'utf8'));
+      return Array.isArray(parsed) ? parsed : [];
     }
   } catch (e) {
     console.error('Error loading portfolio history:', e);
@@ -672,11 +681,66 @@ const savePortfolioHistory = (history) => {
   fs.writeFileSync(PORTFOLIO_FILE, JSON.stringify(history, null, 2));
 };
 
-// POST /api/portfolio/snapshot - Save daily snapshot
-app.post('/api/portfolio/snapshot', (req, res) => {
+const getBearerToken = (req) => {
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader !== 'string') return null;
+  if (!authHeader.toLowerCase().startsWith('bearer ')) return null;
+  const token = authHeader.slice(7).trim();
+  return token || null;
+};
+
+const verifySupabaseJwt = async (req, res, next) => {
+  const token = getBearerToken(req);
+  if (!token) return next();
+
+  if (!supabaseAuthClient) {
+    return res.status(500).json({
+      error: 'Supabase auth is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.',
+    });
+  }
+
   try {
-    const { totalValue, dailyPnL, accounts } = req.body;
-    
+    const { data, error } = await supabaseAuthClient.auth.getUser(token);
+    if (error || !data?.user?.id) {
+      return res.status(401).json({ error: 'Invalid or expired Authorization token' });
+    }
+    req.authUserId = data.user.id;
+    return next();
+  } catch (error) {
+    console.error('Supabase JWT verification error:', error);
+    return res.status(401).json({ error: 'Invalid or expired Authorization token' });
+  }
+};
+
+const resolveUserId = ({ authUserId, queryUserId, bodyUserId }) => {
+  const requestUserId = queryUserId || bodyUserId || null;
+  if (authUserId && requestUserId && authUserId !== requestUserId) {
+    return { error: 'Authenticated user does not match provided user_id', status: 403 };
+  }
+  return { userId: authUserId || requestUserId || null };
+};
+
+// POST /api/portfolio/snapshot - Save daily snapshot
+app.post('/api/portfolio/snapshot', verifySupabaseJwt, (req, res) => {
+  try {
+    const { totalValue, dailyPnL, accounts, user_id: bodyUserIdRaw } = req.body || {};
+    const bodyUserId = typeof bodyUserIdRaw === 'string' && bodyUserIdRaw.trim()
+      ? bodyUserIdRaw.trim()
+      : null;
+    const { userId, error: userError, status: userErrorStatus } = resolveUserId({
+      authUserId: req.authUserId || null,
+      bodyUserId,
+    });
+
+    if (userError) {
+      return res.status(userErrorStatus).json({ error: userError });
+    }
+    if (!userId) {
+      return res.status(400).json({
+        error: 'user_id is required in request body or via Authorization header',
+      });
+    }
+
     if (totalValue === undefined) {
       return res.status(400).json({ error: 'totalValue is required' });
     }
@@ -684,10 +748,11 @@ app.post('/api/portfolio/snapshot', (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const history = loadPortfolioHistory();
     
-    // Check if we already have a snapshot for today
-    const existingIndex = history.findIndex(h => h.date === today);
+    // Check if this user already has a snapshot for today.
+    const existingIndex = history.findIndex((h) => h.user_id === userId && h.date === today);
     
     const snapshot = {
+      user_id: userId,
       date: today,
       timestamp: new Date().toISOString(),
       totalValue: parseFloat(totalValue),
@@ -703,8 +768,12 @@ app.post('/api/portfolio/snapshot', (req, res) => {
       history.push(snapshot);
     }
 
-    // Sort by date
-    history.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Sort by user/date for predictable output.
+    history.sort((a, b) => {
+      const userCompare = String(a.user_id || '').localeCompare(String(b.user_id || ''));
+      if (userCompare !== 0) return userCompare;
+      return new Date(a.date) - new Date(b.date);
+    });
     
     savePortfolioHistory(history);
     
@@ -716,14 +785,33 @@ app.post('/api/portfolio/snapshot', (req, res) => {
 });
 
 // GET /api/portfolio/history - Get historical data
-app.get('/api/portfolio/history', (req, res) => {
+app.get('/api/portfolio/history', verifySupabaseJwt, (req, res) => {
   try {
-    const { days = 365 } = req.query;
-    const history = loadPortfolioHistory();
+    const { days = 365, user_id: queryUserIdRaw } = req.query;
+    const queryUserId = typeof queryUserIdRaw === 'string' && queryUserIdRaw.trim()
+      ? queryUserIdRaw.trim()
+      : null;
+    const { userId, error: userError, status: userErrorStatus } = resolveUserId({
+      authUserId: req.authUserId || null,
+      queryUserId,
+    });
+
+    if (userError) {
+      return res.status(userErrorStatus).json({ error: userError });
+    }
+    if (!userId) {
+      return res.status(400).json({
+        error: 'user_id is required as a query param or via Authorization header',
+      });
+    }
+
+    const history = loadPortfolioHistory().filter((h) => h.user_id === userId);
+    const parsedDays = Number.parseInt(days, 10);
+    const lookbackDays = Number.isFinite(parsedDays) && parsedDays > 0 ? parsedDays : 365;
     
     // Filter to requested days
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - parseInt(days));
+    cutoff.setDate(cutoff.getDate() - lookbackDays);
     
     const filtered = history.filter(h => new Date(h.date) >= cutoff);
     
@@ -750,10 +838,32 @@ app.get('/api/portfolio/history', (req, res) => {
 });
 
 // DELETE /api/portfolio/history - Clear history (for testing)
-app.delete('/api/portfolio/history', (req, res) => {
+app.delete('/api/portfolio/history', verifySupabaseJwt, (req, res) => {
   try {
-    savePortfolioHistory([]);
-    res.json({ success: true, message: 'History cleared' });
+    const { user_id: queryUserIdRaw } = req.query;
+    const queryUserId = typeof queryUserIdRaw === 'string' && queryUserIdRaw.trim()
+      ? queryUserIdRaw.trim()
+      : null;
+    const { userId, error: userError, status: userErrorStatus } = resolveUserId({
+      authUserId: req.authUserId || null,
+      queryUserId,
+    });
+
+    if (userError) {
+      return res.status(userErrorStatus).json({ error: userError });
+    }
+    if (!userId) {
+      return res.status(400).json({
+        error: 'user_id is required as a query param or via Authorization header',
+      });
+    }
+
+    const history = loadPortfolioHistory();
+    const remaining = history.filter((entry) => entry.user_id !== userId);
+    const removed = history.length - remaining.length;
+
+    savePortfolioHistory(remaining);
+    res.json({ success: true, message: 'History cleared', user_id: userId, removed });
   } catch (error) {
     res.status(500).json({ error: 'Failed to clear history' });
   }

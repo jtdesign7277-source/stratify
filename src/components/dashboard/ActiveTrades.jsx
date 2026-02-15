@@ -181,16 +181,17 @@ const SignalBars = ({ heat }) => {
 
 const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies: propSetStrategies }) => {
   const { user } = useAuth();
+  const isControlled = Array.isArray(propStrategies);
   const displayName = user?.user_metadata?.full_name?.trim()
     || user?.user_metadata?.name?.trim()
     || user?.email?.split('@')[0]
     || 'trader';
-  const [totalPnl, setTotalPnl] = useState(4823.12);
+  const [totalPnl, setTotalPnl] = useState(isControlled ? 0 : 4823.12);
   const [pnlDelta, setPnlDelta] = useState(0);
   const [internalStrategies, setInternalStrategies] = useState(strategiesSeed);
   
-  // Use props if provided, otherwise use internal state
-  const strategies = propStrategies && propStrategies.length > 0 ? propStrategies : internalStrategies;
+  // Use props when available (including empty arrays) to avoid demo fallback for real user data.
+  const strategies = isControlled ? propStrategies : internalStrategies;
   const setStrategies = propSetStrategies || setInternalStrategies;
   const [shareOpen, setShareOpen] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
@@ -205,7 +206,14 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
   // Fetch live prices for all symbols
   useEffect(() => {
     const fetchPrices = async () => {
-      const symbols = strategiesSeed.map(s => s.symbol);
+      const symbols = (Array.isArray(strategies) ? strategies : [])
+        .map((s) => s?.symbol)
+        .filter(Boolean);
+      if (symbols.length === 0) {
+        setLivePrices({});
+        return;
+      }
+
       const prices = {};
       
       await Promise.all(
@@ -232,9 +240,11 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
     fetchPrices();
     const interval = setInterval(fetchPrices, 30000); // Refresh every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [strategies]);
 
   useEffect(() => {
+    if (isControlled) return undefined;
+
     const interval = setInterval(() => {
       const delta = Number((Math.random() * 380 - 90).toFixed(2));
       setPnlDelta(delta);
@@ -249,7 +259,19 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
       );
     }, 2400);
     return () => clearInterval(interval);
-  }, []);
+  }, [isControlled, setStrategies]);
+
+  useEffect(() => {
+    if (!isControlled) return;
+
+    const aggregatePnl = strategies.reduce((sum, strategy) => {
+      const pnl = Number(strategy?.pnl);
+      return sum + (Number.isFinite(pnl) ? pnl : 0);
+    }, 0);
+
+    setTotalPnl(Number(aggregatePnl.toFixed(2)));
+    setPnlDelta(0);
+  }, [isControlled, strategies]);
 
   useEffect(() => {
     if (confettiCanvasRef.current && !confettiInstanceRef.current) {
@@ -316,49 +338,54 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
         </div>
 
         {/* Strategy Cards Grid - Compact 3-column layout */}
-        <div className="grid grid-cols-3 gap-2.5">
-          {strategies.map((strategy, index) => {
-            const isProfitable = strategy.pnl >= 0;
-            const health = getSignalHealth(strategy.pnlPct, strategy.heat);
+        {strategies.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-6 text-center text-sm text-white/60">
+            No active strategies running
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2.5">
+            {strategies.map((strategy, index) => {
+              const isProfitable = strategy.pnl >= 0;
+              const health = getSignalHealth(strategy.pnlPct, strategy.heat);
 
-            return (
-              <motion.div
-                key={strategy.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.04, duration: 0.3 }}
-                whileHover={{ y: -2, scale: 1.01 }}
-                onClick={() => {
-                  setTradePanelStrategy(strategy);
-                  setTradePanelOpen(true);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
+              return (
+                <motion.div
+                  key={strategy.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04, duration: 0.3 }}
+                  whileHover={{ y: -2, scale: 1.01 }}
+                  onClick={() => {
                     setTradePanelStrategy(strategy);
                     setTradePanelOpen(true);
-                  }
-                }}
-                onMouseEnter={(e) => {
-                  clearTimeout(hoverTimeout.current);
-                  const target = e.currentTarget;
-                  hoverTimeout.current = setTimeout(() => {
-                    const rect = target?.getBoundingClientRect();
-                    if (!rect) return;
-                    setHoverPreview({
-                      symbol: strategy.symbol,
-                      position: { x: rect.right, y: rect.top }
-                    });
-                  }, 500);
-                }}
-                onMouseLeave={() => {
-                  clearTimeout(hoverTimeout.current);
-                  setHoverPreview(null);
-                }}
-                role="button"
-                tabIndex={0}
-                className="group relative rounded-lg border border-[#1f1f1f] bg-[#0f0f16] p-2.5 hover:border-emerald-500/40 hover:shadow-[inset_-2px_0_12px_rgba(16,185,129,0.15)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-              >
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setTradePanelStrategy(strategy);
+                      setTradePanelOpen(true);
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    clearTimeout(hoverTimeout.current);
+                    const target = e.currentTarget;
+                    hoverTimeout.current = setTimeout(() => {
+                      const rect = target?.getBoundingClientRect();
+                      if (!rect) return;
+                      setHoverPreview({
+                        symbol: strategy.symbol,
+                        position: { x: rect.right, y: rect.top }
+                      });
+                    }, 500);
+                  }}
+                  onMouseLeave={() => {
+                    clearTimeout(hoverTimeout.current);
+                    setHoverPreview(null);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className="group relative rounded-lg border border-[#1f1f1f] bg-[#0f0f16] p-2.5 hover:border-emerald-500/40 hover:shadow-[inset_-2px_0_12px_rgba(16,185,129,0.15)] transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+                >
                 {/* Bottom edge tab - click for details */}
                 <div className="absolute -bottom-0 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-t-md bg-emerald-500/20 border border-b-0 border-emerald-500/30 opacity-0 group-hover:opacity-100 group-hover:-translate-y-0 translate-y-1 transition-all duration-200">
                   <span className="text-[9px] font-medium text-emerald-400 uppercase tracking-wider">Details</span>
@@ -473,10 +500,11 @@ const ActiveTrades = ({ setActiveTab, strategies: propStrategies, setStrategies:
                     Heat {strategy.heat}%
                   </span>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>

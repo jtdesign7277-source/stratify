@@ -73,15 +73,7 @@ const StrategiesPage = ({
     localStorage.setItem('stratify-strategy-folder-map', JSON.stringify(strategyFolders));
   }, [strategyFolders]);
 
-  const defaultStrategies = [
-    { id: '1', name: 'RSI Momentum', type: 'Momentum', status: 'active', winRate: 68, trades: 142, pnl: 2340.5 },
-    { id: '2', name: 'MACD Crossover', type: 'Trend', status: 'paused', winRate: 54, trades: 89, pnl: 890.25 },
-    { id: '3', name: 'Mean Reversion SPY', type: 'Mean Reversion', status: 'active', winRate: 72, trades: 56, pnl: 1567.8 },
-    { id: '4', name: 'Breakout Scanner', type: 'Breakout', status: 'draft', winRate: 0, trades: 0, pnl: 0 },
-    { id: '5', name: 'Scalping BTC', type: 'Scalping', status: 'active', winRate: 61, trades: 234, pnl: 4521.9 },
-  ];
-
-  const strategies = savedStrategies.length > 0 ? savedStrategies : defaultStrategies;
+  const strategies = Array.isArray(savedStrategies) ? savedStrategies : [];
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const matchesSearch = (s) => {
@@ -307,7 +299,7 @@ const StrategiesPage = ({
         )}
         {open && items.length === 0 && (
           <div className="ml-4 pl-2 py-2 text-[10px] text-white/15 border-l border-white/[0.04]">
-            {normalizedQuery ? 'No matches' : 'No active strategies'}
+            {normalizedQuery ? 'No matches' : 'No active strategies running'}
           </div>
         )}
       </div>
@@ -529,6 +521,19 @@ const StrategiesPage = ({
               Create
             </button>
             <X onClick={() => setShowNewFolder(false)} className="w-3.5 h-3.5 text-white/20 hover:text-white/50 cursor-pointer" strokeWidth={1.5} />
+          </div>
+        )}
+
+        {strategies.length === 0 && (
+          <div className="mb-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4 flex items-center justify-between gap-3">
+            <div className="text-sm text-white/70">Create your first strategy</div>
+            <button
+              type="button"
+              onClick={() => setActiveTab?.('builder')}
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30 transition-colors"
+            >
+              Strategy Builder
+            </button>
           </div>
         )}
 

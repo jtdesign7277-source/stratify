@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { createChart, AreaSeries } from 'lightweight-charts';
+import { supabase } from '../../lib/supabaseClient';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
@@ -28,10 +29,36 @@ const PortfolioChart = ({ initialValue = 0, onSaveSnapshot, className = '' }) =>
     }
   };
 
+  const getAccessToken = async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error loading Supabase session:', error);
+        return null;
+      }
+      return data?.session?.access_token || null;
+    } catch (error) {
+      console.error('Error loading Supabase session:', error);
+      return null;
+    }
+  };
+
   // Fetch history from API
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/portfolio/history?days=730`);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        return [];
+      }
+
+      const res = await fetch(`${API_URL}/api/portfolio/history?days=730`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch history: ${res.status}`);
+      }
       const data = await res.json();
       if (data.history && data.history.length > 0) {
         setHistoryData(data.history);
@@ -51,9 +78,15 @@ const PortfolioChart = ({ initialValue = 0, onSaveSnapshot, className = '' }) =>
       
       if (lastSave !== today && initialValue > 0) {
         try {
+          const accessToken = await getAccessToken();
+          if (!accessToken) return;
+
           await fetch(`${API_URL}/api/portfolio/snapshot`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
             body: JSON.stringify({
               totalValue: initialValue,
               dailyPnL: 0,
@@ -215,7 +248,7 @@ const PortfolioChart = ({ initialValue = 0, onSaveSnapshot, className = '' }) =>
               </span>
             </div>
           ) : (
-            <div className="text-sm text-white/50">-$0.00 (0.00%)</div>
+            <div className="text-sm text-white/50">-$0.00 - Connect a broker to get started</div>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -242,7 +275,7 @@ const PortfolioChart = ({ initialValue = 0, onSaveSnapshot, className = '' }) =>
         <div ref={chartContainerRef} className="w-full" />
       ) : (
         <div className="h-[220px] w-full rounded-lg border border-dashed border-white/10 bg-white/[0.02] flex items-center justify-center text-center text-sm text-white/55 px-6">
-          Connect a broker or start paper trading to track your portfolio
+          Connect a broker to get started
         </div>
       )}
     </div>

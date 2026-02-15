@@ -251,7 +251,7 @@ const PortfolioPage = ({
           )}
 
           {positions.length === 0 ? (
-            <div className="text-sm text-white/50 py-6 text-center">No positions yet. Place a trade to populate your portfolio.</div>
+            <div className="text-sm text-white/50 py-6 text-center">-$0.00 - Connect a broker to get started</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -350,7 +350,7 @@ const PortfolioPage = ({
           </div>
 
           {recentTrades.length === 0 ? (
-            <div className="text-sm text-white/50 py-6 text-center">No trades recorded yet.</div>
+            <div className="text-sm text-white/50 py-6 text-center">No trades yet</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

@@ -35,7 +35,7 @@ import TradePage from './TradePage';
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplateFlow from './StrategyTemplateFlow';
-import ActiveTrades, { strategiesSeed } from './ActiveTrades';
+import ActiveTrades from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
@@ -57,62 +57,6 @@ const loadDashboardState = () => {
 const saveDashboardState = (state) => {
   localStorage.setItem('stratify-dashboard-state', JSON.stringify(state));
 };
-
-// Demo respawn - Random strategy generator
-const STRATEGY_TEMPLATES = [
-  { name: 'MACD Crossover', symbol: 'TSLA', type: 'Momentum' },
-  { name: 'RSI Divergence', symbol: 'NVDA', type: 'Mean Reversion' },
-  { name: 'Bollinger Squeeze', symbol: 'AAPL', type: 'Volatility' },
-  { name: 'Golden Cross', symbol: 'SPY', type: 'Trend Following' },
-  { name: 'VWAP Bounce', symbol: 'AMD', type: 'Scalping' },
-  { name: 'Gap Fill', symbol: 'MSFT', type: 'Mean Reversion' },
-  { name: 'Breakout Hunter', symbol: 'META', type: 'Momentum' },
-  { name: 'Support Bounce', symbol: 'GOOGL', type: 'Technical' },
-  { name: 'EMA Ribbon', symbol: 'QQQ', type: 'Trend Following' },
-  { name: 'Stochastic Pop', symbol: 'AMZN', type: 'Momentum' },
-];
-
-const generateRandomStrategy = () => {
-  const template = STRATEGY_TEMPLATES[Math.floor(Math.random() * STRATEGY_TEMPLATES.length)];
-  const winRate = (55 + Math.random() * 25).toFixed(1);
-  const totalReturn = (10 + Math.random() * 40).toFixed(1);
-  const maxDrawdown = (5 + Math.random() * 15).toFixed(1);
-  const sharpeRatio = (1 + Math.random() * 1.5).toFixed(2);
-  
-  return {
-    id: `strategy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    name: `${template.name} ${template.symbol}`,
-    symbol: template.symbol,
-    type: template.type,
-    status: 'draft',
-    metrics: {
-      winRate: `${winRate}%`,
-      totalReturn: `${totalReturn}%`,
-      maxDrawdown: maxDrawdown,
-      sharpeRatio: sharpeRatio,
-      trades: Math.floor(50 + Math.random() * 150),
-    }
-  };
-};
-
-const generateRandomDeployedStrategy = () => {
-  const strategy = generateRandomStrategy();
-  const staggeredTimes = [
-    Date.now() - (14 * 24 * 60 * 60 * 1000) - Math.random() * (3 * 60 * 60 * 1000),
-    Date.now() - (3 * 24 * 60 * 60 * 1000) - Math.random() * (7 * 60 * 60 * 1000),
-    Date.now() - (45 * 60 * 1000) - Math.random() * (30 * 60 * 1000),
-    Date.now() - (7 * 24 * 60 * 60 * 1000) - Math.random() * (11 * 60 * 60 * 1000),
-    Date.now() - (1 * 24 * 60 * 60 * 1000) - Math.random() * (2 * 60 * 60 * 1000),
-  ];
-  return {
-    ...strategy,
-    status: 'deployed',
-    runStatus: 'running',
-    deployedAt: staggeredTimes[Math.floor(Math.random() * staggeredTimes.length)]
-  };
-};
-
-const RESPAWN_DELAY_MS = 60000;
 
 export default function Dashboard({
   setCurrentPage,
@@ -254,33 +198,20 @@ export default function Dashboard({
     } catch { return []; }
   });
   const [deployedStrategies, setDeployedStrategies] = useState(() => {
-    const staggeredTimes = [
-      Date.now() - (14 * 24 * 60 * 60 * 1000) - (3 * 60 * 60 * 1000) + (17 * 60 * 1000),
-      Date.now() - (3 * 24 * 60 * 60 * 1000) - (7 * 60 * 60 * 1000) + (42 * 60 * 1000),
-      Date.now() - (45 * 60 * 1000),
-      Date.now() - (7 * 24 * 60 * 60 * 1000) - (11 * 60 * 60 * 1000),
-      Date.now() - (1 * 24 * 60 * 60 * 1000) - (2 * 60 * 60 * 1000),
-      Date.now() - (5 * 24 * 60 * 60 * 1000) - (8 * 60 * 60 * 1000),
-    ];
-    // Always use strategiesSeed as the source of truth for active strategies
-    return strategiesSeed.map((s, i) => ({
-      ...s,
-      deployedAt: staggeredTimes[i % staggeredTimes.length]
-    }));
+    try {
+      const saved = localStorage.getItem('stratify-deployed-strategies-v2');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [savedStrategies, setSavedStrategies] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-saved-strategies');
-      if (saved) return JSON.parse(saved);
-      // Default sample strategies
-      return [
-        { id: 'sample-1', name: 'Golden Cross NVDA', type: 'Momentum', status: 'active', winRate: 68, trades: 42, pnl: 2847.50, folderId: 'favorites' },
-        { id: 'sample-2', name: 'RSI Reversal SPY', type: 'Mean Reversion', status: 'paused', winRate: 54, trades: 156, pnl: 1234.00, folderId: 'active' },
-        { id: 'sample-3', name: 'VWAP Bounce QQQ', type: 'Scalping', status: 'active', winRate: 72, trades: 89, pnl: 956.25, folderId: 'grok' },
-        { id: 'sample-4', name: 'Breakout Hunter TSLA', type: 'Breakout', status: 'paused', winRate: 45, trades: 23, pnl: -312.00, folderId: 'favorites' },
-        { id: 'sample-5', name: 'MACD Crossover AAPL', type: 'Trend', status: 'active', winRate: 61, trades: 67, pnl: 1567.80, folderId: 'grok' },
-      ];
-    } catch { return []; }
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [demoState, setDemoState] = useState('idle');
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
@@ -397,14 +328,6 @@ export default function Dashboard({
 
   const handleDeleteStrategy = (strategyId) => {
     setStrategies(prev => prev.filter(s => s.id !== strategyId));
-    setTimeout(() => {
-      setStrategies(prev => {
-        if (prev.length < 3) {
-          return [...prev, generateRandomStrategy()];
-        }
-        return prev;
-      });
-    }, RESPAWN_DELAY_MS);
   };
 
   const handleEditStrategy = (strategy) => {
@@ -586,31 +509,6 @@ export default function Dashboard({
   useEffect(() => {
     localStorage.setItem('stratify-strategies', JSON.stringify(strategies));
   }, [strategies]);
-
-  useEffect(() => {
-    if (strategies.length === 0) {
-      const timer = setTimeout(() => {
-        setStrategies([
-          generateRandomStrategy(),
-          generateRandomStrategy(),
-          generateRandomStrategy(),
-        ]);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [strategies.length]);
-
-  useEffect(() => {
-    if (deployedStrategies.length === 0) {
-      const timer = setTimeout(() => {
-        setDeployedStrategies([
-          generateRandomDeployedStrategy(),
-          generateRandomDeployedStrategy(),
-        ]);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [deployedStrategies.length]);
 
   useEffect(() => {
     localStorage.setItem('stratify-deployed-strategies-v2', JSON.stringify(deployedStrategies));
@@ -805,6 +703,7 @@ export default function Dashboard({
                 // Could add edit logic here
               }}
               onRemoveSavedStrategy={handleRemoveSavedStrategy}
+              setActiveTab={setActiveTab}
             />
           )}
           {activeTab === 'trade' && (
