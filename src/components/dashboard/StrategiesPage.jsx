@@ -50,7 +50,7 @@ const StrategiesPage = ({
       : [
           { id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' },
           { id: 'active', name: 'Active', color: '#10B981', icon: 'play' },
-          { id: 'grok', name: 'Grok Strategies', color: '#10B981', icon: 'zap' },
+          { id: 'sophia', name: 'Sophia Strategies', color: '#10B981', icon: 'zap' },
         ];
   });
 
@@ -58,7 +58,7 @@ const StrategiesPage = ({
     'stratify-templates': false,
     favorites: false,
     active: false,
-    grok: false,
+    sophia: true,
     uncategorized: true,
   });
 
@@ -91,8 +91,8 @@ const StrategiesPage = ({
       return strategies.filter(
         (s) => s.status === 'active' || deployedStrategies.some((d) => d.id === s.id)
       );
-    if (folderId === 'grok')
-      return strategies.filter((s) => s.code || strategyFolders[s.id] === 'grok' || s.folderId === 'grok');
+    if (folderId === 'sophia')
+      return strategies.filter((s) => s.code || strategyFolders[s.id] === 'sophia' || s.folderId === 'sophia' || s.id?.startsWith('sophia-'));
     if (folderId === 'stratify-templates')
       return strategies.filter(
         (s) => strategyFolders[s.id] === 'stratify-templates' || s.folderId === 'stratify-templates'
@@ -350,51 +350,43 @@ const StrategiesPage = ({
 
         {open && items.length > 0 && (
           <div className="ml-4 mt-1 border-l border-white/[0.04] pl-2">
-            {items.map((s) => (
-              <div
-                key={s.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, s)}
-                onDoubleClick={() => {
-                  if (s.status !== 'active') onDeployStrategy?.(s, true);
-                }}
-                className="group flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.03] cursor-grab active:cursor-grabbing transition-colors"
-              >
-                <span className="text-white/85 text-[11px] font-medium truncate flex-1">{s.name}</span>
-                <span className={`px-1.5 py-px rounded text-[9px] font-medium leading-tight ${statusStyle(s.status)}`}>{s.status}</span>
-                <span className="text-[10px] text-white/25 w-16 text-right">{s.type}</span>
-                <span className={`text-[11px] font-mono tabular-nums w-20 text-right ${s.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {s.pnl >= 0 ? '+' : ''}{s.pnl?.toFixed(2)}
-                </span>
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeployStrategy?.(s, true);
-                  }}
-                  className="text-[9px] text-emerald-500/60 hover:text-emerald-400 uppercase tracking-wider font-semibold cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+            {items.map((s) => {
+              const ticker = s.summary?.ticker || s.ticker || s.symbol || '';
+              const date = s.savedAt ? new Date(s.savedAt).toLocaleDateString() : '';
+              const winRate = s.summary?.winRate || s.winRate || '';
+              const ret = s.summary?.value || s.pnl;
+              return (
+                <div
+                  key={s.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, s)}
+                  onClick={() => onEditStrategy?.(s)}
+                  className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.03] cursor-pointer transition-colors"
                 >
-                  Activate
-                </span>
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Edit3
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditStrategy?.(s);
-                    }}
-                    className="w-3 h-3 text-white/20 hover:text-emerald-400 cursor-pointer"
-                    strokeWidth={1.5}
-                  />
-                  <Trash2
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveSavedStrategy?.(s.id);
-                    }}
-                    className="w-3 h-3 text-white/20 hover:text-red-400 cursor-pointer"
-                    strokeWidth={1.5}
-                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white/85 text-xs font-medium truncate">{s.name}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {ticker && <span className="text-amber-400 text-[10px] font-mono">${ticker}</span>}
+                      {date && <span className="text-white/20 text-[10px]">{date}</span>}
+                    </div>
+                  </div>
+                  {winRate && <span className="text-[10px] text-white/40 font-mono">{winRate}</span>}
+                  {ret != null && (
+                    <span className={`text-[11px] font-mono tabular-nums ${typeof ret === 'number' ? (ret >= 0 ? 'text-emerald-400' : 'text-red-400') : 'text-emerald-400'}`}>
+                      {typeof ret === 'number' ? `${ret >= 0 ? '+' : ''}${ret.toFixed(2)}%` : ret}
+                    </span>
+                  )}
+                  <span className={`px-1.5 py-px rounded text-[9px] font-medium leading-tight ${statusStyle(s.status)}`}>{s.status || 'saved'}</span>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2
+                      onClick={(e) => { e.stopPropagation(); onRemoveSavedStrategy?.(s.id); }}
+                      className="w-3 h-3 text-white/20 hover:text-red-400 cursor-pointer"
+                      strokeWidth={1.5}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {open && items.length === 0 && (
@@ -421,10 +413,10 @@ const StrategiesPage = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] overflow-hidden">
       <div className="shrink-0 px-6 pt-5 pb-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-white tracking-tight">Strategy Templates</h1>
-            <p className="text-[11px] text-white/25 mt-0.5">Premium blueprints for rapid deployment</p>
+            <h1 className="text-lg font-semibold text-white tracking-tight">My Strategies</h1>
+            <p className="text-[11px] text-white/25 mt-0.5">Strategies created with Sophia, organized by folder</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -445,66 +437,6 @@ const StrategiesPage = ({
               <Plus className="w-4 h-4" strokeWidth={1.5} />
             </button>
           </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          {TEMPLATES.map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTemplate(t.id)}
-                className="group relative text-left p-4 rounded-2xl transition-all duration-300 hover:scale-[1.02]"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.01) 100%)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(10px)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = `${t.color}55`;
-                  e.currentTarget.style.boxShadow = `0 0 26px ${t.color}2a, 0 8px 24px rgba(0,0,0,0.45)`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <div
-                  className="absolute -top-8 -right-10 w-28 h-28 rounded-full opacity-[0.06] group-hover:opacity-[0.12] transition-opacity duration-500"
-                  style={{ background: `radial-gradient(circle, ${t.color}, transparent)` }}
-                />
-                <div className="relative flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ background: `${t.color}1f`, boxShadow: `inset 0 0 0 1px ${t.color}33` }}
-                    >
-                      <Icon className="w-4 h-4" style={{ color: t.color }} fill="none" strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-white/90 block leading-tight">{t.name}</span>
-                      <span className="text-[10px] text-white/30 leading-tight">{t.desc}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="relative mt-3 flex items-center gap-4">
-                  <div>
-                    <span className="text-[9px] text-white/25 uppercase tracking-wider">Avg Return</span>
-                    <span className="block text-sm font-bold text-emerald-400 leading-tight font-mono">{t.avgReturn}</span>
-                  </div>
-                  <div className="w-px h-7 bg-white/[0.08]" />
-                  <div>
-                    <span className="text-[9px] text-white/25 uppercase tracking-wider">Win Rate</span>
-                    <span className="block text-sm font-bold text-white/70 leading-tight font-mono">{t.winRate}</span>
-                  </div>
-                  <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play className="w-4 h-4" style={{ color: t.color }} fill="none" strokeWidth={1.5} />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -553,7 +485,8 @@ const StrategiesPage = ({
           {renderFolder({ id: 'stratify-templates', name: 'STRATIFY', color: '#EF4444', icon: 'zap' }, true)}
           {renderActiveStrategies()}
           {renderFolder({ id: 'favorites', name: 'Favorites', color: '#F59E0B', icon: 'star' }, true)}
-          {folders.filter((f) => !['favorites', 'active', 'stratify-templates'].includes(f.id)).map((f) => renderFolder(f))}
+          {renderFolder({ id: 'sophia', name: 'Sophia Strategies', color: '#10B981', icon: 'zap' }, true)}
+          {folders.filter((f) => !['favorites', 'active', 'stratify-templates', 'sophia'].includes(f.id)).map((f) => renderFolder(f))}
           {renderFolder({ id: 'uncategorized', name: 'Uncategorized', color: '#6B7280', icon: 'folder' }, true)}
         </div>
       </div>
