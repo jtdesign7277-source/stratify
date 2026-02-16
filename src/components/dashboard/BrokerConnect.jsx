@@ -161,16 +161,22 @@ const BrokerConnect = ({ onConnected }) => {
           {/* Paper/Live toggle */}
           <div className="flex items-center justify-between py-2">
             <div>
-              <div className="text-sm text-white">Paper Trading</div>
-              <div className="text-xs text-white/30">Use paper trading endpoint</div>
+              <div className="text-sm text-white">{isPaper ? 'Paper Trading' : 'Live Trading'}</div>
+              <div className="text-xs text-white/30">{isPaper ? 'Use paper trading endpoint' : 'Connected to live brokerage'}</div>
             </div>
             <button
               onClick={() => setIsPaper(!isPaper)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${isPaper ? 'bg-emerald-500/40' : 'bg-white/10'}`}
+              className={`relative w-10 h-5 rounded-full transition-colors ${isPaper ? 'bg-emerald-500/40' : 'bg-orange-500/40'}`}
             >
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0.5 bg-white/40'}`} />
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0.5 bg-orange-400'}`} />
             </button>
           </div>
+
+          {!isPaper && (
+            <div className="border border-orange-500/20 rounded-lg p-3 bg-orange-500/5">
+              <p className="text-xs text-orange-400">⚠️ Live Trading Mode — Orders will execute with real money. Make sure you are using your live API keys.</p>
+            </div>
+          )}
 
           {error && (
             <div className="border border-red-500/20 rounded-lg p-3">
@@ -183,7 +189,9 @@ const BrokerConnect = ({ onConnected }) => {
             disabled={!apiKey || !apiSecret || testing}
             className={`w-full py-2.5 rounded-lg text-sm font-medium border transition-all ${
               apiKey && apiSecret && !testing
-                ? 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5'
+                ? isPaper
+                  ? 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5'
+                  : 'border-orange-500/30 text-orange-400 hover:border-orange-500/60 hover:bg-orange-500/5'
                 : 'border-white/[0.06] text-white/20 cursor-not-allowed'
             }`}
           >
