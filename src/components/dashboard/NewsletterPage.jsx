@@ -1,311 +1,115 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
-// Bet Slip Modal Component
-const BetSlipModal = ({ market, onClose }) => {
-  const [betAmount, setBetAmount] = useState('');
-  const [position, setPosition] = useState('YES');
-  
-  if (!market) return null;
-  
-  const price = position === 'YES' ? market.yesPrice : (100 - market.yesPrice);
-  const potentialWin = betAmount ? ((100 / price) * parseFloat(betAmount) - parseFloat(betAmount)).toFixed(2) : '0.00';
-  
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div 
-        className="bg-[#202124] border border-[#5f6368] rounded-xl w-[400px] overflow-hidden shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-sm font-medium text-white">Quick Trade</span>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Market Info */}
-        <div className="px-4 py-4 border-b border-[#5f6368]">
-          <div className="text-white font-medium mb-1">{market.name}</div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="text-emerald-400">YES {market.yesPrice}¢</span>
-            <span className="text-red-400">NO {100 - market.yesPrice}¢</span>
-            <span className={`${market.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {market.change >= 0 ? '+' : ''}{market.change}¢ 7d
-            </span>
-          </div>
-        </div>
-        
-        {/* Position Toggle */}
-        <div className="px-4 py-3">
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setPosition('YES')}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                position === 'YES' 
-                  ? 'bg-emerald-500 text-white' 
-                  : 'bg-[#303134] text-gray-400 hover:bg-[#3c4043]'
-              }`}
-            >
-              YES {market.yesPrice}¢
-            </button>
-            <button
-              onClick={() => setPosition('NO')}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                position === 'NO' 
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-[#303134] text-gray-400 hover:bg-[#3c4043]'
-              }`}
-            >
-              NO {100 - market.yesPrice}¢
-            </button>
-          </div>
-          
-          {/* Amount Input */}
-          <div className="mb-4">
-            <label className="text-xs text-white/50 mb-1 block">Amount (USD)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
-              <input
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-7 pr-4 py-2 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-sm focus:border-[#8ab4f8] focus:outline-none"
-              />
-            </div>
-          </div>
-          
-          {/* Quick Amounts */}
-          <div className="flex gap-2 mb-4">
-            {[10, 25, 50, 100].map(amount => (
-              <button
-                key={amount}
-                onClick={() => setBetAmount(amount.toString())}
-                className="flex-1 py-1.5 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded text-xs text-gray-300"
-              >
-                ${amount}
-              </button>
-            ))}
-          </div>
-          
-          {/* Potential Win */}
-          <div className="bg-[#303134] rounded-lg p-3 mb-4">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-white/50">Shares</span>
-              <span className="text-white">{betAmount ? (parseFloat(betAmount) / (price / 100)).toFixed(0) : '0'}</span>
-            </div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-white/50">Avg Price</span>
-              <span className="text-white">{price}¢</span>
-            </div>
-            <div className="flex justify-between text-sm font-medium pt-2 border-t border-[#5f6368]">
-              <span className="text-gray-400">Potential Profit</span>
-              <span className="text-emerald-400">+${potentialWin}</span>
-            </div>
-          </div>
-          
-          {/* Submit Button */}
-          <button
-            disabled={!betAmount || parseFloat(betAmount) <= 0}
-            className={`w-full py-3 rounded-lg text-sm font-medium transition-colors ${
-              position === 'YES'
-                ? 'bg-emerald-500 hover:bg-emerald-400 text-white disabled:bg-emerald-500/30 disabled:text-emerald-300/50'
-                : 'bg-red-500 hover:bg-red-400 text-white disabled:bg-red-500/30 disabled:text-red-300/50'
-            }`}
-          >
-            {betAmount ? `Buy ${position} for $${betAmount}` : 'Enter Amount'}
-          </button>
-          
-          <p className="text-[10px] text-gray-600 text-center mt-3">
-            Trading on {market.platform || 'Polymarket'} • Requires connected account
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
+/* ─────────────────────────────────────────────
+   STRATIFY WEEKLY — Newsletter & Sophia Recaps
+   Professional editorial layout with:
+   • Sophia video hero section
+   • Full newsletter content
+   • Archive sidebar with folder structure
+   • Subscribe CTA
+   ───────────────────────────────────────────── */
 
-// Arb Bet Slip Modal - Unified dual-side execution
-const ArbBetSlipModal = ({ arb, onClose }) => {
-  const [betAmount, setBetAmount] = useState('');
-  
-  if (!arb) return null;
-  
-  const amount = parseFloat(betAmount) || 0;
-  const HOUSE_FEE_PERCENT = 0.5; // 0.5% fee
-  
-  // Calculate optimal allocation for arb
-  // To guarantee profit, we need: (amount on YES / YES price) = (amount on NO / NO price)
-  // This ensures we win the same amount regardless of outcome
-  const yesPrice = arb.polymarket.price / 100;
-  const noPrice = arb.kalshi.price / 100;
-  const totalCost = yesPrice + noPrice; // Combined cost per $1 of guaranteed return
-  
-  const yesAllocation = amount * (yesPrice / totalCost);
-  const noAllocation = amount * (noPrice / totalCost);
-  
-  // Guaranteed payout is $1 for every $totalCost invested
-  const grossPayout = amount / totalCost;
-  const grossProfit = grossPayout - amount;
-  const houseFee = amount * (HOUSE_FEE_PERCENT / 100);
-  const netProfit = grossProfit - houseFee;
-  const profitPercent = amount > 0 ? ((netProfit / amount) * 100).toFixed(1) : '0.0';
-  
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div 
-        className="bg-[#202124] border border-amber-500/50 rounded-xl w-[440px] overflow-hidden shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-[#5f6368] bg-amber-500/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-amber-400">🎯</span>
-              <span className="text-sm font-medium text-white">Arbitrage Executor</span>
-              <span className="text-[10px] bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded">GUARANTEED PROFIT</span>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        
-        {/* Market Info */}
-        <div className="px-4 py-4 border-b border-[#5f6368]">
-          <div className="text-white font-medium mb-2">{arb.name}</div>
-          <div className="text-xs text-gray-400 mb-3">Execute both sides simultaneously to lock in profit</div>
-          
-          {/* Two Legs */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-              <div className="text-[10px] text-white/50 mb-1">LEG 1 • Polymarket</div>
-              <div className="text-emerald-400 font-medium">Buy YES @ {arb.polymarket.price}¢</div>
-              {amount > 0 && <div className="text-xs text-gray-400 mt-1">${yesAllocation.toFixed(2)}</div>}
-            </div>
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-              <div className="text-[10px] text-white/50 mb-1">LEG 2 • Kalshi</div>
-              <div className="text-red-400 font-medium">Buy NO @ {arb.kalshi.price}¢</div>
-              {amount > 0 && <div className="text-xs text-gray-400 mt-1">${noAllocation.toFixed(2)}</div>}
-            </div>
-          </div>
-        </div>
-        
-        {/* Amount Input */}
-        <div className="px-4 py-4">
-          <div className="mb-4">
-            <label className="text-xs text-white/50 mb-1 block">Total Investment (USD)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50">$</span>
-              <input
-                type="number"
-                value={betAmount}
-                onChange={(e) => setBetAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-7 pr-4 py-3 bg-[#303134] border border-[#5f6368] rounded-lg text-white text-lg focus:border-amber-500 focus:outline-none"
-              />
-            </div>
-          </div>
-          
-          {/* Quick Amounts */}
-          <div className="flex gap-2 mb-4">
-            {[50, 100, 250, 500, 1000].map(amt => (
-              <button
-                key={amt}
-                onClick={() => setBetAmount(amt.toString())}
-                className="flex-1 py-2 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded text-xs text-gray-300"
-              >
-                ${amt}
-              </button>
-            ))}
-          </div>
-          
-          {/* Breakdown */}
-          <div className="bg-[#303134] rounded-lg p-4 mb-4">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-white/50">Polymarket (YES)</span>
-                <span className="text-white">${yesAllocation.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50">Kalshi (NO)</span>
-                <span className="text-white">${noAllocation.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-t border-[#5f6368] pt-2">
-                <span className="text-white/50">Total Investment</span>
-                <span className="text-white">${amount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50">Guaranteed Payout</span>
-                <span className="text-white">${grossPayout.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50">Gross Profit</span>
-                <span className="text-emerald-400">+${grossProfit.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-600">Stratify Fee ({HOUSE_FEE_PERCENT}%)</span>
-                <span className="text-white/50">-${houseFee.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between border-t border-amber-500/30 pt-2">
-                <span className="text-amber-400 font-medium">Net Profit</span>
-                <span className="text-amber-400 font-semibold">+${netProfit.toFixed(2)} ({profitPercent}%)</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Submit Button */}
-          <button
-            disabled={!betAmount || parseFloat(betAmount) <= 0}
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-semibold rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {amount > 0 ? `Execute Arb • Lock in +$${netProfit.toFixed(2)}` : 'Enter Amount to Calculate'}
-          </button>
-          
-          <p className="text-[10px] text-gray-600 text-center mt-3">
-            Executes on Polymarket + Kalshi simultaneously • {HOUSE_FEE_PERCENT}% Stratify fee
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Prediction Markets data (structured for rendering with trade buttons)
-const PREDICTION_MARKETS = [
-  { id: 1, name: 'Fed cuts rates in March', yesPrice: 23, change: -8 },
-  { id: 2, name: 'Bitcoin $100K by March', yesPrice: 41, change: 12 },
-  { id: 3, name: 'Trump announces 2028 run', yesPrice: 67, change: 3 },
-  { id: 4, name: 'TSLA hits $500 Q1 2026', yesPrice: 34, change: 9 },
-];
-
-// Arbitrage opportunities
-const ARBITRAGE_OPPORTUNITIES = [
-  { 
-    id: 'arb-1', 
-    name: 'Bitcoin $100K by March', 
-    polymarket: { side: 'YES', price: 41 },
-    kalshi: { side: 'NO', price: 56 },
-    spread: 3.0
-  },
-];
-
-// Newsletter archive - newest first
+// Newsletter archive — newest first
 const NEWSLETTERS = [
+  {
+    id: '2026-02-15',
+    date: 'February 15, 2026',
+    dateShort: 'Feb 15',
+    title: 'Gold Shatters $5K, Truth Social Files Crypto ETFs, Markets Eye Holiday Week',
+    videoPath: '/sophia-recaps/sophia-recap-15-02-2026.mp4',
+    content: `## 🔥 This Week's Hot Take
+
+**Gold just smashed through $5,000 for the first time in history.** At $5,029 an ounce, this isn't just a number — it's a statement. Central banks are hoarding, inflation hedges are in full force, and the safe-haven bid is relentless. Meanwhile, the S&P grinds higher at 6,836 like nothing can stop it. But here's what's interesting: Truth Social just filed with the SEC for Bitcoin and Ethereum ETFs, plus a Cronos staking fund. The Trump brand is going all-in on crypto. Love it or hate it, that's a signal.
+
+---
+
+## 📊 Unusual Options Activity
+
+### NVDA - NVIDIA Corp
+- Consensus AI pick across 4+ hedge fund managers (Asness, Laffont, multiple others)
+- Still the most-mentioned name in institutional portfolios
+- Watch for pre-earnings positioning this week
+
+### COIN - Coinbase Global
+- Wall Street slashed price targets after Q4 miss (Barclays, JPMorgan, Benchmark)
+- **But shares still rallied** — classic disconnect between analysts and market
+- Ark Invest bought $18M in crypto stocks — 10th consecutive bullish purchase
+
+### SPY - S&P 500 ETF
+- Grinding at 6,836 (+0.05%) near all-time highs
+- Dow approaching 50,000 at 49,501
+- Nasdaq slight weakness (-0.22%) on tech profit-taking
+
+---
+
+## 🎰 Prediction Markets Update
+
+### Polymarket Hot Markets
+
+| Market | YES Price | 7-Day Change |
+|--------|-----------|--------------|
+| Fed cuts rates in March | 18¢ | -5¢ |
+| Gold stays above $5K through March | 72¢ | +15¢ |
+| Truth Social crypto ETF approved Q2 | 23¢ | NEW |
+| NVDA beats next earnings | 68¢ | +3¢ |
+| Government shutdown lasts >1 week | 34¢ | +12¢ |
+
+### Arbitrage Alert 🚨
+**Gold $5K by March** — Polymarket has it at 72¢ YES while Kalshi shows 65¢ YES on similar wording. If you can execute both sides, there's a potential 7% spread. Gold is already above $5K, so this is essentially a "will it hold" bet.
+
+---
+
+## 📈 Sector Watch
+
+**Winners This Week:**
+- 🟢 Gold Miners (+4.9%) — Gold $5K milestone driving euphoria
+- 🟢 Defense (+5.8%) — Geopolitical tensions escalating
+- 🟢 Utilities (+2.3%) — Defensive rotation starting
+
+**Losers This Week:**
+- 🔴 Crypto (-18.4%) — BTC led the bloodbath despite ETF news
+- 🔴 High-Growth Tech (-6.2%) — Rate fears creeping back
+- 🔴 Semiconductors (-3.7%) — Profit taking pre-earnings
+
+---
+
+## 💡 Alpha Idea of the Week
+
+**The Gold Momentum Play**
+
+Gold above $5K is a psychological milestone that tends to attract momentum chasers. Historically, when gold breaks major round numbers ($1K in 2009, $2K in 2020), it runs another 8-15% before any meaningful pullback.
+
+**Setup:** GLD calls or gold miner ETFs (GDX, GDXJ) on any dip to $4,950
+**Target:** $5,200-$5,400 within 30 days
+**Stop:** Close below $4,900
+
+*Not financial advice. Gold is volatile. Size accordingly.*
+
+---
+
+## 🗓️ Key Events Next Week
+
+- **Monday:** Markets CLOSED (Presidents' Day)
+- **Tuesday:** ISM Manufacturing PMI — first data point of the week
+- **Wednesday:** FOMC Minutes — what did they really discuss?
+- **Thursday:** Weekly Jobless Claims, Existing Home Sales
+- **Friday:** S&P Global PMI Flash — manufacturing and services pulse
+
+**Earnings to Watch:** $WMT (Thu), $HD (Tue), $MRNA (Thu) — retail meets biotech.
+
+---
+
+*Stay sharp. Volatility is opportunity.* 📈
+
+— Sophia & The Stratify Team`
+  },
   {
     id: '2026-02-01',
     date: 'February 1, 2026',
+    dateShort: 'Feb 1',
     title: 'Bitcoin Crashes to $78K, Options Flow Signals Major Volatility Ahead',
-    content: `
-## 🔥 This Week's Hot Take
+    videoPath: null,
+    content: `## 🔥 This Week's Hot Take
 
 **Bitcoin just cratered to $78,131** — a brutal 15% drop that caught overleveraged longs completely off-guard. Our paper account auto-bought the dip this morning. Meanwhile, the options market is going absolutely insane with TSLA and NVDA sweep activity suggesting smart money sees a major move coming.
 
@@ -330,28 +134,6 @@ const NEWSLETTERS = [
 - Hedge fund protection or directional bet?
 - VIX term structure steepening (caution signal)
 - 0DTE volume hit record highs again
-
----
-
-## 🎰 Prediction Markets Update
-
-### Polymarket Hot Markets
-
-| Market | YES Price | 7-Day Change |
-|--------|-----------|--------------|
-| Fed cuts rates in March | 18¢ | -5¢ |
-| Bitcoin $100K by March | 28¢ | -13¢ |
-| NVDA beats earnings | 72¢ | +4¢ |
-| Trump wins popular vote | 51¢ | +2¢ |
-| ETH flips BTC market cap | 8¢ | -3¢ |
-
-### Kalshi Movers
-- **Super Bowl: Chiefs win** jumped from 45¢ to 58¢
-- **LA wildfire damage >$50B** trading at 67¢ YES
-- **Tesla robotaxi 2026 launch** dropped to 22¢
-
-### Arbitrage Alert 🚨
-**NVDA Earnings Beat** shows a 4.1% spread: Polymarket 72¢ YES vs Kalshi 64¢ YES (inverted). Arb exists if you go long both YES sides and one must pay out. Estimated profit: $41 per $1000 deployed.
 
 ---
 
@@ -399,15 +181,15 @@ When BTC drops >10% in a single week AND RSI hits oversold (<30) on the daily, h
 
 *Stay sharp. Volatility is opportunity.* 📈
 
-— The Stratify Team
-    `
+— The Stratify Team`
   },
   {
     id: '2026-01-28',
     date: 'January 28, 2026',
+    dateShort: 'Jan 28',
     title: 'TSLA Weekly Calls Explode, Prediction Markets Eye Fed Decision',
-    content: `
-## 🔥 This Week's Hot Take
+    videoPath: null,
+    content: `## 🔥 This Week's Hot Take
 
 Tesla (TSLA) saw **unprecedented call option activity** this week with over 2.3 million contracts traded on the $450 strike for February expiration. Institutional flow suggests big money is betting on a breakout above the recent consolidation range.
 
@@ -429,22 +211,6 @@ Tesla (TSLA) saw **unprecedented call option activity** this week with over 2.3 
 - Put/Call ratio dropped to 0.62 (bullish)
 - Big money rotating OUT of hedges
 - Risk-on sentiment building
-
----
-
-## 🎰 Prediction Markets Update
-
-### Polymarket Hot Markets
-
-| Market | YES Price | 7-Day Change |
-|--------|-----------|--------------|
-| Fed cuts rates in March | 23¢ | -8¢ |
-| Bitcoin $100K by March | 41¢ | +12¢ |
-| Trump announces 2028 run | 67¢ | +3¢ |
-| TSLA hits $500 Q1 2026 | 34¢ | +9¢ |
-
-### Arbitrage Alert 🚨
-**Bitcoin $100K by March** shows a 3.2% spread between Polymarket (41¢ YES) and Kalshi (56¢ NO). Free money for those who can execute both sides.
 
 ---
 
@@ -486,391 +252,331 @@ Why it works: Institutional rebalancing and short covering typically kicks in th
 
 *See you next week. Stack those gains.* 📈
 
-— The Stratify Team
-    `
+— The Stratify Team`
   }
 ];
 
-// Sophia Weekly Recap Video Component
-function SophiaRecapVideo() {
-  const videoRef = useRef(null);
-  const [latestRecap, setLatestRecap] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  useEffect(() => {
-    // Check for latest Sophia recap video
-    // Videos are stored as /sophia-recaps/sophia-recap-DD-MM-YYYY.mp4
-    const today = new Date();
-    const candidates = [];
-    for (let i = 0; i < 14; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      candidates.push({
-        date: `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
-        path: `/sophia-recaps/sophia-recap-${dd}-${mm}-${yyyy}.mp4`
-      });
-    }
-
-    // Try to find the most recent one
-    const tryLoad = async () => {
-      for (const c of candidates) {
-        try {
-          const resp = await fetch(c.path, { method: 'HEAD' });
-          if (resp.ok) {
-            setLatestRecap(c);
-            return;
-          }
-        } catch {}
-      }
-    };
-    tryLoad();
-  }, []);
-
-  if (!latestRecap) return null;
-
-  return (
-    <div className="mb-4 bg-[#303134] border border-[#5f6368] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-medium rounded">VIDEO</span>
-          <h2 className="text-base font-medium text-white">Sophia's Weekly Market Recap</h2>
-        </div>
-        <span className="text-[#9AA0A6] text-xs">{latestRecap.date}</span>
-      </div>
-      <div className="relative aspect-video bg-black">
-        <video
-          ref={videoRef}
-          src={latestRecap.path}
-          className="w-full h-full object-contain"
-          playsInline
-          controls
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-        />
-        {!isPlaying && (
-          <button
-            onClick={() => videoRef.current?.play()}
-            className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/20 transition-colors group"
-          >
-            <div className="w-16 h-16 rounded-full bg-emerald-500/90 group-hover:bg-emerald-400/90 flex items-center justify-center transition-colors shadow-lg shadow-emerald-500/30">
-              <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function NewsletterPage({ themeClasses, onClose }) {
-  const [selectedNewsletter, setSelectedNewsletter] = useState(NEWSLETTERS[0]);
-  const [showArchive, setShowArchive] = useState(false);
-  const [selectedMarket, setSelectedMarket] = useState(null);
-  const [selectedArb, setSelectedArb] = useState(null);
-
-  return (
-    <div className="h-full flex">
-      {/* Main Newsletter Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* Header - Compact */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            {onClose && (
-              <button 
-                onClick={onClose}
-                className="p-1.5 hover:bg-[#303134] rounded-lg transition-colors mr-1"
-              >
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-            <h1 className="text-lg font-semibold text-white">Newsletter</h1>
-            <span className="text-[#9AA0A6] text-xs">Market insights & unusual options activity</span>
-          </div>
-          <button
-            onClick={() => setShowArchive(!showArchive)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[#303134] hover:bg-[#3c4043] border border-[#5f6368] rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4 text-[#8ab4f8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-            </svg>
-            <span className="text-xs text-[#E8EAED]">Archive ({NEWSLETTERS.length})</span>
-          </button>
-        </div>
-
-        {/* Sophia Weekly Recap Video */}
-        <SophiaRecapVideo />
-
-        {/* Current Newsletter */}
-        <div className="bg-[#303134] border border-[#5f6368] rounded-xl overflow-hidden">
-          {/* Newsletter Header - Compact */}
-          <div className="px-4 py-3 border-b border-[#5f6368] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="px-2 py-0.5 bg-[#8ab4f8]/20 text-[#8ab4f8] text-[10px] font-medium rounded">LATEST</span>
-              <h2 className="text-base font-medium text-white">{selectedNewsletter.title}</h2>
-            </div>
-            <span className="text-[#9AA0A6] text-xs">{selectedNewsletter.date}</span>
-          </div>
-
-          {/* Newsletter Body */}
-          <div className="px-6 py-6 prose prose-invert max-w-none">
-            <div 
-              className="text-[#E8EAED] text-[15px] leading-relaxed newsletter-content"
-              dangerouslySetInnerHTML={{ __html: formatMarkdownWithoutPredictionMarkets(selectedNewsletter.content) }}
-            />
-            
-            {/* Interactive Prediction Markets Section */}
-            <div className="my-6">
-              <h2 className="text-xl font-semibold text-[#E8EAED] flex items-center gap-2 mb-4">
-                🎰 Prediction Markets Update
-              </h2>
-              <h3 className="text-base font-semibold text-[#8ab4f8] mb-3">Polymarket Hot Markets</h3>
-              <div className="bg-[#202124] rounded-lg border border-[#5f6368] overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#5f6368]">
-                      <th className="px-4 py-3 text-left text-xs text-[#9AA0A6] font-medium">Market</th>
-                      <th className="px-4 py-3 text-left text-xs text-[#9AA0A6] font-medium">YES Price</th>
-                      <th className="px-4 py-3 text-left text-xs text-[#9AA0A6] font-medium">7-Day Change</th>
-                      <th className="px-4 py-3 text-right text-xs text-[#9AA0A6] font-medium">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PREDICTION_MARKETS.map((market) => (
-                      <tr key={market.id} className="border-b border-[#5f6368] last:border-b-0 hover:bg-[#303134] transition-colors">
-                        <td className="px-4 py-3 text-sm text-[#E8EAED]">{market.name}</td>
-                        <td className="px-4 py-3 text-sm text-emerald-400 font-medium">{market.yesPrice}¢</td>
-                        <td className={`px-4 py-3 text-sm font-medium ${market.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {market.change >= 0 ? '+' : ''}{market.change}¢
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => setSelectedMarket(market)}
-                            className="px-3 py-1 bg-[#8ab4f8]/20 hover:bg-[#8ab4f8]/30 text-[#8ab4f8] text-xs font-medium rounded transition-colors"
-                          >
-                            Trade
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Arbitrage Alerts */}
-              {ARBITRAGE_OPPORTUNITIES.map((arb) => (
-                <div key={arb.id} className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-amber-400 font-semibold">🚨 Arbitrage Alert</span>
-                    <span className="text-xs text-amber-400/80 bg-amber-500/20 px-2 py-0.5 rounded">+{arb.spread}% guaranteed</span>
-                  </div>
-                  <p className="text-sm text-[#BDC1C6] mb-3">
-                    <strong className="text-white">{arb.name}</strong> — {arb.spread}% spread between Polymarket ({arb.polymarket.price}¢ {arb.polymarket.side}) and Kalshi ({arb.kalshi.price}¢ {arb.kalshi.side}). Lock in guaranteed profit by executing both sides.
-                  </p>
-                  
-                  {/* Leg Preview */}
-                  <div className="flex items-center gap-2 mb-3 text-xs">
-                    <div className="flex-1 py-1.5 px-3 bg-[#202124] rounded border border-emerald-500/30 text-center">
-                      <span className="text-white/50">Polymarket</span>
-                      <span className="text-emerald-400 ml-2">YES @ {arb.polymarket.price}¢</span>
-                    </div>
-                    <span className="text-gray-600">+</span>
-                    <div className="flex-1 py-1.5 px-3 bg-[#202124] rounded border border-red-500/30 text-center">
-                      <span className="text-white/50">Kalshi</span>
-                      <span className="text-red-400 ml-2">NO @ {arb.kalshi.price}¢</span>
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => setSelectedArb(arb)}
-                    className="w-full py-2.5 bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 border border-amber-500/50 text-amber-400 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>🎯</span>
-                    <span>Execute Arb</span>
-                    <span className="text-amber-400/60 text-xs">+{arb.spread}% profit</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-            
-            {/* Rest of newsletter content after prediction markets */}
-            <div 
-              className="text-[#E8EAED] text-[15px] leading-relaxed newsletter-content"
-              dangerouslySetInnerHTML={{ __html: formatMarkdownAfterPredictionMarkets(selectedNewsletter.content) }}
-            />
-          </div>
-        </div>
-
-        {/* Subscribe CTA */}
-        <div className="mt-6 bg-gradient-to-r from-[#1a73e8]/20 to-[#8ab4f8]/20 border border-[#8ab4f8]/30 rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium text-white">Never miss an issue</h3>
-              <p className="text-[#9AA0A6] text-sm mt-1">Get the weekly newsletter delivered to your inbox every Sunday</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <input 
-                type="email" 
-                placeholder="Enter your email"
-                className="px-4 py-2 bg-[#202124] border border-[#5f6368] rounded-lg text-white text-sm w-64 focus:border-[#8ab4f8] focus:outline-none"
-              />
-              <button className="px-4 py-2 bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124] font-medium text-sm rounded-lg transition-colors">
-                Subscribe
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Archive Sidebar */}
-      {showArchive && (
-        <div className="w-80 border-l border-[#5f6368] bg-[#202124] overflow-y-auto">
-          <div className="p-4 border-b border-[#5f6368] sticky top-0 bg-[#202124]">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-white">Newsletter Archive</h3>
-              <button onClick={() => setShowArchive(false)} className="text-[#9AA0A6] hover:text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="p-2">
-            {NEWSLETTERS.map((newsletter) => (
-              <button
-                key={newsletter.id}
-                onClick={() => setSelectedNewsletter(newsletter)}
-                className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
-                  selectedNewsletter.id === newsletter.id 
-                    ? 'bg-[#8ab4f8]/20 border border-[#8ab4f8]/50' 
-                    : 'hover:bg-[#303134] border border-transparent'
-                }`}
-              >
-                <div className="text-xs text-[#9AA0A6] mb-1">{newsletter.date}</div>
-                <div className="text-sm text-[#E8EAED] line-clamp-2">{newsletter.title}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        .newsletter-content h2 {
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: #E8EAED;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .newsletter-content h3 {
-          font-size: 1rem;
-          font-weight: 600;
-          color: #8ab4f8;
-          margin-top: 1.25rem;
-          margin-bottom: 0.5rem;
-        }
-        .newsletter-content p {
-          margin-bottom: 1rem;
-          color: #BDC1C6;
-        }
-        .newsletter-content strong {
-          color: #E8EAED;
-        }
-        .newsletter-content ul, .newsletter-content ol {
-          margin-left: 1.5rem;
-          margin-bottom: 1rem;
-        }
-        .newsletter-content li {
-          margin-bottom: 0.5rem;
-          color: #BDC1C6;
-        }
-        .newsletter-content hr {
-          border: none;
-          border-top: 1px solid #5f6368;
-          margin: 1.5rem 0;
-        }
-        .newsletter-content table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 1rem 0;
-        }
-        .newsletter-content th, .newsletter-content td {
-          padding: 0.75rem;
-          text-align: left;
-          border-bottom: 1px solid #5f6368;
-        }
-        .newsletter-content th {
-          color: #9AA0A6;
-          font-weight: 500;
-          font-size: 0.875rem;
-        }
-        .newsletter-content td {
-          color: #E8EAED;
-        }
-        .newsletter-content code {
-          background: #3c4043;
-          padding: 0.125rem 0.375rem;
-          border-radius: 4px;
-          font-size: 0.875rem;
-        }
-      `}</style>
-      
-      {/* Bet Slip Modal */}
-      {selectedMarket && (
-        <BetSlipModal market={selectedMarket} onClose={() => setSelectedMarket(null)} />
-      )}
-      
-      {/* Arb Bet Slip Modal */}
-      {selectedArb && (
-        <ArbBetSlipModal arb={selectedArb} onClose={() => setSelectedArb(null)} />
-      )}
-    </div>
-  );
-}
-
-// Helper to convert markdown to HTML
-function convertMarkdown(text) {
+// ── Markdown → HTML converter ──
+function renderMarkdown(text) {
+  if (!text) return '';
   return text
     .replace(/^## (.*$)/gim, '<h2>$1</h2>')
     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/^- (.*$)/gim, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
     .replace(/\n\n/g, '</p><p>')
     .replace(/^---$/gim, '<hr/>')
     .replace(/\|(.+)\|/g, (match) => {
       const cells = match.split('|').filter(c => c.trim());
       if (cells.some(c => c.includes('---'))) return '';
-      const isHeader = !match.includes('¢') && !match.includes('%') && !match.includes('+') && !match.includes('-');
+      const isHeader = cells.every(c => !c.includes('¢') && !c.includes('%') && !c.includes('+'));
       const tag = isHeader ? 'th' : 'td';
       return `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`;
     })
     .replace(/(<tr>.*<\/tr>)/gs, '<table>$1</table>')
-    .replace(/<p><\/p>/g, '')
-    .replace(/^\s+|\s+$/g, '');
+    .replace(/<p><\/p>/g, '');
 }
 
-// Get content BEFORE prediction markets section
-function formatMarkdownWithoutPredictionMarkets(text) {
-  const predictionMarketsIndex = text.indexOf('## 🎰 Prediction Markets Update');
-  if (predictionMarketsIndex === -1) return convertMarkdown(text);
-  return convertMarkdown(text.substring(0, predictionMarketsIndex));
-}
+// ── Newsletter Page ──
+export default function NewsletterPage({ onClose }) {
+  const [selected, setSelected] = useState(NEWSLETTERS[0]);
+  const [showArchive, setShowArchive] = useState(false);
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+  const videoRef = useRef(null);
+  const [videoReady, setVideoReady] = useState(false);
 
-// Get content AFTER prediction markets section (starts at Sector Watch)
-function formatMarkdownAfterPredictionMarkets(text) {
-  const sectorWatchIndex = text.indexOf('## 📈 Sector Watch');
-  if (sectorWatchIndex === -1) return '';
-  return convertMarkdown(text.substring(sectorWatchIndex));
+  // Check if video exists
+  useEffect(() => {
+    if (selected?.videoPath) {
+      fetch(selected.videoPath, { method: 'HEAD' })
+        .then(r => { if (r.ok) setVideoReady(true); else setVideoReady(false); })
+        .catch(() => setVideoReady(false));
+    } else {
+      setVideoReady(false);
+    }
+  }, [selected]);
+
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    if (email && email.includes('@')) {
+      setSubscribed(true);
+      setTimeout(() => setSubscribed(false), 4000);
+      setEmail('');
+    }
+  };
+
+  return (
+    <div className="h-full bg-[#0a0a0a] overflow-y-auto">
+      {/* ── Top Bar ── */}
+      <div className="sticky top-0 z-20 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/[0.06]">
+        <div className="max-w-[960px] mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {onClose && (
+              <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-400 text-lg font-bold tracking-tight">STRATIFY</span>
+              <span className="text-white/20 text-lg font-light">|</span>
+              <span className="text-white/50 text-sm tracking-widest uppercase">Weekly</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowArchive(!showArchive)}
+              className="flex items-center gap-2 px-3 py-1.5 text-white/40 hover:text-white/70 text-xs tracking-wide uppercase transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              Archive
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex">
+        {/* ── Main Content ── */}
+        <div className="flex-1 min-w-0">
+          <div className="max-w-[960px] mx-auto px-6">
+
+            {/* ── Hero / Sophia Video ── */}
+            {videoReady && selected?.videoPath && (
+              <div className="mt-8 mb-8">
+                <div className="relative rounded-2xl overflow-hidden bg-black border border-white/[0.06] shadow-2xl shadow-black/40">
+                  <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-[10px] text-white/70 font-medium tracking-widest uppercase bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded">Sophia's Recap</span>
+                  </div>
+                  <video
+                    ref={videoRef}
+                    src={selected.videoPath}
+                    className="w-full aspect-video object-contain"
+                    playsInline
+                    controls
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ── Newsletter Header ── */}
+            <div className="mt-8 mb-10">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-emerald-400 text-[11px] font-semibold tracking-widest uppercase">{selected.date}</span>
+                {selected === NEWSLETTERS[0] && (
+                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-medium rounded border border-emerald-500/20">Latest</span>
+                )}
+              </div>
+              <h1 className="text-3xl font-bold text-white leading-tight tracking-tight mb-4">
+                {selected.title}
+              </h1>
+              <div className="flex items-center gap-3 text-white/30 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-white">S</span>
+                  </div>
+                  <span>Sophia & The Stratify Team</span>
+                </div>
+                <span>·</span>
+                <span>5 min read</span>
+              </div>
+            </div>
+
+            {/* ── Divider ── */}
+            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-10" />
+
+            {/* ── Newsletter Body ── */}
+            <div className="newsletter-body pb-16">
+              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(selected.content) }} />
+            </div>
+
+            {/* ── Subscribe CTA ── */}
+            <div className="pb-16">
+              <div className="relative rounded-2xl overflow-hidden border border-white/[0.06]">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5" />
+                <div className="relative px-8 py-10 text-center">
+                  <h3 className="text-xl font-semibold text-white mb-2">Never miss an issue</h3>
+                  <p className="text-white/40 text-sm mb-6">Sophia delivers the weekly recap every Sunday at 6 PM ET</p>
+                  <form onSubmit={handleSubscribe} className="flex items-center gap-3 max-w-md mx-auto">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="flex-1 px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-emerald-500/40 transition-colors"
+                    />
+                    <button
+                      type="submit"
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm rounded-xl transition-colors whitespace-nowrap"
+                    >
+                      {subscribed ? '✓ Subscribed' : 'Subscribe'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Archive Sidebar ── */}
+        {showArchive && (
+          <div className="w-72 border-l border-white/[0.06] bg-[#0d0d0d] flex-shrink-0 sticky top-[49px] h-[calc(100vh-49px)] overflow-y-auto">
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-xs font-semibold text-white/50 tracking-widest uppercase">Archive</h3>
+                <button onClick={() => setShowArchive(false)} className="text-white/30 hover:text-white/60 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Folder: Newsletters */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3 text-white/30">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h5l2 2h7a2 2 0 012 2v10a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-[10px] font-semibold tracking-widest uppercase">Newsletters</span>
+                  <span className="text-[10px] text-white/20">{NEWSLETTERS.length}</span>
+                </div>
+                <div className="space-y-1 ml-1">
+                  {NEWSLETTERS.map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => setSelected(n)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg transition-all group ${
+                        selected.id === n.id
+                          ? 'bg-emerald-500/10 border border-emerald-500/20'
+                          : 'hover:bg-white/[0.03] border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <svg className={`w-3.5 h-3.5 flex-shrink-0 ${selected.id === n.id ? 'text-emerald-400' : 'text-white/20'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className={`text-[10px] font-medium ${selected.id === n.id ? 'text-emerald-400' : 'text-white/40'}`}>{n.dateShort}</span>
+                        {n.videoPath && (
+                          <svg className="w-3 h-3 text-white/20 ml-auto" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        )}
+                      </div>
+                      <p className={`text-xs leading-snug line-clamp-2 ${selected.id === n.id ? 'text-white/80' : 'text-white/40 group-hover:text-white/60'}`}>
+                        {n.title}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Folder: Sophia Recaps */}
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-white/30">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-[10px] font-semibold tracking-widest uppercase">Sophia Recaps</span>
+                </div>
+                <div className="space-y-1 ml-1">
+                  {NEWSLETTERS.filter(n => n.videoPath).map((n) => (
+                    <button
+                      key={`vid-${n.id}`}
+                      onClick={() => setSelected(n)}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/[0.03] transition-all group border border-transparent"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg className="w-3.5 h-3.5 text-white/20 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        <span className="text-xs text-white/40 group-hover:text-white/60">Recap — {n.dateShort}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Styles ── */}
+      <style>{`
+        .newsletter-body h2 {
+          font-size: 1.35rem;
+          font-weight: 700;
+          color: #fff;
+          margin-top: 2.5rem;
+          margin-bottom: 1rem;
+          letter-spacing: -0.01em;
+        }
+        .newsletter-body h3 {
+          font-size: 1.05rem;
+          font-weight: 600;
+          color: #34d399;
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+        }
+        .newsletter-body p {
+          color: rgba(255,255,255,0.55);
+          line-height: 1.8;
+          margin-bottom: 1rem;
+          font-size: 0.95rem;
+        }
+        .newsletter-body strong {
+          color: rgba(255,255,255,0.9);
+          font-weight: 600;
+        }
+        .newsletter-body em {
+          color: rgba(255,255,255,0.5);
+        }
+        .newsletter-body li {
+          color: rgba(255,255,255,0.55);
+          margin-bottom: 0.5rem;
+          padding-left: 0.5rem;
+          margin-left: 1.25rem;
+          font-size: 0.95rem;
+          line-height: 1.7;
+        }
+        .newsletter-body li::marker {
+          color: rgba(52, 211, 153, 0.5);
+        }
+        .newsletter-body hr {
+          border: none;
+          height: 1px;
+          background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent);
+          margin: 2.5rem 0;
+        }
+        .newsletter-body table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1.25rem 0;
+          font-size: 0.875rem;
+        }
+        .newsletter-body th {
+          color: rgba(255,255,255,0.35);
+          font-weight: 500;
+          padding: 0.75rem 1rem;
+          text-align: left;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .newsletter-body td {
+          color: rgba(255,255,255,0.65);
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .newsletter-body tr:hover td {
+          background: rgba(255,255,255,0.02);
+        }
+      `}</style>
+    </div>
+  );
 }
