@@ -134,12 +134,33 @@ h1, h2, h3, h4, h5, h6 {
   animation: tradeGlow 3s ease-in-out infinite;
 }
 
+@keyframes newsletterGlow {
+  0% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.12);
+  }
+}
+
+.newsletter-glow {
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  animation: newsletterGlow 2.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .grok-attention-pulse-active {
     animation: none;
   }
 
   .trade-tab-active-glow {
+    animation: none;
+  }
+
+  .newsletter-glow {
     animation: none;
   }
 }
