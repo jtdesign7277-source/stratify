@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronsRight, ChevronsLeft, Check, Flame, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil } from 'lucide-react';
+import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil } from 'lucide-react';
 
 const CHECKLIST_ITEMS = [
   { id: 'entry-signal', label: 'Entry Signal Confirmed', icon: TrendingUp },
@@ -157,9 +157,8 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
   const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
 
   const startEdit = (i, val) => {
-    const nextValue = i === 5 ? String(val || '').replace(/^\s*\$/, '').trim() : val;
     setEditing(i);
-    setEditValue(nextValue || '');
+    setEditValue(val || '');
   };
   const commitEdit = (i) => {
     setFieldValues((prev) => {
@@ -253,145 +252,108 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
           </button>
         </div>
       ) : (
-      <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] flex flex-col overflow-hidden"
+      <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] flex flex-col"
         style={{ background: 'linear-gradient(155deg, rgba(19,15,42,0.96) 0%, rgba(16,22,58,0.97) 52%, rgba(10,13,31,0.98) 100%)' }}>
 
         {/* ── TOP HALF: Key Trade Setups ── */}
-        <div
-          className="flex-1 flex flex-col min-h-0"
-          style={{
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            background: 'linear-gradient(165deg, rgba(46,30,104,0.48) 0%, rgba(29,39,98,0.52) 100%)',
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="flex items-center gap-2">
-              <Flame className="h-3.5 w-3.5 text-orange-400" />
-              <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider">Key Trade Setups Identified</span>
-              {s.parseError && (
-                <span className="text-[10px] font-semibold text-red-400">Parse error</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono" style={{ color: allChecked ? '#4ade80' : 'rgba(255,255,255,0.4)' }}>
-                {checkedCount}/6
-              </span>
-              <button onClick={handleSave} disabled={!allChecked}
-                className="rounded px-2 py-0.5 text-[10px] font-bold transition"
-                style={{
-                  background: allChecked ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                  border: allChecked ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                  color: allChecked ? '#4ade80' : 'rgba(255,255,255,0.4)',
-                }}>
-                Save
-              </button>
-              <button onClick={() => setCardsCollapsed(true)} className="p-0.5 text-emerald-400 hover:text-emerald-300 transition-colors" title="Collapse">
-                <ChevronsRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* 3x2 Grid of checklist items */}
-          <div
-            className="grid grid-cols-2 grid-rows-3 gap-2 p-3 flex-1 min-h-0 overflow-y-auto"
-            style={{ background: 'rgba(8,10,30,0.2)' }}
-          >
-            {fields.map((f, i) => {
-              const isLast = i === 5;
-              const isEditing = editing === i;
-              const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
-              const displayValue = isLast ? (allocationValue ? `$${allocationValue}` : '—') : (f.value || '—');
-              return (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 px-4 py-3.5 min-h-[112px] rounded-xl transition"
-                  style={{
-                    background: checks[i]
-                      ? 'linear-gradient(152deg, rgba(26,47,78,0.86) 0%, rgba(31,45,83,0.9) 100%)'
-                      : 'linear-gradient(152deg, rgba(45,31,95,0.85) 0%, rgba(30,38,92,0.9) 100%)',
-                    border: checks[i] ? '1px solid rgba(74,222,128,0.36)' : '1px solid rgba(165,180,252,0.3)',
-                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.03)',
-                  }}
+        <div className="flex-1 min-h-0 p-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="w-full h-full bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl p-6 border border-white/10 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span role="img" aria-label="Fire">🔥</span>
+                <span className="text-white font-bold text-lg">KEY TRADE SETUPS IDENTIFIED</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-400">{checkedCount}/6</span>
+                <button
+                  onClick={handleSave}
+                  disabled={!allChecked}
+                  className="border border-gray-600 rounded-lg px-4 py-1 text-white hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {/* Checkbox */}
-                  <button
-                    onClick={() => toggleCheck(i)}
-                    className="mt-0.5 shrink-0 flex items-center justify-center rounded-md transition"
-                    style={{
-                      width: 24, height: 24,
-                      background: checks[i] ? 'rgba(74,222,128,0.16)' : 'rgba(255,255,255,0.08)',
-                      border: checks[i] ? '1.5px solid rgba(74,222,128,0.55)' : '1.5px solid rgba(255,255,255,0.18)',
-                      boxShadow: checks[i] ? '0 0 8px rgba(74,222,128,0.2)' : 'none',
-                    }}
-                  >
-                    {checks[i] && <Check className="h-3 w-3 text-emerald-400" />}
-                  </button>
+                  Save
+                </button>
+              </div>
+            </div>
 
-                  {/* Label + Value */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div
-                        className="text-[10px] font-bold uppercase tracking-[0.12em]"
-                        style={{ color: '#fbbf24' }}
-                      >
-                        {f.label}
-                      </div>
-                      {!isEditing && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); startEdit(i, f.value); }}
-                          className="shrink-0 p-1 rounded-md transition-colors hover:bg-white/10"
-                          aria-label={`Edit ${f.label}`}
-                        >
-                          <Pencil className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.72)' }} />
-                        </button>
-                      )}
-                    </div>
-                    {isEditing ? (
-                      <div className="flex items-center gap-1.5 mt-2">
-                        {isLast && <span className="text-[12px] text-amber-300">$</span>}
+            <div className="grid grid-cols-2 gap-4 mt-4 flex-1">
+              {fields.map((f, i) => {
+                const isAllocation = i === 5;
+                const isEditing = editing === i;
+                const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
+
+                return (
+                  <div key={i} className="relative bg-black/30 rounded-lg p-4 min-h-[110px] flex items-start gap-3 border border-gray-700/50">
+                    <input
+                      type="checkbox"
+                      checked={checks[i]}
+                      onChange={() => toggleCheck(i)}
+                      className="h-5 w-5 mt-1 rounded border-2 border-gray-500 bg-transparent accent-emerald-500 cursor-pointer shrink-0"
+                      aria-label={`Toggle ${f.label}`}
+                    />
+
+                    <div className="min-w-0 flex-1 pr-5">
+                      <p className="text-amber-400 text-xs font-semibold uppercase tracking-wider">{f.label}</p>
+
+                      {isAllocation ? (
+                        <input
+                          value={allocationValue}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setFieldValues((prev) => {
+                              const next = [...prev];
+                              next[i] = nextValue;
+                              return next;
+                            });
+                          }}
+                          placeholder="Enter amount..."
+                          className="mt-1 bg-transparent border border-amber-400/50 rounded px-2 py-1 text-white placeholder-gray-500 w-full focus:outline-none focus:border-amber-300"
+                        />
+                      ) : isEditing ? (
                         <input
                           autoFocus
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditing(null); }}
-                          className="flex-1 rounded-md px-2 py-1.5 text-[12px] text-white focus:outline-none"
-                          style={{
-                            background: 'rgba(255,255,255,0.08)',
-                            border: isLast ? '1px solid rgba(251,191,36,0.35)' : '1px solid rgba(167,139,250,0.45)',
+                          onBlur={() => commitEdit(i)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitEdit(i);
+                            if (e.key === 'Escape') setEditing(null);
                           }}
+                          className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-300"
                         />
-                        <button onClick={() => commitEdit(i)} className="text-emerald-400 hover:text-emerald-300">
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <p
-                        className="mt-2 text-[12px] leading-5 whitespace-normal break-words"
-                        style={{ color: displayValue === '—' ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.95)' }}
-                      >
-                        {displayValue}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      ) : (
+                        <p className="text-white text-sm mt-1 whitespace-normal break-words leading-relaxed">
+                          {f.value || '—'}
+                        </p>
+                      )}
+                    </div>
 
-          {/* Retest button — matches Second Brain "Ask Fred to Retest" style */}
-          <div className="flex-shrink-0 px-3 py-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <button onClick={() => {
-              const params = fields.map(f => `${f.label}: ${f.value || '—'}`).join('\n');
-              const prompt = `Retest this strategy with updated parameters:\n\nTicker: $${s.ticker || 'UNKNOWN'}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
-              onRetest?.(prompt);
-            }} className="w-full py-2 rounded-lg text-[12px] font-medium transition"
-              style={{
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(99,102,241,0.08) 100%)',
-                border: '1px solid rgba(99,102,241,0.3)',
-                color: 'rgba(165,160,255,0.9)',
-              }}>
-              🔄 Ask Sophia to Retest
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isAllocation) startEdit(i, f.value);
+                      }}
+                      className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors"
+                      aria-label={`Edit ${f.label}`}
+                    >
+                      <Pencil className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => {
+                const params = fields.map((f) => `${f.label}: ${f.value || '—'}`).join('\n');
+                const prompt = `Retest this strategy with updated parameters:\n\nTicker: $${s.ticker || 'UNKNOWN'}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
+                onRetest?.(prompt);
+              }}
+              className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition"
+            >
+              <span aria-hidden="true">🔄</span>
+              Ask Sophia to Retest
             </button>
           </div>
         </div>
