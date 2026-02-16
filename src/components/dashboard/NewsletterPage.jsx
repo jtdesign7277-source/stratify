@@ -1,260 +1,25 @@
 import { useState, useRef, useEffect } from 'react';
+import newsletterData from '../../data/newsletters.json';
 
 /* ─────────────────────────────────────────────
    STRATIFY WEEKLY — Newsletter & Sophia Recaps
-   Professional editorial layout with:
-   • Sophia video hero section
-   • Full newsletter content
-   • Archive sidebar with folder structure
-   • Subscribe CTA
+   Dynamic: reads from src/data/newsletters.json
+   Sophia video auto-matched by date
    ───────────────────────────────────────────── */
 
-// Newsletter archive — newest first
-const NEWSLETTERS = [
-  {
-    id: '2026-02-15',
-    date: 'February 15, 2026',
-    dateShort: 'Feb 15',
-    title: 'Gold Shatters $5K, Truth Social Files Crypto ETFs, Markets Eye Holiday Week',
-    videoPath: '/sophia-recaps/sophia-recap-15-02-2026.mp4',
-    content: `## 🔥 This Week's Hot Take
-
-**Gold just smashed through $5,000 for the first time in history.** At $5,029 an ounce, this isn't just a number — it's a statement. Central banks are hoarding, inflation hedges are in full force, and the safe-haven bid is relentless. Meanwhile, the S&P grinds higher at 6,836 like nothing can stop it. But here's what's interesting: Truth Social just filed with the SEC for Bitcoin and Ethereum ETFs, plus a Cronos staking fund. The Trump brand is going all-in on crypto. Love it or hate it, that's a signal.
-
----
-
-## 📊 Unusual Options Activity
-
-### NVDA - NVIDIA Corp
-- Consensus AI pick across 4+ hedge fund managers (Asness, Laffont, multiple others)
-- Still the most-mentioned name in institutional portfolios
-- Watch for pre-earnings positioning this week
-
-### COIN - Coinbase Global
-- Wall Street slashed price targets after Q4 miss (Barclays, JPMorgan, Benchmark)
-- **But shares still rallied** — classic disconnect between analysts and market
-- Ark Invest bought $18M in crypto stocks — 10th consecutive bullish purchase
-
-### SPY - S&P 500 ETF
-- Grinding at 6,836 (+0.05%) near all-time highs
-- Dow approaching 50,000 at 49,501
-- Nasdaq slight weakness (-0.22%) on tech profit-taking
-
----
-
-## 🎰 Prediction Markets Update
-
-### Polymarket Hot Markets
-
-| Market | YES Price | 7-Day Change |
-|--------|-----------|--------------|
-| Fed cuts rates in March | 18¢ | -5¢ |
-| Gold stays above $5K through March | 72¢ | +15¢ |
-| Truth Social crypto ETF approved Q2 | 23¢ | NEW |
-| NVDA beats next earnings | 68¢ | +3¢ |
-| Government shutdown lasts >1 week | 34¢ | +12¢ |
-
-### Arbitrage Alert 🚨
-**Gold $5K by March** — Polymarket has it at 72¢ YES while Kalshi shows 65¢ YES on similar wording. If you can execute both sides, there's a potential 7% spread. Gold is already above $5K, so this is essentially a "will it hold" bet.
-
----
-
-## 📈 Sector Watch
-
-**Winners This Week:**
-- 🟢 Gold Miners (+4.9%) — Gold $5K milestone driving euphoria
-- 🟢 Defense (+5.8%) — Geopolitical tensions escalating
-- 🟢 Utilities (+2.3%) — Defensive rotation starting
-
-**Losers This Week:**
-- 🔴 Crypto (-18.4%) — BTC led the bloodbath despite ETF news
-- 🔴 High-Growth Tech (-6.2%) — Rate fears creeping back
-- 🔴 Semiconductors (-3.7%) — Profit taking pre-earnings
-
----
-
-## 💡 Alpha Idea of the Week
-
-**The Gold Momentum Play**
-
-Gold above $5K is a psychological milestone that tends to attract momentum chasers. Historically, when gold breaks major round numbers ($1K in 2009, $2K in 2020), it runs another 8-15% before any meaningful pullback.
-
-**Setup:** GLD calls or gold miner ETFs (GDX, GDXJ) on any dip to $4,950
-**Target:** $5,200-$5,400 within 30 days
-**Stop:** Close below $4,900
-
-*Not financial advice. Gold is volatile. Size accordingly.*
-
----
-
-## 🗓️ Key Events Next Week
-
-- **Monday:** Markets CLOSED (Presidents' Day)
-- **Tuesday:** ISM Manufacturing PMI — first data point of the week
-- **Wednesday:** FOMC Minutes — what did they really discuss?
-- **Thursday:** Weekly Jobless Claims, Existing Home Sales
-- **Friday:** S&P Global PMI Flash — manufacturing and services pulse
-
-**Earnings to Watch:** $WMT (Thu), $HD (Tue), $MRNA (Thu) — retail meets biotech.
-
----
-
-*Stay sharp. Volatility is opportunity.* 📈
-
-— Sophia & The Stratify Team`
-  },
-  {
-    id: '2026-02-01',
-    date: 'February 1, 2026',
-    dateShort: 'Feb 1',
-    title: 'Bitcoin Crashes to $78K, Options Flow Signals Major Volatility Ahead',
-    videoPath: null,
-    content: `## 🔥 This Week's Hot Take
-
-**Bitcoin just cratered to $78,131** — a brutal 15% drop that caught overleveraged longs completely off-guard. Our paper account auto-bought the dip this morning. Meanwhile, the options market is going absolutely insane with TSLA and NVDA sweep activity suggesting smart money sees a major move coming.
-
----
-
-## 📊 Unusual Options Activity
-
-### TSLA - Tesla Inc.
-- **Feb 28 $420 Calls** - 1.2M contracts swept in 30 minutes
-- Premium paid: $18.7M across multiple block trades
-- Someone knows something about the Q1 delivery numbers
-- IV rank: 78th percentile (elevated)
-
-### NVDA - NVIDIA Corp
-- **Feb 21 $1000 Calls** - Aggressive accumulation continues
-- $14.3M in call premiums before next week's earnings
-- Put/call ratio: 0.38 (extremely bullish skew)
-- Watch the $900 level as support
-
-### SPY - S&P 500 ETF
-- **Massive Feb 7 $480 Put spread** - $22M notional
-- Hedge fund protection or directional bet?
-- VIX term structure steepening (caution signal)
-- 0DTE volume hit record highs again
-
----
-
-## 📈 Sector Watch
-
-**Winners This Week:**
-- 🟢 Defense (+5.8%) - Geopolitical tensions escalating
-- 🟢 Gold Miners (+4.9%) - Flight to safety trade
-- 🟢 Utilities (+2.3%) - Defensive rotation starting
-
-**Losers This Week:**
-- 🔴 Crypto (-18.4%) - BTC led the bloodbath
-- 🔴 High-Growth Tech (-6.2%) - Rate fears back
-- 🔴 Semiconductors (-3.7%) - Profit taking pre-earnings
-- 🔴 Homebuilders (-2.9%) - Mortgage rates ticking up
-
----
-
-## 💡 Alpha Idea of the Week
-
-**The Post-Crash Crypto Bounce**
-
-When BTC drops >10% in a single week AND RSI hits oversold (<30) on the daily, historically it bounces 8-15% within the following 5 trading days. Current setup:
-- BTC RSI: 24 (deeply oversold)
-- Weekly drop: -15.3%
-- Similar setups: 7/9 profitable since 2023
-
-**Trade idea:** Scale into spot BTC or BITO calls here. Target: $85K-$88K bounce. Stop: Close below $75K.
-
-*Not financial advice. Crypto is volatile. Size accordingly.*
-
----
-
-## 🗓️ Key Events Next Week
-
-- **Monday:** ISM Manufacturing PMI
-- **Tuesday:** Job Openings (JOLTS)
-- **Wednesday:** ADP Employment, NVDA Earnings 🔥
-- **Thursday:** Weekly Jobless Claims, AAPL & AMZN Earnings
-- **Friday:** Non-Farm Payrolls (big one)
-
-**Earnings to Watch:** NVDA (Wed), AAPL (Thu), AMZN (Thu), GOOGL (Thu) — the Mag 7 gauntlet begins.
-
----
-
-*Stay sharp. Volatility is opportunity.* 📈
-
-— The Stratify Team`
-  },
-  {
-    id: '2026-01-28',
-    date: 'January 28, 2026',
-    dateShort: 'Jan 28',
-    title: 'TSLA Weekly Calls Explode, Prediction Markets Eye Fed Decision',
-    videoPath: null,
-    content: `## 🔥 This Week's Hot Take
-
-Tesla (TSLA) saw **unprecedented call option activity** this week with over 2.3 million contracts traded on the $450 strike for February expiration. Institutional flow suggests big money is betting on a breakout above the recent consolidation range.
-
----
-
-## 📊 Unusual Options Activity
-
-### TSLA - Tesla Inc.
-- **Feb 21 $450 Calls** - 847,000 contracts (3x normal volume)
-- Premium paid: $12.4M in a single block trade
-- Implied move: +18% by expiration
-
-### NVDA - NVIDIA Corp
-- **Feb 14 $950 Calls** - Massive sweep orders
-- Someone spent $8.2M betting on new highs before earnings
-- This is a YOLO-level conviction play
-
-### SPY - S&P 500 ETF
-- Put/Call ratio dropped to 0.62 (bullish)
-- Big money rotating OUT of hedges
-- Risk-on sentiment building
-
----
-
-## 📈 Sector Watch
-
-**Winners This Week:**
-- 🟢 Semiconductors (+4.2%) - AI demand still insatiable
-- 🟢 Financials (+2.8%) - Rate cut hopes fading = bank profits
-- 🟢 Energy (+2.1%) - Oil creeping back up
-
-**Losers This Week:**
-- 🔴 REITs (-3.1%) - Higher for longer rates hurt
-- 🔴 Utilities (-1.8%) - Rotation into growth
-- 🔴 Consumer Staples (-0.9%) - Boring is out
-
----
-
-## 💡 Alpha Idea of the Week
-
-**The Friday Capitulation Play**
-
-When SPY bleeds Monday through Thursday AND Friday is still red by 3:30 PM, load up on ATM calls expiring next week. Historical win rate: 73% over the past 2 years.
-
-Why it works: Institutional rebalancing and short covering typically kicks in the following Monday.
-
-*Not financial advice. Trade at your own risk.*
-
----
-
-## 🗓️ Key Events Next Week
-
-- **Monday:** Durable Goods Orders
-- **Tuesday:** Consumer Confidence, MSFT Earnings
-- **Wednesday:** Fed Rate Decision (no change expected)
-- **Thursday:** GDP First Estimate, AAPL Earnings
-- **Friday:** PCE Inflation (Fed's favorite metric)
-
----
-
-*See you next week. Stack those gains.* 📈
-
-— The Stratify Team`
-  }
-];
+// Build newsletter list from JSON, add video paths + short dates
+const NEWSLETTERS = (newsletterData || []).map((n) => {
+  // Parse date string like "February 15, 2026" → DD-MM-YYYY for video path
+  const d = new Date(n.date);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return {
+    ...n,
+    dateShort: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    videoPath: `/sophia-recaps/sophia-recap-${dd}-${mm}-${yyyy}.mp4`,
+  };
+});
 
 // ── Markdown → HTML converter ──
 function renderMarkdown(text) {
@@ -280,7 +45,7 @@ function renderMarkdown(text) {
 
 // ── Newsletter Page ──
 export default function NewsletterPage({ onClose }) {
-  const [selected, setSelected] = useState(NEWSLETTERS[0]);
+  const [selected, setSelected] = useState(NEWSLETTERS[0] || null);
   const [showArchive, setShowArchive] = useState(false);
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
@@ -306,6 +71,14 @@ export default function NewsletterPage({ onClose }) {
       setEmail('');
     }
   };
+
+  if (!selected) {
+    return (
+      <div className="h-full bg-[#0a0a0a] flex items-center justify-center">
+        <p className="text-white/40">No newsletters yet. Check back Sunday at 6 PM ET.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-[#0a0a0a] overflow-y-auto">
