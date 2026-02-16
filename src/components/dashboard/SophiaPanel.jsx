@@ -58,6 +58,14 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
     }
   }, [wizardPrompt]);
 
+  // Auto-resize textarea when input changes (e.g. from preset)
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [input]);
+
   const cyclePanel = () => setPanelState(prev => prev === 'full' ? 'half' : prev === 'half' ? 'collapsed' : 'full');
   const expandPanel = () => setPanelState('full');
 
@@ -241,11 +249,16 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
           <textarea
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Ask Sophia anything..."
             rows={1}
-            className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500 resize-none"
+            style={{ height: 'auto', overflow: input.length > 100 ? 'auto' : 'hidden' }}
+            className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-500 resize-none max-h-[200px]"
           />
           <button
             onClick={handleSpeak}
