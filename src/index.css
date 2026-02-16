@@ -136,19 +136,19 @@ h1, h2, h3, h4, h5, h6 {
 
 @keyframes newsletterGlow {
   0% {
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.12);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.08);
   }
   50% {
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(16, 185, 129, 0.15);
   }
   100% {
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.12);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.08);
   }
 }
 
 .newsletter-glow {
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-  animation: newsletterGlow 2.8s ease-in-out infinite;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(16, 185, 129, 0.15);
+  animation: newsletterGlow 3s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
