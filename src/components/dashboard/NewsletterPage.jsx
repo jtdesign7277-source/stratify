@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import newsletterData from '../../data/newsletters.json';
+import { supabase } from '../../lib/supabaseClient';
 
 /* ─────────────────────────────────────────────
    STRATIFY WEEKLY — Newsletter & Sophia Recaps
@@ -49,6 +50,8 @@ export default function NewsletterPage({ onClose }) {
   const [showArchive, setShowArchive] = useState(false);
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [subError, setSubError] = useState('');
+  const [subLoading, setSubLoading] = useState(false);
   const videoRef = useRef(null);
   const [videoReady, setVideoReady] = useState(false);
 
@@ -63,12 +66,24 @@ export default function NewsletterPage({ onClose }) {
     }
   }, [selected]);
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (email && email.includes('@')) {
+    if (!email || !email.includes('@')) return;
+    setSubLoading(true);
+    setSubError('');
+    try {
+      const { error } = await supabase
+        .from('newsletter_subscribers')
+        .upsert({ email, source: 'newsletter_page' }, { onConflict: 'email' });
+      if (error) throw error;
       setSubscribed(true);
-      setTimeout(() => setSubscribed(false), 4000);
       setEmail('');
+      setTimeout(() => setSubscribed(false), 4000);
+    } catch (err) {
+      setSubError(err.message?.includes('duplicate') ? 'Already subscribed!' : 'Something went wrong. Try again.');
+      setTimeout(() => setSubError(''), 3000);
+    } finally {
+      setSubLoading(false);
     }
   };
 
@@ -200,11 +215,13 @@ export default function NewsletterPage({ onClose }) {
                     />
                     <button
                       type="submit"
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-sm rounded-xl transition-colors whitespace-nowrap"
+                      disabled={subLoading}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-semibold text-sm rounded-xl transition-colors whitespace-nowrap"
                     >
-                      {subscribed ? '✓ Subscribed' : 'Subscribe'}
+                      {subLoading ? '...' : subscribed ? '✓ Subscribed' : 'Subscribe'}
                     </button>
                   </form>
+                  {subError && <p className="text-red-400 text-xs mt-3">{subError}</p>}
                 </div>
               </div>
             </div>
