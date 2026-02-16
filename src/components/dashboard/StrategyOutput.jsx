@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ChevronsRight, ChevronsLeft } from 'lucide-react';
 
 const CHECKLIST_ITEMS = [
   'Entry Signal Confirmed',
@@ -68,6 +69,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
   const [takePct, setTakePct] = useState('');
   const [preChecks, setPreChecks] = useState(Array(6).fill(false));
   const [active, setActive] = useState(false);
+  const [cardsCollapsed, setCardsCollapsed] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -141,10 +143,28 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         />
       </div>
 
-      {/* RIGHT SIDE — full height, no scroll */}
-      <div className="w-[320px] flex-shrink-0 flex flex-col gap-3 p-3 h-full overflow-hidden">
-        {/* Card 1: Key Trade Setups — flex-1 to fill ~55% */}
-        <div className="flex-[55] border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-4 py-3 flex flex-col min-h-0">
+      {/* RIGHT SIDE — matches Sophia panel style */}
+      {cardsCollapsed ? (
+        <div className="w-[40px] flex-shrink-0 h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col items-center py-3">
+          <button onClick={() => setCardsCollapsed(false)} className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors" title="Expand cards">
+            <ChevronsLeft className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+      <div className="w-[320px] flex-shrink-0 h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col overflow-hidden">
+        {/* Header with collapse chevron */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1f1f1f] flex-shrink-0">
+          <span className="text-white/50 text-xs font-medium">Trade Setup</span>
+          <button onClick={() => setCardsCollapsed(true)} className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors" title="Collapse">
+            <ChevronsRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Scrollable cards area */}
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 min-h-0">
+
+        {/* Card 1: Key Trade Setups */}
+        <div className="border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-4 py-3 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span>🔥</span>
@@ -200,7 +220,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         </div>
 
         {/* Card 2: Strategy Activation — flex-1 to fill ~45% */}
-        <div className={`flex-[45] border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-4 py-3 flex flex-col min-h-0 relative ${!allChecked ? 'opacity-40' : ''}`}>
+        <div className={`border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-4 py-3 flex flex-col relative ${!allChecked ? 'opacity-40' : ''}`}>
           {!allChecked && (
             <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center z-10">
               <span className="text-zinc-500 text-sm">🔒 Complete all trade setups first</span>
@@ -273,7 +293,10 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             Activate Strategy
           </button>
         </div>
+
+        </div>{/* end scrollable cards area */}
       </div>
+      )}
     </div>
   );
 }
