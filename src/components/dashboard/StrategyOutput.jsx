@@ -160,7 +160,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
           <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="flex items-center gap-2">
               <Flame className="h-3.5 w-3.5 text-orange-400" />
-              <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider">Key Trade Setups</span>
+              <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider">Key Trade Setups Identified</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono" style={{ color: allChecked ? '#4ade80' : 'rgba(255,255,255,0.4)' }}>
@@ -244,23 +244,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
               onRetest?.(prompt);
             }} className="w-full py-1 rounded text-[10px] font-medium transition"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
-              Sophia Retest ↻
+              🔄 Ask Sophia to Retest
             </button>
           </div>
         </div>
 
         {/* ── BOTTOM HALF: Strategy Activation ── */}
-        <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* Lock overlay when not all checked */}
-          {!allChecked && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(2px)' }}>
-              <div className="text-center px-4">
-                <AlertTriangle className="h-5 w-5 text-amber-400 mx-auto mb-1" />
-                <p className="text-amber-400 text-[11px] font-semibold">Complete all 6 setups to unlock</p>
-                <p className="text-zinc-500 text-[10px] mt-0.5">{checkedCount}/6 completed</p>
-              </div>
-            </div>
-          )}
+        <div className="flex-1 flex flex-col min-h-0">
 
           {/* Activation Header */}
           <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -272,7 +262,10 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
                 }}>
                 <Target className={`h-3 w-3 ${active ? 'text-emerald-400' : 'text-zinc-500'}`} />
               </div>
-              <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider">Activation</span>
+              <div>
+                <span className="text-[11px] font-bold text-white/90 block">Strategy Activation</span>
+                <span className="text-[9px] block" style={{ color: 'rgba(255,255,255,0.4)' }}>Check conditions to activate</span>
+              </div>
             </div>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
               style={{
@@ -296,13 +289,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
               </div>
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Size ($)</label>
-                <input value={size} onChange={(e) => setSize(e.target.value)} disabled={!allChecked} placeholder="10K"
+                <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="10K"
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-zinc-100 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Max/Day</label>
-                <input value={maxDay} onChange={(e) => setMaxDay(e.target.value)} disabled={!allChecked} placeholder="10"
+                <input value={maxDay} onChange={(e) => setMaxDay(e.target.value)} placeholder="10"
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-zinc-100 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
@@ -310,13 +303,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             <div className="grid grid-cols-2 gap-1.5 mt-1.5">
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Stop Loss %</label>
-                <input value={stopPct} onChange={(e) => setStopPct(e.target.value)} disabled={!allChecked} placeholder="2.0"
+                <input value={stopPct} onChange={(e) => setStopPct(e.target.value)} placeholder="2.0"
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-red-400 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Take Profit %</label>
-                <input value={takePct} onChange={(e) => setTakePct(e.target.value)} disabled={!allChecked} placeholder="4.0"
+                <input value={takePct} onChange={(e) => setTakePct(e.target.value)} placeholder="4.0"
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-emerald-400 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
@@ -331,7 +324,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             </div>
             <div className="grid grid-cols-2 gap-x-1.5 gap-y-1">
               {CHECKLIST_ITEMS.map((item, i) => (
-                <button key={item.id} onClick={() => allChecked && togglePre(i)}
+                <button key={item.id} onClick={() => togglePre(i)}
                   className="flex items-center gap-1.5 rounded px-2 py-1 text-left transition"
                   style={{
                     background: preChecks[i] ? 'rgba(74,222,128,0.05)' : 'rgba(255,255,255,0.02)',
@@ -370,13 +363,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             </div>
             <button
               onClick={handleActivate}
-              disabled={!allChecked || !allPreChecked}
+              disabled={!allPreChecked}
               className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[11px] font-medium transition"
               style={{
-                background: allChecked && allPreChecked ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                border: allChecked && allPreChecked ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                color: allChecked && allPreChecked ? '#4ade80' : 'rgba(255,255,255,0.3)',
-                cursor: allChecked && allPreChecked ? 'pointer' : 'not-allowed',
+                background: allPreChecked ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
+                border: allPreChecked ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                color: allPreChecked ? '#4ade80' : 'rgba(255,255,255,0.3)',
+                cursor: allPreChecked ? 'pointer' : 'not-allowed',
               }}>
               <Play className="h-3 w-3" />
               Activate
