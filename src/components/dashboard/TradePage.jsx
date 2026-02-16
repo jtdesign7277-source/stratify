@@ -1059,7 +1059,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .ticker-tape-track { height: 100%; display: flex; align-items: center; overflow: hidden; }
-        .ticker-tape-content { display: inline-flex; align-items: center; white-space: nowrap; animation: ticker-scroll 18s linear infinite; }
+        .ticker-tape-content { display: inline-flex; align-items: center; white-space: nowrap; animation: ticker-scroll 180s linear infinite; }
         .ticker-tape-content span { padding-right: 3rem; }
         @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       `}</style>
