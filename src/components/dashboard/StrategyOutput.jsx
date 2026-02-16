@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronsRight, ChevronsLeft, Check, Flame, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign } from 'lucide-react';
+import { ChevronsRight, ChevronsLeft, Check, Flame, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil } from 'lucide-react';
 
 const CHECKLIST_ITEMS = [
   { id: 'entry-signal', label: 'Entry Signal Confirmed', icon: TrendingUp },
@@ -97,8 +97,20 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
   const allPreChecked = preChecks.every(Boolean);
   const checkedCount = checks.filter(Boolean).length;
 
+  const [editing, setEditing] = useState(null);
+  const [editValue, setEditValue] = useState('');
+
   const toggleCheck = (i) => setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
   const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
+
+  const startEdit = (i, val) => { setEditing(i); setEditValue(val === '—' ? '' : val); };
+  const commitEdit = (i) => {
+    const newFields = [...fields];
+    newFields[i] = { ...newFields[i], value: editValue.trim() || '—' };
+    // We can't mutate strategy props directly, but we store edits locally
+    setEditing(null);
+    setEditValue('');
+  };
 
   const fields = [
     { label: 'Entry Signal', value: s.entry },
@@ -181,69 +193,100 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             </div>
           </div>
 
-          {/* 3x2 Grid of checklist items */}
+          {/* 3x2 Grid of checklist items — matches Second Brain exactly */}
           <div className="grid grid-cols-2 flex-1 min-h-0" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            {fields.map((f, i) => (
-              <div key={i} onClick={() => toggleCheck(i)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer transition"
-                style={{
-                  background: checks[i] ? 'rgba(74,222,128,0.04)' : 'rgba(11,11,20,0.95)',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
-                  borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-                }}>
-                <div className="shrink-0 flex items-center justify-center rounded-md transition"
+            {fields.map((f, i) => {
+              const isLast = i === 5;
+              const isEditing = editing === i;
+              return (
+                <div key={i}
+                  className="flex items-center gap-2 px-3 py-2.5 transition"
                   style={{
-                    width: 20, height: 20,
-                    background: checks[i] ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                    border: checks[i] ? '1.5px solid rgba(74,222,128,0.5)' : '1.5px solid rgba(255,255,255,0.12)',
-                    boxShadow: checks[i] ? '0 0 8px rgba(74,222,128,0.2)' : 'none',
+                    background: checks[i] ? 'rgba(74,222,128,0.04)' : 'rgba(11,11,20,0.95)',
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                   }}>
-                  {checks[i] && <Check className="h-2.5 w-2.5 text-emerald-400" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[9px] font-semibold uppercase tracking-wider"
+                  {/* Checkbox */}
+                  <button onClick={() => toggleCheck(i)}
+                    className="shrink-0 flex items-center justify-center rounded-md transition"
                     style={{
-                      color: checks[i] ? '#4ade80' : 'rgba(255,255,255,0.45)',
-                      textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.3)' : 'none',
+                      width: 22, height: 22,
+                      background: checks[i] ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
+                      border: checks[i] ? '1.5px solid rgba(74,222,128,0.5)' : '1.5px solid rgba(255,255,255,0.12)',
+                      boxShadow: checks[i] ? '0 0 8px rgba(74,222,128,0.2)' : 'none',
                     }}>
-                    {f.label}
-                  </div>
-                  {i < 5 ? (
-                    <span className="text-[10px] truncate block"
+                    {checks[i] && <Check className="h-3 w-3 text-emerald-400" />}
+                  </button>
+
+                  {/* Label + Value */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider"
                       style={{
-                        color: !f.value || f.value === '—' ? 'rgba(255,255,255,0.2)' : checks[i] ? '#4ade80' : 'rgba(255,255,255,0.7)',
-                        textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.25)' : 'none',
+                        color: checks[i] ? '#4ade80' : 'rgba(255,255,255,0.45)',
+                        textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.3)' : 'none',
                       }}>
-                      {f.value || '—'}
-                    </span>
-                  ) : (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-[10px] text-amber-400">$</span>
-                      <input
-                        type="text"
-                        value={allocation}
-                        onChange={(e) => { e.stopPropagation(); setAllocation(e.target.value); }}
-                        onClick={(e) => e.stopPropagation()}
-                        placeholder="Amount..."
-                        className="flex-1 rounded px-1 py-0 text-[10px] text-white focus:outline-none w-full"
-                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,191,36,0.3)' }}
-                      />
+                      {f.label}
                     </div>
-                  )}
+                    {isLast ? (
+                      /* $ Allocation — always editable */
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[11px] text-amber-400">$</span>
+                        <input
+                          value={allocation}
+                          onChange={(e) => setAllocation(e.target.value)}
+                          placeholder="Enter amount..."
+                          className="flex-1 rounded px-1.5 py-0.5 text-[11px] text-white focus:outline-none"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,191,36,0.3)' }}
+                        />
+                      </div>
+                    ) : isEditing ? (
+                      /* Inline edit mode */
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <input
+                          autoFocus
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditing(null); }}
+                          className="flex-1 rounded px-1.5 py-0.5 text-[11px] text-white focus:outline-none"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.4)' }}
+                        />
+                        <button onClick={() => commitEdit(i)} className="text-emerald-400 hover:text-emerald-300"><Check className="h-3 w-3" /></button>
+                      </div>
+                    ) : (
+                      /* Value display with pencil */
+                      <div className="flex items-center gap-1 mt-0.5 group">
+                        <span className="text-[11px] truncate"
+                          style={{
+                            color: !f.value || f.value === '—' ? 'rgba(255,255,255,0.2)' : checks[i] ? '#4ade80' : 'rgba(255,255,255,0.7)',
+                            textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.25)' : 'none',
+                          }}>
+                          {f.value || '—'}
+                        </span>
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(i, f.value); }}
+                          className="shrink-0 opacity-30 hover:opacity-100 transition-opacity">
+                          <Pencil className="h-2.5 w-2.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Retest button */}
-          <div className="flex-shrink-0 px-3 py-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {/* Retest button — matches Second Brain "Ask Fred to Retest" style */}
+          <div className="flex-shrink-0 px-3 py-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <button onClick={() => {
               const params = fields.map(f => `${f.label}: ${f.value || '—'}`).join('\n');
               const alloc = allocation ? `$ Allocation: ${allocation}` : '';
               const prompt = `Retest this strategy with updated parameters:\n\nTicker: $${s.ticker || 'UNKNOWN'}\nStrategy: ${s.name || 'Strategy'}\n${params}${alloc ? '\n' + alloc : ''}\n\nPlease regenerate the full backtest analysis with these parameters.`;
               onRetest?.(prompt);
-            }} className="w-full py-1 rounded text-[10px] font-medium transition"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+            }} className="w-full py-2 rounded-lg text-[12px] font-medium transition"
+              style={{
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(99,102,241,0.08) 100%)',
+                border: '1px solid rgba(99,102,241,0.3)',
+                color: 'rgba(165,160,255,0.9)',
+              }}>
               🔄 Ask Sophia to Retest
             </button>
           </div>
