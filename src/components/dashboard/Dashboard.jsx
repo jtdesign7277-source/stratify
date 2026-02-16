@@ -10,7 +10,8 @@ import TopMetricsBar from './TopMetricsBar';
 import LiveAlertsTicker from './LiveAlertsTicker';
 import DataTable from './DataTable';
 import RightPanel from './RightPanel';
-import GrokPanel from './GrokPanel';
+import SophiaPanel from './SophiaPanel';
+import StrategyOutput from './StrategyOutput';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
 import ArbitragePanel from './ArbitragePanel';
@@ -40,6 +41,7 @@ import ActiveTrades from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
+// Sophia strategy state managed here
 import TerminalPage from './TerminalPage';
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
@@ -543,6 +545,7 @@ export default function Dashboard({
   });
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
+  const [sophiaStrategy, setSophiaStrategy] = useState(null);
   const [currentMarketStatus, setCurrentMarketStatus] = useState(() => getMarketStatus());
   const [nextMarketOpenAt, setNextMarketOpenAt] = useState(() => getNextMarketOpen());
   const [allocationPrompt, setAllocationPrompt] = useState(null);
@@ -1741,6 +1744,37 @@ export default function Dashboard({
           )}
           {activeTab === 'advanced' && <AdvancedChartsPage />}
           {activeTab === 'grok' && <DemoPanel />}
+          {activeTab === 'sophia-output' && (
+            <StrategyOutput
+              strategy={sophiaStrategy}
+              onSave={(strategy) => {
+                const toSave = {
+                  id: 'sophia-' + Date.now(),
+                  name: strategy.name,
+                  code: strategy.code || '',
+                  content: strategy.raw || '',
+                  summary: strategy,
+                  deployed: false,
+                  savedAt: Date.now(),
+                };
+                setSavedStrategies(prev => [...prev, toSave]);
+              }}
+              onDeploy={(strategy) => {
+                const toDeploy = {
+                  id: 'sophia-' + Date.now(),
+                  name: strategy.name,
+                  code: strategy.code || '',
+                  content: strategy.raw || '',
+                  summary: strategy,
+                  deployed: true,
+                  runStatus: 'running',
+                  savedAt: Date.now(),
+                  deployedAt: Date.now(),
+                };
+                handleDeployStrategy(toDeploy, true);
+              }}
+            />
+          )}
           {activeTab === 'portfolio' && (
             <PortfolioPage
               themeClasses={themeClasses}
@@ -1793,29 +1827,11 @@ export default function Dashboard({
           {activeTab === 'more' && <MoreInfoPage />}
         </div>
         
-        <GrokPanel 
+        <SophiaPanel 
           onCollapsedChange={setIsGrokPanelCollapsed}
-          onBacktestResults={(results, strategy, ticker) => {
-            // Batch state updates before switching tabs
-            setTerminalBacktestResults(results);
-            setTerminalStrategy(strategy || {});
-            setTerminalTicker(ticker || 'SPY');
-            // Use setTimeout to ensure state is set before tab switch
-            setTimeout(() => setActiveTab('terminal'), 50);
-          }}
-          onSaveStrategy={(strategy) => {
-            if (!canCreateStrategy(strategy)) return;
-
-            setSavedStrategies(prev => {
-              // Don't add if already exists
-              if (prev.some(s => s.id === strategy.id)) {
-                return prev.map(s => s.id === strategy.id ? { ...s, ...strategy } : s);
-              }
-              return [...prev, strategy];
-            });
-          }}
-          onDeployStrategy={(strategy) => {
-            handleDeployStrategy(strategy, true);
+          onStrategyGenerated={(strategy) => {
+            setSophiaStrategy(strategy);
+            setActiveTab('sophia-output');
           }}
         />
       </div>
