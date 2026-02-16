@@ -976,29 +976,10 @@ function StratifyAppContent() {
   const portfolio = usePortfolio();
   const alpaca = useAlpacaData();
 
-  // Use real Alpaca data when available, fall back to paper trading
-  const hasAlpacaData = alpaca.account && !alpaca.error;
+  // Use real Alpaca data when broker is connected
+  const hasAlpacaData = alpaca.account && !alpaca.error && alpaca.brokerConnected;
 
-  const derivedPositions = hasAlpacaData
-    ? alpaca.positions
-    : (portfolio?.positions || []).map((position) => {
-        const shares = Number(position.shares ?? position.qty ?? 0);
-        const avgCost = Number(position.avgCost ?? position.avg_entry_price ?? 0);
-        const currentPrice = Number(position.currentPrice ?? position.current_price ?? avgCost ?? 0);
-        const pnl = Number(position.pnl ?? position.unrealized_pl ?? 0);
-        const pnlPercent = Number(position.pnlPercent ?? (position.unrealized_plpc ?? 0) * 100 ?? 0);
-        const marketValue = Number.isFinite(currentPrice) && Number.isFinite(shares) ? currentPrice * shares : 0;
-
-        return {
-          ...position,
-          qty: shares,
-          avg_entry_price: avgCost,
-          current_price: currentPrice,
-          market_value: marketValue,
-          unrealized_pl: pnl,
-          unrealized_plpc: Number.isFinite(pnlPercent) ? pnlPercent / 100 : 0,
-        };
-      });
+  const derivedPositions = hasAlpacaData ? alpaca.positions : [];
 
   const stocks = marketData?.prices ? Array.from(marketData.prices.values()) : [];
   const account = hasAlpacaData
@@ -1013,11 +994,11 @@ function StratifyAppContent() {
         portfolio_value: Number(alpaca.account.portfolio_value) || 0,
       }
     : {
-        equity: portfolio?.totalValue ?? 0,
-        cash: portfolio?.cash ?? 0,
-        buying_power: portfolio?.cash ?? 0,
-        daily_pnl: portfolio?.todayPnL ?? 0,
-        unrealized_pl: portfolio?.todayPnL ?? 0,
+        equity: 0,
+        cash: 0,
+        buying_power: 0,
+        daily_pnl: 0,
+        unrealized_pl: 0,
         realized_pl: 0,
       };
 

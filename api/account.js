@@ -1,21 +1,47 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function getUserFromToken(req) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return null;
+  const token = auth.slice(7);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+  return user;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const ALPACA_KEY = (process.env.ALPACA_API_KEY || '').trim();
-  const ALPACA_SECRET = (process.env.ALPACA_SECRET_KEY || '').trim();
-  const BASE_URL = (process.env.ALPACA_BASE_URL || 'https://api.alpaca.markets').trim();
+  const user = await getUserFromToken(req);
+  if (!user) return res.status(401).json({ error: 'not_connected', message: 'No broker connected' });
 
-  if (!ALPACA_KEY || !ALPACA_SECRET) {
-    return res.status(500).json({ error: 'Alpaca API keys not configured' });
-  }
+  // Fetch user's broker connection
+  const { data: conn, error: connError } = await supabase
+    .from('broker_connections')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('broker', 'alpaca')
+    .maybeSingle();
+
+  if (connError) return res.status(500).json({ error: connError.message });
+  if (!conn) return res.status(401).json({ error: 'not_connected', message: 'No Alpaca broker connected' });
+
+  const baseUrl = conn.is_paper
+    ? 'https://paper-api.alpaca.markets'
+    : 'https://api.alpaca.markets';
 
   try {
-    const resp = await fetch(`${BASE_URL}/v2/account`, {
+    const resp = await fetch(`${baseUrl}/v2/account`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': conn.api_key,
+        'APCA-API-SECRET-KEY': conn.api_secret,
       },
     });
 

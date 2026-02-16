@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 const POLL_INTERVAL = 30000; // 30s refresh
 
@@ -7,22 +8,47 @@ export function useAlpacaData() {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [brokerConnected, setBrokerConnected] = useState(null); // null = unknown, true/false
+
+  const getAuthHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    return { Authorization: `Bearer ${session.access_token}` };
+  };
 
   const fetchData = useCallback(async () => {
     try {
+      const headers = await getAuthHeaders();
+      if (!headers) {
+        setBrokerConnected(false);
+        setLoading(false);
+        return;
+      }
+
       const [acctRes, posRes] = await Promise.all([
-        fetch('/api/account'),
-        fetch('/api/positions'),
+        fetch('/api/account', { headers }),
+        fetch('/api/positions', { headers }),
       ]);
+
+      if (acctRes.status === 401) {
+        const body = await acctRes.json().catch(() => ({}));
+        if (body.error === 'not_connected') {
+          setBrokerConnected(false);
+          setAccount(null);
+          setPositions([]);
+          setLoading(false);
+          return;
+        }
+      }
 
       if (acctRes.ok) {
         const acctData = await acctRes.json();
         setAccount(acctData);
+        setBrokerConnected(true);
       }
 
       if (posRes.ok) {
         const posData = await posRes.json();
-        // Normalize Alpaca position format
         const normalized = (Array.isArray(posData) ? posData : []).map((p) => ({
           symbol: p.symbol,
           qty: Number(p.qty),
@@ -59,5 +85,5 @@ export function useAlpacaData() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  return { account, positions, loading, error, refresh: fetchData };
+  return { account, positions, loading, error, brokerConnected, refresh: fetchData };
 }

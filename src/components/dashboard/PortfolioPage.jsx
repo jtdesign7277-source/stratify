@@ -10,6 +10,7 @@ import {
   History,
 } from 'lucide-react';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
+import BrokerConnect from './BrokerConnect';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -150,6 +151,16 @@ const PortfolioPage = ({
   const totalPLIsPositive = totalUnrealizedPL >= 0;
 
   const dailyIsPositive = dailyPnL >= 0;
+
+  const noBrokerConnected = !account.equity && !account.portfolio_value && rawPositions.length === 0;
+
+  if (noBrokerConnected) {
+    return (
+      <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-auto">
+        <BrokerConnect onConnected={() => window.location.reload()} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-auto">
