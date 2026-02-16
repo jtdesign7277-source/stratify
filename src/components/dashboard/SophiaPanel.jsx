@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Volume2, Trash2, Brain, ChevronDown, Rocket, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { useSophiaChat } from '../../hooks/useSophiaChat';
 import { STRATEGIES } from '../strategies/FeaturedStrategies';
+import BacktestWizard from './BacktestWizard';
 
 const STRATEGY_PRESETS = [
   { label: 'Growth Investing', prompt: 'Build me a Growth Investing strategy for $NVDA. Focus on revenue acceleration, earnings momentum, and technical breakouts. Backtest with $10,000.' },
@@ -19,6 +20,7 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
   const [input, setInput] = useState('');
   const [selectedPreset, setSelectedPreset] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [panelState, setPanelState] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-sophia-panel-state');
@@ -169,7 +171,7 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
       {panelState === 'full' && (
         <div className="px-3 py-2 border-b border-[#1f1f1f] flex gap-2">
           <button
-            onClick={() => onOpenWizard && onOpenWizard()}
+            onClick={() => setShowBuilder(true)}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/[0.08] hover:border-emerald-500/40 transition-all"
           >
             <Rocket className="w-3.5 h-3.5" />
@@ -188,6 +190,19 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
         </div>
       )}
 
+      {/* Builder view (replaces chat when active) */}
+      {showBuilder ? (
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <BacktestWizard
+            onSubmit={(prompt) => {
+              setShowBuilder(false);
+              sendMessage(prompt);
+            }}
+            onClose={() => setShowBuilder(false)}
+            inline
+          />
+        </div>
+      ) : <>
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0">
         {messages.length === 0 && (
@@ -249,6 +264,7 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
           </button>
         </div>
       </div>
+      </>}
     </div>
   );
 };

@@ -47,7 +47,7 @@ function Pill({ selected, onClick, children }) {
   );
 }
 
-export default function BacktestWizard({ onSubmit, onClose }) {
+export default function BacktestWizard({ onSubmit, onClose, inline }) {
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState({
     ticker: '',
@@ -79,9 +79,17 @@ export default function BacktestWizard({ onSubmit, onClose }) {
     if (onClose) onClose();
   };
 
+  const Wrapper = inline ? 'div' : 'div';
+  const wrapperClass = inline
+    ? 'flex flex-col h-full overflow-hidden'
+    : 'flex-1 flex items-center justify-center bg-[#0a0a0a]';
+  const innerClass = inline
+    ? 'flex flex-col h-full overflow-hidden'
+    : 'w-full max-w-[460px] rounded-2xl border border-emerald-500/[0.15] bg-gradient-to-b from-[#111111] to-[#0a0a0a] shadow-2xl shadow-black/60 overflow-hidden';
+
   return (
-    <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
-      <div className="w-full max-w-[460px] rounded-2xl border border-emerald-500/[0.15] bg-gradient-to-b from-[#111111] to-[#0a0a0a] shadow-2xl shadow-black/60 overflow-hidden">
+    <div className={wrapperClass}>
+      <div className={innerClass}>
         {/* Header */}
         <div className="px-6 pt-5 pb-3 border-b border-[#1f1f1f]">
           <div className="flex items-center justify-between mb-1">
@@ -115,7 +123,7 @@ export default function BacktestWizard({ onSubmit, onClose }) {
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 min-h-[260px]">
+        <div className={`px-6 py-5 ${inline ? 'flex-1 overflow-y-auto' : 'min-h-[260px]'}`}>
           {/* Ticker */}
           {currentKey === 'ticker' && (
             <div>
