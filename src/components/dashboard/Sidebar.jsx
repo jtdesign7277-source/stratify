@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, 
@@ -26,13 +26,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const GrokIcon = ({ className = "w-[18px] h-[18px]", ...props }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <line x1="5" y1="19" x2="19" y2="5" />
-  </svg>
-);
-
 const Sidebar = ({ 
   activeTab = 'home', 
   setActiveTab, 
@@ -44,16 +37,12 @@ const Sidebar = ({
   deployedStrategies = [],
   activeStrategyCount,
   onRemoveSavedStrategy,
-  grokPanelCollapsed = false,
-  onOpenFloatingGrok,
   onLogout
 }) => {
   const { signOut, isAuthenticated } = useAuth();
   const [internalCollapsed, setInternalCollapsed] = useState(true);
   const [strategiesExpanded, setStrategiesExpanded] = useState(false);
   const [deployedExpanded, setDeployedExpanded] = useState(false);
-  const [isGrokPulseActive, setIsGrokPulseActive] = useState(false);
-  const grokPulseTimeoutRef = useRef(null);
   const isControlled = typeof expanded === 'boolean';
   const collapsed = isControlled ? !expanded : internalCollapsed;
 
@@ -70,29 +59,6 @@ const Sidebar = ({
   const resolvedActiveCount = Number.isFinite(activeStrategyCount)
     ? activeStrategyCount
     : deployedStrategies.length;
-
-  useEffect(() => {
-    const triggerPulseBurst = () => {
-      setIsGrokPulseActive(true);
-      if (grokPulseTimeoutRef.current) {
-        window.clearTimeout(grokPulseTimeoutRef.current);
-      }
-
-      // 3 pulses x 2s each + tiny buffer for the final fade-out
-      grokPulseTimeoutRef.current = window.setTimeout(() => {
-        setIsGrokPulseActive(false);
-      }, 6200);
-    };
-
-    const pulseInterval = window.setInterval(triggerPulseBurst, 120000);
-
-    return () => {
-      window.clearInterval(pulseInterval);
-      if (grokPulseTimeoutRef.current) {
-        window.clearTimeout(grokPulseTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -229,23 +195,6 @@ const Sidebar = ({
 
         <div className="h-px bg-white/10 mx-2 mb-2" />
 
-        {/* Grok Chat toggle */}
-        <button
-          onClick={() => onOpenFloatingGrok?.()}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 mb-2 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 hover:-translate-y-0.5 border border-white/10 hover:border-emerald-400/40 hover:bg-emerald-500/10 text-white group ${
-            collapsed ? 'justify-center px-2' : ''
-          }`}
-          title={collapsed ? 'Grok AI Chat' : undefined}
-        >
-          <div className={`relative flex-shrink-0 ${isGrokPulseActive ? 'grok-attention-pulse-active' : ''}`}>
-            <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-sm group-hover:bg-emerald-500/40 transition-all" />
-            <GrokIcon className="relative w-[18px] h-[18px] text-emerald-400" />
-          </div>
-          {!collapsed && (
-            <span className="whitespace-nowrap overflow-hidden text-emerald-400">Grok AI</span>
-          )}
-        </button>
-
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium tracking-wide text-white hover:bg-emerald-500/10 transition-all duration-200 hover:-translate-y-0.5 border border-white/10 hover:border-emerald-400/40 ${
@@ -265,8 +214,7 @@ const Sidebar = ({
           )}
         </button>
 
-        {/* Floating Grok Chat trigger - shown when Grok panel is collapsed */}
-              </div>
+      </div>
     </motion.div>
   );
 };
