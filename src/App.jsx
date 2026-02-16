@@ -4,7 +4,7 @@ import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import SignUpPage from './components/auth/SignUpPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { useMarketData, usePortfolio } from './store/StratifyProvider';
+import { useMarketData } from './store/StratifyProvider';
 import { useAlpacaData } from './hooks/useAlpacaData';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
@@ -973,7 +973,6 @@ function StratifyAppContent() {
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
   const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
   const marketData = useMarketData();
-  const portfolio = usePortfolio();
   const alpaca = useAlpacaData();
 
   // Use real Alpaca data when broker is connected
@@ -981,7 +980,6 @@ function StratifyAppContent() {
 
   const derivedPositions = hasAlpacaData ? alpaca.positions : [];
 
-  const stocks = marketData?.prices ? Array.from(marketData.prices.values()) : [];
   const account = hasAlpacaData
     ? {
         equity: Number(alpaca.account.equity) || 0,
@@ -1034,7 +1032,7 @@ function StratifyAppContent() {
         onToggleLiveScores={() => setIsLiveScoresOpen((prev) => !prev)}
         liveScoresUnread={hasLiveScoresUnread}
         alpacaData={{
-          positions: derivedPositions.length > 0 ? derivedPositions : stocks,
+          positions: derivedPositions,
           account,
         }}
       />
