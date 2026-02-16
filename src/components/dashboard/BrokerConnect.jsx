@@ -194,11 +194,6 @@ const BrokerConnect = ({ onConnected }) => {
     }
   };
 
-  const handleSelectBroker = (b) => {
-    if (b.status === 'coming_soon') return;
-    setSelectedBroker(b.id);
-  };
-
   if (success) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
@@ -215,78 +210,77 @@ const BrokerConnect = ({ onConnected }) => {
     );
   }
 
-  // Broker selection screen
-  if (!selectedBroker) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
-        <div className="max-w-lg w-full p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <h2 className="text-xl font-semibold text-white">Connect Your Broker</h2>
-            <p className="text-sm text-white/40">Link your brokerage account to see live positions and portfolio data</p>
-          </div>
+  const handleSelectBroker = (b) => {
+    if (b.status === 'coming_soon') return;
+    setSelectedBroker(b.id);
+    setError('');
+    setApiKey('');
+    setApiSecret('');
+    setIsPaper(true);
+  };
 
-          <div className="space-y-2.5">
-            {BROKERS.map((b) => {
-              const isComingSoon = b.status === 'coming_soon';
-              return (
-                <button
-                  key={b.id}
-                  onClick={() => handleSelectBroker(b)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-[#111111] ${
-                    isComingSoon ? 'opacity-50 cursor-default' : `${b.hoverBorder} cursor-pointer`
-                  } transition-colors text-left`}
-                >
-                  <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 p-1.5">
-                    <img src={b.logo} alt={b.name} className="w-6 h-6 object-contain" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white">{b.name}</span>
-                      <InfoTooltip text={b.info} />
-                      <StatusBadge label={b.statusLabel} color={b.statusColor} />
-                    </div>
-                    <div className="text-xs text-white/40">{b.description}</div>
-                    <a
-                      href={b.keysUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="group/keys inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-400 mt-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-400/50 hover:backdrop-blur-sm hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300"
-                      style={{ animation: 'apiKeysPulse 3s ease-in-out infinite' }}
-                    >
-                      <svg className="w-3.5 h-3.5 transition-transform duration-300 group-hover/keys:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                      </svg>
-                      Get Your API Keys
-                    </a>
-                  </div>
-                  {!isComingSoon && (
-                    <svg className="w-4 h-4 text-white/20 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+  // Sidebar + content layout
+  const brokerList = (
+    <div className="w-[280px] flex-shrink-0 border-r border-white/[0.06] bg-[#0a0a0a] flex flex-col h-full">
+      <div className="px-4 py-3 border-b border-white/[0.06]">
+        <h2 className="text-sm font-semibold text-white">Brokers</h2>
+        <p className="text-[10px] text-white/30 mt-0.5">Select a broker to connect</p>
       </div>
-    );
-  }
+      <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
+        {BROKERS.map((b) => {
+          const isComingSoon = b.status === 'coming_soon';
+          const isSelected = selectedBroker === b.id;
+          return (
+            <button
+              key={b.id}
+              onClick={() => handleSelectBroker(b)}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all ${
+                isSelected
+                  ? 'bg-white/[0.08] border border-emerald-500/20'
+                  : 'border border-transparent hover:bg-white/[0.04]'
+              } ${isComingSoon ? 'opacity-40 cursor-default' : 'cursor-pointer'}`}
+            >
+              <div className="w-7 h-7 bg-white/10 rounded-md flex items-center justify-center flex-shrink-0 p-1">
+                <img src={b.logo} alt={b.name} className="w-5 h-5 object-contain" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] font-semibold text-white truncate">{b.name}</span>
+                  <StatusBadge label={b.statusLabel} color={b.statusColor} />
+                </div>
+                <div className="text-[10px] text-white/30 truncate">{b.description}</div>
+              </div>
+              {isSelected && !isComingSoon && (
+                <svg className="w-3 h-3 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
-  // Broker connection form
-  return (
-    <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
+  // Right panel content
+  const rightPanel = !selectedBroker ? (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center space-y-3">
+        <div className="w-12 h-12 mx-auto rounded-xl border border-white/[0.06] bg-white/[0.03] flex items-center justify-center">
+          <svg className="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.343 8.82" />
+          </svg>
+        </div>
+        <p className="text-sm text-white/30">Select a broker to get started</p>
+      </div>
+    </div>
+  ) : (
+    <div className="flex-1 flex items-center justify-center">
       <div className="max-w-md w-full p-8 space-y-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => { setSelectedBroker(null); setError(''); setApiKey(''); setApiSecret(''); setIsPaper(true); }}
-            className="text-white/40 hover:text-white transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-          </button>
+          <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center p-1.5">
+            <img src={broker.logo} alt={broker.name} className="w-6 h-6 object-contain" />
+          </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-white">Connect {broker.name}</h2>
@@ -402,6 +396,13 @@ const BrokerConnect = ({ onConnected }) => {
           </p>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="flex-1 flex bg-[#0a0a0a] h-full overflow-hidden">
+      {brokerList}
+      {rightPanel}
     </div>
   );
 };
