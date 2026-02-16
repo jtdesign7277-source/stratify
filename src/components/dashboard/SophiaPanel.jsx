@@ -5,12 +5,12 @@ import { STRATEGIES } from '../strategies/FeaturedStrategies';
 import BacktestWizard from './BacktestWizard';
 
 const STRATEGY_PRESETS = [
-  { label: 'Growth Investing', prompt: 'Build me a Growth Investing strategy for $NVDA. Focus on revenue acceleration, earnings momentum, and technical breakouts. Backtest with $10,000.' },
-  { label: 'Momentum Trading', prompt: 'Build me a Momentum Trading strategy for $TSLA. Use MACD, RSI, and relative strength. Backtest with $10,000.' },
-  { label: 'Day Trading', prompt: 'Build me a Day Trading strategy for $SPY using VWAP and Opening Range Breakouts. Backtest on 5-min candles with $10,000.' },
-  { label: 'RSI Bounce', prompt: 'Build a mean reversion RSI Bounce strategy for $AAPL. Buy when RSI(14) drops below 30, sell above 55. Backtest with $10,000.' },
-  { label: 'MACD Crossover', prompt: 'Build a MACD Crossover strategy for $AMD on the daily chart. Backtest 6 months with $10,000.' },
-  { label: 'Bollinger Squeeze', prompt: 'Build a Bollinger Band Squeeze breakout strategy for $META. Backtest 3 months with $10,000.' },
+  { label: 'Growth Investing', prompt: 'Ticker: $AAPL | Chart: Daily candles | Timeframe: 12M lookback | Logic: Buy when price crosses above 50-day SMA with increasing revenue growth. Sell when price drops below 200-day SMA. | Backtest amount: $10,000' },
+  { label: 'Momentum Trading', prompt: 'Ticker: $TSLA | Chart: 1hr candles | Timeframe: 6M lookback | Logic: Buy when MACD crosses above signal line with RSI above 50. Sell when momentum fades below 20-day EMA. | Backtest amount: $10,000' },
+  { label: 'Day Trading', prompt: 'Ticker: $SPY | Chart: 5min candles | Timeframe: 1M lookback | Logic: Buy on VWAP bounce with volume spike >2x average. Sell at +0.5% or stop at -0.25%. | Backtest amount: $25,000' },
+  { label: 'RSI Bounce', prompt: 'Ticker: $NVDA | Chart: 15min candles | Timeframe: 3M lookback | Logic: Buy when RSI(14) drops below 30 (oversold). Sell when RSI(14) rises above 55. | Backtest amount: $5,000' },
+  { label: 'MACD Crossover', prompt: 'Ticker: $QQQ | Chart: 1hr candles | Timeframe: 6M lookback | Logic: Buy when MACD line crosses above signal line with histogram turning positive. Sell on bearish crossover. | Backtest amount: $10,000' },
+  { label: 'Bollinger Squeeze', prompt: 'Ticker: $AMZN | Chart: 30min candles | Timeframe: 3M lookback | Logic: Buy when price touches lower Bollinger Band with narrowing bandwidth. Sell at upper band or middle band breakdown. | Backtest amount: $10,000' },
 ];
 
 const PANEL_WIDTHS = { full: 480, half: 280, collapsed: 40 };
@@ -179,7 +179,7 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
           </button>
           <select
             value={selectedPreset}
-            onChange={(e) => { setSelectedPreset(e.target.value); if (e.target.value) sendMessage(e.target.value); setSelectedPreset(''); }}
+            onChange={(e) => { if (e.target.value) { setInput(e.target.value); inputRef.current?.focus(); } setSelectedPreset(''); }}
             className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-emerald-500"
           >
             <option value="">Quick preset...</option>
