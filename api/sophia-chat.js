@@ -35,16 +35,19 @@ BACKTEST NAMING & VALUATION (CRITICAL):
 - Use color-friendly formatting: lines with gains should mention "profit" or "+", losses should mention "loss" or "-"
 
 KEY TRADE SETUPS (CRITICAL — INCLUDE IN EVERY STRATEGY/BACKTEST):
-After your analysis, ALWAYS include this exact section with real values extracted from your analysis:
+Every strategy response MUST end with a clearly labeled section called KEY TRADE SETUPS with exactly these 6 fields: Entry Signal, Volume, Trend, Risk/Reward, Stop Loss, $ Allocation. Format each on its own line with the label followed by a colon. This is mandatory for every strategy — never skip it.
 
-## 🔥 Key Trade Setups
-- **Entry Signal:** [exact entry condition, e.g. "RSI crosses above 30 with volume confirmation"]
-- **Volume:** [volume requirement, e.g. "Above 20-day average (>2.5M shares)"]
-- **Trend:** [trend alignment, e.g. "Bullish — price above 50-day SMA at $142.30"]
-- **Risk/Reward:** [ratio, e.g. "3.2:1 ($4.50 risk / $14.40 reward)"]
-- **Stop Loss:** [exact stop, e.g. "$138.50 (-2.8% from entry)"]
+At the VERY END of your response, ALWAYS include this exact section and formatting with real values extracted from your analysis (no bullets, no bold):
 
-These 5 values are parsed by the UI and displayed in an editable "Key Trade Setups" card. The user will add their own Position Size / $ Allocation (6th item). Make each value specific with real numbers from the data.`;
+KEY TRADE SETUPS
+Entry Signal: [exact entry condition, e.g. "RSI crosses above 30 with volume confirmation"]
+Volume: [volume requirement, e.g. "Above 20-day average (>2.5M shares)"]
+Trend: [trend alignment, e.g. "Bullish — price above 50-day SMA at $142.30"]
+Risk/Reward: [ratio, e.g. "3.2:1 ($4.50 risk / $14.40 reward)"]
+Stop Loss: [exact stop, e.g. "$138.50 (-2.8% from entry)"]
+$ Allocation: [position size, e.g. "$2,500 (25% of capital)"]
+
+These 6 values are parsed by the UI and displayed in an editable "Key Trade Setups" card. Make each value specific with real numbers from the data.`;
 
 function extractTickers(text) {
   const tickers = new Set();

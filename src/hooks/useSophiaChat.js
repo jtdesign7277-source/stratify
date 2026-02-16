@@ -7,33 +7,57 @@ export function useSophiaChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStrategy, setCurrentStrategy] = useState(null);
 
+  const parseKeyTradeSetups = (content) => {
+    const hasKeySection = /KEY TRADE SETUPS/i.test(content);
+    const sourceText = hasKeySection
+      ? content.split(/KEY TRADE SETUPS/i).slice(-1)[0] || ''
+      : content;
+
+    const entryMatch = sourceText.match(/Entry Signal:\s*(.+)/i);
+    const volumeMatch = sourceText.match(/Volume:\s*(.+)/i);
+    const trendMatch = sourceText.match(/Trend:\s*(.+)/i);
+    const rrMatch = sourceText.match(/Risk\/Reward:\s*(.+)/i);
+    const stopMatch = sourceText.match(/Stop Loss:\s*(.+)/i);
+    const allocationMatch = sourceText.match(/\$ ?Allocation:\s*(.+)/i);
+
+    const entry = entryMatch?.[1]?.trim() || '';
+    const volume = volumeMatch?.[1]?.trim() || '';
+    const trend = trendMatch?.[1]?.trim() || '';
+    const riskReward = rrMatch?.[1]?.trim() || '';
+    const stopLoss = stopMatch?.[1]?.trim() || '';
+    const allocation = allocationMatch?.[1]?.trim() || '';
+
+    const hasAll = [entry, volume, trend, riskReward, stopLoss, allocation].every(Boolean);
+
+    return { entry, volume, trend, riskReward, stopLoss, allocation, hasAll, hasKeySection };
+  };
+
   const parseStrategy = (content) => {
-    // Extract Key Trade Setups
-    const entryMatch = content.match(/\*\*Entry Signal:\*\*\s*(.+)/);
-    const volumeMatch = content.match(/\*\*Volume:\*\*\s*(.+)/);
-    const trendMatch = content.match(/\*\*Trend:\*\*\s*(.+)/);
-    const rrMatch = content.match(/\*\*Risk\/Reward:\*\*\s*(.+)/);
-    const stopMatch = content.match(/\*\*Stop Loss:\*\*\s*(.+)/);
+    if (!content) return null;
+
+    const { entry, volume, trend, riskReward, stopLoss, allocation, hasAll } = parseKeyTradeSetups(content);
+
     const nameMatch = content.match(/## 🏷️ Strategy Name:\s*(.+)/);
     const valueMatch = content.match(/## 💰 Backtest Value:\s*(.+)/);
     const codeMatch = content.match(/```python\n([\s\S]*?)```/);
-    const tickerMatch = content.match(/\$([A-Z]{1,5})/);
+    const tickerMatch = content.match(/\bTicker:\s*\$?([A-Z]{1,5})\b/i) || content.match(/\$([A-Z]{1,5})/);
 
-    if (entryMatch || nameMatch || codeMatch) {
-      return {
-        name: nameMatch?.[1]?.trim() || 'Sophia Strategy',
-        value: valueMatch?.[1]?.trim() || '',
-        ticker: tickerMatch?.[1] || '',
-        entry: entryMatch?.[1]?.trim() || '',
-        volume: volumeMatch?.[1]?.trim() || '',
-        trend: trendMatch?.[1]?.trim() || '',
-        riskReward: rrMatch?.[1]?.trim() || '',
-        stopLoss: stopMatch?.[1]?.trim() || '',
-        code: codeMatch?.[1]?.trim() || '',
-        raw: content,
-      };
-    }
-    return null;
+    return {
+      name: nameMatch?.[1]?.trim() || 'Sophia Strategy',
+      value: valueMatch?.[1]?.trim() || '',
+      ticker: tickerMatch?.[1] || '',
+      entry,
+      volume,
+      trend,
+      riskReward,
+      stopLoss,
+      allocation,
+      code: codeMatch?.[1]?.trim() || '',
+      raw: content,
+      parseError: !hasAll,
+      keyTradeSetups: { entry, volume, trend, riskReward, stopLoss, allocation },
+      generatedAt: Date.now(),
+    };
   };
 
   const sendMessage = useCallback(async (text) => {

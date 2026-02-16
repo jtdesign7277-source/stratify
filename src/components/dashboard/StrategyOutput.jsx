@@ -10,6 +10,9 @@ const CHECKLIST_ITEMS = [
   { id: 'position-sized', label: 'Position Size OK', icon: DollarSign },
 ];
 
+const FIELD_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
+const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'allocation'];
+
 function parseMarkdown(raw) {
   if (!raw) return '';
   const lines = raw.split('\n');
@@ -56,11 +59,16 @@ function formatInline(text) {
 
 export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onRetest }) {
   const s = strategy || {};
-  const storageKey = `stratify-activation-${s.name || 'default'}`;
+  const storageKey = `stratify-activation-${s.id || s.generatedAt || s.name || 'default'}`;
+  const defaultFieldValues = useMemo(
+    () => FIELD_KEYS.map((key) => (s?.[key] != null ? String(s[key]) : '')),
+    [s.entry, s.volume, s.trend, s.riskReward, s.stopLoss, s.allocation],
+  );
 
   // Key Trade Setups checkboxes
-  const [checks, setChecks] = useState([false, false, false, false, false, false]);
-  const [allocation, setAllocation] = useState('');
+  const [checks, setChecks] = useState(Array(6).fill(false));
+  const [fieldValues, setFieldValues] = useState(defaultFieldValues);
+  const [saved, setSaved] = useState(false);
 
   // Activation fields
   const [size, setSize] = useState('');
@@ -73,29 +81,74 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
 
   // Load from localStorage
   useEffect(() => {
+    const fallbackChecks = Array(6).fill(false);
+    const fallbackPreChecks = Array(6).fill(false);
+    let nextFieldValues = defaultFieldValues;
+    let nextChecks = fallbackChecks;
+    let nextPreChecks = fallbackPreChecks;
+    let nextActive = false;
+    let nextSaved = false;
+    let nextSize = '';
+    let nextMaxDay = '';
+    let nextStopPct = '';
+    let nextTakePct = '';
+
     try {
-      const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (saved) {
-        if (saved.checks) setChecks(saved.checks);
-        if (saved.allocation) setAllocation(saved.allocation);
-        if (saved.size) setSize(saved.size);
-        if (saved.maxDay) setMaxDay(saved.maxDay);
-        if (saved.stopPct) setStopPct(saved.stopPct);
-        if (saved.takePct) setTakePct(saved.takePct);
-        if (saved.preChecks) setPreChecks(saved.preChecks);
-        if (saved.active) setActive(saved.active);
+      const stored = JSON.parse(localStorage.getItem(storageKey));
+      if (stored) {
+        if (Array.isArray(stored.fieldValues) && stored.fieldValues.length === FIELD_LABELS.length) {
+          nextFieldValues = stored.fieldValues;
+        } else if (stored.allocation) {
+          nextFieldValues = [...defaultFieldValues];
+          nextFieldValues[5] = String(stored.allocation);
+        }
+        if (stored.checks) nextChecks = stored.checks;
+        if (stored.preChecks) nextPreChecks = stored.preChecks;
+        if (stored.active) nextActive = stored.active;
+        if (stored.saved) nextSaved = stored.saved;
+        if (stored.size) nextSize = stored.size;
+        if (stored.maxDay) nextMaxDay = stored.maxDay;
+        if (stored.stopPct) nextStopPct = stored.stopPct;
+        if (stored.takePct) nextTakePct = stored.takePct;
       }
     } catch {}
-  }, [storageKey]);
+
+    if (!nextSaved) nextActive = false;
+
+    setFieldValues(nextFieldValues);
+    setChecks(nextChecks);
+    setPreChecks(nextPreChecks);
+    setActive(nextActive);
+    setSaved(nextSaved);
+    setSize(nextSize);
+    setMaxDay(nextMaxDay);
+    setStopPct(nextStopPct);
+    setTakePct(nextTakePct);
+    setEditing(null);
+    setEditValue('');
+  }, [storageKey, defaultFieldValues]);
 
   // Save to localStorage
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify({ checks, allocation, size, maxDay, stopPct, takePct, preChecks, active }));
-  }, [checks, allocation, size, maxDay, stopPct, takePct, preChecks, active, storageKey]);
+    localStorage.setItem(storageKey, JSON.stringify({
+      checks,
+      fieldValues,
+      allocation: fieldValues[5],
+      size,
+      maxDay,
+      stopPct,
+      takePct,
+      preChecks,
+      active,
+      saved,
+    }));
+  }, [checks, fieldValues, size, maxDay, stopPct, takePct, preChecks, active, saved, storageKey]);
 
   const allChecked = checks.every(Boolean);
   const allPreChecked = preChecks.every(Boolean);
   const checkedCount = checks.filter(Boolean).length;
+  const activationLocked = !saved;
+  const canActivate = saved && allPreChecked;
 
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -103,28 +156,65 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
   const toggleCheck = (i) => setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
   const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
 
-  const startEdit = (i, val) => { setEditing(i); setEditValue(val === '—' ? '' : val); };
+  const startEdit = (i, val) => {
+    const nextValue = i === 5 ? String(val || '').replace(/^\s*\$/, '').trim() : val;
+    setEditing(i);
+    setEditValue(nextValue || '');
+  };
   const commitEdit = (i) => {
-    const newFields = [...fields];
-    newFields[i] = { ...newFields[i], value: editValue.trim() || '—' };
-    // We can't mutate strategy props directly, but we store edits locally
+    setFieldValues((prev) => {
+      const next = [...prev];
+      next[i] = editValue.trim();
+      return next;
+    });
     setEditing(null);
     setEditValue('');
   };
 
-  const fields = [
-    { label: 'Entry Signal', value: s.entry },
-    { label: 'Volume', value: s.volume },
-    { label: 'Trend', value: s.trend },
-    { label: 'Risk/Reward', value: s.riskReward },
-    { label: 'Stop Loss', value: s.stopLoss },
-  ];
+  const fields = FIELD_LABELS.map((label, i) => ({
+    label,
+    value: fieldValues[i] || '',
+  }));
 
   const renderedMarkdown = useMemo(() => parseMarkdown(s.raw), [s.raw]);
 
   const handleActivate = () => {
+    if (!canActivate) return;
     setActive(true);
-    onDeploy?.({ symbol: s.ticker, size, maxDay, stopPct, takePct });
+    onDeploy?.({
+      symbol: s.ticker,
+      size,
+      maxDay,
+      stopPct,
+      takePct,
+      status: 'active',
+      runStatus: 'running',
+    });
+  };
+
+  const handleSave = () => {
+    if (!allChecked) return;
+    const payload = {
+      ...s,
+      entry: fieldValues[0],
+      volume: fieldValues[1],
+      trend: fieldValues[2],
+      riskReward: fieldValues[3],
+      stopLoss: fieldValues[4],
+      allocation: fieldValues[5],
+      keyTradeSetups: {
+        entry: fieldValues[0],
+        volume: fieldValues[1],
+        trend: fieldValues[2],
+        riskReward: fieldValues[3],
+        stopLoss: fieldValues[4],
+        allocation: fieldValues[5],
+      },
+      checks,
+      savedAt: Date.now(),
+    };
+    onSave?.(payload);
+    setSaved(true);
   };
 
   return (
@@ -173,12 +263,15 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             <div className="flex items-center gap-2">
               <Flame className="h-3.5 w-3.5 text-orange-400" />
               <span className="text-[11px] font-bold text-white/90 uppercase tracking-wider">Key Trade Setups Identified</span>
+              {s.parseError && (
+                <span className="text-[10px] font-semibold text-red-400">Parse error</span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono" style={{ color: allChecked ? '#4ade80' : 'rgba(255,255,255,0.4)' }}>
                 {checkedCount}/6
               </span>
-              <button onClick={() => onSave?.({ ...s, allocation, checks })}
+              <button onClick={handleSave} disabled={!allChecked}
                 className="rounded px-2 py-0.5 text-[10px] font-bold transition"
                 style={{
                   background: allChecked ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
@@ -228,17 +321,37 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
                       {f.label}
                     </div>
                     {isLast ? (
-                      /* $ Allocation — always editable */
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[11px] text-amber-400">$</span>
-                        <input
-                          value={allocation}
-                          onChange={(e) => setAllocation(e.target.value)}
-                          placeholder="Enter amount..."
-                          className="flex-1 rounded px-1.5 py-0.5 text-[11px] text-white focus:outline-none"
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,191,36,0.3)' }}
-                        />
-                      </div>
+                      isEditing ? (
+                        /* Inline edit mode (allocation) */
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[11px] text-amber-400">$</span>
+                          <input
+                            autoFocus
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditing(null); }}
+                            className="flex-1 rounded px-1.5 py-0.5 text-[11px] text-white focus:outline-none"
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,191,36,0.3)' }}
+                          />
+                          <button onClick={() => commitEdit(i)} className="text-emerald-400 hover:text-emerald-300"><Check className="h-3 w-3" /></button>
+                        </div>
+                      ) : (
+                        /* Value display with pencil (allocation) */
+                        <div className="flex items-center gap-1 mt-0.5 group">
+                          <span className="text-[11px] text-amber-400">$</span>
+                          <span className="text-[11px] truncate"
+                            style={{
+                              color: !f.value ? 'rgba(255,255,255,0.2)' : checks[i] ? '#4ade80' : 'rgba(255,255,255,0.7)',
+                              textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.25)' : 'none',
+                            }}>
+                            {(f.value || '').replace(/^\s*\$/, '').trim() || '—'}
+                          </span>
+                          <button onClick={(e) => { e.stopPropagation(); startEdit(i, f.value); }}
+                            className="shrink-0 opacity-30 hover:opacity-100 transition-opacity">
+                            <Pencil className="h-2.5 w-2.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+                          </button>
+                        </div>
+                      )
                     ) : isEditing ? (
                       /* Inline edit mode */
                       <div className="flex items-center gap-1 mt-0.5">
@@ -278,8 +391,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
           <div className="flex-shrink-0 px-3 py-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <button onClick={() => {
               const params = fields.map(f => `${f.label}: ${f.value || '—'}`).join('\n');
-              const alloc = allocation ? `$ Allocation: ${allocation}` : '';
-              const prompt = `Retest this strategy with updated parameters:\n\nTicker: $${s.ticker || 'UNKNOWN'}\nStrategy: ${s.name || 'Strategy'}\n${params}${alloc ? '\n' + alloc : ''}\n\nPlease regenerate the full backtest analysis with these parameters.`;
+              const prompt = `Retest this strategy with updated parameters:\n\nTicker: $${s.ticker || 'UNKNOWN'}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
               onRetest?.(prompt);
             }} className="w-full py-2 rounded-lg text-[12px] font-medium transition"
               style={{
@@ -293,7 +405,10 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         </div>
 
         {/* ── BOTTOM HALF: Strategy Activation ── */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div
+          className="flex-1 flex flex-col min-h-0"
+          style={{ opacity: activationLocked ? 0.45 : 1, pointerEvents: activationLocked ? 'none' : 'auto' }}
+        >
 
           {/* Activation Header */}
           <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -307,7 +422,9 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
               </div>
               <div>
                 <span className="text-[11px] font-bold text-white/90 block">Strategy Activation</span>
-                <span className="text-[9px] block" style={{ color: 'rgba(255,255,255,0.4)' }}>Check conditions to activate</span>
+                <span className="text-[9px] block" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  {activationLocked ? 'Save to unlock activation' : 'Check conditions to activate'}
+                </span>
               </div>
             </div>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
@@ -316,7 +433,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
                 border: active ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(255,255,255,0.08)',
                 color: active ? '#4ade80' : 'rgba(255,255,255,0.4)',
               }}>
-              {active ? '● Live' : 'Inactive'}
+              {active ? '● Live' : activationLocked ? 'Locked' : 'Inactive'}
             </span>
           </div>
 
@@ -332,13 +449,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
               </div>
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Size ($)</label>
-                <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="10K"
+                <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="10K" disabled={activationLocked}
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-zinc-100 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Max/Day</label>
-                <input value={maxDay} onChange={(e) => setMaxDay(e.target.value)} placeholder="10"
+                <input value={maxDay} onChange={(e) => setMaxDay(e.target.value)} placeholder="10" disabled={activationLocked}
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-zinc-100 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
@@ -346,13 +463,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             <div className="grid grid-cols-2 gap-1.5 mt-1.5">
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Stop Loss %</label>
-                <input value={stopPct} onChange={(e) => setStopPct(e.target.value)} placeholder="2.0"
+                <input value={stopPct} onChange={(e) => setStopPct(e.target.value)} placeholder="2.0" disabled={activationLocked}
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-red-400 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
               <div>
                 <label className="text-[8px] uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>Take Profit %</label>
-                <input value={takePct} onChange={(e) => setTakePct(e.target.value)} placeholder="4.0"
+                <input value={takePct} onChange={(e) => setTakePct(e.target.value)} placeholder="4.0" disabled={activationLocked}
                   className="mt-0.5 w-full rounded px-1.5 py-1 text-[11px] text-emerald-400 focus:outline-none disabled:opacity-40"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
               </div>
@@ -392,7 +509,12 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
           {/* Activate button bar */}
           <div className="flex items-center justify-between px-3 py-2 flex-shrink-0">
             <div className="flex items-center gap-1.5 text-[10px]">
-              {!allPreChecked ? (
+              {!saved ? (
+                <>
+                  <AlertTriangle className="h-3 w-3 text-amber-400" />
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>Save strategy to unlock</span>
+                </>
+              ) : !allPreChecked ? (
                 <>
                   <AlertTriangle className="h-3 w-3 text-amber-400" />
                   <span style={{ color: 'rgba(255,255,255,0.4)' }}>Check all to activate</span>
@@ -406,13 +528,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             </div>
             <button
               onClick={handleActivate}
-              disabled={!allPreChecked}
+              disabled={!canActivate}
               className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[11px] font-medium transition"
               style={{
-                background: allPreChecked ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                border: allPreChecked ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                color: allPreChecked ? '#4ade80' : 'rgba(255,255,255,0.3)',
-                cursor: allPreChecked ? 'pointer' : 'not-allowed',
+                background: canActivate ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
+                border: canActivate ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                color: canActivate ? '#4ade80' : 'rgba(255,255,255,0.3)',
+                cursor: canActivate ? 'pointer' : 'not-allowed',
               }}>
               <Play className="h-3 w-3" />
               Activate

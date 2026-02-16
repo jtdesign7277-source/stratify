@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Volume2, Trash2, Brain, ChevronDown, Rocket, ChevronsRight, ChevronsLeft } from 'lucide-react';
+import { Send, Loader2, Volume2, Trash2, Brain, Rocket, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { useSophiaChat } from '../../hooks/useSophiaChat';
-import { STRATEGIES } from '../strategies/FeaturedStrategies';
 import BacktestWizard from './BacktestWizard';
 
 const STRATEGY_PRESETS = [
@@ -18,7 +17,7 @@ const PANEL_WIDTHS = { full: 480, half: 280, collapsed: 40 };
 const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wizardPrompt, onWizardPromptConsumed }) => {
   const { messages, sendMessage, isLoading, currentStrategy, clearChat } = useSophiaChat();
   const [input, setInput] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState('');
+  const [presetValue, setPresetValue] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [panelState, setPanelState] = useState(() => {
@@ -70,17 +69,10 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
   const expandPanel = () => setPanelState('full');
 
   const handleSend = () => {
-    if (!input.trim() && !selectedPreset) return;
-    const msg = selectedPreset || input.trim();
-    sendMessage(msg);
+    if (!input.trim()) return;
+    sendMessage(input.trim());
     setInput('');
-    setSelectedPreset('');
-  };
-
-  const handleQuickBuild = () => {
-    if (!selectedPreset) return;
-    sendMessage(selectedPreset);
-    setSelectedPreset('');
+    setPresetValue('');
   };
 
   const handleSpeak = async () => {
@@ -186,8 +178,14 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
             Build Strategy
           </button>
           <select
-            value={selectedPreset}
-            onChange={(e) => { if (e.target.value) { setInput(e.target.value); inputRef.current?.focus(); } setSelectedPreset(''); }}
+            value={presetValue}
+            onChange={(e) => {
+              if (e.target.value) {
+                setInput(e.target.value);
+                inputRef.current?.focus();
+              }
+              setPresetValue('');
+            }}
             className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-emerald-500"
           >
             <option value="">Quick preset...</option>
@@ -270,7 +268,7 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
           </button>
           <button
             onClick={handleSend}
-            disabled={isLoading || (!input.trim() && !selectedPreset)}
+            disabled={isLoading || !input.trim()}
             className="p-2 text-emerald-400 hover:text-emerald-300 disabled:text-gray-600 transition-colors"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
