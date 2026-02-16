@@ -210,10 +210,14 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         </div>
 
         {/* Bottom half: Strategy Activation */}
-        <div className={`flex-1 flex flex-col min-h-0 relative ${!allChecked ? 'opacity-40' : ''}`}>
+        <div className={`flex-1 flex flex-col min-h-0 relative ${!allChecked ? 'opacity-30 pointer-events-none' : ''}`}>
           {!allChecked && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
-              <span className="text-zinc-500 text-xs">🔒 Complete all setups first</span>
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 pointer-events-auto">
+              <div className="text-center px-4">
+                <div className="text-amber-400 text-lg mb-1">🔒</div>
+                <p className="text-amber-400 text-xs font-semibold leading-snug">Complete all 6 Key Trade Setups above to unlock Strategy Activation</p>
+                <p className="text-zinc-500 text-[10px] mt-1">{checkedCount}/6 completed</p>
+              </div>
             </div>
           )}
           <div className="flex-1 overflow-y-auto px-4 py-3">
