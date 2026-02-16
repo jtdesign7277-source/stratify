@@ -40,11 +40,13 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const strategyHandledRef = useRef(null);
   useEffect(() => {
-    if (currentStrategy && onStrategyGenerated) {
+    if (currentStrategy && onStrategyGenerated && currentStrategy !== strategyHandledRef.current) {
+      strategyHandledRef.current = currentStrategy;
       onStrategyGenerated(currentStrategy);
     }
-  }, [currentStrategy, onStrategyGenerated]);
+  }, [currentStrategy]);
 
   // Auto-send wizard prompt when received from BacktestWizard
   useEffect(() => {
