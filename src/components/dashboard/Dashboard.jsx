@@ -1785,6 +1785,10 @@ export default function Dashboard({
                 };
                 handleDeployStrategy(toDeploy, true);
               }}
+              onBack={() => setActiveTab('builder')}
+              onRetest={(prompt) => {
+                setSophiaWizardPrompt(prompt);
+              }}
             />
           )}
           {activeTab === 'portfolio' && (

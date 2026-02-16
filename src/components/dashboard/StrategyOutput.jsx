@@ -202,7 +202,12 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
               <button onClick={() => onSave?.({ ...s, allocation, checks })} className="flex-1 py-1.5 border border-[#1f1f1f] rounded-lg text-zinc-300 hover:text-white hover:border-zinc-600 transition text-xs">
                 Save
               </button>
-              <button onClick={() => onRetest?.()} className="flex-1 py-1.5 border border-[#1f1f1f] rounded-lg text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30 transition text-xs">
+              <button onClick={() => {
+                const params = fields.map(f => `${f.label}: ${f.value || '—'}`).join('\n');
+                const alloc = allocation ? `$ Allocation: ${allocation}` : '';
+                const prompt = `Retest this strategy with updated parameters:\n\nTicker: $${s.ticker || 'UNKNOWN'}\nStrategy: ${s.name || 'Strategy'}\n${params}${alloc ? '\n' + alloc : ''}\n\nPlease regenerate the full backtest analysis with these parameters.`;
+                onRetest?.(prompt);
+              }} className="flex-1 py-1.5 border border-[#1f1f1f] rounded-lg text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30 transition text-xs">
                 Sophia Retest
               </button>
             </div>
