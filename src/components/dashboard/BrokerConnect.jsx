@@ -287,9 +287,13 @@ const BrokerConnect = ({ onConnected }) => {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-[11px] text-emerald-400/70 hover:text-emerald-400 transition-colors mt-0.5 inline-block"
+                      className="group/keys inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-400 mt-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-400/50 hover:backdrop-blur-sm hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300"
+                      style={{ animation: 'apiKeysPulse 3s ease-in-out infinite' }}
                     >
-                      Get Your API Keys →
+                      <svg className="w-3.5 h-3.5 transition-transform duration-300 group-hover/keys:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                      Get Your API Keys
                     </a>
                   </div>
                   {!isComingSoon && (
@@ -333,12 +337,13 @@ const BrokerConnect = ({ onConnected }) => {
           href={broker.keysUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-xs text-emerald-400/70 hover:text-emerald-400 transition-colors"
+          className="group/keys inline-flex items-center gap-2 text-sm font-medium text-emerald-400 px-4 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-400/50 hover:backdrop-blur-sm hover:shadow-[0_0_24px_rgba(16,185,129,0.2)] transition-all duration-300"
+          style={{ animation: 'apiKeysPulse 3s ease-in-out infinite' }}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+          <svg className="w-4 h-4 transition-transform duration-300 group-hover/keys:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
           </svg>
-          Get Your API Keys →
+          Get Your API Keys
         </a>
 
         <div className="space-y-4">

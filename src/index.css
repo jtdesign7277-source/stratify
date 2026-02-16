@@ -134,6 +134,18 @@ h1, h2, h3, h4, h5, h6 {
   animation: tradeGlow 3s ease-in-out infinite;
 }
 
+@keyframes apiKeysPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.1), 0 0 16px rgba(16, 185, 129, 0.05);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.25), 0 0 28px rgba(16, 185, 129, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.1), 0 0 16px rgba(16, 185, 129, 0.05);
+  }
+}
+
 @keyframes newsletterGlow {
   0% {
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.08);
