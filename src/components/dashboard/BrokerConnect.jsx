@@ -1,6 +1,70 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
+const BROKERS = {
+  alpaca: {
+    name: 'Alpaca',
+    color: 'yellow-500',
+    hoverBorder: 'hover:border-emerald-500/30',
+    keysUrl: 'https://app.alpaca.markets/brokerage/api-keys',
+    keyLabel: 'API Key',
+    secretLabel: 'Secret Key',
+    keyPlaceholder: 'PK...',
+    info: 'Keys never expire. Generate separate keys for paper and live trading.',
+    hasPaperToggle: true,
+    logo: (
+      <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
+          <path d="M8 22V12l8-4 8 4v10l-8 4-8-4z" fill="#000" opacity="0.9"/>
+        </svg>
+      </div>
+    ),
+    description: 'Commission-free stock & crypto trading API',
+  },
+  webull: {
+    name: 'Webull',
+    color: 'blue-800',
+    hoverBorder: 'hover:border-blue-500/30',
+    keysUrl: 'https://www.webull.com/center#main/setting/api',
+    keyLabel: 'App Key',
+    secretLabel: 'App Secret',
+    keyPlaceholder: 'Your Webull App Key',
+    info: '⚠️ Webull keys expire every 1-7 days and must be regenerated. API access requires approval (1-2 business days). Go to Account Center → API Management → My Application to apply.',
+    hasPaperToggle: true,
+    logo: (
+      <div className="w-10 h-10 bg-blue-800 rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
+          <path d="M10 20 C10 14, 16 8, 22 14" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/>
+        </svg>
+      </div>
+    ),
+    description: 'Zero-commission stock & options trading',
+  },
+};
+
+const InfoTooltip = ({ text }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onClick={(e) => { e.stopPropagation(); setShow(!show); }}
+        className="w-4 h-4 rounded-full border border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 transition-colors flex items-center justify-center text-[9px] font-medium leading-none"
+      >
+        i
+      </button>
+      {show && (
+        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg border border-white/10 bg-[#1a1a1a] shadow-xl">
+          <p className="text-xs text-white/70 leading-relaxed">{text}</p>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px w-2 h-2 rotate-45 bg-[#1a1a1a] border-r border-b border-white/10" />
+        </div>
+      )}
+    </span>
+  );
+};
+
 const BrokerConnect = ({ onConnected }) => {
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [apiKey, setApiKey] = useState('');
@@ -9,6 +73,9 @@ const BrokerConnect = ({ onConnected }) => {
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const broker = selectedBroker ? BROKERS[selectedBroker] : null;
+  const isLive = !isPaper;
 
   const handleTestAndConnect = async () => {
     if (!apiKey || !apiSecret) return;
@@ -63,12 +130,13 @@ const BrokerConnect = ({ onConnected }) => {
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-white">Broker Connected</h3>
-          <p className="text-sm text-white/50">Your Alpaca account is now linked. Refreshing data...</p>
+          <p className="text-sm text-white/50">Your {broker?.name} account is now linked. Refreshing data...</p>
         </div>
       </div>
     );
   }
 
+  // Broker selection screen
   if (!selectedBroker) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
@@ -79,90 +147,92 @@ const BrokerConnect = ({ onConnected }) => {
           </div>
 
           <div className="space-y-3">
-            {/* Alpaca */}
-            <button
-              onClick={() => setSelectedBroker('alpaca')}
-              className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-[#111111] hover:border-emerald-500/30 transition-colors text-left"
-            >
-              <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-                  <path d="M8 22V12l8-4 8 4v10l-8 4-8-4z" fill="#000" opacity="0.9"/>
+            {Object.entries(BROKERS).map(([key, b]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedBroker(key)}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-[#111111] ${b.hoverBorder} transition-colors text-left`}
+              >
+                {b.logo}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-white">{b.name}</span>
+                    <InfoTooltip text={b.info} />
+                  </div>
+                  <div className="text-xs text-white/40">{b.description}</div>
+                  <a
+                    href={b.keysUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[11px] text-emerald-400/70 hover:text-emerald-400 transition-colors mt-0.5 inline-block"
+                  >
+                    Get Your API Keys →
+                  </a>
+                </div>
+                <svg className="w-4 h-4 text-white/20 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-white">Alpaca</div>
-                <div className="text-xs text-white/40">Commission-free stock & crypto trading API</div>
-              </div>
-              <svg className="w-4 h-4 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
-
-            {/* Webull */}
-            <button
-              onClick={() => setSelectedBroker('webull')}
-              className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-[#111111] hover:border-blue-500/30 transition-colors text-left"
-            >
-              <div className="w-10 h-10 bg-blue-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-                  <path d="M10 20 C10 14, 16 8, 22 14" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-white">Webull</div>
-                <div className="text-xs text-white/40">Zero-commission stock & options trading</div>
-              </div>
-              <svg className="w-4 h-4 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
+              </button>
+            ))}
           </div>
         </div>
       </div>
     );
   }
 
+  // Broker connection form
   return (
     <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
       <div className="max-w-md w-full p-8 space-y-6">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => { setSelectedBroker(null); setError(''); }}
+            onClick={() => { setSelectedBroker(null); setError(''); setApiKey(''); setApiSecret(''); setIsPaper(true); }}
             className="text-white/40 hover:text-white transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
-          <div>
-            <h2 className="text-lg font-semibold text-white">Connect {selectedBroker === 'alpaca' ? 'Alpaca' : 'Webull'}</h2>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-white">Connect {broker.name}</h2>
+              <InfoTooltip text={broker.info} />
+            </div>
             <p className="text-xs text-white/40">Enter your API credentials</p>
           </div>
         </div>
 
-        {selectedBroker === 'webull' && (
-          <div className="border border-amber-500/20 rounded-lg p-3 bg-amber-500/5">
-            <p className="text-xs text-amber-400">⏰ Webull API keys expire every 1-7 days depending on your settings. You will need to reconnect when your key resets. Manage key duration at webull.com → API Management.</p>
-          </div>
-        )}
+        {/* Get API Keys link */}
+        <a
+          href={broker.keysUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-xs text-emerald-400/70 hover:text-emerald-400 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+          </svg>
+          Get Your API Keys →
+        </a>
 
         <div className="space-y-4">
           <div>
             <label className="text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-1.5">
-              {selectedBroker === 'webull' ? 'App Key' : 'API Key'}
+              {broker.keyLabel}
             </label>
             <input
               type="text"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={selectedBroker === 'webull' ? 'Your Webull App Key' : 'PK...'}
+              placeholder={broker.keyPlaceholder}
               className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-emerald-500/40 transition-colors font-mono"
             />
           </div>
 
           <div>
             <label className="text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-1.5">
-              {selectedBroker === 'webull' ? 'App Secret' : 'Secret Key'}
+              {broker.secretLabel}
             </label>
             <input
               type="password"
@@ -173,12 +243,16 @@ const BrokerConnect = ({ onConnected }) => {
             />
           </div>
 
-          {/* Paper/Live toggle — Alpaca only */}
-          {selectedBroker === 'alpaca' && (
+          {/* Paper/Live toggle */}
+          {broker.hasPaperToggle && (
             <div className="flex items-center justify-between py-2">
               <div>
-                <div className="text-sm text-white">{isPaper ? 'Paper Trading' : 'Live Trading'}</div>
-                <div className="text-xs text-white/30">{isPaper ? 'Use paper trading endpoint' : 'Connected to live brokerage'}</div>
+                <div className={`text-sm ${isLive ? 'text-orange-400' : 'text-white'}`}>
+                  {isPaper ? 'Paper Trading' : 'Live Trading'}
+                </div>
+                <div className={`text-xs ${isLive ? 'text-orange-400/50' : 'text-white/30'}`}>
+                  {isPaper ? 'Use paper trading endpoint' : 'Connected to live brokerage'}
+                </div>
               </div>
               <button
                 onClick={() => setIsPaper(!isPaper)}
@@ -189,9 +263,11 @@ const BrokerConnect = ({ onConnected }) => {
             </div>
           )}
 
-          {!isPaper && selectedBroker === 'alpaca' && (
+          {/* Live trading warning */}
+          {isLive && (
             <div className="border border-orange-500/20 rounded-lg p-3 bg-orange-500/5">
-              <p className="text-xs text-orange-400">⚠️ Live Trading Mode — Orders will execute with real money. Make sure you are using your live API keys.</p>
+              <p className="text-xs text-orange-400 font-medium">⚠️ Live Trading Mode — Orders will execute with real money</p>
+              <p className="text-[10px] text-orange-400/60 mt-1">Make sure you are using your live API keys.</p>
             </div>
           )}
 
@@ -206,9 +282,9 @@ const BrokerConnect = ({ onConnected }) => {
             disabled={!apiKey || !apiSecret || testing}
             className={`w-full py-2.5 rounded-lg text-sm font-medium border transition-all ${
               apiKey && apiSecret && !testing
-                ? isPaper
-                  ? 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5'
-                  : 'border-orange-500/30 text-orange-400 hover:border-orange-500/60 hover:bg-orange-500/5'
+                ? isLive
+                  ? 'border-orange-500/30 text-orange-400 hover:border-orange-500/60 hover:bg-orange-500/5'
+                  : 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5'
                 : 'border-white/[0.06] text-white/20 cursor-not-allowed'
             }`}
           >
@@ -220,6 +296,8 @@ const BrokerConnect = ({ onConnected }) => {
                 </svg>
                 Testing Connection...
               </span>
+            ) : isLive ? (
+              '⚠️ Test & Connect (Live)'
             ) : (
               'Test & Connect'
             )}
