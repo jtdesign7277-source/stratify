@@ -141,122 +141,130 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         />
       </div>
 
-      {/* RIGHT SIDE — sticky, no scroll */}
-      <div className="w-[300px] flex-shrink-0 flex flex-col gap-2 p-3 h-full overflow-hidden">
-        {/* Card 1: Key Trade Setups */}
-        <div className="border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-3 py-2.5">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm">🔥</span>
-              <span className="text-white font-semibold text-xs">KEY TRADE SETUPS</span>
+      {/* RIGHT SIDE — full height, no scroll */}
+      <div className="w-[320px] flex-shrink-0 flex flex-col gap-3 p-3 h-full overflow-hidden">
+        {/* Card 1: Key Trade Setups — flex-1 to fill ~55% */}
+        <div className="flex-[55] border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-4 py-3 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span>🔥</span>
+              <span className="text-white font-semibold text-sm">KEY TRADE SETUPS</span>
             </div>
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${allChecked ? 'border-emerald-500/40 text-emerald-400' : 'border-zinc-700 text-zinc-500'}`}>
+            <span className={`text-xs font-mono px-2 py-0.5 rounded border ${allChecked ? 'border-emerald-500/40 text-emerald-400' : 'border-zinc-700 text-zinc-500'}`}>
               {checkedCount}/6
             </span>
           </div>
 
-          <div className="space-y-1">
+          <div className="flex-1 space-y-2.5">
             {fields.map((f, i) => (
-              <div key={i} onClick={() => toggleCheck(i)} className="flex items-center gap-2 cursor-pointer group py-0.5">
-                <div className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition ${
+              <div key={i} onClick={() => toggleCheck(i)} className="flex items-start gap-2.5 cursor-pointer group">
+                <div className={`w-4 h-4 mt-0.5 rounded border flex-shrink-0 flex items-center justify-center transition ${
                   checks[i] ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 group-hover:border-zinc-400'
                 }`}>
-                  {checks[i] && <span className="text-black text-[8px] font-bold">✓</span>}
+                  {checks[i] && <span className="text-black text-[10px] font-bold">✓</span>}
                 </div>
-                <span className="text-zinc-500 text-[10px] w-16 flex-shrink-0">{f.label}</span>
-                <span className="text-zinc-200 text-[11px] truncate flex-1">{f.value || '—'}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-zinc-500 text-xs font-medium">{f.label}</div>
+                  <div className="text-zinc-200 text-sm leading-snug">{f.value || '—'}</div>
+                </div>
               </div>
             ))}
             {/* $ Allocation */}
-            <div className="flex items-center gap-2 py-0.5">
-              <div onClick={() => toggleCheck(5)} className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition cursor-pointer ${
+            <div className="flex items-start gap-2.5">
+              <div onClick={() => toggleCheck(5)} className={`w-4 h-4 mt-0.5 rounded border flex-shrink-0 flex items-center justify-center transition cursor-pointer ${
                 checks[5] ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 hover:border-zinc-400'
               }`}>
-                {checks[5] && <span className="text-black text-[8px] font-bold">✓</span>}
+                {checks[5] && <span className="text-black text-[10px] font-bold">✓</span>}
               </div>
-              <span className="text-zinc-500 text-[10px] w-16 flex-shrink-0">$ Allocation</span>
-              <input
-                type="text"
-                value={allocation}
-                onChange={(e) => setAllocation(e.target.value)}
-                placeholder="$0"
-                className="flex-1 bg-transparent border border-[#1f1f1f] rounded px-1.5 py-0.5 text-[11px] text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none"
-              />
+              <div className="flex-1 min-w-0">
+                <div className="text-zinc-500 text-xs font-medium">$ Allocation</div>
+                <input
+                  type="text"
+                  value={allocation}
+                  onChange={(e) => setAllocation(e.target.value)}
+                  placeholder="Enter amount..."
+                  className="w-full bg-transparent border border-[#1f1f1f] rounded px-2 py-1 text-sm text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none mt-1"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="mt-2 flex gap-2">
-            <button onClick={() => onSave?.({ ...s, allocation, checks })} className="flex-1 py-1.5 border border-[#1f1f1f] rounded-lg text-zinc-300 hover:text-white hover:border-zinc-600 transition text-[11px]">
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => onSave?.({ ...s, allocation, checks })} className="flex-1 py-2 border border-[#1f1f1f] rounded-lg text-zinc-300 hover:text-white hover:border-zinc-600 transition text-sm">
               Save
             </button>
-            <button onClick={() => onRetest?.()} className="flex-1 py-1.5 border border-[#1f1f1f] rounded-lg text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30 transition text-[11px]">
-              Retest
+            <button onClick={() => onRetest?.()} className="flex-1 py-2 border border-[#1f1f1f] rounded-lg text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30 transition text-sm">
+              Ask Sophia to Retest
             </button>
           </div>
         </div>
 
-        {/* Card 2: Strategy Activation */}
-        <div className={`border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-3 py-2.5 relative ${!allChecked ? 'opacity-40' : ''}`}>
+        {/* Card 2: Strategy Activation — flex-1 to fill ~45% */}
+        <div className={`flex-[45] border border-[#1f1f1f] rounded-xl bg-[#0e0e0e] px-4 py-3 flex flex-col min-h-0 relative ${!allChecked ? 'opacity-40' : ''}`}>
           {!allChecked && (
-            <div className="absolute inset-0 rounded-xl bg-black/30 flex items-center justify-center z-10">
-              <span className="text-zinc-500 text-[11px]">🔒 Complete all trade setups</span>
+            <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center z-10">
+              <span className="text-zinc-500 text-sm">🔒 Complete all trade setups first</span>
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-white font-semibold text-xs">STRATEGY ACTIVATION</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${active ? 'border-emerald-500/40 text-emerald-400' : 'border-zinc-700 text-zinc-500'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white font-semibold text-sm">STRATEGY ACTIVATION</span>
+            <span className={`text-xs px-2 py-0.5 rounded border ${active ? 'border-emerald-500/40 text-emerald-400' : 'border-zinc-700 text-zinc-500'}`}>
               {active ? 'Active' : 'Inactive'}
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 mb-2">
-            <div>
-              <div className="text-zinc-500 text-[9px] mb-0.5">Symbol</div>
-              <div className="text-zinc-200 text-[11px] px-1.5 py-1 border border-[#1f1f1f] rounded bg-[#0b0b0b]">{s.ticker || '—'}</div>
-            </div>
-            <div>
-              <div className="text-zinc-500 text-[9px] mb-0.5">Size ($)</div>
-              <input value={size} onChange={(e) => setSize(e.target.value)} disabled={!allChecked}
-                className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-1.5 py-1 text-[11px] text-zinc-200 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
-            </div>
-            <div>
-              <div className="text-zinc-500 text-[9px] mb-0.5">Max/Day</div>
-              <input value={maxDay} onChange={(e) => setMaxDay(e.target.value)} disabled={!allChecked}
-                className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-1.5 py-1 text-[11px] text-zinc-200 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5 mb-2">
-            <div>
-              <div className="text-zinc-500 text-[9px] mb-0.5">Stop Loss %</div>
-              <input value={stopPct} onChange={(e) => setStopPct(e.target.value)} disabled={!allChecked}
-                className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-1.5 py-1 text-[11px] text-red-400 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
-            </div>
-            <div>
-              <div className="text-zinc-500 text-[9px] mb-0.5">Take Profit %</div>
-              <input value={takePct} onChange={(e) => setTakePct(e.target.value)} disabled={!allChecked}
-                className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-1.5 py-1 text-[11px] text-emerald-400 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
-            </div>
-          </div>
-
-          <div className="text-zinc-500 text-[9px] mb-1 font-semibold">PRE-TRADE CHECKLIST</div>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 mb-2">
-            {CHECKLIST_ITEMS.map((item, i) => (
-              <div key={i} onClick={() => allChecked && togglePre(i)} className="flex items-center gap-1 cursor-pointer text-[10px]">
-                <div className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center transition ${
-                  preChecks[i] ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'
-                }`}>
-                  {preChecks[i] && <span className="text-black text-[7px] font-bold">✓</span>}
-                </div>
-                <span className="text-zinc-400 truncate">{item}</span>
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <div className="text-zinc-500 text-xs mb-1">Symbol</div>
+                <div className="text-amber-400 text-sm font-mono px-2 py-1.5 border border-[#1f1f1f] rounded bg-[#0b0b0b]">{s.ticker || '—'}</div>
               </div>
-            ))}
+              <div>
+                <div className="text-zinc-500 text-xs mb-1">Size ($)</div>
+                <input value={size} onChange={(e) => setSize(e.target.value)} disabled={!allChecked} placeholder="10,000"
+                  className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
+              </div>
+              <div>
+                <div className="text-zinc-500 text-xs mb-1">Max/Day</div>
+                <input value={maxDay} onChange={(e) => setMaxDay(e.target.value)} disabled={!allChecked} placeholder="10"
+                  className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-zinc-500 text-xs mb-1">Stop Loss %</div>
+                <input value={stopPct} onChange={(e) => setStopPct(e.target.value)} disabled={!allChecked} placeholder="2.0"
+                  className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-2 py-1.5 text-sm text-red-400 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
+              </div>
+              <div>
+                <div className="text-zinc-500 text-xs mb-1">Take Profit %</div>
+                <input value={takePct} onChange={(e) => setTakePct(e.target.value)} disabled={!allChecked} placeholder="4.0"
+                  className="w-full bg-[#0b0b0b] border border-[#1f1f1f] rounded px-2 py-1.5 text-sm text-emerald-400 placeholder-zinc-600 focus:border-emerald-500/50 focus:outline-none disabled:opacity-50" />
+              </div>
+            </div>
+
+            <div>
+              <div className="text-zinc-500 text-xs mb-2 font-semibold">PRE-TRADE CHECKLIST</div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {CHECKLIST_ITEMS.map((item, i) => (
+                  <div key={i} onClick={() => allChecked && togglePre(i)} className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition ${
+                      preChecks[i] ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'
+                    }`}>
+                      {preChecks[i] && <span className="text-black text-[9px] font-bold">✓</span>}
+                    </div>
+                    <span className="text-zinc-400 text-xs">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <button
             onClick={handleActivate}
             disabled={!allChecked || !allPreChecked}
-            className={`w-full py-1.5 rounded-lg border text-[11px] font-medium transition ${
+            className={`w-full py-2.5 rounded-lg border text-sm font-medium transition mt-3 ${
               allChecked && allPreChecked
                 ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10'
                 : 'border-[#1f1f1f] text-zinc-600 cursor-not-allowed'
