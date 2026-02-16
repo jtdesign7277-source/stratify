@@ -253,11 +253,17 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
           </button>
         </div>
       ) : (
-      <div className="w-[320px] flex-shrink-0 h-full border-l border-[#1f1f1f] flex flex-col overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, rgba(16,16,28,0.95) 0%, rgba(11,11,20,0.98) 100%)' }}>
+      <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] flex flex-col overflow-hidden"
+        style={{ background: 'linear-gradient(155deg, rgba(19,15,42,0.96) 0%, rgba(16,22,58,0.97) 52%, rgba(10,13,31,0.98) 100%)' }}>
 
         {/* ── TOP HALF: Key Trade Setups ── */}
-        <div className="flex-1 flex flex-col min-h-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div
+          className="flex-1 flex flex-col min-h-0"
+          style={{
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            background: 'linear-gradient(165deg, rgba(46,30,104,0.48) 0%, rgba(29,39,98,0.52) 100%)',
+          }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="flex items-center gap-2">
@@ -286,100 +292,86 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
             </div>
           </div>
 
-          {/* 3x2 Grid of checklist items — matches Second Brain exactly */}
-          <div className="grid grid-cols-2 flex-1 min-h-0" style={{ background: 'rgba(255,255,255,0.03)' }}>
+          {/* 3x2 Grid of checklist items */}
+          <div
+            className="grid grid-cols-2 grid-rows-3 gap-2 p-3 flex-1 min-h-0 overflow-y-auto"
+            style={{ background: 'rgba(8,10,30,0.2)' }}
+          >
             {fields.map((f, i) => {
               const isLast = i === 5;
               const isEditing = editing === i;
+              const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
+              const displayValue = isLast ? (allocationValue ? `$${allocationValue}` : '—') : (f.value || '—');
               return (
-                <div key={i}
-                  className="flex items-center gap-2 px-3 py-2.5 transition"
+                <div
+                  key={i}
+                  className="flex items-start gap-3 px-4 py-3.5 min-h-[112px] rounded-xl transition"
                   style={{
-                    background: checks[i] ? 'rgba(74,222,128,0.04)' : 'rgba(11,11,20,0.95)',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                  }}>
+                    background: checks[i]
+                      ? 'linear-gradient(152deg, rgba(26,47,78,0.86) 0%, rgba(31,45,83,0.9) 100%)'
+                      : 'linear-gradient(152deg, rgba(45,31,95,0.85) 0%, rgba(30,38,92,0.9) 100%)',
+                    border: checks[i] ? '1px solid rgba(74,222,128,0.36)' : '1px solid rgba(165,180,252,0.3)',
+                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.03)',
+                  }}
+                >
                   {/* Checkbox */}
-                  <button onClick={() => toggleCheck(i)}
-                    className="shrink-0 flex items-center justify-center rounded-md transition"
+                  <button
+                    onClick={() => toggleCheck(i)}
+                    className="mt-0.5 shrink-0 flex items-center justify-center rounded-md transition"
                     style={{
-                      width: 22, height: 22,
-                      background: checks[i] ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                      border: checks[i] ? '1.5px solid rgba(74,222,128,0.5)' : '1.5px solid rgba(255,255,255,0.12)',
+                      width: 24, height: 24,
+                      background: checks[i] ? 'rgba(74,222,128,0.16)' : 'rgba(255,255,255,0.08)',
+                      border: checks[i] ? '1.5px solid rgba(74,222,128,0.55)' : '1.5px solid rgba(255,255,255,0.18)',
                       boxShadow: checks[i] ? '0 0 8px rgba(74,222,128,0.2)' : 'none',
-                    }}>
+                    }}
+                  >
                     {checks[i] && <Check className="h-3 w-3 text-emerald-400" />}
                   </button>
 
                   {/* Label + Value */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider"
-                      style={{
-                        color: checks[i] ? '#4ade80' : 'rgba(255,255,255,0.45)',
-                        textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.3)' : 'none',
-                      }}>
-                      {f.label}
+                    <div className="flex items-start justify-between gap-2">
+                      <div
+                        className="text-[10px] font-bold uppercase tracking-[0.12em]"
+                        style={{ color: '#fbbf24' }}
+                      >
+                        {f.label}
+                      </div>
+                      {!isEditing && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEdit(i, f.value); }}
+                          className="shrink-0 p-1 rounded-md transition-colors hover:bg-white/10"
+                          aria-label={`Edit ${f.label}`}
+                        >
+                          <Pencil className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.72)' }} />
+                        </button>
+                      )}
                     </div>
-                    {isLast ? (
-                      isEditing ? (
-                        /* Inline edit mode (allocation) */
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-[11px] text-amber-400">$</span>
-                          <input
-                            autoFocus
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditing(null); }}
-                            className="flex-1 rounded px-1.5 py-0.5 text-[11px] text-white focus:outline-none"
-                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(251,191,36,0.3)' }}
-                          />
-                          <button onClick={() => commitEdit(i)} className="text-emerald-400 hover:text-emerald-300"><Check className="h-3 w-3" /></button>
-                        </div>
-                      ) : (
-                        /* Value display with pencil (allocation) */
-                        <div className="flex items-center gap-1 mt-0.5 group">
-                          <span className="text-[11px] text-amber-400">$</span>
-                          <span className="text-[11px] truncate"
-                            style={{
-                              color: !f.value ? 'rgba(255,255,255,0.2)' : checks[i] ? '#4ade80' : 'rgba(255,255,255,0.7)',
-                              textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.25)' : 'none',
-                            }}>
-                            {(f.value || '').replace(/^\s*\$/, '').trim() || '—'}
-                          </span>
-                          <button onClick={(e) => { e.stopPropagation(); startEdit(i, f.value); }}
-                            className="shrink-0 opacity-30 hover:opacity-100 transition-opacity">
-                            <Pencil className="h-2.5 w-2.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
-                          </button>
-                        </div>
-                      )
-                    ) : isEditing ? (
-                      /* Inline edit mode */
-                      <div className="flex items-center gap-1 mt-0.5">
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        {isLast && <span className="text-[12px] text-amber-300">$</span>}
                         <input
                           autoFocus
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditing(null); }}
-                          className="flex-1 rounded px-1.5 py-0.5 text-[11px] text-white focus:outline-none"
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.4)' }}
-                        />
-                        <button onClick={() => commitEdit(i)} className="text-emerald-400 hover:text-emerald-300"><Check className="h-3 w-3" /></button>
-                      </div>
-                    ) : (
-                      /* Value display with pencil */
-                      <div className="flex items-center gap-1 mt-0.5 group">
-                        <span className="text-[11px] truncate"
+                          className="flex-1 rounded-md px-2 py-1.5 text-[12px] text-white focus:outline-none"
                           style={{
-                            color: !f.value || f.value === '—' ? 'rgba(255,255,255,0.2)' : checks[i] ? '#4ade80' : 'rgba(255,255,255,0.7)',
-                            textShadow: checks[i] ? '0 0 6px rgba(74,222,128,0.25)' : 'none',
-                          }}>
-                          {f.value || '—'}
-                        </span>
-                        <button onClick={(e) => { e.stopPropagation(); startEdit(i, f.value); }}
-                          className="shrink-0 opacity-30 hover:opacity-100 transition-opacity">
-                          <Pencil className="h-2.5 w-2.5" style={{ color: 'rgba(255,255,255,0.5)' }} />
+                            background: 'rgba(255,255,255,0.08)',
+                            border: isLast ? '1px solid rgba(251,191,36,0.35)' : '1px solid rgba(167,139,250,0.45)',
+                          }}
+                        />
+                        <button onClick={() => commitEdit(i)} className="text-emerald-400 hover:text-emerald-300">
+                          <Check className="h-3.5 w-3.5" />
                         </button>
                       </div>
+                    ) : (
+                      <p
+                        className="mt-2 text-[12px] leading-5 whitespace-normal break-words"
+                        style={{ color: displayValue === '—' ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.95)' }}
+                      >
+                        {displayValue}
+                      </p>
                     )}
                   </div>
                 </div>
