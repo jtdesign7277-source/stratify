@@ -14,7 +14,7 @@ const STRATEGY_PRESETS = [
 
 const PANEL_WIDTHS = { full: 480, half: 280, collapsed: 40 };
 
-const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange }) => {
+const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wizardPrompt, onWizardPromptConsumed }) => {
   const { messages, sendMessage, isLoading, currentStrategy, clearChat } = useSophiaChat();
   const [input, setInput] = useState('');
   const [selectedPreset, setSelectedPreset] = useState('');
@@ -45,6 +45,14 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange }) => {
       onStrategyGenerated(currentStrategy);
     }
   }, [currentStrategy, onStrategyGenerated]);
+
+  // Auto-send wizard prompt when received from BacktestWizard
+  useEffect(() => {
+    if (wizardPrompt && !isLoading) {
+      sendMessage(wizardPrompt);
+      onWizardPromptConsumed && onWizardPromptConsumed();
+    }
+  }, [wizardPrompt]);
 
   const cyclePanel = () => setPanelState(prev => prev === 'full' ? 'half' : prev === 'half' ? 'collapsed' : 'full');
   const expandPanel = () => setPanelState('full');
@@ -158,23 +166,23 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange }) => {
       {/* Quick Build - only in full mode */}
       {panelState === 'full' && (
         <div className="px-3 py-2 border-b border-[#1f1f1f] flex gap-2">
+          <button
+            onClick={() => onOpenWizard && onOpenWizard()}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/[0.08] hover:border-emerald-500/40 transition-all"
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            Build Strategy
+          </button>
           <select
             value={selectedPreset}
-            onChange={(e) => setSelectedPreset(e.target.value)}
+            onChange={(e) => { setSelectedPreset(e.target.value); if (e.target.value) sendMessage(e.target.value); setSelectedPreset(''); }}
             className="flex-1 bg-[#111] border border-[#1f1f1f] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-emerald-500"
           >
-            <option value="">Select strategy preset...</option>
+            <option value="">Quick preset...</option>
             {STRATEGY_PRESETS.map((p, i) => (
               <option key={i} value={p.prompt}>{p.label}</option>
             ))}
           </select>
-          <button
-            onClick={handleQuickBuild}
-            disabled={!selectedPreset || isLoading}
-            className="px-3 py-1.5 text-emerald-400 text-xs font-semibold hover:text-emerald-300 disabled:text-gray-600 transition-colors"
-          >
-            🚀 Build
-          </button>
         </div>
       )}
 

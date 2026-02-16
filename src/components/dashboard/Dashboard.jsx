@@ -24,6 +24,7 @@ import StrategiesPage from './StrategiesPage';
 import ProGate from '../ProGate';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
+import BacktestWizard from './BacktestWizard';
 import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import Home from './Home';
@@ -546,6 +547,7 @@ export default function Dashboard({
   const [isGrokPanelCollapsed, setIsGrokPanelCollapsed] = useState(false);
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
   const [sophiaStrategy, setSophiaStrategy] = useState(null);
+  const [sophiaWizardPrompt, setSophiaWizardPrompt] = useState(null);
   const [currentMarketStatus, setCurrentMarketStatus] = useState(() => getMarketStatus());
   const [nextMarketOpenAt, setNextMarketOpenAt] = useState(() => getNextMarketOpen());
   const [allocationPrompt, setAllocationPrompt] = useState(null);
@@ -1744,6 +1746,16 @@ export default function Dashboard({
           )}
           {activeTab === 'advanced' && <AdvancedChartsPage />}
           {activeTab === 'grok' && <DemoPanel />}
+          {activeTab === 'backtest-wizard' && (
+            <BacktestWizard
+              onSubmit={(prompt) => {
+                // Send the wizard prompt to Sophia via the SophiaPanel's chat
+                setSophiaWizardPrompt(prompt);
+                setActiveTab('sophia-output');
+              }}
+              onClose={() => setActiveTab('builder')}
+            />
+          )}
           {activeTab === 'sophia-output' && (
             <StrategyOutput
               strategy={sophiaStrategy}
@@ -1833,6 +1845,9 @@ export default function Dashboard({
             setSophiaStrategy(strategy);
             setActiveTab('sophia-output');
           }}
+          onOpenWizard={() => setActiveTab('backtest-wizard')}
+          wizardPrompt={sophiaWizardPrompt}
+          onWizardPromptConsumed={() => setSophiaWizardPrompt(null)}
         />
       </div>
       <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
