@@ -25,25 +25,35 @@ export function useAlpacaData() {
         return;
       }
 
-      const [acctRes, posRes] = await Promise.all([
-        fetch('/api/account', { headers }),
-        fetch('/api/positions', { headers }),
-      ]);
+      // Try Alpaca first, then Webull
+      let acctRes = await fetch('/api/account', { headers });
+      let posRes = await fetch('/api/positions', { headers });
+      let broker = 'alpaca';
 
+      // If Alpaca not connected, try Webull
       if (acctRes.status === 401) {
         const body = await acctRes.json().catch(() => ({}));
         if (body.error === 'not_connected') {
-          setBrokerConnected(false);
-          setAccount(null);
-          setPositions([]);
-          setLoading(false);
-          return;
+          acctRes = await fetch('/api/webull-account', { headers });
+          posRes = await fetch('/api/webull-positions', { headers });
+          broker = 'webull';
+
+          if (acctRes.status === 401) {
+            const wbBody = await acctRes.json().catch(() => ({}));
+            if (wbBody.error === 'not_connected') {
+              setBrokerConnected(false);
+              setAccount(null);
+              setPositions([]);
+              setLoading(false);
+              return;
+            }
+          }
         }
       }
 
       if (acctRes.ok) {
         const acctData = await acctRes.json();
-        setAccount(acctData);
+        setAccount({ ...acctData, broker });
         setBrokerConnected(true);
       }
 
@@ -51,22 +61,23 @@ export function useAlpacaData() {
         const posData = await posRes.json();
         const normalized = (Array.isArray(posData) ? posData : []).map((p) => ({
           symbol: p.symbol,
-          qty: Number(p.qty),
-          shares: Number(p.qty),
-          avg_entry_price: Number(p.avg_entry_price),
-          avgCost: Number(p.avg_entry_price),
-          current_price: Number(p.current_price),
-          currentPrice: Number(p.current_price),
-          market_value: Number(p.market_value),
-          marketValue: Number(p.market_value),
-          unrealized_pl: Number(p.unrealized_pl),
-          unrealized_plpc: Number(p.unrealized_plpc),
-          cost_basis: Number(p.cost_basis),
-          change_today: Number(p.change_today),
-          side: p.side,
-          asset_class: p.asset_class,
+          qty: Number(p.qty || p.shares || 0),
+          shares: Number(p.qty || p.shares || 0),
+          avg_entry_price: Number(p.avg_entry_price || p.avgCost || 0),
+          avgCost: Number(p.avg_entry_price || p.avgCost || 0),
+          current_price: Number(p.current_price || p.currentPrice || 0),
+          currentPrice: Number(p.current_price || p.currentPrice || 0),
+          market_value: Number(p.market_value || p.marketValue || 0),
+          marketValue: Number(p.market_value || p.marketValue || 0),
+          unrealized_pl: Number(p.unrealized_pl || 0),
+          unrealized_plpc: Number(p.unrealized_plpc || 0),
+          cost_basis: Number(p.cost_basis || 0),
+          change_today: Number(p.change_today || 0),
+          side: p.side || 'long',
+          asset_class: p.asset_class || 'us_equity',
           asset_id: p.asset_id,
           exchange: p.exchange,
+          broker: p.broker || broker,
         }));
         setPositions(normalized);
       }

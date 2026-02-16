@@ -84,5 +84,51 @@ export default async function handler(req, res) {
     }
   }
 
+  // Webull connection
+  if (broker === 'webull') {
+    try {
+      const { getWebullToken, webullRequest } = await import('./lib/webull-sign.js');
+
+      // Test by getting a token
+      const token = await getWebullToken(api_key, api_secret);
+      if (!token) {
+        return res.status(400).json({ error: 'Webull connection failed: could not obtain access token' });
+      }
+
+      // Try to get account list
+      const accountsData = await webullRequest(api_key, api_secret, 'GET', '/api/trade/account/v2/list');
+      const accounts = accountsData?.data || accountsData || [];
+      const account = Array.isArray(accounts) ? accounts[0] : accounts;
+
+      // Save to Supabase (Webull doesn't have paper mode concept)
+      const { error: upsertError } = await supabase
+        .from('broker_connections')
+        .upsert(
+          {
+            user_id: user.id,
+            broker,
+            api_key,
+            api_secret,
+            is_paper: false,
+          },
+          { onConflict: 'user_id,broker' }
+        );
+
+      if (upsertError) {
+        return res.status(500).json({ error: `Failed to save: ${upsertError.message}` });
+      }
+
+      return res.status(200).json({
+        success: true,
+        broker,
+        account_id: account?.account_id || 'connected',
+        status: 'active',
+        is_paper: false,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: `Webull connection failed: ${err.message}` });
+    }
+  }
+
   return res.status(400).json({ error: `${broker} connection not yet supported` });
 }
