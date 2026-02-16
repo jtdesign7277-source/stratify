@@ -15,12 +15,7 @@ const BROKERS = [
     info: 'Keys never expire. Generate separate keys for paper and live trading.',
     hasPaperToggle: true,
     description: 'Commission-free stock & crypto trading API',
-    logoBg: 'bg-yellow-500',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <path d="M8 22V12l8-4 8 4v10l-8 4-8-4z" fill="#000" opacity="0.9"/>
-      </svg>
-    ),
+    logo: '/broker-logos/alpaca.png',
   },
   {
     id: 'tradier',
@@ -35,12 +30,7 @@ const BROKERS = [
     info: 'Simple REST API. Keys don\'t expire. Stocks, options, ETFs.',
     hasPaperToggle: true,
     description: 'Stocks, options & ETFs via REST API',
-    logoBg: 'bg-purple-600',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <path d="M8 12h16M16 12v12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-      </svg>
-    ),
+    logo: '/broker-logos/tradier.png',
   },
   {
     id: 'webull',
@@ -56,12 +46,7 @@ const BROKERS = [
     info: '⚠️ Webull keys expire every 1-7 days and must be regenerated. API access requires approval (1-2 business days). Go to Account Center → API Management → My Application to apply.',
     hasPaperToggle: true,
     description: 'Zero-commission stock & options trading',
-    logoBg: 'bg-blue-800',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <path d="M10 20 C10 14, 16 8, 22 14" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      </svg>
-    ),
+    logo: '/broker-logos/webull.png',
   },
   {
     id: 'interactive_brokers',
@@ -76,12 +61,7 @@ const BROKERS = [
     info: 'Supports stocks, options, futures, forex. Requires TWS or Client Portal Gateway running.',
     hasPaperToggle: true,
     description: 'Stocks, options, futures & forex',
-    logoBg: 'bg-red-700',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <text x="8" y="22" fill="#fff" fontSize="16" fontWeight="bold" fontFamily="sans-serif">IB</text>
-      </svg>
-    ),
+    logo: '/broker-logos/ib.png',
   },
   {
     id: 'td_ameritrade',
@@ -96,12 +76,7 @@ const BROKERS = [
     info: 'Largest US retail broker. OAuth authentication required.',
     hasPaperToggle: false,
     description: 'OAuth-based stock & options trading',
-    logoBg: 'bg-green-700',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <text x="6" y="22" fill="#fff" fontSize="14" fontWeight="bold" fontFamily="sans-serif">TD</text>
-      </svg>
-    ),
+    logo: '/broker-logos/schwab.png',
   },
   {
     id: 'ninjatrader',
@@ -116,12 +91,7 @@ const BROKERS = [
     info: '⚠️ Futures & forex only, not stocks. Requires NinjaTrader desktop platform running locally.',
     hasPaperToggle: false,
     description: 'Futures & forex trading platform',
-    logoBg: 'bg-orange-600',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <path d="M10 22l4-14 4 8 4-6" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
+    logo: '/broker-logos/ninjatrader.png',
   },
   {
     id: 'coinbase',
@@ -136,13 +106,7 @@ const BROKERS = [
     info: 'Crypto trading only. Supports BTC, ETH, SOL, and 200+ tokens.',
     hasPaperToggle: false,
     description: 'Crypto trading — BTC, ETH, SOL & more',
-    logoBg: 'bg-blue-600',
-    logoIcon: (
-      <svg className="w-6 h-6" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="8" stroke="#fff" strokeWidth="2.5" fill="none"/>
-        <path d="M14 13h5M14 19h5" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
+    logo: '/broker-logos/coinbase.png',
   },
 ];
 
@@ -272,8 +236,8 @@ const BrokerConnect = ({ onConnected }) => {
                     isComingSoon ? 'opacity-50 cursor-default' : `${b.hoverBorder} cursor-pointer`
                   } transition-colors text-left`}
                 >
-                  <div className={`w-10 h-10 ${b.logoBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                    {b.logoIcon}
+                  <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 p-1.5">
+                    <img src={b.logo} alt={b.name} className="w-6 h-6 object-contain" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
