@@ -5,6 +5,7 @@ import LandingPage from './components/dashboard/LandingPage';
 import SignUpPage from './components/auth/SignUpPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData, usePortfolio } from './store/StratifyProvider';
+import { useAlpacaData } from './hooks/useAlpacaData';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from "./components/dashboard/BlueSkyFeed";
@@ -973,36 +974,52 @@ function StratifyAppContent() {
   const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
   const marketData = useMarketData();
   const portfolio = usePortfolio();
+  const alpaca = useAlpacaData();
 
-  const portfolioPositions = portfolio?.positions || [];
-  const derivedPositions = portfolioPositions.map((position) => {
-    const shares = Number(position.shares ?? position.qty ?? 0);
-    const avgCost = Number(position.avgCost ?? position.avg_entry_price ?? 0);
-    const currentPrice = Number(position.currentPrice ?? position.current_price ?? avgCost ?? 0);
-    const pnl = Number(position.pnl ?? position.unrealized_pl ?? 0);
-    const pnlPercent = Number(position.pnlPercent ?? (position.unrealized_plpc ?? 0) * 100 ?? 0);
-    const marketValue = Number.isFinite(currentPrice) && Number.isFinite(shares) ? currentPrice * shares : 0;
+  // Use real Alpaca data when available, fall back to paper trading
+  const hasAlpacaData = alpaca.account && !alpaca.error;
 
-    return {
-      ...position,
-      qty: shares,
-      avg_entry_price: avgCost,
-      current_price: currentPrice,
-      market_value: marketValue,
-      unrealized_pl: pnl,
-      unrealized_plpc: Number.isFinite(pnlPercent) ? pnlPercent / 100 : 0,
-    };
-  });
+  const derivedPositions = hasAlpacaData
+    ? alpaca.positions
+    : (portfolio?.positions || []).map((position) => {
+        const shares = Number(position.shares ?? position.qty ?? 0);
+        const avgCost = Number(position.avgCost ?? position.avg_entry_price ?? 0);
+        const currentPrice = Number(position.currentPrice ?? position.current_price ?? avgCost ?? 0);
+        const pnl = Number(position.pnl ?? position.unrealized_pl ?? 0);
+        const pnlPercent = Number(position.pnlPercent ?? (position.unrealized_plpc ?? 0) * 100 ?? 0);
+        const marketValue = Number.isFinite(currentPrice) && Number.isFinite(shares) ? currentPrice * shares : 0;
+
+        return {
+          ...position,
+          qty: shares,
+          avg_entry_price: avgCost,
+          current_price: currentPrice,
+          market_value: marketValue,
+          unrealized_pl: pnl,
+          unrealized_plpc: Number.isFinite(pnlPercent) ? pnlPercent / 100 : 0,
+        };
+      });
 
   const stocks = marketData?.prices ? Array.from(marketData.prices.values()) : [];
-  const account = {
-    equity: portfolio?.totalValue ?? 0,
-    cash: portfolio?.cash ?? 0,
-    buying_power: portfolio?.cash ?? 0,
-    daily_pnl: portfolio?.todayPnL ?? 0,
-    unrealized_pl: portfolio?.todayPnL ?? 0,
-    realized_pl: 0,
-  };
+  const account = hasAlpacaData
+    ? {
+        equity: Number(alpaca.account.equity) || 0,
+        cash: Number(alpaca.account.cash) || 0,
+        buying_power: Number(alpaca.account.buying_power) || 0,
+        daily_pnl: Number(alpaca.account.equity) - Number(alpaca.account.last_equity) || 0,
+        unrealized_pl: Number(alpaca.account.equity) - Number(alpaca.account.last_equity) || 0,
+        realized_pl: 0,
+        last_equity: Number(alpaca.account.last_equity) || 0,
+        portfolio_value: Number(alpaca.account.portfolio_value) || 0,
+      }
+    : {
+        equity: portfolio?.totalValue ?? 0,
+        cash: portfolio?.cash ?? 0,
+        buying_power: portfolio?.cash ?? 0,
+        daily_pnl: portfolio?.todayPnL ?? 0,
+        unrealized_pl: portfolio?.todayPnL ?? 0,
+        realized_pl: 0,
+      };
 
   const openAuth = () => {
     setCurrentPage('auth');
