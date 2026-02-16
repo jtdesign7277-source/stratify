@@ -115,9 +115,12 @@ const LiveAlertsTicker = () => {
           display: inline-flex;
           align-items: center;
           white-space: nowrap;
-          animation: ticker-scroll 35s linear infinite;
+          animation: ticker-scroll 80s linear infinite;
         }
         .live-ticker-content:hover {
+          animation-play-state: paused;
+        }
+        .live-ticker-track:hover .live-ticker-content {
           animation-play-state: paused;
         }
       `}</style>
