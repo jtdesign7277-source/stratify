@@ -5,14 +5,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const ALPACA_BASE = 'https://paper-api.alpaca.markets';
+const ALPACA_BASE = process.env.ALPACA_BASE_URL || 'https://paper-api.alpaca.markets';
 const ALPACA_DATA = 'https://data.alpaca.markets';
 
 async function getAlpacaAccount(apiKey, secretKey) {
   const res = await fetch(`${ALPACA_BASE}/v2/account`, {
     headers: { 'APCA-API-KEY-ID': apiKey, 'APCA-API-SECRET-KEY': secretKey },
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error('Alpaca account error:', res.status, await res.text().catch(() => ''));
+    return null;
+  }
   return res.json();
 }
 
@@ -108,7 +111,7 @@ export default async function handler(req, res) {
       getAlpacaPositions(apiKey, secretKey),
     ]);
 
-    if (!account) return res.status(502).json({ error: 'Failed to fetch Alpaca account' });
+    if (!account) return res.status(502).json({ error: `Failed to fetch Alpaca account from ${ALPACA_BASE}. Check ALPACA_API_KEY and ALPACA_BASE_URL env vars.` });
 
     // Fetch recent bars for each position
     const barsMap = {};
