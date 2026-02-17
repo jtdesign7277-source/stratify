@@ -15,6 +15,7 @@ import StockDetailView from './StockDetailView';
 import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
+import MarketIntelPage from './MarketIntelPage';
 import SettingsPage from './SettingsPage';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import { StrategyDetailModal, STRATEGIES } from '../strategies/FeaturedStrategies';
@@ -1614,6 +1615,21 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <NewsletterPage themeClasses={themeClasses} onClose={() => setActiveSection('watchlist')} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Market Intel Full Page Overlay - Smooth slide in */}
+          <AnimatePresence>
+            {activeSection === 'market-intel' && (
+              <motion.div
+                className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <MarketIntelPage onClose={() => setActiveSection('watchlist')} />
               </motion.div>
             )}
           </AnimatePresence>

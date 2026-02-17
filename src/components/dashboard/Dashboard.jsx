@@ -19,6 +19,7 @@ import StockDetailView from './StockDetailView';
 import NewsletterModal from './NewsletterModal';
 import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
+import MarketIntelPage from './MarketIntelPage';
 import SettingsPage from './SettingsPage';
 import StrategiesPage from './StrategiesPage';
 import ProGate from '../ProGate';
@@ -537,6 +538,7 @@ export default function Dashboard({
   const [autoBacktestStrategy, setAutoBacktestStrategy] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [showNewsletter, setShowNewsletter] = useState(false);
+  const [showMarketIntel, setShowMarketIntel] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState(() => {
     try {
@@ -1854,7 +1856,16 @@ export default function Dashboard({
           onWizardPromptConsumed={() => setSophiaWizardPrompt(null)}
         />
       </div>
-      <StatusBar connectionStatus={connectionStatus} theme={theme} themeClasses={themeClasses} onOpenNewsletter={() => setShowNewsletter(true)} />
+      <StatusBar
+        connectionStatus={connectionStatus}
+        theme={theme}
+        themeClasses={themeClasses}
+        onOpenNewsletter={() => setShowNewsletter(true)}
+        onOpenMarketIntel={() => {
+          setActiveSection('market-intel');
+          setShowMarketIntel(true);
+        }}
+      />
 
       {showStrategyLimitModal && (
         <div
@@ -1980,6 +1991,15 @@ export default function Dashboard({
       {showNewsletter && (
         <div className="fixed inset-0 z-50 bg-[#0a0a0a]">
           <NewsletterPage onClose={() => setShowNewsletter(false)} />
+        </div>
+      )}
+
+      {showMarketIntel && (
+        <div className="fixed inset-0 z-50 bg-[#0a0a0a]">
+          <MarketIntelPage onClose={() => {
+            setShowMarketIntel(false);
+            setActiveSection('watchlist');
+          }} />
         </div>
       )}
 

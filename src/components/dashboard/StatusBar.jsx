@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Radio } from 'lucide-react';
 import MarketStatusIndicator from './MarketStatusIndicator';
 import { getMarketStatus } from '../../lib/marketHours';
 
@@ -8,6 +9,7 @@ const OPEN_SECONDS = 9 * 3600 + 30 * 60;
 const CLOSE_SECONDS = 16 * 3600;
 const PRE_OPEN_START = OPEN_SECONDS - 3600;
 const PRE_CLOSE_START = CLOSE_SECONDS - 3600;
+const MARKET_INTEL_LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
 
 const etFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: EASTERN_TIMEZONE,
@@ -32,14 +34,66 @@ const formatCountdown = (totalSeconds) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-export default function StatusBar({ connectionStatus, theme, themeClasses, onOpenNewsletter }) {
+export default function StatusBar({
+  connectionStatus,
+  theme,
+  themeClasses,
+  onOpenNewsletter,
+  onOpenMarketIntel,
+}) {
   const [now, setNow] = useState(() => new Date());
+  const [latestIntelTimestamp, setLatestIntelTimestamp] = useState(0);
+  const [hasUnreadIntel, setHasUnreadIntel] = useState(false);
   
   useEffect(() => {
     const tick = () => setNow(new Date());
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncMarketIntelStatus = async () => {
+      try {
+        const response = await fetch('/api/market-intel');
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        if (!Array.isArray(payload) || payload.length === 0) {
+          if (!cancelled) {
+            setLatestIntelTimestamp(0);
+            setHasUnreadIntel(false);
+          }
+          return;
+        }
+
+        const latestTimestamp = Date.parse(String(payload[0]?.created_at || ''));
+        if (!Number.isFinite(latestTimestamp) || latestTimestamp <= 0) return;
+
+        let lastViewedTimestamp = 0;
+        try {
+          lastViewedTimestamp = Number(localStorage.getItem(MARKET_INTEL_LAST_VIEWED_KEY) || 0);
+        } catch {}
+
+        if (!cancelled) {
+          setLatestIntelTimestamp(latestTimestamp);
+          setHasUnreadIntel(latestTimestamp > lastViewedTimestamp);
+        }
+      } catch {}
+    };
+
+    syncMarketIntelStatus();
+    const interval = setInterval(syncMarketIntelStatus, 120000);
+    const handleWindowFocus = () => syncMarketIntelStatus();
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
   }, []);
 
   const currentTime = useMemo(() => {
@@ -94,6 +148,15 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
 
   const status = statusConfig[connectionStatus] || statusConfig.disconnected;
 
+  const handleOpenMarketIntel = () => {
+    const viewedTimestamp = latestIntelTimestamp || Date.now();
+    try {
+      localStorage.setItem(MARKET_INTEL_LAST_VIEWED_KEY, String(viewedTimestamp));
+    } catch {}
+    setHasUnreadIntel(false);
+    onOpenMarketIntel?.();
+  };
+
   return (
     <div className={`flex items-center justify-between px-4 py-2 ${themeClasses.surfaceElevated} border-t ${themeClasses.border}`}>
       <div className="flex items-center gap-4">
@@ -107,6 +170,23 @@ export default function StatusBar({ connectionStatus, theme, themeClasses, onOpe
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Newsletter
+          </button>
+          <button
+            onClick={handleOpenMarketIntel}
+            className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(16,185,129,0.08)] border backdrop-blur-md ${
+              hasUnreadIntel
+                ? 'text-emerald-200 border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.25)]'
+                : 'text-emerald-300/85 hover:text-emerald-200 border-[rgba(16,185,129,0.2)]'
+            }`}
+          >
+            <Radio className={`w-3 h-3 ${hasUnreadIntel ? 'animate-pulse' : ''}`} />
+            Market Intel
+            {hasUnreadIntel && (
+              <>
+                <span className="absolute -inset-0.5 rounded-full border border-emerald-400/30 animate-pulse pointer-events-none" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
+              </>
+            )}
           </button>
         </div>
       </div>
