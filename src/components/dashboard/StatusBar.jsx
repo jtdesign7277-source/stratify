@@ -1,6 +1,6 @@
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Radio, Zap } from 'lucide-react';
+import { Play, Radio, Square, Volume2, Zap } from 'lucide-react';
 import SophiaCopilot from './SophiaCopilot';
 import MarketStatusIndicator from './MarketStatusIndicator';
 import { getMarketStatus } from '../../lib/marketHours';
@@ -83,6 +83,57 @@ export default function StatusBar({
   const [hasUnreadIntel, setHasUnreadIntel] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [hasNewInsight, setHasNewInsight] = useState(false);
+  const [sophiaPlaying, setSophiaPlaying] = useState(false);
+  const [sophiaLoading, setSophiaLoading] = useState(false);
+  const sophiaAudioRef = useRef(null);
+
+  const handlePlaySophia = useCallback(async () => {
+    if (sophiaAudioRef.current) {
+      sophiaAudioRef.current.pause();
+      sophiaAudioRef.current = null;
+      setSophiaPlaying(false);
+      return;
+    }
+
+    setSophiaLoading(true);
+    try {
+      const res = await fetch('/api/sophia-copilot');
+      if (!res.ok) throw new Error('Failed');
+      const alerts = await res.json();
+      if (!Array.isArray(alerts) || alerts.length === 0) {
+        setSophiaLoading(false);
+        return;
+      }
+
+      const text = alerts
+        .slice(0, 5)
+        .map((a) => `${a.title || ''}: ${a.message}`)
+        .join('. ')
+        .slice(0, 800);
+
+      const speakRes = await fetch('/api/sophia-speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!speakRes.ok) throw new Error('TTS failed');
+      const data = await speakRes.json();
+      if (!data.audio_url) throw new Error('No audio');
+
+      const audio = new Audio(data.audio_url);
+      sophiaAudioRef.current = audio;
+      audio.addEventListener('play', () => setSophiaPlaying(true));
+      audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+      audio.addEventListener('pause', () => setSophiaPlaying(false));
+      audio.addEventListener('error', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+      await audio.play();
+    } catch (err) {
+      console.error('Sophia play error:', err);
+      setSophiaPlaying(false);
+    } finally {
+      setSophiaLoading(false);
+    }
+  }, []);
 
   // Poll for new Sophia insights every 5 min
   useEffect(() => {
@@ -281,7 +332,30 @@ export default function StatusBar({
               </>
             )}
           </button>
-          <div className="relative">
+          <div className="relative flex items-center gap-1">
+            {/* Play Sophia Voice */}
+            <button
+              onClick={handlePlaySophia}
+              disabled={sophiaLoading}
+              className={`flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
+                sophiaPlaying
+                  ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/15 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : sophiaLoading
+                    ? 'text-zinc-500 border-[#1f1f1f] bg-[#121212] cursor-wait'
+                    : 'text-amber-400 border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] hover:bg-[rgba(245,158,11,0.15)]'
+              }`}
+              title={sophiaPlaying ? 'Stop Sophia' : 'Listen to Sophia'}
+            >
+              {sophiaLoading ? (
+                <Volume2 className="w-3 h-3 animate-pulse" />
+              ) : sophiaPlaying ? (
+                <Square className="w-2.5 h-2.5 fill-current" />
+              ) : (
+                <Play className="w-3 h-3 fill-current" />
+              )}
+            </button>
+
+            {/* Copilot Dropdown */}
             <button
               onClick={() => setCopilotOpen((prev) => !prev)}
               className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${

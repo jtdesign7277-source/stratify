@@ -251,8 +251,13 @@ function applyKeyTradeSetupsSection(raw, values = []) {
 }
 
 function normalizeEditorContent(raw) {
-  const text = String(raw ?? '').replace(/\r\n/g, '\n');
-  const lines = text.split('\n');
+  const normalizeInvisible = (value = '') =>
+    String(value)
+      .replace(/\u00A0/g, ' ')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  const text = normalizeInvisible(String(raw ?? '')).replace(/\r\n/g, '\n');
+  const lines = text.split('\n').map((line) => normalizeInvisible(line));
   const compact = [];
   let blankRun = 0;
 
@@ -527,6 +532,21 @@ export default function StrategyOutput({
       clearTimeout(editorSavedNoticeTimeoutRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isEditingStrategyText || isPreviewingEdit) return;
+    const timeoutId = setTimeout(() => {
+      if (editorTextareaRef.current) {
+        editorTextareaRef.current.scrollTop = 0;
+        editorTextareaRef.current.scrollLeft = 0;
+      }
+      if (editorHighlightRef.current) {
+        editorHighlightRef.current.scrollTop = 0;
+        editorHighlightRef.current.scrollLeft = 0;
+      }
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [isEditingStrategyText, isPreviewingEdit]);
 
   const allChecked = checks.every(Boolean);
   const allPreChecked = preChecks.every(Boolean);
