@@ -1,21 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
-  BookmarkCheck,
-  ChevronDown,
-  ChevronUp,
+  FolderInput,
   Link2,
   Loader2,
+  Plus,
   Search,
   Sparkles,
+  Trash2,
   X,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 import {
-  getSavedWarRoomIntel,
+  createSavedIntelFolder,
+  deleteSavedIntelFolder,
+  getSavedIntelState,
   getWarRoomFeed,
+  moveSavedWarRoomIntel,
   normalizeIntelItem,
+  removeSavedWarRoomIntel,
+  renameSavedIntelFolder,
   saveWarRoomIntel,
   setWarRoomFeed,
+  WAR_ROOM_SAVED_EVENT,
+  WAR_ROOM_STORAGE_KEYS,
 } from '../../lib/warRoomIntel';
 
 const QUICK_SCANS = [
@@ -181,6 +189,7 @@ const toSourceLinks = (sources) => {
         if (!/^https?:\/\//i.test(url)) return null;
         return { url, title: `Source ${index + 1}` };
       }
+
       if (!source || typeof source !== 'object') return null;
       const url = String(source.url || source.link || source.href || '').trim();
       if (!/^https?:\/\//i.test(url)) return null;
@@ -201,6 +210,7 @@ const tokenClassName = (token) => {
 const renderInlineText = (text, keyPrefix) => {
   const source = String(text || '');
   if (!source) return null;
+
   const parts = source.split(INLINE_TOKEN_REGEX).filter((part) => part !== '');
   if (!parts.length) return <span className="text-gray-300">{source}</span>;
 
@@ -273,14 +283,45 @@ const createStars = (count = 80) =>
 export default function WarRoom({ onClose }) {
   const [query, setQuery] = useState('');
   const [intelFeed, setIntelFeed] = useState(() => getWarRoomFeed());
-  const [savedIntel, setSavedIntel] = useState(() => getSavedWarRoomIntel());
-  const [savedExpanded, setSavedExpanded] = useState(true);
+  const [savedState, setSavedState] = useState(() => getSavedIntelState());
+  const [activeView, setActiveView] = useState('live');
+  const [selectedFolderId, setSelectedFolderId] = useState(() => getSavedIntelState().folders?.[0]?.id || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isGlitching, setIsGlitching] = useState(true);
+  const [toast, setToast] = useState('');
+
+  const [saveMenu, setSaveMenu] = useState({ cardId: null, showNewFolder: false, newFolderName: '' });
+  const [moveMenu, setMoveMenu] = useState({ cardId: null, folderId: null, showNewFolder: false, newFolderName: '' });
+  const [folderContextMenu, setFolderContextMenu] = useState(null);
+
+  const toastTimerRef = useRef(null);
+  const longPressRef = useRef({ timer: null, opened: false });
 
   const stars = useMemo(() => createStars(80), []);
-  const savedIds = useMemo(() => new Set(savedIntel.map((item) => item.id)), [savedIntel]);
+
+  const folders = useMemo(() => (Array.isArray(savedState?.folders) ? savedState.folders : []), [savedState]);
+
+  const selectedFolder = useMemo(() => {
+    if (!folders.length) return null;
+    return folders.find((folder) => folder.id === selectedFolderId) || folders[0];
+  }, [folders, selectedFolderId]);
+
+  const savedItems = useMemo(() => selectedFolder?.items || [], [selectedFolder]);
+
+  const savedIds = useMemo(() => {
+    const set = new Set();
+    folders.forEach((folder) => {
+      folder.items.forEach((item) => {
+        if (item?.id) set.add(String(item.id));
+      });
+    });
+    return set;
+  }, [folders]);
+
+  const showToast = (message) => {
+    setToast(String(message || '').trim());
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setIsGlitching(false), 200);
@@ -292,23 +333,208 @@ export default function WarRoom({ onClose }) {
   }, [intelFeed]);
 
   useEffect(() => {
-    const syncFromStorage = (event) => {
-      if (!event?.key) return;
-      if (event.key === 'stratify-war-room-feed') {
+    if (!folders.length) {
+      setSelectedFolderId(null);
+      return;
+    }
+
+    if (!selectedFolderId || !folders.some((folder) => folder.id === selectedFolderId)) {
+      setSelectedFolderId(folders[0].id);
+    }
+  }, [folders, selectedFolderId]);
+
+  useEffect(() => {
+    const onStorage = (event) => {
+      const key = event?.key;
+      if (!key) return;
+
+      if (key === WAR_ROOM_STORAGE_KEYS.feed) {
         setIntelFeed(getWarRoomFeed());
       }
-      if (event.key === 'stratify-war-room-saved') {
-        setSavedIntel(getSavedWarRoomIntel());
+
+      if (key === WAR_ROOM_STORAGE_KEYS.saved || key === WAR_ROOM_STORAGE_KEYS.legacySaved) {
+        setSavedState(getSavedIntelState());
       }
     };
 
-    window.addEventListener('storage', syncFromStorage);
-    return () => window.removeEventListener('storage', syncFromStorage);
+    const onSavedEvent = () => {
+      setSavedState(getSavedIntelState());
+    };
+
+    const onOutsideClick = (event) => {
+      const target = event.target;
+      if (!target || typeof target.closest !== 'function') return;
+
+      const inSaveMenu = Boolean(target.closest('[data-save-trigger]') || target.closest('[data-save-popover]'));
+      const inMoveMenu = Boolean(target.closest('[data-move-trigger]') || target.closest('[data-move-popover]'));
+      const inFolderContext = Boolean(
+        target.closest('[data-folder-context-trigger]') || target.closest('[data-folder-context-menu]')
+      );
+
+      if (!inSaveMenu) {
+        setSaveMenu((prev) => (prev.cardId ? { cardId: null, showNewFolder: false, newFolderName: '' } : prev));
+      }
+      if (!inMoveMenu) {
+        setMoveMenu((prev) =>
+          prev.cardId ? { cardId: null, folderId: null, showNewFolder: false, newFolderName: '' } : prev
+        );
+      }
+      if (!inFolderContext) {
+        setFolderContextMenu(null);
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(WAR_ROOM_SAVED_EVENT, onSavedEvent);
+    document.addEventListener('pointerdown', onOutsideClick);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(WAR_ROOM_SAVED_EVENT, onSavedEvent);
+      document.removeEventListener('pointerdown', onOutsideClick);
+    };
   }, []);
 
-  const handleSaveIntel = (intelCard) => {
-    const nextSaved = saveWarRoomIntel(intelCard);
-    setSavedIntel(nextSaved);
+  useEffect(() => {
+    if (!toast) return undefined;
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(''), 2000);
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, [toast]);
+
+  const syncSupabaseSave = async (item, folderName) => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+
+      await supabase.from('warroom_intel').insert({
+        user_id: userId,
+        folder_name: folderName,
+        content: String(item?.content || ''),
+        created_at: item?.savedAt || new Date().toISOString(),
+      });
+    } catch (syncError) {
+      console.warn('[WarRoom] Supabase warroom_intel sync failed:', syncError);
+    }
+  };
+
+  const handleCreateFolderOnly = (name) => {
+    const folderName = String(name || '').trim();
+    if (!folderName) return null;
+
+    const result = createSavedIntelFolder(folderName);
+    setSavedState(result.state);
+    if (result.folder?.id) setSelectedFolderId(result.folder.id);
+    return result.folder || null;
+  };
+
+  const handleSaveToFolder = async (intelCard, folderRef) => {
+    const result = saveWarRoomIntel(
+      {
+        ...intelCard,
+        title: intelCard?.title,
+        content: intelCard?.content,
+        query: intelCard?.query,
+        sources: toSourceLinks(intelCard?.sources || []),
+      },
+      folderRef
+    );
+
+    setSavedState(result.state);
+    setSaveMenu({ cardId: null, showNewFolder: false, newFolderName: '' });
+    setMoveMenu({ cardId: null, folderId: null, showNewFolder: false, newFolderName: '' });
+
+    if (result.folder?.id) setSelectedFolderId(result.folder.id);
+    showToast(`Intel saved to ${result.folder?.name || 'folder'}`);
+    await syncSupabaseSave(result.item, result.folder?.name || 'Custom');
+  };
+
+  const handleMoveToFolder = async (item, fromFolderId, toFolderRef) => {
+    const result = moveSavedWarRoomIntel(item, fromFolderId, toFolderRef);
+    if (!result?.state) return;
+
+    setSavedState(result.state);
+    setMoveMenu({ cardId: null, folderId: null, showNewFolder: false, newFolderName: '' });
+    if (result.folder?.id) setSelectedFolderId(result.folder.id);
+
+    showToast(`Intel moved to ${result.folder?.name || 'folder'}`);
+    if (result.item && result.folder?.name) {
+      await syncSupabaseSave(result.item, result.folder.name);
+    }
+  };
+
+  const handleRemoveSavedIntel = (folderId, itemId) => {
+    const result = removeSavedWarRoomIntel(itemId, folderId);
+    setSavedState(result.state);
+    setMoveMenu({ cardId: null, folderId: null, showNewFolder: false, newFolderName: '' });
+    showToast('Intel removed');
+  };
+
+  const handleRenameFolder = (folderId) => {
+    const folder = folders.find((entry) => entry.id === folderId);
+    if (!folder) return;
+
+    const nextName = window.prompt('Rename folder', folder.name);
+    if (!nextName) {
+      setFolderContextMenu(null);
+      return;
+    }
+
+    const result = renameSavedIntelFolder(folderId, nextName);
+    setSavedState(result.state);
+    if (result.error) {
+      showToast(result.error);
+    } else if (result.folder?.name) {
+      showToast(`Folder renamed to ${result.folder.name}`);
+    }
+
+    setFolderContextMenu(null);
+  };
+
+  const handleDeleteFolder = (folderId) => {
+    const folder = folders.find((entry) => entry.id === folderId);
+    if (!folder) return;
+
+    const confirmed = window.confirm(`Delete folder "${folder.name}"?`);
+    if (!confirmed) {
+      setFolderContextMenu(null);
+      return;
+    }
+
+    const result = deleteSavedIntelFolder(folderId);
+    setSavedState(result.state);
+
+    if (selectedFolderId === folderId) {
+      setSelectedFolderId(result.state?.folders?.[0]?.id || null);
+    }
+
+    showToast(`Folder deleted: ${folder.name}`);
+    setFolderContextMenu(null);
+  };
+
+  const openFolderContextMenu = (folderId, clientX, clientY) => {
+    setFolderContextMenu({ folderId, x: clientX, y: clientY });
+  };
+
+  const handleFolderTouchStart = (event, folderId) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+
+    longPressRef.current.opened = false;
+    longPressRef.current.timer = setTimeout(() => {
+      longPressRef.current.opened = true;
+      openFolderContextMenu(folderId, touch.clientX, touch.clientY);
+    }, 550);
+  };
+
+  const clearFolderLongPress = () => {
+    if (longPressRef.current.timer) {
+      clearTimeout(longPressRef.current.timer);
+      longPressRef.current.timer = null;
+    }
   };
 
   const runScan = async (inputQuery, titleOverride = '') => {
@@ -342,6 +568,7 @@ export default function WarRoom({ onClose }) {
 
       setIntelFeed((prev) => [intelCard, ...prev].slice(0, 50));
       setQuery('');
+      setActiveView('live');
     } catch (scanError) {
       setError(scanError?.message || 'Scan failed. Try again.');
     } finally {
@@ -353,6 +580,11 @@ export default function WarRoom({ onClose }) {
     event.preventDefault();
     runScan(query);
   };
+
+  const allSavedCount = useMemo(
+    () => folders.reduce((count, folder) => count + folder.items.length, 0),
+    [folders]
+  );
 
   return (
     <div className={`h-full w-full bg-[#030608] relative overflow-hidden ${isGlitching ? 'warroom-glitch' : ''}`}>
@@ -437,141 +669,420 @@ export default function WarRoom({ onClose }) {
           </button>
         </form>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
-            <section className="bg-black/30 border border-gray-800/60 rounded-xl overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setSavedExpanded((prev) => !prev)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <Bookmark className="h-4 w-4 text-amber-400" strokeWidth={1.5} />
-                  <span className="text-sm font-semibold text-white">Saved Intel</span>
-                  <span className="text-xs text-gray-500">{savedIntel.length}</span>
-                </div>
-                {savedExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-gray-500" strokeWidth={1.5} />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-gray-500" strokeWidth={1.5} />
-                )}
-              </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveView('live')}
+            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+              activeView === 'live'
+                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
+                : 'border border-gray-800 text-gray-400 hover:text-white'
+            }`}
+          >
+            Live Feed
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('saved')}
+            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+              activeView === 'saved'
+                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
+                : 'border border-gray-800 text-gray-400 hover:text-white'
+            }`}
+          >
+            Saved Intel ({allSavedCount})
+          </button>
+        </div>
 
-              {savedExpanded && (
-                <div className="px-4 pb-4 space-y-3">
-                  {savedIntel.length === 0 ? (
-                    <div className="rounded-lg border border-gray-800/70 bg-black/40 px-3 py-3 text-sm text-gray-500">
-                      No saved intel yet.
-                    </div>
-                  ) : (
-                    savedIntel.map((card) => (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {activeView === 'saved' ? (
+            <div className="h-full min-h-0 grid grid-cols-[220px_minmax(0,1fr)] gap-3">
+              <div className="rounded-xl border border-gray-800/60 bg-black/30 p-3 min-h-0 overflow-y-auto scrollbar-hide">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-white">Saved Intel</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const name = window.prompt('New folder name');
+                      if (!name) return;
+                      const folder = handleCreateFolderOnly(name);
+                      if (folder?.name) showToast(`Folder created: ${folder.name}`);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    New Folder
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  {folders.map((folder) => {
+                    const isSelected = folder.id === selectedFolder?.id;
+                    return (
+                      <button
+                        key={folder.id}
+                        type="button"
+                        data-folder-context-trigger
+                        onClick={() => {
+                          if (longPressRef.current.opened) {
+                            longPressRef.current.opened = false;
+                            return;
+                          }
+                          setSelectedFolderId(folder.id);
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          openFolderContextMenu(folder.id, event.clientX, event.clientY);
+                        }}
+                        onTouchStart={(event) => handleFolderTouchStart(event, folder.id)}
+                        onTouchEnd={clearFolderLongPress}
+                        onTouchCancel={clearFolderLongPress}
+                        className={`w-full text-gray-400 text-sm py-1.5 px-2 cursor-pointer hover:text-white transition-colors text-left flex items-center justify-between ${
+                          isSelected ? 'text-white' : ''
+                        }`}
+                      >
+                        <span className="truncate">{folder.name}</span>
+                        <span className="text-xs text-gray-600">{folder.items.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-800/60 bg-black/25 p-3 min-h-0 overflow-y-auto scrollbar-hide space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-white font-semibold text-sm">{selectedFolder?.name || 'Folder'}</h3>
+                    <p className="text-xs text-gray-600">{savedItems.length} saved items</p>
+                  </div>
+                </div>
+
+                {savedItems.length === 0 ? (
+                  <div className="rounded-lg border border-gray-800/70 bg-black/40 px-3 py-3 text-sm text-gray-500">
+                    No intel saved in this folder yet.
+                  </div>
+                ) : (
+                  savedItems.map((card) => {
+                    const sources = toSourceLinks(card.sources || []);
+                    const moveMenuOpen = moveMenu.cardId === card.id && moveMenu.folderId === selectedFolder?.id;
+
+                    return (
                       <article
                         key={`saved-${card.id}`}
-                        className="bg-black/40 backdrop-blur-sm border border-gray-800/50 border-l-2 border-l-amber-500/50 rounded-xl p-4"
+                        className="relative bg-black/40 backdrop-blur-sm border border-gray-800/50 border-l-2 border-l-amber-500/30 rounded-xl p-4"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <h3 className="text-white font-semibold">{card.title}</h3>
-                            <p className="text-gray-600 text-xs mt-1">{formatTimestamp(card.savedAt || card.createdAt)}</p>
+                            <p className="text-gray-600 text-xs mt-1">
+                              Saved {formatTimestamp(card.savedAt || card.createdAt)}
+                            </p>
                           </div>
-                          <span className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
-                            Claude Intel
-                          </span>
+
+                          <div className="relative flex items-center gap-2">
+                            <button
+                              type="button"
+                              data-move-trigger
+                              onClick={() =>
+                                setMoveMenu((prev) =>
+                                  prev.cardId === card.id && prev.folderId === selectedFolder?.id
+                                    ? { cardId: null, folderId: null, showNewFolder: false, newFolderName: '' }
+                                    : {
+                                        cardId: card.id,
+                                        folderId: selectedFolder?.id || null,
+                                        showNewFolder: false,
+                                        newFolderName: '',
+                                      }
+                                )
+                              }
+                              className="text-gray-600 hover:text-amber-400 transition-colors"
+                              title="Move to folder"
+                            >
+                              <FolderInput className="h-4 w-4" strokeWidth={1.5} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSavedIntel(selectedFolder?.id, card.id)}
+                              className="text-gray-600 hover:text-red-400 transition-colors"
+                              title="Remove"
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                            </button>
+
+                            {moveMenuOpen ? (
+                              <div
+                                data-move-popover
+                                className="absolute right-0 top-6 z-30 w-56 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-2"
+                              >
+                                <div className="text-[11px] uppercase tracking-wide text-gray-500 px-2 py-1">Move to folder</div>
+                                <div className="max-h-44 overflow-y-auto scrollbar-hide">
+                                  {folders.map((folder) => (
+                                    <button
+                                      key={`move-${card.id}-${folder.id}`}
+                                      type="button"
+                                      onClick={() => handleMoveToFolder(card, selectedFolder?.id, folder.id)}
+                                      className="w-full text-left rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                                    >
+                                      {folder.name}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                <div className="mt-1 border-t border-gray-700/60 pt-1">
+                                  {!moveMenu.showNewFolder ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setMoveMenu((prev) => ({ ...prev, showNewFolder: true, newFolderName: '' }))
+                                      }
+                                      className="w-full text-left rounded px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/10 transition-colors"
+                                    >
+                                      + New Folder
+                                    </button>
+                                  ) : (
+                                    <div className="px-2 py-1.5 space-y-1.5">
+                                      <input
+                                        value={moveMenu.newFolderName}
+                                        onChange={(event) =>
+                                          setMoveMenu((prev) => ({ ...prev, newFolderName: event.target.value }))
+                                        }
+                                        placeholder="Folder name"
+                                        className="w-full rounded border border-gray-700 bg-black/40 px-2 py-1.5 text-sm text-white placeholder:text-gray-600 outline-none"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const created = handleCreateFolderOnly(moveMenu.newFolderName);
+                                          if (created?.id) {
+                                            handleMoveToFolder(card, selectedFolder?.id, created.id);
+                                          }
+                                        }}
+                                        className="w-full rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/15"
+                                      >
+                                        Create Folder
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
+
                         <div className="mt-3 space-y-1">{renderIntelBody(card.content, `saved-${card.id}`)}</div>
+
+                        {sources.length > 0 ? (
+                          <div className="mt-4 pt-3 border-t border-gray-800/70">
+                            <div className="flex items-center gap-1.5 text-blue-400/60 text-xs mb-2">
+                              <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                              <span>Sources</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {sources.map((source, index) => (
+                                <a
+                                  key={`${card.id}-saved-source-${index}`}
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-400/60 text-xs hover:text-blue-300 underline decoration-blue-400/30"
+                                >
+                                  {source.title || `Source ${index + 1}`}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
-                    ))
-                  )}
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
+              {error ? (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
+              ) : null}
+
+              {isLoading ? (
+                <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
+                  <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
+                  <span className="text-amber-300 text-sm animate-pulse">Scanning...</span>
+                  <span className="inline-flex items-center gap-1 text-amber-500/80 text-xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80 animate-pulse [animation-delay:180ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400/60 animate-pulse [animation-delay:360ms]" />
+                  </span>
                 </div>
-              )}
-            </section>
+              ) : null}
 
-            {error ? (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
-            ) : null}
+              {intelFeed.length === 0 && !isLoading ? (
+                <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
+                  <Sparkles className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
+                  <h3 className="text-white font-semibold">No intel scans yet</h3>
+                  <p className="text-sm text-gray-500 mt-1">Run a quick scan or enter a custom market query.</p>
+                </div>
+              ) : null}
 
-            {isLoading ? (
-              <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
-                <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
-                <span className="text-amber-300 text-sm animate-pulse">Scanning...</span>
-                <span className="inline-flex items-center gap-1 text-amber-500/80 text-xs">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80 animate-pulse [animation-delay:180ms]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400/60 animate-pulse [animation-delay:360ms]" />
-                </span>
-              </div>
-            ) : null}
+              {intelFeed.map((card) => {
+                const sources = toSourceLinks(card.sources);
+                const isSaved = savedIds.has(String(card.id));
+                const menuOpen = saveMenu.cardId === card.id;
 
-            {intelFeed.length === 0 && !isLoading ? (
-              <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
-                <Sparkles className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
-                <h3 className="text-white font-semibold">No intel scans yet</h3>
-                <p className="text-sm text-gray-500 mt-1">Run a quick scan or enter a custom market query.</p>
-              </div>
-            ) : null}
+                return (
+                  <article
+                    key={card.id}
+                    className="relative bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(147,51,234,0.1)] transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-white font-semibold">{card.title}</h3>
+                        <p className="text-gray-600 text-xs mt-1">{formatTimestamp(card.createdAt)}</p>
+                      </div>
 
-            {intelFeed.map((card) => {
-              const sources = toSourceLinks(card.sources);
-              const isSaved = savedIds.has(card.id);
-              return (
-                <article
-                  key={card.id}
-                  className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(147,51,234,0.1)] transition-all"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-white font-semibold">{card.title}</h3>
-                      <p className="text-gray-600 text-xs mt-1">{formatTimestamp(card.createdAt)}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
                       <span className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
                         Claude Intel
                       </span>
+                    </div>
+
+                    <div className="absolute top-4 right-4">
                       <button
                         type="button"
-                        onClick={() => handleSaveIntel(card)}
+                        data-save-trigger
+                        onClick={() =>
+                          setSaveMenu((prev) =>
+                            prev.cardId === card.id
+                              ? { cardId: null, showNewFolder: false, newFolderName: '' }
+                              : { cardId: card.id, showNewFolder: false, newFolderName: '' }
+                          )
+                        }
                         className="text-gray-600 hover:text-amber-400 transition-colors"
                         title="Save Intel"
                         aria-label="Save Intel"
                       >
-                        {isSaved ? (
-                          <BookmarkCheck className="h-4 w-4" strokeWidth={1.5} />
-                        ) : (
-                          <Bookmark className="h-4 w-4" strokeWidth={1.5} />
-                        )}
+                        <Bookmark
+                          className={`h-4 w-4 ${isSaved ? 'text-amber-400 fill-amber-400' : 'text-gray-600 hover:text-amber-400'}`}
+                          strokeWidth={1.5}
+                        />
                       </button>
-                    </div>
-                  </div>
 
-                  <div className="mt-3 space-y-1">{renderIntelBody(card.content, `feed-${card.id}`)}</div>
+                      {menuOpen ? (
+                        <div
+                          data-save-popover
+                          className="absolute right-0 top-6 z-30 w-56 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-2"
+                        >
+                          <div className="text-[11px] uppercase tracking-wide text-gray-500 px-2 py-1">Save to folder</div>
+                          <div className="max-h-44 overflow-y-auto scrollbar-hide">
+                            {folders.map((folder) => (
+                              <button
+                                key={`save-${card.id}-${folder.id}`}
+                                type="button"
+                                onClick={() => handleSaveToFolder(card, folder.id)}
+                                className="w-full text-left rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                              >
+                                {folder.name}
+                              </button>
+                            ))}
+                          </div>
 
-                  {sources.length > 0 ? (
-                    <div className="mt-4 pt-3 border-t border-gray-800/70">
-                      <div className="flex items-center gap-1.5 text-blue-400/60 text-xs mb-2">
-                        <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        <span>Sources</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {sources.map((source, index) => (
-                          <a
-                            key={`${card.id}-source-${index}`}
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-400/60 text-xs hover:text-blue-300 underline decoration-blue-400/30"
-                          >
-                            {source.title || `Source ${index + 1}`}
-                          </a>
-                        ))}
-                      </div>
+                          <div className="mt-1 border-t border-gray-700/60 pt-1">
+                            {!saveMenu.showNewFolder ? (
+                              <button
+                                type="button"
+                                onClick={() => setSaveMenu((prev) => ({ ...prev, showNewFolder: true, newFolderName: '' }))}
+                                className="w-full text-left rounded px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/10 transition-colors"
+                              >
+                                + New Folder
+                              </button>
+                            ) : (
+                              <div className="px-2 py-1.5 space-y-1.5">
+                                <input
+                                  value={saveMenu.newFolderName}
+                                  onChange={(event) =>
+                                    setSaveMenu((prev) => ({ ...prev, newFolderName: event.target.value }))
+                                  }
+                                  placeholder="Folder name"
+                                  className="w-full rounded border border-gray-700 bg-black/40 px-2 py-1.5 text-sm text-white placeholder:text-gray-600 outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const created = handleCreateFolderOnly(saveMenu.newFolderName);
+                                    if (created?.id) {
+                                      handleSaveToFolder(card, created.id);
+                                    }
+                                  }}
+                                  className="w-full rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/15"
+                                >
+                                  Create Folder
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
+
+                    <div className="mt-3 space-y-1">{renderIntelBody(card.content, `feed-${card.id}`)}</div>
+
+                    {sources.length > 0 ? (
+                      <div className="mt-4 pt-3 border-t border-gray-800/70">
+                        <div className="flex items-center gap-1.5 text-blue-400/60 text-xs mb-2">
+                          <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          <span>Sources</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {sources.map((source, index) => (
+                            <a
+                              key={`${card.id}-source-${index}`}
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-400/60 text-xs hover:text-blue-300 underline decoration-blue-400/30"
+                            >
+                              {source.title || `Source ${index + 1}`}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
+      </div>
+
+      {folderContextMenu ? (
+        <div
+          data-folder-context-menu
+          className="fixed z-40 w-40 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-1"
+          style={{ left: folderContextMenu.x, top: folderContextMenu.y }}
+        >
+          <button
+            type="button"
+            onClick={() => handleRenameFolder(folderContextMenu.folderId)}
+            className="w-full text-left rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDeleteFolder(folderContextMenu.folderId)}
+            className="w-full text-left rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-red-500/15 hover:text-red-300 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        className={`pointer-events-none absolute top-4 right-6 z-40 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 transition-opacity duration-300 ${
+          toast ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {toast || 'Intel saved'}
       </div>
     </div>
   );
