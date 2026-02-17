@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil } from 'lucide-react';
+import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil, Eye, Save as SaveIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 const CHECKLIST_ITEMS = [
@@ -20,6 +20,108 @@ const formatTickerWithDollar = (ticker) => {
   return clean ? `$${clean}` : '';
 };
 
+const normalizeSetupHeading = (line = '') =>
+  String(line)
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/^[-*]\s*/, '')
+    .replace(/\*\*/g, '')
+    .trim()
+    .toLowerCase();
+
+const isKeyTradeSetupsHeading = (line = '') => {
+  const normalized = normalizeSetupHeading(line).replace(/^🔥\s*/, '').trim();
+  return normalized === 'key trade setups' || normalized === 'key trade setups identified';
+};
+
+function splitKeyTradeSetupsSection(raw) {
+  const text = String(raw || '');
+  const lines = text.split('\n');
+  let sectionStart = -1;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (isKeyTradeSetupsHeading(lines[i])) sectionStart = i;
+  }
+
+  if (sectionStart < 0) {
+    return {
+      body: text.trimEnd(),
+      sectionLines: [],
+      hasSection: false,
+    };
+  }
+
+  let sectionEnd = lines.length;
+  for (let i = sectionStart + 1; i < lines.length; i += 1) {
+    if (/^\s*#{1,6}\s+/.test(lines[i]) && !isKeyTradeSetupsHeading(lines[i])) {
+      sectionEnd = i;
+      break;
+    }
+  }
+
+  return {
+    body: [...lines.slice(0, sectionStart), ...lines.slice(sectionEnd)].join('\n').trimEnd(),
+    sectionLines: lines.slice(sectionStart + 1, sectionEnd),
+    hasSection: true,
+  };
+}
+
+function parseKeyTradeSetupValuesFromLines(lines = []) {
+  const valuesByLabel = new Map();
+
+  lines.forEach((line) => {
+    const normalized = String(line || '').replace(/^\s*[-*]\s*/, '').trim();
+    const separatorIndex = normalized.indexOf(':');
+    if (separatorIndex < 0) return;
+
+    const rawLabel = normalized.slice(0, separatorIndex).replace(/\*\*/g, '').trim().toLowerCase();
+    const rawValue = normalized.slice(separatorIndex + 1).replace(/\*\*/g, '').trim();
+    if (!rawLabel) return;
+
+    valuesByLabel.set(rawLabel, rawValue);
+  });
+
+  return FIELD_LABELS.map((label) => valuesByLabel.get(label.toLowerCase()) || '');
+}
+
+function buildKeyTradeSetupsSection(values = []) {
+  const lines = ['## 🔥 Key Trade Setups', ''];
+
+  FIELD_LABELS.forEach((label, index) => {
+    const value = String(values[index] ?? '').trim() || '—';
+    lines.push(`- **${label}:** ${value}`);
+    lines.push('');
+  });
+
+  return lines.join('\n').trimEnd();
+}
+
+function ensureKeyTradeSetupsSection(raw, fallbackValues = []) {
+  const { body, sectionLines } = splitKeyTradeSetupsSection(raw);
+  const parsedValues = parseKeyTradeSetupValuesFromLines(sectionLines);
+  const mergedValues = FIELD_LABELS.map((_, index) => {
+    const parsed = String(parsedValues[index] ?? '').trim();
+    if (parsed) return parsed;
+    const fallback = String(fallbackValues[index] ?? '').trim();
+    return fallback || '—';
+  });
+
+  const section = buildKeyTradeSetupsSection(mergedValues);
+  const trimmedBody = String(body || '').trimEnd();
+
+  return {
+    raw: trimmedBody ? `${trimmedBody}\n\n${section}` : section,
+    values: mergedValues,
+  };
+}
+
+function applyKeyTradeSetupsSection(raw, values = []) {
+  const { body } = splitKeyTradeSetupsSection(raw);
+  const mergedValues = FIELD_LABELS.map((_, index) => String(values[index] ?? '').trim() || '—');
+  const section = buildKeyTradeSetupsSection(mergedValues);
+  const trimmedBody = String(body || '').trimEnd();
+  return trimmedBody ? `${trimmedBody}\n\n${section}` : section;
+}
+
 function extractPerformanceData(strategy = {}) {
   const raw = String(strategy.raw || '');
   const findMetric = (pattern) => raw.match(pattern)?.[1]?.trim() || '';
@@ -35,37 +137,86 @@ function extractPerformanceData(strategy = {}) {
 function parseMarkdown(raw) {
   if (!raw) return '';
   const lines = raw.split('\n');
-  return lines
-    .map((line) => {
-      // Horizontal rules
-      if (/^[-*_]{3,}$/.test(line.trim())) {
-        return '<hr class="border-[#1f1f1f] my-4" />';
+  const html = [];
+  let inKeyTradeSetups = false;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+
+    // Horizontal rules
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      inKeyTradeSetups = false;
+      html.push('<hr class="border-[#1f1f1f] my-4" />');
+      return;
+    }
+
+    // H2
+    if (line.startsWith('## ')) {
+      const heading = line.slice(3).trim();
+      if (isKeyTradeSetupsHeading(heading)) {
+        inKeyTradeSetups = true;
+        html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups</h2>');
+      } else {
+        inKeyTradeSetups = false;
+        html.push(`<h2 class="text-emerald-400 text-lg font-bold mt-6 mb-2">${formatInline(heading)}</h2>`);
       }
-      // H2
-      if (line.startsWith('## ')) {
-        return `<h2 class="text-emerald-400 text-lg font-bold mt-6 mb-2">${line.slice(3)}</h2>`;
+      return;
+    }
+
+    // H3
+    if (line.startsWith('### ')) {
+      inKeyTradeSetups = false;
+      html.push(`<h3 class="text-emerald-400 text-base font-semibold mt-4 mb-1">${formatInline(line.slice(4))}</h3>`);
+      return;
+    }
+
+    // Plain heading without markdown marker
+    if (isKeyTradeSetupsHeading(line)) {
+      inKeyTradeSetups = true;
+      html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups</h2>');
+      return;
+    }
+
+    // Code blocks (simple single-line)
+    if (line.startsWith('```')) return;
+
+    // Empty line
+    if (!trimmed) {
+      html.push('<div class="h-2"></div>');
+      return;
+    }
+
+    // Key setup section lines with larger spacing and bold labels
+    if (inKeyTradeSetups) {
+      const content = trimmed.replace(/^\s*[-*]\s*/, '');
+      const separatorIndex = content.indexOf(':');
+      if (separatorIndex >= 0) {
+        const label = content.slice(0, separatorIndex).replace(/\*\*/g, '').trim();
+        const value = content.slice(separatorIndex + 1).replace(/\*\*/g, '').trim() || '—';
+        html.push(
+          `<div class="mb-6 flex gap-2 ml-2"><span class="text-emerald-400 mt-1">•</span><p class="text-white text-sm leading-relaxed whitespace-normal break-words"><strong class="text-white font-semibold">${formatInline(label)}</strong>: ${formatInline(value)}</p></div>`
+        );
+        return;
       }
-      // H3
-      if (line.startsWith('### ')) {
-        return `<h3 class="text-emerald-400 text-base font-semibold mt-4 mb-1">${line.slice(4)}</h3>`;
-      }
-      // Code blocks (simple single-line)
-      if (line.startsWith('```')) return '';
-      // Bullet points
-      if (/^\s*[-*]\s/.test(line)) {
-        const content = line.replace(/^\s*[-*]\s/, '');
-        return `<div class="flex gap-2 ml-2 my-0.5"><span class="text-zinc-500">•</span><span>${formatInline(content)}</span></div>`;
-      }
-      // Color coding
-      let extraClass = '';
-      const lower = line.toLowerCase();
-      if (lower.includes('profit') || /\+\d/.test(line)) extraClass = ' text-emerald-400';
-      else if (lower.includes('loss') || /(?<!\w)-\d/.test(line)) extraClass = ' text-red-400';
-      // Empty line
-      if (!line.trim()) return '<div class="h-2"></div>';
-      return `<p class="my-0.5${extraClass}">${formatInline(line)}</p>`;
-    })
-    .join('');
+    }
+
+    // Bullet points
+    if (/^\s*[-*]\s/.test(line)) {
+      const content = line.replace(/^\s*[-*]\s/, '');
+      html.push(`<div class="flex gap-2 ml-2 my-0.5"><span class="text-zinc-500">•</span><span>${formatInline(content)}</span></div>`);
+      return;
+    }
+
+    // Color coding
+    let extraClass = '';
+    const lower = line.toLowerCase();
+    if (lower.includes('profit') || /\+\d/.test(line)) extraClass = ' text-emerald-400';
+    else if (lower.includes('loss') || /(?<!\w)-\d/.test(line)) extraClass = ' text-red-400';
+
+    html.push(`<p class="my-0.5${extraClass}">${formatInline(line)}</p>`);
+  });
+
+  return html.join('');
 }
 
 function formatInline(text) {
@@ -105,10 +256,15 @@ export default function StrategyOutput({
   const [preChecks, setPreChecks] = useState(Array(6).fill(false));
   const [active, setActive] = useState(false);
   const [cardsCollapsed, setCardsCollapsed] = useState(false);
-  const [strategyRaw, setStrategyRaw] = useState(() => String(s.raw || ''));
+  const [strategyRaw, setStrategyRaw] = useState(() =>
+    ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw
+  );
   const [isEditingStrategyText, setIsEditingStrategyText] = useState(false);
-  const [editorValue, setEditorValue] = useState(() => String(s.raw || ''));
+  const [editorValue, setEditorValue] = useState(() =>
+    ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw
+  );
   const [isSavingEditor, setIsSavingEditor] = useState(false);
+  const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -146,6 +302,10 @@ export default function StrategyOutput({
       }
     } catch {}
 
+    const ensured = ensureKeyTradeSetupsSection(nextStrategyRaw, nextFieldValues);
+    nextStrategyRaw = ensured.raw;
+    nextFieldValues = ensured.values;
+
     if (!nextSaved) nextActive = false;
 
     setFieldValues(nextFieldValues);
@@ -162,6 +322,7 @@ export default function StrategyOutput({
     setEditorValue(nextStrategyRaw);
     setIsEditingStrategyText(false);
     setIsSavingEditor(false);
+    setIsPreviewingEdit(false);
     setEditing(null);
     setEditValue('');
   }, [storageKey, defaultFieldValues, s.raw]);
@@ -195,16 +356,22 @@ export default function StrategyOutput({
   const toggleCheck = (i) => setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
   const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
 
+  const updateFieldValue = (index, value) => {
+    const normalizedValue = String(value ?? '').trim();
+    setFieldValues((prev) => {
+      const next = [...prev];
+      next[index] = normalizedValue;
+      setStrategyRaw((currentRaw) => applyKeyTradeSetupsSection(currentRaw || s.raw || '', next));
+      return next;
+    });
+  };
+
   const startEdit = (i, val) => {
     setEditing(i);
     setEditValue(val || '');
   };
   const commitEdit = (i) => {
-    setFieldValues((prev) => {
-      const next = [...prev];
-      next[i] = editValue.trim();
-      return next;
-    });
+    updateFieldValue(i, editValue);
     setEditing(null);
     setEditValue('');
   };
@@ -220,33 +387,64 @@ export default function StrategyOutput({
   );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
+  const editorHasChanges = String(editorValue || '') !== String(strategyRaw || '');
   const editorLineCount = useMemo(
     () => Math.max(1, String(editorValue || '').split('\n').length),
     [editorValue],
   );
+  const editorPreviewRaw = useMemo(
+    () => ensureKeyTradeSetupsSection(editorValue, fieldValues).raw,
+    [editorValue, fieldValues],
+  );
+  const editorPreviewMarkdown = useMemo(
+    () => parseMarkdown(editorPreviewRaw),
+    [editorPreviewRaw],
+  );
 
   const openEditor = () => {
     setEditorValue(String(strategyRaw || s.raw || ''));
+    setIsPreviewingEdit(false);
     setIsEditingStrategyText(true);
   };
 
   const cancelEditor = () => {
     setEditorValue(String(strategyRaw || s.raw || ''));
+    setIsPreviewingEdit(false);
     setIsEditingStrategyText(false);
   };
 
   const saveEditor = async () => {
-    if (isSavingEditor) return;
+    if (isSavingEditor || !editorHasChanges) return;
     const nextRaw = String(editorValue || '');
+    const ensured = ensureKeyTradeSetupsSection(nextRaw, fieldValues);
+    const nextValues = ensured.values;
+
     setIsSavingEditor(true);
-    setStrategyRaw(nextRaw);
+    setFieldValues(nextValues);
+    setStrategyRaw(ensured.raw);
+    setEditorValue(ensured.raw);
     setIsEditingStrategyText(false);
+    setIsPreviewingEdit(false);
 
     try {
       await onContentSave?.({
         ...s,
-        raw: nextRaw,
-        content: nextRaw,
+        raw: ensured.raw,
+        content: ensured.raw,
+        entry: nextValues[0],
+        volume: nextValues[1],
+        trend: nextValues[2],
+        riskReward: nextValues[3],
+        stopLoss: nextValues[4],
+        allocation: nextValues[5],
+        keyTradeSetups: {
+          entry: nextValues[0],
+          volume: nextValues[1],
+          trend: nextValues[2],
+          riskReward: nextValues[3],
+          stopLoss: nextValues[4],
+          allocation: nextValues[5],
+        },
         updatedAt: Date.now(),
       });
     } catch (error) {
@@ -273,9 +471,13 @@ export default function StrategyOutput({
   const handleSave = async () => {
     if (!allChecked) return;
 
+    const normalizedRaw = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
+    setStrategyRaw(normalizedRaw);
     setSaveStatus('saving');
     const payload = {
       ...s,
+      raw: normalizedRaw,
+      content: normalizedRaw,
       entry: fieldValues[0],
       volume: fieldValues[1],
       trend: fieldValues[2],
@@ -294,7 +496,7 @@ export default function StrategyOutput({
       savedAt: Date.now(),
     };
 
-    const performanceData = extractPerformanceData(s);
+    const performanceData = extractPerformanceData(payload);
     const normalizedTicker = String(s.ticker || '').trim().replace(/^\$/, '').toUpperCase();
     const savedAtIso = new Date(payload.savedAt).toISOString();
     const localRecord = {
@@ -406,23 +608,42 @@ export default function StrategyOutput({
 
         {isEditingStrategyText ? (
           <>
-            <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
-              <div className="flex items-start">
-                <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-emerald-700/80 text-right py-3 px-2 select-none">
-                  {Array.from({ length: editorLineCount }).map((_, index) => (
-                    <div key={`line-${index + 1}`} className="leading-6">
-                      {index + 1}
-                    </div>
-                  ))}
+            {isPreviewingEdit ? (
+              <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
+                <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-emerald-400/90">Formatted Preview</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewingEdit(false)}
+                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    Back to Edit
+                  </button>
                 </div>
-                <textarea
-                  value={editorValue}
-                  onChange={(event) => setEditorValue(event.target.value)}
-                  className="flex-1 min-h-[520px] bg-transparent px-3 py-3 font-mono text-sm leading-6 text-emerald-300 resize-none outline-none"
-                  spellCheck={false}
+                <div
+                  className="min-h-[520px] px-4 py-4 leading-relaxed text-zinc-300"
+                  dangerouslySetInnerHTML={{ __html: editorPreviewMarkdown }}
                 />
               </div>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
+                <div className="flex items-start">
+                  <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-emerald-700/80 text-right py-3 px-2 select-none">
+                    {Array.from({ length: editorLineCount }).map((_, index) => (
+                      <div key={`line-${index + 1}`} className="leading-6">
+                        {index + 1}
+                      </div>
+                    ))}
+                  </div>
+                  <textarea
+                    value={editorValue}
+                    onChange={(event) => setEditorValue(event.target.value)}
+                    className="flex-1 min-h-[520px] bg-transparent px-3 py-3 font-mono text-sm leading-6 text-emerald-300 resize-none outline-none"
+                    spellCheck={false}
+                  />
+                </div>
+              </div>
+            )}
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 type="button"
@@ -431,12 +652,35 @@ export default function StrategyOutput({
               >
                 Cancel
               </button>
+              {isPreviewingEdit ? (
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewingEdit(false)}
+                  className="border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+                >
+                  Back to Edit
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewingEdit(true)}
+                  className="inline-flex items-center gap-1.5 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+                >
+                  <Eye className="h-4 w-4" strokeWidth={1.5} />
+                  View
+                </button>
+              )}
               <button
                 type="button"
                 onClick={saveEditor}
-                disabled={isSavingEditor}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm"
+                disabled={isSavingEditor || !editorHasChanges}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm text-white transition ${
+                  editorHasChanges
+                    ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.35)] animate-pulse'
+                    : 'bg-emerald-900/40 text-white/60'
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
               >
+                <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
                 {isSavingEditor ? 'Saving...' : 'Save'}
               </button>
             </div>
@@ -519,12 +763,7 @@ export default function StrategyOutput({
                             <input
                               value={allocationValue}
                               onChange={(e) => {
-                                const nextValue = e.target.value;
-                                setFieldValues((prev) => {
-                                  const next = [...prev];
-                                  next[i] = nextValue;
-                                  return next;
-                                });
+                                updateFieldValue(i, e.target.value);
                               }}
                               placeholder="Enter amount..."
                               className="mt-1 bg-transparent border border-amber-400/50 rounded px-2 py-1 text-white placeholder-gray-500 w-full focus:outline-none focus:border-amber-300"
