@@ -16,6 +16,8 @@ import {
 import StrategyTemplateFlow from './StrategyTemplateFlow';
 
 const STORAGE_KEY = 'stratify-strategies-folders';
+const MIN_STRATEGIES_PER_PAGE = 5;
+const MAX_STRATEGIES_PER_PAGE = 6;
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
@@ -61,6 +63,38 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const toNumericValue = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    return Number(cleaned);
+  }
+  return NaN;
+};
+
+const normalizeReturnPercent = (value) => {
+  let number = toNumericValue(value);
+  if (!Number.isFinite(number)) return NaN;
+
+  const hasPercentSign = typeof value === 'string' && value.includes('%');
+
+  if (!hasPercentSign && Math.abs(number) > 0 && Math.abs(number) <= 1) {
+    number *= 100;
+  }
+
+  // Fix malformed oversized values (e.g. 15271000015.30 -> 15.27)
+  while (Math.abs(number) > 500) {
+    number /= 10;
+  }
+
+  return number;
+};
+
+const getStrategiesPerPage = (viewportHeight) => {
+  if (!Number.isFinite(viewportHeight)) return MIN_STRATEGIES_PER_PAGE;
+  return viewportHeight >= 940 ? MAX_STRATEGIES_PER_PAGE : MIN_STRATEGIES_PER_PAGE;
+};
+
 const deriveTicker = (strategy) => {
   if (!strategy || typeof strategy !== 'object') return '';
   const rawTicker =
@@ -75,13 +109,29 @@ const deriveTicker = (strategy) => {
 
 const deriveProfit = (strategy, fallback = 0) => {
   if (!strategy || typeof strategy !== 'object') return toNumber(fallback, 0);
-  const raw = strategy.pnl ?? strategy.profit ?? strategy.summary?.value;
-  if (typeof raw === 'number') return raw;
-  if (typeof raw === 'string') {
-    const cleaned = raw.replace(/[^0-9.-]/g, '');
-    return toNumber(cleaned, toNumber(fallback, 0));
+  const candidates = [
+    strategy.pnlPct,
+    strategy.returnPct,
+    strategy.returnPercent,
+    strategy.totalReturn,
+    strategy.metrics?.returnPct,
+    strategy.metrics?.returnPercent,
+    strategy.metrics?.totalReturn,
+    strategy.summary?.returnPct,
+    strategy.summary?.returnPercent,
+    strategy.summary?.totalReturn,
+    strategy.summary?.roi,
+    strategy.profit,
+    strategy.pnl,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeReturnPercent(candidate);
+    if (Number.isFinite(normalized)) return normalized;
   }
-  return toNumber(fallback, 0);
+
+  const normalizedFallback = normalizeReturnPercent(fallback);
+  return Number.isFinite(normalizedFallback) ? normalizedFallback : toNumber(fallback, 0);
 };
 
 const deriveCreatedAt = (strategy, fallback = Date.now()) => {
@@ -292,9 +342,9 @@ const formatDate = (value) => {
 };
 
 const formatProfit = (value) => {
-  const number = toNumber(value, NaN);
+  const number = normalizeReturnPercent(value);
   if (!Number.isFinite(number)) return null;
-  return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`;
+  return `${number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
 };
 
 const getStatusClassName = (status) => {
@@ -341,6 +391,10 @@ const StrategiesPage = ({
   const [editing, setEditing] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [movePicker, setMovePicker] = useState(null);
+  const [strategiesPage, setStrategiesPage] = useState(0);
+  const [strategiesPerPage, setStrategiesPerPage] = useState(() =>
+    getStrategiesPerPage(typeof window !== 'undefined' ? window.innerHeight : NaN)
+  );
 
   const contextMenuRef = useRef(null);
   const movePickerRef = useRef(null);
@@ -407,6 +461,18 @@ const StrategiesPage = ({
     };
   }, [contextMenu, movePicker]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handleResize = () => {
+      setStrategiesPerPage(getStrategiesPerPage(window.innerHeight));
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const folderViews = useMemo(
@@ -428,6 +494,63 @@ const StrategiesPage = ({
       })),
     [folders, normalizedQuery]
   );
+
+  const totalFilteredStrategies = useMemo(
+    () =>
+      folderViews.reduce(
+        (count, folder) => count + folder.filteredStrategies.length,
+        0
+      ),
+    [folderViews]
+  );
+
+  const totalStrategyPages = Math.max(
+    1,
+    Math.ceil(totalFilteredStrategies / Math.max(strategiesPerPage, 1))
+  );
+
+  const pagedFolderViews = useMemo(() => {
+    if (totalFilteredStrategies === 0) {
+      return folderViews.map((folder) => ({
+        ...folder,
+        visibleStrategies: folder.filteredStrategies,
+      }));
+    }
+
+    let skip = strategiesPage * strategiesPerPage;
+    let remaining = strategiesPerPage;
+
+    const paged = folderViews.map((folder) => {
+      if (remaining <= 0) {
+        return { ...folder, visibleStrategies: [] };
+      }
+
+      const totalInFolder = folder.filteredStrategies.length;
+      if (skip >= totalInFolder) {
+        skip -= totalInFolder;
+        return { ...folder, visibleStrategies: [] };
+      }
+
+      const start = Math.max(skip, 0);
+      const end = Math.min(start + remaining, totalInFolder);
+      const visibleStrategies = folder.filteredStrategies.slice(start, end);
+
+      skip = 0;
+      remaining -= visibleStrategies.length;
+
+      return { ...folder, visibleStrategies };
+    });
+
+    return paged.filter((folder) => folder.visibleStrategies.length > 0);
+  }, [folderViews, totalFilteredStrategies, strategiesPage, strategiesPerPage]);
+
+  useEffect(() => {
+    setStrategiesPage((prev) => Math.min(prev, totalStrategyPages - 1));
+  }, [totalStrategyPages]);
+
+  useEffect(() => {
+    setStrategiesPage(0);
+  }, [normalizedQuery, strategiesPerPage]);
 
   const allStrategies = useMemo(() => uniqueStrategiesFromFolders(folders), [folders]);
   const liveCount = allStrategies.filter((strategy) =>
@@ -923,7 +1046,7 @@ const StrategiesPage = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex-1 min-h-0 overflow-hidden px-5 py-3" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         {allStrategies.length === 0 && (
           <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-zinc-700 bg-zinc-900/45 px-5 py-4">
             <div className="text-base text-white/75">
@@ -943,11 +1066,12 @@ const StrategiesPage = ({
           Folders
         </div>
 
-        {folderViews.map((folder) => {
+        {pagedFolderViews.map((folder) => {
           const isFolderEditing =
             editing?.type === 'folder' && editing.folderId === folder.id;
           const isDropTarget = dropFolderId === folder.id;
-          const hasMatches = folder.filteredStrategies.length > 0;
+          const visibleStrategies = folder.visibleStrategies || [];
+          const hasMatches = visibleStrategies.length > 0;
 
           return (
             <div
@@ -1040,7 +1164,7 @@ const StrategiesPage = ({
                 <div className="overflow-hidden">
                   <div className="ml-8 border-l border-zinc-800 pl-3">
                     {hasMatches &&
-                      folder.filteredStrategies.map((strategy) => {
+                      visibleStrategies.map((strategy) => {
                         const isSelected = selectedStrategyId === String(strategy.id);
                         const isStrategyEditing =
                           editing?.type === 'strategy' &&
@@ -1216,7 +1340,7 @@ const StrategiesPage = ({
                         );
                       })}
 
-                    {folder.filteredStrategies.length === 0 && (
+                    {visibleStrategies.length === 0 && (
                       <div className="py-3 text-sm italic text-white/35">
                         {normalizedQuery ? 'No matches' : 'No strategies yet'}
                       </div>
@@ -1227,6 +1351,35 @@ const StrategiesPage = ({
             </div>
           );
         })}
+
+        {totalFilteredStrategies > strategiesPerPage && (
+          <div className="mt-3 flex items-center justify-center gap-2 border-t border-zinc-800/80 pt-3">
+            <button
+              type="button"
+              onClick={() => setStrategiesPage((prev) => Math.max(prev - 1, 0))}
+              disabled={strategiesPage === 0}
+              className="rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              Prev
+            </button>
+            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">
+              {strategiesPage + 1} / {totalStrategyPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (strategiesPage >= totalStrategyPages - 1) {
+                  setStrategiesPage(0);
+                  return;
+                }
+                setStrategiesPage((prev) => prev + 1);
+              }}
+              className="rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/18"
+            >
+              {strategiesPage >= totalStrategyPages - 1 ? 'Show first' : 'Show more'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="shrink-0 border-t border-zinc-800 px-6 py-3">
