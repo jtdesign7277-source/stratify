@@ -1,6 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight } from 'lucide-react';
 
+const SYNTAX_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
+
+const getTokenClassName = (token, isBold) => {
+  if (token === '|') return 'text-gray-500';
+  if (token === '**') return 'text-gray-600';
+  if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-emerald-400 font-semibold';
+  if (/^\+[$]?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-emerald-400 font-semibold';
+  if (/^-[$]?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-red-400 font-semibold';
+  if (/^\d+:\d+$/.test(token)) return 'text-yellow-400';
+  if (/^\$?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-yellow-400';
+  return isBold ? 'text-white font-medium' : 'text-gray-300';
+};
+
+const renderSyntaxLine = (lineText = '') => {
+  const text = String(lineText || '');
+  if (!text.trim()) return <span className="text-gray-300">&nbsp;</span>;
+  if (text.startsWith('# ')) return <span className="text-white font-bold text-lg">{text.slice(2)}</span>;
+  if (text.startsWith('## ')) return <span className="text-blue-400 font-semibold">{text.slice(3)}</span>;
+
+  const parts = text.split(SYNTAX_TOKEN_REGEX).filter((part) => part !== '');
+  let isBold = false;
+
+  return parts.map((part, idx) => {
+    if (part === '**') {
+      isBold = !isBold;
+      return (
+        <span key={`marker-${idx}`} className="text-gray-600">
+          {part}
+        </span>
+      );
+    }
+
+    return (
+      <span key={`token-${idx}`} className={getTokenClassName(part, isBold)}>
+        {part}
+      </span>
+    );
+  });
+};
+
 const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBacktest, isLoading, onDeploy, onNavigateToActive }) => {
   const [displayedLines, setDisplayedLines] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -455,7 +495,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
         {/* Terminal Output */}
         <div
           ref={terminalRef}
-          className="flex-1 overflow-y-auto p-6 font-mono text-sm bg-[#0b0b0b]"
+          className="flex-1 overflow-y-auto p-4 font-mono text-sm bg-[#0a1628] border border-white/10 rounded-lg"
           style={{ scrollbarWidth: 'none' }}
         >
           {displayedLines.length === 0 && !isLoading && (
@@ -467,14 +507,20 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           )}
           {displayedLines.map((line, idx) => (
             line ? (
-              <div key={idx} className={`${line.color || 'text-white'} ${line.type === 'blank' ? 'h-4' : ''} whitespace-pre`}>
-                {line.text || ''}
+              <div key={idx} className={`grid grid-cols-[52px_minmax(0,1fr)] ${line.type === 'blank' ? 'min-h-4' : ''}`}>
+                <div className="select-none border-r border-white/10 bg-white/5 pr-2 text-right text-gray-600">
+                  {idx + 1}
+                </div>
+                <div className="pl-3 whitespace-pre">{renderSyntaxLine(line.text || '')}</div>
               </div>
             ) : null
           ))}
           {isLoading && displayedLines.length === 0 && (
-            <div className="text-emerald-400 animate-pulse">
-              <span className="text-white/50">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
+            <div className="grid grid-cols-[52px_minmax(0,1fr)]">
+              <div className="select-none border-r border-white/10 bg-white/5 pr-2 text-right text-gray-600">1</div>
+              <div className="pl-3 text-gray-300 animate-pulse whitespace-pre">
+                <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> ▸ Initializing Grok analysis engine...
+              </div>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Archive, ChevronDown, ChevronUp, Clock3, Radio } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Archive, ChevronDown, ChevronUp, Clock3, Radio, Volume2, VolumeX } from 'lucide-react';
 
 const SECTION_BADGE_STYLES = {
   '🔥': 'bg-red-500/15 text-red-200 border-red-400/30',
@@ -18,6 +18,19 @@ const SECTION_BADGE_STYLES = {
 const SECTION_HEADER_REGEX = /^(?:#{1,3}\s*)?([🔥📈💰🔵🟠🐦🦍🚀💻🏈💎])\s*(.+)$/u;
 const LAST_VIEWED_KEY = 'lastViewedMarketIntel';
 const LEGACY_LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
+const VOICE_PREF_KEY = 'stratify-market-intel-voice';
+
+const stripMarkdown = (md = '') =>
+  String(md)
+    .replace(/^#{1,3}\s+/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*]\s+/gm, '• ')
+    .replace(/[-*_]{3,}/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
 const escapeHtml = (value = '') => {
   return String(value)
@@ -213,6 +226,18 @@ export default function MarketIntelPage({ onClose, onViewed }) {
   const [showArchive, setShowArchive] = useState(true);
   const [expandedReportIds, setExpandedReportIds] = useState([]);
 
+  // Sophia voice narration state
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try {
+      const stored = localStorage.getItem(VOICE_PREF_KEY);
+      return stored === null ? true : stored === 'true';
+    } catch { return true; }
+  });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const audioRef = useRef(null);
+  const spokenReportIdRef = useRef(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -268,6 +293,55 @@ export default function MarketIntelPage({ onClose, onViewed }) {
     };
   }, [onViewed]);
 
+  // Auto-play Sophia voice when latest report loads
+  useEffect(() => {
+    if (!voiceEnabled || loading || !reports[0]) return;
+    const reportId = reports[0].id;
+    if (spokenReportIdRef.current === reportId) return;
+    spokenReportIdRef.current = reportId;
+
+    let cancelled = false;
+    const speak = async () => {
+      const plainText = stripMarkdown(reports[0].report_content).slice(0, 2500);
+      if (!plainText) return;
+      setVoiceLoading(true);
+      try {
+        const res = await fetch('/api/sophia-speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: plainText }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled || !data.audio_url) return;
+        const audio = new Audio(data.audio_url);
+        audioRef.current = audio;
+        audio.addEventListener('play', () => !cancelled && setIsPlaying(true));
+        audio.addEventListener('ended', () => { if (!cancelled) { setIsPlaying(false); audioRef.current = null; } });
+        audio.addEventListener('pause', () => !cancelled && setIsPlaying(false));
+        audio.play().catch(() => {});
+      } catch {} finally {
+        if (!cancelled) setVoiceLoading(false);
+      }
+    };
+    speak();
+    return () => { cancelled = true; };
+  }, [voiceEnabled, loading, reports]);
+
+  const toggleVoice = useCallback(() => {
+    setVoiceEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(VOICE_PREF_KEY, String(next)); } catch {}
+      if (!next && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+        setIsPlaying(false);
+      }
+      if (!next) spokenReportIdRef.current = null;
+      return next;
+    });
+  }, []);
+
   const latestReport = reports[0] || null;
   const archivedReports = reports.slice(1);
 
@@ -308,13 +382,35 @@ export default function MarketIntelPage({ onClose, onViewed }) {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowArchive((previous) => !previous)}
-            className="shrink-0 flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide uppercase text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg border border-[#1f1f1f] bg-[#121212]"
-          >
-            <Archive className="w-3.5 h-3.5" />
-            {showArchive ? 'Hide Archive' : 'Show Archive'}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={toggleVoice}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide uppercase transition-colors rounded-lg border ${
+                voiceEnabled
+                  ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
+                  : 'text-zinc-400 border-[#1f1f1f] bg-[#121212] hover:text-zinc-200'
+              }`}
+              title={voiceEnabled ? 'Mute Sophia' : 'Enable Sophia voice'}
+            >
+              {isPlaying || voiceLoading ? (
+                <Volume2 className={`w-3.5 h-3.5 ${isPlaying ? 'animate-pulse' : ''}`} />
+              ) : voiceEnabled ? (
+                <Volume2 className="w-3.5 h-3.5" />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5" />
+              )}
+              {voiceEnabled && <span>Sophia</span>}
+              {voiceLoading && <span className="text-[10px] text-zinc-500">loading...</span>}
+            </button>
+
+            <button
+              onClick={() => setShowArchive((previous) => !previous)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide uppercase text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg border border-[#1f1f1f] bg-[#121212]"
+            >
+              <Archive className="w-3.5 h-3.5" />
+              {showArchive ? 'Hide Archive' : 'Show Archive'}
+            </button>
+          </div>
         </div>
       </div>
 
