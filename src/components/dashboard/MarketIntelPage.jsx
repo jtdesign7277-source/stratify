@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, ChevronDown, ChevronUp, Clock3, Radio, Volume2, VolumeX } from 'lucide-react';
+import { Archive, ChevronDown, ChevronUp, Clock3, Radio, Volume2 } from 'lucide-react';
 
 const SECTION_BADGE_STYLES = {
   '🔥': 'bg-red-500/15 text-red-200 border-red-400/30',
@@ -227,16 +227,9 @@ export default function MarketIntelPage({ onClose, onViewed }) {
   const [expandedReportIds, setExpandedReportIds] = useState([]);
 
   // Sophia voice narration state
-  const [voiceEnabled, setVoiceEnabled] = useState(() => {
-    try {
-      const stored = localStorage.getItem(VOICE_PREF_KEY);
-      return stored === null ? true : stored === 'true';
-    } catch { return true; }
-  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const audioRef = useRef(null);
-  const spokenReportIdRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -293,87 +286,47 @@ export default function MarketIntelPage({ onClose, onViewed }) {
     };
   }, [onViewed]);
 
-  // Preload TTS audio URL when latest report loads (voice enabled)
-  const [audioUrl, setAudioUrl] = useState(null);
-
-  useEffect(() => {
-    if (!voiceEnabled || loading || !reports[0]) return;
-    const reportId = reports[0].id;
-    if (spokenReportIdRef.current === reportId) return;
-    spokenReportIdRef.current = reportId;
-    setAudioUrl(null);
-
-    let cancelled = false;
-    const preload = async () => {
-      // Take first ~800 chars for a quick summary read (keeps HeyGen fast, under Vercel 10s limit)
-      const plainText = stripMarkdown(reports[0].report_content).slice(0, 800);
-      if (!plainText) return;
-      setVoiceLoading(true);
-      try {
-        const res = await fetch('/api/sophia-speak', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: plainText }),
-        });
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
-        if (cancelled || !data.audio_url) return;
-        setAudioUrl(data.audio_url);
-      } catch {} finally {
-        if (!cancelled) setVoiceLoading(false);
-      }
-    };
-    preload();
-    return () => { cancelled = true; };
-  }, [voiceEnabled, loading, reports]);
-
-  // Auto-play once audioUrl is ready (user already on page = gesture context from navigation)
-  useEffect(() => {
-    if (!audioUrl || !voiceEnabled) return;
-    const audio = new Audio(audioUrl);
-    audioRef.current = audio;
-    audio.addEventListener('play', () => setIsPlaying(true));
-    audio.addEventListener('ended', () => { setIsPlaying(false); audioRef.current = null; });
-    audio.addEventListener('pause', () => setIsPlaying(false));
-    audio.addEventListener('error', () => { setIsPlaying(false); audioRef.current = null; });
-    audio.play().catch(() => {
-      // Browser blocked autoplay — that's fine, user can click the button
-      setIsPlaying(false);
-    });
-    return () => { audio.pause(); audio.removeAttribute('src'); };
-  }, [audioUrl, voiceEnabled]);
-
-  const toggleVoice = useCallback(() => {
+  // Play / stop Sophia voice — triggered only by button click (user gesture)
+  const handlePlaySophia = useCallback(async () => {
+    // If playing, stop
     if (isPlaying && audioRef.current) {
-      // Currently playing — stop it
       audioRef.current.pause();
       audioRef.current = null;
       setIsPlaying(false);
-      setVoiceEnabled(false);
-      try { localStorage.setItem(VOICE_PREF_KEY, 'false'); } catch {}
       return;
     }
-    if (!isPlaying && audioUrl) {
-      // Have audio ready, user clicks to play — this IS a user gesture so autoplay works
-      const audio = new Audio(audioUrl);
+
+    const report = reports[0];
+    if (!report?.report_content) return;
+
+    const plainText = stripMarkdown(report.report_content).slice(0, 800);
+    if (!plainText) return;
+
+    setVoiceLoading(true);
+    try {
+      const res = await fetch('/api/sophia-speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: plainText }),
+      });
+      if (!res.ok) throw new Error('TTS failed');
+      const data = await res.json();
+      if (!data.audio_url) throw new Error('No audio URL');
+
+      const audio = new Audio(data.audio_url);
       audioRef.current = audio;
       audio.addEventListener('play', () => setIsPlaying(true));
       audio.addEventListener('ended', () => { setIsPlaying(false); audioRef.current = null; });
       audio.addEventListener('pause', () => setIsPlaying(false));
       audio.addEventListener('error', () => { setIsPlaying(false); audioRef.current = null; });
-      audio.play().catch(() => {});
-      setVoiceEnabled(true);
-      try { localStorage.setItem(VOICE_PREF_KEY, 'true'); } catch {}
-      return;
+      await audio.play();
+    } catch (err) {
+      console.error('Sophia voice error:', err);
+      setIsPlaying(false);
+    } finally {
+      setVoiceLoading(false);
     }
-    // Toggle preference
-    setVoiceEnabled((prev) => {
-      const next = !prev;
-      try { localStorage.setItem(VOICE_PREF_KEY, String(next)); } catch {}
-      if (!next) spokenReportIdRef.current = null;
-      return next;
-    });
-  }, [isPlaying, audioUrl]);
+  }, [isPlaying, reports]);
 
   const latestReport = reports[0] || null;
   const archivedReports = reports.slice(1);
@@ -417,23 +370,33 @@ export default function MarketIntelPage({ onClose, onViewed }) {
 
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={toggleVoice}
-              className={`flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide uppercase transition-colors rounded-lg border ${
-                voiceEnabled
+              onClick={handlePlaySophia}
+              disabled={voiceLoading || (!reports[0] && !isPlaying)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide transition-colors rounded-lg border ${
+                isPlaying
                   ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
-                  : 'text-zinc-400 border-[#1f1f1f] bg-[#121212] hover:text-zinc-200'
+                  : voiceLoading
+                    ? 'text-zinc-500 border-[#1f1f1f] bg-[#121212] cursor-wait'
+                    : 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20'
               }`}
-              title={voiceEnabled ? 'Mute Sophia' : 'Enable Sophia voice'}
+              title={isPlaying ? 'Stop Sophia' : 'Listen to Sophia read the report'}
             >
-              {isPlaying || voiceLoading ? (
-                <Volume2 className={`w-3.5 h-3.5 ${isPlaying ? 'animate-pulse' : ''}`} />
-              ) : voiceEnabled ? (
-                <Volume2 className="w-3.5 h-3.5" />
+              {voiceLoading ? (
+                <>
+                  <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Loading...</span>
+                </>
+              ) : isPlaying ? (
+                <>
+                  <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Playing — Stop</span>
+                </>
               ) : (
-                <VolumeX className="w-3.5 h-3.5" />
+                <>
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>▶ Play Sophia</span>
+                </>
               )}
-              {voiceEnabled && <span>Sophia</span>}
-              {voiceLoading && <span className="text-[10px] text-zinc-500">loading...</span>}
             </button>
 
             <button
