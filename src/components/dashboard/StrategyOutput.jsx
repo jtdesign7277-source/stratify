@@ -1077,18 +1077,18 @@ export default function StrategyOutput({
           </button>
         </div>
       ) : (
-        <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3 overflow-hidden">
-          <div className="h-full min-h-0 grid grid-rows-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-3">
+        <div className="w-[480px] xl:w-[520px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3 overflow-hidden">
+          <div className="h-full min-h-0 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
             {/* Card 1: Key Trade Setups */}
-            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-3 min-h-0 flex flex-col overflow-hidden">
-              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-3 h-full min-h-0 flex flex-col">
+            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-2.5 min-h-0 flex flex-col overflow-hidden">
+              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-2.5 h-full min-h-0 flex flex-col">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span role="img" aria-label="Fire">🔥</span>
-                    <span className="text-white font-bold text-base">KEY TRADE SETUPS IDENTIFIED</span>
+                    <span className="text-white font-bold text-[15px] leading-5">KEY TRADE SETUPS IDENTIFIED</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400">{checkedCount}/6</span>
+                    <span className="text-gray-400 text-[15px]">{checkedCount}/6</span>
                     <button
                       onClick={handleSave}
                       disabled={!allChecked || saveStatus === 'saving'}
@@ -1103,14 +1103,14 @@ export default function StrategyOutput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 grid-rows-3 gap-2 mt-2.5 flex-1 min-h-0">
+                <div className="grid grid-cols-2 grid-rows-3 gap-1.5 mt-2 flex-1 min-h-0">
                   {fields.map((f, i) => {
                     const isAllocation = i === 5;
                     const isEditing = editing === i;
                     const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
 
                     return (
-                      <div key={i} className="bg-black/30 rounded-lg p-2.5 min-h-0 flex items-start gap-2 border border-gray-700/50 overflow-hidden">
+                      <div key={i} className="bg-black/30 rounded-lg p-2 min-h-0 flex items-start gap-2 border border-gray-700/50 overflow-hidden">
                         <input
                           type="checkbox"
                           checked={checks[i]}
@@ -1121,7 +1121,7 @@ export default function StrategyOutput({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-amber-400 text-[11px] font-semibold uppercase tracking-wider">{f.label}</p>
+                            <p className="text-amber-400 text-xs font-semibold uppercase tracking-wider">{f.label}</p>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1157,7 +1157,7 @@ export default function StrategyOutput({
                               className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-300"
                             />
                           ) : (
-                            <p className="text-white text-[12px] mt-1 whitespace-normal break-words leading-snug max-h-full overflow-y-auto pr-1">
+                            <p className="text-white text-[14px] mt-1 whitespace-normal break-words leading-[1.35]">
                               {renderTickerText(f.value || '—', `key-setup-${i}`)}
                             </p>
                           )}
@@ -1173,7 +1173,7 @@ export default function StrategyOutput({
                     const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                     onRetest?.(prompt);
                   }}
-                  className="w-full mt-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition shrink-0"
+                  className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[15px] font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition shrink-0"
                 >
                   <span aria-hidden="true">🔄</span>
                   Ask Sophia to Retest
@@ -1184,7 +1184,7 @@ export default function StrategyOutput({
             {/* Card 2: Strategy Activation */}
             <div
               className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-3 flex flex-col gap-3 min-h-0 overflow-y-auto"
-              style={{ opacity: activationLocked ? 0.45 : 1, pointerEvents: activationLocked ? 'none' : 'auto' }}
+              style={{ opacity: activationLocked ? 0.82 : 1 }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1198,8 +1198,8 @@ export default function StrategyOutput({
                     <Target className={`h-3.5 w-3.5 ${active ? 'text-emerald-400' : 'text-zinc-500'}`} />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-white block">Strategy Activation</span>
-                    <span className="text-xs text-amber-300">
+                    <span className="text-base font-semibold text-white block">Strategy Activation</span>
+                    <span className="text-sm text-amber-300">
                       {activationLocked ? 'Save strategy to unlock activation' : 'Check conditions to activate'}
                     </span>
                   </div>
@@ -1280,6 +1280,7 @@ export default function StrategyOutput({
                     <button
                       key={item.id}
                       onClick={() => togglePre(i)}
+                      disabled={activationLocked}
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition"
                       style={{
                         background: preChecks[i] ? 'rgba(74,222,128,0.06)' : 'rgba(255,255,255,0.02)',
@@ -1297,7 +1298,7 @@ export default function StrategyOutput({
                       >
                         {preChecks[i] && <Check className="h-2 w-2 text-emerald-400" />}
                       </div>
-                      <span className="text-xs" style={{ color: preChecks[i] ? '#fff' : 'rgba(255,255,255,0.6)' }}>
+                      <span className="text-[13px]" style={{ color: preChecks[i] ? '#fff' : 'rgba(255,255,255,0.72)' }}>
                         {item.label}
                       </span>
                     </button>
