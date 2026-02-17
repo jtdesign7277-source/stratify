@@ -27,7 +27,8 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    return res.status(200).json({ audio_url: data.data?.url || data.url || null, data });
+    const audioUrl = data.data?.audio_url || data.data?.url || data.audio_url || data.url || null;
+    return res.status(200).json({ audio_url: audioUrl, data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
