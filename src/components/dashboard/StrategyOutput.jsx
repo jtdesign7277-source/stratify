@@ -248,10 +248,12 @@ function formatInline(text) {
 export default function StrategyOutput({
   strategy,
   onSave,
+  onSaveToSophia,
   onDeploy,
   onBack,
   onRetest,
   onContentSave,
+  showSaveToSophiaButton = false,
 }) {
   const s = strategy || {};
   const storageKey = `stratify-activation-${s.id || s.generatedAt || s.name || 'default'}`;
@@ -283,6 +285,8 @@ export default function StrategyOutput({
   );
   const [isSavingEditor, setIsSavingEditor] = useState(false);
   const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
+  const [isSavingToSophia, setIsSavingToSophia] = useState(false);
+  const [savedToSophia, setSavedToSophia] = useState(Boolean(s.savedToSophia));
 
   // Load from localStorage
   useEffect(() => {
@@ -341,9 +345,11 @@ export default function StrategyOutput({
     setIsEditingStrategyText(false);
     setIsSavingEditor(false);
     setIsPreviewingEdit(false);
+    setIsSavingToSophia(false);
+    setSavedToSophia(Boolean(s.savedToSophia));
     setEditing(null);
     setEditValue('');
-  }, [storageKey, defaultFieldValues, s.raw]);
+  }, [storageKey, defaultFieldValues, s.raw, s.savedToSophia]);
 
   // Save to localStorage
   useEffect(() => {
@@ -601,6 +607,131 @@ export default function StrategyOutput({
     setSaveStatus('saved');
   };
 
+  const handleSaveToSophia = async () => {
+    if (isSavingToSophia || savedToSophia) return;
+
+    const normalizedRaw = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
+    const normalizedTicker = String(s.ticker || '').trim().replace(/^\$/, '').toUpperCase();
+    const savedAt = Date.now();
+    const savedAtIso = new Date(savedAt).toISOString();
+    const performanceData = extractPerformanceData({ ...s, raw: normalizedRaw });
+    const sophiaId = String(s.id || `sophia-${savedAt}`);
+    const payload = {
+      ...s,
+      id: sophiaId,
+      name: s.name || 'Sophia Strategy',
+      ticker: normalizedTicker,
+      type: 'sophia',
+      source: 'sophia',
+      folder: 'sophia',
+      folderId: 'sophia-strategies',
+      status: 'saved',
+      savedAt,
+      savedToSophia: true,
+      raw: normalizedRaw,
+      content: normalizedRaw,
+      entry: fieldValues[0] || '',
+      volume: fieldValues[1] || '',
+      trend: fieldValues[2] || '',
+      riskReward: fieldValues[3] || '',
+      stopLoss: fieldValues[4] || '',
+      allocation: fieldValues[5] || '',
+      keyTradeSetups: {
+        entry: fieldValues[0] || '',
+        volume: fieldValues[1] || '',
+        trend: fieldValues[2] || '',
+        riskReward: fieldValues[3] || '',
+        stopLoss: fieldValues[4] || '',
+        allocation: fieldValues[5] || '',
+      },
+      profit_return_data: performanceData,
+      date: savedAtIso,
+    };
+
+    setIsSavingToSophia(true);
+    setStrategyRaw(normalizedRaw);
+
+    try {
+      const existing = JSON.parse(localStorage.getItem(SAVED_STRATEGIES_FALLBACK_KEY) || '[]');
+      const next = Array.isArray(existing) ? existing : [];
+      next.unshift(payload);
+      localStorage.setItem(SAVED_STRATEGIES_FALLBACK_KEY, JSON.stringify(next.slice(0, 100)));
+    } catch {}
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+
+      if (userId) {
+        const baseInsert = {
+          user_id: userId,
+          name: payload.name,
+          ticker: normalizedTicker || null,
+          date: savedAtIso,
+          entry_signal: payload.entry,
+          volume: payload.volume,
+          trend: payload.trend,
+          risk_reward: payload.riskReward,
+          stop_loss: payload.stopLoss,
+          allocation: payload.allocation,
+          profit_return_data: performanceData,
+          status: 'saved',
+        };
+
+        const withFolderAttempt = await supabase
+          .from('strategies')
+          .insert({
+            ...baseInsert,
+            folder: 'sophia',
+            folder_id: 'sophia-strategies',
+            source: 'sophia',
+          });
+
+        if (withFolderAttempt.error) {
+          const withoutFolderAttempt = await supabase
+            .from('strategies')
+            .insert(baseInsert);
+
+          if (withoutFolderAttempt.error) {
+            const insertFallback = await supabase
+              .from('strategies')
+              .insert({
+                user_id: userId,
+                name: payload.name,
+                description: payload.raw || null,
+                type: 'sophia',
+                symbols: normalizedTicker ? [normalizedTicker] : [],
+                is_active: false,
+                rules: {
+                  date: savedAtIso,
+                  status: 'saved',
+                  folder: 'sophia',
+                  folder_id: 'sophia-strategies',
+                  key_trade_setups: payload.keyTradeSetups,
+                },
+                backtest_results: performanceData,
+              });
+
+            if (insertFallback.error) {
+              throw insertFallback.error;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[StrategyOutput] Save to Sophia/Supabase failed, local fallback kept:', error);
+    }
+
+    try {
+      onSaveToSophia?.(payload);
+      setSavedToSophia(true);
+    } catch (error) {
+      console.warn('[StrategyOutput] Save to Sophia state callback failed:', error);
+    } finally {
+      setIsSavingToSophia(false);
+    }
+  };
+
   return (
     <div className="flex h-full text-zinc-300 text-sm overflow-hidden">
       {/* LEFT SIDE */}
@@ -732,10 +863,33 @@ export default function StrategyOutput({
             </div>
           </>
         ) : (
-          <div
-            className="leading-relaxed text-zinc-300"
-            dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
-          />
+          <>
+            <div
+              className="leading-relaxed text-zinc-300"
+              dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
+            />
+            {showSaveToSophiaButton && (
+              <button
+                type="button"
+                onClick={handleSaveToSophia}
+                disabled={savedToSophia || isSavingToSophia}
+                className={`mt-6 w-full py-3 px-6 rounded-lg font-medium text-white transition flex items-center justify-center gap-2 ${
+                  savedToSophia
+                    ? 'bg-emerald-800 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-500'
+                } disabled:opacity-90`}
+              >
+                <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
+                <span>
+                  {savedToSophia
+                    ? '✓ Saved to Sophia Strategies'
+                    : isSavingToSophia
+                      ? 'Saving to Sophia Strategies...'
+                      : '💾 Save to Sophia Strategies'}
+                </span>
+              </button>
+            )}
+          </>
         )}
       </div>
 

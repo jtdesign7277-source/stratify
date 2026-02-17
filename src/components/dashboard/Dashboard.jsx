@@ -1757,15 +1757,70 @@ export default function Dashboard({
               strategy={sophiaStrategy}
               onSave={(strategy) => {
                 const toSave = {
-                  id: 'sophia-' + Date.now(),
+                  id: strategy.id || ('sophia-' + Date.now()),
                   name: strategy.name,
                   code: strategy.code || '',
                   content: strategy.raw || '',
                   summary: strategy,
+                  ticker: strategy.ticker || '',
+                  type: 'sophia',
+                  source: 'sophia',
+                  folder: 'sophia',
+                  folderId: 'sophia-strategies',
                   deployed: false,
                   savedAt: Date.now(),
                 };
-                setSavedStrategies(prev => [...prev, toSave]);
+                setSavedStrategies(prev => {
+                  const nextId = String(toSave.id || '');
+                  const existingIndex = prev.findIndex((item) => String(item?.id || '') === nextId);
+                  if (existingIndex >= 0) {
+                    const updated = [...prev];
+                    updated[existingIndex] = { ...updated[existingIndex], ...toSave };
+                    return updated;
+                  }
+                  return [toSave, ...prev];
+                });
+              }}
+              onSaveToSophia={(strategy) => {
+                const savedStrategy = {
+                  id: strategy.id || ('sophia-' + Date.now()),
+                  name: strategy.name || 'Sophia Strategy',
+                  code: strategy.code || '',
+                  content: strategy.raw || '',
+                  summary: strategy,
+                  ticker: strategy.ticker || '',
+                  entry: strategy.entry || '',
+                  volume: strategy.volume || '',
+                  trend: strategy.trend || '',
+                  riskReward: strategy.riskReward || '',
+                  stopLoss: strategy.stopLoss || '',
+                  allocation: strategy.allocation || '',
+                  keyTradeSetups: strategy.keyTradeSetups || {},
+                  value: strategy.value || '',
+                  profit_return_data: strategy.profit_return_data || null,
+                  date: strategy.date || new Date().toISOString(),
+                  type: 'sophia',
+                  source: 'sophia',
+                  folder: 'sophia',
+                  folderId: 'sophia-strategies',
+                  status: 'saved',
+                  deployed: false,
+                  savedAt: strategy.savedAt || Date.now(),
+                  savedToSophia: true,
+                };
+
+                setSavedStrategies((prev) => {
+                  const nextId = String(savedStrategy.id || '');
+                  const existingIndex = prev.findIndex((item) => String(item?.id || '') === nextId);
+                  if (existingIndex >= 0) {
+                    const updated = [...prev];
+                    updated[existingIndex] = { ...updated[existingIndex], ...savedStrategy };
+                    return updated;
+                  }
+                  return [savedStrategy, ...prev];
+                });
+
+                setSophiaStrategy((prev) => (prev ? { ...prev, savedToSophia: true } : prev));
               }}
               onDeploy={(strategy) => {
                 const toDeploy = {
@@ -1785,6 +1840,7 @@ export default function Dashboard({
               onRetest={(prompt) => {
                 setSophiaWizardPrompt(prompt);
               }}
+              showSaveToSophiaButton
             />
           )}
           {activeTab === 'portfolio' && (
@@ -1843,7 +1899,14 @@ export default function Dashboard({
         <SophiaPanel 
           onCollapsedChange={setIsGrokPanelCollapsed}
           onStrategyGenerated={(strategy) => {
-            setSophiaStrategy(strategy);
+            const generatedAt = strategy?.generatedAt || Date.now();
+            setSophiaStrategy({
+              ...(strategy || {}),
+              id: strategy?.id || `sophia-response-${generatedAt}`,
+              type: 'sophia',
+              source: 'sophia',
+              savedToSophia: false,
+            });
             setActiveTab('sophia-output');
           }}
           onOpenWizard={() => setActiveTab('backtest-wizard')}
