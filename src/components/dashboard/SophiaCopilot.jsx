@@ -85,15 +85,15 @@ export default function SophiaCopilot({ onClose }) {
   return (
     <div
       ref={panelRef}
-      className="absolute bottom-10 left-0 w-[340px] max-h-[420px] rounded-xl border border-[#1f1f1f] bg-[#0c0c0c]/95 backdrop-blur-xl shadow-2xl shadow-black/60 flex flex-col z-[60] overflow-hidden"
+      className="absolute bottom-10 left-0 w-[380px] max-h-[480px] rounded-xl border border-[#1f1f1f] bg-[#0c0c0c]/95 backdrop-blur-xl shadow-2xl shadow-black/60 flex flex-col z-[60] overflow-hidden"
     >
       {/* Header */}
       <div className="shrink-0 px-3 py-2.5 border-b border-[#1a1a1a] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className={`w-3.5 h-3.5 ${criticalCount > 0 ? 'text-red-400 animate-pulse' : 'text-amber-400'}`} />
-          <span className="text-xs font-bold text-white">Sophia Copilot</span>
+          <span className="text-sm font-bold text-white">Sophia</span>
           {alerts.length > 0 && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{alerts.length}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{alerts.length}</span>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -116,20 +116,20 @@ export default function SophiaCopilot({ onClose }) {
         {/* Scan button when empty */}
         {!loading && alerts.length === 0 && !error && (
           <div className="px-4 py-6 text-center">
-            <p className="text-xs text-zinc-400 mb-3">No alerts yet</p>
+            <p className="text-sm text-zinc-400 mb-3">No alerts yet</p>
             <button
               onClick={triggerScan}
               disabled={scanning}
               className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
             >
-              {scanning ? 'Scanning...' : '⚡ Scan Positions'}
+              {scanning ? 'Scanning...' : '⚡ Scan Now'}
             </button>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-[11px] text-red-300">
+          <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-xs text-red-300">
             {error}
           </div>
         )}
@@ -153,11 +153,12 @@ export default function SophiaCopilot({ onClose }) {
                 <div className="flex items-start gap-2">
                   <Icon className={`w-3 h-3 mt-0.5 shrink-0 ${styles.text}`} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className={`text-[11px] font-bold ${styles.text}`}>{alert.symbol}</span>
-                      <span className="text-[9px] text-zinc-600 ml-auto">{timeAgo(alert.created_at)}</span>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={`text-xs font-bold ${styles.text}`}>{alert.symbol}</span>
+                      {alert.title && <span className="text-xs font-semibold text-white">{alert.title}</span>}
+                      <span className="text-[10px] text-zinc-600 ml-auto">{timeAgo(alert.created_at)}</span>
                     </div>
-                    <p className={`text-[11px] text-zinc-300 leading-snug ${alert.alert_type === 'morning' ? 'whitespace-pre-line' : ''}`}>{alert.message}</p>
+                    <p className={`text-[13px] text-zinc-300 leading-relaxed ${alert.alert_type === 'morning' ? 'whitespace-pre-line' : ''}`}>{alert.message}</p>
                   </div>
                 </div>
               </div>

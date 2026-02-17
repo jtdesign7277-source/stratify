@@ -332,49 +332,57 @@ export default function StatusBar({
               </>
             )}
           </button>
-          <div className="relative flex items-center gap-1">
-            {/* Play Sophia Voice */}
-            <button
-              onClick={handlePlaySophia}
-              disabled={sophiaLoading}
-              className={`flex items-center justify-center w-7 h-7 rounded-full border transition-all ${
-                sophiaPlaying
-                  ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/15 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                  : sophiaLoading
-                    ? 'text-zinc-500 border-[#1f1f1f] bg-[#121212] cursor-wait'
-                    : 'text-amber-400 border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] hover:bg-[rgba(245,158,11,0.15)]'
-              }`}
-              title={sophiaPlaying ? 'Stop Sophia' : 'Listen to Sophia'}
-            >
-              {sophiaLoading ? (
-                <Volume2 className="w-3 h-3 animate-pulse" />
-              ) : sophiaPlaying ? (
-                <Square className="w-2.5 h-2.5 fill-current" />
-              ) : (
-                <Play className="w-3 h-3 fill-current" />
-              )}
-            </button>
+          <div className="relative">
+            <div className={`flex items-center rounded-full border backdrop-blur-md transition-all ${
+              hasNewInsight
+                ? 'border-amber-400/40 bg-[rgba(245,158,11,0.15)] shadow-[0_0_16px_rgba(245,158,11,0.3)]'
+                : sophiaPlaying
+                  ? 'border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : 'border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)]'
+            }`}>
+              {/* Play/Stop side */}
+              <button
+                onClick={handlePlaySophia}
+                disabled={sophiaLoading}
+                className={`flex items-center justify-center w-7 h-7 rounded-l-full transition-colors ${
+                  sophiaPlaying
+                    ? 'text-emerald-300 hover:text-emerald-200'
+                    : sophiaLoading
+                      ? 'text-zinc-500 cursor-wait'
+                      : 'text-amber-400 hover:text-amber-200'
+                }`}
+                title={sophiaPlaying ? 'Stop Sophia' : 'Listen to Sophia'}
+              >
+                {sophiaLoading ? (
+                  <Volume2 className="w-3 h-3 animate-pulse" />
+                ) : sophiaPlaying ? (
+                  <Square className="w-2.5 h-2.5 fill-current" />
+                ) : (
+                  <Play className="w-3 h-3 fill-current" />
+                )}
+              </button>
 
-            {/* Copilot Dropdown */}
-            <button
-              onClick={() => setCopilotOpen((prev) => !prev)}
-              className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
-                copilotOpen
-                  ? 'text-amber-300 bg-[rgba(245,158,11,0.15)] border-amber-400/40'
-                  : hasNewInsight
-                    ? 'text-amber-200 bg-[rgba(245,158,11,0.15)] border-amber-400/40 shadow-[0_0_16px_rgba(245,158,11,0.3)] animate-pulse'
-                    : 'text-amber-400 hover:text-amber-300 bg-[rgba(245,158,11,0.08)] border-[rgba(245,158,11,0.25)]'
-              }`}
-            >
-              <Zap className={`w-3 h-3 ${hasNewInsight ? 'animate-pulse' : ''}`} />
-              Copilot
-              {hasNewInsight && (
-                <>
-                  <span className="absolute -inset-0.5 rounded-full border border-amber-400/35 animate-pulse pointer-events-none" />
+              {/* Divider */}
+              <div className="w-px h-4 bg-amber-400/20" />
+
+              {/* Sophia name — opens dropdown */}
+              <button
+                onClick={() => setCopilotOpen((prev) => !prev)}
+                className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-r-full text-xs font-semibold transition-colors ${
+                  copilotOpen
+                    ? 'text-amber-300'
+                    : hasNewInsight
+                      ? 'text-amber-200 animate-pulse'
+                      : 'text-amber-400 hover:text-amber-200'
+                }`}
+              >
+                <Zap className={`w-3 h-3 ${hasNewInsight ? 'animate-pulse' : ''}`} />
+                Sophia
+                {hasNewInsight && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse pointer-events-none" />
-                </>
-              )}
-            </button>
+                )}
+              </button>
+            </div>
             {copilotOpen && (
               <SophiaCopilot onClose={() => setCopilotOpen(false)} />
             )}
