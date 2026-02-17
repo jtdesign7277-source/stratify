@@ -88,9 +88,15 @@ export default function StatusBar({
   const sophiaAudioRef = useRef(null);
 
   const handlePlaySophia = useCallback(async () => {
+    // Stop if already playing (audio or speech synthesis)
     if (sophiaAudioRef.current) {
       sophiaAudioRef.current.pause();
       sophiaAudioRef.current = null;
+      setSophiaPlaying(false);
+      return;
+    }
+    if (window.speechSynthesis?.speaking) {
+      window.speechSynthesis.cancel();
       setSophiaPlaying(false);
       return;
     }
@@ -105,41 +111,43 @@ export default function StatusBar({
         return;
       }
 
-      // Check for pre-generated audio URL in alerts
+      // Check for pre-generated audio URL
       const cachedAudio = alerts.find((a) => a.audio_url)?.audio_url;
-      let url = cachedAudio;
 
-      // Fallback: generate TTS on the fly (slower)
-      if (!url) {
+      if (cachedAudio) {
+        // Instant playback from cached audio
+        const audio = new Audio(cachedAudio);
+        sophiaAudioRef.current = audio;
+        audio.addEventListener('play', () => setSophiaPlaying(true));
+        audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+        audio.addEventListener('pause', () => setSophiaPlaying(false));
+        audio.addEventListener('error', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+        setSophiaLoading(false);
+        await audio.play();
+      } else {
+        // Instant fallback: browser speech synthesis (no network call)
         const text = alerts
           .slice(0, 3)
-          .map((a) => `${a.title || ''}: ${a.message}`)
+          .map((a) => `${a.symbol}: ${a.message}`)
           .join('. ')
-          .slice(0, 400);
+          .slice(0, 500);
 
-        const speakRes = await fetch('/api/sophia-speak', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-        if (!speakRes.ok) throw new Error('TTS failed');
-        const data = await speakRes.json();
-        url = data.audio_url;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        // Try to pick a good female voice
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find((v) => v.name.includes('Samantha') || v.name.includes('Karen') || v.name.includes('Zira') || v.name.includes('Google UK English Female'));
+        if (preferred) utterance.voice = preferred;
+        utterance.onstart = () => setSophiaPlaying(true);
+        utterance.onend = () => setSophiaPlaying(false);
+        utterance.onerror = () => setSophiaPlaying(false);
+        setSophiaLoading(false);
+        window.speechSynthesis.speak(utterance);
       }
-
-      if (!url) throw new Error('No audio');
-
-      const audio = new Audio(url);
-      sophiaAudioRef.current = audio;
-      audio.addEventListener('play', () => setSophiaPlaying(true));
-      audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
-      audio.addEventListener('pause', () => setSophiaPlaying(false));
-      audio.addEventListener('error', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
-      await audio.play();
     } catch (err) {
       console.error('Sophia play error:', err);
       setSophiaPlaying(false);
-    } finally {
       setSophiaLoading(false);
     }
   }, []);
