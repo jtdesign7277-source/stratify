@@ -5,91 +5,112 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const ALPACA_BASE = process.env.ALPACA_BASE_URL || 'https://paper-api.alpaca.markets';
 const ALPACA_DATA = 'https://data.alpaca.markets';
+const ALPACA_KEY = process.env.ALPACA_API_KEY;
+const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY;
 
-async function getAlpacaAccount(apiKey, secretKey) {
-  const res = await fetch(`${ALPACA_BASE}/v2/account`, {
-    headers: { 'APCA-API-KEY-ID': apiKey, 'APCA-API-SECRET-KEY': secretKey },
-  });
-  if (!res.ok) {
-    console.error('Alpaca account error:', res.status, await res.text().catch(() => ''));
-    return null;
+// Default watchlist tickers if user has none
+const DEFAULT_TICKERS = ['SPY', 'QQQ', 'AAPL', 'TSLA', 'NVDA', 'MSFT', 'AMZN', 'META', 'BTC/USD'];
+
+async function getMarketSnapshots(symbols) {
+  // Filter out crypto for stock endpoint
+  const stocks = symbols.filter((s) => !s.includes('/'));
+  const crypto = symbols.filter((s) => s.includes('/'));
+  const results = {};
+
+  if (stocks.length > 0 && ALPACA_KEY) {
+    try {
+      const url = `${ALPACA_DATA}/v2/stocks/snapshots?symbols=${stocks.join(',')}`;
+      const res = await fetch(url, {
+        headers: { 'APCA-API-KEY-ID': ALPACA_KEY, 'APCA-API-SECRET-KEY': ALPACA_SECRET },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        for (const [sym, snap] of Object.entries(data)) {
+          const price = snap.latestTrade?.p || snap.minuteBar?.c || 0;
+          const prevClose = snap.prevDailyBar?.c || 0;
+          const change = prevClose ? ((price - prevClose) / prevClose * 100).toFixed(2) : '0.00';
+          const volume = snap.dailyBar?.v || 0;
+          const prevVolume = snap.prevDailyBar?.v || 1;
+          results[sym] = {
+            price: price.toFixed(2),
+            change: `${change}%`,
+            volume,
+            volumeRatio: (volume / prevVolume).toFixed(1),
+            high: snap.dailyBar?.h || 0,
+            low: snap.dailyBar?.l || 0,
+          };
+        }
+      }
+    } catch {}
   }
-  return res.json();
+
+  if (crypto.length > 0 && ALPACA_KEY) {
+    for (const sym of crypto) {
+      try {
+        const encoded = encodeURIComponent(sym);
+        const res = await fetch(`${ALPACA_DATA}/v1beta3/crypto/us/latest/trades?symbols=${encoded}`, {
+          headers: { 'APCA-API-KEY-ID': ALPACA_KEY, 'APCA-API-SECRET-KEY': ALPACA_SECRET },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const trade = data.trades?.[sym];
+          if (trade) results[sym] = { price: trade.p?.toFixed(2) || '0', change: 'N/A', volume: 0, volumeRatio: '0', high: 0, low: 0 };
+        }
+      } catch {}
+    }
+  }
+
+  return results;
 }
 
-async function getAlpacaPositions(apiKey, secretKey) {
-  const res = await fetch(`${ALPACA_BASE}/v2/positions`, {
-    headers: { 'APCA-API-KEY-ID': apiKey, 'APCA-API-SECRET-KEY': secretKey },
-  });
-  if (!res.ok) return [];
-  return res.json();
+async function getLatestIntel() {
+  const { data } = await supabase
+    .from('market_intel_reports')
+    .select('headline, report_content')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  return data?.[0]?.headline || '';
 }
 
-async function getRecentBars(apiKey, secretKey, symbol) {
-  const end = new Date().toISOString();
-  const start = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-  const res = await fetch(
-    `${ALPACA_DATA}/v2/stocks/${symbol}/bars?timeframe=1Day&start=${start}&end=${end}&limit=5`,
-    { headers: { 'APCA-API-KEY-ID': apiKey, 'APCA-API-SECRET-KEY': secretKey } }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.bars || [];
-}
-
-function buildCopilotPrompt(account, positions, barsMap) {
-  const positionSummary = positions.map((p) => {
-    const bars = barsMap[p.symbol] || [];
-    const barsStr = bars.map((b) => `${b.t}: O${b.o} H${b.h} L${b.l} C${b.c} V${b.v}`).join(' | ');
-    return `${p.symbol}: ${p.qty} shares @ $${p.avg_entry_price} → $${p.current_price} (${(parseFloat(p.unrealized_plpc) * 100).toFixed(2)}% P&L, today ${(parseFloat(p.change_today) * 100).toFixed(2)}%) | 5d bars: ${barsStr}`;
+function buildCopilotPrompt(tickers, snapshots, intelHeadline) {
+  const tickerData = tickers.map((t) => {
+    const s = snapshots[t];
+    if (!s) return `${t}: no data`;
+    return `${t}: $${s.price} (${s.change}) | Vol ratio: ${s.volumeRatio}x | Range: $${s.low}-$${s.high}`;
   }).join('\n');
 
-  return `You are Sophia, an AI trade copilot. You're monitoring a trader's live positions in real-time.
+  return `You are Sophia, an AI trade copilot for Stratify. You monitor a user's watchlist and market conditions. Be sharp, specific, actionable.
 
-ACCOUNT:
-- Equity: $${account.equity}
-- Cash: $${account.cash}
-- Buying Power: $${account.buying_power}
-- Day P&L: $${(parseFloat(account.equity) - parseFloat(account.last_equity)).toFixed(2)}
+WATCHLIST TICKERS (with live market data):
+${tickerData}
 
-LIVE POSITIONS:
-${positionSummary || 'No open positions.'}
+LATEST MARKET INTEL HEADLINE:
+${intelHeadline || 'No recent intel.'}
 
-YOUR JOB: Analyze each position and generate alerts ONLY when something actionable is happening. Be sharp, specific, and urgent when needed.
-
-Check for:
-1. **Stop Loss Breaches** — Price dropping through key support levels or moving averages
-2. **Profit Target Hits** — Position up significantly, potential take-profit opportunity
-3. **Unusual Movement** — Big daily % move (>3% either direction), unusual volume
-4. **Trend Breaks** — Price action breaking key patterns from the 5-day bars
-5. **Risk Concentration** — Too much capital in one position (>30% of portfolio)
-6. **Drawdown Alerts** — Position losing >5% from entry
+YOUR JOB: Scan the watchlist and generate 2-5 alerts about what matters RIGHT NOW. Focus on:
+1. **Big Movers** — Any ticker up or down >2%? Why might that be?
+2. **Unusual Volume** — Volume ratio >1.5x is notable, >2x is significant
+3. **Technical Levels** — Price near round numbers, daily highs/lows
+4. **Market Context** — How does the intel headline affect these tickers?
+5. **Opportunities** — Any setups forming? Oversold bounces? Breakouts?
 
 For each alert, respond with this EXACT format (one per line):
 ALERT|severity|symbol|title|message
 
 Severity: 🔴 critical, 🟡 warning, 🟢 opportunity, 🔵 info
 
-Examples:
-ALERT|🔴|TSLA|Stop Loss Breach|$TSLA broke below $270 support — down 4.2% today. Consider cutting losses.
-ALERT|🟢|NVDA|Profit Target|$NVDA up 8.3% from entry — momentum strong but RSI approaching overbought.
-ALERT|🟡|Portfolio|Risk Concentration|62% of portfolio in tech. Single sector pullback could hit hard.
-
-If nothing actionable, respond with exactly: ALL_CLEAR|Portfolio looks healthy. No immediate actions needed.
-
-Be concise. No fluff. Traders need fast decisions.`;
+Keep messages under 120 chars. Be concise. No fluff.
+If market is closed and nothing notable, give 1-2 info alerts about positioning for next session.`;
 }
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
-    // Fetch recent alerts
     const { data, error } = await supabase
       .from('sophia_alerts')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(30);
 
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json(data || []);
@@ -97,33 +118,20 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.ALPACA_API_KEY;
-  const secretKey = process.env.ALPACA_SECRET_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-
-  if (!apiKey || !secretKey) return res.status(500).json({ error: 'Missing Alpaca keys' });
-  if (!anthropicKey) return res.status(500).json({ error: 'Missing Anthropic key' });
+  if (!anthropicKey) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' });
+  if (!ALPACA_KEY) return res.status(500).json({ error: 'Missing ALPACA_API_KEY for market data' });
 
   try {
-    // Fetch account + positions
-    const [account, positions] = await Promise.all([
-      getAlpacaAccount(apiKey, secretKey),
-      getAlpacaPositions(apiKey, secretKey),
+    // Use default tickers (later: pull from user's watchlist via Supabase)
+    const tickers = DEFAULT_TICKERS;
+
+    const [snapshots, intelHeadline] = await Promise.all([
+      getMarketSnapshots(tickers),
+      getLatestIntel(),
     ]);
 
-    if (!account) return res.status(502).json({ error: `Failed to fetch Alpaca account from ${ALPACA_BASE}. Check ALPACA_API_KEY and ALPACA_BASE_URL env vars.` });
-
-    // Fetch recent bars for each position
-    const barsMap = {};
-    if (positions.length > 0) {
-      const barsPromises = positions.map(async (p) => {
-        barsMap[p.symbol] = await getRecentBars(apiKey, secretKey, p.symbol);
-      });
-      await Promise.all(barsPromises);
-    }
-
-    // Ask Sophia to analyze
-    const prompt = buildCopilotPrompt(account, positions, barsMap);
+    const prompt = buildCopilotPrompt(tickers, snapshots, intelHeadline);
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -141,7 +149,7 @@ export default async function handler(req, res) {
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text();
-      return res.status(502).json({ error: `Anthropic error: ${anthropicRes.status} ${errText}` });
+      return res.status(502).json({ error: `Anthropic error: ${anthropicRes.status}` });
     }
 
     const anthropicData = await anthropicRes.json();
@@ -152,17 +160,6 @@ export default async function handler(req, res) {
     const lines = responseText.split('\n').filter((l) => l.trim());
 
     for (const line of lines) {
-      if (line.startsWith('ALL_CLEAR|')) {
-        alerts.push({
-          severity: '🟢',
-          symbol: 'Portfolio',
-          title: 'All Clear',
-          message: line.split('|')[1]?.trim() || 'No alerts.',
-          alert_type: 'all_clear',
-        });
-        break;
-      }
-
       if (line.startsWith('ALERT|')) {
         const parts = line.split('|');
         if (parts.length >= 5) {
@@ -185,7 +182,6 @@ export default async function handler(req, res) {
         title: a.title,
         message: a.message,
         alert_type: a.alert_type,
-        account_equity: parseFloat(account.equity),
         raw_response: responseText,
       }));
 
@@ -194,14 +190,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       alerts,
-      account: {
-        equity: account.equity,
-        cash: account.cash,
-        buying_power: account.buying_power,
-        day_pnl: (parseFloat(account.equity) - parseFloat(account.last_equity)).toFixed(2),
-      },
-      positions_checked: positions.length,
-      raw: responseText,
+      tickers_scanned: tickers.length,
+      snapshots_found: Object.keys(snapshots).length,
     });
   } catch (err) {
     console.error('Copilot error:', err);

@@ -992,22 +992,10 @@ export default function StrategyOutput({
         {isEditingStrategyText ? (
           <>
             {isPreviewingEdit ? (
-              <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
-                <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
-                  <span className="text-[11px] font-semibold tracking-wider uppercase text-emerald-400/90">Formatted Preview</span>
-                  <button
-                    type="button"
-                    onClick={() => setIsPreviewingEdit(false)}
-                    className="text-xs text-gray-400 hover:text-white transition-colors"
-                  >
-                    Back to Edit
-                  </button>
-                </div>
-                <div
-                  className="min-h-[520px] px-4 py-4 leading-relaxed text-zinc-300"
-                  dangerouslySetInnerHTML={{ __html: editorPreviewMarkdown }}
-                />
-              </div>
+              <div
+                className="leading-relaxed text-zinc-300"
+                dangerouslySetInnerHTML={{ __html: editorPreviewMarkdown }}
+              />
             ) : (
               <div>
                 <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
