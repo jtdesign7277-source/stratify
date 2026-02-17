@@ -8,6 +8,7 @@ import WatchlistPage from './WatchlistPage';
 import RightPanel from './RightPanel';
 import StatusBar from './StatusBar';
 import TerminalPanel from './TerminalPanel';
+import SecondBrainTerminalLayout from './SecondBrainTerminalLayout';
 import ArbitragePanel from './ArbitragePanel';
 import DataTable from './DataTable';
 import StockDetailView from './StockDetailView';
@@ -1395,6 +1396,14 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
             <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
               <ChallengeLeaderboard isPaid={true} />
             </div>
+          ) : activeTab === 'terminal' ? (
+            <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
+              <SecondBrainTerminalLayout
+                strategies={strategies}
+                savedStrategies={savedStrategies}
+                deployedStrategies={deployedStrategies}
+              />
+            </div>
           ) : (
             <>
               {/* Chart Section (Collapsible) - Smooth Animation */}
@@ -1608,6 +1617,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               </motion.div>
             )}
           </AnimatePresence>
+
         </div>
 
           {/* Watchlist Full Page Overlay */}
@@ -1624,49 +1634,102 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
                   watchlist={watchlist}
                   onAddToWatchlist={addToWatchlist}
                   onRemoveFromWatchlist={removeFromWatchlist}
+                  savedStrategies={savedStrategies}
+                  onSelectStock={setSelectedStock}
+                  onOpenStockDetail={(stock) => {
+                    setSelectedStock(stock);
+                    setActiveSection('stock-detail');
+                  }}
                 />
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Stock Detail Full Page Overlay */}
+          <AnimatePresence>
+            {activeSection === 'stock-detail' && selectedStock && (
+              <motion.div 
+                className="absolute inset-0 z-20 bg-[#06060c] overflow-hidden"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <StockDetailView
+                  stock={selectedStock}
+                  onClose={() => {
+                    setSelectedStock(null);
+                    setActiveSection('watchlist');
+                  }}
+                  themeClasses={themeClasses}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Edit Strategy Modal */}
+          <AnimatePresence>
+            {editingStrategy && (
+              <StrategyDetailModal
+                strategy={editingStrategy}
+                onClose={() => setEditingStrategy(null)}
+                onDeploy={(strategyId) => {
+                  const strategy = strategies.find(s => s.id === strategyId);
+                  if (strategy) {
+                    handleDeployStrategy(strategy);
+                    setEditingStrategy(null);
+                  }
+                }}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Newsletter Modal */}
+          <AnimatePresence>
+            {showNewsletter && (
+              <NewsletterModal
+                onClose={() => setShowNewsletter(false)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Broker Connect Modal */}
+          <AnimatePresence>
+            {showBrokerModal && (
+              <BrokerConnectModal
+                onClose={() => setShowBrokerModal(false)}
+                onConnect={(broker) => {
+                  setConnectedBrokers(prev => [...prev, broker]);
+                  setShowBrokerModal(false);
+                }}
+                connectedBrokers={connectedBrokers}
+                onDisconnect={(brokerId) => {
+                  setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId));
+                }}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-      
-      {/* Right Panel - Uses existing RightPanel (Grok AI) */}
-      <RightPanel 
-        width={rightPanelWidth} 
-        alpacaData={alpacaData} 
-        theme={theme} 
-        themeClasses={themeClasses} 
-        onStrategyGenerated={handleStrategyGenerated} 
-        onSaveToSidebar={handleSaveToSidebar}
-        onDemoStateChange={handleDemoStateChange}
-        onStrategyAdded={handleStrategyAdded}
-        editingStrategy={editingStrategy}
-        onClearEdit={() => setEditingStrategy(null)}
-      />
-      
-      {/* Stock Detail View Modal */}
-      {selectedStock && (
-        <StockDetailView 
-          symbol={selectedStock.symbol}
-          stockName={selectedStock.name}
-          chartSymbol={selectedStock.chartSymbol}
-          onClose={() => setSelectedStock(null)}
-          themeClasses={themeClasses}
-        />
-      )}
 
-      {/* Newsletter Modal */}
-      <NewsletterModal 
-        isOpen={showNewsletter} 
-        onClose={() => setShowNewsletter(false)} 
+      {/* Right Panel (AI + Build) */}
+      <RightPanel
+        width={rightPanelWidth}
+        onResize={(w) => setRightPanelWidth(w)}
+        isDragging={isDragging}
+        setIsDragging={setIsDragging}
+        onStrategyGenerated={handleStrategyGenerated}
+        strategies={strategies}
+        deployedStrategies={deployedStrategies}
+        setCurrentPage={setCurrentPage}
       />
 
-      {/* Broker Connect Modal */}
-      <BrokerConnectModal 
-        isOpen={showBrokerModal} 
-        onClose={() => setShowBrokerModal(false)}
-        onConnect={handleConnectBroker}
-        connectedBrokers={connectedBrokers}
+      {/* Status Bar */}
+      <StatusBar
+        connectionStatus={connectionStatus}
+        theme={theme}
+        themeClasses={themeClasses}
+        onOpenNewsletter={() => setShowNewsletter(true)}
       />
     </div>
   );
