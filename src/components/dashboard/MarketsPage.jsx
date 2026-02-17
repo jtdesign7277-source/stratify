@@ -1,300 +1,352 @@
-133
-import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, Globe, BarChart3, Activity, RefreshCw, Loader2 } from 'lucide-react';
-import { getQuotes, getTrending } from '../../services/marketData';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Activity,
+  BarChart3,
+  Globe,
+  Loader2,
+  TrendingDown,
+  TrendingUp,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
+import useAlpacaStream from '../../hooks/useAlpacaStream';
 
-const EASTERN_TIMEZONE = 'America/New_York';
-const PRE_MARKET_START_MINUTES = 4 * 60;
-const PRE_MARKET_END_MINUTES = 9 * 60 + 30;
-const AFTER_HOURS_START_MINUTES = 16 * 60;
-const AFTER_HOURS_END_MINUTES = 20 * 60;
+const ETF_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'IWM', 'GLD'];
+const TRENDING_SYMBOLS = ['NVDA', 'TSLA', 'META', 'AAPL', 'AMZN', 'MSFT'];
+const CRYPTO_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD'];
+const STREAM_STOCK_SYMBOLS = [...new Set([...ETF_SYMBOLS, ...TRENDING_SYMBOLS])];
 
-const getEasternMinutes = (date) => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: EASTERN_TIMEZONE,
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-  }).formatToParts(date);
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
-  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
-  return hour * 60 + minute;
+const ETF_NAMES = {
+  SPY: 'S&P 500',
+  QQQ: 'Nasdaq 100',
+  DIA: 'Dow Jones',
+  IWM: 'Russell 2000',
+  GLD: 'Gold Trust',
 };
 
-const getMarketSession = () => {
-  const minutes = getEasternMinutes(new Date());
-  if (minutes >= PRE_MARKET_START_MINUTES && minutes < PRE_MARKET_END_MINUTES) return 'pre';
-  if (minutes >= PRE_MARKET_END_MINUTES && minutes < AFTER_HOURS_START_MINUTES) return 'regular';
-  if (minutes >= AFTER_HOURS_START_MINUTES && minutes < AFTER_HOURS_END_MINUTES) return 'after';
-  return 'closed';
+const TRENDING_NAMES = {
+  NVDA: 'NVIDIA',
+  TSLA: 'Tesla',
+  META: 'Meta Platforms',
+  AAPL: 'Apple',
+  AMZN: 'Amazon',
+  MSFT: 'Microsoft',
 };
 
-const toNumber = (value) => {
-  if (typeof value === 'number') return value;
-  if (value == null) return NaN;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : NaN;
+const CRYPTO_NAMES = {
+  'BTC-USD': 'Bitcoin',
+  'ETH-USD': 'Ethereum',
+  'SOL-USD': 'Solana',
+  'XRP-USD': 'XRP',
+  'DOGE-USD': 'Dogecoin',
 };
 
-const formatStockPrice = (price) => {
-  if (!Number.isFinite(price)) return '...';
-  return Number(price).toFixed(2);
+const SECTORS = [
+  { name: 'Technology', symbol: 'XLK', changePercent: 1.45 },
+  { name: 'Healthcare', symbol: 'XLV', changePercent: -0.32 },
+  { name: 'Financials', symbol: 'XLF', changePercent: 0.87 },
+  { name: 'Energy', symbol: 'XLE', changePercent: 2.13 },
+  { name: 'Consumer', symbol: 'XLY', changePercent: -0.54 },
+  { name: 'Industrials', symbol: 'XLI', changePercent: 0.23 },
+];
+
+const isFiniteNumber = (value) => Number.isFinite(Number(value));
+
+const getPriceFromQuote = (quote) => {
+  const candidates = [quote?.price, quote?.lastTrade, quote?.ask, quote?.bid];
+  for (const candidate of candidates) {
+    const num = Number(candidate);
+    if (Number.isFinite(num)) return num;
+  }
+  return null;
 };
+
+const createEntry = (symbol, name) => ({
+  symbol,
+  name,
+  price: null,
+  baseline: null,
+  changePercent: 0,
+  ticks: [],
+  updatedAt: null,
+});
 
 const formatSignedPercent = (value) => {
-  if (!Number.isFinite(value)) return null;
-  return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
+  if (!isFiniteNumber(value)) return '--';
+  const numeric = Number(value);
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}%`;
 };
 
-const getChangeColor = (value) => {
-  if (value > 0) return 'text-emerald-400';
-  if (value < 0) return 'text-red-400';
-  return 'text-zinc-400';
+const formatPrice = (price, isCrypto = false) => {
+  if (!isFiniteNumber(price)) return '--';
+
+  const numeric = Number(price);
+  if (isCrypto) {
+    const decimals = numeric >= 1000 ? 2 : numeric >= 1 ? 3 : 5;
+    return `$${numeric.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}`;
+  }
+
+  return `$${numeric.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
-// Floating TradingView mini chart preview
-const ChartPreview = ({ symbol, position }) => {
-  const getTradingViewSymbol = (sym) => {
-    if (!sym) return 'AAPL';
-    if (sym.startsWith('^')) {
-      const indexMap = { '^GSPC': 'FOREXCOM:SPXUSD', '^DJI': 'FOREXCOM:DJI', '^IXIC': 'NASDAQ:NDX', '^RUT': 'AMEX:IWM' };
-      return indexMap[sym] || 'FOREXCOM:SPXUSD';
-    }
-    if (sym.includes('-USD')) return `BINANCE:${sym.replace('-USD', 'USDT')}`;
-    return `NASDAQ:${sym}`;
-  };
+const MiniSparkline = ({ values = [] }) => {
+  const normalized = values.filter((value) => Number.isFinite(value));
+  if (normalized.length < 2) {
+    return <div className="w-16 h-6 rounded bg-white/[0.03] border border-white/[0.04]" />;
+  }
 
-  const tvSymbol = getTradingViewSymbol(symbol);
+  const min = Math.min(...normalized);
+  const max = Math.max(...normalized);
+  const range = max - min || 1;
+  const points = normalized
+    .map((value, index) => {
+      const x = (index / (normalized.length - 1)) * 64;
+      const y = 24 - ((value - min) / range) * 24;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  const trendUp = normalized[normalized.length - 1] >= normalized[0];
 
   return (
-    <div 
-      className="fixed z-50 bg-[#131722] border border-[#2a2e39] rounded-lg shadow-2xl overflow-hidden pointer-events-none"
-      style={{ 
-        top: Math.max(10, Math.min(position.y - 100, window.innerHeight - 260)),
-        left: Math.min(position.x + 30, window.innerWidth - 360),
-        width: 340,
-        height: 240
-      }}
-    >
-      <div className="p-2 border-b border-[#2a2e39] flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="text-xs text-gray-400 font-medium">{symbol}</span>
-      </div>
-      <iframe
-        src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_widget&symbol=${encodeURIComponent(tvSymbol)}&interval=5&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=131722&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=0&hideideas=1&hide_top_toolbar=1&hide_legend=1&allow_symbol_change=0&container_id=tv_widget`}
-        className="w-full"
-        style={{ height: 200 }}
-        frameBorder="0"
-        allowTransparency="true"
+    <svg viewBox="0 0 64 24" className="w-16 h-6" preserveAspectRatio="none" aria-hidden="true">
+      <polyline
+        fill="none"
+        stroke={trendUp ? '#34d399' : '#f87171'}
+        strokeWidth="1.8"
+        points={points}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
-    </div>
+    </svg>
   );
 };
 
-const MarketsPage = ({ themeClasses }) => {
-  const [indices, setIndices] = useState([]);
-  const [crypto, setCrypto] = useState([]);
-  const [trending, setTrending] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [hoverPreview, setHoverPreview] = useState(null);
-  const [marketSession, setMarketSession] = useState(getMarketSession);
-  const hoverTimeout = useRef(null);
+const MarketsPage = () => {
+  const [stockState, setStockState] = useState(() =>
+    STREAM_STOCK_SYMBOLS.reduce((acc, symbol) => {
+      acc[symbol] = createEntry(symbol, ETF_NAMES[symbol] || TRENDING_NAMES[symbol] || symbol);
+      return acc;
+    }, {})
+  );
 
-  const INDEX_SYMBOLS = ['^GSPC', '^DJI', '^IXIC', '^RUT'];
-  const CRYPTO_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD'];
+  const [cryptoState, setCryptoState] = useState(() =>
+    CRYPTO_SYMBOLS.reduce((acc, symbol) => {
+      acc[symbol] = createEntry(symbol, CRYPTO_NAMES[symbol] || symbol);
+      return acc;
+    }, {})
+  );
 
-  const indexNames = {
-    '^GSPC': 'S&P 500',
-    '^DJI': 'Dow Jones',
-    '^IXIC': 'NASDAQ',
-    '^RUT': 'Russell 2000',
-  };
-
-  const cryptoNames = {
-    'BTC-USD': 'Bitcoin',
-    'ETH-USD': 'Ethereum',
-    'SOL-USD': 'Solana',
-    'XRP-USD': 'XRP',
-    'DOGE-USD': 'Dogecoin',
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [indexData, cryptoData, trendingData] = await Promise.all([
-        getQuotes(INDEX_SYMBOLS),
-        getQuotes(CRYPTO_SYMBOLS),
-        getTrending(),
-      ]);
-
-      setIndices(indexData.map(q => ({
-        ...q,
-        name: indexNames[q.symbol] || q.name || q.symbol,
-        displaySymbol: q.symbol.replace('^', ''),
-      })));
-
-      setCrypto(cryptoData.map(q => ({
-        ...q,
-        name: cryptoNames[q.symbol] || q.name || q.symbol,
-        displaySymbol: q.symbol.replace('-USD', ''),
-      })));
-
-      setTrending(trendingData.slice(0, 6));
-      setLastUpdate(new Date());
-    } catch (error) {
-      console.error('Error fetching market data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    stockQuotes,
+    cryptoQuotes,
+    stockConnected,
+    cryptoConnected,
+    error,
+  } = useAlpacaStream({
+    stockSymbols: STREAM_STOCK_SYMBOLS,
+    cryptoSymbols: CRYPTO_SYMBOLS,
+    enabled: true,
+  });
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+    const updates = Object.entries(stockQuotes);
+    if (updates.length === 0) return;
+
+    setStockState((prev) => {
+      const next = { ...prev };
+      updates.forEach(([symbol, quote]) => {
+        const price = getPriceFromQuote(quote);
+        if (!Number.isFinite(price)) return;
+
+        const current = next[symbol] || createEntry(symbol, ETF_NAMES[symbol] || TRENDING_NAMES[symbol] || symbol);
+        const baseline = Number.isFinite(current.baseline) ? current.baseline : price;
+        const changePercent = baseline ? ((price - baseline) / baseline) * 100 : 0;
+
+        next[symbol] = {
+          ...current,
+          price,
+          baseline,
+          changePercent,
+          ticks: [...current.ticks, price].slice(-30),
+          updatedAt: quote?.timestamp || new Date().toISOString(),
+        };
+      });
+      return next;
+    });
+  }, [stockQuotes]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMarketSession(getMarketSession());
-    }, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    const updates = Object.entries(cryptoQuotes);
+    if (updates.length === 0) return;
 
-  const MarketCard = ({ title, data, icon: Icon, showSymbol = true }) => (
-    <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Icon className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
-        <h3 className="text-white font-medium">{title}</h3>
-      </div>
-      <div className="space-y-3">
-        {loading && data.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+    setCryptoState((prev) => {
+      const next = { ...prev };
+      updates.forEach(([symbol, quote]) => {
+        const price = getPriceFromQuote(quote);
+        if (!Number.isFinite(price)) return;
+
+        const current = next[symbol] || createEntry(symbol, CRYPTO_NAMES[symbol] || symbol);
+        const baseline = Number.isFinite(current.baseline) ? current.baseline : price;
+        const changePercent = baseline ? ((price - baseline) / baseline) * 100 : 0;
+
+        next[symbol] = {
+          ...current,
+          price,
+          baseline,
+          changePercent,
+          ticks: [...current.ticks, price].slice(-30),
+          updatedAt: quote?.timestamp || new Date().toISOString(),
+        };
+      });
+      return next;
+    });
+  }, [cryptoQuotes]);
+
+  const stockLastUpdated = useMemo(() => {
+    const timestamps = Object.values(stockState).map((item) => item.updatedAt).filter(Boolean);
+    if (timestamps.length === 0) return null;
+    return new Date(timestamps.sort().at(-1));
+  }, [stockState]);
+
+  const cryptoLastUpdated = useMemo(() => {
+    const timestamps = Object.values(cryptoState).map((item) => item.updatedAt).filter(Boolean);
+    if (timestamps.length === 0) return null;
+    return new Date(timestamps.sort().at(-1));
+  }, [cryptoState]);
+
+  const renderStreamRows = ({ symbols, dataset, isCrypto = false }) => {
+    return symbols.map((symbol) => {
+      const entry = dataset[symbol] || createEntry(symbol, isCrypto ? CRYPTO_NAMES[symbol] : ETF_NAMES[symbol] || TRENDING_NAMES[symbol] || symbol);
+      const positive = (entry.changePercent || 0) >= 0;
+      const hasPrice = Number.isFinite(entry.price);
+      const displaySymbol = isCrypto ? symbol.replace('-', '/').replace('-USD', '/USD') : symbol;
+
+      return (
+        <div key={symbol} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.015] px-3 py-2.5">
+          <div>
+            <div className="text-sm font-semibold text-white">${displaySymbol}</div>
+            <div className="text-xs text-gray-500">{entry.name}</div>
           </div>
-        ) : data.length === 0 ? (
-          <p className="text-white/50 text-sm text-center py-4">No data available</p>
-        ) : (
-          data.map((item, idx) => {
-            const change = item.change || 0;
-            const changePercent = item.changePercent || 0;
-            const isPositive = changePercent >= 0;
-            const preMarketPrice = toNumber(item.preMarketPrice);
-            const preMarketChange = toNumber(item.preMarketChange);
-            const preMarketChangePercent = toNumber(item.preMarketChangePercent);
-            const afterHoursPrice = toNumber(item.afterHoursPrice ?? item.postMarketPrice);
-            const afterHoursChange = toNumber(item.afterHoursChange ?? item.postMarketChange);
-            const afterHoursChangePercent = toNumber(item.afterHoursChangePercent ?? item.postMarketChangePercent);
-            const showPreMarket = marketSession === 'pre' && Number.isFinite(preMarketPrice);
-            const showAfterHours = marketSession === 'after' && Number.isFinite(afterHoursPrice);
-            const preMarketPercentLabel = formatSignedPercent(preMarketChangePercent);
-            const afterHoursPercentLabel = formatSignedPercent(afterHoursChangePercent);
 
-            return (
-              <div
-                key={item.symbol || item.name || idx}
-                className="flex items-center justify-between py-2 border-b border-[#1f1f1f]/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors"
-                onMouseEnter={(e) => {
-                  clearTimeout(hoverTimeout.current);
-                  const target = e.currentTarget;
-                  hoverTimeout.current = setTimeout(() => {
-                    const rect = target?.getBoundingClientRect();
-                    if (!rect) return;
-                    setHoverPreview({
-                      symbol: item.symbol,
-                      position: { x: rect.right, y: rect.top + rect.height / 2 }
-                    });
-                  }, 400);
-                }}
-                onMouseLeave={() => {
-                  clearTimeout(hoverTimeout.current);
-                  setHoverPreview(null);
-                }}
-              >
-                <div>
-                  <div className="text-white text-sm font-medium">
-                    {showSymbol && item.displaySymbol ? `$${item.displaySymbol}` : item.name}
-                  </div>
-                  {showSymbol && item.name && (
-                    <div className="text-white/50 text-xs">{item.name}</div>
-                  )}
-                </div>
-                <div className="text-right">
-                  {item.price != null && (
-                    <div className="text-white text-sm font-mono">
-                      ${typeof item.price === 'number' ? item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.price}
-                    </div>
-                  )}
-                  {showPreMarket && preMarketPercentLabel && (
-                    <div className={`mt-1 text-xs ${getChangeColor(preMarketChange || 0)}`}>
-                      Pre: ${formatStockPrice(preMarketPrice)} {preMarketPercentLabel}
-                    </div>
-                  )}
-                  {showAfterHours && afterHoursPercentLabel && (
-                    <div className={`mt-1 text-xs ${getChangeColor(afterHoursChange || 0)}`}>
-                      AH: ${formatStockPrice(afterHoursPrice)} {afterHoursPercentLabel}
-                    </div>
-                  )}
-                  <div className={`text-xs font-medium flex items-center gap-1 justify-end ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {isPositive ? '+' : ''}{typeof changePercent === 'number' ? changePercent.toFixed(2) : changePercent}%
-                  </div>
-                </div>
+          <div className="flex items-center gap-3">
+            <MiniSparkline values={entry.ticks} />
+            <div className="text-right min-w-[88px]">
+              <div className="text-sm font-mono text-white">{hasPrice ? formatPrice(entry.price, isCrypto) : '...'} </div>
+              <div className={`text-xs font-medium inline-flex items-center gap-1 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                {positive ? <TrendingUp className="w-3 h-3" strokeWidth={1.5} /> : <TrendingDown className="w-3 h-3" strokeWidth={1.5} />}
+                {formatSignedPercent(entry.changePercent)}
               </div>
-            );
-          })
-        )}
+            </div>
+          </div>
+        </div>
+      );
+    });
+  };
+
+  const Card = ({ title, icon: Icon, connected, children, updatedAt }) => (
+    <div className="rounded-xl border border-[#1f1f1f] bg-black/45 p-4 backdrop-blur-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className="h-5 w-5 text-emerald-400" strokeWidth={1.5} />
+          <h3 className="text-white font-semibold">{title}</h3>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          {connected ? (
+            <>
+              <Wifi className="h-3.5 w-3.5 text-emerald-400" strokeWidth={1.5} />
+              <span className="text-emerald-400">Live</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3.5 w-3.5 text-yellow-400" strokeWidth={1.5} />
+              <span className="text-yellow-400">Connecting...</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">{children}</div>
+
+      <div className="mt-3 text-[11px] text-gray-600">
+        {updatedAt ? `Last tick ${updatedAt.toLocaleTimeString()}` : 'Waiting for stream...'}
       </div>
     </div>
   );
 
-  // Sector performance (calculated from ETFs)
-  const sectors = [
-    { name: 'Technology', symbol: 'XLK', change: 1.45 },
-    { name: 'Healthcare', symbol: 'XLV', change: -0.32 },
-    { name: 'Financials', symbol: 'XLF', change: 0.87 },
-    { name: 'Energy', symbol: 'XLE', change: 2.13 },
-    { name: 'Consumer', symbol: 'XLY', change: -0.54 },
-    { name: 'Industrials', symbol: 'XLI', change: 0.23 },
-  ].map(s => ({ ...s, changePercent: s.change }));
-
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent p-4 overflow-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="relative flex-1 flex h-full flex-col overflow-hidden bg-transparent p-4">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-white">Markets</h1>
-          <p className="text-gray-400 text-sm">
-            {loading ? 'Updating...' : lastUpdate ? `Last updated ${lastUpdate.toLocaleTimeString()}` : 'Real-time market overview'}
-          </p>
+          <p className="text-sm text-gray-400">Live Alpaca WebSocket stream only</p>
         </div>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="p-2 hover:bg-white/5 rounded-lg transition-colors text-gray-400 hover:text-white disabled:opacity-50"
-          title="Refresh"
-        >
-          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-        </button>
+        <div className="flex items-center gap-3 text-xs">
+          <span className={`inline-flex items-center gap-1 ${stockConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${stockConnected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+            ETFs/Stocks
+          </span>
+          <span className={`inline-flex items-center gap-1 ${cryptoConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${cryptoConnected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+            Crypto
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <MarketCard title="US Indices" data={indices} icon={Globe} showSymbol={false} />
-        <MarketCard title="Cryptocurrency" data={crypto} icon={Activity} />
-        <MarketCard title="Trending" data={trending} icon={BarChart3} />
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          {error}
+        </div>
+      )}
+
+      <div className="grid flex-1 grid-cols-1 gap-4 overflow-auto lg:grid-cols-2 xl:grid-cols-3 scrollbar-hide">
+        <Card title="ETFs & Indices" icon={Globe} connected={stockConnected} updatedAt={stockLastUpdated}>
+          {renderStreamRows({ symbols: ETF_SYMBOLS, dataset: stockState })}
+        </Card>
+
+        <Card title="Crypto" icon={Activity} connected={cryptoConnected} updatedAt={cryptoLastUpdated}>
+          {renderStreamRows({ symbols: CRYPTO_SYMBOLS, dataset: cryptoState, isCrypto: true })}
+        </Card>
+
+        <Card title="Trending" icon={BarChart3} connected={stockConnected} updatedAt={stockLastUpdated}>
+          {renderStreamRows({ symbols: TRENDING_SYMBOLS, dataset: stockState })}
+        </Card>
+
+        <div className="rounded-xl border border-[#1f1f1f] bg-black/45 p-4 backdrop-blur-sm lg:col-span-2 xl:col-span-3">
+          <div className="mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-emerald-400" strokeWidth={1.5} />
+            <h3 className="text-white font-semibold">Sectors</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {SECTORS.map((sector) => {
+              const positive = sector.changePercent >= 0;
+              return (
+                <div key={sector.symbol} className="rounded-lg border border-white/[0.04] bg-white/[0.015] px-3 py-2">
+                  <div className="text-sm font-medium text-white">{sector.name}</div>
+                  <div className="text-xs text-gray-500">${sector.symbol}</div>
+                  <div className={`mt-1 text-xs font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {positive ? '+' : ''}{sector.changePercent.toFixed(2)}%
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Sectors Row */}
-      <div className="mt-4">
-        <MarketCard title="Sectors" data={sectors} icon={BarChart3} showSymbol={false} />
-      </div>
-
-      {/* Floating TradingView Preview */}
-      {hoverPreview && (
-        <ChartPreview 
-          symbol={hoverPreview.symbol}
-          position={hoverPreview.position}
-        />
+      {(!stockConnected || !cryptoConnected) && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a1628]/80 px-4 py-2 text-sm text-gray-300">
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" strokeWidth={1.5} />
+            Connecting to Alpaca stream...
+          </div>
+        </div>
       )}
     </div>
   );
