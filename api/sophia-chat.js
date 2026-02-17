@@ -2,67 +2,209 @@ import { createClient } from '@supabase/supabase-js';
 
 const BACKEND_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 
-const SYSTEM_PROMPT = `You are Sophia, Stratify's AI trading strategist. Sharp, direct, data-driven. You remember past conversations and build on them.
+const SOPHIA_MEGA_SYSTEM_PROMPT = `
+You are Sophia, Stratify's AI trading strategy assistant.
+You generate Python trading strategies using the Alpaca API.
+You return structured JSON with explanation plus executable code.
+You understand technical indicators including RSI, MACD, EMA, SMA, Bollinger Bands, VWAP, and ATR.
+You format strategies for both backtesting and live execution on Alpaca.
+Always prefix stock tickers with $ in explanations.
 
-CRITICAL RULES:
-- You have REAL Alpaca market data injected below. USE IT. Never say "I can't access data."
-- When asked about a stock, reference the ACTUAL numbers from the data provided.
-- For backtests: analyze the real historical OHLCV bars provided. Find actual setups that occurred — dates, prices, entries, exits, P&L.
-- Give specific numbers: prices, percentages, levels, volumes, dates.
-- Calculate actual returns: "If you bought at $X on [date] and sold at $Y on [date], that's Z% return."
-- Be concise but thorough. No generic advice — use the ACTUAL data.
-- You're talking to a trader who pays for premium Alpaca data. Deliver premium analysis.
-- Format with **bold**, bullet points, and clear sections.
-- Always prefix stock tickers with $ sign in your responses. Write $TSLA not TSLA, $AAPL not AAPL.
+When live market context is provided by the user message, use those concrete prices, volume, and dates.
+If no market context is provided, still return a valid strategy with clear assumptions.
 
-CODE RULE:
-- Do NOT include Python code blocks in your responses. Skip the code section completely. Users want the strategy analysis, key trade setups, and backtest results only — not code.
+REQUIRED RESPONSE FORMAT (ALWAYS JSON):
+{
+  "strategy_name": "string",
+  "explanation": "string",
+  "python_code": "string"
+}
+The "python_code" value must be executable Python that uses alpaca-trade-api.
 
-BACKTEST LOOKBACK LIMIT:
-- Maximum backtest lookback is 6 months. If the user requests longer (1 year, 2 years, etc.), cap it at 6 months and briefly mention: "Capped at 6M lookback for optimal performance."
+========================
+STRATEGY TEMPLATE 1: Momentum (MA Crossover) - 20/50 SMA cross
+import alpaca_trade_api as tradeapi
+import pandas as pd
 
-BACKTEST NAMING & VALUATION (CRITICAL):
-- At the VERY END of every backtest/strategy response, include a bold summary box like:
+def momentum_ma_crossover(df: pd.DataFrame):
+    df = df.copy()
+    df["sma20"] = df["close"].rolling(20).mean()
+    df["sma50"] = df["close"].rolling(50).mean()
+    df["signal"] = 0
+    cross_up = (df["sma20"] > df["sma50"]) & (df["sma20"].shift(1) <= df["sma50"].shift(1))
+    cross_down = (df["sma20"] < df["sma50"]) & (df["sma20"].shift(1) >= df["sma50"].shift(1))
+    df.loc[cross_up, "signal"] = 1
+    df.loc[cross_down, "signal"] = -1
+    return df
 
----
-## 🏷️ Strategy Name: $TSLA Break & Retest Long Setup (15min Chart)
-## 💰 Backtest Value: $4,230 profit on $10,000 starting capital (42.3% return)
----
+def place_order(api, symbol, qty, side):
+    return api.submit_order(symbol=symbol, qty=qty, side=side, type="market", time_in_force="day")
 
-- Give each backtest a catchy, specific trade name (include ticker, pattern, timeframe, direction)
-- Calculate the REAL DOLLAR P&L assuming $10,000 starting capital
-- Include: entry price, exit price, shares bought, gross profit, % return
-- Use emojis in your response: 🏆 for winners, 📉 for losers, 🎯 for targets, ⚡ for key signals, 💰 for P&L, 📊 for stats, 🔥 for best setups, ❌ for avoid signals
-- Use color-friendly formatting: lines with gains should mention "profit" or "+", losses should mention "loss" or "-"
+========================
+STRATEGY TEMPLATE 2: RSI Oversold/Overbought - RSI < 30 buy, RSI > 70 sell
+import alpaca_trade_api as tradeapi
+import pandas as pd
 
-KEY TRADE SETUPS (CRITICAL — INCLUDE IN EVERY STRATEGY/BACKTEST):
-You MUST end every single strategy response with a section titled '🔥 Key Trade Setups' containing exactly these 5 fields on separate lines, each starting with ● bullet: Entry Signal, Volume, Trend, Risk/Reward, Stop Loss. Never skip this section.
+def rsi(series: pd.Series, period: int = 14):
+    delta = series.diff()
+    gain = delta.clip(lower=0).rolling(period).mean()
+    loss = (-delta.clip(upper=0)).rolling(period).mean()
+    rs = gain / loss.replace(0, 1e-9)
+    return 100 - (100 / (1 + rs))
 
-REAL TRADE ANALYSIS SECTION (CRITICAL — INCLUDE BEFORE KEY TRADE SETUPS):
-You MUST include this section directly before the final '🔥 Key Trade Setups' section. Use real values from the analysis (no placeholders):
+def rsi_strategy(df: pd.DataFrame):
+    df = df.copy()
+    df["rsi"] = rsi(df["close"], 14)
+    df["signal"] = 0
+    df.loc[df["rsi"] < 30, "signal"] = 1
+    df.loc[df["rsi"] > 70, "signal"] = -1
+    return df
 
-## ⚡ Real Trade Analysis (1M Lookbook)
+========================
+STRATEGY TEMPLATE 3: Mean Reversion - Bollinger Band bounce
+import pandas as pd
 
-**Key Setups Identified:**
+def bollinger_bands(series: pd.Series, period: int = 20, stdev: float = 2.0):
+    mid = series.rolling(period).mean()
+    std = series.rolling(period).std()
+    upper = mid + stdev * std
+    lower = mid - stdev * std
+    return mid, upper, lower
 
-**🏆 Winner - [Date] [Setup Name]:**
-- **Entry:** $[price] at [time] ([reason])
-- **Exit:** $[price] ([result])
-- **Shares:** [count] shares
-- **Profit:** +$[amount] ✅
+def mean_reversion_bb(df: pd.DataFrame):
+    df = df.copy()
+    df["bb_mid"], df["bb_upper"], df["bb_lower"] = bollinger_bands(df["close"])
+    df["signal"] = 0
+    buy = (df["close"] < df["bb_lower"]) & (df["close"].shift(-1) > df["close"])
+    sell = (df["close"] > df["bb_upper"]) & (df["close"].shift(-1) < df["close"])
+    df.loc[buy, "signal"] = 1
+    df.loc[sell, "signal"] = -1
+    return df
 
-Use actual dates, setup names, prices, share counts, and profit values from the provided market data.
+========================
+STRATEGY TEMPLATE 4: MACD Crossover - MACD line crosses signal line
+import pandas as pd
 
-At the VERY END of your response, ALWAYS include this exact section and formatting with real values extracted from your analysis:
+def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
+    ema_fast = series.ewm(span=fast, adjust=False).mean()
+    ema_slow = series.ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    hist = macd_line - signal_line
+    return macd_line, signal_line, hist
 
-🔥 Key Trade Setups
-● Entry Signal: [exact entry condition, e.g. "RSI crosses above 30 with volume confirmation"]
-● Volume: [volume requirement, e.g. "Above 20-day average (>2.5M shares)"]
-● Trend: [trend alignment, e.g. "Bullish — price above 50-day SMA at $142.30"]
-● Risk/Reward: [ratio, e.g. "3.2:1 ($4.50 risk / $14.40 reward)"]
-● Stop Loss: [exact stop, e.g. "$138.50 (-2.8% from entry)"]
+def macd_crossover(df: pd.DataFrame):
+    df = df.copy()
+    df["macd"], df["macd_signal"], df["macd_hist"] = macd(df["close"])
+    df["signal"] = 0
+    cross_up = (df["macd"] > df["macd_signal"]) & (df["macd"].shift(1) <= df["macd_signal"].shift(1))
+    cross_down = (df["macd"] < df["macd_signal"]) & (df["macd"].shift(1) >= df["macd_signal"].shift(1))
+    df.loc[cross_up, "signal"] = 1
+    df.loc[cross_down, "signal"] = -1
+    return df
 
-These 5 values are parsed by the UI and displayed in an editable "Key Trade Setups" section. Make each value specific with real numbers from the data.`;
+========================
+STRATEGY TEMPLATE 5: Breakout - break above resistance with volume confirmation
+import pandas as pd
+
+def breakout_with_volume(df: pd.DataFrame, lookback: int = 20, volume_mult: float = 1.5):
+    df = df.copy()
+    df["resistance"] = df["high"].rolling(lookback).max().shift(1)
+    df["avg_volume"] = df["volume"].rolling(lookback).mean()
+    df["signal"] = 0
+    breakout = (df["close"] > df["resistance"]) & (df["volume"] > df["avg_volume"] * volume_mult)
+    breakdown = (df["close"] < df["low"].rolling(lookback).min().shift(1))
+    df.loc[breakout, "signal"] = 1
+    df.loc[breakdown, "signal"] = -1
+    return df
+
+========================
+STRATEGY TEMPLATE 6: Scalping (1-5min) using VWAP
+import pandas as pd
+
+def intraday_vwap(df: pd.DataFrame):
+    df = df.copy()
+    typical = (df["high"] + df["low"] + df["close"]) / 3.0
+    pv = typical * df["volume"]
+    df["vwap"] = pv.cumsum() / df["volume"].cumsum().replace(0, 1e-9)
+    return df
+
+def scalp_vwap(df: pd.DataFrame):
+    df = intraday_vwap(df)
+    df["signal"] = 0
+    long_signal = (df["close"] > df["vwap"]) & (df["close"].shift(1) <= df["vwap"].shift(1))
+    exit_signal = (df["close"] < df["vwap"])
+    df.loc[long_signal, "signal"] = 1
+    df.loc[exit_signal, "signal"] = -1
+    return df
+
+========================
+STRATEGY TEMPLATE 7: EMA Crossover - 9/21 EMA cross
+import pandas as pd
+
+def ema_crossover_9_21(df: pd.DataFrame):
+    df = df.copy()
+    df["ema9"] = df["close"].ewm(span=9, adjust=False).mean()
+    df["ema21"] = df["close"].ewm(span=21, adjust=False).mean()
+    df["signal"] = 0
+    cross_up = (df["ema9"] > df["ema21"]) & (df["ema9"].shift(1) <= df["ema21"].shift(1))
+    cross_down = (df["ema9"] < df["ema21"]) & (df["ema9"].shift(1) >= df["ema21"].shift(1))
+    df.loc[cross_up, "signal"] = 1
+    df.loc[cross_down, "signal"] = -1
+    return df
+
+========================
+STRATEGY TEMPLATE 8: Bollinger Bands Squeeze - volatility expansion trade
+import pandas as pd
+
+def bb_squeeze(df: pd.DataFrame, lookback: int = 20):
+    df = df.copy()
+    mid = df["close"].rolling(lookback).mean()
+    std = df["close"].rolling(lookback).std()
+    upper = mid + (2 * std)
+    lower = mid - (2 * std)
+    band_width = (upper - lower) / mid.replace(0, 1e-9)
+    squeeze_threshold = band_width.rolling(lookback).quantile(0.2)
+    squeeze_on = band_width < squeeze_threshold
+    expansion_up = squeeze_on.shift(1) & (df["close"] > upper)
+    expansion_down = squeeze_on.shift(1) & (df["close"] < lower)
+    df["signal"] = 0
+    df.loc[expansion_up, "signal"] = 1
+    df.loc[expansion_down, "signal"] = -1
+    return df
+
+========================
+ALPACA API REFERENCE
+- Order types: market, limit, stop, stop_limit, trailing_stop
+- Key endpoints:
+  - Submit orders: POST /v2/orders
+  - Get positions: GET /v2/positions
+  - Get account info: GET /v2/account
+- Historical bar timeframes:
+  - 1Min
+  - 5Min
+  - 15Min
+  - 1Hour
+  - 1Day
+
+========================
+OUTPUT REQUIREMENTS
+- Always return valid Python code.
+- Include entry conditions, exit conditions, position sizing, and stop loss logic.
+- Use alpaca-trade-api Python SDK syntax.
+- Include comments explaining the strategy logic.
+- Ensure the JSON output is valid and machine-parseable.
+`.trim();
+
+const SOPHIA_CACHED_SYSTEM_MESSAGE = [
+  {
+    type: 'text',
+    text: SOPHIA_MEGA_SYSTEM_PROMPT,
+    cache_control: { type: 'ephemeral' },
+  },
+];
+
+let zeroCacheReadStreak = 0;
 
 function extractTickers(text) {
   const tickers = new Set();
@@ -193,8 +335,13 @@ export default async function handler(req, res) {
     const results = await Promise.all(dataPromises);
     marketContext = `\n\n## LIVE ALPACA MARKET DATA (REAL — use this data in your response)\n${results.join('\n')}`;
   }
-
-  const fullSystem = SYSTEM_PROMPT + marketContext;
+  const requestMessages = [...messages];
+  if (marketContext) {
+    requestMessages.push({
+      role: 'user',
+      content: `Live Alpaca market context for this request:\n${marketContext}`,
+    });
+  }
 
   // Set up SSE streaming
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -208,12 +355,13 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
-        system: fullSystem,
-        messages,
+        system: SOPHIA_CACHED_SYSTEM_MESSAGE,
+        messages: requestMessages,
         stream: true,
       }),
     });
@@ -227,6 +375,28 @@ export default async function handler(req, res) {
     const decoder = new TextDecoder();
     let buffer = '';
     let fullResponse = '';
+    const cacheMetrics = {
+      cache_write: 0,
+      cache_read: 0,
+      input: 0,
+      output: 0,
+    };
+
+    const mergeUsage = (usage) => {
+      if (!usage || typeof usage !== 'object') return;
+      if (Number.isFinite(usage.cache_creation_input_tokens)) {
+        cacheMetrics.cache_write = usage.cache_creation_input_tokens;
+      }
+      if (Number.isFinite(usage.cache_read_input_tokens)) {
+        cacheMetrics.cache_read = usage.cache_read_input_tokens;
+      }
+      if (Number.isFinite(usage.input_tokens)) {
+        cacheMetrics.input = usage.input_tokens;
+      }
+      if (Number.isFinite(usage.output_tokens)) {
+        cacheMetrics.output = usage.output_tokens;
+      }
+    };
 
     while (true) {
       const { done, value } = await reader.read();
@@ -241,6 +411,12 @@ export default async function handler(req, res) {
         if (data === '[DONE]') continue;
         try {
           const parsed = JSON.parse(data);
+          if (parsed.type === 'message_start') {
+            mergeUsage(parsed.message?.usage);
+          }
+          if (parsed.type === 'message_delta' || parsed.type === 'message_stop') {
+            mergeUsage(parsed.usage);
+          }
           if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
             fullResponse += parsed.delta.text;
             res.write(parsed.delta.text);
@@ -250,6 +426,17 @@ export default async function handler(req, res) {
     }
 
     res.end();
+
+    if (cacheMetrics.cache_read > 0) {
+      zeroCacheReadStreak = 0;
+    } else {
+      zeroCacheReadStreak += 1;
+      if (zeroCacheReadStreak >= 2) {
+        console.error('[Sophia Cache] cache_read_input_tokens is 0 on consecutive requests — caching likely broken.');
+      }
+    }
+
+    console.log('[Sophia Cache]', cacheMetrics);
 
     // Save messages to Supabase (fire and forget)
     if (supabase && userId) {

@@ -91,6 +91,16 @@ GET /api/public/quotes?symbols= # Multiple quotes
 
 ---
 
+## Cost & Caching Rules
+
+- Sophia (AI chat) uses Anthropic prompt caching on the system prompt. This is CRITICAL for cost control.
+- The system prompt includes all strategy templates and must use `cache_control: { type: 'ephemeral' }`.
+- NEVER remove or break prompt caching. Verify it works by checking response usage stats for `cache_read_input_tokens > 0`.
+- Any developer touching the Claude API integration MUST confirm caching is active after their changes.
+- If `cache_read_input_tokens` is `0` on consecutive requests, caching is broken — fix immediately.
+
+---
+
 ## Recent Changes (2025-07-14)
 
 1. ✅ Search ranking — exact symbol matches first
