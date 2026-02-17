@@ -82,6 +82,34 @@ export default function StatusBar({
   const [latestIntelTimestamp, setLatestIntelTimestamp] = useState(0);
   const [hasUnreadIntel, setHasUnreadIntel] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [hasNewInsight, setHasNewInsight] = useState(false);
+
+  // Poll for new Sophia insights every 5 min
+  useEffect(() => {
+    const INSIGHT_LAST_SEEN_KEY = 'stratify-copilot-last-seen';
+    const check = async () => {
+      try {
+        const res = await fetch('/api/sophia-insight');
+        if (!res.ok) return;
+        const insights = await res.json();
+        if (!Array.isArray(insights) || insights.length === 0) return;
+        const latest = new Date(insights[0].created_at).getTime();
+        const lastSeen = parseInt(localStorage.getItem(INSIGHT_LAST_SEEN_KEY) || '0', 10);
+        setHasNewInsight(latest > lastSeen);
+      } catch {}
+    };
+    check();
+    const interval = setInterval(check, 300000); // 5 min
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mark seen when copilot opens
+  useEffect(() => {
+    if (copilotOpen) {
+      setHasNewInsight(false);
+      try { localStorage.setItem('stratify-copilot-last-seen', String(Date.now())); } catch {}
+    }
+  }, [copilotOpen]);
   
   useEffect(() => {
     const tick = () => setNow(new Date());
@@ -259,11 +287,19 @@ export default function StatusBar({
               className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
                 copilotOpen
                   ? 'text-amber-300 bg-[rgba(245,158,11,0.15)] border-amber-400/40'
-                  : 'text-amber-400 hover:text-amber-300 bg-[rgba(245,158,11,0.08)] border-[rgba(245,158,11,0.25)]'
+                  : hasNewInsight
+                    ? 'text-amber-200 bg-[rgba(245,158,11,0.15)] border-amber-400/40 shadow-[0_0_16px_rgba(245,158,11,0.3)] animate-pulse'
+                    : 'text-amber-400 hover:text-amber-300 bg-[rgba(245,158,11,0.08)] border-[rgba(245,158,11,0.25)]'
               }`}
             >
-              <Zap className="w-3 h-3" />
+              <Zap className={`w-3 h-3 ${hasNewInsight ? 'animate-pulse' : ''}`} />
               Copilot
+              {hasNewInsight && (
+                <>
+                  <span className="absolute -inset-0.5 rounded-full border border-amber-400/35 animate-pulse pointer-events-none" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse pointer-events-none" />
+                </>
+              )}
             </button>
             {copilotOpen && (
               <SophiaCopilot onClose={() => setCopilotOpen(false)} />

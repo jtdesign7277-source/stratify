@@ -6,6 +6,7 @@ const SEVERITY_STYLES = {
   '🟡': { border: 'border-yellow-500/30', text: 'text-yellow-300', dot: 'bg-yellow-400' },
   '🟢': { border: 'border-emerald-500/30', text: 'text-emerald-300', dot: 'bg-emerald-400' },
   '🔵': { border: 'border-blue-500/30', text: 'text-blue-300', dot: 'bg-blue-400' },
+  '💡': { border: 'border-amber-500/30', text: 'text-amber-300', dot: 'bg-amber-400' },
 };
 
 const SEVERITY_ICONS = {
@@ -13,6 +14,7 @@ const SEVERITY_ICONS = {
   '🟡': Shield,
   '🟢': TrendingUp,
   '🔵': Eye,
+  '💡': Zap,
 };
 
 const timeAgo = (dateStr) => {
