@@ -1067,7 +1067,7 @@ export default function StrategyOutput({
                         </div>
                       ))}
                     </div>
-                    <div className="relative flex-1 min-h-[520px]">
+                    <div className="relative flex-1 h-[44vh] min-h-[300px]">
                       <pre
                         ref={editorHighlightRef}
                         aria-hidden="true"
@@ -1084,7 +1084,7 @@ export default function StrategyOutput({
                         value={editorValue}
                         onChange={(event) => updateEditorValue(event.target.value)}
                         onScroll={handleEditorScroll}
-                        className="relative z-10 flex-1 min-h-[520px] w-full bg-transparent px-3 py-3 font-mono text-sm leading-6 text-transparent caret-white selection:bg-blue-500/30 resize-none outline-none"
+                        className="relative z-10 flex-1 h-[44vh] min-h-[300px] w-full bg-transparent px-3 py-3 font-mono text-sm leading-6 text-transparent caret-white selection:bg-blue-500/30 resize-none outline-none"
                         spellCheck={false}
                       />
                     </div>
@@ -1192,11 +1192,11 @@ export default function StrategyOutput({
           </button>
         </div>
       ) : (
-        <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3">
-          <div className="h-full flex flex-col gap-4">
+        <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3 overflow-hidden">
+          <div className="h-full min-h-0 grid grid-rows-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-3">
             {/* Card 1: Key Trade Setups */}
-            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-4">
-              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-4">
+            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-3 min-h-0 flex flex-col overflow-hidden">
+              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-3 h-full min-h-0 flex flex-col">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span role="img" aria-label="Fire">🔥</span>
@@ -1218,14 +1218,14 @@ export default function StrategyOutput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-2 grid-rows-3 gap-2 mt-2.5 flex-1 min-h-0">
                   {fields.map((f, i) => {
                     const isAllocation = i === 5;
                     const isEditing = editing === i;
                     const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
 
                     return (
-                      <div key={i} className="bg-black/30 rounded-lg p-3 h-[170px] flex items-start gap-2.5 border border-gray-700/50">
+                      <div key={i} className="bg-black/30 rounded-lg p-2.5 min-h-0 flex items-start gap-2 border border-gray-700/50 overflow-hidden">
                         <input
                           type="checkbox"
                           checked={checks[i]}
@@ -1272,7 +1272,7 @@ export default function StrategyOutput({
                               className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-300"
                             />
                           ) : (
-                            <p className="text-white text-[13px] mt-1 whitespace-normal break-words leading-snug max-h-[112px] overflow-y-auto pr-1">
+                            <p className="text-white text-[12px] mt-1 whitespace-normal break-words leading-snug max-h-full overflow-y-auto pr-1">
                               {renderTickerText(f.value || '—', `key-setup-${i}`)}
                             </p>
                           )}
@@ -1288,7 +1288,7 @@ export default function StrategyOutput({
                     const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                     onRetest?.(prompt);
                   }}
-                  className="w-full mt-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition"
+                  className="w-full mt-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition shrink-0"
                 >
                   <span aria-hidden="true">🔄</span>
                   Ask Sophia to Retest
@@ -1298,7 +1298,7 @@ export default function StrategyOutput({
 
             {/* Card 2: Strategy Activation */}
             <div
-              className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-4 flex flex-col gap-3"
+              className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-3 flex flex-col gap-3 min-h-0 overflow-y-auto"
               style={{ opacity: activationLocked ? 0.45 : 1, pointerEvents: activationLocked ? 'none' : 'auto' }}
             >
               <div className="flex items-center justify-between">
