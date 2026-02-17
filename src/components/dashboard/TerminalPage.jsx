@@ -310,7 +310,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 </div>
               )}
               
-              <div className="space-y-1 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
+              <div className="space-y-1 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
                 {history.length > 0 ? history.map((h, i) => {
                   const pnl = parseFloat(h.results?.summary?.totalPnL) || 0;
                   const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
@@ -374,7 +374,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
           </div>
           
           {!isCollapsed && (
-          <div className="space-y-2 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+          <div className="space-y-2 flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
             <div>
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Strategy Name</label>
               <input

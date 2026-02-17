@@ -100,7 +100,7 @@ export default function NewsletterModal({ isOpen, onClose }) {
           </div>
 
           {/* Scrollable Content */}
-          <div className="overflow-y-auto max-h-[60vh] p-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#2A2A2A #111' }}>
+          <div className="overflow-y-auto max-h-[60vh] p-6" style={{ scrollbarWidth: 'none' }}>
             
             {/* Intro */}
             <p className="text-gray-300 text-base leading-relaxed mb-8">

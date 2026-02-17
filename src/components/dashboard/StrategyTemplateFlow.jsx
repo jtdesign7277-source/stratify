@@ -940,9 +940,9 @@ export default function StrategyTemplateFlow({ initialTemplate, onBack: parentOn
           to { opacity: 1; transform: translateY(0); }
         }
         input[type="text"]:focus { outline: none; }
-        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar { display: none; }
         ::-webkit-scrollbar-track { background: #0b0b0b; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { display: none; border-radius: 4px; }
       `}</style>
     </div>
   );

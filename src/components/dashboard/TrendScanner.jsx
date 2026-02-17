@@ -458,7 +458,7 @@ export default function TrendScanner() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'none' }}>
         {loading && !trends ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <RefreshCw className="w-6 h-6 text-emerald-400 animate-spin" />
@@ -486,7 +486,7 @@ export default function TrendScanner() {
                 {activeSources.has('reddit') && (trends?.reddit?.length || 0) > 0 && (
                   <section className="min-w-0">
                     <SectionHeader icon={Flame} label="Reddit" count={trends.reddit.length} colorClass="orange" />
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
                       {trends.reddit.map((post) => (
                         <RedditCard key={post.id} post={post} accentColor="orange" />
                       ))}
@@ -498,7 +498,7 @@ export default function TrendScanner() {
                 {activeSources.has('wsb') && (trends?.wsb?.length || 0) > 0 && (
                   <section className="min-w-0">
                     <SectionHeader icon={WSBIcon} label="WSB" count={trends.wsb.length} colorClass="lime" />
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
                       {trends.wsb.map((post) => (
                         <RedditCard key={post.id} post={post} accentColor="lime" />
                       ))}
@@ -516,7 +516,7 @@ export default function TrendScanner() {
                       <h2 className="text-[13px] font-semibold text-white/70">X</h2>
                       <span className="text-[10px] text-white/30 bg-white/[0.04] px-2 py-0.5 rounded-full">{trends.x.length}</span>
                     </div>
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' }}>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
                       {trends.x.map((topic) => (
                         <XCard key={topic.id} topic={topic} />
                       ))}

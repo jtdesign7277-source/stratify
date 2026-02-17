@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, 
-  FolderOpen,
   SlidersHorizontal, 
   Globe, 
   LineChart, 
@@ -64,7 +63,6 @@ const Sidebar = ({
     { id: 'home', label: 'Home', icon: Home },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
-    { id: 'strategies', label: 'Strategies', icon: FolderOpen },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },

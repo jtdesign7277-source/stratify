@@ -1,0 +1,749 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ChevronRight,
+  Folder,
+  FolderPlus,
+  Play,
+  Star,
+  Zap,
+} from 'lucide-react';
+import StrategyOutput from './StrategyOutput';
+
+const STORAGE_KEY = 'stratify-strategies-folders';
+
+const DEFAULT_FOLDERS = [
+  { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
+  { id: 'active-strategies', name: 'Active Strategies', isExpanded: true, strategies: [] },
+  { id: 'favorites', name: 'Favorites', isExpanded: true, strategies: [] },
+  { id: 'sophia-strategies', name: 'Sophia Strategies', isExpanded: true, strategies: [] },
+  { id: 'archive', name: 'Archive', isExpanded: false, strategies: [] },
+];
+
+const LIVE_STATUSES = new Set(['active', 'live', 'running', 'deployed']);
+
+const buildDefaultFolders = () =>
+  DEFAULT_FOLDERS.map((folder) => ({
+    ...folder,
+    strategies: [],
+  }));
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const toNumericValue = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    return Number(cleaned);
+  }
+  return NaN;
+};
+
+const normalizeReturnPercent = (value) => {
+  let number = toNumericValue(value);
+  if (!Number.isFinite(number)) return NaN;
+
+  const hasPercentSign = typeof value === 'string' && value.includes('%');
+  if (!hasPercentSign && Math.abs(number) > 0 && Math.abs(number) <= 1) {
+    number *= 100;
+  }
+
+  while (Math.abs(number) > 500) {
+    number /= 10;
+  }
+
+  return number;
+};
+
+const formatProfit = (value) => {
+  const number = normalizeReturnPercent(value);
+  if (!Number.isFinite(number)) return null;
+  return `${number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
+};
+
+const formatDate = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString();
+};
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+const deriveTicker = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return '';
+  const rawTicker =
+    strategy.ticker ||
+    strategy.symbol ||
+    strategy.summary?.ticker ||
+    strategy.symbols?.[0] ||
+    strategy.tickers?.[0] ||
+    '';
+  return String(rawTicker || '').replace(/^\$/, '').trim().toUpperCase();
+};
+
+const deriveProfit = (strategy, fallback = 0) => {
+  if (!strategy || typeof strategy !== 'object') return toNumber(fallback, 0);
+
+  const candidates = [
+    strategy.pnlPct,
+    strategy.returnPct,
+    strategy.returnPercent,
+    strategy.totalReturn,
+    strategy.metrics?.returnPct,
+    strategy.metrics?.returnPercent,
+    strategy.metrics?.totalReturn,
+    strategy.summary?.returnPct,
+    strategy.summary?.returnPercent,
+    strategy.summary?.totalReturn,
+    strategy.summary?.roi,
+    strategy.profit,
+    strategy.pnl,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeReturnPercent(candidate);
+    if (Number.isFinite(normalized)) return normalized;
+  }
+
+  const normalizedFallback = normalizeReturnPercent(fallback);
+  return Number.isFinite(normalizedFallback) ? normalizedFallback : toNumber(fallback, 0);
+};
+
+const deriveCreatedAt = (strategy, fallback = Date.now()) => {
+  if (!strategy || typeof strategy !== 'object') return fallback;
+  return strategy.createdAt || strategy.savedAt || strategy.updatedAt || fallback;
+};
+
+const deriveStatus = (strategy, deployedIds) => {
+  const status = String(strategy?.runStatus || strategy?.status || '').toLowerCase().trim();
+  if (status) return status;
+  if (deployedIds.has(String(strategy?.id))) return 'active';
+  return 'saved';
+};
+
+const isSophiaStrategy = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return false;
+  return Boolean(
+    strategy.code ||
+      String(strategy.id || '').toLowerCase().startsWith('sophia-') ||
+      String(strategy.type || '').toLowerCase().includes('sophia')
+  );
+};
+
+const normalizeStrategyEntry = (strategy) => {
+  if (!strategy) return null;
+  const id = String(strategy.id || '').trim();
+  if (!id) return null;
+
+  return {
+    id,
+    name: String(strategy.name || 'Untitled Strategy'),
+    ticker: deriveTicker(strategy),
+    createdAt: deriveCreatedAt(strategy),
+    profit: deriveProfit(strategy),
+    isStarred: Boolean(strategy.isStarred),
+    status: String(strategy.status || strategy.runStatus || 'saved').toLowerCase(),
+  };
+};
+
+const normalizeFolder = (folder, fallbackIndex = 0) => ({
+  id: String(folder?.id || `folder-${fallbackIndex}`),
+  name: String(folder?.name || `Folder ${fallbackIndex + 1}`),
+  isExpanded: folder?.isExpanded !== false,
+  strategies: Array.isArray(folder?.strategies)
+    ? folder.strategies.map(normalizeStrategyEntry).filter(Boolean)
+    : [],
+});
+
+const ensureDefaultFolders = (folders) => {
+  const normalizedIncoming = Array.isArray(folders) ? folders.map(normalizeFolder) : [];
+  const byId = new Map();
+
+  normalizedIncoming.forEach((folder) => {
+    if (!byId.has(folder.id)) byId.set(folder.id, folder);
+  });
+
+  const merged = buildDefaultFolders().map((defaultFolder) => {
+    const existing = byId.get(defaultFolder.id);
+    if (!existing) return defaultFolder;
+    byId.delete(defaultFolder.id);
+    return {
+      ...defaultFolder,
+      name: existing.name || defaultFolder.name,
+      isExpanded: existing.isExpanded,
+      strategies: existing.strategies,
+    };
+  });
+
+  byId.forEach((folder) => merged.push(folder));
+
+  const seenStrategyIds = new Set();
+  return merged.map((folder) => ({
+    ...folder,
+    strategies: folder.strategies.filter((strategy) => {
+      const strategyId = String(strategy.id);
+      if (!strategyId || seenStrategyIds.has(strategyId)) return false;
+      seenStrategyIds.add(strategyId);
+      return true;
+    }),
+  }));
+};
+
+const loadFoldersFromStorage = () => {
+  if (typeof window === 'undefined') return buildDefaultFolders();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return buildDefaultFolders();
+    const parsed = JSON.parse(raw);
+    const candidate = Array.isArray(parsed?.folders)
+      ? parsed.folders
+      : Array.isArray(parsed)
+      ? parsed
+      : [];
+    return ensureDefaultFolders(candidate);
+  } catch {
+    return buildDefaultFolders();
+  }
+};
+
+const toStoragePayload = (folders) => ({
+  folders: folders.map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    isExpanded: folder.isExpanded !== false,
+    strategies: folder.strategies.map((strategy) => ({
+      id: strategy.id,
+      name: strategy.name,
+      ticker: strategy.ticker,
+      createdAt: strategy.createdAt,
+      profit: toNumber(strategy.profit, 0),
+      isStarred: Boolean(strategy.isStarred),
+      status: strategy.status || 'saved',
+    })),
+  })),
+});
+
+const mergeFoldersWithStrategies = (prevFolders, strategies, deployedStrategies) => {
+  const safeStrategies = Array.isArray(strategies) ? strategies : [];
+  const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
+  const deployedIds = new Set(safeDeployed.map((strategy) => String(strategy?.id)));
+
+  const normalized = ensureDefaultFolders(prevFolders);
+  const strategyMap = new Map(
+    safeStrategies
+      .map((strategy) => [String(strategy?.id), strategy])
+      .filter(([id]) => id)
+  );
+
+  const seen = new Set();
+  const mergedFolders = normalized.map((folder) => ({
+    ...folder,
+    strategies: folder.strategies
+      .map((entry) => {
+        const source = strategyMap.get(String(entry.id));
+        if (!source) return null;
+        seen.add(String(entry.id));
+        return {
+          id: String(entry.id),
+          name: entry.name || source.name || 'Untitled Strategy',
+          ticker: entry.ticker || deriveTicker(source),
+          createdAt: entry.createdAt || deriveCreatedAt(source),
+          profit: deriveProfit(source, entry.profit),
+          isStarred: Boolean(
+            Object.prototype.hasOwnProperty.call(entry, 'isStarred')
+              ? entry.isStarred
+              : source.isStarred
+          ),
+          status: deriveStatus(source, deployedIds),
+        };
+      })
+      .filter(Boolean),
+  }));
+
+  const folderIndexById = new Map(mergedFolders.map((folder, index) => [folder.id, index]));
+
+  const resolveFolderId = (strategy) => {
+    const status = deriveStatus(strategy, deployedIds);
+    if (LIVE_STATUSES.has(status)) return 'active-strategies';
+    if (isSophiaStrategy(strategy)) return 'sophia-strategies';
+    if (strategy?.isStarred) return 'favorites';
+    if (strategy?.archived) return 'archive';
+    return 'stratify';
+  };
+
+  strategyMap.forEach((strategy, strategyId) => {
+    if (seen.has(strategyId)) return;
+
+    const nextEntry = normalizeStrategyEntry({
+      id: strategyId,
+      name: strategy.name,
+      ticker: deriveTicker(strategy),
+      createdAt: deriveCreatedAt(strategy),
+      profit: deriveProfit(strategy),
+      isStarred: Boolean(strategy.isStarred),
+      status: deriveStatus(strategy, deployedIds),
+    });
+    if (!nextEntry) return;
+
+    const targetFolderId = resolveFolderId(strategy);
+    const targetFolderIndex = folderIndexById.has(targetFolderId)
+      ? folderIndexById.get(targetFolderId)
+      : folderIndexById.get('stratify');
+
+    if (typeof targetFolderIndex === 'number') {
+      mergedFolders[targetFolderIndex] = {
+        ...mergedFolders[targetFolderIndex],
+        strategies: [...mergedFolders[targetFolderIndex].strategies, nextEntry],
+      };
+    }
+  });
+
+  return ensureDefaultFolders(mergedFolders);
+};
+
+const uniqueStrategiesFromFolders = (folders) => {
+  const seen = new Set();
+  const items = [];
+  folders.forEach((folder) => {
+    folder.strategies.forEach((strategy) => {
+      const id = String(strategy.id);
+      if (seen.has(id)) return;
+      seen.add(id);
+      items.push(strategy);
+    });
+  });
+  return items;
+};
+
+const folderIconClass = (folderId) => {
+  if (folderId === 'favorites') return 'text-amber-300';
+  if (folderId === 'active-strategies') return 'text-emerald-300';
+  if (folderId === 'sophia-strategies') return 'text-emerald-400';
+  if (folderId === 'archive') return 'text-zinc-400';
+  if (folderId === 'stratify') return 'text-emerald-400';
+  return 'text-zinc-300';
+};
+
+const renderFolderIcon = (folderId) => {
+  if (folderId === 'favorites') {
+    return <Star className={`h-4 w-4 ${folderIconClass(folderId)}`} strokeWidth={1.8} />;
+  }
+  if (folderId === 'stratify' || folderId === 'sophia-strategies') {
+    return <Zap className={`h-4 w-4 ${folderIconClass(folderId)}`} strokeWidth={1.8} />;
+  }
+  return <Folder className={`h-4 w-4 ${folderIconClass(folderId)}`} strokeWidth={1.8} />;
+};
+
+const firstNonEmpty = (...values) => {
+  for (const value of values) {
+    if (value == null) continue;
+    const next = String(value).trim();
+    if (next) return next;
+  }
+  return '';
+};
+
+const buildFallbackMarkdown = (strategy) => {
+  const ticker = deriveTicker(strategy);
+  const summary = strategy?.summary || {};
+  const entry = firstNonEmpty(strategy.entry, summary.entry, strategy.keyTradeSetups?.entry, '—');
+  const volume = firstNonEmpty(strategy.volume, summary.volume, strategy.keyTradeSetups?.volume, '—');
+  const trend = firstNonEmpty(strategy.trend, summary.trend, strategy.keyTradeSetups?.trend, '—');
+  const riskReward = firstNonEmpty(strategy.riskReward, summary.riskReward, strategy.keyTradeSetups?.riskReward, '—');
+  const stopLoss = firstNonEmpty(strategy.stopLoss, summary.stopLoss, strategy.keyTradeSetups?.stopLoss, '—');
+  const allocation = firstNonEmpty(
+    strategy.allocation,
+    summary.allocation,
+    strategy.positionSize,
+    strategy.keyTradeSetups?.allocation,
+    '—'
+  );
+
+  return [
+    `## Strategy Overview`,
+    strategy.description || summary.description || 'Backtest results loaded from saved strategy state.',
+    '',
+    '## Performance Overview',
+    `- Return: ${formatProfit(deriveProfit(strategy)) || '—'}`,
+    '',
+    '## Key Findings',
+    `- Ticker: ${ticker ? `$${ticker}` : '—'}`,
+    `- Status: ${String(strategy.status || strategy.runStatus || 'saved')}`,
+    '',
+    '## Key Trade Setups',
+    `- Entry Signal: ${entry}`,
+    `- Volume: ${volume}`,
+    `- Trend: ${trend}`,
+    `- Risk/Reward: ${riskReward}`,
+    `- Stop Loss: ${stopLoss}`,
+    `- $ Allocation: ${allocation}`,
+  ].join('\n');
+};
+
+const toOutputStrategy = (strategy) => {
+  if (!strategy) return null;
+
+  const summary = strategy?.summary && typeof strategy.summary === 'object' ? strategy.summary : {};
+  const ticker = firstNonEmpty(
+    strategy.ticker,
+    strategy.symbol,
+    summary.ticker,
+    strategy.symbols?.[0],
+    strategy.tickers?.[0]
+  );
+
+  const rawContent = firstNonEmpty(
+    strategy.raw,
+    strategy.content,
+    summary.raw,
+    summary.content,
+    strategy.analysis,
+    summary.analysis,
+    strategy.code
+  );
+
+  const keyTradeSetups = strategy.keyTradeSetups || summary.keyTradeSetups || {};
+
+  return {
+    ...strategy,
+    name: firstNonEmpty(strategy.name, summary.name, 'Untitled Strategy'),
+    ticker: String(ticker || '').replace(/^\$/, '').toUpperCase(),
+    raw: rawContent || buildFallbackMarkdown(strategy),
+    value: firstNonEmpty(strategy.value, summary.value, formatProfit(deriveProfit(strategy))),
+    entry: firstNonEmpty(strategy.entry, summary.entry, keyTradeSetups.entry),
+    volume: firstNonEmpty(strategy.volume, summary.volume, keyTradeSetups.volume),
+    trend: firstNonEmpty(strategy.trend, summary.trend, keyTradeSetups.trend),
+    riskReward: firstNonEmpty(strategy.riskReward, summary.riskReward, keyTradeSetups.riskReward),
+    stopLoss: firstNonEmpty(strategy.stopLoss, summary.stopLoss, keyTradeSetups.stopLoss),
+    allocation: firstNonEmpty(
+      strategy.allocation,
+      summary.allocation,
+      strategy.positionSize,
+      keyTradeSetups.allocation
+    ),
+  };
+};
+
+const upsertStrategy = (prev, strategy) => {
+  const nextStrategy = {
+    ...strategy,
+    id: strategy.id || `strategy-${Date.now()}`,
+    savedAt: strategy.savedAt || Date.now(),
+  };
+
+  const nextId = String(nextStrategy.id || '');
+  const existingIndex = prev.findIndex((item) => {
+    const itemId = String(item?.id || '');
+    if (nextId && itemId && nextId === itemId) return true;
+
+    const itemName = String(item?.name || '').trim().toLowerCase();
+    const nextName = String(nextStrategy.name || '').trim().toLowerCase();
+    const itemTicker = deriveTicker(item).toLowerCase();
+    const nextTicker = deriveTicker(nextStrategy).toLowerCase();
+
+    if (!itemName || !nextName) return false;
+    return itemName === nextName && itemTicker === nextTicker;
+  });
+
+  if (existingIndex >= 0) {
+    const updated = [...prev];
+    updated[existingIndex] = {
+      ...updated[existingIndex],
+      ...nextStrategy,
+      savedAt: Date.now(),
+    };
+    return updated;
+  }
+
+  return [nextStrategy, ...prev];
+};
+
+const TerminalStrategyWorkspace = ({
+  savedStrategies = [],
+  deployedStrategies = [],
+  onSaveStrategy,
+  onDeployStrategy,
+  onRetestStrategy,
+  onOpenBuilder,
+}) => {
+  const [folders, setFolders] = useState(() => loadFoldersFromStorage());
+  const [selectedStrategyId, setSelectedStrategyId] = useState(null);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+
+  const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
+  const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
+
+  const sourceStrategies = useMemo(() => {
+    const merged = [...safeSaved, ...safeDeployed];
+    const seen = new Set();
+    const unique = [];
+
+    merged.forEach((strategy) => {
+      const id = String(strategy?.id || '').trim();
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      unique.push(strategy);
+    });
+
+    return unique;
+  }, [safeSaved, safeDeployed]);
+
+  const strategySourceMap = useMemo(() => {
+    const map = new Map();
+    sourceStrategies.forEach((strategy) => {
+      const id = String(strategy?.id || '').trim();
+      if (!id) return;
+      map.set(id, strategy);
+    });
+    return map;
+  }, [sourceStrategies]);
+
+  useEffect(() => {
+    setFolders((prev) => {
+      const merged = mergeFoldersWithStrategies(prev, sourceStrategies, safeDeployed);
+      return JSON.stringify(merged) === JSON.stringify(prev) ? prev : merged;
+    });
+  }, [sourceStrategies, safeDeployed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toStoragePayload(folders)));
+  }, [folders]);
+
+  const allStrategies = useMemo(() => uniqueStrategiesFromFolders(folders), [folders]);
+
+  useEffect(() => {
+    if (!selectedStrategyId) return;
+    const exists = allStrategies.some((strategy) => String(strategy.id) === String(selectedStrategyId));
+    if (!exists) setSelectedStrategyId(null);
+  }, [allStrategies, selectedStrategyId]);
+
+  const selectedStrategy = useMemo(() => {
+    if (!selectedStrategyId) return null;
+    const source = strategySourceMap.get(String(selectedStrategyId));
+    if (source) return toOutputStrategy(source);
+
+    const fallback = allStrategies.find((strategy) => String(strategy.id) === String(selectedStrategyId));
+    return toOutputStrategy(fallback || null);
+  }, [allStrategies, selectedStrategyId, strategySourceMap]);
+
+  const toggleFolderExpanded = (folderId) => {
+    setFolders((prev) =>
+      prev.map((folder) =>
+        folder.id === folderId ? { ...folder, isExpanded: !folder.isExpanded } : folder
+      )
+    );
+  };
+
+  const createFolder = () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+
+    const existingIds = new Set(folders.map((folder) => folder.id));
+    const base = slugify(name) || 'folder';
+    let candidate = base;
+    let suffix = 1;
+
+    while (existingIds.has(candidate)) {
+      candidate = `${base}-${suffix}`;
+      suffix += 1;
+    }
+
+    setFolders((prev) => [
+      ...prev,
+      {
+        id: candidate,
+        name,
+        isExpanded: true,
+        strategies: [],
+      },
+    ]);
+    setNewFolderName('');
+    setShowNewFolder(false);
+  };
+
+  return (
+    <div className="h-full w-full bg-[#0b0b0b] flex overflow-hidden">
+      <aside className="w-[250px] shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col">
+        <div className="px-4 py-4 border-b border-[#1f1f1f]">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold tracking-wide text-white">Strategy Folders</h2>
+              <p className="text-[11px] text-white/45 mt-0.5">{allStrategies.length} strategies</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowNewFolder((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/15"
+            >
+              <FolderPlus className="h-3.5 w-3.5" strokeWidth={1.8} />
+              New Folder
+            </button>
+          </div>
+
+          {showNewFolder && (
+            <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/50 px-2 py-2">
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(event) => setNewFolderName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') createFolder();
+                  if (event.key === 'Escape') {
+                    setShowNewFolder(false);
+                    setNewFolderName('');
+                  }
+                }}
+                placeholder="Folder name..."
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={createFolder}
+                disabled={!newFolderName.trim()}
+                className="rounded-md border border-emerald-500/35 bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'none' }}>
+          {folders.map((folder) => {
+            const hasStrategies = folder.strategies.length > 0;
+
+            return (
+              <div key={folder.id} className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => toggleFolderExpanded(folder.id)}
+                  className="w-full flex items-center gap-2 rounded-lg px-2 py-2 border border-transparent hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors"
+                >
+                  <ChevronRight
+                    className={`h-3.5 w-3.5 text-white/50 transition-transform ${folder.isExpanded ? 'rotate-90' : ''}`}
+                    strokeWidth={2}
+                  />
+                  {renderFolderIcon(folder.id)}
+                  <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/90">
+                    {folder.name}
+                  </span>
+                  <span className="rounded-md border border-zinc-700 bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-semibold text-white/55">
+                    {folder.strategies.length}
+                  </span>
+                </button>
+
+                {folder.isExpanded && (
+                  <div className="ml-6 border-l border-zinc-800 pl-2">
+                    {hasStrategies ? (
+                      folder.strategies.map((strategy) => {
+                        const id = String(strategy.id);
+                        const isSelected = id === String(selectedStrategyId || '');
+                        const profitText = formatProfit(strategy.profit);
+                        const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
+
+                        return (
+                          <button
+                            type="button"
+                            key={id}
+                            onClick={() => setSelectedStrategyId(id)}
+                            className={`w-full text-left my-1 rounded-lg border px-2.5 py-2 transition-colors ${
+                              isSelected
+                                ? 'border-emerald-500/45 bg-emerald-500/12'
+                                : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-semibold text-white/95">{strategy.name}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  {strategy.ticker && (
+                                    <span className="rounded-md border border-amber-500/35 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                                      ${strategy.ticker}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
+                                  {profitText && (
+                                    <span
+                                      className={`text-[11px] font-semibold ${
+                                        strategy.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'
+                                      }`}
+                                    >
+                                      {profitText}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {isLive && <Play className="h-3.5 w-3.5 text-emerald-300 mt-0.5" strokeWidth={1.7} />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="py-2 text-[11px] italic text-white/35">No strategies yet</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {selectedStrategy ? (
+          <StrategyOutput
+            strategy={selectedStrategy}
+            onBack={() => setSelectedStrategyId(null)}
+            onSave={(strategy) => {
+              onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
+            }}
+            onDeploy={(activation) => {
+              onDeployStrategy?.({
+                ...selectedStrategy,
+                ...activation,
+                id: selectedStrategy.id || `terminal-${Date.now()}`,
+                name: selectedStrategy.name || 'Terminal Strategy',
+                ticker: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
+                symbol: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
+                content: selectedStrategy.content || selectedStrategy.raw || '',
+                summary: selectedStrategy.summary || {},
+              });
+            }}
+            onRetest={(prompt) => {
+              onRetestStrategy?.(prompt);
+            }}
+          />
+        ) : (
+          <div className="h-full flex items-center justify-center px-8 bg-[#0b0b0b]">
+            <div className="text-center max-w-lg">
+              <h2 className="text-2xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
+              <p className="mt-2 text-sm text-white/55">
+                Choose a strategy from the folder list to review analysis, key trade setups, and activation details.
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpenBuilder?.()}
+                className="mt-5 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+              >
+                Build Strategy
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TerminalStrategyWorkspace;

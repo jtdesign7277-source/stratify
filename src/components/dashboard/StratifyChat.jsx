@@ -196,18 +196,17 @@ export default function StratifyChat() {
     >
       <style>{`
         .stratify-chat-scroll::-webkit-scrollbar {
-          width: 4px;
+          display: none;
         }
         .stratify-chat-scroll::-webkit-scrollbar-track {
           background: transparent;
         }
         .stratify-chat-scroll::-webkit-scrollbar-thumb {
-          background: rgba(59, 130, 246, 0.7);
+          display: none;
           border-radius: 999px;
         }
         .stratify-chat-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(59, 130, 246, 0.7) transparent;
+          scrollbar-width: none;
         }
         @keyframes cursor-blink {
           0%, 49% { opacity: 1; }

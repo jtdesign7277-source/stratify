@@ -387,7 +387,7 @@ export default function SecondBrainSidebar({
       </div>
 
       {/* Tree */}
-      <nav className="flex-1 overflow-y-auto pt-1 pb-4" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+      <nav className="flex-1 overflow-y-auto pt-1 pb-4" style={{ scrollbarWidth: "none" }}>
         {renderNodes(tree, 0)}
       </nav>
 

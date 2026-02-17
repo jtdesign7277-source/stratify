@@ -392,7 +392,7 @@ const PortfolioPanel = ({ portfolioValue, dayChange, dayChangePercent, alpacaDat
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="overflow-hidden border-b border-[#1f1f1f]"
     >
-      <div className="p-6 bg-[#0b0b0b] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+      <div className="p-6 bg-[#0b0b0b] max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -1103,7 +1103,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   };
 
   const handleStrategyAdded = (strategy) => {
-    setActiveTab('strategies');
+    setActiveTab('terminal');
     setContentTab('strategies');
     setTimeout(() => {
       setAutoBacktestStrategy(strategy);
@@ -1165,7 +1165,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const handleDemoStateChange = (state) => {
     setDemoState(state);
     if (state === 'thinking') {
-      setActiveTab('strategies');
+      setActiveTab('terminal');
     }
   };
 
@@ -1508,7 +1508,7 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
               </div>
               
               {/* Content Panel - Animated transitions between tabs */}
-              <div className={`flex-1 overflow-auto ${themeClasses.bg}`} style={{ scrollbarWidth: 'thin' }}>
+              <div className={`flex-1 overflow-auto ${themeClasses.bg}`} style={{ scrollbarWidth: 'none' }}>
                 <AnimatePresence mode="wait">
                   {contentTab === 'strategies' && (
                   <motion.div

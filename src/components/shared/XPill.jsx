@@ -496,19 +496,17 @@ const XPill = ({
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
       <style>{`
         .x-feed-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+          scrollbar-width: none;
         }
         .x-feed-scroll::-webkit-scrollbar {
-          width: 6px;
+          display: none;
         }
         .x-feed-scroll::-webkit-scrollbar-track {
           background: transparent;
         }
         .x-feed-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.18);
+          display: none;
           border-radius: 999px;
-          border: 1px solid rgba(0, 0, 0, 0.6);
         }
         .x-feed-shimmer {
           background: linear-gradient(110deg, rgba(255,255,255,0.06) 8%, rgba(255,255,255,0.16) 18%, rgba(255,255,255,0.06) 33%);

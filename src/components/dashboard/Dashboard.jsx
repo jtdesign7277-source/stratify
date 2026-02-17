@@ -21,7 +21,7 @@ import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import MarketIntelPage from './MarketIntelPage';
 import SettingsPage from './SettingsPage';
-import StrategiesPage from './StrategiesPage';
+import TerminalStrategyWorkspace from './TerminalStrategyWorkspace';
 import ProGate from '../ProGate';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import StrategyBuilder from './StrategyBuilder';
@@ -44,7 +44,6 @@ import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
 // Sophia strategy state managed here
-import TerminalPage from './TerminalPage';
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
@@ -97,6 +96,7 @@ const HIDDEN_TABS = new Set(['predictions']);
 
 const sanitizeActiveTab = (tab, fallback = 'trade') => {
   const normalized = String(tab || '').trim();
+  if (normalized === 'strategies') return 'terminal';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
 };
@@ -679,7 +679,7 @@ export default function Dashboard({
   };
 
   const handleStrategyAdded = (strategy) => {
-    setActiveTab('strategies');
+    setActiveTab('terminal');
     setTimeout(() => {
       setAutoBacktestStrategy(strategy);
     }, 800);
@@ -750,7 +750,7 @@ export default function Dashboard({
       return [...prev, templateStrategy];
     });
 
-    setActiveTab('strategies');
+    setActiveTab('terminal');
   };
 
   const fetchQuoteForSymbol = useCallback(async (symbol) => {
@@ -1263,7 +1263,7 @@ export default function Dashboard({
   const handleDemoStateChange = (state) => {
     setDemoState(state);
     if (state === 'thinking') {
-      setActiveTab('strategies');
+      setActiveTab('terminal');
     }
   };
 
@@ -1688,21 +1688,6 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
-          {activeTab === 'strategies' && (
-            <StrategiesPage 
-              themeClasses={themeClasses}
-              savedStrategies={savedStrategies}
-              deployedStrategies={deployedStrategies}
-              onDeployStrategy={handleDeployStrategy}
-              onActivateTemplate={(strategy) => handleDeployStrategy(strategy, true)}
-              onEditStrategy={(strategy) => {
-                setActiveTab('builder');
-                // Could add edit logic here
-              }}
-              onRemoveSavedStrategy={handleRemoveSavedStrategy}
-              setActiveTab={setActiveTab}
-            />
-          )}
           {activeTab === 'builder' && (
             <StrategyBuilder
               strategies={strategies}
@@ -1812,7 +1797,7 @@ export default function Dashboard({
               alpacaData={alpacaData}
             />
           )}
-          {/* templates now inside StrategiesPage */}
+          {/* strategy workspace lives in Terminal */}
           {activeTab === 'active' && (
             <ActiveTrades
               setActiveTab={setActiveTab}
@@ -1832,14 +1817,13 @@ export default function Dashboard({
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'terminal' && (
-            <TerminalPage
-              backtestResults={terminalBacktestResults}
-              strategy={terminalStrategy}
-              ticker={terminalTicker}
-              onRunBacktest={handleTerminalBacktest}
-              isLoading={isTerminalLoading}
-              onDeploy={(strategy) => handleDeployStrategy(strategy, true)}
-              onNavigateToActive={() => setActiveTab('active')}
+            <TerminalStrategyWorkspace
+              savedStrategies={savedStrategies}
+              deployedStrategies={deployedStrategies}
+              onOpenBuilder={() => setActiveTab('builder')}
+              onRetestStrategy={(prompt) => setSophiaWizardPrompt(prompt)}
+              onDeployStrategy={(strategy) => handleDeployStrategy(strategy, true)}
+              onSaveStrategy={setSavedStrategies}
             />
           )}
           {activeTab === 'more' && <MoreInfoPage />}

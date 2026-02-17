@@ -169,14 +169,11 @@ const LiveAvatarChat = () => {
           >
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 opacity-40 blur-md group-hover:opacity-60 transition-opacity" />
             <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-[#0f1a2e] to-[#0b0f1a] border border-emerald-500/40 shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-all overflow-hidden flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-emerald-400">
-                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <span className="text-emerald-300 text-xl font-semibold leading-none">S</span>
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
             <div className="absolute -top-8 right-0 px-3 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 text-white text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              Chat with Katya
+              Chat with Sophia
             </div>
           </motion.button>
         )}
@@ -247,13 +244,10 @@ const LiveAvatarChat = () => {
                   {status === 'idle' && (
                     <>
                       <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/20 flex items-center justify-center">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-emerald-400">
-                          <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
+                        <span className="text-emerald-300 text-2xl font-semibold leading-none">S</span>
                       </div>
                       <div className="text-center">
-                        <p className="text-white font-medium text-sm mb-1">Meet Katya</p>
+                        <p className="text-white font-medium text-sm mb-1">Meet Sophia</p>
                         <p className="text-white/40 text-xs leading-relaxed">
                           Your AI trading assistant. Ask about strategies, features, or pricing.
                         </p>
@@ -269,7 +263,7 @@ const LiveAvatarChat = () => {
                   {status === 'connecting' && (
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
-                      <p className="text-white/50 text-sm">Connecting to Katya...</p>
+                      <p className="text-white/50 text-sm">Connecting to Sophia...</p>
                     </div>
                   )}
                   {status === 'error' && (
@@ -306,7 +300,7 @@ const LiveAvatarChat = () => {
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && sendText()}
-                    placeholder="Ask Katya anything..."
+                    placeholder="Ask Sophia anything..."
                     className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/8 text-white text-sm placeholder-white/25 focus:outline-none focus:border-emerald-500/40 transition-colors"
                   />
                   <button

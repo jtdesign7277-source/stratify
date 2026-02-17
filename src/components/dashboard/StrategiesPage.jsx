@@ -966,7 +966,7 @@ const StrategiesPage = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'none' }}>
         {allStrategies.length === 0 && (
           <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-zinc-700 bg-zinc-900/45 px-5 py-4">
             <div className="text-base text-white/75">

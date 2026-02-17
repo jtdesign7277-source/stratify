@@ -95,7 +95,7 @@ export default function CommandPalette({
     const commands = [
       // Navigation
       { id: 'nav-home', name: 'Go to Dashboard', description: 'View main dashboard', category: 'navigation', icon: Home, shortcut: 'Cmd+1', action: () => onNavigate?.('dashboard') },
-      { id: 'nav-strategies', name: 'Go to Strategies', description: 'View all strategies', category: 'navigation', icon: TrendingUp, shortcut: 'Cmd+2', action: () => onNavigate?.('strategies') },
+      { id: 'nav-terminal', name: 'Go to Terminal', description: 'Open strategy workspace', category: 'navigation', icon: TrendingUp, shortcut: 'Cmd+2', action: () => onNavigate?.('terminal') },
       { id: 'nav-builder', name: 'Strategy Builder', description: 'Build or edit strategies', category: 'navigation', icon: Layout, shortcut: 'Cmd+3', action: () => onNavigate?.('builder') },
       { id: 'nav-arbitrage', name: 'Arbitrage Scanner', description: 'View arbitrage opportunities', category: 'navigation', icon: BarChart2, shortcut: 'Cmd+4', action: () => onNavigate?.('arbitrage') },
       { id: 'nav-settings', name: 'Settings', description: 'Configure your account', category: 'navigation', icon: Settings, shortcut: 'Cmd+,', action: () => onNavigate?.('settings') },
@@ -376,7 +376,7 @@ export function useCommandPalette(handlers = {}) {
       // Navigation shortcuts (Cmd+1-5)
       if (cmdKey && e.key >= '1' && e.key <= '5') {
         e.preventDefault();
-        const tabs = ['dashboard', 'strategies', 'builder', 'arbitrage', 'settings'];
+        const tabs = ['dashboard', 'terminal', 'builder', 'arbitrage', 'settings'];
         handlers.onNavigate?.(tabs[parseInt(e.key) - 1]);
         return;
       }
