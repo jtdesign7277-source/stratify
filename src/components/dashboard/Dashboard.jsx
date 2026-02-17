@@ -568,7 +568,6 @@ export default function Dashboard({
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [showNewsletter, setShowNewsletter] = useState(false);
   const [showMarketIntel, setShowMarketIntel] = useState(false);
-  const [showCopilot, setShowCopilot] = useState(false);
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [connectedBrokers, setConnectedBrokers] = useState(() => {
     try {
@@ -1945,7 +1944,6 @@ export default function Dashboard({
           setActiveSection('market-intel');
           setShowMarketIntel(true);
         }}
-        onOpenCopilot={() => setShowCopilot(true)}
       />
 
       {showStrategyLimitModal && (
@@ -2084,11 +2082,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {showCopilot && (
-        <div className="fixed right-0 top-0 bottom-0 z-50 w-[380px] border-l border-[#1f1f1f] shadow-2xl shadow-black/50">
-          <SophiaCopilot onClose={() => setShowCopilot(false)} />
-        </div>
-      )}
+      {/* Copilot is rendered inside StatusBar as a positioned dropdown */}
 
       <BrokerConnectModal 
         isOpen={showBrokerModal} 
