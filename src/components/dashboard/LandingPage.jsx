@@ -1,741 +1,541 @@
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Sparkles, Zap, Play, Check, Loader2, Brain, LineChart, Code, Rocket, Shield, BarChart3 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  Ban,
+  Bell,
+  Brain,
+  ChevronDown,
+  Code,
+  Crosshair,
+  Eye,
+  Globe,
+  Lock,
+  Monitor,
+  Shield,
+} from 'lucide-react';
 
-const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+const PROBLEM_CARDS = [
+  { title: 'Charts & Technicals', cost: '$60/mo' },
+  { title: 'Broker App', cost: 'Varies' },
+  { title: 'Twitter/X for News', cost: '$100/mo' },
+  { title: 'Reddit for Ideas', cost: 'Time cost' },
+  { title: 'AI Research', cost: '$200/mo' },
+  { title: 'Email Alerts', cost: '$25/mo' },
+  { title: 'Backtesting', cost: '$100/mo' },
+  { title: 'Spreadsheet P&L', cost: 'Manual' },
+];
+
+const FEATURE_CARDS = [
+  {
+    title: 'War Room',
+    description: 'Real-time market intelligence with AI web search.',
+    icon: Crosshair,
+  },
+  {
+    title: 'Sophia AI',
+    description: 'Your personal trading analyst that knows your portfolio.',
+    icon: Brain,
+  },
+  {
+    title: 'Strategy Builder',
+    description: 'AI-generated strategies with real trade analysis.',
+    icon: Code,
+  },
+  {
+    title: 'Live Terminal',
+    description: 'Professional charts and one-click broker execution.',
+    icon: Monitor,
+  },
+  {
+    title: 'Smart Alerts',
+    description: 'Custom price, volume, and sentiment triggers via email/SMS.',
+    icon: Bell,
+  },
+  {
+    title: 'Social Sentiment',
+    description: 'X + Reddit monitoring with AI-filtered signals.',
+    icon: Globe,
+  },
+];
+
+const HOW_STEPS = [
+  {
+    title: 'Sign up & get your API key',
+    description: 'Create your account and instantly unlock your Stratify key.',
+  },
+  {
+    title: 'Connect your broker',
+    description: 'Securely link your broker to enable execution and portfolio sync.',
+  },
+  {
+    title: 'Customize your dashboard',
+    description: 'Arrange modules, watchlists, and strategy tools around your workflow.',
+  },
+  {
+    title: 'Let Sophia take over',
+    description: 'Run deep scans, generate setups, and monitor conditions 24/7.',
+  },
+  {
+    title: 'Trade with confidence',
+    description: 'Move from signal to execution with speed, clarity, and control.',
+  },
+];
+
+const PRICING_PLANS = [
+  {
+    id: 'starter',
+    name: 'STARTER',
+    price: 'Free',
+    subtitle: 'Ideal for exploring the platform',
+    features: ['Delayed data', '5 scans/day', 'Basic watchlist', '1 strategy'],
+    borderClass: 'border-gray-800',
+  },
+  {
+    id: 'pro',
+    name: 'PRO',
+    price: '$29/mo',
+    subtitle: 'For active independent traders',
+    features: [
+      'Live data',
+      '50 scans/day',
+      'Unlimited watchlist',
+      '1 broker connection',
+      'Email alerts',
+      'Sophia AI',
+    ],
+    borderClass: 'border-blue-500/50',
+  },
+  {
+    id: 'elite',
+    name: 'ELITE',
+    price: '$99/mo',
+    subtitle: 'Built for power users',
+    features: [
+      'Unlimited scans',
+      '3 broker connections',
+      'SMS alerts',
+      'Social sentiment engine',
+      'Custom layouts',
+      'Browser extension',
+    ],
+    borderClass: 'border-amber-500',
+    isPopular: true,
+  },
+  {
+    id: 'institutional',
+    name: 'INSTITUTIONAL',
+    price: '$299/mo',
+    subtitle: 'For teams and firms',
+    features: ['Team accounts', 'White-label options', 'Dedicated support', 'Unlimited everything'],
+    borderClass: 'border-purple-500/50',
+  },
+];
+
+const SECURITY_ITEMS = [
+  { icon: Shield, text: 'AES-256 encrypted broker credentials' },
+  { icon: Lock, text: 'Hashed API keys - never stored in plaintext' },
+  { icon: Globe, text: 'HTTPS/TLS encryption on all data' },
+  { icon: Eye, text: 'Row-level security - your data is yours alone' },
+  { icon: Ban, text: 'We never sell your data' },
+];
+
+const FAQ_ITEMS = [
+  {
+    question: 'What is a Stratify API key?',
+    answer:
+      'Your Stratify API key is your secure access credential that connects every service in the platform under one identity.',
+  },
+  {
+    question: 'Do I need other subscriptions?',
+    answer:
+      'No. Stratify is designed to replace fragmented tools with one connected platform and one monthly plan.',
+  },
+  {
+    question: 'Is my broker account safe?',
+    answer:
+      'Yes. Broker credentials are encrypted with enterprise-grade standards and handled with strict access controls.',
+  },
+  {
+    question: 'Can I use it without a broker?',
+    answer:
+      'Yes. You can run scans, build strategies, monitor sentiment, and use Sophia AI before connecting execution.',
+  },
+  {
+    question: 'What makes Sophia different from ChatGPT?',
+    answer:
+      'Sophia is embedded into your live trading workflow, connected to your strategies, and built for market execution context.',
+  },
+  {
+    question: 'Can I cancel anytime?',
+    answer: 'Yes. Every paid plan is month-to-month and can be cancelled anytime from your account settings.',
+  },
+  {
+    question: 'What brokers do you support?',
+    answer:
+      'Current support includes Alpaca, Tradier, and Webull, with additional integrations on the roadmap.',
+  },
+];
+
+const sectionMotion = {
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.25 },
+  transition: { duration: 0.55, ease: 'easeOut' },
+};
+
+const landingStyles = `
+  .landing-star {
+    position: absolute;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.85);
+    animation: landingStarDrift linear infinite;
+  }
+
+  @keyframes landingStarDrift {
+    0% {
+      opacity: 0.15;
+      transform: translate3d(0, 0, 0);
+    }
+    45% {
+      opacity: 0.6;
+    }
+    100% {
+      opacity: 0.1;
+      transform: translate3d(var(--drift-x, 0px), -90px, 0);
+    }
+  }
+
+  .landing-orb {
+    animation: landingOrbFloat 9s ease-in-out infinite;
+  }
+
+  @keyframes landingOrbFloat {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(0, -16px, 0) scale(1.03); }
+  }
+
+  .landing-mesh {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.14), transparent 38%),
+      radial-gradient(circle at 80% 25%, rgba(99, 102, 241, 0.12), transparent 42%),
+      radial-gradient(circle at 60% 80%, rgba(16, 185, 129, 0.08), transparent 45%);
+  }
+`;
+
+const createStars = (count = 90) =>
+  Array.from({ length: count }, (_, index) => ({
+    id: `landing-star-${index}`,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    size: Math.random() > 0.75 ? 2 : 1,
+    opacity: 0.2 + Math.random() * 0.75,
+    duration: 60 + Math.random() * 70,
+    delay: -Math.random() * 120,
+    driftX: (Math.random() - 0.5) * 34,
+  }));
 
 const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
-  const [email, setEmail] = useState('');
-  const [showIntro, setShowIntro] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [upgradeError, setUpgradeError] = useState(null);
-  const introVideoRef = useRef(null);
-  const { user } = useAuth();
+  const [openFaq, setOpenFaq] = useState(0);
+  const stars = useMemo(() => createStars(90), []);
 
-  const bgVideoSrc = '/runway-bg.mp4';
-  const introVideoSrc = '/stratify-the-drop.mp4';
-  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJnY1_65FEg5yqZgMRKwxRChY1nMDqZlErSJqBMfa2JOLLp0clT4IuD7gKvZc8qCIziw/exec';
+  useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.style.scrollBehavior;
+    html.style.scrollBehavior = 'smooth';
+    return () => {
+      html.style.scrollBehavior = previous;
+    };
+  }, []);
 
-  const handleWaitlistSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) return;
-    setSubmitStatus('loading');
-    try {
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-          timestamp: new Date().toISOString(),
-          source: window.location.href
-        })
-      });
-      setSubmitStatus('success');
-      setEmail('');
-      setTimeout(() => setSubmitStatus(null), 3000);
-    } catch (error) {
-      setSubmitStatus('error');
-      setTimeout(() => setSubmitStatus(null), 3000);
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      onEnter?.();
+      return;
     }
-  };
-
-  const handleExperienceClick = () => {
-    setShowIntro(true);
-    setTimeout(() => {
-      if (introVideoRef.current) introVideoRef.current.play();
-    }, 100);
-  };
-
-  const handlePrimaryCta = () => {
     if (onSignUp) {
       onSignUp();
       return;
     }
-    if (onEnter) onEnter();
+    onEnter?.();
   };
-
-  const handleUpgradeCta = async () => {
-    if (!user?.id || !user?.email) {
-      if (onSignUp) {
-        onSignUp();
-        return;
-      }
-      if (onEnter) onEnter();
-      return;
-    }
-
-    setUpgradeLoading(true);
-    setUpgradeError(null);
-
-    try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId: PRO_PRICE_ID,
-          userId: user.id,
-          userEmail: user.email,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error || 'Unable to start checkout.');
-      }
-
-      if (data?.url) {
-        window.location.assign(data.url);
-        return;
-      }
-
-      throw new Error('Stripe checkout URL missing.');
-    } catch (err) {
-      setUpgradeError(err.message || 'Upgrade failed. Please try again.');
-    } finally {
-      setUpgradeLoading(false);
-    }
-  };
-
-  const handleIntroEnd = () => onEnter && onEnter();
-  const handleSkipIntro = () => onEnter && onEnter();
 
   return (
-    <div className="relative w-full overflow-x-hidden bg-[#060d18]">
-      
-      {/* Intro Video Overlay */}
-      <AnimatePresence>
-        {showIntro && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
-          >
-            <video
-              ref={introVideoRef}
-              src={introVideoSrc}
-              className="w-full h-full object-cover"
-              onEnded={handleIntroEnd}
-              playsInline
-            />
-            <button
-              onClick={handleSkipIntro}
-              className="absolute bottom-8 right-8 px-4 py-2 text-white/50 hover:text-white text-sm transition-colors"
-            >
-              Skip →
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="relative min-h-screen bg-[#030608] text-white overflow-x-hidden">
+      <style>{landingStyles}</style>
 
-      {/* Background Video - Hero Only - PREMIUM */}
-      <div className="absolute inset-0 h-screen overflow-hidden">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover scale-105"
-          style={{ filter: 'brightness(0.9) saturate(1.3) contrast(1.1)' }}
-        >
-          <source src={bgVideoSrc} type="video/mp4" />
-        </video>
-        {/* Lighter gradient overlay */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at center top, rgba(6, 13, 24, 0.1) 0%, rgba(6, 13, 24, 0.85) 100%)',
-          }}
-        />
-        {/* Animated gradient orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-purple-500/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
-        {/* Subtle grid overlay */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
+      <div className="absolute inset-0 pointer-events-none landing-mesh" />
+      <div className="absolute inset-0 pointer-events-none">
+        {stars.map((star) => (
+          <span
+            key={star.id}
+            className="landing-star"
+            style={{
+              left: `${star.left}%`,
+              top: `${star.top}%`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              opacity: star.opacity,
+              animationDuration: `${star.duration}s`,
+              animationDelay: `${star.delay}s`,
+              '--drift-x': `${star.driftX}px`,
+            }}
+          />
+        ))}
       </div>
 
-      {/* Content */}
-      <div className="relative z-10">
-        
-        {/* Navigation */}
-        <nav className="flex items-center justify-between px-8 py-6">
-          <span className="text-white text-xl font-semibold tracking-tight">Stratify</span>
-          <div className="flex items-center gap-8">
-            <a href="#how-it-works" className="text-white/60 hover:text-white transition-colors text-sm">How It Works</a>
-            <a href="#pricing" className="text-white/60 hover:text-white transition-colors text-sm">Pricing</a>
-            <button 
-              onClick={handlePrimaryCta}
-              className="px-5 py-2.5 rounded-full border border-white/20 text-white text-sm hover:bg-white/5 transition-colors"
-            >
-              {isAuthenticated ? 'Dashboard' : 'Sign Up'}
-            </button>
-          </div>
-        </nav>
+      <main className="relative z-10">
+        <motion.section {...sectionMotion} className="py-32 md:py-36 px-6">
+          <div className="max-w-6xl mx-auto text-center relative">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-amber-500/12 blur-3xl landing-orb" />
+            <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
 
-        {/* ============ HERO SECTION ============ */}
-        <div className="flex flex-col items-center justify-center px-8 pt-20 pb-24 min-h-screen">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-6xl md:text-8xl text-center font-light text-white mb-6 overflow-visible"
-            style={{ textShadow: '0 0 80px rgba(16, 185, 129, 0.3), 0 4px 20px rgba(0,0,0,0.5)' }}
-          >
-            A <span className="italic bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent inline-block py-4 px-1">smarter way</span>
-            <br />
-            to trade
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-white/50 text-lg md:text-xl text-center max-w-2xl mb-10 font-light"
-          >
-            Unify strategies across technical analysis, sentiment, and
-            fundamentals. Let AI surface the signals that matter.
-          </motion.p>
-
-          {/* Email Signup */}
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            onSubmit={handleWaitlistSubmit}
-            className="flex items-center gap-3 mb-4"
-          >
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              disabled={submitStatus === 'loading' || submitStatus === 'success'}
-              className="w-80 px-5 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-colors disabled:opacity-50"
-            />
-            <button 
-              type="submit"
-              disabled={submitStatus === 'loading' || submitStatus === 'success' || !email}
-              className={`flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all ${
-                submitStatus === 'success'
-                  ? 'bg-green-500 text-white shadow-[0_0_40px_rgba(34,197,94,0.4)]'
-                  : 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:from-emerald-400 hover:to-cyan-400 shadow-[0_0_40px_rgba(16,185,129,0.4)] hover:shadow-[0_0_60px_rgba(16,185,129,0.5)]'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {submitStatus === 'loading' ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Joining...</>
-              ) : submitStatus === 'success' ? (
-                <><Check className="w-4 h-4" />You're in!</>
-              ) : (
-                <>Join Waitlist<ArrowRight className="w-4 h-4" /></>
-              )}
-            </button>
-          </motion.form>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex items-center gap-2 text-white/40 text-sm mb-8"
-          >
-            <Sparkles className="w-4 h-4 text-yellow-400/70" />
-            Join 501+ traders already on the waitlist
-          </motion.p>
-
-          <div className="w-96 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
-
-          {/* Experience Button - PREMIUM */}
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            onClick={handleExperienceClick}
-            className="group relative mb-8"
-          >
-            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/60 via-cyan-500/60 to-emerald-500/60 rounded-xl opacity-25 group-hover:opacity-40 blur-lg transition-all duration-500" />
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-600/50 to-cyan-500/50 rounded-xl opacity-30 group-hover:opacity-50 blur-sm transition-opacity" />
-            <div className="relative flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border border-emerald-400/30 group-hover:border-emerald-300/50 transition-all backdrop-blur-sm">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400/80 to-cyan-400/80 flex items-center justify-center shadow-md shadow-emerald-500/30 group-hover:shadow-emerald-400/50 transition-shadow">
-                <Play className="w-3 h-3 text-white ml-0.5" fill="white" strokeWidth={0} />
-              </div>
-              <div className="flex flex-col items-start">
-                <span className="text-white/90 font-medium text-sm tracking-wide">Experience Stratify</span>
-                <span className="text-emerald-300/60 text-[8px] tracking-wider uppercase">Watch the intro</span>
-              </div>
-            </div>
-          </motion.button>
-
-          {/* Continue as Guest */}
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            onClick={() => onEnter && onEnter()}
-            className="flex items-center gap-2 px-8 py-3 rounded-xl border border-white/10 text-white/80 hover:bg-white/5 hover:border-white/20 transition-all mb-3"
-          >
-            Continue as Guest
-            <ArrowRight className="w-4 h-4" />
-          </motion.button>
-
-        </div>
-
-        {/* ============ PROMO VIDEO SECTION ============ */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="relative py-24 px-8 bg-[#060d18]"
-        >
-          <div className="max-w-4xl mx-auto text-center">
-            <p className="text-white/30 text-xs tracking-[0.3em] uppercase mb-4">
-              See It In Action
+            <p className="text-[11px] uppercase tracking-[0.45em] text-gray-500 mb-8">Market Infrastructure Reimagined</p>
+            <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
+            <p className="mt-6 text-amber-500 text-xl italic">One Key. Every Market. Total Control.</p>
+            <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-center text-base md:text-lg leading-relaxed">
+              The all-in-one trading platform that connects live market data, AI-powered research, social sentiment,
+              broker execution, and personalized alerts into a single interface.
             </p>
-            <h2 className="text-3xl md:text-4xl font-light text-white mb-10">
-              Meet <span className="bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">Stratify</span>
-            </h2>
-            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(16,185,129,0.15)]">
-              <video
-                controls
-                playsInline
-                preload="metadata"
-                poster=""
-                className="w-full aspect-video bg-black"
+
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleGetStarted}
+                className="bg-amber-500 hover:bg-amber-600 text-black font-bold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
               >
-                <source src="/stratify-promo.mp4" type="video/mp4" />
-              </video>
+                Get Started Free
+                <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+              <a
+                href="/whitepaper"
+                className="border border-gray-700 hover:border-amber-500/50 text-gray-300 px-8 py-3 rounded-xl transition-colors"
+              >
+                Read White Paper
+              </a>
             </div>
           </div>
         </motion.section>
 
-        {/* ============ INFO SECTION ============ */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="relative px-8 pb-24 pt-6 bg-[#060d18]"
-        >
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <p className="text-white/30 text-xs tracking-[0.3em] uppercase mb-4">
-                The Signal Stack
-              </p>
-              <h2 className="text-3xl md:text-4xl font-light text-white mb-4">
-                Turn market noise into deployable strategies
-              </h2>
-              <p className="text-white/50 text-base md:text-lg max-w-2xl mx-auto">
-                Stratify blends technicals, sentiment, and fundamentals into a single workflow so you can
-                discover, validate, and deploy faster.
-              </p>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-3 mb-14">
-              {[
-                {
-                  title: 'Signal Fusion',
-                  body: 'Combine technical setups with macro and sentiment context in one view.',
-                  icon: <LineChart className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
-                },
-                {
-                  title: 'AI Strategy Builder',
-                  body: 'Describe your edge and get production-ready code in seconds.',
-                  icon: <Sparkles className="w-5 h-5 text-cyan-400" strokeWidth={1.5} />
-                },
-                {
-                  title: 'Always-On Execution',
-                  body: 'Deploy to paper or live trading with safety checks baked in.',
-                  icon: <Shield className="w-5 h-5 text-purple-400" strokeWidth={1.5} />
-                }
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="p-6 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm hover:border-emerald-500/30 hover:bg-white/[0.05] transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-4">
-                    {item.icon}
-                  </div>
-                  <h3 className="text-white text-lg font-medium mb-2">{item.title}</h3>
-                  <p className="text-white/50 text-sm leading-relaxed">{item.body}</p>
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-white text-3xl font-bold text-center">The Problem</h2>
+            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {PROBLEM_CARDS.map((card) => (
+                <div key={card.title} className="bg-white/5 border border-red-500/20 rounded-xl p-4">
+                  <p className="text-white font-medium">{card.title}</p>
+                  <p className="text-red-300 text-sm mt-2">{card.cost}</p>
                 </div>
               ))}
             </div>
-
-            {/* Stats below video */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl mx-auto"
-            >
-              <div className="flex flex-col items-center justify-center text-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-8 py-6">
-                <div className="text-4xl font-light bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  501+
-                </div>
-                <div className="text-white/40 text-sm tracking-wide">Beta Waitlist</div>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] px-8 py-6">
-                <div className="flex items-center justify-center gap-2 text-4xl font-light text-purple-400">
-                  <Zap className="w-6 h-6" strokeWidth={1.5} />
-                  Instant
-                </div>
-                <div className="text-white/40 text-sm tracking-wide">Strategy Deployment</div>
-              </div>
-            </motion.div>
+            <p className="mt-8 text-center text-red-400 text-2xl font-bold">Total: $373-784/month</p>
+            <p className="mt-2 text-center text-amber-500 text-xl">There&apos;s a better way.</p>
           </div>
         </motion.section>
 
-        {/* ============ INTEGRATIONS SECTION ============ */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="relative overflow-hidden py-24 px-6 sm:px-8 bg-[#060d18]"
-        >
-          <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 translate-x-16 translate-y-10 rounded-full bg-cyan-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute top-10 left-0 h-64 w-64 -translate-x-20 rounded-full bg-blue-500/10 blur-[100px]" />
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <h2 className="text-white text-3xl font-bold">One Platform. One Key.</h2>
+            <div className="mt-10 max-w-md mx-auto rounded-2xl border border-amber-500/50 shadow-[0_0_36px_rgba(245,158,11,0.14)] bg-black/35 p-8">
+              <p className="text-white text-xl font-semibold">Stratify - $29/mo</p>
+            </div>
+            <p className="mt-4 text-amber-400">Up to 87% savings with everything connected.</p>
 
-          <div className="relative max-w-6xl mx-auto text-center">
-            <p className="text-white/40 text-xs tracking-[0.4em] uppercase">
-              Trusted Infrastructure
-            </p>
-            <h2 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent">
-              Powered By Industry Leaders
-            </h2>
-            <p className="mt-4 text-white/60 text-base sm:text-lg max-w-2xl mx-auto">
-              Built on the same partners powering the most advanced fintech platforms.
-            </p>
-
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
-                {
-                  name: 'Alpaca',
-                  logo: '/logos/alpaca.png'
-                },
-                {
-                  name: 'Anthropic',
-                  logo: '/logos/anthropic.svg'
-                },
-                {
-                  name: 'Vercel',
-                  logo: 'https://assets.vercel.com/image/upload/front/assets/design/vercel-triangle-black.svg'
-                },
-                {
-                  name: 'Railway',
-                  logo: '/logos/railway.svg'
-                }
-              ].map((partner) => (
-                <div key={partner.name} className="group relative">
-                  <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-blue-500/40 via-cyan-400/40 to-blue-500/40 opacity-40 blur-md transition duration-500 group-hover:opacity-90" />
-                  <div className="relative rounded-2xl bg-gradient-to-r from-blue-500/40 via-cyan-400/40 to-blue-500/40 p-[1px] transition duration-500 group-hover:-translate-y-2 group-hover:scale-[1.02] group-hover:shadow-[0_18px_45px_rgba(34,211,238,0.25)]">
-                    <div className="flex items-center justify-center gap-5 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-8 backdrop-blur-xl">
-                      <img
-                        src={partner.logo}
-                        alt={partner.name}
-                        className="h-16 w-16 object-contain opacity-90 drop-shadow-[0_0_16px_rgba(59,130,246,0.35)] transition duration-500 group-hover:opacity-100 group-hover:drop-shadow-[0_0_26px_rgba(34,211,238,0.55)]"
-                        loading="lazy"
-                      />
-                      <span className="text-lg font-semibold tracking-[0.18em] uppercase text-white/60 transition duration-500 group-hover:text-white">
-                        {partner.name}
-                      </span>
+                { value: '1', label: 'API Key' },
+                { value: '15+', label: 'Services' },
+                { value: '24/7', label: 'AI Monitoring' },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-2xl border border-gray-800 bg-black/30 px-5 py-6">
+                  <p className="text-4xl font-bold text-amber-400">{stat.value}</p>
+                  <p className="mt-2 text-gray-400">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-white text-3xl font-bold text-center">Everything You Need</h2>
+            <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {FEATURE_CARDS.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <div
+                    key={feature.title}
+                    className="bg-black/40 backdrop-blur border border-gray-800 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                  >
+                    <Icon className="h-5 w-5 text-amber-400" strokeWidth={1.5} />
+                    <h3 className="mt-4 text-white font-semibold">{feature.title}</h3>
+                    <p className="mt-2 text-gray-400 text-sm leading-relaxed">{feature.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-white text-3xl font-bold text-center">Get Started in 5 Minutes</h2>
+
+            <div className="mt-12 relative hidden md:block">
+              <div className="absolute left-[10%] right-[10%] top-5 h-px bg-amber-500/35" />
+              <div className="grid grid-cols-5 gap-4">
+                {HOW_STEPS.map((step, index) => (
+                  <div key={step.title} className="text-center px-2">
+                    <div className="mx-auto h-10 w-10 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 flex items-center justify-center font-semibold">
+                      {index + 1}
                     </div>
+                    <h3 className="mt-4 text-white font-semibold text-sm">{step.title}</h3>
+                    <p className="mt-2 text-gray-400 text-xs leading-relaxed">{step.description}</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-
-        {/* ============ HOW IT WORKS SECTION ============ */}
-        <motion.section
-          id="how-it-works"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="py-24 px-8 bg-gradient-to-b from-[#060d18] to-[#0a1628]"
-        >
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-light text-white mb-4">How It Works</h2>
-              <p className="text-white/50 text-lg max-w-2xl mx-auto">
-                From idea to execution in three simple steps
-              </p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Step 1 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-blue-500/30 transition-colors"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 flex items-center justify-center mb-6">
-                  <Brain className="w-6 h-6 text-blue-400" strokeWidth={1.5} />
-                </div>
-                <div className="text-blue-400/50 text-sm font-medium mb-2">Step 1</div>
-                <h3 className="text-xl font-medium text-white mb-3">Describe Your Strategy</h3>
-                <p className="text-white/50 text-sm leading-relaxed">
-                  Tell Grok AI what you want in plain English. "Buy $NVDA when RSI drops below 30" — that's all it takes.
-                </p>
-              </motion.div>
-              
-              {/* Step 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-cyan-500/30 transition-colors"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 border border-cyan-500/30 flex items-center justify-center mb-6">
-                  <Code className="w-6 h-6 text-cyan-400" strokeWidth={1.5} />
-                </div>
-                <div className="text-cyan-400/50 text-sm font-medium mb-2">Step 2</div>
-                <h3 className="text-xl font-medium text-white mb-3">AI Generates Code</h3>
-                <p className="text-white/50 text-sm leading-relaxed">
-                  Claude instantly writes production-ready Python code. Review it, tweak it, or run it as-is.
-                </p>
-              </motion.div>
-              
-              {/* Step 3 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="relative p-8 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-purple-500/30 transition-colors"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 flex items-center justify-center mb-6">
-                  <Zap className="w-6 h-6 text-purple-400" strokeWidth={1.5} />
-                </div>
-                <div className="text-purple-400/50 text-sm font-medium mb-2">Step 3</div>
-                <h3 className="text-xl font-medium text-white mb-3">Backtest & Deploy</h3>
-                <p className="text-white/50 text-sm leading-relaxed">
-                  Test against historical data, then deploy to paper or live trading with one click via Alpaca.
-                </p>
-              </motion.div>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* ============ AI BACKTEST FEATURE SECTION ============ */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="py-24 px-8 bg-gradient-to-b from-[#0a1628] to-[#060d18] relative overflow-hidden"
-        >
-          {/* Glow effects */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
-          
-          <div className="max-w-5xl mx-auto relative">
-            <div className="text-center mb-12">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/30 mb-6"
-              >
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                <span className="text-purple-300 text-sm font-medium">AI-Powered Backtesting</span>
-              </motion.div>
-              
-              <h2 className="text-4xl md:text-5xl font-light text-white mb-4">
-                Test Any Strategy.<br />
-                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Real Historical Data.</span>
-              </h2>
-              <p className="text-white/50 text-lg max-w-2xl mx-auto">
-                Write your strategy in plain English. Our AI understands it, calculates the indicators, 
-                and shows you exactly what would've happened with real market data.
-              </p>
-            </div>
-
-            {/* Strategy Examples */}
-            <div className="grid md:grid-cols-2 gap-6 mb-12">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                className="p-6 rounded-2xl bg-[#0d1117] border border-white/10"
-              >
-                <div className="text-purple-400 text-xs font-medium tracking-wider uppercase mb-4">You Write</div>
-                <div className="space-y-3 font-mono text-sm">
-                  <p className="text-white/80">"Buy when <span className="text-cyan-400">RSI(14) drops below 30</span> AND price is above <span className="text-cyan-400">50-day EMA</span>"</p>
-                  <p className="text-white/80">"Sell when <span className="text-pink-400">MACD crosses below signal</span> OR <span className="text-pink-400">5% stop loss</span> hit"</p>
-                  <p className="text-white/80">"Position size: <span className="text-emerald-400">100 shares</span>"</p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                className="p-6 rounded-2xl bg-[#0d1117] border border-emerald-500/20"
-              >
-                <div className="text-emerald-400 text-xs font-medium tracking-wider uppercase mb-4">You Get Real Results</div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-light text-white">12</div>
-                    <div className="text-white/40 text-xs">Trades</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-light text-emerald-400">67%</div>
-                    <div className="text-white/40 text-xs">Win Rate</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-light text-emerald-400">+$4,280</div>
-                    <div className="text-white/40 text-xs">Total P&L</div>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10 text-white/40 text-xs">
-                  Backtested on 6 months of real TSLA data from Alpaca
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Supported Indicators */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center"
-            >
-              <p className="text-white/30 text-sm mb-4">AI understands any indicator</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['RSI', 'MACD', 'SMA', 'EMA', 'Bollinger Bands', 'VWAP', 'ATR', 'Stochastic', 'ADX', 'OBV', 'Fibonacci', 'Volume'].map((indicator) => (
-                  <span key={indicator} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/60 text-xs">
-                    {indicator}
-                  </span>
                 ))}
               </div>
-            </motion.div>
-          </div>
-        </motion.section>
-
-        {/* ============ PRICING SECTION ============ */}
-        <motion.section
-          id="pricing"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="py-24 px-8 bg-[#0a1628]"
-        >
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-light text-white mb-4">Simple Pricing</h2>
-              <p className="text-white/50 text-lg max-w-2xl mx-auto">
-                Start free, upgrade when you're ready
-              </p>
             </div>
-            
-            <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-              {/* Free Tier */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="p-8 rounded-2xl bg-white/[0.02] border border-white/10"
-              >
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-white mb-1">Free</h3>
-                  <p className="text-white/40 text-sm">Perfect for getting started</p>
+
+            <div className="mt-10 space-y-4 md:hidden">
+              {HOW_STEPS.map((step, index) => (
+                <div key={step.title} className="relative rounded-xl border border-gray-800 bg-black/30 p-4 pl-14">
+                  {index < HOW_STEPS.length - 1 ? (
+                    <span className="absolute left-[26px] top-10 bottom-[-20px] w-px bg-amber-500/30" />
+                  ) : null}
+                  <span className="absolute left-3 top-3 h-7 w-7 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-sm font-semibold flex items-center justify-center">
+                    {index + 1}
+                  </span>
+                  <h3 className="text-white font-semibold text-sm">{step.title}</h3>
+                  <p className="mt-1 text-gray-400 text-xs">{step.description}</p>
                 </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-light text-white">$0</span>
-                  <span className="text-white/40 text-sm">/month</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {['3 strategies', 'Paper trading only', 'Basic backtesting', 'Community support'].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-white/60 text-sm">
-                      <Check className="w-4 h-4 text-blue-400" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button 
-                  onClick={handlePrimaryCta}
-                  className="w-full py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors"
-                >
-                  Get Started
-                </button>
-              </motion.div>
-              
-              {/* Pro Tier */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="relative p-8 rounded-2xl bg-gradient-to-b from-blue-500/10 to-transparent border border-blue-500/30"
-              >
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-blue-500 text-white text-xs font-medium">
-                  Most Popular
-                </div>
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-white mb-1">Pro</h3>
-                  <p className="text-white/40 text-sm">For serious traders</p>
-                </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-light text-white">$9.99</span>
-                  <span className="text-white/40 text-sm">/mo</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {['Unlimited strategies', 'Live trading', 'Advanced backtesting', 'Real-time alerts', 'Priority support'].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-white/60 text-sm">
-                      <Check className="w-4 h-4 text-blue-400" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={handleUpgradeCta}
-                  disabled={upgradeLoading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 transition-all shadow-lg shadow-blue-500/25 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {upgradeLoading ? 'Redirecting...' : 'Upgrade to Pro'}
-                </button>
-                {upgradeError ? (
-                  <p className="mt-3 text-xs text-red-300">{upgradeError}</p>
-                ) : null}
-              </motion.div>
+              ))}
             </div>
           </div>
         </motion.section>
 
-        {/* ============ FOOTER ============ */}
-        <footer className="py-12 px-8 bg-[#060d18] border-t border-white/5">
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <span className="text-white/30 text-sm">© 2026 Stratify. All rights reserved.</span>
-            <div className="flex items-center gap-6">
-              <a href="#" className="text-white/30 hover:text-white/60 text-sm transition-colors">Terms</a>
-              <a href="#" className="text-white/30 hover:text-white/60 text-sm transition-colors">Privacy</a>
-              <a href="#" className="text-white/30 hover:text-white/60 text-sm transition-colors">Contact</a>
+        <motion.section {...sectionMotion} className="py-24 px-6" id="whitepaper-pricing">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-white text-3xl font-bold text-center">Simple Pricing</h2>
+            <div className="mt-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
+              {PRICING_PLANS.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`rounded-2xl border ${plan.borderClass} bg-black/35 p-6 flex flex-col ${
+                    plan.isPopular ? 'xl:-translate-y-2 shadow-[0_0_38px_rgba(245,158,11,0.14)]' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-white font-semibold tracking-wide">{plan.name}</h3>
+                    {plan.isPopular ? (
+                      <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-amber-500 text-black font-semibold">
+                        Most Popular
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-4 text-3xl font-bold text-white">{plan.price}</p>
+                  <p className="mt-2 text-gray-400 text-sm">{plan.subtitle}</p>
+
+                  <div className="mt-5 space-y-2 flex-1">
+                    {plan.features.map((feature) => (
+                      <p key={feature} className="text-gray-300 text-sm">
+                        {feature}
+                      </p>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGetStarted}
+                    className="mt-6 w-full rounded-xl border border-gray-700 hover:border-amber-500/50 text-gray-200 hover:text-white px-4 py-2.5 transition-colors"
+                  >
+                    Get Started
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-4xl mx-auto rounded-2xl border border-gray-800 bg-black/35 p-8">
+            <h2 className="text-white text-3xl font-bold text-center">Your Security, Our Priority</h2>
+            <div className="mt-8 space-y-3">
+              {SECURITY_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.text} className="flex items-center gap-3 rounded-lg border border-gray-800/70 bg-black/30 px-4 py-3">
+                    <Icon className="h-4 w-4 text-amber-400" strokeWidth={1.5} />
+                    <span className="text-gray-300 text-sm">{item.text}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-white text-3xl font-bold text-center">Questions?</h2>
+            <div className="mt-8 space-y-3">
+              {FAQ_ITEMS.map((faq, index) => {
+                const isOpen = openFaq === index;
+                return (
+                  <div key={faq.question} className="rounded-xl border border-gray-800 bg-black/35 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq((prev) => (prev === index ? -1 : index))}
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
+                        isOpen ? 'text-white' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="font-medium">{faq.question}</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+                    </button>
+                    {isOpen ? <div className="px-4 pb-4 text-sm text-gray-400 leading-relaxed">{faq.answer}</div> : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-28 px-6">
+          <div className="max-w-4xl mx-auto text-center rounded-3xl border border-gray-800 bg-black/30 p-10 md:p-14">
+            <h2 className="text-white text-4xl font-bold">Ready to Trade Smarter?</h2>
+            <p className="mt-4 text-gray-400 text-lg">Get your Stratify API key and take control.</p>
+            <button
+              type="button"
+              onClick={handleGetStarted}
+              className="mt-8 bg-amber-500 hover:bg-amber-600 text-black font-bold px-8 py-3 rounded-xl transition-colors"
+            >
+              Start Free - No Credit Card Required
+            </button>
+            <p className="mt-5 text-sm text-gray-500">
+              <a href="https://stratify.associates" className="text-amber-400 hover:text-amber-300 transition-colors">
+                stratify.associates
+              </a>
+            </p>
+          </div>
+        </motion.section>
+
+        <footer className="border-t border-gray-800 px-6 py-8">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">
+            <p>© {new Date().getFullYear()} Stratify. All rights reserved.</p>
+            <div className="flex items-center gap-4">
+              <a href="/whitepaper" className="hover:text-amber-300 transition-colors">
+                White Paper
+              </a>
+              <a href="/privacy" className="hover:text-amber-300 transition-colors">
+                Privacy
+              </a>
+              <a href="/terms" className="hover:text-amber-300 transition-colors">
+                Terms
+              </a>
             </div>
           </div>
         </footer>
-      </div>
-
+      </main>
     </div>
   );
 };
