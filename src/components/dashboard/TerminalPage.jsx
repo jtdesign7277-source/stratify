@@ -3,6 +3,17 @@ import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap
 
 const SYNTAX_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+const EDITOR_DRAFT_KEY = 'stratify-terminal-editor-draft';
+
+const buildEditableStrategyState = (sourceStrategy = {}, fallbackTicker = 'SPY') => ({
+  name: sourceStrategy?.name || '',
+  entry: sourceStrategy?.entry || '',
+  exit: sourceStrategy?.exit || '',
+  stopLoss: sourceStrategy?.stopLoss || '',
+  positionSize: sourceStrategy?.positionSize || '',
+  ticker: sourceStrategy?.ticker || fallbackTicker || 'SPY',
+  allocation: sourceStrategy?.allocation || '',
+});
 
 const getTokenClassName = (token, isBold) => {
   if (token === '|') return 'text-gray-500';
@@ -66,6 +77,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   const [isTyping, setIsTyping] = useState(false);
   const [showDeployPrompt, setShowDeployPrompt] = useState(false);
   const terminalRef = useRef(null);
+  const saveNoticeTimeoutRef = useRef(null);
   
   // Load history from localStorage
   const [history, setHistory] = useState(() => {
@@ -90,30 +102,58 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(true);
   
   // Editable strategy for the input fields
-  const [editableStrategy, setEditableStrategy] = useState({
-    name: strategy?.name || '',
-    entry: strategy?.entry || '',
-    exit: strategy?.exit || '',
-    stopLoss: strategy?.stopLoss || '',
-    positionSize: strategy?.positionSize || '',
-    ticker: strategy?.ticker || ticker || 'SPY',
+  const [editableStrategy, setEditableStrategy] = useState(() => {
+    const base = buildEditableStrategyState(strategy, ticker);
+    try {
+      const stored = JSON.parse(localStorage.getItem(EDITOR_DRAFT_KEY) || '{}');
+      if (stored && typeof stored === 'object') return { ...base, ...stored };
+    } catch {}
+    return base;
   });
+  const [isModified, setIsModified] = useState(false);
+  const [showSavedNotice, setShowSavedNotice] = useState(false);
 
   // Update editable strategy when new strategy prop arrives (from GrokPanel)
   useEffect(() => {
     if (strategy && Object.keys(strategy).length > 0) {
-      setEditableStrategy({
+      setEditableStrategy(buildEditableStrategyState({
+        ...strategy,
         name: strategy.name || `${strategy.ticker || ticker || 'SPY'} Strategy`,
-        entry: strategy.entry || '',
-        exit: strategy.exit || '',
-        stopLoss: strategy.stopLoss || '',
-        positionSize: strategy.positionSize || '',
-        ticker: strategy.ticker || ticker || 'SPY',
-      });
+      }, ticker));
+      setIsModified(false);
+      setShowSavedNotice(false);
       // Also set as display strategy when it first arrives
       setDisplayStrategy(strategy);
     }
   }, [strategy, ticker]);
+
+  useEffect(() => () => {
+    if (saveNoticeTimeoutRef.current) {
+      clearTimeout(saveNoticeTimeoutRef.current);
+    }
+  }, []);
+
+  const updateEditableStrategy = (updater) => {
+    setEditableStrategy((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      return next;
+    });
+    setIsModified(true);
+    setShowSavedNotice(false);
+  };
+
+  const handleSaveEditedStrategy = () => {
+    try {
+      localStorage.setItem(EDITOR_DRAFT_KEY, JSON.stringify(editableStrategy));
+    } catch {}
+
+    setDisplayStrategy((prev) => ({ ...(prev || {}), ...editableStrategy }));
+    setIsModified(false);
+    setShowSavedNotice(true);
+
+    if (saveNoticeTimeoutRef.current) clearTimeout(saveNoticeTimeoutRef.current);
+    saveNoticeTimeoutRef.current = setTimeout(() => setShowSavedNotice(false), 1500);
+  };
 
   // Build terminal lines function (reusable)
   const buildTerminalLines = (results, strat) => {
@@ -286,7 +326,9 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
   const handleLoadHistory = (historyItem) => {
     if (historyItem.results) {
       setDisplayStrategy(historyItem.strategy || {});
-      setEditableStrategy(historyItem.strategy || {});
+      setEditableStrategy(buildEditableStrategyState(historyItem.strategy || {}, ticker));
+      setIsModified(false);
+      setShowSavedNotice(false);
       // Trigger re-render of terminal with this result
       // We need to manually build the lines since backtestResults prop won't change
       buildTerminalLines(historyItem.results, historyItem.strategy || {});
@@ -440,7 +482,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <input
                 type="text"
                 value={editableStrategy.name || ''}
-                onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, name: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-white text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="My RSI Strategy"
               />
@@ -450,7 +492,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <input
                 type="text"
                 value={editableStrategy.ticker || ticker || ''}
-                onChange={(e) => setEditableStrategy(prev => ({ ...prev, ticker: e.target.value }))}
+                onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, ticker: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-cyan-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="TSLA"
               />
@@ -459,7 +501,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Entry Condition</label>
               <textarea
                 value={editableStrategy.entry || ''}
-                onChange={(e) => setEditableStrategy(prev => ({ ...prev, entry: e.target.value }))}
+                onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, entry: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-yellow-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
                 rows={2}
                 placeholder="Buy when RSI < 30..."
@@ -469,7 +511,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <label className="text-[10px] text-emerald-400/60 uppercase tracking-wider font-mono">Exit Condition</label>
               <textarea
                 value={editableStrategy.exit || ''}
-                onChange={(e) => setEditableStrategy(prev => ({ ...prev, exit: e.target.value }))}
+                onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, exit: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-orange-300 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 resize-none"
                 rows={2}
                 placeholder="Sell when RSI > 70..."
@@ -480,7 +522,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <input
                 type="text"
                 value={editableStrategy.stopLoss || ''}
-                onChange={(e) => setEditableStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
+                onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, stopLoss: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-red-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="5%"
               />
@@ -490,7 +532,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               <input
                 type="text"
                 value={editableStrategy.positionSize || ''}
-                onChange={(e) => setEditableStrategy(prev => ({ ...prev, positionSize: e.target.value }))}
+                onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, positionSize: e.target.value }))}
                 className="w-full mt-1 px-2 py-1.5 bg-black/50 border border-[#2a2a2a] rounded text-blue-400 text-xs font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                 placeholder="100 shares"
               />
@@ -507,6 +549,17 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
               {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               {isLoading ? 'ANALYZING...' : 'RUN BACKTEST'}
             </button>
+          )}
+          {!isCollapsed && isModified && (
+            <button
+              onClick={handleSaveEditedStrategy}
+              className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+            >
+              Save
+            </button>
+          )}
+          {!isCollapsed && showSavedNotice && (
+            <div className="mt-2 text-center text-xs text-emerald-400 font-medium">Saved!</div>
           )}
         </div>
 
@@ -555,7 +608,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                 <input
                   type="text"
                   value={editableStrategy.name || `${editableStrategy.ticker || ticker} Strategy`}
-                  onChange={(e) => setEditableStrategy(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => updateEditableStrategy((prev) => ({ ...prev, name: e.target.value }))}
                   className="w-full px-2 py-1 bg-black/40 border border-white/10 rounded text-white font-mono text-xs focus:outline-none focus:border-emerald-500/50"
                   placeholder="Strategy name"
                 />
@@ -573,7 +626,7 @@ const TerminalPage = ({ backtestResults, strategy = {}, ticker = 'SPY', onRunBac
                       const parts = raw.split('.');
                       const intPart = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
                       const formatted = parts.length > 1 ? `${intPart}.${parts[1].slice(0, 2)}` : intPart;
-                      setEditableStrategy(prev => ({ ...prev, allocation: formatted }));
+                      updateEditableStrategy((prev) => ({ ...prev, allocation: formatted }));
                     }}
                     className="w-full pl-5 pr-2 py-1 bg-black/40 border border-white/10 rounded text-white font-mono text-xs focus:outline-none focus:border-emerald-500/50"
                     placeholder="0.00"

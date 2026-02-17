@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'Missing HEYGEN_API_KEY' });
 
   try {
-    const response = await fetch('https://api.heygen.com/v1/voice.tts', {
+    const response = await fetch('https://api.heygen.com/v1/audio/text_to_speech', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
