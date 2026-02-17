@@ -24,7 +24,6 @@ import SettingsPage from './SettingsPage';
 import TerminalStrategyWorkspace from './TerminalStrategyWorkspace';
 import ProGate from '../ProGate';
 import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
-import StrategyBuilder from './StrategyBuilder';
 import BacktestWizard from './BacktestWizard';
 import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
@@ -118,6 +117,7 @@ const ensureRealTradeAnalysisSection = (content) => {
 
 const sanitizeActiveTab = (tab, fallback = 'trade') => {
   const normalized = String(tab || '').trim();
+  if (normalized === 'builder') return 'terminal';
   if (normalized === 'strategies') return 'terminal';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
@@ -432,6 +432,12 @@ export default function Dashboard({
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
   const [paperTradingBalance, setPaperTradingBalance] = useState(savedState?.paperTradingBalance ?? PAPER_TRADING_BALANCE);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+
+  useEffect(() => {
+    if (activeTab === 'builder' || activeTab === 'strategies') {
+      setActiveTab('terminal');
+    }
+  }, [activeTab]);
   
   // Terminal backtest state
   const [terminalBacktestResults, setTerminalBacktestResults] = useState(null);
@@ -1719,17 +1725,6 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
-          {activeTab === 'builder' && (
-            <StrategyBuilder
-              strategies={strategies}
-              deployedStrategies={deployedStrategies}
-              onStrategyGenerated={handleStrategyGenerated}
-              onDeleteStrategy={handleDeleteStrategy}
-              onDeployStrategy={handleDeployStrategy}
-              onUpdateStrategy={handleUpdateStrategy}
-              themeClasses={themeClasses}
-            />
-          )}
           {activeTab === 'trade' && (
             <ProGate
               featureName="Paper Trading"
@@ -1771,7 +1766,7 @@ export default function Dashboard({
                 setSophiaWizardPrompt(prompt);
                 setActiveTab('sophia-output');
               }}
-              onClose={() => setActiveTab('builder')}
+              onClose={() => setActiveTab('terminal')}
             />
           )}
           {activeTab === 'sophia-output' && (
@@ -1861,7 +1856,7 @@ export default function Dashboard({
                 };
                 handleDeployStrategy(toDeploy, true);
               }}
-              onBack={() => setActiveTab('builder')}
+              onBack={() => setActiveTab('terminal')}
               onRetest={(prompt) => {
                 setSophiaWizardPrompt(prompt);
               }}
@@ -1910,7 +1905,7 @@ export default function Dashboard({
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
-              onOpenBuilder={() => setActiveTab('builder')}
+              onOpenBuilder={() => setActiveTab('backtest-wizard')}
               onRetestStrategy={(prompt) => setSophiaWizardPrompt(prompt)}
               onDeployStrategy={(strategy) => handleDeployStrategy(strategy, true)}
               onSaveStrategy={setSavedStrategies}
