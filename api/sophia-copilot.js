@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -121,16 +120,29 @@ export default async function handler(req, res) {
     }
 
     // Ask Sophia to analyze
-    const client = new Anthropic({ apiKey: anthropicKey });
     const prompt = buildCopilotPrompt(account, positions, barsMap);
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     });
 
-    const responseText = message.content[0]?.text || '';
+    if (!anthropicRes.ok) {
+      const errText = await anthropicRes.text();
+      return res.status(502).json({ error: `Anthropic error: ${anthropicRes.status} ${errText}` });
+    }
+
+    const anthropicData = await anthropicRes.json();
+    const responseText = anthropicData.content?.[0]?.text || '';
 
     // Parse alerts
     const alerts = [];
