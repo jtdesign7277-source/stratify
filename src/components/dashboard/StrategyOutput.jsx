@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil, Eye, Save as SaveIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { formatTickersAsHtml, normalizeTickerSymbol, tokenizeTickerText, withDollarTickers } from '../../lib/tickerStyling';
 
 const CHECKLIST_ITEMS = [
   { id: 'entry-signal', label: 'Entry Signal Confirmed', icon: TrendingUp },
@@ -18,7 +19,7 @@ const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 
 const formatTickerWithDollar = (ticker) => {
-  const clean = String(ticker || '').trim().replace(/^\$/, '').toUpperCase();
+  const clean = normalizeTickerSymbol(ticker);
   return clean ? `$${clean}` : '';
 };
 
@@ -104,7 +105,7 @@ function buildKeyTradeSetupsSection(values = []) {
   const lines = ['🔥 Key Trade Setups'];
 
   CENTER_SETUP_LABELS.forEach((label, index) => {
-    const value = String(values[index] ?? '').trim() || '—';
+    const value = withDollarTickers(String(values[index] ?? '').trim()) || '—';
     lines.push(`● ${label}: ${value}`);
   });
 
@@ -134,7 +135,7 @@ function ensureKeyTradeSetupsSection(raw, fallbackValues = []) {
 function applyKeyTradeSetupsSection(raw, values = []) {
   const { body } = splitKeyTradeSetupsSection(raw);
   const sourceValues = values.length === CENTER_SETUP_LABELS.length ? values : extractCenterSetupValues(values);
-  const mergedValues = CENTER_SETUP_LABELS.map((_, index) => String(sourceValues[index] ?? '').trim() || '—');
+  const mergedValues = CENTER_SETUP_LABELS.map((_, index) => withDollarTickers(String(sourceValues[index] ?? '').trim()) || '—');
   const section = buildKeyTradeSetupsSection(mergedValues);
   const trimmedBody = String(body || '').trimEnd();
   return trimmedBody ? `${trimmedBody}\n\n${section}` : section;
@@ -238,11 +239,24 @@ function parseMarkdown(raw) {
 }
 
 function formatInline(text) {
+  text = String(text ?? '');
   // Bold
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
   // Inline code
   text = text.replace(/`([^`]+)`/g, '<code class="bg-[#1a1a1a] px-1.5 py-0.5 rounded text-emerald-300 text-sm">$1</code>');
-  return text;
+  return formatTickersAsHtml(text);
+}
+
+function renderTickerText(text, keyPrefix = 'ticker') {
+  return tokenizeTickerText(text).map((token, index) =>
+    token.type === 'ticker' ? (
+      <span key={`${keyPrefix}-${index}`} className="text-emerald-400 font-semibold">
+        {token.value}
+      </span>
+    ) : (
+      <React.Fragment key={`${keyPrefix}-${index}`}>{token.value}</React.Fragment>
+    )
+  );
 }
 
 export default function StrategyOutput({
@@ -381,7 +395,7 @@ export default function StrategyOutput({
   const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
 
   const updateFieldValue = (index, value) => {
-    const normalizedValue = String(value ?? '').trim();
+    const normalizedValue = withDollarTickers(String(value ?? '').trim());
     setFieldValues((prev) => {
       const next = [...prev];
       next[index] = normalizedValue;
@@ -746,7 +760,7 @@ export default function StrategyOutput({
               <span aria-hidden="true">←</span>
               <span>Back</span>
             </button>
-            <h1 className="text-white text-xl font-bold">{s.name || 'Strategy'}</h1>
+            <h1 className="text-white text-xl font-bold">{renderTickerText(s.name || 'Strategy', 'strategy-title')}</h1>
             {s.ticker && (
               <span className="text-xs font-mono px-2 py-0.5 border border-emerald-500/40 text-emerald-400 rounded">
                 {displayTicker}
@@ -982,7 +996,7 @@ export default function StrategyOutput({
                             />
                           ) : (
                             <p className="text-white text-sm mt-1 whitespace-normal break-words leading-relaxed">
-                              {f.value || '—'}
+                              {renderTickerText(f.value || '—', `key-setup-${i}`)}
                             </p>
                           )}
                         </div>
@@ -993,7 +1007,7 @@ export default function StrategyOutput({
 
                 <button
                   onClick={() => {
-                    const params = fields.map((f) => `${f.label}: ${f.value || '—'}`).join('\n');
+                    const params = fields.map((f) => `${f.label}: ${withDollarTickers(f.value || '—')}`).join('\n');
                     const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                     onRetest?.(prompt);
                   }}
@@ -1044,7 +1058,7 @@ export default function StrategyOutput({
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs uppercase tracking-wide text-white/55">Symbol</label>
-                    <div className="mt-1 rounded-md px-2 py-1.5 text-sm font-mono text-amber-400 border border-white/10 bg-white/5">
+                    <div className="mt-1 rounded-md px-2 py-1.5 text-sm font-mono text-emerald-400 font-semibold border border-white/10 bg-white/5">
                       {displayTicker}
                     </div>
                   </div>

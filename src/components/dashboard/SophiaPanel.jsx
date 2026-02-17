@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Volume2, Trash2, Brain, Rocket, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { useSophiaChat } from '../../hooks/useSophiaChat';
 import BacktestWizard from './BacktestWizard';
+import { tokenizeTickerText } from '../../lib/tickerStyling';
 
 const STRATEGY_PRESETS = [
   { label: 'Growth Investing', prompt: 'Ticker: $AAPL | Chart: Daily candles | Timeframe: 12M lookback | Logic: Buy when price crosses above 50-day SMA with increasing revenue growth. Sell when price drops below 200-day SMA. | Backtest amount: $10,000' },
@@ -13,6 +14,17 @@ const STRATEGY_PRESETS = [
 ];
 
 const PANEL_WIDTHS = { full: 480, half: 280, collapsed: 40 };
+
+const renderTickerText = (text, keyPrefix = 'ticker') =>
+  tokenizeTickerText(text).map((token, index) =>
+    token.type === 'ticker' ? (
+      <span key={`${keyPrefix}-${index}`} className="text-emerald-400 font-semibold">
+        {token.value}
+      </span>
+    ) : (
+      <React.Fragment key={`${keyPrefix}-${index}`}>{token.value}</React.Fragment>
+    )
+  );
 
 const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wizardPrompt, onWizardPromptConsumed }) => {
   const { messages, sendMessage, isLoading, currentStrategy, clearChat } = useSophiaChat();
@@ -123,15 +135,34 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
       return (
         <div key={i} className="whitespace-pre-wrap text-sm leading-relaxed">
           {lines.map((line, li) => {
-            if (line.startsWith('## ')) return <h3 key={li} className="text-emerald-400 font-bold mt-2 mb-1 text-sm">{line.slice(3)}</h3>;
+            if (line.startsWith('## ')) {
+              return (
+                <h3 key={li} className="text-emerald-400 font-bold mt-2 mb-1 text-sm">
+                  {renderTickerText(line.slice(3), `assistant-heading-${i}-${li}`)}
+                </h3>
+              );
+            }
             if (line.startsWith('- **')) {
               const boldEnd = line.indexOf('**', 4);
               if (boldEnd > 0) {
-                return <div key={li} className="ml-2"><span className="text-white font-semibold">{line.slice(4, boldEnd)}</span><span className="text-gray-300">{line.slice(boldEnd + 2)}</span></div>;
+                return (
+                  <div key={li} className="ml-2">
+                    <span className="text-white font-semibold">
+                      {renderTickerText(line.slice(4, boldEnd), `assistant-bullet-label-${i}-${li}`)}
+                    </span>
+                    <span className="text-gray-300">
+                      {renderTickerText(line.slice(boldEnd + 2), `assistant-bullet-value-${i}-${li}`)}
+                    </span>
+                  </div>
+                );
               }
             }
             if (line.startsWith('---')) return <hr key={li} className="border-[#1f1f1f] my-2" />;
-            return <div key={li}>{line.replace(/\*\*(.+?)\*\*/g, (_, t) => t)}</div>;
+            return (
+              <div key={li}>
+                {renderTickerText(line.replace(/\*\*(.+?)\*\*/g, (_, t) => t), `assistant-line-${i}-${li}`)}
+              </div>
+            );
           })}
         </div>
       );
@@ -232,7 +263,7 @@ const SophiaPanel = ({ onStrategyGenerated, onCollapsedChange, onOpenWizard, wiz
                 ) : msg.role === 'assistant' ? (
                   renderContent(msg.content)
                 ) : (
-                  <span className="text-gray-400">{msg.content}</span>
+                  <span className="text-gray-400">{renderTickerText(msg.content, `user-${i}`)}</span>
                 )}
               </div>
             </div>

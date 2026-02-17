@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import StrategyOutput from './StrategyOutput';
 import { supabase } from '../../lib/supabaseClient';
+import { normalizeTickerSymbol, tokenizeTickerText } from '../../lib/tickerStyling';
 
 const STORAGE_KEY = 'stratify-strategies-folders';
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
@@ -72,6 +73,17 @@ const formatDate = (value) => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString();
 };
+
+const renderTickerText = (text, keyPrefix = 'ticker') =>
+  tokenizeTickerText(text).map((token, index) =>
+    token.type === 'ticker' ? (
+      <span key={`${keyPrefix}-${index}`} className="text-emerald-400 font-semibold">
+        {token.value}
+      </span>
+    ) : (
+      <React.Fragment key={`${keyPrefix}-${index}`}>{token.value}</React.Fragment>
+    )
+  );
 
 const slugify = (value) =>
   String(value || '')
@@ -789,6 +801,7 @@ const TerminalStrategyWorkspace = ({
                         const profitText = formatProfit(strategy.profit);
                         const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
                         const isDeleting = deletingStrategyId === id;
+                        const displayTicker = normalizeTickerSymbol(strategy.ticker);
 
                         return (
                           <div key={id} className="group relative my-1">
@@ -803,11 +816,13 @@ const TerminalStrategyWorkspace = ({
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                  <div className="truncate text-sm font-semibold text-white/95">{strategy.name}</div>
+                                  <div className="truncate text-sm font-semibold text-white/95">
+                                    {renderTickerText(strategy.name, `strategy-list-name-${id}`)}
+                                  </div>
                                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                    {strategy.ticker && (
-                                      <span className="rounded-md border border-amber-500/35 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
-                                        ${strategy.ticker}
+                                    {displayTicker && (
+                                      <span className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400 font-semibold">
+                                        ${displayTicker}
                                       </span>
                                     )}
                                     <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
