@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
+import WhitePaperPage from './components/WhitePaperPage';
 import SignUpPage from './components/auth/SignUpPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData } from './store/StratifyProvider';
@@ -967,7 +968,16 @@ export class TeslaEMAStrategy extends Strategy {
 // Main App Component
 function StratifyAppContent() {
   const { isAuthenticated, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState('landing');
+
+  const resolveInitialPage = () => {
+    if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() === '/whitepaper') {
+      return 'whitepaper';
+    }
+
+    return 'landing';
+  };
+
+  const [currentPage, setCurrentPage] = useState(resolveInitialPage);
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1000,31 +1010,47 @@ function StratifyAppContent() {
         realized_pl: 0,
       };
 
+  const navigateToPage = (page) => {
+    setCurrentPage(page);
+
+    if (typeof window === 'undefined') return;
+
+    const nextPath = page === 'whitepaper' ? '/whitepaper' : '/';
+
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({ page }, '', nextPath);
+    }
+  };
+
   const openAuth = () => {
-    setCurrentPage('auth');
+    navigateToPage('auth');
   };
 
   const mainContent =
     currentPage === 'landing' ? (
       <LandingPage
-        onEnter={() => setCurrentPage('dashboard')}
+        onEnter={() => navigateToPage('dashboard')}
         onSignUp={() => {
           if (isAuthenticated) {
-            setCurrentPage('dashboard');
+            navigateToPage('dashboard');
             return;
           }
-          openAuth('signup');
+          openAuth();
         }}
         isAuthenticated={isAuthenticated}
       />
+    ) : currentPage === 'whitepaper' ? (
+      <WhitePaperPage
+        onBackHome={() => navigateToPage(isAuthenticated ? 'dashboard' : 'landing')}
+      />
     ) : currentPage === 'auth' ? (
       <SignUpPage
-        onSuccess={() => setCurrentPage('dashboard')}
-        onBackToLanding={() => setCurrentPage('landing')}
+        onSuccess={() => navigateToPage('dashboard')}
+        onBackToLanding={() => navigateToPage('landing')}
       />
     ) : (
       <Dashboard
-        setCurrentPage={setCurrentPage}
+        setCurrentPage={navigateToPage}
         isSocialFeedOpen={isSocialFeedOpen}
         onToggleSocialFeed={() => setIsSocialFeedOpen((prev) => !prev)}
         socialFeedUnread={hasSocialFeedUnread}
@@ -1039,14 +1065,36 @@ function StratifyAppContent() {
     );
 
   useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+
+      if (path === '/whitepaper') {
+        setCurrentPage('whitepaper');
+        return;
+      }
+
+      setCurrentPage((prev) => {
+        if (prev === 'whitepaper') {
+          return isAuthenticated ? 'dashboard' : 'landing';
+        }
+
+        return prev;
+      });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (isAuthenticated && currentPage === 'auth') {
-      setCurrentPage('dashboard');
+      navigateToPage('dashboard');
     }
   }, [currentPage, isAuthenticated]);
 
   useEffect(() => {
     if (currentPage === 'dashboard' && !isAuthenticated) {
-      openAuth('signin');
+      openAuth();
     }
   }, [currentPage, isAuthenticated]);
 
