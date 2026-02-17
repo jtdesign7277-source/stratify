@@ -1556,8 +1556,8 @@ export default function Dashboard({
   }, [isDragging]);
 
   const themeClasses = theme === 'dark' ? {
-    bg: 'bg-[#0b0b0b]',
-    surface: 'bg-[#0b0b0b]',
+    bg: 'bg-transparent',
+    surface: 'bg-transparent',
     surfaceElevated: 'bg-[#111111]',
     border: 'border-[#1f1f1f]',
     text: 'text-white',
@@ -1567,8 +1567,8 @@ export default function Dashboard({
     greenBg: 'bg-[#29e1a6]/10',
     redBg: 'bg-red-500/10',
   } : {
-    bg: 'bg-[#FFFFFF]',
-    surface: 'bg-white',
+    bg: 'bg-transparent',
+    surface: 'bg-transparent',
     surfaceElevated: 'bg-[#F8F9FA]',
     border: 'border-[#DADCE0]',
     text: 'text-[#202124]',

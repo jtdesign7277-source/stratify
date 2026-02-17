@@ -653,7 +653,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
   // Sub-views
   if (activeView === 'billing') {
     return (
-      <div className="h-full overflow-y-auto bg-[#0b0b0b] p-8">
+      <div className="h-full overflow-y-auto bg-transparent p-8">
         <div className="max-w-4xl mx-auto">
           <BillingView 
             onClose={() => setActiveView('main')} 
@@ -667,7 +667,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
   if (activeView === 'account') {
     return (
-      <div className="h-full overflow-y-auto bg-[#0b0b0b] p-8">
+      <div className="h-full overflow-y-auto bg-transparent p-8">
         <div className="max-w-3xl mx-auto">
           <input
             ref={fileInputRef}
@@ -692,7 +692,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
 
   // Main settings view
   return (
-    <div className="h-full overflow-y-auto bg-[#0b0b0b]">
+    <div className="h-full overflow-y-auto bg-transparent">
       <input
         ref={fileInputRef}
         type="file"

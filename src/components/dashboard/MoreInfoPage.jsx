@@ -160,7 +160,7 @@ export default function MoreInfoPage() {
   };
 
   return (
-    <div className="h-full bg-[#0b0b0b] p-4 flex flex-col overflow-hidden">
+    <div className="h-full bg-transparent p-4 flex flex-col overflow-hidden">
       <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-3 min-h-0">
         
         {/* Header Row */}

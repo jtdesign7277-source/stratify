@@ -74,87 +74,6 @@ const warRoomStyles = `
     100% { opacity: 1; transform: translateX(0); }
   }
 
-  .warroom-star {
-    position: absolute;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.9);
-    animation: warroomStarDrift linear infinite;
-  }
-
-  @keyframes warroomStarDrift {
-    0% {
-      opacity: 0.2;
-      transform: translate3d(0, 0, 0);
-    }
-    50% {
-      opacity: 0.75;
-    }
-    100% {
-      opacity: 0.15;
-      transform: translate3d(var(--drift-x, 0px), -80px, 0);
-    }
-  }
-
-  .shooting-star {
-    position: absolute;
-    width: 180px;
-    height: 1px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.38));
-    opacity: 0;
-    transform: rotate(-28deg);
-  }
-
-  .shooting-star-a {
-    top: 16%;
-    left: 8%;
-    animation: warroomShootingA 18s linear infinite;
-  }
-
-  .shooting-star-b {
-    top: 48%;
-    left: 30%;
-    animation: warroomShootingB 20s linear infinite 8s;
-  }
-
-  @keyframes warroomShootingA {
-    0%, 82% {
-      opacity: 0;
-      transform: translate3d(0, 0, 0) rotate(-28deg);
-    }
-    84% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translate3d(460px, 250px, 0) rotate(-28deg);
-    }
-  }
-
-  @keyframes warroomShootingB {
-    0%, 85% {
-      opacity: 0;
-      transform: translate3d(0, 0, 0) rotate(-28deg);
-    }
-    87% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translate3d(420px, 235px, 0) rotate(-28deg);
-    }
-  }
-
-  .warroom-scanlines {
-    background: repeating-linear-gradient(
-      to bottom,
-      transparent 0px,
-      transparent 2px,
-      rgba(255, 255, 255, 0.02) 2px,
-      rgba(255, 255, 255, 0.02) 3px
-    );
-  }
-
   .scan-button-pulse {
     animation: scanButtonPulse 2.2s ease-in-out infinite;
   }
@@ -268,18 +187,6 @@ const renderIntelBody = (content, keyPrefix) => {
   });
 };
 
-const createStars = (count = 80) =>
-  Array.from({ length: count }, (_, index) => ({
-    id: `star-${index}`,
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    size: Math.random() > 0.7 ? 2 : 1,
-    opacity: 0.25 + Math.random() * 0.75,
-    duration: 60 + Math.random() * 60,
-    delay: -Math.random() * 120,
-    driftX: (Math.random() - 0.5) * 40,
-  }));
-
 export default function WarRoom({ onClose }) {
   const [query, setQuery] = useState('');
   const [intelFeed, setIntelFeed] = useState(() => getWarRoomFeed());
@@ -297,8 +204,6 @@ export default function WarRoom({ onClose }) {
 
   const toastTimerRef = useRef(null);
   const longPressRef = useRef({ timer: null, opened: false });
-
-  const stars = useMemo(() => createStars(80), []);
 
   const folders = useMemo(() => (Array.isArray(savedState?.folders) ? savedState.folders : []), [savedState]);
 
@@ -587,31 +492,8 @@ export default function WarRoom({ onClose }) {
   );
 
   return (
-    <div className={`h-full w-full bg-[#030608] relative overflow-hidden ${isGlitching ? 'warroom-glitch' : ''}`}>
+    <div className={`h-full w-full bg-transparent relative overflow-hidden ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
-
-      <div className="absolute inset-0 pointer-events-none">
-        {stars.map((star) => (
-          <span
-            key={star.id}
-            className="warroom-star"
-            style={{
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              left: `${star.left}%`,
-              top: `${star.top}%`,
-              opacity: star.opacity,
-              animationDuration: `${star.duration}s`,
-              animationDelay: `${star.delay}s`,
-              '--drift-x': `${star.driftX}px`,
-            }}
-          />
-        ))}
-        <span className="shooting-star shooting-star-a" />
-        <span className="shooting-star shooting-star-b" />
-      </div>
-
-      <div className="absolute inset-0 pointer-events-none warroom-scanlines" />
 
       <div className="relative z-10 h-full flex flex-col gap-4 px-5 py-4 overflow-hidden">
         <header className="flex items-start justify-between gap-4">

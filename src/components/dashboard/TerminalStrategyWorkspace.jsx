@@ -724,7 +724,7 @@ const TerminalStrategyWorkspace = ({
   };
 
   return (
-    <div className="h-full w-full bg-[#0b0b0b] flex overflow-hidden">
+    <div className="h-full w-full bg-transparent flex overflow-hidden">
       <aside className={`${foldersCollapsed ? 'w-10' : 'w-[250px]'} shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col transition-all duration-200`}>
         {foldersCollapsed ? (
           <div className="h-full flex flex-col items-center py-3">
@@ -930,7 +930,7 @@ const TerminalStrategyWorkspace = ({
             }}
           />
         ) : (
-          <div className="h-full flex items-center justify-center px-8 bg-[#0b0b0b]">
+          <div className="h-full flex items-center justify-center px-8 bg-transparent">
             <div className="text-center max-w-lg">
               <h2 className="text-2xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
               <p className="mt-2 text-sm text-white/55">

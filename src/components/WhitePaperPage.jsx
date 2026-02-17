@@ -82,7 +82,7 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#030608] text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <style>{`
         @media print {
           .no-print {

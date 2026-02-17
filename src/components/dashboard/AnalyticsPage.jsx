@@ -48,7 +48,7 @@ const AnalyticsPage = () => {
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-transparent p-4 overflow-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-white">Analytics</h1>

@@ -260,7 +260,7 @@ const MarketsPage = ({ themeClasses }) => {
   ].map(s => ({ ...s, changePercent: s.change }));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] p-4 overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-transparent p-4 overflow-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-semibold text-white">Markets</h1>

@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
 import WhitePaperPage from './components/WhitePaperPage';
+import SpaceBackground from './components/SpaceBackground';
 import SignUpPage from './components/auth/SignUpPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData } from './store/StratifyProvider';
@@ -1100,7 +1101,7 @@ function StratifyAppContent() {
         />
       )
     ) : !isProUser ? (
-      <div className="min-h-screen bg-[#060d18] text-white flex items-center justify-center px-6">
+      <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
         <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
           <h1 className="text-2xl font-semibold">Complete Your Stratify Subscription</h1>
           <p className="mt-3 text-sm text-white/70">
@@ -1199,7 +1200,7 @@ function StratifyAppContent() {
 
   if (loading || (isAuthenticated && subscriptionLoading)) {
     return (
-      <div className="min-h-screen bg-[#07070a] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-transparent text-white flex items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-4 text-sm text-gray-300">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
           Checking your session...
@@ -1227,7 +1228,12 @@ function StratifyAppContent() {
 export default function StratifyApp() {
   return (
     <AuthProvider>
-      <StratifyAppContent />
+      <div className="relative min-h-screen">
+        <SpaceBackground />
+        <div className="relative z-10 min-h-screen">
+          <StratifyAppContent />
+        </div>
+      </div>
     </AuthProvider>
   );
 }

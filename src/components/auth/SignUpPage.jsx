@@ -116,7 +116,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#060d18] text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-6 py-10">
         <button
           type="button"

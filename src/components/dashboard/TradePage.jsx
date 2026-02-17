@@ -1055,7 +1055,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   );
 
   return (
-    <div className="flex-1 flex h-full bg-[#0b0b0b] overflow-hidden">
+    <div className="flex-1 flex h-full bg-transparent overflow-hidden">
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .ticker-tape-track { height: 100%; display: flex; align-items: center; overflow: hidden; }
@@ -1414,7 +1414,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       </div>
 
       {/* TradingView Chart + Trade Panel */}
-      <div className="flex-1 flex flex-col bg-[#0b0b0b] min-w-0">
+      <div className="flex-1 flex flex-col bg-transparent min-w-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f1f1f]">
           <div className="flex items-center gap-3">
             <h2 className="text-white font-bold text-lg">${selectedDisplaySymbol}</h2>

@@ -226,7 +226,7 @@ class FredErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative flex items-center justify-center">
+        <div className="h-full w-full bg-transparent text-white overflow-hidden relative flex items-center justify-center">
           <div className="rounded-2xl border border-gray-800/30 bg-[#0a1628] px-6 py-5 text-center flex flex-col items-center gap-3">
             <span className="text-[11px] uppercase tracking-[0.3em] text-gray-400">FRED failed to load</span>
             {this.state.errorMessage ? (
@@ -803,7 +803,7 @@ const FredPage = () => {
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
   return (
     <FredErrorBoundary>
-      <div className="h-full w-full bg-[#060d18] text-white overflow-hidden relative">
+      <div className="h-full w-full bg-transparent text-white overflow-hidden relative">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{

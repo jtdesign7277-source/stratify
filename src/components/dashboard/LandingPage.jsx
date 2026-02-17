@@ -258,7 +258,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#030608] text-white overflow-x-hidden">
+    <div className="relative min-h-screen bg-transparent text-white overflow-x-hidden">
       <style>{landingStyles}</style>
 
       <div className="absolute inset-0 pointer-events-none landing-mesh" />

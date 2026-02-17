@@ -97,7 +97,7 @@ export default function NewsletterPage({ onClose }) {
 
   if (!selected) {
     return (
-      <div className="h-full bg-[#0a0a0a] flex items-center justify-center">
+      <div className="h-full bg-transparent flex items-center justify-center">
         {onClose && (
           <button onClick={onClose} className="absolute top-4 left-4 text-white/40 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +111,7 @@ export default function NewsletterPage({ onClose }) {
   }
 
   return (
-    <div className="h-full bg-[#0a0a0a] overflow-y-auto">
+    <div className="h-full bg-transparent overflow-y-auto">
       {/* ── Top Bar ── */}
       <div className="sticky top-0 z-20 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/[0.06]">
         <div className="max-w-[960px] mx-auto px-6 py-3 flex items-center justify-between">

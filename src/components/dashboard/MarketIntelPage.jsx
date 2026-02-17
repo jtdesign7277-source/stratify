@@ -400,7 +400,7 @@ export default function MarketIntelPage({ onClose, onViewed }) {
   }, []);
 
   return (
-    <div className="h-full bg-[#0b0b0b] overflow-y-auto">
+    <div className="h-full bg-transparent overflow-y-auto">
       <div className="sticky top-0 z-20 bg-[#0b0b0b]/90 backdrop-blur-md border-b border-[#1f1f1f]">
         <div className="max-w-[960px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">

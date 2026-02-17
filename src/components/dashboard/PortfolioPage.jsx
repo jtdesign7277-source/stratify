@@ -156,14 +156,14 @@ const PortfolioPage = ({
 
   if (noBrokerConnected) {
     return (
-      <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-auto">
+      <div className="flex-1 flex flex-col h-full bg-transparent text-white overflow-auto">
         <BrokerConnect onConnected={() => window.location.reload()} />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-auto">
+    <div className="flex-1 flex flex-col h-full bg-transparent text-white overflow-auto">
       <div className="px-6 pt-6 pb-8 space-y-6">
         {/* Connected Accounts — compact row */}
         <div className="flex items-center gap-3 flex-wrap">

@@ -238,7 +238,7 @@ const ActiveTrades = ({
   };
 
   return (
-    <div className="h-full bg-[#0b0b0b] text-white flex flex-col overflow-hidden">
+    <div className="h-full bg-transparent text-white flex flex-col overflow-hidden">
       <div className="px-6 py-5 border-b border-[#1f1f1f] flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Active Strategies</h1>
