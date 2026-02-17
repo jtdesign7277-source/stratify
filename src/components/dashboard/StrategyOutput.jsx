@@ -1192,15 +1192,15 @@ export default function StrategyOutput({
           </button>
         </div>
       ) : (
-        <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-4">
-          <div className="h-full flex flex-col gap-6">
+        <div className="w-[420px] xl:w-[460px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3">
+          <div className="h-full flex flex-col gap-4">
             {/* Card 1: Key Trade Setups */}
-            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-5">
-              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-5">
+            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-4">
+              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span role="img" aria-label="Fire">🔥</span>
-                    <span className="text-white font-bold text-lg">KEY TRADE SETUPS IDENTIFIED</span>
+                    <span className="text-white font-bold text-base">KEY TRADE SETUPS IDENTIFIED</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400">{checkedCount}/6</span>
@@ -1218,14 +1218,14 @@ export default function StrategyOutput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-2 gap-3 mt-3">
                   {fields.map((f, i) => {
                     const isAllocation = i === 5;
                     const isEditing = editing === i;
                     const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
 
                     return (
-                      <div key={i} className="bg-black/30 rounded-lg p-4 min-h-[110px] flex items-start gap-3 border border-gray-700/50">
+                      <div key={i} className="bg-black/30 rounded-lg p-3 h-[170px] flex items-start gap-2.5 border border-gray-700/50">
                         <input
                           type="checkbox"
                           checked={checks[i]}
@@ -1236,7 +1236,7 @@ export default function StrategyOutput({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-amber-400 text-xs font-semibold uppercase tracking-wider">{f.label}</p>
+                            <p className="text-amber-400 text-[11px] font-semibold uppercase tracking-wider">{f.label}</p>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1246,7 +1246,7 @@ export default function StrategyOutput({
                               className="text-gray-500 hover:text-gray-300 transition-colors"
                               aria-label={`Edit ${f.label}`}
                             >
-                              <Pencil className="w-4 h-4" strokeWidth={1.5} />
+                              <Pencil className="w-3.5 h-3.5" strokeWidth={1.5} />
                             </button>
                           </div>
 
@@ -1257,7 +1257,7 @@ export default function StrategyOutput({
                                 updateFieldValue(i, e.target.value);
                               }}
                               placeholder="Enter amount..."
-                              className="mt-1 bg-transparent border border-amber-400/50 rounded px-2 py-1 text-white placeholder-gray-500 w-full focus:outline-none focus:border-amber-300"
+                              className="mt-1 bg-transparent border border-amber-400/50 rounded px-2 py-1 text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:border-amber-300"
                             />
                           ) : isEditing ? (
                             <input
@@ -1272,7 +1272,7 @@ export default function StrategyOutput({
                               className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-300"
                             />
                           ) : (
-                            <p className="text-white text-sm mt-1 whitespace-normal break-words leading-relaxed">
+                            <p className="text-white text-[13px] mt-1 whitespace-normal break-words leading-snug max-h-[112px] overflow-y-auto pr-1">
                               {renderTickerText(f.value || '—', `key-setup-${i}`)}
                             </p>
                           )}
@@ -1288,7 +1288,7 @@ export default function StrategyOutput({
                     const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                     onRetest?.(prompt);
                   }}
-                  className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition"
+                  className="w-full mt-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition"
                 >
                   <span aria-hidden="true">🔄</span>
                   Ask Sophia to Retest
@@ -1298,7 +1298,7 @@ export default function StrategyOutput({
 
             {/* Card 2: Strategy Activation */}
             <div
-              className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-5 flex flex-col gap-4"
+              className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-4 flex flex-col gap-3"
               style={{ opacity: activationLocked ? 0.45 : 1, pointerEvents: activationLocked ? 'none' : 'auto' }}
             >
               <div className="flex items-center justify-between">
