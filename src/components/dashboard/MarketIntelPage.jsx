@@ -16,7 +16,8 @@ const SECTION_BADGE_STYLES = {
 };
 
 const SECTION_HEADER_REGEX = /^(?:#{1,3}\s*)?([🔥📈💰🔵🟠🐦🦍🚀💻🏈💎])\s*(.+)$/u;
-const LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
+const LAST_VIEWED_KEY = 'lastViewedMarketIntel';
+const LEGACY_LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
 
 const escapeHtml = (value = '') => {
   return String(value)
@@ -240,6 +241,7 @@ export default function MarketIntelPage({ onClose, onViewed }) {
           if (latestTimestamp) {
             try {
               localStorage.setItem(LAST_VIEWED_KEY, String(latestTimestamp));
+              localStorage.setItem(LEGACY_LAST_VIEWED_KEY, String(latestTimestamp));
             } catch {}
           }
 

@@ -3,13 +3,47 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Radio } from 'lucide-react';
 import MarketStatusIndicator from './MarketStatusIndicator';
 import { getMarketStatus } from '../../lib/marketHours';
+import newsletterData from '../../data/newsletters.json';
 
 const EASTERN_TIMEZONE = 'America/New_York';
 const OPEN_SECONDS = 9 * 3600 + 30 * 60;
 const CLOSE_SECONDS = 16 * 3600;
 const PRE_OPEN_START = OPEN_SECONDS - 3600;
 const PRE_CLOSE_START = CLOSE_SECONDS - 3600;
-const MARKET_INTEL_LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
+const NEWSLETTER_LAST_VIEWED_KEY = 'lastViewedNewsletter';
+const MARKET_INTEL_LAST_VIEWED_KEY = 'lastViewedMarketIntel';
+const LEGACY_MARKET_INTEL_LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
+
+const toTimestamp = (value) => {
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const resolveStoredTimestamp = (primaryKey, legacyKeys = []) => {
+  try {
+    const primary = Number(localStorage.getItem(primaryKey) || 0);
+    if (Number.isFinite(primary) && primary > 0) return primary;
+
+    for (const legacyKey of legacyKeys) {
+      const legacy = Number(localStorage.getItem(legacyKey) || 0);
+      if (Number.isFinite(legacy) && legacy > 0) return legacy;
+    }
+  } catch {}
+  return 0;
+};
+
+const getLatestNewsletterTimestamp = () => {
+  if (!Array.isArray(newsletterData) || newsletterData.length === 0) return 0;
+  return newsletterData.reduce((latest, item) => {
+    const candidate = Math.max(
+      toTimestamp(item?.created_at),
+      toTimestamp(item?.published_at),
+      toTimestamp(item?.date),
+      toTimestamp(item?.id),
+    );
+    return candidate > latest ? candidate : latest;
+  }, 0);
+};
 
 const etFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: EASTERN_TIMEZONE,
@@ -42,6 +76,8 @@ export default function StatusBar({
   onOpenMarketIntel,
 }) {
   const [now, setNow] = useState(() => new Date());
+  const [latestNewsletterTimestamp, setLatestNewsletterTimestamp] = useState(0);
+  const [hasUnreadNewsletter, setHasUnreadNewsletter] = useState(false);
   const [latestIntelTimestamp, setLatestIntelTimestamp] = useState(0);
   const [hasUnreadIntel, setHasUnreadIntel] = useState(false);
   
@@ -50,6 +86,13 @@ export default function StatusBar({
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const latestTimestamp = getLatestNewsletterTimestamp();
+    const lastViewedTimestamp = resolveStoredTimestamp(NEWSLETTER_LAST_VIEWED_KEY);
+    setLatestNewsletterTimestamp(latestTimestamp);
+    setHasUnreadNewsletter(latestTimestamp > lastViewedTimestamp);
   }, []);
 
   useEffect(() => {
@@ -72,10 +115,10 @@ export default function StatusBar({
         const latestTimestamp = Date.parse(String(payload[0]?.created_at || ''));
         if (!Number.isFinite(latestTimestamp) || latestTimestamp <= 0) return;
 
-        let lastViewedTimestamp = 0;
-        try {
-          lastViewedTimestamp = Number(localStorage.getItem(MARKET_INTEL_LAST_VIEWED_KEY) || 0);
-        } catch {}
+        const lastViewedTimestamp = resolveStoredTimestamp(
+          MARKET_INTEL_LAST_VIEWED_KEY,
+          [LEGACY_MARKET_INTEL_LAST_VIEWED_KEY],
+        );
 
         if (!cancelled) {
           setLatestIntelTimestamp(latestTimestamp);
@@ -148,10 +191,20 @@ export default function StatusBar({
 
   const status = statusConfig[connectionStatus] || statusConfig.disconnected;
 
+  const handleOpenNewsletter = () => {
+    const viewedTimestamp = latestNewsletterTimestamp || Date.now();
+    try {
+      localStorage.setItem(NEWSLETTER_LAST_VIEWED_KEY, String(viewedTimestamp));
+    } catch {}
+    setHasUnreadNewsletter(false);
+    onOpenNewsletter?.();
+  };
+
   const handleOpenMarketIntel = () => {
     const viewedTimestamp = latestIntelTimestamp || Date.now();
     try {
       localStorage.setItem(MARKET_INTEL_LAST_VIEWED_KEY, String(viewedTimestamp));
+      localStorage.setItem(LEGACY_MARKET_INTEL_LAST_VIEWED_KEY, String(viewedTimestamp));
     } catch {}
     setHasUnreadIntel(false);
     onOpenMarketIntel?.();
@@ -162,29 +215,39 @@ export default function StatusBar({
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${status.color} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
-          <button 
-            onClick={onOpenNewsletter}
-            className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] backdrop-blur-md newsletter-glow"
+          <button
+            onClick={handleOpenNewsletter}
+            className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
+              hasUnreadNewsletter
+                ? 'text-emerald-200 bg-[rgba(16,185,129,0.15)] border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.3)] animate-pulse'
+                : 'text-emerald-300 hover:text-emerald-200 bg-[rgba(16,185,129,0.08)] border-[rgba(16,185,129,0.2)]'
+            }`}
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-3 h-3 ${hasUnreadNewsletter ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Newsletter
+            {hasUnreadNewsletter && (
+              <>
+                <span className="absolute -inset-0.5 rounded-full border border-emerald-400/35 animate-pulse pointer-events-none" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
+              </>
+            )}
           </button>
           <button
             onClick={handleOpenMarketIntel}
-            className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(16,185,129,0.08)] border backdrop-blur-md ${
+            className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
               hasUnreadIntel
-                ? 'text-emerald-200 border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.25)]'
-                : 'text-emerald-300/85 hover:text-emerald-200 border-[rgba(16,185,129,0.2)]'
+                ? 'text-blue-200 border-blue-400/45 bg-[rgba(59,130,246,0.14)] shadow-[0_0_16px_rgba(59,130,246,0.3)] animate-pulse'
+                : 'text-blue-400 hover:text-blue-300 bg-[rgba(59,130,246,0.08)] border-[rgba(59,130,246,0.25)]'
             }`}
           >
             <Radio className={`w-3 h-3 ${hasUnreadIntel ? 'animate-pulse' : ''}`} />
             Market Intel
             {hasUnreadIntel && (
               <>
-                <span className="absolute -inset-0.5 rounded-full border border-emerald-400/30 animate-pulse pointer-events-none" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
+                <span className="absolute -inset-0.5 rounded-full border border-blue-400/35 animate-pulse pointer-events-none" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse pointer-events-none" />
               </>
             )}
           </button>
