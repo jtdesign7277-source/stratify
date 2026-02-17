@@ -5,11 +5,15 @@ import {
   FolderPlus,
   Play,
   Star,
+  Trash2,
   Zap,
 } from 'lucide-react';
 import StrategyOutput from './StrategyOutput';
+import { supabase } from '../../lib/supabaseClient';
 
 const STORAGE_KEY = 'stratify-strategies-folders';
+const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
+const ONE_TIME_RESET_FLAG = 'stratify-strategies-reset-20260217-complete';
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
@@ -358,13 +362,6 @@ const buildFallbackMarkdown = (strategy) => {
   const trend = firstNonEmpty(strategy.trend, summary.trend, strategy.keyTradeSetups?.trend, '—');
   const riskReward = firstNonEmpty(strategy.riskReward, summary.riskReward, strategy.keyTradeSetups?.riskReward, '—');
   const stopLoss = firstNonEmpty(strategy.stopLoss, summary.stopLoss, strategy.keyTradeSetups?.stopLoss, '—');
-  const allocation = firstNonEmpty(
-    strategy.allocation,
-    summary.allocation,
-    strategy.positionSize,
-    strategy.keyTradeSetups?.allocation,
-    '—'
-  );
 
   return [
     `## Strategy Overview`,
@@ -377,19 +374,12 @@ const buildFallbackMarkdown = (strategy) => {
     `- Ticker: ${ticker ? `$${ticker}` : '—'}`,
     `- Status: ${String(strategy.status || strategy.runStatus || 'saved')}`,
     '',
-    '## 🔥 Key Trade Setups',
-    '',
-    `- **Entry Signal:** ${entry}`,
-    '',
-    `- **Volume:** ${volume}`,
-    '',
-    `- **Trend:** ${trend}`,
-    '',
-    `- **Risk/Reward:** ${riskReward}`,
-    '',
-    `- **Stop Loss:** ${stopLoss}`,
-    '',
-    `- **$ Allocation:** ${allocation}`,
+    '🔥 Key Trade Setups',
+    `● Entry Signal: ${entry}`,
+    `● Volume: ${volume}`,
+    `● Trend: ${trend}`,
+    `● Risk/Reward: ${riskReward}`,
+    `● Stop Loss: ${stopLoss}`,
   ].join('\n');
 };
 
@@ -475,6 +465,8 @@ const TerminalStrategyWorkspace = ({
   savedStrategies = [],
   deployedStrategies = [],
   onSaveStrategy,
+  onDeleteStrategy,
+  onClearStrategies,
   onDeployStrategy,
   onRetestStrategy,
   onOpenBuilder,
@@ -483,6 +475,7 @@ const TerminalStrategyWorkspace = ({
   const [selectedStrategyId, setSelectedStrategyId] = useState(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [deletingStrategyId, setDeletingStrategyId] = useState(null);
 
   const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
@@ -523,6 +516,55 @@ const TerminalStrategyWorkspace = ({
     if (typeof window === 'undefined') return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toStoragePayload(folders)));
   }, [folders]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runOneTimeReset = async () => {
+      if (typeof window === 'undefined') return;
+      if (localStorage.getItem(ONE_TIME_RESET_FLAG) === 'done') return;
+
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) return;
+
+        const response = await fetch('/api/delete-all-strategies', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            'x-stratify-reset': '2026-02-17-reset',
+          },
+          body: JSON.stringify({ confirm: 'DELETE_ALL_STRATEGIES' }),
+        });
+
+        if (!response.ok) {
+          if (response.status === 410) {
+            localStorage.setItem(ONE_TIME_RESET_FLAG, 'done');
+          }
+          return;
+        }
+        if (cancelled) return;
+
+        onClearStrategies?.();
+        setFolders(buildDefaultFolders());
+        setSelectedStrategyId(null);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('stratify-strategy-sync');
+        localStorage.removeItem(SAVED_STRATEGIES_FALLBACK_KEY);
+        localStorage.setItem(ONE_TIME_RESET_FLAG, 'done');
+      } catch (error) {
+        console.warn('[TerminalStrategyWorkspace] One-time strategy reset failed:', error);
+      }
+    };
+
+    runOneTimeReset();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onClearStrategies]);
 
   const allStrategies = useMemo(() => uniqueStrategiesFromFolders(folders), [folders]);
 
@@ -574,6 +616,96 @@ const TerminalStrategyWorkspace = ({
     ]);
     setNewFolderName('');
     setShowNewFolder(false);
+  };
+
+  const removeStrategyFromFolders = (strategyId) => {
+    const targetId = String(strategyId || '').trim();
+    if (!targetId) return;
+
+    setFolders((prev) =>
+      prev.map((folder) => ({
+        ...folder,
+        strategies: folder.strategies.filter((strategy) => String(strategy.id) !== targetId),
+      }))
+    );
+  };
+
+  const handleDeleteStrategy = async (strategyId) => {
+    const targetId = String(strategyId || '').trim();
+    if (!targetId || deletingStrategyId === targetId) return;
+
+    const strategyRef =
+      strategySourceMap.get(targetId) ||
+      allStrategies.find((strategy) => String(strategy.id) === targetId) ||
+      null;
+
+    const confirmed =
+      typeof window === 'undefined' ? true : window.confirm('Delete this strategy?');
+    if (!confirmed) return;
+
+    setDeletingStrategyId(targetId);
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+
+      if (userId) {
+        const strategyName = String(strategyRef?.name || '').trim();
+        const strategyTicker = deriveTicker(strategyRef);
+
+        // Delete by explicit row id when available.
+        const dbRowId = strategyRef?.dbId || strategyRef?.supabaseId || strategyRef?.supabase_id;
+        if (dbRowId) {
+          await supabase
+            .from('strategies')
+            .delete()
+            .eq('user_id', userId)
+            .eq('id', dbRowId);
+        }
+
+        // Fallback delete by strategy identity used across app state.
+        if (strategyName || strategyTicker) {
+          let query = supabase
+            .from('strategies')
+            .delete()
+            .eq('user_id', userId);
+
+          if (strategyName) query = query.eq('name', strategyName);
+          if (strategyTicker) query = query.eq('ticker', strategyTicker);
+
+          await query;
+        }
+      }
+    } catch (error) {
+      console.warn('[TerminalStrategyWorkspace] Failed to delete strategy from Supabase:', error);
+    } finally {
+      removeStrategyFromFolders(targetId);
+      if (String(selectedStrategyId || '') === targetId) {
+        setSelectedStrategyId(null);
+      }
+
+      try {
+        const fallbackRaw = JSON.parse(localStorage.getItem(SAVED_STRATEGIES_FALLBACK_KEY) || '[]');
+        if (Array.isArray(fallbackRaw)) {
+          const strategyName = String(strategyRef?.name || '').trim().toLowerCase();
+          const strategyTicker = deriveTicker(strategyRef).toLowerCase();
+          const nextFallback = fallbackRaw.filter((item) => {
+            const itemId = String(item?.id || '').trim();
+            if (itemId && itemId === targetId) return false;
+
+            const itemName = String(item?.name || '').trim().toLowerCase();
+            const itemTicker = deriveTicker(item).toLowerCase();
+            if (strategyName && itemName !== strategyName) return true;
+            if (strategyTicker && itemTicker !== strategyTicker) return true;
+            return !(strategyName || strategyTicker);
+          });
+          localStorage.setItem(SAVED_STRATEGIES_FALLBACK_KEY, JSON.stringify(nextFallback));
+        }
+      } catch {}
+
+      onDeleteStrategy?.(targetId);
+      setDeletingStrategyId(null);
+    }
   };
 
   return (
@@ -656,43 +788,59 @@ const TerminalStrategyWorkspace = ({
                         const isSelected = id === String(selectedStrategyId || '');
                         const profitText = formatProfit(strategy.profit);
                         const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
+                        const isDeleting = deletingStrategyId === id;
 
                         return (
-                          <button
-                            type="button"
-                            key={id}
-                            onClick={() => setSelectedStrategyId(id)}
-                            className={`w-full text-left my-1 rounded-lg border px-2.5 py-2 transition-colors ${
-                              isSelected
-                                ? 'border-emerald-500/45 bg-emerald-500/12'
-                                : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-semibold text-white/95">{strategy.name}</div>
-                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                  {strategy.ticker && (
-                                    <span className="rounded-md border border-amber-500/35 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
-                                      ${strategy.ticker}
-                                    </span>
-                                  )}
-                                  <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
-                                  {profitText && (
-                                    <span
-                                      className={`text-[11px] font-semibold ${
-                                        strategy.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'
-                                      }`}
-                                    >
-                                      {profitText}
-                                    </span>
-                                  )}
+                          <div key={id} className="group relative my-1">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStrategyId(id)}
+                              className={`w-full text-left rounded-lg border px-2.5 py-2 pr-9 transition-colors ${
+                                isSelected
+                                  ? 'border-emerald-500/45 bg-emerald-500/12'
+                                  : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-sm font-semibold text-white/95">{strategy.name}</div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                    {strategy.ticker && (
+                                      <span className="rounded-md border border-amber-500/35 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                                        ${strategy.ticker}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
+                                    {profitText && (
+                                      <span
+                                        className={`text-[11px] font-semibold ${
+                                          strategy.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'
+                                        }`}
+                                      >
+                                        {profitText}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
 
-                              {isLive && <Play className="h-3.5 w-3.5 text-emerald-300 mt-0.5" strokeWidth={1.7} />}
-                            </div>
-                          </button>
+                                {isLive && <Play className="h-3.5 w-3.5 text-emerald-300 mt-0.5" strokeWidth={1.7} />}
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleDeleteStrategy(id);
+                              }}
+                              disabled={isDeleting}
+                              className="absolute right-2 top-2 inline-flex items-center justify-center rounded p-1 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-rose-300 transition-opacity disabled:opacity-60"
+                              aria-label={`Delete ${strategy.name}`}
+                              title="Delete strategy"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                            </button>
+                          </div>
                         );
                       })
                     ) : (

@@ -13,6 +13,8 @@ const CHECKLIST_ITEMS = [
 
 const FIELD_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'allocation'];
+const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss'];
+const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 
 const formatTickerWithDollar = (ticker) => {
@@ -23,7 +25,7 @@ const formatTickerWithDollar = (ticker) => {
 const normalizeSetupHeading = (line = '') =>
   String(line)
     .replace(/^#{1,6}\s*/, '')
-    .replace(/^[-*]\s*/, '')
+    .replace(/^[\-\*•●]\s*/, '')
     .replace(/\*\*/g, '')
     .trim()
     .toLowerCase();
@@ -65,43 +67,58 @@ function splitKeyTradeSetupsSection(raw) {
   };
 }
 
+const stripSetupBulletPrefix = (line = '') => String(line).replace(/^\s*[\-\*•●]\s*/, '').trim();
+
+function extractCenterSetupValues(values = []) {
+  return CENTER_SETUP_FIELD_INDEXES.map((fieldIndex) => String(values[fieldIndex] ?? '').trim());
+}
+
+function mergeCenterValuesIntoFieldValues(fieldValues = [], centerValues = []) {
+  const next = [...fieldValues];
+  CENTER_SETUP_FIELD_INDEXES.forEach((fieldIndex, centerIndex) => {
+    const value = String(centerValues[centerIndex] ?? '').trim();
+    if (value) next[fieldIndex] = value;
+  });
+  return next;
+}
+
 function parseKeyTradeSetupValuesFromLines(lines = []) {
   const valuesByLabel = new Map();
 
   lines.forEach((line) => {
-    const normalized = String(line || '').replace(/^\s*[-*]\s*/, '').trim();
+    const normalized = stripSetupBulletPrefix(line).replace(/\*\*/g, '');
     const separatorIndex = normalized.indexOf(':');
     if (separatorIndex < 0) return;
 
-    const rawLabel = normalized.slice(0, separatorIndex).replace(/\*\*/g, '').trim().toLowerCase();
+    const rawLabel = normalized.slice(0, separatorIndex).trim().toLowerCase();
     const rawValue = normalized.slice(separatorIndex + 1).replace(/\*\*/g, '').trim();
     if (!rawLabel) return;
 
     valuesByLabel.set(rawLabel, rawValue);
   });
 
-  return FIELD_LABELS.map((label) => valuesByLabel.get(label.toLowerCase()) || '');
+  return CENTER_SETUP_LABELS.map((label) => valuesByLabel.get(label.toLowerCase()) || '');
 }
 
 function buildKeyTradeSetupsSection(values = []) {
-  const lines = ['## 🔥 Key Trade Setups', ''];
+  const lines = ['🔥 Key Trade Setups'];
 
-  FIELD_LABELS.forEach((label, index) => {
+  CENTER_SETUP_LABELS.forEach((label, index) => {
     const value = String(values[index] ?? '').trim() || '—';
-    lines.push(`- **${label}:** ${value}`);
-    lines.push('');
+    lines.push(`● ${label}: ${value}`);
   });
 
-  return lines.join('\n').trimEnd();
+  return lines.join('\n');
 }
 
 function ensureKeyTradeSetupsSection(raw, fallbackValues = []) {
   const { body, sectionLines } = splitKeyTradeSetupsSection(raw);
   const parsedValues = parseKeyTradeSetupValuesFromLines(sectionLines);
-  const mergedValues = FIELD_LABELS.map((_, index) => {
+  const fallbackCenterValues = extractCenterSetupValues(fallbackValues);
+  const mergedValues = CENTER_SETUP_LABELS.map((_, index) => {
     const parsed = String(parsedValues[index] ?? '').trim();
     if (parsed) return parsed;
-    const fallback = String(fallbackValues[index] ?? '').trim();
+    const fallback = String(fallbackCenterValues[index] ?? '').trim();
     return fallback || '—';
   });
 
@@ -116,7 +133,8 @@ function ensureKeyTradeSetupsSection(raw, fallbackValues = []) {
 
 function applyKeyTradeSetupsSection(raw, values = []) {
   const { body } = splitKeyTradeSetupsSection(raw);
-  const mergedValues = FIELD_LABELS.map((_, index) => String(values[index] ?? '').trim() || '—');
+  const sourceValues = values.length === CENTER_SETUP_LABELS.length ? values : extractCenterSetupValues(values);
+  const mergedValues = CENTER_SETUP_LABELS.map((_, index) => String(sourceValues[index] ?? '').trim() || '—');
   const section = buildKeyTradeSetupsSection(mergedValues);
   const trimmedBody = String(body || '').trimEnd();
   return trimmedBody ? `${trimmedBody}\n\n${section}` : section;
@@ -188,13 +206,13 @@ function parseMarkdown(raw) {
 
     // Key setup section lines with larger spacing and bold labels
     if (inKeyTradeSetups) {
-      const content = trimmed.replace(/^\s*[-*]\s*/, '');
+      const content = stripSetupBulletPrefix(trimmed).replace(/\*\*/g, '');
       const separatorIndex = content.indexOf(':');
       if (separatorIndex >= 0) {
-        const label = content.slice(0, separatorIndex).replace(/\*\*/g, '').trim();
-        const value = content.slice(separatorIndex + 1).replace(/\*\*/g, '').trim() || '—';
+        const label = content.slice(0, separatorIndex).trim();
+        const value = content.slice(separatorIndex + 1).trim() || '—';
         html.push(
-          `<div class="mb-6 flex gap-2 ml-2"><span class="text-emerald-400 mt-1">•</span><p class="text-white text-sm leading-relaxed whitespace-normal break-words"><strong class="text-white font-semibold">${formatInline(label)}</strong>: ${formatInline(value)}</p></div>`
+          `<div class="mb-6 flex gap-2 ml-2"><span class="text-emerald-400 mt-0.5">●</span><p class="text-sm leading-relaxed whitespace-normal break-words"><strong class="text-white font-semibold">${formatInline(label)}:</strong> <span class="text-emerald-400">${formatInline(value)}</span></p></div>`
         );
         return;
       }
@@ -304,7 +322,7 @@ export default function StrategyOutput({
 
     const ensured = ensureKeyTradeSetupsSection(nextStrategyRaw, nextFieldValues);
     nextStrategyRaw = ensured.raw;
-    nextFieldValues = ensured.values;
+    nextFieldValues = mergeCenterValuesIntoFieldValues(nextFieldValues, ensured.values);
 
     if (!nextSaved) nextActive = false;
 
@@ -400,6 +418,17 @@ export default function StrategyOutput({
     () => parseMarkdown(editorPreviewRaw),
     [editorPreviewRaw],
   );
+  const editorSetupValues = useMemo(
+    () => ensureKeyTradeSetupsSection(editorValue, fieldValues).values,
+    [editorValue, fieldValues],
+  );
+
+  const handleEditorSetupValueChange = (setupIndex, value) => {
+    const next = [...editorSetupValues];
+    next[setupIndex] = value;
+    const nextRaw = applyKeyTradeSetupsSection(editorValue || strategyRaw || s.raw || '', next);
+    setEditorValue(nextRaw);
+  };
 
   const openEditor = () => {
     setEditorValue(String(strategyRaw || s.raw || ''));
@@ -417,7 +446,7 @@ export default function StrategyOutput({
     if (isSavingEditor || !editorHasChanges) return;
     const nextRaw = String(editorValue || '');
     const ensured = ensureKeyTradeSetupsSection(nextRaw, fieldValues);
-    const nextValues = ensured.values;
+    const nextValues = mergeCenterValuesIntoFieldValues(fieldValues, ensured.values);
 
     setIsSavingEditor(true);
     setFieldValues(nextValues);
@@ -443,7 +472,7 @@ export default function StrategyOutput({
           trend: nextValues[2],
           riskReward: nextValues[3],
           stopLoss: nextValues[4],
-          allocation: nextValues[5],
+          allocation: nextValues[5] || '',
         },
         updatedAt: Date.now(),
       });
@@ -626,21 +655,38 @@ export default function StrategyOutput({
                 />
               </div>
             ) : (
-              <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
-                <div className="flex items-start">
-                  <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-emerald-700/80 text-right py-3 px-2 select-none">
-                    {Array.from({ length: editorLineCount }).map((_, index) => (
-                      <div key={`line-${index + 1}`} className="leading-6">
-                        {index + 1}
-                      </div>
+              <div>
+                <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
+                  <div className="flex items-start">
+                    <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-emerald-700/80 text-right py-3 px-2 select-none">
+                      {Array.from({ length: editorLineCount }).map((_, index) => (
+                        <div key={`line-${index + 1}`} className="leading-6">
+                          {index + 1}
+                        </div>
+                      ))}
+                    </div>
+                    <textarea
+                      value={editorValue}
+                      onChange={(event) => setEditorValue(event.target.value)}
+                      className="flex-1 min-h-[520px] bg-transparent px-3 py-3 font-mono text-sm leading-6 text-emerald-300 resize-none outline-none"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 rounded-xl border border-emerald-500/25 bg-[#06110d] p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">🔥 Key Trade Setups</div>
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {CENTER_SETUP_LABELS.map((label, index) => (
+                      <label key={label} className="flex flex-col gap-1">
+                        <span className="text-[11px] font-semibold text-white">{label}</span>
+                        <input
+                          value={editorSetupValues[index] || ''}
+                          onChange={(event) => handleEditorSetupValueChange(index, event.target.value)}
+                          className="rounded-md border border-emerald-500/50 bg-black/20 px-2 py-1.5 text-sm text-emerald-400 placeholder:text-emerald-700/80 focus:outline-none focus:border-emerald-400"
+                        />
+                      </label>
                     ))}
                   </div>
-                  <textarea
-                    value={editorValue}
-                    onChange={(event) => setEditorValue(event.target.value)}
-                    className="flex-1 min-h-[520px] bg-transparent px-3 py-3 font-mono text-sm leading-6 text-emerald-300 resize-none outline-none"
-                    spellCheck={false}
-                  />
                 </div>
               </div>
             )}

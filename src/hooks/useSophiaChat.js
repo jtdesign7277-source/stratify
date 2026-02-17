@@ -8,17 +8,16 @@ export function useSophiaChat() {
   const [currentStrategy, setCurrentStrategy] = useState(null);
 
   const parseKeyTradeSetups = (content) => {
-    const hasKeySection = /KEY TRADE SETUPS/i.test(content);
-    const sourceText = hasKeySection
-      ? content.split(/KEY TRADE SETUPS/i).slice(-1)[0] || ''
-      : content;
+    const hasKeySection = /(?:🔥\s*Key Trade Setups|KEY TRADE SETUPS)/i.test(content);
+    const sectionMatch = content.match(/(?:🔥\s*Key Trade Setups|KEY TRADE SETUPS)([\s\S]*)$/i);
+    const sourceText = sectionMatch?.[1] || content;
 
-    const entryMatch = sourceText.match(/Entry Signal:\s*(.+)/i);
-    const volumeMatch = sourceText.match(/Volume:\s*(.+)/i);
-    const trendMatch = sourceText.match(/Trend:\s*(.+)/i);
-    const rrMatch = sourceText.match(/Risk\/Reward:\s*(.+)/i);
-    const stopMatch = sourceText.match(/Stop Loss:\s*(.+)/i);
-    const allocationMatch = sourceText.match(/\$ ?Allocation:\s*(.+)/i);
+    const entryMatch = sourceText.match(/[●•\-\*]?\s*Entry Signal:\s*(.+)/i);
+    const volumeMatch = sourceText.match(/[●•\-\*]?\s*Volume:\s*(.+)/i);
+    const trendMatch = sourceText.match(/[●•\-\*]?\s*Trend:\s*(.+)/i);
+    const rrMatch = sourceText.match(/[●•\-\*]?\s*Risk\/Reward:\s*(.+)/i);
+    const stopMatch = sourceText.match(/[●•\-\*]?\s*Stop Loss:\s*(.+)/i);
+    const allocationMatch = sourceText.match(/[●•\-\*]?\s*\$ ?Allocation:\s*(.+)/i);
 
     const entry = entryMatch?.[1]?.trim() || '';
     const volume = volumeMatch?.[1]?.trim() || '';
@@ -27,7 +26,7 @@ export function useSophiaChat() {
     const stopLoss = stopMatch?.[1]?.trim() || '';
     const allocation = allocationMatch?.[1]?.trim() || '';
 
-    const hasAll = [entry, volume, trend, riskReward, stopLoss, allocation].every(Boolean);
+    const hasAll = [entry, volume, trend, riskReward, stopLoss].every(Boolean);
 
     return { entry, volume, trend, riskReward, stopLoss, allocation, hasAll, hasKeySection };
   };

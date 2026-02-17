@@ -685,9 +685,18 @@ export default function Dashboard({
     }, 800);
   };
 
-  const handleDeleteStrategy = (strategyId) => {
-    setStrategies(prev => prev.filter(s => s.id !== strategyId));
-  };
+  const handleDeleteStrategy = useCallback((strategyId) => {
+    const targetId = String(strategyId);
+    setStrategies(prev => prev.filter(s => String(s.id) !== targetId));
+    setSavedStrategies(prev => prev.filter(s => String(s.id) !== targetId));
+    setDeployedStrategies(prev => prev.filter(s => String(s.id) !== targetId));
+  }, [setDeployedStrategies, setSavedStrategies, setStrategies]);
+
+  const handleClearAllStrategies = useCallback(() => {
+    setStrategies([]);
+    setSavedStrategies([]);
+    setDeployedStrategies([]);
+  }, [setDeployedStrategies, setSavedStrategies, setStrategies]);
 
   const handleEditStrategy = (strategy) => {
     setEditingStrategy(strategy);
@@ -1824,6 +1833,8 @@ export default function Dashboard({
               onRetestStrategy={(prompt) => setSophiaWizardPrompt(prompt)}
               onDeployStrategy={(strategy) => handleDeployStrategy(strategy, true)}
               onSaveStrategy={setSavedStrategies}
+              onDeleteStrategy={handleDeleteStrategy}
+              onClearStrategies={handleClearAllStrategies}
             />
           )}
           {activeTab === 'more' && <MoreInfoPage />}
