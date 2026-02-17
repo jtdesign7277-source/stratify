@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Radio } from 'lucide-react';
+import { Radio, Zap } from 'lucide-react';
 import MarketStatusIndicator from './MarketStatusIndicator';
 import { getMarketStatus } from '../../lib/marketHours';
 import newsletterData from '../../data/newsletters.json';
@@ -74,6 +74,7 @@ export default function StatusBar({
   themeClasses,
   onOpenNewsletter,
   onOpenMarketIntel,
+  onOpenCopilot,
 }) {
   const [now, setNow] = useState(() => new Date());
   const [latestNewsletterTimestamp, setLatestNewsletterTimestamp] = useState(0);
@@ -250,6 +251,13 @@ export default function StatusBar({
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse pointer-events-none" />
               </>
             )}
+          </button>
+          <button
+            onClick={() => onOpenCopilot?.()}
+            className="relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md text-amber-400 hover:text-amber-300 bg-[rgba(245,158,11,0.08)] border-[rgba(245,158,11,0.25)]"
+          >
+            <Zap className="w-3 h-3" />
+            Copilot
           </button>
         </div>
       </div>
