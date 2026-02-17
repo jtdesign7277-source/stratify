@@ -17,7 +17,7 @@ const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'alloc
 const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4, 5];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
-const EDIT_MODE_VALUE_REGEX = /([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%)/g;
+const EDIT_MODE_VALUE_REGEX = /([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%|\b\d+:\d+\b|\b\d{4}-\d{2}-\d{2}\b|\b\d+(?:\.\d+)?\b)/g;
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -36,9 +36,19 @@ const renderEditModeLine = (lineText = '', keyPrefix = 'edit-line') => {
   const text = String(lineText ?? '');
   if (!text.length) return <span className="text-pink-300">&nbsp;</span>;
 
+  const trimmed = text.trim();
+  const isBlueHeader =
+    /^#{1,6}\s+/.test(trimmed)
+    || /^🔥\s*/.test(trimmed)
+    || (/^\*\*.+\*\*$/.test(trimmed) && !trimmed.includes(':'));
+
+  if (isBlueHeader) {
+    return <span className="text-blue-400 font-semibold">{text}</span>;
+  }
+
   const parts = text.split(EDIT_MODE_VALUE_REGEX).filter((part) => part !== '');
   return parts.map((part, index) => {
-    const isNumericValue = /^([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%)$/.test(String(part).trim());
+    const isNumericValue = /^([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%|\d+:\d+|\d{4}-\d{2}-\d{2}|\d+(?:\.\d+)?)$/.test(String(part).trim());
     return (
       <span
         key={`${keyPrefix}-${index}`}
@@ -659,6 +669,31 @@ export default function StrategyOutput({
     editorHighlightRef.current.scrollLeft = event.target.scrollLeft;
   };
 
+  const handleBacktestEditedStrategy = () => {
+    const nextRaw = normalizeEditorContent(editorValue || strategyRaw || s.raw || '');
+    const ensured = ensureKeyTradeSetupsSection(nextRaw, fieldValues);
+    const normalizedRaw = normalizeEditorContent(ensured.raw);
+    const nextValues = mergeCenterValuesIntoFieldValues(fieldValues, ensured.values);
+
+    setFieldValues(nextValues);
+    setEditorValue(normalizedRaw);
+    setIsEditorModified(normalizedRaw !== String(strategyRaw || ''));
+
+    const setupParams = FIELD_LABELS.map((label, index) => `${label}: ${withDollarTickers(nextValues[index] || '—')}`).join('\n');
+    const prompt = [
+      `Backtest this edited strategy exactly as written below:`,
+      '',
+      normalizedRaw,
+      '',
+      'Use these key trade setup values:',
+      setupParams,
+      '',
+      'Return full backtest results and updated Key Trade Setups Identified.',
+    ].join('\n');
+
+    onRetest?.(prompt);
+  };
+
   const handleActivate = () => {
     if (!canActivate) return;
     setActive(true);
@@ -993,8 +1028,15 @@ export default function StrategyOutput({
               </div>
             </div>
             <div className="mt-2 text-xs text-pink-300/90">
-              Edit Mode: text is pink, dollar and percent values are green.
+              Edit Mode: headers are blue, body text is pink, editable values are green.
             </div>
+            <button
+              type="button"
+              onClick={handleBacktestEditedStrategy}
+              className="mt-3 w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 transition"
+            >
+              Backtest Edited Strategy
+            </button>
           </>
         ) : (
           <>
