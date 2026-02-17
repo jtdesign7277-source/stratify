@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil, Eye, Save as SaveIcon } from 'lucide-react';
+import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil, Save as SaveIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatTickersAsHtml, normalizeTickerSymbol, tokenizeTickerText, withDollarTickers } from '../../lib/tickerStyling';
 
@@ -17,8 +17,7 @@ const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'alloc
 const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4, 5];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
-const EDITOR_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
-const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+const EDIT_MODE_VALUE_REGEX = /([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%)/g;
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -33,58 +32,19 @@ const REAL_TRADE_ANALYSIS_TEMPLATE = [
   '- **Profit:** +$[amount] ✅',
 ].join('\n');
 
-const getEditorTokenClassName = (token, isBold) => {
-  if (token === '|') return 'text-gray-500';
-  if (token === '**') return 'text-gray-600';
-  if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-emerald-400 font-semibold';
-  if (/^\+[$]?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-emerald-400 font-semibold';
-  if (/^-[$]?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-red-400 font-semibold';
-  if (/^\d+:\d+$/.test(token)) return 'text-yellow-400';
-  if (/^\$?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-yellow-400';
-  return isBold ? 'text-white font-medium' : 'text-gray-300';
-};
-
-const renderEditorSyntaxLine = (lineText = '', keyPrefix = 'editor-line') => {
+const renderEditModeLine = (lineText = '', keyPrefix = 'edit-line') => {
   const text = String(lineText ?? '');
-  if (!text.length) return <span className="text-gray-300">&nbsp;</span>;
-  if (text.startsWith('# ')) return <span className="text-white font-bold text-lg">{text}</span>;
-  if (text.startsWith('## ')) return <span className="text-blue-400 font-semibold">{text}</span>;
+  if (!text.length) return <span className="text-pink-300">&nbsp;</span>;
 
-  const parts = text.split(EDITOR_TOKEN_REGEX).filter((part) => part !== '');
-  let isBold = false;
-
+  const parts = text.split(EDIT_MODE_VALUE_REGEX).filter((part) => part !== '');
   return parts.map((part, index) => {
-    if (part === '**') {
-      isBold = !isBold;
-      return (
-        <span key={`${keyPrefix}-marker-${index}`} className="text-gray-600">
-          {part}
-        </span>
-      );
-    }
-
-    const tokenClass = getEditorTokenClassName(part, isBold);
-    const splitWithEmoji = part.split(/(\p{Extended_Pictographic})/u).filter(Boolean);
-
-    if (splitWithEmoji.length === 1) {
-      return (
-        <span key={`${keyPrefix}-token-${index}`} className={tokenClass}>
-          {part}
-        </span>
-      );
-    }
-
+    const isNumericValue = /^([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%)$/.test(String(part).trim());
     return (
-      <span key={`${keyPrefix}-token-${index}`}>
-        {splitWithEmoji.map((piece, pieceIndex) =>
-          EMOJI_REGEX.test(piece) ? (
-            <span key={`${keyPrefix}-emoji-${index}-${pieceIndex}`}>{piece}</span>
-          ) : (
-            <span key={`${keyPrefix}-text-${index}-${pieceIndex}`} className={tokenClass}>
-              {piece}
-            </span>
-          )
-        )}
+      <span
+        key={`${keyPrefix}-${index}`}
+        className={isNumericValue ? 'text-emerald-400 font-semibold' : 'text-pink-300'}
+      >
+        {part}
       </span>
     );
   });
@@ -438,7 +398,6 @@ export default function StrategyOutput({
   const [isSavingEditor, setIsSavingEditor] = useState(false);
   const [isEditorModified, setIsEditorModified] = useState(false);
   const [showEditorSavedNotice, setShowEditorSavedNotice] = useState(false);
-  const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
   const [isSavingToSophia, setIsSavingToSophia] = useState(false);
   const [savedToSophia, setSavedToSophia] = useState(Boolean(s.savedToSophia));
   const editorTextareaRef = useRef(null);
@@ -503,7 +462,6 @@ export default function StrategyOutput({
     setShowEditorSavedNotice(false);
     setIsEditingStrategyText(false);
     setIsSavingEditor(false);
-    setIsPreviewingEdit(false);
     setIsSavingToSophia(false);
     setSavedToSophia(Boolean(s.savedToSophia));
     setEditing(null);
@@ -534,7 +492,7 @@ export default function StrategyOutput({
   }, []);
 
   useEffect(() => {
-    if (!isEditingStrategyText || isPreviewingEdit) return;
+    if (!isEditingStrategyText) return;
     const timeoutId = setTimeout(() => {
       if (editorTextareaRef.current) {
         editorTextareaRef.current.scrollTop = 0;
@@ -546,7 +504,7 @@ export default function StrategyOutput({
       }
     }, 0);
     return () => clearTimeout(timeoutId);
-  }, [isEditingStrategyText, isPreviewingEdit]);
+  }, [isEditingStrategyText]);
 
   const allChecked = checks.every(Boolean);
   const allPreChecked = preChecks.every(Boolean);
@@ -586,21 +544,9 @@ export default function StrategyOutput({
   );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
-  const editorLineCount = useMemo(
-    () => Math.max(1, String(editorValue || '').split('\n').length),
-    [editorValue],
-  );
   const editorLines = useMemo(
     () => String(editorValue || '').split('\n'),
     [editorValue],
-  );
-  const editorPreviewRaw = useMemo(
-    () => ensureKeyTradeSetupsSection(editorValue, fieldValues).raw,
-    [editorValue, fieldValues],
-  );
-  const editorPreviewMarkdown = useMemo(
-    () => parseMarkdown(editorPreviewRaw),
-    [editorPreviewRaw],
   );
   const editorSetupValues = useMemo(
     () => ensureKeyTradeSetupsSection(editorValue, fieldValues).values,
@@ -639,19 +585,11 @@ export default function StrategyOutput({
     });
   };
 
-  const handleEditorSetupValueChange = (setupIndex, value) => {
-    const next = [...editorSetupValues];
-    next[setupIndex] = value;
-    const nextRaw = applyKeyTradeSetupsSection(editorValue || strategyRaw || s.raw || '', next);
-    updateEditorValue(nextRaw);
-  };
-
   const openEditor = () => {
     const nextRaw = normalizeEditorContent(strategyRaw || s.raw || '');
     setEditorValue(nextRaw);
     setIsEditorModified(false);
     setShowEditorSavedNotice(false);
-    setIsPreviewingEdit(false);
     setIsEditingStrategyText(true);
     resetEditorScroll();
   };
@@ -661,7 +599,6 @@ export default function StrategyOutput({
     setEditorValue(nextRaw);
     setIsEditorModified(false);
     setShowEditorSavedNotice(false);
-    setIsPreviewingEdit(false);
     setIsEditingStrategyText(false);
     resetEditorScroll();
   };
@@ -680,7 +617,6 @@ export default function StrategyOutput({
     setIsEditorModified(false);
     setShowEditorSavedNotice(true);
     setIsEditingStrategyText(false);
-    setIsPreviewingEdit(false);
 
     if (editorSavedNoticeTimeoutRef.current) {
       clearTimeout(editorSavedNoticeTimeoutRef.current);
@@ -1000,24 +936,6 @@ export default function StrategyOutput({
                 >
                   Cancel
                 </button>
-                {isPreviewingEdit ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsPreviewingEdit(false)}
-                    className="border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-3 py-1.5 text-xs"
-                  >
-                    Back to Edit
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsPreviewingEdit(true)}
-                    className="inline-flex items-center gap-1 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-3 py-1.5 text-xs"
-                  >
-                    <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    View
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={saveEditor}
@@ -1051,106 +969,31 @@ export default function StrategyOutput({
 
         {isEditingStrategyText ? (
           <>
-            {isPreviewingEdit ? (
-              <div
-                className="leading-relaxed text-zinc-300"
-                dangerouslySetInnerHTML={{ __html: editorPreviewMarkdown }}
-              />
-            ) : (
-              <div>
-                <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
-                  <div className="flex items-start">
-                    <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-gray-600 text-right py-3 px-2 select-none">
-                      {Array.from({ length: editorLineCount }).map((_, index) => (
-                        <div key={`line-${index + 1}`} className="leading-6">
-                          {index + 1}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="relative flex-1 h-[44vh] min-h-[300px]">
-                      <pre
-                        ref={editorHighlightRef}
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 overflow-hidden px-3 py-3 font-mono text-sm leading-6 whitespace-pre-wrap break-words"
-                      >
-                        {editorLines.map((line, index) => (
-                          <div key={`editor-syntax-line-${index}`} className="min-h-[24px]">
-                            {renderEditorSyntaxLine(line, `editor-line-${index}`)}
-                          </div>
-                        ))}
-                      </pre>
-                      <textarea
-                        ref={editorTextareaRef}
-                        value={editorValue}
-                        onChange={(event) => updateEditorValue(event.target.value)}
-                        onScroll={handleEditorScroll}
-                        className="relative z-10 flex-1 h-[44vh] min-h-[300px] w-full bg-transparent px-3 py-3 font-mono text-sm leading-6 text-transparent caret-white selection:bg-blue-500/30 resize-none outline-none"
-                        spellCheck={false}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl border border-emerald-500/25 bg-[#06110d] p-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">🔥 Key Trade Setups Identified</div>
-                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {CENTER_SETUP_LABELS.map((label, index) => (
-                      <label key={label} className="flex flex-col gap-1">
-                        <span className="text-[11px] font-semibold text-white">{label}</span>
-                        <input
-                          value={editorSetupValues[index] || ''}
-                          onChange={(event) => handleEditorSetupValueChange(index, event.target.value)}
-                          className="rounded-md border border-emerald-500/50 bg-black/20 px-2 py-1.5 text-sm text-emerald-400 placeholder:text-emerald-700/80 focus:outline-none focus:border-emerald-400"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <div className="text-xs text-emerald-400 font-medium min-h-[20px]">
-                {showEditorSavedNotice ? 'Saved!' : ''}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={cancelEditor}
-                  className="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+            <div className="rounded-xl border border-fuchsia-500/20 bg-[#0d1117]/30 overflow-hidden">
+              <div className="relative h-[56vh] min-h-[320px]">
+                <pre
+                  ref={editorHighlightRef}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 overflow-hidden px-4 py-4 font-mono text-sm leading-7 whitespace-pre-wrap break-words"
                 >
-                  Cancel
-                </button>
-                {isPreviewingEdit ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsPreviewingEdit(false)}
-                    className="border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
-                  >
-                    Back to Edit
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsPreviewingEdit(true)}
-                    className="inline-flex items-center gap-1.5 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
-                  >
-                    <Eye className="h-4 w-4" strokeWidth={1.5} />
-                    View
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={saveEditor}
-                  disabled={isSavingEditor || !isEditorModified}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:cursor-not-allowed ${
-                    isEditorModified
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-blue-900/40 text-white/60'
-                  }`}
-                >
-                  <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
-                  {isSavingEditor ? 'Saving...' : 'Save'}
-                </button>
+                  {editorLines.map((line, index) => (
+                    <div key={`edit-line-${index}`} className="min-h-[28px]">
+                      {renderEditModeLine(line, `edit-line-${index}`)}
+                    </div>
+                  ))}
+                </pre>
+                <textarea
+                  ref={editorTextareaRef}
+                  value={editorValue}
+                  onChange={(event) => updateEditorValue(event.target.value)}
+                  onScroll={handleEditorScroll}
+                  className="relative z-10 h-[56vh] min-h-[320px] w-full bg-transparent px-4 py-4 font-mono text-sm leading-7 text-transparent caret-pink-300 selection:bg-fuchsia-500/30 resize-none outline-none"
+                  spellCheck={false}
+                />
               </div>
+            </div>
+            <div className="mt-2 text-xs text-pink-300/90">
+              Edit Mode: text is pink, dollar and percent values are green.
             </div>
           </>
         ) : (
