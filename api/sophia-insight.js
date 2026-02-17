@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { generateTTS } from './lib/tts.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -167,6 +168,9 @@ export default async function handler(req, res) {
       const title = parts[1]?.trim() || 'Market Update';
       const message = parts[2]?.trim() || responseText;
 
+      // Pre-generate voice audio
+      const audioUrl = await generateTTS(`${title}. ${message}`);
+
       // Save to sophia_alerts as an insight
       const { error: insertErr } = await supabase.from('sophia_alerts').insert({
         severity: '💡',
@@ -174,12 +178,13 @@ export default async function handler(req, res) {
         title,
         message,
         alert_type: 'insight',
+        audio_url: audioUrl,
         raw_response: responseText,
       });
 
       if (insertErr) console.error('Insert error:', insertErr);
 
-      return res.status(200).json({ action: 'insight', title, message });
+      return res.status(200).json({ action: 'insight', title, message, audio_url: audioUrl });
     }
 
     // Fallback — unexpected format

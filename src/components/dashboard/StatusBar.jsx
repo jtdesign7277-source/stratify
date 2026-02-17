@@ -105,22 +105,31 @@ export default function StatusBar({
         return;
       }
 
-      const text = alerts
-        .slice(0, 5)
-        .map((a) => `${a.title || ''}: ${a.message}`)
-        .join('. ')
-        .slice(0, 800);
+      // Check for pre-generated audio URL in alerts
+      const cachedAudio = alerts.find((a) => a.audio_url)?.audio_url;
+      let url = cachedAudio;
 
-      const speakRes = await fetch('/api/sophia-speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!speakRes.ok) throw new Error('TTS failed');
-      const data = await speakRes.json();
-      if (!data.audio_url) throw new Error('No audio');
+      // Fallback: generate TTS on the fly (slower)
+      if (!url) {
+        const text = alerts
+          .slice(0, 3)
+          .map((a) => `${a.title || ''}: ${a.message}`)
+          .join('. ')
+          .slice(0, 400);
 
-      const audio = new Audio(data.audio_url);
+        const speakRes = await fetch('/api/sophia-speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!speakRes.ok) throw new Error('TTS failed');
+        const data = await speakRes.json();
+        url = data.audio_url;
+      }
+
+      if (!url) throw new Error('No audio');
+
+      const audio = new Audio(url);
       sophiaAudioRef.current = audio;
       audio.addEventListener('play', () => setSophiaPlaying(true));
       audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });

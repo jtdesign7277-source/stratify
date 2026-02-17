@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { generateTTS } from './lib/tts.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -174,14 +175,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // Pre-generate TTS for the combined alerts summary
+    const summaryText = alerts.map((a) => `${a.symbol}: ${a.message}`).join('. ').slice(0, 800);
+    const audioUrl = alerts.length > 0 ? await generateTTS(summaryText) : null;
+
     // Save to Supabase
     if (alerts.length > 0) {
-      const rows = alerts.map((a) => ({
+      const rows = alerts.map((a, i) => ({
         severity: a.severity,
         symbol: a.symbol,
         title: a.title,
         message: a.message,
         alert_type: a.alert_type,
+        audio_url: i === 0 ? audioUrl : null, // attach audio to first alert
         raw_response: responseText,
       }));
 

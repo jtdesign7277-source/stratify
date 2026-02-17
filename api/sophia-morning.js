@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { generateTTS } from './lib/tts.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -100,6 +101,9 @@ export default async function handler(req, res) {
     const data = await anthropicRes.json();
     const briefing = (data.content?.[0]?.text || '').trim();
 
+    // Pre-generate voice audio
+    const audioUrl = await generateTTS(briefing);
+
     // Save as a special morning briefing alert
     await supabase.from('sophia_alerts').insert({
       severity: '☀️',
@@ -107,10 +111,11 @@ export default async function handler(req, res) {
       title: 'Morning Briefing',
       message: briefing,
       alert_type: 'morning',
+      audio_url: audioUrl,
       raw_response: briefing,
     });
 
-    return res.status(200).json({ briefing });
+    return res.status(200).json({ briefing, audio_url: audioUrl });
   } catch (err) {
     console.error('Morning briefing error:', err);
     return res.status(500).json({ error: err.message });
