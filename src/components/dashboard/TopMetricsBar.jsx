@@ -406,9 +406,9 @@ export default function TopMetricsBar({
         )}
       </div>
       
-      {/* Mini Pills Bar - 6 slots for minimized widgets */}
+      {/* Mini Pills Bar - 5 slots for minimized widgets */}
       <div className="flex items-center gap-2 mx-6 flex-1 justify-center">
-        {[0, 1, 2, 3, 4, 5].map((slot) => (
+        {[1, 2, 3, 4, 5].map((slot) => (
           <div 
             key={slot} 
             className={`h-8 rounded-full transition-all ${
@@ -418,33 +418,29 @@ export default function TopMetricsBar({
             }`}
             data-pill-slot={slot}
             onDragOver={(e) => {
-              if (slot >= 1) {
-                e.preventDefault();
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
-              }
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+              e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
             }}
             onDragLeave={(e) => {
               e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
             }}
             onDrop={(e) => {
-              if (slot >= 1) {
-                e.preventDefault();
-                e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
-                const payload = parseDropPayload(e);
-                if (payload?.type === 'game' && onGameDrop) {
-                  onGameDrop(payload.data, slot);
-                  clearGlobalDragPayload();
-                  return;
-                }
-                const symbol = e.dataTransfer.getData('text/plain');
-                if (symbol && onTickerDrop) {
-                  onTickerDrop(symbol, slot);
-                }
+              e.preventDefault();
+              e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+              const payload = parseDropPayload(e);
+              if (payload?.type === 'game' && onGameDrop) {
+                onGameDrop(payload.data, slot);
+                clearGlobalDragPayload();
+                return;
+              }
+              const symbol = e.dataTransfer.getData('text/plain');
+              if (symbol && onTickerDrop) {
+                onTickerDrop(symbol, slot);
               }
             }}
           >
-            {miniPills[slot] || (slot >= 1 && (
+            {miniPills[slot] || (
               <div className="w-full h-full flex items-center justify-center gap-1 text-white/20 pointer-events-none">
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 5v14M5 12h14" />
@@ -453,7 +449,7 @@ export default function TopMetricsBar({
                   <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
                 </svg>
               </div>
-            ))}
+            )}
           </div>
         ))}
         <div id="earnings-alert-pill-anchor" className="flex items-center" />
