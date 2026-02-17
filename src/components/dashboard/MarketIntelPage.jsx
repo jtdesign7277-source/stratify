@@ -293,16 +293,20 @@ export default function MarketIntelPage({ onClose, onViewed }) {
     };
   }, [onViewed]);
 
-  // Auto-play Sophia voice when latest report loads
+  // Preload TTS audio URL when latest report loads (voice enabled)
+  const [audioUrl, setAudioUrl] = useState(null);
+
   useEffect(() => {
     if (!voiceEnabled || loading || !reports[0]) return;
     const reportId = reports[0].id;
     if (spokenReportIdRef.current === reportId) return;
     spokenReportIdRef.current = reportId;
+    setAudioUrl(null);
 
     let cancelled = false;
-    const speak = async () => {
-      const plainText = stripMarkdown(reports[0].report_content).slice(0, 2500);
+    const preload = async () => {
+      // Take first ~800 chars for a quick summary read (keeps HeyGen fast, under Vercel 10s limit)
+      const plainText = stripMarkdown(reports[0].report_content).slice(0, 800);
       if (!plainText) return;
       setVoiceLoading(true);
       try {
@@ -314,33 +318,62 @@ export default function MarketIntelPage({ onClose, onViewed }) {
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (cancelled || !data.audio_url) return;
-        const audio = new Audio(data.audio_url);
-        audioRef.current = audio;
-        audio.addEventListener('play', () => !cancelled && setIsPlaying(true));
-        audio.addEventListener('ended', () => { if (!cancelled) { setIsPlaying(false); audioRef.current = null; } });
-        audio.addEventListener('pause', () => !cancelled && setIsPlaying(false));
-        audio.play().catch(() => {});
+        setAudioUrl(data.audio_url);
       } catch {} finally {
         if (!cancelled) setVoiceLoading(false);
       }
     };
-    speak();
+    preload();
     return () => { cancelled = true; };
   }, [voiceEnabled, loading, reports]);
 
+  // Auto-play once audioUrl is ready (user already on page = gesture context from navigation)
+  useEffect(() => {
+    if (!audioUrl || !voiceEnabled) return;
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    audio.addEventListener('play', () => setIsPlaying(true));
+    audio.addEventListener('ended', () => { setIsPlaying(false); audioRef.current = null; });
+    audio.addEventListener('pause', () => setIsPlaying(false));
+    audio.addEventListener('error', () => { setIsPlaying(false); audioRef.current = null; });
+    audio.play().catch(() => {
+      // Browser blocked autoplay — that's fine, user can click the button
+      setIsPlaying(false);
+    });
+    return () => { audio.pause(); audio.removeAttribute('src'); };
+  }, [audioUrl, voiceEnabled]);
+
   const toggleVoice = useCallback(() => {
+    if (isPlaying && audioRef.current) {
+      // Currently playing — stop it
+      audioRef.current.pause();
+      audioRef.current = null;
+      setIsPlaying(false);
+      setVoiceEnabled(false);
+      try { localStorage.setItem(VOICE_PREF_KEY, 'false'); } catch {}
+      return;
+    }
+    if (!isPlaying && audioUrl) {
+      // Have audio ready, user clicks to play — this IS a user gesture so autoplay works
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.addEventListener('play', () => setIsPlaying(true));
+      audio.addEventListener('ended', () => { setIsPlaying(false); audioRef.current = null; });
+      audio.addEventListener('pause', () => setIsPlaying(false));
+      audio.addEventListener('error', () => { setIsPlaying(false); audioRef.current = null; });
+      audio.play().catch(() => {});
+      setVoiceEnabled(true);
+      try { localStorage.setItem(VOICE_PREF_KEY, 'true'); } catch {}
+      return;
+    }
+    // Toggle preference
     setVoiceEnabled((prev) => {
       const next = !prev;
       try { localStorage.setItem(VOICE_PREF_KEY, String(next)); } catch {}
-      if (!next && audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-        setIsPlaying(false);
-      }
       if (!next) spokenReportIdRef.current = null;
       return next;
     });
-  }, []);
+  }, [isPlaying, audioUrl]);
 
   const latestReport = reports[0] || null;
   const archivedReports = reports.slice(1);

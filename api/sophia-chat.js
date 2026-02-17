@@ -43,12 +43,12 @@ You MUST include this section directly before the final '🔥 Key Trade Setups' 
 
 ## ⚡ Real Trade Analysis (1M Lookbook)
 
-**Key [StrategyType] Setups Identified:**
+**Key Setups Identified:**
 
 **🏆 Winner - [Date] [Setup Name]:**
 - **Entry:** $[price] at [time] ([reason])
 - **Exit:** $[price] ([result])
-- **Shares:** [count] shares ($25,000 ÷ $[entry price])
+- **Shares:** [count] shares
 - **Profit:** +$[amount] ✅
 
 Use actual dates, setup names, prices, share counts, and profit values from the provided market data.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil, Eye, Save as SaveIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatTickersAsHtml, normalizeTickerSymbol, tokenizeTickerText, withDollarTickers } from '../../lib/tickerStyling';
@@ -17,6 +17,78 @@ const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'alloc
 const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss'];
 const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
+const EDITOR_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
+const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
+const KEY_SETUPS_IDENTIFIED_REGEX = /key\s+setups\s+identified/i;
+const REAL_TRADE_ANALYSIS_TEMPLATE = [
+  '## ⚡ Real Trade Analysis (1M Lookbook)',
+  '',
+  '**Key Setups Identified:**',
+  '',
+  '**🏆 Winner - [Date] [Setup]:**',
+  '- **Entry:** $[price] at [time] ([reason])',
+  '- **Exit:** $[price] ([result])',
+  '- **Shares:** [count] shares',
+  '- **Profit:** +$[amount] ✅',
+].join('\n');
+
+const getEditorTokenClassName = (token, isBold) => {
+  if (token === '|') return 'text-gray-500';
+  if (token === '**') return 'text-gray-600';
+  if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-emerald-400 font-semibold';
+  if (/^\+[$]?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-emerald-400 font-semibold';
+  if (/^-[$]?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-red-400 font-semibold';
+  if (/^\d+:\d+$/.test(token)) return 'text-yellow-400';
+  if (/^\$?\d[\d,]*(?:\.\d+)?%?$/.test(token)) return 'text-yellow-400';
+  return isBold ? 'text-white font-medium' : 'text-gray-300';
+};
+
+const renderEditorSyntaxLine = (lineText = '', keyPrefix = 'editor-line') => {
+  const text = String(lineText ?? '');
+  if (!text.length) return <span className="text-gray-300">&nbsp;</span>;
+  if (text.startsWith('# ')) return <span className="text-white font-bold">{text}</span>;
+  if (text.startsWith('## ')) return <span className="text-blue-400 font-semibold">{text}</span>;
+
+  const parts = text.split(EDITOR_TOKEN_REGEX).filter((part) => part !== '');
+  let isBold = false;
+
+  return parts.map((part, index) => {
+    if (part === '**') {
+      isBold = !isBold;
+      return (
+        <span key={`${keyPrefix}-marker-${index}`} className="text-gray-600">
+          {part}
+        </span>
+      );
+    }
+
+    const tokenClass = getEditorTokenClassName(part, isBold);
+    const splitWithEmoji = part.split(/(\p{Extended_Pictographic})/u).filter(Boolean);
+
+    if (splitWithEmoji.length === 1) {
+      return (
+        <span key={`${keyPrefix}-token-${index}`} className={tokenClass}>
+          {part}
+        </span>
+      );
+    }
+
+    return (
+      <span key={`${keyPrefix}-token-${index}`}>
+        {splitWithEmoji.map((piece, pieceIndex) =>
+          EMOJI_REGEX.test(piece) ? (
+            <span key={`${keyPrefix}-emoji-${index}-${pieceIndex}`}>{piece}</span>
+          ) : (
+            <span key={`${keyPrefix}-text-${index}-${pieceIndex}`} className={tokenClass}>
+              {piece}
+            </span>
+          )
+        )}
+      </span>
+    );
+  });
+};
 
 const formatTickerWithDollar = (ticker) => {
   const clean = normalizeTickerSymbol(ticker);
@@ -110,6 +182,32 @@ function buildKeyTradeSetupsSection(values = []) {
   });
 
   return lines.join('\n');
+}
+
+function ensureRealTradeAnalysisSection(raw, fallbackValues = []) {
+  const normalizedRaw = String(raw || '').trimEnd();
+  const { body, sectionLines, hasSection } = splitKeyTradeSetupsSection(normalizedRaw);
+  const bodyText = String(body || '').trimEnd();
+  const hasAnalysisSection =
+    REAL_TRADE_ANALYSIS_REGEX.test(bodyText) || KEY_SETUPS_IDENTIFIED_REGEX.test(bodyText);
+  const nextBody = hasAnalysisSection
+    ? bodyText
+    : bodyText
+      ? `${bodyText}\n\n${REAL_TRADE_ANALYSIS_TEMPLATE}`
+      : REAL_TRADE_ANALYSIS_TEMPLATE;
+
+  if (!hasSection) return nextBody;
+
+  const parsedValues = parseKeyTradeSetupValuesFromLines(sectionLines);
+  const fallbackCenterValues = extractCenterSetupValues(fallbackValues);
+  const mergedValues = CENTER_SETUP_LABELS.map((_, index) => {
+    const parsed = String(parsedValues[index] ?? '').trim();
+    if (parsed) return parsed;
+    const fallback = String(fallbackCenterValues[index] ?? '').trim();
+    return fallback || '—';
+  });
+
+  return `${nextBody}\n\n${buildKeyTradeSetupsSection(mergedValues)}`.trim();
 }
 
 function ensureKeyTradeSetupsSection(raw, fallbackValues = []) {
@@ -298,9 +396,14 @@ export default function StrategyOutput({
     ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw
   );
   const [isSavingEditor, setIsSavingEditor] = useState(false);
+  const [isEditorModified, setIsEditorModified] = useState(false);
+  const [showEditorSavedNotice, setShowEditorSavedNotice] = useState(false);
   const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
   const [isSavingToSophia, setIsSavingToSophia] = useState(false);
   const [savedToSophia, setSavedToSophia] = useState(Boolean(s.savedToSophia));
+  const editorTextareaRef = useRef(null);
+  const editorHighlightRef = useRef(null);
+  const editorSavedNoticeTimeoutRef = useRef(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -356,6 +459,8 @@ export default function StrategyOutput({
     setTakePct(nextTakePct);
     setStrategyRaw(nextStrategyRaw);
     setEditorValue(nextStrategyRaw);
+    setIsEditorModified(false);
+    setShowEditorSavedNotice(false);
     setIsEditingStrategyText(false);
     setIsSavingEditor(false);
     setIsPreviewingEdit(false);

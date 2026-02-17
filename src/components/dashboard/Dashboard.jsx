@@ -93,25 +93,27 @@ const PAPER_TRADING_BALANCE = 100000;
 const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
-const REAL_TRADE_ANALYSIS_HEADING_REGEX = /##\s*⚡\s*Real Trade Analysis\s*\(1M Lookbook\)/i;
-
-const buildRealTradeAnalysisTemplate = (strategyType = 'Strategy') => [
+const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
+const KEY_SETUPS_IDENTIFIED_REGEX = /key\s+setups\s+identified/i;
+const REAL_TRADE_ANALYSIS_TEMPLATE = [
   '## ⚡ Real Trade Analysis (1M Lookbook)',
   '',
-  `**Key ${strategyType} Setups Identified:**`,
+  '**Key Setups Identified:**',
   '',
-  '**🏆 Winner - [Date] [Setup Name]:**',
+  '**🏆 Winner - [Date] [Setup]:**',
   '- **Entry:** $[price] at [time] ([reason])',
   '- **Exit:** $[price] ([result])',
-  '- **Shares:** [count] shares ($25,000 ÷ $[entry price])',
+  '- **Shares:** [count] shares',
   '- **Profit:** +$[amount] ✅',
 ].join('\n');
 
-const ensureRealTradeAnalysisSection = (content, strategyType = 'Strategy') => {
+const ensureRealTradeAnalysisSection = (content) => {
   const normalized = String(content || '').trim();
-  if (!normalized) return buildRealTradeAnalysisTemplate(strategyType);
-  if (REAL_TRADE_ANALYSIS_HEADING_REGEX.test(normalized)) return normalized;
-  return `${normalized}\n\n${buildRealTradeAnalysisTemplate(strategyType)}`;
+  if (!normalized) return REAL_TRADE_ANALYSIS_TEMPLATE;
+  if (REAL_TRADE_ANALYSIS_REGEX.test(normalized) || KEY_SETUPS_IDENTIFIED_REGEX.test(normalized)) {
+    return normalized;
+  }
+  return `${normalized}\n\n${REAL_TRADE_ANALYSIS_TEMPLATE}`;
 };
 
 const sanitizeActiveTab = (tab, fallback = 'trade') => {
@@ -1776,8 +1778,7 @@ export default function Dashboard({
             <StrategyOutput
               strategy={sophiaStrategy}
               onSave={(strategy) => {
-                const strategyType = String(strategy?.type || strategy?.strategyType || 'Strategy').trim() || 'Strategy';
-                const normalizedContent = ensureRealTradeAnalysisSection(strategy?.raw || '', strategyType);
+                const normalizedContent = ensureRealTradeAnalysisSection(strategy?.raw || '');
                 const toSave = {
                   id: strategy.id || ('sophia-' + Date.now()),
                   name: strategy.name,
@@ -1804,8 +1805,7 @@ export default function Dashboard({
                 });
               }}
               onSaveToSophia={(strategy) => {
-                const strategyType = String(strategy?.type || strategy?.strategyType || 'Strategy').trim() || 'Strategy';
-                const normalizedContent = ensureRealTradeAnalysisSection(strategy?.raw || '', strategyType);
+                const normalizedContent = ensureRealTradeAnalysisSection(strategy?.raw || '');
                 const savedStrategy = {
                   id: strategy.id || ('sophia-' + Date.now()),
                   name: strategy.name || 'Sophia Strategy',
