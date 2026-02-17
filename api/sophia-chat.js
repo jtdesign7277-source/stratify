@@ -38,6 +38,21 @@ BACKTEST NAMING & VALUATION (CRITICAL):
 KEY TRADE SETUPS (CRITICAL — INCLUDE IN EVERY STRATEGY/BACKTEST):
 You MUST end every single strategy response with a section titled '🔥 Key Trade Setups' containing exactly these 5 fields on separate lines, each starting with ● bullet: Entry Signal, Volume, Trend, Risk/Reward, Stop Loss. Never skip this section.
 
+REAL TRADE ANALYSIS SECTION (CRITICAL — INCLUDE BEFORE KEY TRADE SETUPS):
+You MUST include this section directly before the final '🔥 Key Trade Setups' section. Use real values from the analysis (no placeholders):
+
+## ⚡ Real Trade Analysis (1M Lookbook)
+
+**Key [StrategyType] Setups Identified:**
+
+**🏆 Winner - [Date] [Setup Name]:**
+- **Entry:** $[price] at [time] ([reason])
+- **Exit:** $[price] ([result])
+- **Shares:** [count] shares ($25,000 ÷ $[entry price])
+- **Profit:** +$[amount] ✅
+
+Use actual dates, setup names, prices, share counts, and profit values from the provided market data.
+
 At the VERY END of your response, ALWAYS include this exact section and formatting with real values extracted from your analysis:
 
 🔥 Key Trade Setups

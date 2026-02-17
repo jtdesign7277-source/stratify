@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Play, RefreshCw, TrendingUp, TrendingDown, Cpu, Activity, Zap, Rocket, X, ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight } from 'lucide-react';
 
 const SYNTAX_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
+const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 
 const getTokenClassName = (token, isBold) => {
   if (token === '|') return 'text-gray-500';
@@ -33,9 +34,28 @@ const renderSyntaxLine = (lineText = '') => {
       );
     }
 
+    const tokenClass = getTokenClassName(part, isBold);
+    const emojiSplit = part.split(/(\p{Extended_Pictographic})/u).filter(Boolean);
+
+    if (emojiSplit.length === 1) {
+      return (
+        <span key={`token-${idx}`} className={tokenClass}>
+          {part}
+        </span>
+      );
+    }
+
     return (
-      <span key={`token-${idx}`} className={getTokenClassName(part, isBold)}>
-        {part}
+      <span key={`token-${idx}`}>
+        {emojiSplit.map((piece, pieceIndex) =>
+          EMOJI_REGEX.test(piece) ? (
+            <span key={`emoji-${idx}-${pieceIndex}`}>{piece}</span>
+          ) : (
+            <span key={`text-${idx}-${pieceIndex}`} className={tokenClass}>
+              {piece}
+            </span>
+          )
+        )}
       </span>
     );
   });
