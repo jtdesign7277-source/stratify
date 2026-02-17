@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Connects to Alpaca's WebSocket API for live stock and crypto data
  */
 
-const STOCK_WS_URL = 'wss://stream.data.alpaca.markets/v2/iex';
+const STOCK_WS_URL = 'wss://stream.data.alpaca.markets/v2/sip';
 const CRYPTO_WS_URL = 'wss://stream.data.alpaca.markets/v1beta3/crypto/us';
 
 const RECONNECT_DELAY = 3000;
@@ -28,6 +28,16 @@ export const useAlpacaStream = ({
   const cryptoReconnectRef = useRef(0);
   const keysRef = useRef(null);
 
+  const normalizeStockSymbols = useCallback(
+    (symbols = []) =>
+      [...new Set(
+        symbols
+          .map((symbol) => String(symbol || '').trim().replace(/^\$/, '').toUpperCase())
+          .filter(Boolean)
+      )],
+    []
+  );
+
   // Fetch API keys from backend
   const fetchKeys = useCallback(async () => {
     if (keysRef.current) return keysRef.current;
@@ -46,7 +56,8 @@ export const useAlpacaStream = ({
 
   // Connect to stock WebSocket
   const connectStockWs = useCallback(async () => {
-    if (!enabled || stockSymbols.length === 0) return;
+    const normalizedStockSymbols = normalizeStockSymbols(stockSymbols);
+    if (!enabled || normalizedStockSymbols.length === 0) return;
     
     const keys = await fetchKeys();
     if (!keys) return;
@@ -75,11 +86,16 @@ export const useAlpacaStream = ({
             stockReconnectRef.current = 0;
             
             // Subscribe to trades and quotes
+            console.log('[Stock WS] Subscribing:', normalizedStockSymbols.join(', '));
             ws.send(JSON.stringify({
               action: 'subscribe',
-              trades: stockSymbols,
-              quotes: stockSymbols
+              trades: normalizedStockSymbols,
+              quotes: normalizedStockSymbols
             }));
+          }
+
+          if (msg.T === 'subscription') {
+            console.log('[Stock WS] Subscription active:', msg);
           }
           
           if (msg.T === 'error') {
@@ -142,7 +158,7 @@ export const useAlpacaStream = ({
       console.error('[Stock WS] Connection error:', err);
       setError('Failed to connect to stock stream');
     }
-  }, [enabled, stockSymbols, fetchKeys]);
+  }, [enabled, stockSymbols, fetchKeys, normalizeStockSymbols]);
 
   // Connect to crypto WebSocket
   const connectCryptoWs = useCallback(async () => {
@@ -180,11 +196,16 @@ export const useAlpacaStream = ({
             cryptoReconnectRef.current = 0;
             
             // Subscribe to trades
+            console.log('[Crypto WS] Subscribing:', formattedSymbols.join(', '));
             ws.send(JSON.stringify({
               action: 'subscribe',
               trades: formattedSymbols,
               quotes: formattedSymbols
             }));
+          }
+
+          if (msg.T === 'subscription') {
+            console.log('[Crypto WS] Subscription active:', msg);
           }
           
           if (msg.T === 'error') {
@@ -252,14 +273,18 @@ export const useAlpacaStream = ({
 
   // Update subscriptions when symbols change
   const updateStockSubscriptions = useCallback((newSymbols) => {
+    const normalizedSymbols = normalizeStockSymbols(newSymbols);
+    if (normalizedSymbols.length === 0) return;
+
     if (stockWsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[Stock WS] Updating subscriptions:', normalizedSymbols.join(', '));
       stockWsRef.current.send(JSON.stringify({
         action: 'subscribe',
-        trades: newSymbols,
-        quotes: newSymbols
+        trades: normalizedSymbols,
+        quotes: normalizedSymbols
       }));
     }
-  }, []);
+  }, [normalizeStockSymbols]);
 
   const updateCryptoSubscriptions = useCallback((newSymbols) => {
     if (cryptoWsRef.current?.readyState === WebSocket.OPEN) {
