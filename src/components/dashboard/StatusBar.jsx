@@ -87,67 +87,119 @@ export default function StatusBar({
   const [sophiaLoading, setSophiaLoading] = useState(false);
   const sophiaAudioRef = useRef(null);
 
+  // Pre-fetch Sophia voice audio in background on page load
+  const prefetchedAudioUrl = useRef(null);
+  const prefetchAttempted = useRef(false);
+
+  useEffect(() => {
+    if (prefetchAttempted.current) return;
+    prefetchAttempted.current = true;
+
+    const prefetch = async () => {
+      try {
+        const res = await fetch('/api/sophia-copilot');
+        if (!res.ok) return;
+        const alerts = await res.json();
+        if (!Array.isArray(alerts) || alerts.length === 0) return;
+
+        // First check for cached audio in DB
+        const cached = alerts.find((a) => a.audio_url)?.audio_url;
+        if (cached) {
+          prefetchedAudioUrl.current = cached;
+          // Pre-load the audio file into browser cache
+          try { const a = new Audio(); a.preload = 'auto'; a.src = cached; } catch {}
+          return;
+        }
+
+        // No cached audio — generate it now in background (user hasn't clicked yet)
+        const text = alerts
+          .slice(0, 3)
+          .map((a) => `${a.symbol}: ${a.message}`)
+          .join('. ')
+          .slice(0, 400);
+
+        const speakRes = await fetch('/api/sophia-speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!speakRes.ok) return;
+        const data = await speakRes.json();
+        if (data.audio_url) {
+          prefetchedAudioUrl.current = data.audio_url;
+          try { const a = new Audio(); a.preload = 'auto'; a.src = data.audio_url; } catch {}
+        }
+      } catch {}
+    };
+    prefetch();
+  }, []);
+
   const handlePlaySophia = useCallback(async () => {
-    // Stop if already playing (audio or speech synthesis)
+    // Stop if playing
     if (sophiaAudioRef.current) {
       sophiaAudioRef.current.pause();
       sophiaAudioRef.current = null;
       setSophiaPlaying(false);
       return;
     }
-    if (window.speechSynthesis?.speaking) {
-      window.speechSynthesis.cancel();
-      setSophiaPlaying(false);
+
+    const url = prefetchedAudioUrl.current;
+
+    if (url) {
+      // Instant — audio already prefetched
+      const audio = new Audio(url);
+      sophiaAudioRef.current = audio;
+      audio.addEventListener('play', () => setSophiaPlaying(true));
+      audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+      audio.addEventListener('pause', () => setSophiaPlaying(false));
+      audio.addEventListener('error', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+      await audio.play();
       return;
     }
 
+    // Not prefetched yet — fetch now (first click was too fast)
     setSophiaLoading(true);
     try {
       const res = await fetch('/api/sophia-copilot');
       if (!res.ok) throw new Error('Failed');
       const alerts = await res.json();
-      if (!Array.isArray(alerts) || alerts.length === 0) {
-        setSophiaLoading(false);
-        return;
-      }
+      if (!Array.isArray(alerts) || alerts.length === 0) return;
 
-      // Check for pre-generated audio URL
-      const cachedAudio = alerts.find((a) => a.audio_url)?.audio_url;
+      const cached = alerts.find((a) => a.audio_url)?.audio_url;
+      let audioUrl = cached;
 
-      if (cachedAudio) {
-        // Instant playback from cached audio
-        const audio = new Audio(cachedAudio);
-        sophiaAudioRef.current = audio;
-        audio.addEventListener('play', () => setSophiaPlaying(true));
-        audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
-        audio.addEventListener('pause', () => setSophiaPlaying(false));
-        audio.addEventListener('error', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
-        setSophiaLoading(false);
-        await audio.play();
-      } else {
-        // Instant fallback: browser speech synthesis (no network call)
+      if (!audioUrl) {
         const text = alerts
           .slice(0, 3)
           .map((a) => `${a.symbol}: ${a.message}`)
           .join('. ')
-          .slice(0, 500);
+          .slice(0, 400);
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        // Try to pick a good female voice
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find((v) => v.name.includes('Samantha') || v.name.includes('Karen') || v.name.includes('Zira') || v.name.includes('Google UK English Female'));
-        if (preferred) utterance.voice = preferred;
-        utterance.onstart = () => setSophiaPlaying(true);
-        utterance.onend = () => setSophiaPlaying(false);
-        utterance.onerror = () => setSophiaPlaying(false);
-        setSophiaLoading(false);
-        window.speechSynthesis.speak(utterance);
+        const speakRes = await fetch('/api/sophia-speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (speakRes.ok) {
+          const data = await speakRes.json();
+          audioUrl = data.audio_url;
+        }
       }
+
+      if (!audioUrl) throw new Error('No audio');
+      prefetchedAudioUrl.current = audioUrl;
+
+      const audio = new Audio(audioUrl);
+      sophiaAudioRef.current = audio;
+      audio.addEventListener('play', () => setSophiaPlaying(true));
+      audio.addEventListener('ended', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+      audio.addEventListener('pause', () => setSophiaPlaying(false));
+      audio.addEventListener('error', () => { setSophiaPlaying(false); sophiaAudioRef.current = null; });
+      await audio.play();
     } catch (err) {
       console.error('Sophia play error:', err);
       setSophiaPlaying(false);
+    } finally {
       setSophiaLoading(false);
     }
   }, []);
