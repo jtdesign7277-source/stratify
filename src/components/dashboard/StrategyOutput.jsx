@@ -174,7 +174,7 @@ function parseKeyTradeSetupValuesFromLines(lines = []) {
 }
 
 function buildKeyTradeSetupsSection(values = []) {
-  const lines = ['🔥 Key Trade Setups'];
+  const lines = ['🔥 Key Trade Setups Identified'];
 
   CENTER_SETUP_LABELS.forEach((label, index) => {
     const value = withDollarTickers(String(values[index] ?? '').trim()) || '—';
@@ -272,7 +272,7 @@ function parseMarkdown(raw) {
       const heading = line.slice(3).trim();
       if (isKeyTradeSetupsHeading(heading)) {
         inKeyTradeSetups = true;
-        html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups</h2>');
+        html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups Identified</h2>');
       } else {
         inKeyTradeSetups = false;
         html.push(`<h2 class="text-emerald-400 text-lg font-bold mt-6 mb-2">${formatInline(heading)}</h2>`);
@@ -290,7 +290,7 @@ function parseMarkdown(raw) {
     // Plain heading without markdown marker
     if (isKeyTradeSetupsHeading(line)) {
       inKeyTradeSetups = true;
-      html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups</h2>');
+      html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups Identified</h2>');
       return;
     }
 
@@ -982,7 +982,7 @@ export default function StrategyOutput({
                   </div>
                 </div>
                 <div className="mt-3 rounded-xl border border-emerald-500/25 bg-[#06110d] p-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">🔥 Key Trade Setups</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">🔥 Key Trade Setups Identified</div>
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                     {CENTER_SETUP_LABELS.map((label, index) => (
                       <label key={label} className="flex flex-col gap-1">
@@ -1028,17 +1028,19 @@ export default function StrategyOutput({
                     View
                   </button>
                 )}
-                {isEditorModified && (
-                  <button
-                    type="button"
-                    onClick={saveEditor}
-                    disabled={isSavingEditor}
-                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
-                    {isSavingEditor ? 'Saving...' : 'Save'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={saveEditor}
+                  disabled={isSavingEditor || !isEditorModified}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:cursor-not-allowed ${
+                    isEditorModified
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-blue-900/40 text-white/60'
+                  }`}
+                >
+                  <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
+                  {isSavingEditor ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </div>
           </>
