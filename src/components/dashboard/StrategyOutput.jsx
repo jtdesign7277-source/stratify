@@ -20,7 +20,7 @@ const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const EDITOR_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
-const KEY_SETUPS_IDENTIFIED_REGEX = /key\s+setups\s+identified/i;
+const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
   '## ⚡ Real Trade Analysis (1M Lookbook)',
   '',
@@ -47,7 +47,7 @@ const getEditorTokenClassName = (token, isBold) => {
 const renderEditorSyntaxLine = (lineText = '', keyPrefix = 'editor-line') => {
   const text = String(lineText ?? '');
   if (!text.length) return <span className="text-gray-300">&nbsp;</span>;
-  if (text.startsWith('# ')) return <span className="text-white font-bold">{text}</span>;
+  if (text.startsWith('# ')) return <span className="text-white font-bold text-lg">{text}</span>;
   if (text.startsWith('## ')) return <span className="text-blue-400 font-semibold">{text}</span>;
 
   const parts = text.split(EDITOR_TOKEN_REGEX).filter((part) => part !== '');
@@ -487,6 +487,12 @@ export default function StrategyOutput({
     }));
   }, [checks, fieldValues, size, maxDay, stopPct, takePct, preChecks, active, saved, strategyRaw, storageKey]);
 
+  useEffect(() => () => {
+    if (editorSavedNoticeTimeoutRef.current) {
+      clearTimeout(editorSavedNoticeTimeoutRef.current);
+    }
+  }, []);
+
   const allChecked = checks.every(Boolean);
   const allPreChecked = preChecks.every(Boolean);
   const checkedCount = checks.filter(Boolean).length;
@@ -530,9 +536,12 @@ export default function StrategyOutput({
   );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
-  const editorHasChanges = String(editorValue || '') !== String(strategyRaw || '');
   const editorLineCount = useMemo(
     () => Math.max(1, String(editorValue || '').split('\n').length),
+    [editorValue],
+  );
+  const editorLines = useMemo(
+    () => String(editorValue || '').split('\n'),
     [editorValue],
   );
   const editorPreviewRaw = useMemo(
@@ -548,27 +557,40 @@ export default function StrategyOutput({
     [editorValue, fieldValues],
   );
 
+  const updateEditorValue = (nextValue) => {
+    const normalized = String(nextValue ?? '');
+    setEditorValue(normalized);
+    setIsEditorModified(normalized !== String(strategyRaw || ''));
+    setShowEditorSavedNotice(false);
+  };
+
   const handleEditorSetupValueChange = (setupIndex, value) => {
     const next = [...editorSetupValues];
     next[setupIndex] = value;
     const nextRaw = applyKeyTradeSetupsSection(editorValue || strategyRaw || s.raw || '', next);
-    setEditorValue(nextRaw);
+    updateEditorValue(nextRaw);
   };
 
   const openEditor = () => {
-    setEditorValue(String(strategyRaw || s.raw || ''));
+    const nextRaw = String(strategyRaw || s.raw || '');
+    setEditorValue(nextRaw);
+    setIsEditorModified(false);
+    setShowEditorSavedNotice(false);
     setIsPreviewingEdit(false);
     setIsEditingStrategyText(true);
   };
 
   const cancelEditor = () => {
-    setEditorValue(String(strategyRaw || s.raw || ''));
+    const nextRaw = String(strategyRaw || s.raw || '');
+    setEditorValue(nextRaw);
+    setIsEditorModified(false);
+    setShowEditorSavedNotice(false);
     setIsPreviewingEdit(false);
     setIsEditingStrategyText(false);
   };
 
   const saveEditor = async () => {
-    if (isSavingEditor || !editorHasChanges) return;
+    if (isSavingEditor || !isEditorModified) return;
     const nextRaw = String(editorValue || '');
     const ensured = ensureKeyTradeSetupsSection(nextRaw, fieldValues);
     const nextValues = mergeCenterValuesIntoFieldValues(fieldValues, ensured.values);
@@ -577,8 +599,17 @@ export default function StrategyOutput({
     setFieldValues(nextValues);
     setStrategyRaw(ensured.raw);
     setEditorValue(ensured.raw);
+    setIsEditorModified(false);
+    setShowEditorSavedNotice(true);
     setIsEditingStrategyText(false);
     setIsPreviewingEdit(false);
+
+    if (editorSavedNoticeTimeoutRef.current) {
+      clearTimeout(editorSavedNoticeTimeoutRef.current);
+    }
+    editorSavedNoticeTimeoutRef.current = setTimeout(() => {
+      setShowEditorSavedNotice(false);
+    }, 1500);
 
     try {
       await onContentSave?.({
@@ -608,6 +639,12 @@ export default function StrategyOutput({
     }
   };
 
+  const handleEditorScroll = (event) => {
+    if (!editorHighlightRef.current) return;
+    editorHighlightRef.current.scrollTop = event.target.scrollTop;
+    editorHighlightRef.current.scrollLeft = event.target.scrollLeft;
+  };
+
   const handleActivate = () => {
     if (!canActivate) return;
     setActive(true);
@@ -625,7 +662,8 @@ export default function StrategyOutput({
   const handleSave = async () => {
     if (!allChecked) return;
 
-    const normalizedRaw = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
+    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
+    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, fieldValues);
     setStrategyRaw(normalizedRaw);
     setSaveStatus('saving');
     const payload = {
@@ -729,7 +767,8 @@ export default function StrategyOutput({
   const handleSaveToSophia = async () => {
     if (isSavingToSophia || savedToSophia) return;
 
-    const normalizedRaw = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
+    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
+    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, fieldValues);
     const normalizedTicker = String(s.ticker || '').trim().replace(/^\$/, '').toUpperCase();
     const savedAt = Date.now();
     const savedAtIso = new Date(savedAt).toISOString();
@@ -885,6 +924,10 @@ export default function StrategyOutput({
           </div>
         </div>
 
+        {showEditorSavedNotice && !isEditingStrategyText && (
+          <div className="mb-3 text-sm font-medium text-emerald-400">Saved!</div>
+        )}
+
         {isEditingStrategyText ? (
           <>
             {isPreviewingEdit ? (
@@ -908,19 +951,34 @@ export default function StrategyOutput({
               <div>
                 <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
                   <div className="flex items-start">
-                    <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-emerald-700/80 text-right py-3 px-2 select-none">
+                    <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-gray-600 text-right py-3 px-2 select-none">
                       {Array.from({ length: editorLineCount }).map((_, index) => (
                         <div key={`line-${index + 1}`} className="leading-6">
                           {index + 1}
                         </div>
                       ))}
                     </div>
-                    <textarea
-                      value={editorValue}
-                      onChange={(event) => setEditorValue(event.target.value)}
-                      className="flex-1 min-h-[520px] bg-transparent px-3 py-3 font-mono text-sm leading-6 text-emerald-300 resize-none outline-none"
-                      spellCheck={false}
-                    />
+                    <div className="relative flex-1 min-h-[520px]">
+                      <pre
+                        ref={editorHighlightRef}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 overflow-hidden px-3 py-3 font-mono text-sm leading-6 whitespace-pre-wrap break-words"
+                      >
+                        {editorLines.map((line, index) => (
+                          <div key={`editor-syntax-line-${index}`} className="min-h-[24px]">
+                            {renderEditorSyntaxLine(line, `editor-line-${index}`)}
+                          </div>
+                        ))}
+                      </pre>
+                      <textarea
+                        ref={editorTextareaRef}
+                        value={editorValue}
+                        onChange={(event) => updateEditorValue(event.target.value)}
+                        onScroll={handleEditorScroll}
+                        className="relative z-10 flex-1 min-h-[520px] w-full bg-transparent px-3 py-3 font-mono text-sm leading-6 text-transparent caret-white selection:bg-blue-500/30 resize-none outline-none"
+                        spellCheck={false}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="mt-3 rounded-xl border border-emerald-500/25 bg-[#06110d] p-3">
@@ -940,45 +998,48 @@ export default function StrategyOutput({
                 </div>
               </div>
             )}
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={cancelEditor}
-                className="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
-              >
-                Cancel
-              </button>
-              {isPreviewingEdit ? (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="text-xs text-emerald-400 font-medium min-h-[20px]">
+                {showEditorSavedNotice ? 'Saved!' : ''}
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsPreviewingEdit(false)}
-                  className="border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+                  onClick={cancelEditor}
+                  className="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
                 >
-                  Back to Edit
+                  Cancel
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsPreviewingEdit(true)}
-                  className="inline-flex items-center gap-1.5 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
-                >
-                  <Eye className="h-4 w-4" strokeWidth={1.5} />
-                  View
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={saveEditor}
-                disabled={isSavingEditor || !editorHasChanges}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm text-white transition ${
-                  editorHasChanges
-                    ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.35)] animate-pulse'
-                    : 'bg-emerald-900/40 text-white/60'
-                } disabled:opacity-60 disabled:cursor-not-allowed`}
-              >
-                <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
-                {isSavingEditor ? 'Saving...' : 'Save'}
-              </button>
+                {isPreviewingEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewingEdit(false)}
+                    className="border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+                  >
+                    Back to Edit
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewingEdit(true)}
+                    className="inline-flex items-center gap-1.5 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+                  >
+                    <Eye className="h-4 w-4" strokeWidth={1.5} />
+                    View
+                  </button>
+                )}
+                {isEditorModified && (
+                  <button
+                    type="button"
+                    onClick={saveEditor}
+                    disabled={isSavingEditor}
+                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
+                    {isSavingEditor ? 'Saving...' : 'Save'}
+                  </button>
+                )}
+              </div>
             </div>
           </>
         ) : (

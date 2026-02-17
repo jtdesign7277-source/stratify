@@ -94,7 +94,7 @@ const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
-const KEY_SETUPS_IDENTIFIED_REGEX = /key\s+setups\s+identified/i;
+const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
   '## ⚡ Real Trade Analysis (1M Lookbook)',
   '',
