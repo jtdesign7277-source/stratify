@@ -229,7 +229,11 @@ export default function MarketIntelPage({ onClose, onViewed }) {
   // Sophia voice narration state
   const [isPlaying, setIsPlaying] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [wordTimestamps, setWordTimestamps] = useState([]);
   const audioRef = useRef(null);
+  const transcriptTimerRef = useRef(null);
+  const transcriptContainerRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -313,12 +317,62 @@ export default function MarketIntelPage({ onClose, onViewed }) {
       const data = await res.json();
       if (!data.audio_url) throw new Error('No audio URL');
 
+      // Extract word timestamps for typewriter sync
+      const timestamps = data.data?.data?.word_timestamps || data.data?.word_timestamps || [];
+      const words = timestamps.filter((w) => w.word !== '<start>' && w.word !== '<end>');
+      setWordTimestamps(words);
+      setTranscript('');
+
       const audio = new Audio(data.audio_url);
       audioRef.current = audio;
-      audio.addEventListener('play', () => setIsPlaying(true));
-      audio.addEventListener('ended', () => { setIsPlaying(false); audioRef.current = null; });
-      audio.addEventListener('pause', () => setIsPlaying(false));
-      audio.addEventListener('error', () => { setIsPlaying(false); audioRef.current = null; });
+
+      audio.addEventListener('play', () => {
+        setIsPlaying(true);
+        // Start typewriter synced to word timestamps
+        if (words.length > 0) {
+          const startTime = Date.now();
+          const tick = () => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            let visibleText = '';
+            for (const w of words) {
+              if (elapsed >= w.start) {
+                visibleText += (visibleText ? ' ' : '') + w.word;
+              } else {
+                break;
+              }
+            }
+            setTranscript(visibleText);
+            // Auto-scroll the transcript
+            if (transcriptContainerRef.current) {
+              transcriptContainerRef.current.scrollTop = transcriptContainerRef.current.scrollHeight;
+            }
+            if (elapsed < (words[words.length - 1]?.end || 999)) {
+              transcriptTimerRef.current = requestAnimationFrame(tick);
+            }
+          };
+          transcriptTimerRef.current = requestAnimationFrame(tick);
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        setIsPlaying(false);
+        audioRef.current = null;
+        if (transcriptTimerRef.current) cancelAnimationFrame(transcriptTimerRef.current);
+        // Show full text on end
+        setTranscript(words.map((w) => w.word).join(' '));
+      });
+
+      audio.addEventListener('pause', () => {
+        setIsPlaying(false);
+        if (transcriptTimerRef.current) cancelAnimationFrame(transcriptTimerRef.current);
+      });
+
+      audio.addEventListener('error', () => {
+        setIsPlaying(false);
+        audioRef.current = null;
+        if (transcriptTimerRef.current) cancelAnimationFrame(transcriptTimerRef.current);
+      });
+
       await audio.play();
     } catch (err) {
       console.error('Sophia voice error:', err);
@@ -450,6 +504,34 @@ export default function MarketIntelPage({ onClose, onViewed }) {
                   </span>
                 ))}
               </div>
+
+              {/* Sophia Voice Transcript */}
+              {(isPlaying || voiceLoading || transcript) && (
+                <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-[#0d1a0f] to-[#0a0f0b] p-5 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-emerald-500/[0.03] pointer-events-none" />
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={`w-2 h-2 rounded-full bg-emerald-400 ${isPlaying ? 'animate-pulse' : ''}`} />
+                    <span className="text-[11px] font-semibold text-emerald-300/80 tracking-widest uppercase">
+                      {voiceLoading ? 'Sophia is preparing...' : isPlaying ? 'Sophia is speaking' : 'Sophia\'s Briefing'}
+                    </span>
+                  </div>
+                  <div
+                    ref={transcriptContainerRef}
+                    className="max-h-[200px] overflow-y-auto text-sm text-zinc-200 leading-relaxed font-light"
+                  >
+                    {transcript || (voiceLoading ? '...' : '')}
+                    {isPlaying && <span className="inline-block w-0.5 h-4 bg-emerald-400 ml-0.5 animate-pulse align-middle" />}
+                  </div>
+                  {!isPlaying && transcript && (
+                    <button
+                      onClick={() => { setTranscript(''); setWordTimestamps([]); }}
+                      className="mt-3 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-2xl border border-[#1f1f1f] bg-[#090909] p-6">
                 <div className="market-intel-body" dangerouslySetInnerHTML={{ __html: renderedLatestHtml }} />

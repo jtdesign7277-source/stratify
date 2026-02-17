@@ -14,8 +14,8 @@ const CHECKLIST_ITEMS = [
 
 const FIELD_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'allocation'];
-const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss'];
-const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4];
+const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
+const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4, 5];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const EDITOR_TOKEN_REGEX = /(\*\*|\$[A-Z]{1,5}\b|[+-]?\$?\d[\d,]*(?:\.\d+)?%?|\d+:\d+|\|)/g;
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
@@ -157,6 +157,17 @@ function mergeCenterValuesIntoFieldValues(fieldValues = [], centerValues = []) {
 
 function parseKeyTradeSetupValuesFromLines(lines = []) {
   const valuesByLabel = new Map();
+  const normalizeLabel = (label = '') => String(label).toLowerCase().replace(/[^a-z]/g, '');
+  const resolveLabelKey = (label = '') => {
+    const normalized = normalizeLabel(label);
+    if (normalized.includes('entry')) return 'entrysignal';
+    if (normalized.includes('volume')) return 'volume';
+    if (normalized.includes('trend')) return 'trend';
+    if (normalized.includes('risk') && normalized.includes('reward')) return 'riskreward';
+    if (normalized.includes('stop') && normalized.includes('loss')) return 'stoploss';
+    if (normalized.includes('allocation') || normalized === 'amount' || normalized.includes('positionsize')) return 'allocation';
+    return normalized;
+  };
 
   lines.forEach((line) => {
     const normalized = stripSetupBulletPrefix(line).replace(/\*\*/g, '');
@@ -167,10 +178,10 @@ function parseKeyTradeSetupValuesFromLines(lines = []) {
     const rawValue = normalized.slice(separatorIndex + 1).replace(/\*\*/g, '').trim();
     if (!rawLabel) return;
 
-    valuesByLabel.set(rawLabel, rawValue);
+    valuesByLabel.set(resolveLabelKey(rawLabel), rawValue);
   });
 
-  return CENTER_SETUP_LABELS.map((label) => valuesByLabel.get(label.toLowerCase()) || '');
+  return CENTER_SETUP_LABELS.map((label) => valuesByLabel.get(resolveLabelKey(label)) || '');
 }
 
 function buildKeyTradeSetupsSection(values = []) {
@@ -525,11 +536,6 @@ export default function StrategyOutput({
     setEditValue('');
   };
 
-  const fields = FIELD_LABELS.map((label, i) => ({
-    label,
-    value: fieldValues[i] || '',
-  }));
-
   const renderedMarkdown = useMemo(
     () => parseMarkdown(strategyRaw || s.raw),
     [strategyRaw, s.raw],
@@ -556,6 +562,18 @@ export default function StrategyOutput({
     () => ensureKeyTradeSetupsSection(editorValue, fieldValues).values,
     [editorValue, fieldValues],
   );
+  const activeFieldValues = useMemo(
+    () => (
+      isEditingStrategyText
+        ? mergeCenterValuesIntoFieldValues(fieldValues, editorSetupValues)
+        : fieldValues
+    ),
+    [isEditingStrategyText, fieldValues, editorSetupValues],
+  );
+  const fields = FIELD_LABELS.map((label, i) => ({
+    label,
+    value: activeFieldValues[i] || '',
+  }));
 
   const updateEditorValue = (nextValue) => {
     const normalized = String(nextValue ?? '');
@@ -662,27 +680,27 @@ export default function StrategyOutput({
   const handleSave = async () => {
     if (!allChecked) return;
 
-    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
-    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, fieldValues);
+    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
+    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues);
     setStrategyRaw(normalizedRaw);
     setSaveStatus('saving');
     const payload = {
       ...s,
       raw: normalizedRaw,
       content: normalizedRaw,
-      entry: fieldValues[0],
-      volume: fieldValues[1],
-      trend: fieldValues[2],
-      riskReward: fieldValues[3],
-      stopLoss: fieldValues[4],
-      allocation: fieldValues[5],
+      entry: activeFieldValues[0],
+      volume: activeFieldValues[1],
+      trend: activeFieldValues[2],
+      riskReward: activeFieldValues[3],
+      stopLoss: activeFieldValues[4],
+      allocation: activeFieldValues[5],
       keyTradeSetups: {
-        entry: fieldValues[0],
-        volume: fieldValues[1],
-        trend: fieldValues[2],
-        riskReward: fieldValues[3],
-        stopLoss: fieldValues[4],
-        allocation: fieldValues[5],
+        entry: activeFieldValues[0],
+        volume: activeFieldValues[1],
+        trend: activeFieldValues[2],
+        riskReward: activeFieldValues[3],
+        stopLoss: activeFieldValues[4],
+        allocation: activeFieldValues[5],
       },
       checks,
       savedAt: Date.now(),
@@ -767,8 +785,8 @@ export default function StrategyOutput({
   const handleSaveToSophia = async () => {
     if (isSavingToSophia || savedToSophia) return;
 
-    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', fieldValues);
-    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, fieldValues);
+    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
+    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues);
     const normalizedTicker = String(s.ticker || '').trim().replace(/^\$/, '').toUpperCase();
     const savedAt = Date.now();
     const savedAtIso = new Date(savedAt).toISOString();
@@ -788,19 +806,19 @@ export default function StrategyOutput({
       savedToSophia: true,
       raw: normalizedRaw,
       content: normalizedRaw,
-      entry: fieldValues[0] || '',
-      volume: fieldValues[1] || '',
-      trend: fieldValues[2] || '',
-      riskReward: fieldValues[3] || '',
-      stopLoss: fieldValues[4] || '',
-      allocation: fieldValues[5] || '',
+      entry: activeFieldValues[0] || '',
+      volume: activeFieldValues[1] || '',
+      trend: activeFieldValues[2] || '',
+      riskReward: activeFieldValues[3] || '',
+      stopLoss: activeFieldValues[4] || '',
+      allocation: activeFieldValues[5] || '',
       keyTradeSetups: {
-        entry: fieldValues[0] || '',
-        volume: fieldValues[1] || '',
-        trend: fieldValues[2] || '',
-        riskReward: fieldValues[3] || '',
-        stopLoss: fieldValues[4] || '',
-        allocation: fieldValues[5] || '',
+        entry: activeFieldValues[0] || '',
+        volume: activeFieldValues[1] || '',
+        trend: activeFieldValues[2] || '',
+        riskReward: activeFieldValues[3] || '',
+        stopLoss: activeFieldValues[4] || '',
+        allocation: activeFieldValues[5] || '',
       },
       profit_return_data: performanceData,
       date: savedAtIso,
@@ -913,14 +931,57 @@ export default function StrategyOutput({
           </div>
           <div className="flex items-center gap-3 text-zinc-500 text-xs">
             <span>{new Date().toLocaleDateString()}</span>
-            <button
-              type="button"
-              onClick={openEditor}
-              className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
-            >
-              <span aria-hidden="true">✏️</span>
-              <span>Edit</span>
-            </button>
+            {isEditingStrategyText ? (
+              <>
+                <button
+                  type="button"
+                  onClick={cancelEditor}
+                  className="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-3 py-1.5 text-xs"
+                >
+                  Cancel
+                </button>
+                {isPreviewingEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewingEdit(false)}
+                    className="border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-3 py-1.5 text-xs"
+                  >
+                    Back to Edit
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewingEdit(true)}
+                    className="inline-flex items-center gap-1 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-3 py-1.5 text-xs"
+                  >
+                    <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    View
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={saveEditor}
+                  disabled={isSavingEditor || !isEditorModified}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors disabled:cursor-not-allowed ${
+                    isEditorModified
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-blue-900/40 text-white/60'
+                  }`}
+                >
+                  <SaveIcon className="h-3.5 w-3.5" strokeWidth={1.6} />
+                  {isSavingEditor ? 'Saving...' : 'Save'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={openEditor}
+                className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <span aria-hidden="true">✏️</span>
+                <span>Edit</span>
+              </button>
+            )}
           </div>
         </div>
 
