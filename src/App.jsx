@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
@@ -7,6 +7,7 @@ import SignUpPage from './components/auth/SignUpPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData } from './store/StratifyProvider';
 import { useAlpacaData } from './hooks/useAlpacaData';
+import useSubscription from './hooks/useSubscription';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from "./components/dashboard/BlueSkyFeed";
@@ -965,14 +966,19 @@ export class TeslaEMAStrategy extends Strategy {
   );
 };
 
-// Main App Component
+const PRO_CHECKOUT_PRICE_ID =
+  import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+
 function StratifyAppContent() {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+  const { isProUser, loading: subscriptionLoading } = useSubscription();
 
   const resolveInitialPage = () => {
-    if (typeof window !== 'undefined' && window.location.pathname.toLowerCase() === '/whitepaper') {
-      return 'whitepaper';
-    }
+    if (typeof window === 'undefined') return 'landing';
+
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/whitepaper') return 'whitepaper';
+    if (path === '/auth') return 'auth';
 
     return 'landing';
   };
@@ -982,6 +988,11 @@ function StratifyAppContent() {
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
   const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
+  const [isCheckoutRedirecting, setIsCheckoutRedirecting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+
+  const checkoutAttemptedRef = useRef(false);
+
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
 
@@ -1015,7 +1026,7 @@ function StratifyAppContent() {
 
     if (typeof window === 'undefined') return;
 
-    const nextPath = page === 'whitepaper' ? '/whitepaper' : '/';
+    const nextPath = page === 'whitepaper' ? '/whitepaper' : page === 'auth' ? '/auth' : '/';
 
     if (window.location.pathname !== nextPath) {
       window.history.pushState({ page }, '', nextPath);
@@ -1026,28 +1037,92 @@ function StratifyAppContent() {
     navigateToPage('auth');
   };
 
+  const startCheckout = useCallback(async () => {
+    if (!user?.id || !user?.email) {
+      setCheckoutError('Please sign in again to continue with Stripe checkout.');
+      return;
+    }
+
+    if (!PRO_CHECKOUT_PRICE_ID) {
+      setCheckoutError('Missing Stripe price configuration.');
+      return;
+    }
+
+    setCheckoutError('');
+    setIsCheckoutRedirecting(true);
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId: PRO_CHECKOUT_PRICE_ID,
+          userId: user.id,
+          userEmail: user.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to start checkout.');
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
+        return;
+      }
+
+      throw new Error('Stripe checkout URL missing.');
+    } catch (error) {
+      setCheckoutError(error?.message || 'Unable to redirect to Stripe checkout.');
+      setIsCheckoutRedirecting(false);
+    }
+  }, [user?.email, user?.id]);
+
   const mainContent =
-    currentPage === 'landing' ? (
-      <LandingPage
-        onEnter={() => navigateToPage('dashboard')}
-        onSignUp={() => {
-          if (isAuthenticated) {
-            navigateToPage('dashboard');
-            return;
-          }
-          openAuth();
-        }}
-        isAuthenticated={isAuthenticated}
-      />
-    ) : currentPage === 'whitepaper' ? (
+    currentPage === 'whitepaper' ? (
       <WhitePaperPage
         onBackHome={() => navigateToPage(isAuthenticated ? 'dashboard' : 'landing')}
+        onGetStarted={() => navigateToPage('auth')}
       />
-    ) : currentPage === 'auth' ? (
-      <SignUpPage
-        onSuccess={() => navigateToPage('dashboard')}
-        onBackToLanding={() => navigateToPage('landing')}
-      />
+    ) : !isAuthenticated ? (
+      currentPage === 'auth' ? (
+        <SignUpPage
+          onSuccess={() => navigateToPage('dashboard')}
+          onBackToLanding={() => navigateToPage('landing')}
+        />
+      ) : (
+        <LandingPage
+          onEnter={() => navigateToPage('auth')}
+          onSignUp={() => navigateToPage('auth')}
+          isAuthenticated={isAuthenticated}
+        />
+      )
+    ) : !isProUser ? (
+      <div className="min-h-screen bg-[#060d18] text-white flex items-center justify-center px-6">
+        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
+          <h1 className="text-2xl font-semibold">Complete Your Stratify Subscription</h1>
+          <p className="mt-3 text-sm text-white/70">
+            Access to War Room, Terminal, Trade, Portfolio, and all dashboard tools requires an active
+            subscription at $9.99/month.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              checkoutAttemptedRef.current = true;
+              startCheckout();
+            }}
+            disabled={isCheckoutRedirecting}
+            className="mt-6 inline-flex items-center justify-center rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isCheckoutRedirecting ? 'Redirecting to Stripe...' : 'Continue to Stripe Checkout ($9.99/mo)'}
+          </button>
+          {checkoutError ? (
+            <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
+          ) : null}
+        </div>
+      </div>
     ) : (
       <Dashboard
         setCurrentPage={navigateToPage}
@@ -1073,13 +1148,12 @@ function StratifyAppContent() {
         return;
       }
 
-      setCurrentPage((prev) => {
-        if (prev === 'whitepaper') {
-          return isAuthenticated ? 'dashboard' : 'landing';
-        }
+      if (path === '/auth') {
+        setCurrentPage(isAuthenticated ? 'dashboard' : 'auth');
+        return;
+      }
 
-        return prev;
-      });
+      setCurrentPage(isAuthenticated ? 'dashboard' : 'landing');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -1087,18 +1161,43 @@ function StratifyAppContent() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated && currentPage === 'auth') {
+    if (!isAuthenticated) {
+      checkoutAttemptedRef.current = false;
+      if (currentPage === 'dashboard') {
+        openAuth();
+      }
+      return;
+    }
+
+    if (currentPage === 'landing' || currentPage === 'auth') {
       navigateToPage('dashboard');
     }
   }, [currentPage, isAuthenticated]);
 
   useEffect(() => {
-    if (currentPage === 'dashboard' && !isAuthenticated) {
-      openAuth();
+    if (!isAuthenticated || currentPage === 'whitepaper') {
+      checkoutAttemptedRef.current = false;
+      return;
     }
-  }, [currentPage, isAuthenticated]);
 
-  if (loading) {
+    if (subscriptionLoading || isProUser) {
+      if (isProUser) {
+        setCheckoutError('');
+        setIsCheckoutRedirecting(false);
+      }
+      checkoutAttemptedRef.current = false;
+      return;
+    }
+
+    if (checkoutAttemptedRef.current) {
+      return;
+    }
+
+    checkoutAttemptedRef.current = true;
+    startCheckout();
+  }, [currentPage, isAuthenticated, isProUser, startCheckout, subscriptionLoading]);
+
+  if (loading || (isAuthenticated && subscriptionLoading)) {
     return (
       <div className="min-h-screen bg-[#07070a] text-white flex items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-4 text-sm text-gray-300">

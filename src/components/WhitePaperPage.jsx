@@ -23,7 +23,7 @@ const AMBER_BULLET = ({ children }) => (
   </li>
 );
 
-export default function WhitePaperPage({ onBackHome }) {
+export default function WhitePaperPage({ onBackHome, onGetStarted }) {
   const [activeSection, setActiveSection] = useState(TOC_ITEMS[0].id);
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
 
@@ -70,6 +70,15 @@ export default function WhitePaperPage({ onBackHome }) {
       event.preventDefault();
       onBackHome();
     }
+  };
+
+  const handleGetStarted = () => {
+    if (onGetStarted) {
+      onGetStarted();
+      return;
+    }
+
+    window.location.assign('/auth');
   };
 
   return (
@@ -428,13 +437,13 @@ export default function WhitePaperPage({ onBackHome }) {
               <section id="final-cta" className="scroll-mt-24 pb-4">
                 <h2 className="text-white text-2xl font-semibold mb-4">READY TO TRADE SMARTER?</h2>
                 <p className={BODY_CLASS}>Get your Stratify API key and take control.</p>
-                <a
-                  href="/"
-                  onClick={handleNavigateHome}
+                <button
+                  type="button"
+                  onClick={handleGetStarted}
                   className="inline-flex items-center gap-2 bg-amber-500 text-black font-bold px-6 py-3 rounded-xl hover:bg-amber-600 transition-colors no-print"
                 >
-                  Start Free — No Credit Card Required
-                </a>
+                  Get Started — $9.99/mo
+                </button>
                 <div className="mt-6">
                   <a
                     href="https://stratify.associates"

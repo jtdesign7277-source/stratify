@@ -249,14 +249,11 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
   }, []);
 
   const handleGetStarted = () => {
-    if (isAuthenticated) {
-      onEnter?.();
-      return;
-    }
     if (onSignUp) {
       onSignUp();
       return;
     }
+
     onEnter?.();
   };
 
@@ -304,7 +301,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
                 onClick={handleGetStarted}
                 className="bg-amber-500 hover:bg-amber-600 text-black font-bold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
               >
-                Get Started Free
+                Get Started — $9.99/mo
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
               </button>
               <a
@@ -509,7 +506,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
               onClick={handleGetStarted}
               className="mt-8 bg-amber-500 hover:bg-amber-600 text-black font-bold px-8 py-3 rounded-xl transition-colors"
             >
-              Start Free - No Credit Card Required
+              Get Started — $9.99/mo
             </button>
             <p className="mt-5 text-sm text-gray-500">
               <a href="https://stratify.associates" className="text-amber-400 hover:text-amber-300 transition-colors">
