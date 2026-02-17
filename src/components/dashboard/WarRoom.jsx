@@ -928,6 +928,11 @@ export default function WarRoom({ onClose }) {
                 const sources = toSourceLinks(card.sources);
                 const isSaved = savedIds.has(String(card.id));
                 const menuOpen = saveMenu.cardId === card.id;
+                const quickSaveFolderId =
+                  selectedFolder?.id ||
+                  folders.find((folder) => folder.name.toLowerCase() === 'custom')?.id ||
+                  folders[0]?.id ||
+                  'Custom';
 
                 return (
                   <article
@@ -1046,6 +1051,35 @@ export default function WarRoom({ onClose }) {
                         </div>
                       </div>
                     ) : null}
+
+                    <div className="mt-4 pt-3 border-t border-gray-800/70 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveToFolder(card, quickSaveFolderId)}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          isSaved
+                            ? 'border-amber-500/35 bg-amber-500/15 text-amber-300'
+                            : 'border-amber-500/35 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'
+                        }`}
+                      >
+                        <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-amber-400' : ''}`} strokeWidth={1.5} />
+                        {isSaved ? 'Saved Intel' : 'Save Intel'}
+                      </button>
+                      <button
+                        type="button"
+                        data-save-trigger
+                        onClick={() =>
+                          setSaveMenu((prev) =>
+                            prev.cardId === card.id
+                              ? { cardId: null, showNewFolder: false, newFolderName: '' }
+                              : { cardId: card.id, showNewFolder: false, newFolderName: '' }
+                          )
+                        }
+                        className="rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+                      >
+                        Choose Folder
+                      </button>
+                    </div>
                   </article>
                 );
               })}
