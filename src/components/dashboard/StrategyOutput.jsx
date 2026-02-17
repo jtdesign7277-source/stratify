@@ -76,7 +76,14 @@ function formatInline(text) {
   return text;
 }
 
-export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onRetest }) {
+export default function StrategyOutput({
+  strategy,
+  onSave,
+  onDeploy,
+  onBack,
+  onRetest,
+  onContentSave,
+}) {
   const s = strategy || {};
   const storageKey = `stratify-activation-${s.id || s.generatedAt || s.name || 'default'}`;
   const defaultFieldValues = useMemo(
@@ -98,6 +105,10 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
   const [preChecks, setPreChecks] = useState(Array(6).fill(false));
   const [active, setActive] = useState(false);
   const [cardsCollapsed, setCardsCollapsed] = useState(false);
+  const [strategyRaw, setStrategyRaw] = useState(() => String(s.raw || ''));
+  const [isEditingStrategyText, setIsEditingStrategyText] = useState(false);
+  const [editorValue, setEditorValue] = useState(() => String(s.raw || ''));
+  const [isSavingEditor, setIsSavingEditor] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -112,6 +123,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
     let nextMaxDay = '';
     let nextStopPct = '';
     let nextTakePct = '';
+    let nextStrategyRaw = String(s.raw || '');
 
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey));
@@ -130,6 +142,7 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         if (stored.maxDay) nextMaxDay = stored.maxDay;
         if (stored.stopPct) nextStopPct = stored.stopPct;
         if (stored.takePct) nextTakePct = stored.takePct;
+        if (typeof stored.editedRaw === 'string') nextStrategyRaw = stored.editedRaw;
       }
     } catch {}
 
@@ -145,9 +158,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
     setMaxDay(nextMaxDay);
     setStopPct(nextStopPct);
     setTakePct(nextTakePct);
+    setStrategyRaw(nextStrategyRaw);
+    setEditorValue(nextStrategyRaw);
+    setIsEditingStrategyText(false);
+    setIsSavingEditor(false);
     setEditing(null);
     setEditValue('');
-  }, [storageKey, defaultFieldValues]);
+  }, [storageKey, defaultFieldValues, s.raw]);
 
   // Save to localStorage
   useEffect(() => {
@@ -162,8 +179,9 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
       preChecks,
       active,
       saved,
+      editedRaw: strategyRaw,
     }));
-  }, [checks, fieldValues, size, maxDay, stopPct, takePct, preChecks, active, saved, storageKey]);
+  }, [checks, fieldValues, size, maxDay, stopPct, takePct, preChecks, active, saved, strategyRaw, storageKey]);
 
   const allChecked = checks.every(Boolean);
   const allPreChecked = preChecks.every(Boolean);
@@ -196,9 +214,47 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
     value: fieldValues[i] || '',
   }));
 
-  const renderedMarkdown = useMemo(() => parseMarkdown(s.raw), [s.raw]);
+  const renderedMarkdown = useMemo(
+    () => parseMarkdown(strategyRaw || s.raw),
+    [strategyRaw, s.raw],
+  );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
+  const editorLineCount = useMemo(
+    () => Math.max(1, String(editorValue || '').split('\n').length),
+    [editorValue],
+  );
+
+  const openEditor = () => {
+    setEditorValue(String(strategyRaw || s.raw || ''));
+    setIsEditingStrategyText(true);
+  };
+
+  const cancelEditor = () => {
+    setEditorValue(String(strategyRaw || s.raw || ''));
+    setIsEditingStrategyText(false);
+  };
+
+  const saveEditor = async () => {
+    if (isSavingEditor) return;
+    const nextRaw = String(editorValue || '');
+    setIsSavingEditor(true);
+    setStrategyRaw(nextRaw);
+    setIsEditingStrategyText(false);
+
+    try {
+      await onContentSave?.({
+        ...s,
+        raw: nextRaw,
+        content: nextRaw,
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      console.warn('[StrategyOutput] Content save failed, local copy kept:', error);
+    } finally {
+      setIsSavingEditor(false);
+    }
+  };
 
   const handleActivate = () => {
     if (!canActivate) return;
@@ -321,7 +377,13 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="text-zinc-500 hover:text-white transition text-lg">←</button>
+            <button
+              onClick={onBack}
+              className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              <span aria-hidden="true">←</span>
+              <span>Back</span>
+            </button>
             <h1 className="text-white text-xl font-bold">{s.name || 'Strategy'}</h1>
             {s.ticker && (
               <span className="text-xs font-mono px-2 py-0.5 border border-emerald-500/40 text-emerald-400 rounded">
@@ -331,15 +393,60 @@ export default function StrategyOutput({ strategy, onSave, onDeploy, onBack, onR
           </div>
           <div className="flex items-center gap-3 text-zinc-500 text-xs">
             <span>{new Date().toLocaleDateString()}</span>
-            <button className="hover:text-white transition">✏️</button>
+            <button
+              type="button"
+              onClick={openEditor}
+              className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+            >
+              <span aria-hidden="true">✏️</span>
+              <span>Edit</span>
+            </button>
           </div>
         </div>
 
-        {/* Rendered markdown */}
-        <div
-          className="leading-relaxed text-zinc-300"
-          dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
-        />
+        {isEditingStrategyText ? (
+          <>
+            <div className="rounded-xl border border-gray-700/70 bg-[#0d1117] overflow-hidden">
+              <div className="flex items-start">
+                <div className="w-12 shrink-0 border-r border-gray-800 bg-black/35 text-[11px] font-mono text-emerald-700/80 text-right py-3 px-2 select-none">
+                  {Array.from({ length: editorLineCount }).map((_, index) => (
+                    <div key={`line-${index + 1}`} className="leading-6">
+                      {index + 1}
+                    </div>
+                  ))}
+                </div>
+                <textarea
+                  value={editorValue}
+                  onChange={(event) => setEditorValue(event.target.value)}
+                  className="flex-1 min-h-[520px] bg-transparent px-3 py-3 font-mono text-sm leading-6 text-emerald-300 resize-none outline-none"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelEditor}
+                className="border border-gray-600 text-gray-400 hover:text-white hover:border-gray-400 transition-colors rounded-lg px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEditor}
+                disabled={isSavingEditor}
+                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm"
+              >
+                {isSavingEditor ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div
+            className="leading-relaxed text-zinc-300"
+            dangerouslySetInnerHTML={{ __html: renderedMarkdown }}
+          />
+        )}
       </div>
 
       {/* RIGHT SIDE */}

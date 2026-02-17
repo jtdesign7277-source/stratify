@@ -708,6 +708,9 @@ const TerminalStrategyWorkspace = ({
             onSave={(strategy) => {
               onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
             }}
+            onContentSave={(strategy) => {
+              onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
+            }}
             onDeploy={(activation) => {
               onDeployStrategy?.({
                 ...selectedStrategy,
