@@ -1821,6 +1821,7 @@ export default function Dashboard({
                 });
 
                 setSophiaStrategy((prev) => (prev ? { ...prev, savedToSophia: true } : prev));
+                setActiveTab('terminal');
               }}
               onDeploy={(strategy) => {
                 const toDeploy = {
