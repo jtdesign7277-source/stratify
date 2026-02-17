@@ -21,6 +21,7 @@ import BrokerConnectModal from './BrokerConnectModal';
 import NewsletterPage from './NewsletterPage';
 import MarketIntelPage from './MarketIntelPage';
 import SophiaCopilot from './SophiaCopilot';
+import WarRoom from './WarRoom';
 import SettingsPage from './SettingsPage';
 import TerminalStrategyWorkspace from './TerminalStrategyWorkspace';
 import ProGate from '../ProGate';
@@ -1759,6 +1760,7 @@ export default function Dashboard({
             </ProGate>
           )}
           {activeTab === 'advanced' && <AdvancedChartsPage />}
+          {activeTab === 'war-room' && <WarRoom />}
           {activeTab === 'grok' && <DemoPanel />}
           {activeTab === 'backtest-wizard' && (
             <BacktestWizard

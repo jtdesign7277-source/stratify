@@ -20,6 +20,7 @@ import {
   Trash2,
   TrendingUp,
   Terminal,
+  Shield,
   MessageCircle,
   LogOut
 } from 'lucide-react';
@@ -67,6 +68,7 @@ const Sidebar = ({
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
+    { id: 'war-room', label: 'War Room', icon: Shield, isNew: true, labelClass: 'font-semibold text-red-400' },
     { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
