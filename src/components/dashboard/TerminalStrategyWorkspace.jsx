@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ChevronsLeft,
+  ChevronsRight,
   ChevronRight,
   Folder,
   FolderPlus,
@@ -488,6 +490,7 @@ const TerminalStrategyWorkspace = ({
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [deletingStrategyId, setDeletingStrategyId] = useState(null);
+  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
 
   const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
@@ -722,151 +725,181 @@ const TerminalStrategyWorkspace = ({
 
   return (
     <div className="h-full w-full bg-[#0b0b0b] flex overflow-hidden">
-      <aside className="w-[250px] shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col">
-        <div className="px-4 py-4 border-b border-[#1f1f1f]">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold tracking-wide text-white">Strategy Folders</h2>
-              <p className="text-[11px] text-white/45 mt-0.5">{allStrategies.length} strategies</p>
-            </div>
+      <aside className={`${foldersCollapsed ? 'w-10' : 'w-[250px]'} shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col transition-all duration-200`}>
+        {foldersCollapsed ? (
+          <div className="h-full flex flex-col items-center py-3">
             <button
               type="button"
-              onClick={() => setShowNewFolder((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/15"
+              onClick={() => setFoldersCollapsed(false)}
+              className="inline-flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900/50 p-1.5 text-zinc-400 transition-colors hover:text-white hover:border-zinc-500"
+              title="Expand strategy folders"
+              aria-label="Expand strategy folders"
             >
-              <FolderPlus className="h-3.5 w-3.5" strokeWidth={1.8} />
-              New Folder
+              <ChevronsRight className="h-4 w-4" strokeWidth={1.8} />
             </button>
           </div>
+        ) : (
+          <>
+            <div className="px-4 py-4 border-b border-[#1f1f1f]">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-semibold tracking-wide text-white">Strategy Folders</h2>
+                  <p className="text-[11px] text-white/45 mt-0.5">{allStrategies.length} strategies</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewFolder((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/15"
+                  >
+                    <FolderPlus className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    New Folder
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewFolder(false);
+                      setFoldersCollapsed(true);
+                    }}
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900/50 p-1.5 text-zinc-400 transition-colors hover:text-white hover:border-zinc-500"
+                    title="Collapse strategy folders"
+                    aria-label="Collapse strategy folders"
+                  >
+                    <ChevronsLeft className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                </div>
+              </div>
 
-          {showNewFolder && (
-            <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/50 px-2 py-2">
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(event) => setNewFolderName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') createFolder();
-                  if (event.key === 'Escape') {
-                    setShowNewFolder(false);
-                    setNewFolderName('');
-                  }
-                }}
-                placeholder="Folder name..."
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={createFolder}
-                disabled={!newFolderName.trim()}
-                className="rounded-md border border-emerald-500/35 bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
-              >
-                Add
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'none' }}>
-          {folders.map((folder) => {
-            const hasStrategies = folder.strategies.length > 0;
-
-            return (
-              <div key={folder.id} className="mb-2">
-                <button
-                  type="button"
-                  onClick={() => toggleFolderExpanded(folder.id)}
-                  className="w-full flex items-center gap-2 rounded-lg px-2 py-2 border border-transparent hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors"
-                >
-                  <ChevronRight
-                    className={`h-3.5 w-3.5 text-white/50 transition-transform ${folder.isExpanded ? 'rotate-90' : ''}`}
-                    strokeWidth={2}
+              {showNewFolder && (
+                <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/50 px-2 py-2">
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(event) => setNewFolderName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') createFolder();
+                      if (event.key === 'Escape') {
+                        setShowNewFolder(false);
+                        setNewFolderName('');
+                      }
+                    }}
+                    placeholder="Folder name..."
+                    className="flex-1 bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+                    autoFocus
                   />
-                  {renderFolderIcon(folder.id)}
-                  <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/90">
-                    {folder.name}
-                  </span>
-                  <span className="rounded-md border border-zinc-700 bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-semibold text-white/55">
-                    {folder.strategies.length}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={createFolder}
+                    disabled={!newFolderName.trim()}
+                    className="rounded-md border border-emerald-500/35 bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+            </div>
 
-                {folder.isExpanded && (
-                  <div className="ml-6 border-l border-zinc-800 pl-2">
-                    {hasStrategies ? (
-                      folder.strategies.map((strategy) => {
-                        const id = String(strategy.id);
-                        const isSelected = id === String(selectedStrategyId || '');
-                        const profitText = formatProfit(strategy.profit);
-                        const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
-                        const isDeleting = deletingStrategyId === id;
-                        const displayTicker = normalizeTickerSymbol(strategy.ticker);
+            <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'none' }}>
+              {folders.map((folder) => {
+                const hasStrategies = folder.strategies.length > 0;
 
-                        return (
-                          <div key={id} className="group relative my-1">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedStrategyId(id)}
-                              className={`w-full text-left rounded-lg border px-2.5 py-2 pr-9 transition-colors ${
-                                isSelected
-                                  ? 'border-emerald-500/45 bg-emerald-500/12'
-                                  : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate text-sm font-semibold text-white/95">
-                                    {renderTickerText(strategy.name, `strategy-list-name-${id}`)}
+                return (
+                  <div key={folder.id} className="mb-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleFolderExpanded(folder.id)}
+                      className="w-full flex items-center gap-2 rounded-lg px-2 py-2 border border-transparent hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors"
+                    >
+                      <ChevronRight
+                        className={`h-3.5 w-3.5 text-white/50 transition-transform ${folder.isExpanded ? 'rotate-90' : ''}`}
+                        strokeWidth={2}
+                      />
+                      {renderFolderIcon(folder.id)}
+                      <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/90">
+                        {folder.name}
+                      </span>
+                      <span className="rounded-md border border-zinc-700 bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-semibold text-white/55">
+                        {folder.strategies.length}
+                      </span>
+                    </button>
+
+                    {folder.isExpanded && (
+                      <div className="ml-6 border-l border-zinc-800 pl-2">
+                        {hasStrategies ? (
+                          folder.strategies.map((strategy) => {
+                            const id = String(strategy.id);
+                            const isSelected = id === String(selectedStrategyId || '');
+                            const profitText = formatProfit(strategy.profit);
+                            const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
+                            const isDeleting = deletingStrategyId === id;
+                            const displayTicker = normalizeTickerSymbol(strategy.ticker);
+
+                            return (
+                              <div key={id} className="group relative my-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedStrategyId(id)}
+                                  className={`w-full text-left rounded-lg border px-2.5 py-2 pr-9 transition-colors ${
+                                    isSelected
+                                      ? 'border-emerald-500/45 bg-emerald-500/12'
+                                      : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-sm font-semibold text-white/95">
+                                        {renderTickerText(strategy.name, `strategy-list-name-${id}`)}
+                                      </div>
+                                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                        {displayTicker && (
+                                          <span className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400 font-semibold">
+                                            ${displayTicker}
+                                          </span>
+                                        )}
+                                        <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
+                                        {profitText && (
+                                          <span
+                                            className={`text-[11px] font-semibold ${
+                                              strategy.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'
+                                            }`}
+                                          >
+                                            {profitText}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {isLive && <Play className="h-3.5 w-3.5 text-emerald-300 mt-0.5" strokeWidth={1.7} />}
                                   </div>
-                                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                    {displayTicker && (
-                                      <span className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400 font-semibold">
-                                        ${displayTicker}
-                                      </span>
-                                    )}
-                                    <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
-                                    {profitText && (
-                                      <span
-                                        className={`text-[11px] font-semibold ${
-                                          strategy.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'
-                                        }`}
-                                      >
-                                        {profitText}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                                </button>
 
-                                {isLive && <Play className="h-3.5 w-3.5 text-emerald-300 mt-0.5" strokeWidth={1.7} />}
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleDeleteStrategy(id);
+                                  }}
+                                  disabled={isDeleting}
+                                  className="absolute right-2 top-2 inline-flex items-center justify-center rounded p-1 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-rose-300 transition-opacity disabled:opacity-60"
+                                  aria-label={`Delete ${strategy.name}`}
+                                  title="Delete strategy"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                                </button>
                               </div>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleDeleteStrategy(id);
-                              }}
-                              disabled={isDeleting}
-                              className="absolute right-2 top-2 inline-flex items-center justify-center rounded p-1 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-rose-300 transition-opacity disabled:opacity-60"
-                              aria-label={`Delete ${strategy.name}`}
-                              title="Delete strategy"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
-                            </button>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="py-2 text-[11px] italic text-white/35">No strategies yet</div>
+                            );
+                          })
+                        ) : (
+                          <div className="py-2 text-[11px] italic text-white/35">No strategies yet</div>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </aside>
 
       <div className="flex-1 min-w-0 overflow-hidden">
