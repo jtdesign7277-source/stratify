@@ -250,6 +250,30 @@ function applyKeyTradeSetupsSection(raw, values = []) {
   return trimmedBody ? `${trimmedBody}\n\n${section}` : section;
 }
 
+function normalizeEditorContent(raw) {
+  const text = String(raw ?? '').replace(/\r\n/g, '\n');
+  const lines = text.split('\n');
+  const compact = [];
+  let blankRun = 0;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (!line.trim()) {
+      blankRun += 1;
+      if (blankRun <= 1) compact.push('');
+    } else {
+      blankRun = 0;
+      compact.push(line);
+    }
+  }
+
+  while (compact.length > 1 && !String(compact[compact.length - 1] || '').trim()) {
+    compact.pop();
+  }
+
+  return compact.join('\n').trimEnd();
+}
+
 function extractPerformanceData(strategy = {}) {
   const raw = String(strategy.raw || '');
   const findMetric = (pattern) => raw.match(pattern)?.[1]?.trim() || '';
@@ -400,11 +424,11 @@ export default function StrategyOutput({
   const [active, setActive] = useState(false);
   const [cardsCollapsed, setCardsCollapsed] = useState(false);
   const [strategyRaw, setStrategyRaw] = useState(() =>
-    ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw
+    normalizeEditorContent(ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw)
   );
   const [isEditingStrategyText, setIsEditingStrategyText] = useState(false);
   const [editorValue, setEditorValue] = useState(() =>
-    ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw
+    normalizeEditorContent(ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw)
   );
   const [isSavingEditor, setIsSavingEditor] = useState(false);
   const [isEditorModified, setIsEditorModified] = useState(false);
@@ -453,7 +477,7 @@ export default function StrategyOutput({
     } catch {}
 
     const ensured = ensureKeyTradeSetupsSection(nextStrategyRaw, nextFieldValues);
-    nextStrategyRaw = ensured.raw;
+    nextStrategyRaw = normalizeEditorContent(ensured.raw);
     nextFieldValues = mergeCenterValuesIntoFieldValues(nextFieldValues, ensured.values);
 
     if (!nextSaved) nextActive = false;
@@ -582,6 +606,19 @@ export default function StrategyOutput({
     setShowEditorSavedNotice(false);
   };
 
+  const resetEditorScroll = () => {
+    requestAnimationFrame(() => {
+      if (editorTextareaRef.current) {
+        editorTextareaRef.current.scrollTop = 0;
+        editorTextareaRef.current.scrollLeft = 0;
+      }
+      if (editorHighlightRef.current) {
+        editorHighlightRef.current.scrollTop = 0;
+        editorHighlightRef.current.scrollLeft = 0;
+      }
+    });
+  };
+
   const handleEditorSetupValueChange = (setupIndex, value) => {
     const next = [...editorSetupValues];
     next[setupIndex] = value;
@@ -590,33 +627,36 @@ export default function StrategyOutput({
   };
 
   const openEditor = () => {
-    const nextRaw = String(strategyRaw || s.raw || '');
+    const nextRaw = normalizeEditorContent(strategyRaw || s.raw || '');
     setEditorValue(nextRaw);
     setIsEditorModified(false);
     setShowEditorSavedNotice(false);
     setIsPreviewingEdit(false);
     setIsEditingStrategyText(true);
+    resetEditorScroll();
   };
 
   const cancelEditor = () => {
-    const nextRaw = String(strategyRaw || s.raw || '');
+    const nextRaw = normalizeEditorContent(strategyRaw || s.raw || '');
     setEditorValue(nextRaw);
     setIsEditorModified(false);
     setShowEditorSavedNotice(false);
     setIsPreviewingEdit(false);
     setIsEditingStrategyText(false);
+    resetEditorScroll();
   };
 
   const saveEditor = async () => {
     if (isSavingEditor || !isEditorModified) return;
-    const nextRaw = String(editorValue || '');
+    const nextRaw = normalizeEditorContent(editorValue || '');
     const ensured = ensureKeyTradeSetupsSection(nextRaw, fieldValues);
+    const finalizedRaw = normalizeEditorContent(ensured.raw);
     const nextValues = mergeCenterValuesIntoFieldValues(fieldValues, ensured.values);
 
     setIsSavingEditor(true);
     setFieldValues(nextValues);
-    setStrategyRaw(ensured.raw);
-    setEditorValue(ensured.raw);
+    setStrategyRaw(finalizedRaw);
+    setEditorValue(finalizedRaw);
     setIsEditorModified(false);
     setShowEditorSavedNotice(true);
     setIsEditingStrategyText(false);
@@ -632,8 +672,8 @@ export default function StrategyOutput({
     try {
       await onContentSave?.({
         ...s,
-        raw: ensured.raw,
-        content: ensured.raw,
+        raw: finalizedRaw,
+        content: finalizedRaw,
         entry: nextValues[0],
         volume: nextValues[1],
         trend: nextValues[2],
@@ -681,7 +721,7 @@ export default function StrategyOutput({
     if (!allChecked) return;
 
     const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
-    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues);
+    const normalizedRaw = normalizeEditorContent(ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues));
     setStrategyRaw(normalizedRaw);
     setSaveStatus('saving');
     const payload = {
@@ -786,7 +826,7 @@ export default function StrategyOutput({
     if (isSavingToSophia || savedToSophia) return;
 
     const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
-    const normalizedRaw = ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues);
+    const normalizedRaw = normalizeEditorContent(ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues));
     const normalizedTicker = String(s.ticker || '').trim().replace(/^\$/, '').toUpperCase();
     const savedAt = Date.now();
     const savedAtIso = new Date(savedAt).toISOString();

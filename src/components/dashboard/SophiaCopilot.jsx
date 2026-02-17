@@ -7,6 +7,7 @@ const SEVERITY_STYLES = {
   '🟢': { border: 'border-emerald-500/30', text: 'text-emerald-300', dot: 'bg-emerald-400' },
   '🔵': { border: 'border-blue-500/30', text: 'text-blue-300', dot: 'bg-blue-400' },
   '💡': { border: 'border-amber-500/30', text: 'text-amber-300', dot: 'bg-amber-400' },
+  '☀️': { border: 'border-orange-500/30', text: 'text-orange-300', dot: 'bg-orange-400' },
 };
 
 const SEVERITY_ICONS = {
@@ -15,6 +16,7 @@ const SEVERITY_ICONS = {
   '🟢': TrendingUp,
   '🔵': Eye,
   '💡': Zap,
+  '☀️': Zap,
 };
 
 const timeAgo = (dateStr) => {
@@ -155,7 +157,7 @@ export default function SophiaCopilot({ onClose }) {
                       <span className={`text-[11px] font-bold ${styles.text}`}>{alert.symbol}</span>
                       <span className="text-[9px] text-zinc-600 ml-auto">{timeAgo(alert.created_at)}</span>
                     </div>
-                    <p className="text-[11px] text-zinc-300 leading-snug">{alert.message}</p>
+                    <p className={`text-[11px] text-zinc-300 leading-snug ${alert.alert_type === 'morning' ? 'whitespace-pre-line' : ''}`}>{alert.message}</p>
                   </div>
                 </div>
               </div>
