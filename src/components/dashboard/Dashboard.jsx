@@ -29,7 +29,6 @@ import CollapsiblePanel, { PanelDivider } from './CollapsiblePanel';
 import BacktestWizard from './BacktestWizard';
 import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
-import Home from './Home';
 import WatchlistPage from './WatchlistPage';
 import MarketsPage from './MarketsPage';
 import PortfolioPage from './PortfolioPage';
@@ -117,10 +116,11 @@ const ensureRealTradeAnalysisSection = (content) => {
   return `${normalized}\n\n${REAL_TRADE_ANALYSIS_TEMPLATE}`;
 };
 
-const sanitizeActiveTab = (tab, fallback = 'trade') => {
+const sanitizeActiveTab = (tab, fallback = 'war-room') => {
   const normalized = String(tab || '').trim();
   if (normalized === 'builder') return 'terminal';
   if (normalized === 'strategies') return 'terminal';
+  if (normalized === 'home') return 'war-room';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
 };
@@ -1715,17 +1715,6 @@ export default function Dashboard({
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
           {/* Tab-based Views */}
-          {activeTab === 'home' && (
-            <Home
-              themeClasses={themeClasses}
-              connectedBrokers={connectedBrokers}
-              onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
-              onBrokerDisconnect={(brokerId) => setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId))}
-              onBrokerUpdate={(brokerId, updates) => setConnectedBrokers(prev => 
-                prev.map(b => b.id === brokerId ? { ...b, ...updates } : b)
-              )}
-            />
-          )}
           {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
           {activeTab === 'trade' && (
             <ProGate

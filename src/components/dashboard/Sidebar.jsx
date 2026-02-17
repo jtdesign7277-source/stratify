@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Home, 
+  Crosshair,
   SlidersHorizontal, 
   Globe, 
   LineChart, 
@@ -20,14 +20,13 @@ import {
   Trash2,
   TrendingUp,
   Terminal,
-  Shield,
   MessageCircle,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ 
-  activeTab = 'home', 
+  activeTab = 'war-room', 
   setActiveTab, 
   onTabChange, 
   onNavigate,
@@ -61,14 +60,13 @@ const Sidebar = ({
     : deployedStrategies.length;
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: Home },
+    { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
-    { id: 'war-room', label: 'War Room', icon: Shield, isNew: true, labelClass: 'font-semibold text-red-400' },
     { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
@@ -101,16 +99,21 @@ const Sidebar = ({
             const isLegend = item.id === 'legend';
             const isTrade = item.id === 'trade';
             const isTradeActive = isTrade && isActive;
+            const isWarRoom = item.id === 'war-room';
             const activeTabClasses = isLegend
               ? 'text-amber-400 bg-amber-500/10 border border-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
               : isTradeActive
                 ? 'text-white bg-blue-500/10 border border-blue-400/30 trade-tab-active-glow'
-                : 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20';
+                : isWarRoom
+                  ? 'text-red-300 bg-red-500/10 border border-red-400/20 shadow-[0_0_12px_rgba(248,113,113,0.25)]'
+                  : 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20';
             const activeIconClass = isLegend
               ? 'text-amber-400'
               : isTradeActive
                 ? 'text-blue-300'
-                : 'text-emerald-300';
+                : isWarRoom
+                  ? 'text-red-400'
+                  : 'text-emerald-300';
             
             return (
               <li key={item.id}>
@@ -124,7 +127,7 @@ const Sidebar = ({
                   title={collapsed ? item.label : undefined}
                 >
                   <Icon 
-                    className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? activeIconClass : ''}`} 
+                    className={`w-[18px] h-[18px] flex-shrink-0 ${item.iconClass || ''} ${isActive ? activeIconClass : ''}`} 
                     strokeWidth={1.5}
                     fill="none"
                   />
