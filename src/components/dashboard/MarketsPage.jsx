@@ -311,14 +311,6 @@ const MarketsPage = () => {
     });
   }, [cryptoQuotes]);
 
-  useEffect(() => {
-    if (!cryptoConnected || hasCryptoData) return undefined;
-    const timer = setTimeout(() => {
-      reconnectCrypto();
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, [cryptoConnected, hasCryptoData, reconnectCrypto]);
-
   const stockLastUpdated = useMemo(() => getLatestTimestampDate(stockState), [stockState]);
   const cryptoLastUpdated = useMemo(() => getLatestTimestampDate(cryptoState), [cryptoState]);
   const hasStockData = useMemo(
@@ -329,6 +321,15 @@ const MarketsPage = () => {
     () => Object.values(cryptoState).some((entry) => Number.isFinite(entry?.price)),
     [cryptoState],
   );
+
+  useEffect(() => {
+    if (!cryptoConnected || hasCryptoData) return undefined;
+    const timer = setTimeout(() => {
+      reconnectCrypto();
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [cryptoConnected, hasCryptoData, reconnectCrypto]);
+
   const stockConnected = marketDataConnected || hasStockData;
   const visibleError = !cryptoConnected && error ? error : null;
 
