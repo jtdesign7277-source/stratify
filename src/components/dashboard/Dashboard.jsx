@@ -1720,7 +1720,13 @@ export default function Dashboard({
               featureName="Analytics"
               description="Deep portfolio analytics, performance metrics, and risk analysis."
             >
-              <AnalyticsPage themeClasses={themeClasses} />
+              <AnalyticsPage
+                themeClasses={themeClasses}
+                tradeHistory={trades}
+                savedStrategies={savedStrategies}
+                deployedStrategies={deployedStrategies}
+                alpacaData={alpacaData}
+              />
             </ProGate>
           )}
           {activeTab === 'advanced' && <AdvancedChartsPage />}
