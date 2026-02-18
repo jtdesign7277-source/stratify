@@ -317,6 +317,68 @@ const clearGlobalDragPayload = () => {
   }
 };
 
+const GLOBAL_MARKET_CLOCKS = [
+  {
+    id: 'nyc',
+    city: 'New York',
+    timezone: 'America/New_York',
+    code: 'NYSE',
+    hoursLabel: '09:30-16:00',
+    windows: [[9 * 60 + 30, 16 * 60]],
+  },
+  {
+    id: 'lon',
+    city: 'London',
+    timezone: 'Europe/London',
+    code: 'LSE',
+    hoursLabel: '08:00-16:30',
+    windows: [[8 * 60, 16 * 60 + 30]],
+  },
+  {
+    id: 'tyo',
+    city: 'Tokyo',
+    timezone: 'Asia/Tokyo',
+    code: 'TSE',
+    hoursLabel: '09:00-11:30, 12:30-15:00',
+    windows: [[9 * 60, 11 * 60 + 30], [12 * 60 + 30, 15 * 60]],
+  },
+  {
+    id: 'syd',
+    city: 'Sydney',
+    timezone: 'Australia/Sydney',
+    code: 'ASX',
+    hoursLabel: '10:00-16:00',
+    windows: [[10 * 60, 16 * 60]],
+  },
+];
+
+const getLocalMarketParts = (date, timezone) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    weekday: 'short',
+  }).formatToParts(date);
+
+  const map = parts.reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  const hour = Number(map.hour || 0);
+  const minute = Number(map.minute || 0);
+  const weekday = String(map.weekday || '');
+  return {
+    minutesOfDay: (hour * 60) + minute,
+    weekday,
+  };
+};
+
+const isWithinMarketHours = (minutesOfDay, windows = []) => windows.some(([start, end]) => (
+  minutesOfDay >= start && minutesOfDay < end
+));
+
 export default function TopMetricsBar({
   alpacaData,
   theme,
@@ -392,100 +454,158 @@ export default function TopMetricsBar({
     return themeClasses.text;
   };
 
+  const [clockNow, setClockNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setClockNow(Date.now());
+    }, 15000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const worldClockData = useMemo(() => {
+    const nowDate = new Date(clockNow);
+
+    return GLOBAL_MARKET_CLOCKS.map((market) => {
+      const localTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: market.timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(nowDate);
+
+      const { minutesOfDay, weekday } = getLocalMarketParts(nowDate, market.timezone);
+      const isWeekend = weekday === 'Sat' || weekday === 'Sun';
+      const isOpen = !isWeekend && isWithinMarketHours(minutesOfDay, market.windows);
+
+      return {
+        ...market,
+        localTime,
+        isOpen,
+      };
+    });
+  }, [clockNow]);
+
   return (
-    <div className={`h-14 flex items-center px-4 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
-      <div className="flex min-w-0 items-center gap-6">
-        {metrics.map((metric, index) => (
-          <div key={index} className="flex flex-col min-w-0">
-            <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
-            <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
-          </div>
-        ))}
-        {!hasDisplayData && (
-          <span className={`text-[10px] ${themeClasses.textMuted}`}>Connect broker to see live data</span>
-        )}
+    <div className={`${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
+      <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-between bg-[#0a0f1a]/85">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-semibold">
+          Global Desk Clock
+        </div>
+        <div className="flex items-center gap-2">
+          {worldClockData.map((clock) => (
+            <div
+              key={clock.id}
+              className="h-6 rounded-md border border-[#243046] bg-[#0b1220]/80 px-2.5 flex items-center gap-2"
+              title={`${clock.city} (${clock.code}) market hours ${clock.hoursLabel}`}
+            >
+              <span className="text-[10px] uppercase tracking-wide text-white/55 font-semibold">{clock.city}</span>
+              <span className="text-[11px] font-mono text-white">{clock.localTime}</span>
+              <span className={`h-1.5 w-1.5 rounded-full ${clock.isOpen ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span className={`text-[10px] font-semibold uppercase tracking-wide ${clock.isOpen ? 'text-emerald-400' : 'text-amber-300'}`}>
+                {clock.isOpen ? 'Open' : 'Closed'}
+              </span>
+              <span className="text-[10px] text-white/35">{clock.hoursLabel}</span>
+            </div>
+          ))}
+        </div>
       </div>
-      
-      {/* Mini Pills Bar - 5 slots for minimized widgets */}
-      <div className="flex items-center gap-2 mx-6 flex-1 justify-center">
-        {[1, 2, 3, 4, 5].map((slot) => (
-          <div 
-            key={slot} 
-            className={`h-8 rounded-full transition-all ${
-              miniPills[slot] 
-                ? '' 
-                : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
-            }`}
-            data-pill-slot={slot}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-              e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
-            }}
-            onDragLeave={(e) => {
-              e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
-              const payload = parseDropPayload(e);
-              if (payload?.type === 'game' && onGameDrop) {
-                onGameDrop(payload.data, slot);
-                clearGlobalDragPayload();
-                return;
-              }
-              const symbol = e.dataTransfer.getData('text/plain');
-              if (symbol && onTickerDrop) {
-                onTickerDrop(symbol, slot);
-              }
-            }}
-          >
-            {miniPills[slot] || (
-              <div className="w-full h-full flex items-center justify-center gap-1 text-white/20 pointer-events-none">
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-                </svg>
+
+      <div className="h-14 flex items-center px-4">
+        <div className="flex min-w-0 items-center gap-6">
+          {metrics.map((metric, index) => (
+            <div key={index} className="flex flex-col min-w-0">
+              <span className={`text-[10px] uppercase tracking-wider ${themeClasses.textMuted}`}>{metric.label}</span>
+              <span className={`text-sm font-medium ${metric.change !== undefined ? getValueColor(metric.change) : themeClasses.text}`}>{metric.value}</span>
+            </div>
+          ))}
+          {!hasDisplayData && (
+            <span className={`text-[10px] ${themeClasses.textMuted}`}>Connect broker to see live data</span>
+          )}
+        </div>
+
+        {/* Mini Pills Bar - 5 slots for minimized widgets */}
+        <div className="flex items-center gap-2 mx-6 flex-1 justify-center">
+          {[1, 2, 3, 4, 5].map((slot) => (
+            <div
+              key={slot}
+              className={`h-8 rounded-full transition-all ${
+                miniPills[slot]
+                  ? ''
+                  : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
+              }`}
+              data-pill-slot={slot}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+                const payload = parseDropPayload(e);
+                if (payload?.type === 'game' && onGameDrop) {
+                  onGameDrop(payload.data, slot);
+                  clearGlobalDragPayload();
+                  return;
+                }
+                const symbol = e.dataTransfer.getData('text/plain');
+                if (symbol && onTickerDrop) {
+                  onTickerDrop(symbol, slot);
+                }
+              }}
+            >
+              {miniPills[slot] || (
+                <div className="w-full h-full flex items-center justify-center gap-1 text-white/20 pointer-events-none">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          ))}
+          <div id="earnings-alert-pill-anchor" className="flex items-center" />
+        </div>
+        <div className="flex items-center gap-4 ml-auto flex-shrink-0">
+          <div className="flex items-center gap-4">
+            {/* Connected Accounts */}
+            {connectedBrokers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {connectedBrokers.slice(0, 4).map(broker => (
+                    <BrokerBadge key={broker.id} broker={broker} />
+                  ))}
+                  {connectedBrokers.length > 4 && (
+                    <span className="text-[10px] text-white/50">+{connectedBrokers.length - 4}</span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-emerald-400 uppercase tracking-wider">Connected</span>
+                  <p className="text-xs text-gray-400">{connectedBrokers.length} account{connectedBrokers.length !== 1 ? 's' : ''}</p>
+                </div>
               </div>
             )}
           </div>
-        ))}
-        <div id="earnings-alert-pill-anchor" className="flex items-center" />
-      </div>
-      <div className="flex items-center gap-4 ml-auto flex-shrink-0">
-        <div className="flex items-center gap-4">
-          {/* Connected Accounts */}
-          {connectedBrokers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                {connectedBrokers.slice(0, 4).map(broker => (
-                  <BrokerBadge key={broker.id} broker={broker} />
-                ))}
-                {connectedBrokers.length > 4 && (
-                  <span className="text-[10px] text-white/50">+{connectedBrokers.length - 4}</span>
-                )}
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-emerald-400 uppercase tracking-wider">Connected</span>
-                <p className="text-xs text-gray-400">{connectedBrokers.length} account{connectedBrokers.length !== 1 ? 's' : ''}</p>
-              </div>
-            </div>
-          )}
+          {/* Notification Bell */}
+          <NotificationButton themeClasses={themeClasses} />
+          <button
+            onClick={onLegendClick}
+            className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+            title="Legend Challenge"
+          >
+            <span className="text-[15px] leading-none">🏆</span>
+          </button>
+          <button onClick={onLogout} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          </button>
         </div>
-        {/* Notification Bell */}
-        <NotificationButton themeClasses={themeClasses} />
-        <button
-          onClick={onLegendClick}
-          className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-          title="Legend Challenge"
-        >
-          <span className="text-[15px] leading-none">🏆</span>
-        </button>
-        <button onClick={onLogout} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-        </button>
       </div>
     </div>
   );
