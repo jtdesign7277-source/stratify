@@ -311,9 +311,9 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
     return (
       <div className="grid grid-cols-6 gap-3 h-full">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-3 h-full min-h-0">
-            <SkeletonBlock className="h-3 w-20 mb-3" />
-            <SkeletonBlock className="h-6 w-24 mb-2" />
+          <div key={index} className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-2.5 h-full min-h-0">
+            <SkeletonBlock className="h-3 w-20 mb-2" />
+            <SkeletonBlock className="h-6 w-20 mb-1.5" />
             <SkeletonBlock className="h-3 w-14" />
           </div>
         ))}
@@ -334,22 +334,22 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-3 flex flex-col justify-between h-full min-h-0"
+          className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-2.5 flex flex-col justify-between h-full min-h-0"
         >
-          <div className="flex items-center justify-between text-gray-400 text-[11px] uppercase tracking-widest">
+          <div className="flex items-center justify-between text-gray-400 text-[10px] uppercase tracking-[0.18em]">
             <span>{card.label}</span>
             {(() => {
               const Icon = card.icon || LineChart;
               return <Icon className="w-4 h-4" strokeWidth={1.5} fill="none" />;
             })()}
           </div>
-          <div className="mt-2 flex items-end justify-between gap-2">
+          <div className="mt-1.5 flex items-end justify-between gap-2">
             <div>
-              <div className="text-blue-500 text-lg font-semibold">
+              <div className="text-blue-500 text-[30px] leading-none font-semibold">
                 <CountUpValue value={card.value} format={card.format} />
               </div>
               {card.subline && (
-                <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
                   {card.trend && (
                     <card.trend
                       className={`w-3.5 h-3.5 ${card.trendColor}`}
@@ -363,11 +363,6 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
               )}
             </div>
           </div>
-          {card.symbol && (
-            <div className="mt-2 h-8 rounded-lg border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
-              <MiniChart symbol={card.symbol} />
-            </div>
-          )}
         </div>
       ))}
     </div>
@@ -899,8 +894,8 @@ const FredPage = () => {
   ].filter((value, index, array) => array.indexOf(value) === index), []);
 
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
-  const [calendarCollapsed, setCalendarCollapsed] = useState(true);
-  const [exploreCollapsed, setExploreCollapsed] = useState(false);
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
+  const [exploreCollapsed, setExploreCollapsed] = useState(true);
   const [activeSymbol, setActiveSymbol] = useState('FRED:DGS10');
   const [activeLabel, setActiveLabel] = useState('10Y Treasury');
 
@@ -920,11 +915,11 @@ const FredPage = () => {
             backgroundSize: '32px 32px',
           }}
         />
-        <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(108px,124px)_minmax(0,1fr)_minmax(250px,0.62fr)] gap-3">
-          <div className="h-full min-h-[108px]">
+        <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)_minmax(170px,0.42fr)] gap-3">
+          <div className="h-full min-h-[86px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </div>
-          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-3 min-h-0">
+          <div className="grid grid-cols-[minmax(0,1.85fr)_minmax(0,1.15fr)] gap-3 min-h-0">
             <div className="min-h-0">
               <YieldCurve
                 activeSymbol={activeSymbol}
