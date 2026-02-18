@@ -3,6 +3,7 @@ const CRYPTO_WS_URL = 'wss://stream.data.alpaca.markets/v1beta3/crypto/us';
 
 const RECONNECT_BASE_DELAY = 2000;
 const RECONNECT_MAX_DELAY = 20000;
+const CONNECTION_LIMIT_COOLDOWN_MS = 30000;
 
 const normalizeStockSymbol = (symbol) => String(symbol || '').trim().replace(/^\$/, '').toUpperCase();
 
@@ -54,6 +55,10 @@ const toMessageArray = (payload) => {
   return [payload];
 };
 
+const isConnectionLimitError = (value) => (
+  String(value || '').toLowerCase().includes('connection limit exceeded')
+);
+
 class AlpacaStreamManager {
   constructor() {
     this.stockWs = null;
@@ -85,6 +90,8 @@ class AlpacaStreamManager {
     this.cryptoReconnectTimer = null;
     this.stockConnectPromise = null;
     this.cryptoConnectPromise = null;
+    this.stockLimitCooldownUntil = 0;
+    this.cryptoLimitCooldownUntil = 0;
 
     this.stockIntentionalClose = false;
     this.cryptoIntentionalClose = false;
@@ -337,6 +344,17 @@ class AlpacaStreamManager {
       return;
     }
 
+    const stockCooldownRemaining = this.stockLimitCooldownUntil - Date.now();
+    if (stockCooldownRemaining > 0) {
+      if (!this.stockReconnectTimer) {
+        this.stockReconnectTimer = setTimeout(() => {
+          this.stockReconnectTimer = null;
+          this.connectStockWs();
+        }, stockCooldownRemaining);
+      }
+      return;
+    }
+
     this.stockConnectPromise = (async () => {
       let keys;
       try {
@@ -377,6 +395,7 @@ class AlpacaStreamManager {
               this.stockAuthenticated = true;
               this.stockConnected = true;
               this.stockReconnectAttempt = 0;
+              this.stockLimitCooldownUntil = 0;
               this.clearError();
               this.emitStatus();
               this.syncStockStream();
@@ -384,7 +403,17 @@ class AlpacaStreamManager {
             }
 
             if (msg.T === 'error') {
-              this.setError(msg.msg || 'Stock stream error');
+              const message = msg.msg || 'Stock stream error';
+              this.setError(message);
+
+              if (isConnectionLimitError(message)) {
+                this.stockLimitCooldownUntil = Date.now() + CONNECTION_LIMIT_COOLDOWN_MS;
+                try {
+                  ws.close();
+                } catch (closeError) {
+                  console.error('[Stock WS] Close on limit error failed:', closeError);
+                }
+              }
               return;
             }
 
@@ -466,6 +495,17 @@ class AlpacaStreamManager {
       return;
     }
 
+    const cryptoCooldownRemaining = this.cryptoLimitCooldownUntil - Date.now();
+    if (cryptoCooldownRemaining > 0) {
+      if (!this.cryptoReconnectTimer) {
+        this.cryptoReconnectTimer = setTimeout(() => {
+          this.cryptoReconnectTimer = null;
+          this.connectCryptoWs();
+        }, cryptoCooldownRemaining);
+      }
+      return;
+    }
+
     this.cryptoConnectPromise = (async () => {
       let keys;
       try {
@@ -506,6 +546,7 @@ class AlpacaStreamManager {
               this.cryptoAuthenticated = true;
               this.cryptoConnected = true;
               this.cryptoReconnectAttempt = 0;
+              this.cryptoLimitCooldownUntil = 0;
               this.clearError();
               this.emitStatus();
               this.syncCryptoStream();
@@ -513,7 +554,17 @@ class AlpacaStreamManager {
             }
 
             if (msg.T === 'error') {
-              this.setError(msg.msg || 'Crypto stream error');
+              const message = msg.msg || 'Crypto stream error';
+              this.setError(message);
+
+              if (isConnectionLimitError(message)) {
+                this.cryptoLimitCooldownUntil = Date.now() + CONNECTION_LIMIT_COOLDOWN_MS;
+                try {
+                  ws.close();
+                } catch (closeError) {
+                  console.error('[Crypto WS] Close on limit error failed:', closeError);
+                }
+              }
               return;
             }
 

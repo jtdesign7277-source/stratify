@@ -322,14 +322,6 @@ const MarketsPage = () => {
     [cryptoState],
   );
 
-  useEffect(() => {
-    if (!cryptoConnected || hasCryptoData) return undefined;
-    const timer = setTimeout(() => {
-      reconnectCrypto();
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, [cryptoConnected, hasCryptoData, reconnectCrypto]);
-
   const stockConnected = marketDataConnected || hasStockData;
   const visibleError = !cryptoConnected && error ? error : null;
 
