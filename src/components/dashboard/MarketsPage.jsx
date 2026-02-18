@@ -10,6 +10,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
+import { useMarketData } from '../../store/StratifyProvider';
 
 const ETF_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'IWM', 'GLD'];
 const TRENDING_SYMBOLS = ['NVDA', 'TSLA', 'META', 'AAPL', 'AMZN', 'MSFT'];
@@ -53,7 +54,14 @@ const SECTORS = [
 const isFiniteNumber = (value) => Number.isFinite(Number(value));
 
 const getPriceFromQuote = (quote) => {
-  const candidates = [quote?.price, quote?.lastTrade, quote?.ask, quote?.bid];
+  const candidates = [
+    quote?.price,
+    quote?.lastTrade,
+    quote?.ask,
+    quote?.bid,
+    quote?.askPrice,
+    quote?.bidPrice,
+  ];
   for (const candidate of candidates) {
     const num = Number(candidate);
     if (Number.isFinite(num)) return num;
@@ -145,6 +153,8 @@ const MiniSparkline = ({ values = [] }) => {
 };
 
 const MarketsPage = () => {
+  const { prices: marketPrices, connected: marketDataConnected } = useMarketData();
+
   const [stockState, setStockState] = useState(() =>
     STREAM_STOCK_SYMBOLS.reduce((acc, symbol) => {
       acc[symbol] = createEntry(symbol, ETF_NAMES[symbol] || TRENDING_NAMES[symbol] || symbol);
@@ -160,21 +170,23 @@ const MarketsPage = () => {
   );
 
   const {
-    stockQuotes,
     cryptoQuotes,
-    stockConnected,
     cryptoConnected,
     error,
-    reconnectStock,
     reconnectCrypto,
   } = useAlpacaStream({
-    stockSymbols: STREAM_STOCK_SYMBOLS,
+    stockSymbols: [],
     cryptoSymbols: CRYPTO_SYMBOLS,
     enabled: true,
   });
 
   useEffect(() => {
-    const updates = Object.entries(stockQuotes);
+    if (!marketPrices || typeof marketPrices.get !== 'function') return;
+
+    const updates = STREAM_STOCK_SYMBOLS
+      .map((symbol) => [symbol, marketPrices.get(symbol)])
+      .filter(([, quote]) => quote && typeof quote === 'object');
+
     if (updates.length === 0) return;
 
     setStockState((prev) => {
@@ -193,12 +205,12 @@ const MarketsPage = () => {
           baseline,
           changePercent,
           ticks: [...current.ticks, price].slice(-30),
-          updatedAt: quote?.timestamp || new Date().toISOString(),
+          updatedAt: quote?.timestamp || quote?.t || new Date().toISOString(),
         };
       });
       return next;
     });
-  }, [stockQuotes]);
+  }, [marketPrices]);
 
   useEffect(() => {
     const updates = Object.entries(cryptoQuotes);
@@ -237,6 +249,8 @@ const MarketsPage = () => {
     () => Object.values(cryptoState).some((entry) => Number.isFinite(entry?.price)),
     [cryptoState],
   );
+  const stockConnected = marketDataConnected || hasStockData;
+  const visibleError = !cryptoConnected && error ? error : null;
 
   const renderStreamRows = ({ symbols, dataset, isCrypto = false }) => {
     return symbols.map((symbol) => {
@@ -318,9 +332,9 @@ const MarketsPage = () => {
         </div>
       </div>
 
-      {error && (
+      {visibleError && (
         <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-          {error}
+          {visibleError}
         </div>
       )}
 
@@ -376,10 +390,10 @@ const MarketsPage = () => {
               {(!stockConnected || !hasStockData) && (
                 <button
                   type="button"
-                  onClick={reconnectStock}
+                  onClick={() => window.location.reload()}
                   className="rounded border border-white/15 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/5"
                 >
-                  Reconnect Equities
+                  Refresh Equities
                 </button>
               )}
               {(!cryptoConnected || !hasCryptoData) && (
