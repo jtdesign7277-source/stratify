@@ -369,15 +369,75 @@ const getLocalMarketParts = (date, timezone) => {
   const hour = Number(map.hour || 0);
   const minute = Number(map.minute || 0);
   const weekday = String(map.weekday || '');
+  const weekdayIndexMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const weekdayIndex = Number.isFinite(weekdayIndexMap[weekday]) ? weekdayIndexMap[weekday] : 0;
   return {
     minutesOfDay: (hour * 60) + minute,
     weekday,
+    weekdayIndex,
   };
 };
 
 const isWithinMarketHours = (minutesOfDay, windows = []) => windows.some(([start, end]) => (
   minutesOfDay >= start && minutesOfDay < end
 ));
+
+const minutesUntilNextBusinessOpen = (minutesOfDay, weekdayIndex, firstOpenMinute) => {
+  let daysAhead = 1;
+  while (daysAhead <= 7) {
+    const nextDayIndex = (weekdayIndex + daysAhead) % 7;
+    if (nextDayIndex >= 1 && nextDayIndex <= 5) {
+      return (daysAhead * 1440) + (firstOpenMinute - minutesOfDay);
+    }
+    daysAhead += 1;
+  }
+  return 0;
+};
+
+const formatCountdown = (minutesRaw) => {
+  const minutes = Math.max(0, Math.ceil(minutesRaw));
+  if (minutes <= 0) return '<1m';
+
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${String(mins).padStart(2, '0')}m`;
+  return `${mins}m`;
+};
+
+const getMarketTransition = ({ minutesOfDay, weekdayIndex, windows }) => {
+  const sortedWindows = [...windows].sort((a, b) => a[0] - b[0]);
+  const firstOpenMinute = sortedWindows[0]?.[0] ?? 0;
+  const isBusinessDay = weekdayIndex >= 1 && weekdayIndex <= 5;
+
+  if (isBusinessDay) {
+    for (const [start, end] of sortedWindows) {
+      if (minutesOfDay >= start && minutesOfDay < end) {
+        return {
+          isOpen: true,
+          minutesToNextTransition: end - minutesOfDay,
+          transitionVerb: 'closes',
+        };
+      }
+
+      if (minutesOfDay < start) {
+        return {
+          isOpen: false,
+          minutesToNextTransition: start - minutesOfDay,
+          transitionVerb: 'opens',
+        };
+      }
+    }
+  }
+
+  return {
+    isOpen: false,
+    minutesToNextTransition: minutesUntilNextBusinessOpen(minutesOfDay, weekdayIndex, firstOpenMinute),
+    transitionVerb: 'opens',
+  };
+};
 
 export default function TopMetricsBar({
   alpacaData,
@@ -475,14 +535,21 @@ export default function TopMetricsBar({
         hour12: false,
       }).format(nowDate);
 
-      const { minutesOfDay, weekday } = getLocalMarketParts(nowDate, market.timezone);
-      const isWeekend = weekday === 'Sat' || weekday === 'Sun';
-      const isOpen = !isWeekend && isWithinMarketHours(minutesOfDay, market.windows);
+      const { minutesOfDay, weekday, weekdayIndex } = getLocalMarketParts(nowDate, market.timezone);
+      const transition = getMarketTransition({
+        minutesOfDay,
+        weekdayIndex,
+        windows: market.windows,
+      });
+      const isOpen = transition.isOpen && isWithinMarketHours(minutesOfDay, market.windows);
 
       return {
         ...market,
         localTime,
+        weekday,
         isOpen,
+        transitionVerb: transition.transitionVerb,
+        countdownLabel: formatCountdown(transition.minutesToNextTransition),
       };
     });
   }, [clockNow]);
@@ -506,7 +573,9 @@ export default function TopMetricsBar({
               <span className={`text-[10px] font-semibold uppercase tracking-wide ${clock.isOpen ? 'text-emerald-400' : 'text-amber-300'}`}>
                 {clock.isOpen ? 'Open' : 'Closed'}
               </span>
-              <span className="text-[10px] text-white/35">{clock.hoursLabel}</span>
+              <span className={`text-[10px] ${clock.isOpen ? 'text-emerald-300/85' : 'text-amber-200/85'}`}>
+                {clock.transitionVerb} {clock.countdownLabel}
+              </span>
             </div>
           ))}
         </div>
