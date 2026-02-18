@@ -83,6 +83,8 @@ class AlpacaStreamManager {
     this.cryptoReconnectAttempt = 0;
     this.stockReconnectTimer = null;
     this.cryptoReconnectTimer = null;
+    this.stockConnectPromise = null;
+    this.cryptoConnectPromise = null;
 
     this.stockIntentionalClose = false;
     this.cryptoIntentionalClose = false;
@@ -321,6 +323,10 @@ class AlpacaStreamManager {
   }
 
   async connectStockWs() {
+    if (this.stockConnectPromise) {
+      return this.stockConnectPromise;
+    }
+
     const desiredSymbols = this.getDesiredStockSymbols();
     if (desiredSymbols.size === 0) {
       this.teardownStockSocket();
@@ -331,111 +337,125 @@ class AlpacaStreamManager {
       return;
     }
 
-    let keys;
-    try {
-      keys = await this.fetchKeys();
-    } catch {
-      return;
-    }
+    this.stockConnectPromise = (async () => {
+      let keys;
+      try {
+        keys = await this.fetchKeys();
+      } catch {
+        return;
+      }
 
-    try {
-      const ws = new WebSocket(STOCK_WS_URL);
-      this.stockIntentionalClose = false;
-      this.stockWs = ws;
+      if (this.stockWs && (this.stockWs.readyState === WebSocket.OPEN || this.stockWs.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
 
-      ws.onopen = () => {
-        ws.send(JSON.stringify({
-          action: 'auth',
-          key: keys.key,
-          secret: keys.secret,
-        }));
-      };
+      try {
+        const ws = new WebSocket(STOCK_WS_URL);
+        this.stockIntentionalClose = false;
+        this.stockWs = ws;
 
-      ws.onmessage = (event) => {
-        let payload;
-        try {
-          payload = JSON.parse(event.data);
-        } catch {
-          return;
-        }
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            action: 'auth',
+            key: keys.key,
+            secret: keys.secret,
+          }));
+        };
 
-        toMessageArray(payload).forEach((msg) => {
-          if (!msg || typeof msg !== 'object') return;
-
-          if (msg.T === 'success' && msg.msg === 'authenticated') {
-            this.stockAuthenticated = true;
-            this.stockConnected = true;
-            this.stockReconnectAttempt = 0;
-            this.clearError();
-            this.emitStatus();
-            this.syncStockStream();
+        ws.onmessage = (event) => {
+          let payload;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
             return;
           }
 
-          if (msg.T === 'error') {
-            this.setError(msg.msg || 'Stock stream error');
+          toMessageArray(payload).forEach((msg) => {
+            if (!msg || typeof msg !== 'object') return;
+
+            if (msg.T === 'success' && msg.msg === 'authenticated') {
+              this.stockAuthenticated = true;
+              this.stockConnected = true;
+              this.stockReconnectAttempt = 0;
+              this.clearError();
+              this.emitStatus();
+              this.syncStockStream();
+              return;
+            }
+
+            if (msg.T === 'error') {
+              this.setError(msg.msg || 'Stock stream error');
+              return;
+            }
+
+            if (msg.T === 't' || msg.T === 'q') {
+              const symbol = normalizeStockSymbol(msg.S);
+              if (!symbol) return;
+
+              const previous = this.stockQuotes.get(symbol) || { symbol };
+              const update = msg.T === 't'
+                ? {
+                    symbol,
+                    price: msg.p,
+                    size: msg.s,
+                    timestamp: msg.t,
+                    lastTrade: msg.p,
+                  }
+                : {
+                    symbol,
+                    bid: msg.bp,
+                    ask: msg.ap,
+                    bidSize: msg.bs,
+                    askSize: msg.as,
+                    price: msg.ap || msg.bp || previous.price,
+                    timestamp: msg.t,
+                  };
+
+              const next = { ...previous, ...update };
+              this.stockQuotes.set(symbol, next);
+              this.emitStockUpdate(symbol, next);
+            }
+          });
+        };
+
+        ws.onerror = () => {
+          this.setError('Stock WebSocket error');
+        };
+
+        ws.onclose = () => {
+          const intentional = this.stockIntentionalClose;
+
+          this.stockWs = null;
+          this.stockAuthenticated = false;
+          this.stockConnected = false;
+          this.stockSubscribedSymbols.clear();
+          this.emitStatus();
+
+          if (intentional) {
+            this.stockIntentionalClose = false;
             return;
           }
 
-          if (msg.T === 't' || msg.T === 'q') {
-            const symbol = normalizeStockSymbol(msg.S);
-            if (!symbol) return;
-
-            const previous = this.stockQuotes.get(symbol) || { symbol };
-            const update = msg.T === 't'
-              ? {
-                  symbol,
-                  price: msg.p,
-                  size: msg.s,
-                  timestamp: msg.t,
-                  lastTrade: msg.p,
-                }
-              : {
-                  symbol,
-                  bid: msg.bp,
-                  ask: msg.ap,
-                  bidSize: msg.bs,
-                  askSize: msg.as,
-                  price: msg.ap || msg.bp || previous.price,
-                  timestamp: msg.t,
-                };
-
-            const next = { ...previous, ...update };
-            this.stockQuotes.set(symbol, next);
-            this.emitStockUpdate(symbol, next);
+          if (this.getDesiredStockSymbols().size > 0) {
+            this.scheduleStockReconnect();
           }
-        });
-      };
+        };
+      } catch (error) {
+        this.setError(error.message || 'Failed to connect stock stream');
+        this.scheduleStockReconnect();
+      }
+    })().finally(() => {
+      this.stockConnectPromise = null;
+    });
 
-      ws.onerror = () => {
-        this.setError('Stock WebSocket error');
-      };
-
-      ws.onclose = () => {
-        const intentional = this.stockIntentionalClose;
-
-        this.stockWs = null;
-        this.stockAuthenticated = false;
-        this.stockConnected = false;
-        this.stockSubscribedSymbols.clear();
-        this.emitStatus();
-
-        if (intentional) {
-          this.stockIntentionalClose = false;
-          return;
-        }
-
-        if (this.getDesiredStockSymbols().size > 0) {
-          this.scheduleStockReconnect();
-        }
-      };
-    } catch (error) {
-      this.setError(error.message || 'Failed to connect stock stream');
-      this.scheduleStockReconnect();
-    }
+    return this.stockConnectPromise;
   }
 
   async connectCryptoWs() {
+    if (this.cryptoConnectPromise) {
+      return this.cryptoConnectPromise;
+    }
+
     const desiredSymbols = this.getDesiredCryptoSymbols();
     if (desiredSymbols.size === 0) {
       this.teardownCryptoSocket();
@@ -446,116 +466,126 @@ class AlpacaStreamManager {
       return;
     }
 
-    let keys;
-    try {
-      keys = await this.fetchKeys();
-    } catch {
-      return;
-    }
+    this.cryptoConnectPromise = (async () => {
+      let keys;
+      try {
+        keys = await this.fetchKeys();
+      } catch {
+        return;
+      }
 
-    try {
-      const ws = new WebSocket(CRYPTO_WS_URL);
-      this.cryptoIntentionalClose = false;
-      this.cryptoWs = ws;
+      if (this.cryptoWs && (this.cryptoWs.readyState === WebSocket.OPEN || this.cryptoWs.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
 
-      ws.onopen = () => {
-        ws.send(JSON.stringify({
-          action: 'auth',
-          key: keys.key,
-          secret: keys.secret,
-        }));
-      };
+      try {
+        const ws = new WebSocket(CRYPTO_WS_URL);
+        this.cryptoIntentionalClose = false;
+        this.cryptoWs = ws;
 
-      ws.onmessage = (event) => {
-        let payload;
-        try {
-          payload = JSON.parse(event.data);
-        } catch {
-          return;
-        }
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            action: 'auth',
+            key: keys.key,
+            secret: keys.secret,
+          }));
+        };
 
-        toMessageArray(payload).forEach((msg) => {
-          if (!msg || typeof msg !== 'object') return;
-
-          if (msg.T === 'success' && msg.msg === 'authenticated') {
-            this.cryptoAuthenticated = true;
-            this.cryptoConnected = true;
-            this.cryptoReconnectAttempt = 0;
-            this.clearError();
-            this.emitStatus();
-            this.syncCryptoStream();
+        ws.onmessage = (event) => {
+          let payload;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
             return;
           }
 
-          if (msg.T === 'error') {
-            this.setError(msg.msg || 'Crypto stream error');
-            return;
-          }
+          toMessageArray(payload).forEach((msg) => {
+            if (!msg || typeof msg !== 'object') return;
 
-          if (msg.T === 't' || msg.T === 'q' || msg.T === 'b' || msg.T === 'u') {
-            const symbol = fromCryptoStreamSymbol(msg.S);
-            if (!symbol) return;
+            if (msg.T === 'success' && msg.msg === 'authenticated') {
+              this.cryptoAuthenticated = true;
+              this.cryptoConnected = true;
+              this.cryptoReconnectAttempt = 0;
+              this.clearError();
+              this.emitStatus();
+              this.syncCryptoStream();
+              return;
+            }
 
-            const previous = this.cryptoQuotes.get(symbol) || { symbol };
-            const update = msg.T === 't'
-              ? {
-                  symbol,
-                  price: msg.p,
-                  size: msg.s,
-                  timestamp: msg.t,
-                  lastTrade: msg.p,
-                }
-              : msg.T === 'b' || msg.T === 'u'
+            if (msg.T === 'error') {
+              this.setError(msg.msg || 'Crypto stream error');
+              return;
+            }
+
+            if (msg.T === 't' || msg.T === 'q' || msg.T === 'b' || msg.T === 'u') {
+              const symbol = fromCryptoStreamSymbol(msg.S);
+              if (!symbol) return;
+
+              const previous = this.cryptoQuotes.get(symbol) || { symbol };
+              const update = msg.T === 't'
                 ? {
                     symbol,
-                    price: msg.c ?? msg.close ?? previous.price,
-                    open: msg.o ?? msg.open ?? previous.open,
-                    high: msg.h ?? msg.high ?? previous.high,
-                    low: msg.l ?? msg.low ?? previous.low,
-                    volume: msg.v ?? msg.volume ?? previous.volume,
-                    timestamp: msg.t ?? msg.timestamp ?? previous.timestamp,
+                    price: msg.p,
+                    size: msg.s,
+                    timestamp: msg.t,
+                    lastTrade: msg.p,
                   }
-              : {
-                  symbol,
-                  bid: msg.bp ?? msg.bid ?? msg.BP,
-                  ask: msg.ap ?? msg.ask ?? msg.AP,
-                  price: msg.ap ?? msg.bp ?? msg.ask ?? msg.bid ?? msg.AP ?? msg.BP ?? previous.price,
-                  timestamp: msg.t ?? msg.timestamp,
-                };
+                : msg.T === 'b' || msg.T === 'u'
+                  ? {
+                      symbol,
+                      price: msg.c ?? msg.close ?? previous.price,
+                      open: msg.o ?? msg.open ?? previous.open,
+                      high: msg.h ?? msg.high ?? previous.high,
+                      low: msg.l ?? msg.low ?? previous.low,
+                      volume: msg.v ?? msg.volume ?? previous.volume,
+                      timestamp: msg.t ?? msg.timestamp ?? previous.timestamp,
+                    }
+                  : {
+                      symbol,
+                      bid: msg.bp ?? msg.bid ?? msg.BP,
+                      ask: msg.ap ?? msg.ask ?? msg.AP,
+                      price: msg.ap ?? msg.bp ?? msg.ask ?? msg.bid ?? msg.AP ?? msg.BP ?? previous.price,
+                      timestamp: msg.t ?? msg.timestamp,
+                    };
 
-            const next = { ...previous, ...update };
-            this.cryptoQuotes.set(symbol, next);
-            this.emitCryptoUpdate(symbol, next);
+              const next = { ...previous, ...update };
+              this.cryptoQuotes.set(symbol, next);
+              this.emitCryptoUpdate(symbol, next);
+            }
+          });
+        };
+
+        ws.onerror = () => {
+          this.setError('Crypto WebSocket error');
+        };
+
+        ws.onclose = () => {
+          const intentional = this.cryptoIntentionalClose;
+
+          this.cryptoWs = null;
+          this.cryptoAuthenticated = false;
+          this.cryptoConnected = false;
+          this.cryptoSubscribedSymbols.clear();
+          this.emitStatus();
+
+          if (intentional) {
+            this.cryptoIntentionalClose = false;
+            return;
           }
-        });
-      };
 
-      ws.onerror = () => {
-        this.setError('Crypto WebSocket error');
-      };
+          if (this.getDesiredCryptoSymbols().size > 0) {
+            this.scheduleCryptoReconnect();
+          }
+        };
+      } catch (error) {
+        this.setError(error.message || 'Failed to connect crypto stream');
+        this.scheduleCryptoReconnect();
+      }
+    })().finally(() => {
+      this.cryptoConnectPromise = null;
+    });
 
-      ws.onclose = () => {
-        const intentional = this.cryptoIntentionalClose;
-
-        this.cryptoWs = null;
-        this.cryptoAuthenticated = false;
-        this.cryptoConnected = false;
-        this.cryptoSubscribedSymbols.clear();
-        this.emitStatus();
-
-        if (intentional) {
-          this.cryptoIntentionalClose = false;
-          return;
-        }
-
-        if (this.getDesiredCryptoSymbols().size > 0) {
-          this.scheduleCryptoReconnect();
-        }
-      };
-    } catch (error) {
-      this.setError(error.message || 'Failed to connect crypto stream');
-      this.scheduleCryptoReconnect();
-    }
+    return this.cryptoConnectPromise;
   }
 
   syncStockStream() {

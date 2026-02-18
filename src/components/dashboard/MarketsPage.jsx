@@ -416,13 +416,9 @@ const MarketsPage = () => {
         </div>
       )}
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         <Card title="ETFs & Indices" icon={Globe} connected={stockConnected} updatedAt={stockLastUpdated}>
           {renderStreamRows({ symbols: ETF_SYMBOLS, dataset: stockState })}
-        </Card>
-
-        <Card title="Crypto" icon={Activity} connected={cryptoConnected} updatedAt={cryptoLastUpdated}>
-          {renderStreamRows({ symbols: CRYPTO_SYMBOLS, dataset: cryptoState, isCrypto: true })}
         </Card>
 
         <Card title="Trending" icon={BarChart3} connected={stockConnected} updatedAt={stockLastUpdated}>
@@ -444,6 +440,10 @@ const MarketsPage = () => {
               );
             })}
           </div>
+        </Card>
+
+        <Card title="Crypto" icon={Activity} connected={cryptoConnected} updatedAt={cryptoLastUpdated}>
+          {renderStreamRows({ symbols: CRYPTO_SYMBOLS, dataset: cryptoState, isCrypto: true })}
         </Card>
       </div>
 
