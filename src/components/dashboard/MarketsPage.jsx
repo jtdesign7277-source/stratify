@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -52,6 +52,12 @@ const SECTORS = [
 ];
 
 const isFiniteNumber = (value) => Number.isFinite(Number(value));
+const toNumber = (value) => {
+  if (typeof value === 'number') return value;
+  if (value == null) return NaN;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
 
 const getPriceFromQuote = (quote) => {
   const candidates = [
@@ -101,6 +107,28 @@ const formatPrice = (price, isCrypto = false) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+};
+
+const parseStockSnapshot = (quote) => {
+  if (!quote) return null;
+
+  const price = toNumber(quote.price ?? quote.latestPrice ?? quote.last ?? quote.lastPrice);
+  if (!Number.isFinite(price)) return null;
+
+  const prevClose = toNumber(quote.prevClose ?? quote.previousClose ?? quote.prev_close);
+  const fallbackPrevClose = Number.isFinite(prevClose) ? prevClose : price;
+
+  const rawChange = toNumber(quote.change);
+  const change = Number.isFinite(rawChange) ? rawChange : price - fallbackPrevClose;
+
+  const rawChangePercent = toNumber(quote.changePercent ?? quote.change_percent);
+  const changePercent = Number.isFinite(rawChangePercent)
+    ? rawChangePercent
+    : fallbackPrevClose > 0
+      ? (change / fallbackPrevClose) * 100
+      : 0;
+
+  return { price, changePercent, prevClose: fallbackPrevClose };
 };
 
 const toSafeDate = (value) => {
@@ -180,6 +208,21 @@ const MarketsPage = () => {
     enabled: true,
   });
 
+  const fetchEquitySnapshots = useCallback(async () => {
+    try {
+      const symbols = STREAM_STOCK_SYMBOLS.join(',');
+      const response = await fetch(`/api/stocks?symbols=${encodeURIComponent(symbols)}`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) return [];
+      const payload = await response.json();
+      return Array.isArray(payload) ? payload : [];
+    } catch (fetchError) {
+      console.error('[MarketsPage] Equity snapshot fetch error:', fetchError);
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     if (!marketPrices || typeof marketPrices.get !== 'function') return;
 
@@ -211,6 +254,46 @@ const MarketsPage = () => {
       return next;
     });
   }, [marketPrices]);
+
+  useEffect(() => {
+    const applySnapshot = async () => {
+      const snapshotData = await fetchEquitySnapshots();
+      if (!Array.isArray(snapshotData) || snapshotData.length === 0) return;
+
+      const snapshotsBySymbol = {};
+      snapshotData.forEach((item) => {
+        if (item?.symbol) snapshotsBySymbol[item.symbol] = item;
+      });
+
+      setStockState((prev) => {
+        const next = { ...prev };
+
+        STREAM_STOCK_SYMBOLS.forEach((symbol) => {
+          const parsed = parseStockSnapshot(snapshotsBySymbol[symbol]);
+          if (!parsed) return;
+
+          const current = next[symbol] || createEntry(symbol, ETF_NAMES[symbol] || TRENDING_NAMES[symbol] || symbol);
+          const baseline = Number.isFinite(current.baseline) ? current.baseline : parsed.prevClose || parsed.price;
+          const fallbackChangePercent = baseline ? ((parsed.price - baseline) / baseline) * 100 : 0;
+
+          next[symbol] = {
+            ...current,
+            price: parsed.price,
+            baseline,
+            changePercent: Number.isFinite(parsed.changePercent) ? parsed.changePercent : fallbackChangePercent,
+            ticks: [...current.ticks, parsed.price].slice(-30),
+            updatedAt: new Date().toISOString(),
+          };
+        });
+
+        return next;
+      });
+    };
+
+    applySnapshot();
+    const interval = setInterval(applySnapshot, 10000);
+    return () => clearInterval(interval);
+  }, [fetchEquitySnapshots]);
 
   useEffect(() => {
     const updates = Object.entries(cryptoQuotes);
