@@ -105,6 +105,7 @@ const MINI_CHART_SRC = 'https://s3.tradingview.com/external-embedding/embed-widg
 const ADVANCED_CHART_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
 const ECON_CALENDAR_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js';
 const SYMBOL_OVERVIEW_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js';
+const FOREX_CROSS_RATES_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js';
 
 const formatNumber = (value, decimals = 2) => {
   if (!Number.isFinite(value)) return '--';
@@ -195,7 +196,7 @@ const ErrorState = ({ onRetry }) => (
     <span>Data unavailable</span>
     <button
       onClick={onRetry}
-      className="px-3 py-1.5 rounded-lg border border-gray-700/60 bg-[#0a1628] text-gray-300 hover:text-white hover:border-blue-500/60 transition"
+      className="px-3 py-1.5 rounded-lg border border-blue-500/30 bg-[rgba(6,13,24,0.6)] backdrop-blur-sm text-gray-300 hover:text-white hover:border-blue-400/70 transition"
     >
       Retry
     </button>
@@ -227,14 +228,14 @@ class FredErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="h-full w-full bg-transparent text-white overflow-hidden relative flex items-center justify-center">
-          <div className="rounded-2xl border border-gray-800/30 bg-[#0a1628] px-6 py-5 text-center flex flex-col items-center gap-3">
+          <div className="rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md px-6 py-5 text-center flex flex-col items-center gap-3">
             <span className="text-[11px] uppercase tracking-[0.3em] text-gray-400">FRED failed to load</span>
             {this.state.errorMessage ? (
               <span className="text-[11px] text-gray-500">{this.state.errorMessage}</span>
             ) : null}
             <button
               onClick={this.handleReload}
-              className="px-4 py-2 rounded-lg border border-gray-700/60 bg-[#0a1628] text-gray-200 hover:text-white hover:border-blue-500/60 transition"
+              className="px-4 py-2 rounded-lg border border-blue-500/30 bg-[rgba(6,13,24,0.6)] backdrop-blur-sm text-gray-200 hover:text-white hover:border-blue-400/70 transition"
             >
               Reload
             </button>
@@ -310,7 +311,7 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
     return (
       <div className="grid grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-gray-800/30 bg-[#0a1628] p-3">
+          <div key={index} className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-3">
             <SkeletonBlock className="h-3 w-20 mb-3" />
             <SkeletonBlock className="h-6 w-24 mb-2" />
             <SkeletonBlock className="h-3 w-14" />
@@ -322,7 +323,7 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-gray-800/30 bg-[#0a1628] p-4">
+      <div className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4">
         <ErrorState onRetry={onRetry} />
       </div>
     );
@@ -333,7 +334,7 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-xl border border-gray-800/30 bg-[#0a1628] p-3 flex flex-col justify-between min-h-[80px]"
+          className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-3 flex flex-col justify-between min-h-[80px]"
         >
           <div className="flex items-center justify-between text-gray-400 text-[11px] uppercase tracking-widest">
             <span>{card.label}</span>
@@ -363,7 +364,7 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
             </div>
           </div>
           {card.symbol && (
-            <div className="mt-2 h-8 rounded-lg border border-gray-800/30 bg-[#0b1325]/70 overflow-hidden">
+            <div className="mt-2 h-8 rounded-lg border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
               <MiniChart symbol={card.symbol} />
             </div>
           )}
@@ -405,7 +406,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
   }), [activeSymbol]);
 
   return (
-    <div className="h-full rounded-2xl border border-gray-800/30 bg-[#0a1628] p-4 flex flex-col">
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
@@ -418,8 +419,8 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
               onClick={() => onSelectSymbol(tab.symbol, tab.title)}
               className={`px-2.5 py-1 rounded-full text-[10px] border ${
                 activeSymbol === tab.symbol
-                  ? 'border-blue-500/60 text-blue-300 bg-blue-500/10'
-                  : 'border-gray-700/50 text-gray-400'
+                  ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
+                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.4)]'
               }`}
             >
               {tab.label}
@@ -427,7 +428,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
           ))}
         </div>
       </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
+      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
         <TradingViewWidget scriptSrc={ADVANCED_CHART_SRC} config={config} />
       </div>
     </div>
@@ -447,7 +448,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
 
   return (
     <div
-      className={`rounded-2xl border border-gray-800/30 bg-[#0a1628] flex flex-col ${
+      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md flex flex-col ${
         collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
       }`}
     >
@@ -458,7 +459,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
         </div>
         <button
           onClick={onToggle}
-          className="p-1 rounded-md border border-gray-800/30 text-gray-400 hover:text-white transition"
+          className="p-1 rounded-md border border-blue-500/25 text-gray-400 hover:text-white transition"
           aria-label={collapsed ? 'Expand calendar' : 'Collapse calendar'}
         >
           <ChevronDown
@@ -469,9 +470,9 @@ const EconCalendar = ({ collapsed, onToggle }) => {
         </button>
       </div>
       {!collapsed && (
-        <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
+        <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
           <div className="relative h-full overflow-y-auto">
-            <div className="sticky top-0 z-10 h-8 bg-[#060d18]" />
+            <div className="sticky top-0 z-10 h-8 bg-[rgba(8,20,38,0.65)] backdrop-blur-sm" />
             <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
           </div>
         </div>
@@ -519,13 +520,138 @@ const HistoricalTrends = () => {
   }), []);
 
   return (
-    <div className="h-full rounded-2xl border border-gray-800/30 bg-[#0a1628] p-4 flex flex-col">
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Activity className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
         <span className="text-white text-sm font-semibold">Trends</span>
       </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-gray-800/30 bg-[#060d18] overflow-hidden">
+      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
         <TradingViewWidget scriptSrc={SYMBOL_OVERVIEW_SRC} config={config} />
+      </div>
+    </div>
+  );
+};
+
+const MARKET_OVERVIEW_TABS = [
+  {
+    id: 'indices',
+    label: 'Indices',
+    symbols: [
+      ['S&P 500', 'SP:SPX|1D'],
+      ['Nasdaq 100', 'NASDAQ:NDX|1D'],
+      ['Dow Jones', 'DJ:DJI|1D'],
+      ['Russell 2000', 'TVC:RUT|1D'],
+      ['VIX', 'CBOE:VIX|1D'],
+    ],
+  },
+  {
+    id: 'bonds',
+    label: 'Bonds',
+    symbols: [
+      ['US 2Y', 'TVC:US02Y|1D'],
+      ['US 5Y', 'TVC:US05Y|1D'],
+      ['US 10Y', 'TVC:US10Y|1D'],
+      ['US 30Y', 'TVC:US30Y|1D'],
+      ['TLT', 'NASDAQ:TLT|1D'],
+    ],
+  },
+  {
+    id: 'commodities',
+    label: 'Commodities',
+    symbols: [
+      ['Gold', 'TVC:GOLD|1D'],
+      ['Silver', 'TVC:SILVER|1D'],
+      ['Crude Oil', 'TVC:USOIL|1D'],
+      ['Natural Gas', 'TVC:NATGAS|1D'],
+      ['Copper', 'TVC:COPPER|1D'],
+    ],
+  },
+];
+
+const MarketOverviewPanel = () => {
+  const [activeTab, setActiveTab] = useState('indices');
+
+  const activeConfig = useMemo(
+    () => MARKET_OVERVIEW_TABS.find((tab) => tab.id === activeTab) || MARKET_OVERVIEW_TABS[0],
+    [activeTab],
+  );
+
+  const config = useMemo(() => ({
+    symbols: activeConfig.symbols,
+    chartOnly: false,
+    width: '100%',
+    height: '100%',
+    locale: 'en',
+    colorTheme: 'dark',
+    autosize: true,
+    showVolume: false,
+    showMA: false,
+    hideDateRanges: true,
+    hideMarketStatus: false,
+    hideSymbolLogo: false,
+    scalePosition: 'right',
+    scaleMode: 'Normal',
+    fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontSize: '10',
+    noTimeScale: false,
+    valuesTracking: '1',
+    changeMode: 'price-and-percent',
+    chartType: 'line',
+    lineWidth: 2,
+    lineColor: 'rgba(56, 189, 248, 0.95)',
+    topColor: 'rgba(56, 189, 248, 0.22)',
+    bottomColor: 'rgba(56, 189, 248, 0.03)',
+    isTransparent: true,
+  }), [activeConfig]);
+
+  return (
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
+          <span className="text-white text-sm font-semibold">Market Overview</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {MARKET_OVERVIEW_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-2.5 py-1 rounded-full text-[10px] border transition ${
+                activeTab === tab.id
+                  ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
+                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.4)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+        <TradingViewWidget scriptSrc={SYMBOL_OVERVIEW_SRC} config={config} />
+      </div>
+    </div>
+  );
+};
+
+const ForexCrossRatesPanel = () => {
+  const config = useMemo(() => ({
+    width: '100%',
+    height: '100%',
+    currencies: ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD'],
+    isTransparent: true,
+    colorTheme: 'dark',
+    locale: 'en',
+  }), []);
+
+  return (
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
+      <div className="flex items-center gap-2 mb-3">
+        <Percent className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
+        <span className="text-white text-sm font-semibold">Forex Cross Rates</span>
+      </div>
+      <div className="flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+        <TradingViewWidget scriptSrc={FOREX_CROSS_RATES_SRC} config={config} />
       </div>
     </div>
   );
@@ -568,7 +694,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
 
   return (
     <div
-      className={`rounded-2xl border border-gray-800/30 bg-[#0a1628] flex flex-col ${
+      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md flex flex-col ${
         collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
       }`}
     >
@@ -579,7 +705,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
         </div>
         <button
           onClick={onToggle}
-          className="p-1 rounded-md border border-gray-800/30 text-gray-400 hover:text-white transition"
+          className="p-1 rounded-md border border-blue-500/25 text-gray-400 hover:text-white transition"
           aria-label={collapsed ? 'Expand explore' : 'Collapse explore'}
         >
           <ChevronDown
@@ -591,7 +717,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
       </div>
       {!collapsed && (
         <>
-          <div className="flex items-center gap-2 bg-[#0b1325] border border-gray-800/30 rounded-xl px-3 py-2 mb-3">
+          <div className="flex items-center gap-2 bg-[rgba(8,20,38,0.45)] border border-blue-500/20 rounded-xl px-3 py-2 mb-3 backdrop-blur-sm">
             <Search className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
             <input
               value={query}
@@ -623,7 +749,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                           onSelectSymbol(item.symbol, item.label);
                         }
                       }}
-                      className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-700/60 bg-[#0b1325]/70 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all text-gray-300 hover:text-blue-300"
+                      className="px-2.5 py-1.5 text-xs rounded-lg border border-blue-500/25 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm hover:bg-blue-500/20 hover:border-blue-400/60 transition-all text-gray-300 hover:text-blue-200"
                       title={item.description}
                     >
                       {item.label}
@@ -637,7 +763,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                   <button
                     key={item.id}
                     onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
-                    className="w-full text-left px-3 py-2 rounded-xl border border-gray-800/30 bg-[#0b1325]/70 hover:bg-[#12203a]/70 transition"
+                    className="w-full text-left px-3 py-2 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm hover:bg-[rgba(18,32,58,0.7)] transition"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -811,11 +937,11 @@ const FredPage = () => {
             backgroundSize: '32px 32px',
           }}
         />
-        <div className="relative z-10 h-full p-6 grid grid-rows-[80px_1fr] gap-4">
+        <div className="relative z-10 h-full p-6 grid grid-rows-[80px_minmax(0,1fr)_minmax(220px,0.58fr)] gap-3">
           <div className="h-[80px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </div>
-          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-0 min-h-0 -mt-2">
+          <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-3 min-h-0">
             <div className="min-h-0">
               <YieldCurve
                 activeSymbol={activeSymbol}
@@ -823,7 +949,7 @@ const FredPage = () => {
                 onSelectSymbol={handleSelectSymbol}
               />
             </div>
-            <div className="min-h-0 flex flex-col gap-0">
+            <div className="min-h-0 flex flex-col gap-3">
               <FredSearch
                 onSelectSymbol={handleSelectSymbol}
                 collapsed={exploreCollapsed}
@@ -836,6 +962,10 @@ const FredPage = () => {
                 />
               </div>
             </div>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-3 min-h-0">
+            <MarketOverviewPanel />
+            <ForexCrossRatesPanel />
           </div>
         </div>
       </div>
