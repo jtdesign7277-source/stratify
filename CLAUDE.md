@@ -1,6 +1,6 @@
 # CLAUDE.md - Stratify Project Context
 
-*Last updated: 2025-07-14*
+*Last updated: 2026-02-18*
 
 ## Project Overview
 
@@ -98,6 +98,41 @@ GET /api/public/quotes?symbols= # Multiple quotes
 - NEVER remove or break prompt caching. Verify it works by checking response usage stats for `cache_read_input_tokens > 0`.
 - Any developer touching the Claude API integration MUST confirm caching is active after their changes.
 - If `cache_read_input_tokens` is `0` on consecutive requests, caching is broken — fix immediately.
+
+---
+
+## Critical Incident Runbook: Markets `connection limit exceeded`
+
+**Date fixed:** 2026-02-18  
+**Commit:** `e36240e`
+
+### Symptoms
+- Markets page banner shows: `connection limit exceeded`
+- ETFs/Stocks or Crypto cards stay at `Connecting...` / `Waiting for stream...`
+- Data may work on one page but fail on another
+
+### Root Cause
+- Duplicate Alpaca WebSocket connects were created during concurrent mount/reconnect calls.
+- Race condition in `src/services/alpacaStream.js` allowed overlapping `connectStockWs()` / `connectCryptoWs()` attempts before socket state settled.
+
+### Permanent Fix Applied
+- Added connect locks:
+  - `stockConnectPromise`
+  - `cryptoConnectPromise`
+- These guarantee one in-flight connect per stream and prevent duplicate sockets.
+
+### Non-Negotiable Rules
+- Use only the shared singleton stream manager in `src/services/alpacaStream.js`.
+- Do **not** open direct Alpaca sockets in UI components.
+- Keep at most:
+  - 1 stock socket (`/v2/sip`)
+  - 1 crypto socket (`/v1beta3/crypto/us`)
+
+### If This Happens Again
+1. Confirm no direct Alpaca `new WebSocket(...)` exists outside `src/services/alpacaStream.js`.
+2. Verify connect locks still exist and are used in both `connectStockWs` and `connectCryptoWs`.
+3. Confirm all pages subscribe through `useAlpacaStream` / shared manager.
+4. Re-test Markets + Trade + Watchlist together to confirm no connection limit banner.
 
 ---
 
