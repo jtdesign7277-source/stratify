@@ -137,6 +137,24 @@ const toSafeDate = (value) => {
   return Number.isFinite(date.getTime()) ? date : null;
 };
 
+const normalizeCryptoStateSymbol = (symbol) => {
+  const normalized = String(symbol || '')
+    .trim()
+    .toUpperCase()
+    .replace(/_/g, '-')
+    .replace(/\//g, '-');
+
+  if (!normalized) return '';
+  if (CRYPTO_SYMBOLS.includes(normalized)) return normalized;
+
+  const compact = normalized.replace(/-/g, '');
+  const compactMatch = compact.match(/^([A-Z0-9]+)(USD|USDT|USDC)$/);
+  if (!compactMatch) return normalized;
+
+  const candidate = `${compactMatch[1]}-${compactMatch[2]}`;
+  return CRYPTO_SYMBOLS.includes(candidate) ? candidate : candidate;
+};
+
 const getLatestTimestampDate = (stateMap) => {
   const latest = Object.values(stateMap)
     .map((item) => toSafeDate(item?.updatedAt))
@@ -269,14 +287,18 @@ const MarketsPage = () => {
     setCryptoState((prev) => {
       const next = { ...prev };
       updates.forEach(([symbol, quote]) => {
+        const normalizedSymbol = normalizeCryptoStateSymbol(symbol);
         const price = getPriceFromQuote(quote);
         if (!Number.isFinite(price)) return;
 
-        const current = next[symbol] || createEntry(symbol, CRYPTO_NAMES[symbol] || symbol);
+        const current = next[normalizedSymbol] || createEntry(
+          normalizedSymbol,
+          CRYPTO_NAMES[normalizedSymbol] || normalizedSymbol,
+        );
         const baseline = Number.isFinite(current.baseline) ? current.baseline : price;
         const changePercent = baseline ? ((price - baseline) / baseline) * 100 : 0;
 
-        next[symbol] = {
+        next[normalizedSymbol] = {
           ...current,
           price,
           baseline,
@@ -288,6 +310,14 @@ const MarketsPage = () => {
       return next;
     });
   }, [cryptoQuotes]);
+
+  useEffect(() => {
+    if (!cryptoConnected || hasCryptoData) return undefined;
+    const timer = setTimeout(() => {
+      reconnectCrypto();
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [cryptoConnected, hasCryptoData, reconnectCrypto]);
 
   const stockLastUpdated = useMemo(() => getLatestTimestampDate(stockState), [stockState]);
   const cryptoLastUpdated = useMemo(() => getLatestTimestampDate(cryptoState), [cryptoState]);

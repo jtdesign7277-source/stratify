@@ -23,6 +23,11 @@ const normalizeCryptoSymbols = (symbols = []) => (
 const toCryptoStreamSymbol = (symbol) => {
   const normalized = normalizeCryptoSymbol(symbol);
   if (!normalized) return '';
+  const compact = normalized.replace(/-/g, '');
+  const compactMatch = compact.match(/^([A-Z0-9]+)(USD|USDT|USDC)$/);
+  if (compactMatch) {
+    return `${compactMatch[1]}/${compactMatch[2]}`;
+  }
   const [base, quote = 'USD'] = normalized.split('-');
   if (!base) return '';
   return `${base}/${quote}`;
@@ -31,7 +36,16 @@ const toCryptoStreamSymbol = (symbol) => {
 const fromCryptoStreamSymbol = (symbol) => {
   const normalized = String(symbol || '').trim().toUpperCase();
   if (!normalized) return '';
-  return normalized.replace('/', '-');
+  if (normalized.includes('/')) return normalized.replace('/', '-');
+  if (normalized.includes('-')) return normalized;
+
+  const compact = normalized.replace(/[^A-Z0-9]/g, '');
+  const compactMatch = compact.match(/^([A-Z0-9]+)(USD|USDT|USDC)$/);
+  if (compactMatch) {
+    return `${compactMatch[1]}-${compactMatch[2]}`;
+  }
+
+  return compact;
 };
 
 const toMessageArray = (payload) => {
@@ -478,7 +492,7 @@ class AlpacaStreamManager {
             return;
           }
 
-          if (msg.T === 't' || msg.T === 'q') {
+          if (msg.T === 't' || msg.T === 'q' || msg.T === 'b' || msg.T === 'u') {
             const symbol = fromCryptoStreamSymbol(msg.S);
             if (!symbol) return;
 
@@ -491,12 +505,22 @@ class AlpacaStreamManager {
                   timestamp: msg.t,
                   lastTrade: msg.p,
                 }
+              : msg.T === 'b' || msg.T === 'u'
+                ? {
+                    symbol,
+                    price: msg.c ?? msg.close ?? previous.price,
+                    open: msg.o ?? msg.open ?? previous.open,
+                    high: msg.h ?? msg.high ?? previous.high,
+                    low: msg.l ?? msg.low ?? previous.low,
+                    volume: msg.v ?? msg.volume ?? previous.volume,
+                    timestamp: msg.t ?? msg.timestamp ?? previous.timestamp,
+                  }
               : {
                   symbol,
-                  bid: msg.bp,
-                  ask: msg.ap,
-                  price: msg.ap || msg.bp || previous.price,
-                  timestamp: msg.t,
+                  bid: msg.bp ?? msg.bid ?? msg.BP,
+                  ask: msg.ap ?? msg.ask ?? msg.AP,
+                  price: msg.ap ?? msg.bp ?? msg.ask ?? msg.bid ?? msg.AP ?? msg.BP ?? previous.price,
+                  timestamp: msg.t ?? msg.timestamp,
                 };
 
             const next = { ...previous, ...update };
@@ -597,6 +621,7 @@ class AlpacaStreamManager {
         action: 'subscribe',
         trades: symbolsToAdd,
         quotes: symbolsToAdd,
+        bars: symbolsToAdd,
       }));
       symbolsToAdd.forEach((symbol) => this.cryptoSubscribedSymbols.add(symbol));
     }
@@ -606,6 +631,7 @@ class AlpacaStreamManager {
         action: 'unsubscribe',
         trades: symbolsToRemove,
         quotes: symbolsToRemove,
+        bars: symbolsToRemove,
       }));
       symbolsToRemove.forEach((symbol) => this.cryptoSubscribedSymbols.delete(symbol));
     }
