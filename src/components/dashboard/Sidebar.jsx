@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Crosshair,
   SlidersHorizontal, 
+  Bitcoin,
   Globe, 
   LineChart, 
   BarChart3,
@@ -71,6 +72,7 @@ const Sidebar = ({
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
     { id: 'fred', label: 'FRED', icon: Landmark },
+    { id: 'crypto', label: 'Crypto', icon: Bitcoin },
   ];
 
   const handleTabClick = (id) => {

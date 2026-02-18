@@ -43,6 +43,7 @@ import ActiveTrades from './ActiveTrades';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
+import CryptoPage from './CryptoPage';
 // Sophia strategy state managed here
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
@@ -1879,6 +1880,7 @@ export default function Dashboard({
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
+          {activeTab === 'crypto' && <CryptoPage />}
           {activeTab === 'terminal' && (
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}
