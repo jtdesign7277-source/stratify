@@ -309,9 +309,9 @@ const MiniChart = ({ symbol }) => {
 const MacroPulse = ({ cards, loading, error, onRetry }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid grid-cols-6 gap-3 h-full">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-3">
+          <div key={index} className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-3 h-full min-h-0">
             <SkeletonBlock className="h-3 w-20 mb-3" />
             <SkeletonBlock className="h-6 w-24 mb-2" />
             <SkeletonBlock className="h-3 w-14" />
@@ -323,18 +323,18 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4">
+      <div className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 h-full">
         <ErrorState onRetry={onRetry} />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-6 gap-3">
+    <div className="grid grid-cols-6 gap-3 h-full">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-3 flex flex-col justify-between min-h-[80px]"
+          className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-3 flex flex-col justify-between h-full min-h-0"
         >
           <div className="flex items-center justify-between text-gray-400 text-[11px] uppercase tracking-widest">
             <span>{card.label}</span>
@@ -364,7 +364,7 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
             </div>
           </div>
           {card.symbol && (
-            <div className="mt-2 h-8 rounded-lg border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+            <div className="mt-2 h-8 rounded-lg border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
               <MiniChart symbol={card.symbol} />
             </div>
           )}
@@ -390,7 +390,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
     theme: 'dark',
     style: '3',
     locale: 'en',
-    backgroundColor: 'rgba(6, 13, 24, 1)',
+    backgroundColor: 'rgba(6, 13, 24, 0)',
     gridColor: 'rgba(31, 41, 55, 0.3)',
     hide_top_toolbar: false,
     hide_legend: false,
@@ -399,14 +399,14 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
     allow_symbol_change: false,
     enable_publishing: false,
     withdateranges: true,
-    toolbar_bg: '#060d18',
+    toolbar_bg: 'rgba(6,13,24,0)',
     support_host: 'https://www.tradingview.com',
     isTransparent: true,
     studies: [],
   }), [activeSymbol]);
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
@@ -420,7 +420,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
               className={`px-2.5 py-1 rounded-full text-[10px] border ${
                 activeSymbol === tab.symbol
                   ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
-                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.4)]'
+                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.2)]'
               }`}
             >
               {tab.label}
@@ -428,7 +428,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
           ))}
         </div>
       </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
         <TradingViewWidget scriptSrc={ADVANCED_CHART_SRC} config={config} />
       </div>
     </div>
@@ -448,7 +448,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
 
   return (
     <div
-      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md flex flex-col ${
+      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md flex flex-col ${
         collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
       }`}
     >
@@ -470,9 +470,9 @@ const EconCalendar = ({ collapsed, onToggle }) => {
         </button>
       </div>
       {!collapsed && (
-        <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+        <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
           <div className="relative h-full overflow-y-auto">
-            <div className="sticky top-0 z-10 h-8 bg-[rgba(8,20,38,0.65)] backdrop-blur-sm" />
+            <div className="sticky top-0 z-10 h-8 bg-[rgba(8,20,38,0.3)] backdrop-blur-sm" />
             <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
           </div>
         </div>
@@ -520,12 +520,12 @@ const HistoricalTrends = () => {
   }), []);
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Activity className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
         <span className="text-white text-sm font-semibold">Trends</span>
       </div>
-      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+      <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
         <TradingViewWidget scriptSrc={SYMBOL_OVERVIEW_SRC} config={config} />
       </div>
     </div>
@@ -537,33 +537,33 @@ const MARKET_OVERVIEW_TABS = [
     id: 'indices',
     label: 'Indices',
     symbols: [
-      ['S&P 500', 'SP:SPX|1D'],
-      ['Nasdaq 100', 'NASDAQ:NDX|1D'],
-      ['Dow Jones', 'DJ:DJI|1D'],
-      ['Russell 2000', 'TVC:RUT|1D'],
-      ['VIX', 'CBOE:VIX|1D'],
+      ['S&P 500', 'AMEX:SPY'],
+      ['Nasdaq 100', 'NASDAQ:QQQ'],
+      ['Dow Jones', 'AMEX:DIA'],
+      ['Russell 2000', 'AMEX:IWM'],
+      ['VIX', 'CBOE:VIX'],
     ],
   },
   {
     id: 'bonds',
     label: 'Bonds',
     symbols: [
-      ['US 2Y', 'TVC:US02Y|1D'],
-      ['US 5Y', 'TVC:US05Y|1D'],
-      ['US 10Y', 'TVC:US10Y|1D'],
-      ['US 30Y', 'TVC:US30Y|1D'],
-      ['TLT', 'NASDAQ:TLT|1D'],
+      ['20+Y Treasury', 'NASDAQ:TLT'],
+      ['7-10Y Treasury', 'NASDAQ:IEF'],
+      ['1-3Y Treasury', 'NASDAQ:SHY'],
+      ['Corporate Bond', 'NASDAQ:LQD'],
+      ['Total Bond Mkt', 'AMEX:BND'],
     ],
   },
   {
     id: 'commodities',
     label: 'Commodities',
     symbols: [
-      ['Gold', 'TVC:GOLD|1D'],
-      ['Silver', 'TVC:SILVER|1D'],
-      ['Crude Oil', 'TVC:USOIL|1D'],
-      ['Natural Gas', 'TVC:NATGAS|1D'],
-      ['Copper', 'TVC:COPPER|1D'],
+      ['Gold', 'AMEX:GLD'],
+      ['Silver', 'AMEX:SLV'],
+      ['Oil', 'AMEX:USO'],
+      ['Natural Gas', 'AMEX:UNG'],
+      ['Broad Commod.', 'AMEX:DBC'],
     ],
   },
 ];
@@ -576,36 +576,8 @@ const MarketOverviewPanel = () => {
     [activeTab],
   );
 
-  const config = useMemo(() => ({
-    symbols: activeConfig.symbols,
-    chartOnly: false,
-    width: '100%',
-    height: '100%',
-    locale: 'en',
-    colorTheme: 'dark',
-    autosize: true,
-    showVolume: false,
-    showMA: false,
-    hideDateRanges: true,
-    hideMarketStatus: false,
-    hideSymbolLogo: false,
-    scalePosition: 'right',
-    scaleMode: 'Normal',
-    fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: '10',
-    noTimeScale: false,
-    valuesTracking: '1',
-    changeMode: 'price-and-percent',
-    chartType: 'line',
-    lineWidth: 2,
-    lineColor: 'rgba(56, 189, 248, 0.95)',
-    topColor: 'rgba(56, 189, 248, 0.22)',
-    bottomColor: 'rgba(56, 189, 248, 0.03)',
-    isTransparent: true,
-  }), [activeConfig]);
-
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
@@ -619,7 +591,7 @@ const MarketOverviewPanel = () => {
               className={`px-2.5 py-1 rounded-full text-[10px] border transition ${
                 activeTab === tab.id
                   ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
-                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.4)]'
+                  : 'border-blue-500/25 text-gray-400 bg-[rgba(6,13,24,0.2)]'
               }`}
             >
               {tab.label}
@@ -627,8 +599,19 @@ const MarketOverviewPanel = () => {
           ))}
         </div>
       </div>
-      <div className="mt-3 flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
-        <TradingViewWidget scriptSrc={SYMBOL_OVERVIEW_SRC} config={config} />
+      <div className="mt-3 flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm p-2.5 grid grid-cols-5 gap-2.5 overflow-hidden">
+        {activeConfig.symbols.map(([label, symbol]) => (
+          <div
+            key={symbol}
+            className="rounded-lg border border-blue-500/20 bg-[rgba(6,13,24,0.22)] backdrop-blur-sm p-2 flex flex-col min-h-0"
+          >
+            <div className="text-[10px] font-semibold text-white/85 leading-tight truncate">{label}</div>
+            <div className="text-[10px] text-blue-300/70 mt-0.5">{symbol.replace(/^.*:/, '')}</div>
+            <div className="mt-2 flex-1 min-h-0 rounded-md border border-blue-500/15 bg-[rgba(6,13,24,0.08)] overflow-hidden">
+              <MiniChart symbol={symbol} />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -645,12 +628,12 @@ const ForexCrossRatesPanel = () => {
   }), []);
 
   return (
-    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md p-4 flex flex-col">
+    <div className="h-full rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Percent className="w-4 h-4 text-blue-400" strokeWidth={1.5} fill="none" />
         <span className="text-white text-sm font-semibold">Forex Cross Rates</span>
       </div>
-      <div className="flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm overflow-hidden">
+      <div className="flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
         <TradingViewWidget scriptSrc={FOREX_CROSS_RATES_SRC} config={config} />
       </div>
     </div>
@@ -694,7 +677,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
 
   return (
     <div
-      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.6)] backdrop-blur-md flex flex-col ${
+      className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md flex flex-col ${
         collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
       }`}
     >
@@ -717,7 +700,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
       </div>
       {!collapsed && (
         <>
-          <div className="flex items-center gap-2 bg-[rgba(8,20,38,0.45)] border border-blue-500/20 rounded-xl px-3 py-2 mb-3 backdrop-blur-sm">
+          <div className="flex items-center gap-2 bg-[rgba(8,20,38,0.18)] border border-blue-500/20 rounded-xl px-3 py-2 mb-3 backdrop-blur-sm">
             <Search className="w-4 h-4 text-gray-400" strokeWidth={1.5} fill="none" />
             <input
               value={query}
@@ -749,7 +732,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                           onSelectSymbol(item.symbol, item.label);
                         }
                       }}
-                      className="px-2.5 py-1.5 text-xs rounded-lg border border-blue-500/25 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm hover:bg-blue-500/20 hover:border-blue-400/60 transition-all text-gray-300 hover:text-blue-200"
+                      className="px-2.5 py-1.5 text-xs rounded-lg border border-blue-500/25 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm hover:bg-blue-500/20 hover:border-blue-400/60 transition-all text-gray-300 hover:text-blue-200"
                       title={item.description}
                     >
                       {item.label}
@@ -763,7 +746,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                   <button
                     key={item.id}
                     onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
-                    className="w-full text-left px-3 py-2 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.45)] backdrop-blur-sm hover:bg-[rgba(18,32,58,0.7)] transition"
+                    className="w-full text-left px-3 py-2 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm hover:bg-[rgba(18,32,58,0.7)] transition"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -937,8 +920,8 @@ const FredPage = () => {
             backgroundSize: '32px 32px',
           }}
         />
-        <div className="relative z-10 h-full p-6 grid grid-rows-[80px_minmax(0,1fr)_minmax(220px,0.58fr)] gap-3">
-          <div className="h-[80px]">
+        <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(108px,124px)_minmax(0,1fr)_minmax(250px,0.62fr)] gap-3">
+          <div className="h-full min-h-[108px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </div>
           <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)] gap-3 min-h-0">
