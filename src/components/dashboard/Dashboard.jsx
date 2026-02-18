@@ -634,6 +634,9 @@ export default function Dashboard({
     if (state.activeTab) setActiveTab(sanitizeActiveTab(state.activeTab));
     if (state.activeSection) setActiveSection(String(state.activeSection));
     if (state.theme === 'dark' || state.theme === 'light') setTheme(state.theme);
+    if (Array.isArray(state.connectedBrokers)) {
+      setConnectedBrokers(state.connectedBrokers.filter((broker) => broker && typeof broker === 'object'));
+    }
     const nextPaperBalance = toNumberOrNull(state.paperTradingBalance);
     if (nextPaperBalance !== null && nextPaperBalance >= 0) {
       setPaperTradingBalance(nextPaperBalance);
@@ -647,7 +650,8 @@ export default function Dashboard({
     activeSection,
     theme,
     paperTradingBalance,
-  }), [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme, paperTradingBalance]);
+    connectedBrokers,
+  }), [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme, paperTradingBalance, connectedBrokers]);
 
   useDashboardStateSync(user, dashboardSyncState, hydrateDashboardState);
 
@@ -1509,8 +1513,9 @@ export default function Dashboard({
       activeSection,
       theme,
       paperTradingBalance,
+      connectedBrokers,
     });
-  }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme, paperTradingBalance]);
+  }, [sidebarExpanded, rightPanelWidth, activeTab, activeSection, theme, paperTradingBalance, connectedBrokers]);
 
   useEffect(() => {
     localStorage.setItem('stratify-connected-brokers', JSON.stringify(connectedBrokers));

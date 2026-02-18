@@ -8,8 +8,13 @@ import AlpacaLightweightChart from './AlpacaLightweightChart';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+const TRADE_UI_LOCAL_KEY = 'stratify-trade-ui-state';
+const TRADE_UI_USER_STATE_KEY = 'trade_ui';
+const DEFAULT_PINNED_TABS = ['NVDA', 'TSLA', 'AAPL'];
 
 const STOCK_DATABASE = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
@@ -237,6 +242,66 @@ const normalizeCryptoWatchlistItem = (item) => {
   return { ...normalized, symbol: normalizedSymbol, displaySymbol };
 };
 
+const normalizePinnedTabs = (value) => {
+  if (!Array.isArray(value)) return [...DEFAULT_PINNED_TABS];
+  const seen = new Set();
+  const normalized = [];
+  value.forEach((item) => {
+    const symbol = String(item || '').trim().toUpperCase();
+    if (!symbol || seen.has(symbol)) return;
+    seen.add(symbol);
+    normalized.push(symbol);
+  });
+  return normalized.slice(0, 5);
+};
+
+const normalizeTradeUiState = (value) => {
+  const candidate = value && typeof value === 'object' ? value : {};
+  const watchlistState = ['open', 'small', 'closed'].includes(String(candidate.watchlistState))
+    ? String(candidate.watchlistState)
+    : 'small';
+  const activeMarket = candidate.activeMarket === 'crypto' ? 'crypto' : 'equity';
+  const pinnedTabs = normalizePinnedTabs(candidate.pinnedTabs);
+  const cryptoWatchlist = Array.isArray(candidate.cryptoWatchlist)
+    ? candidate.cryptoWatchlist.map(normalizeCryptoWatchlistItem)
+    : DEFAULT_CRYPTO_WATCHLIST.map(normalizeCryptoWatchlistItem);
+
+  return {
+    activeMarket,
+    pinnedTabs,
+    watchlistState,
+    cryptoWatchlist,
+  };
+};
+
+const loadLocalTradeUiState = () => {
+  if (typeof window === 'undefined') return normalizeTradeUiState({});
+  try {
+    const raw = localStorage.getItem(TRADE_UI_LOCAL_KEY);
+    if (!raw) {
+      const legacyPinnedTabs = localStorage.getItem('stratify-pinned-tabs');
+      const legacyCryptoWatchlist = localStorage.getItem('stratify-crypto-watchlist');
+      return normalizeTradeUiState({
+        pinnedTabs: legacyPinnedTabs ? JSON.parse(legacyPinnedTabs) : undefined,
+        cryptoWatchlist: legacyCryptoWatchlist ? JSON.parse(legacyCryptoWatchlist) : undefined,
+      });
+    }
+    return normalizeTradeUiState(JSON.parse(raw));
+  } catch {
+    return normalizeTradeUiState({});
+  }
+};
+
+const saveLocalTradeUiState = (state) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TRADE_UI_LOCAL_KEY, JSON.stringify(normalizeTradeUiState(state)));
+};
+
+const isMissingColumnError = (error, columnName) => {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes(columnName.toLowerCase()) && message.includes('column');
+};
+
 const toNumber = (value) => {
   if (typeof value === 'number') return value;
   if (value == null) return NaN;
@@ -330,7 +395,9 @@ const formatTimestamp = (value) => {
 };
 
 const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, onReorderWatchlist, onPinToTop, addTrade }) => {
-  const [activeMarket, setActiveMarket] = useState('equity');
+  const { user } = useAuth();
+  const initialTradeUiRef = useRef(loadLocalTradeUiState());
+  const [activeMarket, setActiveMarket] = useState(() => initialTradeUiRef.current.activeMarket);
   const [chartInterval, setChartInterval] = useState('1D');
   const [selectedEquity, setSelectedEquity] = useState(() => {
     // Check if coming from Active trades with a symbol
@@ -347,19 +414,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const [searchResults, setSearchResults] = useState([]);
   
   // Mini tabs - pinned tickers for quick access
-  const [pinnedTabs, setPinnedTabs] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-pinned-tabs');
-      return saved ? JSON.parse(saved) : ['NVDA', 'TSLA', 'AAPL'];
-    } catch { return ['NVDA', 'TSLA', 'AAPL']; }
-  });
+  const [pinnedTabs, setPinnedTabs] = useState(() => initialTradeUiRef.current.pinnedTabs);
   const [dragOverTabs, setDragOverTabs] = useState(false);
   const [marketSession, setMarketSession] = useState(getMarketSession);
-
-  // Save pinned tabs to localStorage
-  useEffect(() => {
-    localStorage.setItem('stratify-pinned-tabs', JSON.stringify(pinnedTabs));
-  }, [pinnedTabs]);
+  const [tradeUiLoaded, setTradeUiLoaded] = useState(false);
+  const tradeUiSaveTimerRef = useRef(null);
+  const lastTradeUiSavedRef = useRef('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -387,7 +447,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
 
   // Watchlist states: 'open' (384px) → 'small' (280px) → 'closed' (80px) → 'open'...
   // Default to 'small' size
-  const [watchlistState, setWatchlistState] = useState('small');
+  const [watchlistState, setWatchlistState] = useState(() => initialTradeUiRef.current.watchlistState);
   
   const stateWidths = { open: 384, small: 280, closed: 80 };
   
@@ -404,16 +464,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const [cryptoQuotes, setCryptoQuotes] = useState({});
   const [equityLoading, setEquityLoading] = useState(true);
   const [cryptoLoading, setCryptoLoading] = useState(true);
-  const [cryptoWatchlist, setCryptoWatchlist] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stratify-crypto-watchlist');
-      return saved
-        ? JSON.parse(saved).map(normalizeCryptoWatchlistItem)
-        : DEFAULT_CRYPTO_WATCHLIST.map(normalizeCryptoWatchlistItem);
-    } catch {
-      return DEFAULT_CRYPTO_WATCHLIST.map(normalizeCryptoWatchlistItem);
-    }
-  });
+  const [cryptoWatchlist, setCryptoWatchlist] = useState(() => initialTradeUiRef.current.cryptoWatchlist);
   const [orderSide, setOrderSide] = useState('buy');
   const [orderQty, setOrderQty] = useState('1');
   const [orderType, setOrderType] = useState('market');
@@ -436,6 +487,55 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     triggerBreakingNews,
     dismissBreakingNews,
   } = useBreakingNews();
+
+  const saveTradeUiToSupabase = useCallback(async (userId, state, serializedState) => {
+    if (!userId || !supabase) return false;
+
+    try {
+      const profileLookup = await supabase
+        .from('profiles')
+        .select('user_state')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileLookup.error) {
+        if (!isMissingColumnError(profileLookup.error, 'user_state')) {
+          console.warn('[TradePage] Trade UI save error:', profileLookup.error.message);
+        }
+        return false;
+      }
+
+      const existingState = profileLookup.data?.user_state && typeof profileLookup.data.user_state === 'object'
+        ? profileLookup.data.user_state
+        : {};
+
+      const nextUserState = {
+        ...existingState,
+        [TRADE_UI_USER_STATE_KEY]: normalizeTradeUiState(state),
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          user_state: nextUserState,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.warn('[TradePage] Trade UI save error:', error.message);
+        return false;
+      }
+
+      if (serializedState) {
+        lastTradeUiSavedRef.current = serializedState;
+      }
+      return true;
+    } catch (error) {
+      console.warn('[TradePage] Trade UI save failed:', error);
+      return false;
+    }
+  }, []);
   
   const equityStocks = useMemo(() => (
     watchlist.length > 0
@@ -771,8 +871,110 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   }, [cryptoSymbolsKey, fetchCryptoQuote, cryptoConnected]);
 
   useEffect(() => {
-    localStorage.setItem('stratify-crypto-watchlist', JSON.stringify(cryptoWatchlist));
-  }, [cryptoWatchlist]);
+    const localState = loadLocalTradeUiState();
+
+    if (!user?.id || !supabase) {
+      setActiveMarket(localState.activeMarket);
+      setPinnedTabs(localState.pinnedTabs);
+      setWatchlistState(localState.watchlistState);
+      setCryptoWatchlist(localState.cryptoWatchlist);
+      const serialized = JSON.stringify(localState);
+      lastTradeUiSavedRef.current = serialized;
+      setTradeUiLoaded(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFromSupabase = async () => {
+      setTradeUiLoaded(false);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_state')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          if (!isMissingColumnError(error, 'user_state')) {
+            console.warn('[TradePage] Trade UI load error:', error.message);
+          }
+          if (!cancelled) {
+            setActiveMarket(localState.activeMarket);
+            setPinnedTabs(localState.pinnedTabs);
+            setWatchlistState(localState.watchlistState);
+            setCryptoWatchlist(localState.cryptoWatchlist);
+            lastTradeUiSavedRef.current = JSON.stringify(localState);
+            setTradeUiLoaded(true);
+          }
+          return;
+        }
+
+        const remoteRaw = data?.user_state?.[TRADE_UI_USER_STATE_KEY];
+        const hasRemote = remoteRaw && typeof remoteRaw === 'object';
+        const resolved = hasRemote ? normalizeTradeUiState(remoteRaw) : localState;
+        const serialized = JSON.stringify(resolved);
+
+        if (cancelled) return;
+
+        setActiveMarket(resolved.activeMarket);
+        setPinnedTabs(resolved.pinnedTabs);
+        setWatchlistState(resolved.watchlistState);
+        setCryptoWatchlist(resolved.cryptoWatchlist);
+        saveLocalTradeUiState(resolved);
+        lastTradeUiSavedRef.current = serialized;
+        setTradeUiLoaded(true);
+
+        if (!hasRemote) {
+          saveTradeUiToSupabase(user.id, resolved, serialized);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('[TradePage] Trade UI load failed:', error);
+        setActiveMarket(localState.activeMarket);
+        setPinnedTabs(localState.pinnedTabs);
+        setWatchlistState(localState.watchlistState);
+        setCryptoWatchlist(localState.cryptoWatchlist);
+        saveLocalTradeUiState(localState);
+        lastTradeUiSavedRef.current = JSON.stringify(localState);
+        setTradeUiLoaded(true);
+      }
+    };
+
+    loadFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, saveTradeUiToSupabase]);
+
+  useEffect(() => {
+    const payload = normalizeTradeUiState({
+      activeMarket,
+      pinnedTabs,
+      watchlistState,
+      cryptoWatchlist,
+    });
+
+    saveLocalTradeUiState(payload);
+    if (!tradeUiLoaded) return;
+
+    const serialized = JSON.stringify(payload);
+    if (serialized === lastTradeUiSavedRef.current) return;
+
+    if (tradeUiSaveTimerRef.current) clearTimeout(tradeUiSaveTimerRef.current);
+    tradeUiSaveTimerRef.current = setTimeout(() => {
+      if (!user?.id || !supabase) {
+        lastTradeUiSavedRef.current = serialized;
+        return;
+      }
+      saveTradeUiToSupabase(user.id, payload, serialized);
+    }, 1500);
+
+    return () => {
+      if (tradeUiSaveTimerRef.current) clearTimeout(tradeUiSaveTimerRef.current);
+    };
+  }, [activeMarket, pinnedTabs, watchlistState, cryptoWatchlist, tradeUiLoaded, user?.id, saveTradeUiToSupabase]);
 
   useEffect(() => {
     setSearchQuery('');

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -13,10 +13,12 @@ import {
 import StrategyOutput from './StrategyOutput';
 import { supabase } from '../../lib/supabaseClient';
 import { normalizeTickerSymbol, tokenizeTickerText } from '../../lib/tickerStyling';
+import { useAuth } from '../../context/AuthContext';
 
 const STORAGE_KEY = 'stratify-strategies-folders';
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const ONE_TIME_RESET_FLAG = 'stratify-strategies-reset-20260217-complete';
+const USER_STATE_FOLDERS_KEY = 'terminal_strategy_folders';
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
@@ -229,6 +231,15 @@ const loadFoldersFromStorage = () => {
   } catch {
     return buildDefaultFolders();
   }
+};
+
+const hasFolderData = (folders) => (
+  Array.isArray(folders) && folders.some((folder) => Array.isArray(folder?.strategies) && folder.strategies.length > 0)
+);
+
+const isMissingColumnError = (error, columnName) => {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes(columnName.toLowerCase()) && message.includes('column');
 };
 
 const toStoragePayload = (folders) => ({
@@ -485,12 +496,17 @@ const TerminalStrategyWorkspace = ({
   onRetestStrategy,
   onOpenBuilder,
 }) => {
+  const { user } = useAuth();
   const [folders, setFolders] = useState(() => loadFoldersFromStorage());
   const [selectedStrategyId, setSelectedStrategyId] = useState(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [deletingStrategyId, setDeletingStrategyId] = useState(null);
   const [foldersCollapsed, setFoldersCollapsed] = useState(false);
+  const [foldersLoaded, setFoldersLoaded] = useState(false);
+
+  const folderSaveTimerRef = useRef(null);
+  const lastSavedFoldersRef = useRef('');
 
   const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
@@ -527,10 +543,150 @@ const TerminalStrategyWorkspace = ({
     });
   }, [sourceStrategies, safeDeployed]);
 
+  const saveFoldersToSupabase = useCallback(async (userId, nextFolders, serializedPayload) => {
+    if (!userId || !supabase) return false;
+
+    try {
+      const lookup = await supabase
+        .from('profiles')
+        .select('user_state')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (lookup.error) {
+        if (!isMissingColumnError(lookup.error, 'user_state')) {
+          console.warn('[TerminalStrategyWorkspace] Folders save error:', lookup.error.message);
+        }
+        return false;
+      }
+
+      const existingState = lookup.data?.user_state && typeof lookup.data.user_state === 'object'
+        ? lookup.data.user_state
+        : {};
+
+      const nextUserState = {
+        ...existingState,
+        [USER_STATE_FOLDERS_KEY]: toStoragePayload(nextFolders).folders,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          user_state: nextUserState,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.warn('[TerminalStrategyWorkspace] Folders save error:', error.message);
+        return false;
+      }
+
+      if (serializedPayload) {
+        lastSavedFoldersRef.current = serializedPayload;
+      }
+      return true;
+    } catch (error) {
+      console.warn('[TerminalStrategyWorkspace] Folders save failed:', error);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toStoragePayload(folders)));
-  }, [folders]);
+
+    if (!user?.id || !supabase) {
+      const localFolders = loadFoldersFromStorage();
+      setFolders(localFolders);
+      const serializedLocal = JSON.stringify(toStoragePayload(localFolders));
+      lastSavedFoldersRef.current = serializedLocal;
+      setFoldersLoaded(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFromSupabase = async () => {
+      setFoldersLoaded(false);
+      const localFolders = loadFoldersFromStorage();
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_state')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          if (!isMissingColumnError(error, 'user_state')) {
+            console.warn('[TerminalStrategyWorkspace] Folders load error:', error.message);
+          }
+          if (!cancelled) {
+            setFolders(localFolders);
+            const serializedLocal = JSON.stringify(toStoragePayload(localFolders));
+            lastSavedFoldersRef.current = serializedLocal;
+            setFoldersLoaded(true);
+          }
+          return;
+        }
+
+        const remoteFoldersRaw = Array.isArray(data?.user_state?.[USER_STATE_FOLDERS_KEY])
+          ? data.user_state[USER_STATE_FOLDERS_KEY]
+          : [];
+        const remoteFolders = ensureDefaultFolders(remoteFoldersRaw);
+        const useLocal = !hasFolderData(remoteFolders) && hasFolderData(localFolders);
+        const resolved = useLocal ? localFolders : remoteFolders;
+        const serializedResolved = JSON.stringify(toStoragePayload(resolved));
+
+        if (cancelled) return;
+
+        setFolders(resolved);
+        localStorage.setItem(STORAGE_KEY, serializedResolved);
+        lastSavedFoldersRef.current = serializedResolved;
+        setFoldersLoaded(true);
+
+        if (useLocal) {
+          saveFoldersToSupabase(user.id, resolved, serializedResolved);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('[TerminalStrategyWorkspace] Folders load failed:', error);
+        setFolders(localFolders);
+        const serializedLocal = JSON.stringify(toStoragePayload(localFolders));
+        localStorage.setItem(STORAGE_KEY, serializedLocal);
+        lastSavedFoldersRef.current = serializedLocal;
+        setFoldersLoaded(true);
+      }
+    };
+
+    loadFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, saveFoldersToSupabase]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const serializedFolders = JSON.stringify(toStoragePayload(folders));
+    localStorage.setItem(STORAGE_KEY, serializedFolders);
+    if (!foldersLoaded) return;
+    if (serializedFolders === lastSavedFoldersRef.current) return;
+
+    if (folderSaveTimerRef.current) clearTimeout(folderSaveTimerRef.current);
+    folderSaveTimerRef.current = setTimeout(() => {
+      if (!user?.id || !supabase) {
+        lastSavedFoldersRef.current = serializedFolders;
+        return;
+      }
+      saveFoldersToSupabase(user.id, folders, serializedFolders);
+    }, 1500);
+
+    return () => {
+      if (folderSaveTimerRef.current) clearTimeout(folderSaveTimerRef.current);
+    };
+  }, [folders, foldersLoaded, user?.id, saveFoldersToSupabase]);
 
   useEffect(() => {
     let cancelled = false;

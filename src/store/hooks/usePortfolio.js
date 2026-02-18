@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 
 const STORAGE_KEY = 'stratify-portfolio';
 const DEFAULT_CASH = 100000;
+const PROFILE_COLUMN = 'portfolio_state';
+const USER_STATE_KEY = 'portfolio_state';
 
 const normalizeSymbol = (value) => {
   if (!value) return null;
@@ -33,22 +36,46 @@ const sanitizePositions = (positions) => {
   return next;
 };
 
-const buildInitialState = () => {
-  const fallback = { cash: DEFAULT_CASH, positions: [] };
-  if (typeof window === 'undefined') return fallback;
+const normalizePortfolioState = (value) => {
+  const candidate = value && typeof value === 'object' ? value : {};
+  const cash = Number(candidate.cash);
+  return {
+    cash: Number.isFinite(cash) ? cash : DEFAULT_CASH,
+    positions: sanitizePositions(candidate.positions),
+  };
+};
 
+const getStorageKey = (userId) => (userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY);
+
+const loadPortfolioFromStorage = (userId) => {
+  if (typeof window === 'undefined') {
+    return { cash: DEFAULT_CASH, positions: [] };
+  }
+
+  const keys = userId ? [getStorageKey(userId), STORAGE_KEY] : [STORAGE_KEY];
+  for (const key of keys) {
+    try {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+      const parsed = JSON.parse(stored);
+      return normalizePortfolioState(parsed);
+    } catch {
+      // Ignore malformed local payloads.
+    }
+  }
+
+  return { cash: DEFAULT_CASH, positions: [] };
+};
+
+const savePortfolioToStorage = (portfolioState, userId) => {
+  if (typeof window === 'undefined') return;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return fallback;
-    const parsed = JSON.parse(stored);
-    const cash = Number(parsed?.cash);
-    const positions = sanitizePositions(parsed?.positions);
-    return {
-      cash: Number.isFinite(cash) ? cash : DEFAULT_CASH,
-      positions,
-    };
+    localStorage.setItem(getStorageKey(userId), JSON.stringify({
+      cash: portfolioState.cash,
+      positions: portfolioState.positions,
+    }));
   } catch {
-    return fallback;
+    // Ignore storage write errors (private mode, quota, SSR).
   }
 };
 
@@ -128,6 +155,8 @@ const reducer = (state, action) => {
   switch (action.type) {
     case 'APPLY_TRADE':
       return applyTradeToState(state, action.trade);
+    case 'HYDRATE':
+      return normalizePortfolioState(action.state);
     default:
       return state;
   }
@@ -163,20 +192,232 @@ const getDayChangePerShare = (quote, currentPrice) => {
   return 0;
 };
 
+const isMissingColumnError = (error, columnName) => {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes(columnName.toLowerCase()) && message.includes('column');
+};
+
+const hasPortfolioData = (portfolioState) => {
+  const state = normalizePortfolioState(portfolioState);
+  return state.positions.length > 0 || Math.abs(state.cash - DEFAULT_CASH) > 0.0001;
+};
+
 export const usePortfolio = (prices = new Map()) => {
-  const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
+  const [state, dispatch] = useReducer(reducer, undefined, () => loadPortfolioFromStorage(null));
+  const [userId, setUserId] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+
+  const saveTimer = useRef(null);
+  const lastSaved = useRef('');
+
+  const saveToUserState = useCallback(async (targetUserId, payload, serializedPayload) => {
+    if (!targetUserId || !supabase) return false;
+
+    const profileLookup = await supabase
+      .from('profiles')
+      .select('user_state')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (profileLookup.error) {
+      if (!isMissingColumnError(profileLookup.error, 'user_state')) {
+        console.warn('[PortfolioSync] Save error:', profileLookup.error.message);
+      }
+      return false;
+    }
+
+    const existingState = profileLookup.data?.user_state && typeof profileLookup.data.user_state === 'object'
+      ? profileLookup.data.user_state
+      : {};
+
+    const nextUserState = {
+      ...existingState,
+      [USER_STATE_KEY]: payload,
+    };
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        user_state: nextUserState,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', targetUserId);
+
+    if (error) {
+      console.warn('[PortfolioSync] Save error:', error.message);
+      return false;
+    }
+
+    lastSaved.current = serializedPayload;
+    return true;
+  }, []);
+
+  const saveToSupabase = useCallback(async (targetUserId, payload, serializedPayload) => {
+    if (!targetUserId || !supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          [PROFILE_COLUMN]: payload,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetUserId);
+
+      if (error) {
+        if (isMissingColumnError(error, PROFILE_COLUMN)) {
+          await saveToUserState(targetUserId, payload, serializedPayload);
+          return;
+        }
+        console.warn('[PortfolioSync] Save error:', error.message);
+        return;
+      }
+
+      lastSaved.current = serializedPayload;
+    } catch (error) {
+      console.warn('[PortfolioSync] Save failed:', error);
+    }
+  }, [saveToUserState]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        cash: state.cash,
-        positions: state.positions,
-      }));
-    } catch {
-      // Ignore storage write errors (private mode, quota, SSR).
+    if (!supabase) {
+      setLoaded(true);
+      return undefined;
     }
-  }, [state.cash, state.positions]);
+
+    let cancelled = false;
+
+    const syncAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (!cancelled) {
+          setUserId(data?.user?.id || null);
+        }
+      } catch {
+        if (!cancelled) setUserId(null);
+      }
+    };
+
+    syncAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setUserId(session?.user?.id || null);
+    });
+
+    return () => {
+      cancelled = true;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userId || !supabase) {
+      const localState = loadPortfolioFromStorage(null);
+      dispatch({ type: 'HYDRATE', state: localState });
+      lastSaved.current = JSON.stringify(localState);
+      setLoaded(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFromSupabase = async () => {
+      setLoaded(false);
+      const localState = loadPortfolioFromStorage(userId);
+
+      try {
+        let profileData = null;
+        const query = await supabase
+          .from('profiles')
+          .select(`${PROFILE_COLUMN}, user_state`)
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (query.error) {
+          if (!isMissingColumnError(query.error, PROFILE_COLUMN)) {
+            console.warn('[PortfolioSync] Load error:', query.error.message);
+          }
+
+          const fallback = await supabase
+            .from('profiles')
+            .select('user_state')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (fallback.error) {
+            console.warn('[PortfolioSync] Fallback load error:', fallback.error.message);
+            profileData = null;
+          } else {
+            profileData = fallback.data;
+          }
+        } else {
+          profileData = query.data;
+        }
+
+        const remoteRaw = profileData?.[PROFILE_COLUMN] && typeof profileData[PROFILE_COLUMN] === 'object'
+          ? profileData[PROFILE_COLUMN]
+          : (profileData?.user_state?.[USER_STATE_KEY] && typeof profileData.user_state[USER_STATE_KEY] === 'object'
+            ? profileData.user_state[USER_STATE_KEY]
+            : null);
+
+        const remoteState = normalizePortfolioState(remoteRaw);
+        const useLocal = !hasPortfolioData(remoteState) && hasPortfolioData(localState);
+        const resolved = useLocal ? localState : remoteState;
+
+        if (cancelled) return;
+
+        dispatch({ type: 'HYDRATE', state: resolved });
+        savePortfolioToStorage(resolved, userId);
+        const serialized = JSON.stringify(resolved);
+        lastSaved.current = serialized;
+
+        if (useLocal) {
+          saveToSupabase(userId, resolved, serialized);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('[PortfolioSync] Load failed:', error);
+        dispatch({ type: 'HYDRATE', state: localState });
+        savePortfolioToStorage(localState, userId);
+        lastSaved.current = JSON.stringify(localState);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    };
+
+    loadFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, saveToSupabase]);
+
+  useEffect(() => {
+    const payload = {
+      cash: state.cash,
+      positions: state.positions,
+    };
+
+    savePortfolioToStorage(payload, userId);
+    if (!loaded) return;
+
+    const serialized = JSON.stringify(payload);
+    if (serialized === lastSaved.current) return;
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      if (!userId || !supabase) {
+        lastSaved.current = serialized;
+        return;
+      }
+      saveToSupabase(userId, payload, serialized);
+    }, 1400);
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [state.cash, state.positions, userId, loaded, saveToSupabase]);
 
   const derived = useMemo(() => {
     let holdingsValue = 0;
@@ -214,9 +455,9 @@ export const usePortfolio = (prices = new Map()) => {
     };
   }, [state.positions, state.cash, prices]);
 
-  const applyTrade = (trade) => {
+  const applyTrade = useCallback((trade) => {
     dispatch({ type: 'APPLY_TRADE', trade });
-  };
+  }, []);
 
   return {
     positions: derived.positions,
@@ -225,6 +466,7 @@ export const usePortfolio = (prices = new Map()) => {
     todayPnL: derived.todayPnL,
     todayPnLPercent: derived.todayPnLPercent,
     applyTrade,
+    loaded,
   };
 };
 

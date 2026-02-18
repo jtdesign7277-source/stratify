@@ -10,6 +10,7 @@ const DEFAULT_DASHBOARD_STATE = {
   activeSection: 'watchlist',
   theme: 'dark',
   paperTradingBalance: DEFAULT_PAPER_BALANCE,
+  connectedBrokers: [],
 };
 
 const toFiniteNumber = (value, fallback) => {
@@ -31,6 +32,9 @@ const normalizeDashboardState = (state) => {
     0,
     toFiniteNumber(candidate.paperTradingBalance, DEFAULT_DASHBOARD_STATE.paperTradingBalance),
   );
+  const connectedBrokers = Array.isArray(candidate.connectedBrokers)
+    ? candidate.connectedBrokers.filter((broker) => broker && typeof broker === 'object')
+    : [];
 
   return {
     sidebarExpanded,
@@ -39,6 +43,7 @@ const normalizeDashboardState = (state) => {
     activeSection: String(candidate.activeSection || DEFAULT_DASHBOARD_STATE.activeSection),
     theme,
     paperTradingBalance,
+    connectedBrokers,
   };
 };
 
@@ -88,16 +93,15 @@ export default function useDashboardStateSync(user, dashboardState, onHydrate) {
     };
 
     try {
-      const { error } = await supabase
+      let existingUserState = {};
+      const stateLookup = await supabase
         .from('profiles')
-        .update({
-          ...baseUpdate,
-          user_state: userStatePayload,
-        })
-        .eq('id', userId);
+        .select('user_state')
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (error) {
-        if (isMissingColumnError(error, 'user_state')) {
+      if (stateLookup.error) {
+        if (isMissingColumnError(stateLookup.error, 'user_state')) {
           const { error: fallbackError } = await supabase
             .from('profiles')
             .update(baseUpdate)
@@ -112,6 +116,28 @@ export default function useDashboardStateSync(user, dashboardState, onHydrate) {
           return;
         }
 
+        console.warn('[DashboardStateSync] Save error:', stateLookup.error.message);
+        return;
+      }
+
+      if (stateLookup.data?.user_state && typeof stateLookup.data.user_state === 'object') {
+        existingUserState = stateLookup.data.user_state;
+      }
+
+      const mergedUserState = {
+        ...existingUserState,
+        ...userStatePayload,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          ...baseUpdate,
+          user_state: mergedUserState,
+        })
+        .eq('id', userId);
+
+      if (error) {
         console.warn('[DashboardStateSync] Save error:', error.message);
         return;
       }
