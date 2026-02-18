@@ -95,6 +95,22 @@ const formatPrice = (price, isCrypto = false) => {
   })}`;
 };
 
+const toSafeDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+};
+
+const getLatestTimestampDate = (stateMap) => {
+  const latest = Object.values(stateMap)
+    .map((item) => toSafeDate(item?.updatedAt))
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime())
+    .pop();
+
+  return latest || null;
+};
+
 const MiniSparkline = ({ values = [] }) => {
   const normalized = values.filter((value) => Number.isFinite(value));
   if (normalized.length < 2) {
@@ -149,6 +165,8 @@ const MarketsPage = () => {
     stockConnected,
     cryptoConnected,
     error,
+    reconnectStock,
+    reconnectCrypto,
   } = useAlpacaStream({
     stockSymbols: STREAM_STOCK_SYMBOLS,
     cryptoSymbols: CRYPTO_SYMBOLS,
@@ -209,17 +227,16 @@ const MarketsPage = () => {
     });
   }, [cryptoQuotes]);
 
-  const stockLastUpdated = useMemo(() => {
-    const timestamps = Object.values(stockState).map((item) => item.updatedAt).filter(Boolean);
-    if (timestamps.length === 0) return null;
-    return new Date(timestamps.sort().at(-1));
-  }, [stockState]);
-
-  const cryptoLastUpdated = useMemo(() => {
-    const timestamps = Object.values(cryptoState).map((item) => item.updatedAt).filter(Boolean);
-    if (timestamps.length === 0) return null;
-    return new Date(timestamps.sort().at(-1));
-  }, [cryptoState]);
+  const stockLastUpdated = useMemo(() => getLatestTimestampDate(stockState), [stockState]);
+  const cryptoLastUpdated = useMemo(() => getLatestTimestampDate(cryptoState), [cryptoState]);
+  const hasStockData = useMemo(
+    () => Object.values(stockState).some((entry) => Number.isFinite(entry?.price)),
+    [stockState],
+  );
+  const hasCryptoData = useMemo(
+    () => Object.values(cryptoState).some((entry) => Number.isFinite(entry?.price)),
+    [cryptoState],
+  );
 
   const renderStreamRows = ({ symbols, dataset, isCrypto = false }) => {
     return symbols.map((symbol) => {
@@ -275,7 +292,9 @@ const MarketsPage = () => {
       <div className="space-y-2.5">{children}</div>
 
       <div className="mt-3 text-[11px] text-gray-600">
-        {updatedAt ? `Last tick ${updatedAt.toLocaleTimeString()}` : 'Waiting for stream...'}
+        {updatedAt && Number.isFinite(updatedAt.getTime())
+          ? `Last tick ${updatedAt.toLocaleTimeString()}`
+          : 'Waiting for stream...'}
       </div>
     </div>
   );
@@ -340,11 +359,39 @@ const MarketsPage = () => {
         </div>
       </div>
 
-      {(!stockConnected || !cryptoConnected) && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
-          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a1628]/80 px-4 py-2 text-sm text-gray-300">
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" strokeWidth={1.5} />
-            Connecting to Alpaca stream...
+      {(!stockConnected || !cryptoConnected || !hasStockData || !hasCryptoData) && (
+        <div className="mt-3 rounded-lg border border-white/10 bg-[#0a1628]/70 px-3 py-2 text-xs text-gray-300">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" strokeWidth={1.5} />
+              <span>
+                {!stockConnected || !hasStockData
+                  ? 'Equity stream reconnecting'
+                  : 'Crypto stream reconnecting'}
+                {' · '}
+                data will populate live when ticks arrive.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {(!stockConnected || !hasStockData) && (
+                <button
+                  type="button"
+                  onClick={reconnectStock}
+                  className="rounded border border-white/15 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/5"
+                >
+                  Reconnect Equities
+                </button>
+              )}
+              {(!cryptoConnected || !hasCryptoData) && (
+                <button
+                  type="button"
+                  onClick={reconnectCrypto}
+                  className="rounded border border-white/15 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/5"
+                >
+                  Reconnect Crypto
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
