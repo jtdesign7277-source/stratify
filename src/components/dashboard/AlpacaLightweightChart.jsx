@@ -11,15 +11,33 @@ const DOWN_COLOR = '#ef4444';
 const VOLUME_UP = 'rgba(34, 197, 94, 0.3)';
 const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
 const INTRADAY_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour']);
-const INTRADAY_LOOKBACK_DAYS = 21;
+
+// Lookback days per timeframe — shorter for 1Min to avoid overwhelming the chart
+const INTRADAY_LOOKBACK = {
+  '1Min': 3,
+  '5Min': 7,
+  '15Min': 14,
+  '1Hour': 21,
+};
 const YEARS_LOOKBACK = 2;
+
+// Interval in seconds per timeframe (for creating new bars)
+const TIMEFRAME_SECONDS = {
+  '1Min': 60,
+  '5Min': 300,
+  '15Min': 900,
+  '1Hour': 3600,
+  '1Day': 86400,
+  '1Week': 604800,
+};
 
 const getStartForInterval = (timeframe) => {
   const now = new Date();
 
   if (INTRADAY_TIMEFRAMES.has(timeframe)) {
+    const days = INTRADAY_LOOKBACK[timeframe] || 7;
     const start = new Date(now);
-    start.setDate(start.getDate() - INTRADAY_LOOKBACK_DAYS);
+    start.setDate(start.getDate() - days);
     start.setHours(0, 0, 0, 0);
     return start;
   }
@@ -41,7 +59,6 @@ class ChartErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // Avoid taking down the whole app when charts fail to initialize.
     console.error('Lightweight chart error:', error, info);
   }
 
@@ -65,7 +82,15 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
+  const intervalRef = useRef(interval);
   const [status, setStatus] = useState({ loading: true, error: null });
+
+  // Keep interval ref in sync
+  useEffect(() => {
+    intervalRef.current = interval;
+  }, [interval]);
+
+  const isIntraday = INTRADAY_TIMEFRAMES.has(interval);
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
@@ -91,6 +116,10 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         },
         timeScale: {
           borderVisible: false,
+          timeVisible: true,
+          secondsVisible: false,
+          rightOffset: 5,
+          barSpacing: isIntraday ? 6 : 3,
         },
       });
 
@@ -132,6 +161,18 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
     }
   }, []);
 
+  // Update timeScale settings when interval changes
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().applyOptions({
+        timeVisible: INTRADAY_TIMEFRAMES.has(interval),
+        secondsVisible: false,
+        barSpacing: INTRADAY_TIMEFRAMES.has(interval) ? 6 : 3,
+      });
+    }
+  }, [interval]);
+
+  // Fetch bars
   useEffect(() => {
     let cancelled = false;
 
@@ -159,7 +200,6 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
         const response = await fetch(`/api/bars?${params.toString()}`);
         const data = await response.json();
-        console.log('Bars API response', { symbol, interval, data });
 
         if (!response.ok) {
           throw new Error(data?.error || 'Failed to load bars');
@@ -199,10 +239,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
         lastBarRef.current = data.length ? { ...data[data.length - 1] } : null;
 
-        setStatus({
-          loading: false,
-          error: null,
-        });
+        setStatus({ loading: false, error: null });
       } catch (err) {
         if (cancelled) return;
         setStatus({
@@ -219,11 +256,13 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
     };
   }, [symbol, interval]);
 
+  // Real-time updates: poll latest quote AND periodically refetch bars for new candles
   useEffect(() => {
     if (!symbol) return undefined;
 
     let cancelled = false;
 
+    // Poll latest quote to update the current bar in real-time
     const pollLatest = async () => {
       if (!lastBarRef.current) return;
 
@@ -242,39 +281,74 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         if (!Number.isFinite(price)) return;
 
         const lastBar = lastBarRef.current;
-        const updatedBar = {
-          ...lastBar,
-          close: price,
-          high: Math.max(lastBar.high, price),
-          low: Math.min(lastBar.low, price),
-        };
+        const tfSeconds = TIMEFRAME_SECONDS[intervalRef.current] || 60;
+        const now = Math.floor(Date.now() / 1000);
+        const currentBarTime = Math.floor(now / tfSeconds) * tfSeconds;
 
-        lastBarRef.current = updatedBar;
+        // If we're in a new time period, create a new bar
+        if (currentBarTime > lastBar.time) {
+          const newBar = {
+            time: currentBarTime,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+            volume: 0,
+          };
 
-        candleSeriesRef.current?.update({
-          time: updatedBar.time,
-          open: updatedBar.open,
-          high: updatedBar.high,
-          low: updatedBar.low,
-          close: updatedBar.close,
-        });
+          lastBarRef.current = newBar;
 
-        volumeSeriesRef.current?.update({
-          time: updatedBar.time,
-          value: updatedBar.volume ?? 0,
-          color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
-        });
+          candleSeriesRef.current?.update({
+            time: newBar.time,
+            open: newBar.open,
+            high: newBar.high,
+            low: newBar.low,
+            close: newBar.close,
+          });
+
+          volumeSeriesRef.current?.update({
+            time: newBar.time,
+            value: 0,
+            color: VOLUME_UP,
+          });
+        } else {
+          // Update current bar
+          const updatedBar = {
+            ...lastBar,
+            close: price,
+            high: Math.max(lastBar.high, price),
+            low: Math.min(lastBar.low, price),
+          };
+
+          lastBarRef.current = updatedBar;
+
+          candleSeriesRef.current?.update({
+            time: updatedBar.time,
+            open: updatedBar.open,
+            high: updatedBar.high,
+            low: updatedBar.low,
+            close: updatedBar.close,
+          });
+
+          volumeSeriesRef.current?.update({
+            time: updatedBar.time,
+            value: updatedBar.volume ?? 0,
+            color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
+          });
+        }
       } catch (err) {
         // Silent fail for quote polling
       }
     };
 
-    const intervalId = setInterval(pollLatest, 5000);
+    // Poll every 3 seconds for intraday, 10 seconds for daily+
+    const pollMs = INTRADAY_TIMEFRAMES.has(interval) ? 3000 : 10000;
+    const quoteInterval = setInterval(pollLatest, pollMs);
     pollLatest();
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      clearInterval(quoteInterval);
     };
   }, [symbol, interval]);
 
