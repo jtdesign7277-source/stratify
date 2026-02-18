@@ -147,39 +147,6 @@ const getLatestTimestampDate = (stateMap) => {
   return latest || null;
 };
 
-const MiniSparkline = ({ values = [] }) => {
-  const normalized = values.filter((value) => Number.isFinite(value));
-  if (normalized.length < 2) {
-    return <div className="w-16 h-6 rounded bg-white/[0.03] border border-white/[0.04]" />;
-  }
-
-  const min = Math.min(...normalized);
-  const max = Math.max(...normalized);
-  const range = max - min || 1;
-  const points = normalized
-    .map((value, index) => {
-      const x = (index / (normalized.length - 1)) * 64;
-      const y = 24 - ((value - min) / range) * 24;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  const trendUp = normalized[normalized.length - 1] >= normalized[0];
-
-  return (
-    <svg viewBox="0 0 64 24" className="w-16 h-6" preserveAspectRatio="none" aria-hidden="true">
-      <polyline
-        fill="none"
-        stroke={trendUp ? '#34d399' : '#f87171'}
-        strokeWidth="1.8"
-        points={points}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-};
-
 const MarketsPage = () => {
   const { prices: marketPrices, connected: marketDataConnected } = useMarketData();
 
@@ -349,14 +316,11 @@ const MarketsPage = () => {
             <div className="text-xs text-gray-500">{entry.name}</div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <MiniSparkline values={entry.ticks} />
-            <div className="text-right min-w-[88px]">
-              <div className="text-sm font-mono text-white">{hasPrice ? formatPrice(entry.price, isCrypto) : '...'} </div>
-              <div className={`text-xs font-medium inline-flex items-center gap-1 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                {positive ? <TrendingUp className="w-3 h-3" strokeWidth={1.5} /> : <TrendingDown className="w-3 h-3" strokeWidth={1.5} />}
-                {formatSignedPercent(entry.changePercent)}
-              </div>
+          <div className="text-right min-w-[100px]">
+            <div className="text-sm font-mono text-white">{hasPrice ? formatPrice(entry.price, isCrypto) : '...'} </div>
+            <div className={`text-xs font-medium inline-flex items-center gap-1 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {positive ? <TrendingUp className="w-3 h-3" strokeWidth={1.5} /> : <TrendingDown className="w-3 h-3" strokeWidth={1.5} />}
+              {formatSignedPercent(entry.changePercent)}
             </div>
           </div>
         </div>
