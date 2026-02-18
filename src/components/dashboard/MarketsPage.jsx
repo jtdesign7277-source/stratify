@@ -310,14 +310,14 @@ const MarketsPage = () => {
       const displaySymbol = isCrypto ? symbol.replace('-', '/').replace('-USD', '/USD') : symbol;
 
       return (
-        <div key={symbol} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.015] px-3 py-2.5">
-          <div>
+        <div key={symbol} className="flex items-center justify-between rounded-lg border border-white/[0.04] bg-white/[0.015] px-2.5 py-2">
+          <div className="min-w-0 pr-2">
             <div className="text-sm font-semibold text-white">${displaySymbol}</div>
-            <div className="text-xs text-gray-500">{entry.name}</div>
+            <div className="text-[11px] text-gray-500 truncate">{entry.name}</div>
           </div>
 
-          <div className="text-right min-w-[100px]">
-            <div className="text-sm font-mono text-white">{hasPrice ? formatPrice(entry.price, isCrypto) : '...'} </div>
+          <div className="text-right min-w-[86px]">
+            <div className="text-sm font-mono text-white">{hasPrice ? formatPrice(entry.price, isCrypto) : '...'}</div>
             <div className={`text-xs font-medium inline-flex items-center gap-1 ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
               {positive ? <TrendingUp className="w-3 h-3" strokeWidth={1.5} /> : <TrendingDown className="w-3 h-3" strokeWidth={1.5} />}
               {formatSignedPercent(entry.changePercent)}
@@ -329,10 +329,10 @@ const MarketsPage = () => {
   };
 
   const Card = ({ title, icon: Icon, connected, children, updatedAt }) => (
-    <div className="rounded-xl border border-[#1f1f1f] bg-black/45 p-4 backdrop-blur-sm">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="rounded-xl border border-[#1f1f1f] bg-black/45 p-3 backdrop-blur-sm min-h-0">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5 text-emerald-400" strokeWidth={1.5} />
+          <Icon className="h-4.5 w-4.5 text-emerald-400" strokeWidth={1.5} />
           <h3 className="text-white font-semibold">{title}</h3>
         </div>
         <div className="flex items-center gap-2 text-xs">
@@ -350,9 +350,9 @@ const MarketsPage = () => {
         </div>
       </div>
 
-      <div className="space-y-2.5">{children}</div>
+      <div className="space-y-2">{children}</div>
 
-      <div className="mt-3 text-[11px] text-gray-600">
+      <div className="mt-2 text-[10px] text-gray-600">
         {updatedAt && Number.isFinite(updatedAt.getTime())
           ? `Last tick ${updatedAt.toLocaleTimeString()}`
           : 'Waiting for stream...'}
@@ -361,11 +361,11 @@ const MarketsPage = () => {
   );
 
   return (
-    <div className="relative flex-1 flex h-full flex-col overflow-hidden bg-transparent p-4">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="relative flex-1 flex h-full flex-col overflow-hidden bg-transparent p-3">
+      <div className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Markets</h1>
-          <p className="text-sm text-gray-400">Live Alpaca WebSocket stream only</p>
+          <h1 className="text-lg font-semibold text-white">Markets</h1>
+          <p className="text-xs text-gray-400">Live Alpaca WebSocket stream only</p>
         </div>
         <div className="flex items-center gap-3 text-xs">
           <span className={`inline-flex items-center gap-1 ${stockConnected ? 'text-emerald-400' : 'text-yellow-400'}`}>
@@ -380,12 +380,12 @@ const MarketsPage = () => {
       </div>
 
       {visibleError && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
           {visibleError}
         </div>
       )}
 
-      <div className="grid flex-1 grid-cols-1 gap-4 overflow-auto lg:grid-cols-2 xl:grid-cols-3 scrollbar-hide">
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Card title="ETFs & Indices" icon={Globe} connected={stockConnected} updatedAt={stockLastUpdated}>
           {renderStreamRows({ symbols: ETF_SYMBOLS, dataset: stockState })}
         </Card>
@@ -398,30 +398,26 @@ const MarketsPage = () => {
           {renderStreamRows({ symbols: TRENDING_SYMBOLS, dataset: stockState })}
         </Card>
 
-        <div className="rounded-xl border border-[#1f1f1f] bg-black/45 p-4 backdrop-blur-sm lg:col-span-2 xl:col-span-3">
-          <div className="mb-4 flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-emerald-400" strokeWidth={1.5} />
-            <h3 className="text-white font-semibold">Sectors</h3>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Card title="Sectors" icon={BarChart3} connected={stockConnected} updatedAt={stockLastUpdated}>
+          <div className="grid grid-cols-2 gap-1.5">
             {SECTORS.map((sector) => {
               const positive = sector.changePercent >= 0;
               return (
-                <div key={sector.symbol} className="rounded-lg border border-white/[0.04] bg-white/[0.015] px-3 py-2">
-                  <div className="text-sm font-medium text-white">{sector.name}</div>
-                  <div className="text-xs text-gray-500">${sector.symbol}</div>
-                  <div className={`mt-1 text-xs font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div key={sector.symbol} className="rounded-lg border border-white/[0.04] bg-white/[0.015] px-2 py-1.5">
+                  <div className="text-xs font-medium text-white truncate">{sector.name}</div>
+                  <div className="text-[10px] text-gray-500">${sector.symbol}</div>
+                  <div className={`mt-0.5 text-[11px] font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
                     {positive ? '+' : ''}{sector.changePercent.toFixed(2)}%
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </Card>
       </div>
 
       {(!stockConnected || !cryptoConnected || !hasStockData || !hasCryptoData) && (
-        <div className="mt-3 rounded-lg border border-white/10 bg-[#0a1628]/70 px-3 py-2 text-xs text-gray-300">
+        <div className="mt-2 rounded-lg border border-white/10 bg-[#0a1628]/70 px-3 py-2 text-xs text-gray-300">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" strokeWidth={1.5} />
