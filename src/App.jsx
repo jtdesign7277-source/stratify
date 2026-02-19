@@ -1089,6 +1089,7 @@ function StratifyAppContent() {
       <LandingPage
         onEnter={() => navigateToPage('auth')}
         onSignUp={() => navigateToPage('auth')}
+        onDashboard={() => navigateToPage('dashboard')}
         isAuthenticated={isAuthenticated}
       />
     ) : currentPage === 'auth' ? (
@@ -1100,6 +1101,7 @@ function StratifyAppContent() {
       <LandingPage
         onEnter={() => navigateToPage('auth')}
         onSignUp={() => navigateToPage('auth')}
+        onDashboard={() => navigateToPage('dashboard')}
         isAuthenticated={isAuthenticated}
       />
     ) : !isProUser ? (
