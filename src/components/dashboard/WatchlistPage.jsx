@@ -11,7 +11,6 @@ import {
   X,
 } from 'lucide-react';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
-import AlpacaLightweightChart from './AlpacaLightweightChart';
 import {
   subscribeTwelveDataQuotes,
   subscribeTwelveDataStatus,
@@ -173,6 +172,86 @@ const TRADINGVIEW_EXCHANGE_OVERRIDES = {
   XLB: 'AMEX',
   XLC: 'AMEX',
   QQQ: 'NASDAQ',
+};
+
+const CRYPTO_TRADINGVIEW_MAP = {
+  BTC: 'COINBASE:BTCUSD',
+  ETH: 'COINBASE:ETHUSD',
+  SOL: 'COINBASE:SOLUSD',
+  XRP: 'COINBASE:XRPUSD',
+  DOGE: 'COINBASE:DOGEUSD',
+};
+
+const resolveTradingViewSymbol = (symbol, exchangeHint = '', nameHint = '') => {
+  const raw = String(symbol || '').trim().toUpperCase();
+  if (!raw) return 'NASDAQ:AAPL';
+
+  const sanitized = raw.replace(/^\$/, '').replace(/\s+/g, '');
+
+  if (sanitized.includes('/USD') || sanitized.includes('-USD') || sanitized.endsWith('USDT') || sanitized.endsWith('USD')) {
+    const base = sanitized
+      .replace(':', '')
+      .replace('/USD', '')
+      .replace('-USD', '')
+      .replace('USDT', '')
+      .replace('USD', '');
+    return CRYPTO_TRADINGVIEW_MAP[base] || `COINBASE:${base}USD`;
+  }
+
+  const equitySymbol = sanitized.split(':')[0];
+  const exchange = resolveEquityExchange(equitySymbol, exchangeHint, nameHint);
+  return `${exchange}:${equitySymbol}`;
+};
+
+const TradingViewAdvancedChart = ({ symbol, interval = '15' }) => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    containerRef.current.innerHTML = '';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol,
+      interval,
+      timezone: 'America/New_York',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      backgroundColor: 'rgba(6, 13, 24, 1)',
+      gridColor: 'rgba(255,255,255,0.06)',
+      hide_top_toolbar: false,
+      hide_legend: false,
+      allow_symbol_change: false,
+      save_image: true,
+      calendar: false,
+      hide_volume: false,
+      support_host: 'https://www.tradingview.com',
+      withdateranges: true,
+      details: true,
+      hotlist: false,
+      show_popup_button: false,
+    });
+
+    containerRef.current.appendChild(script);
+
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
+  }, [interval, symbol]);
+
+  return (
+    <div className="h-full w-full">
+      <div ref={containerRef} className="tradingview-widget-container h-full w-full" />
+    </div>
+  );
 };
 
 const resolveEquityExchange = (symbol, exchangeHint = '', nameHint = '') => {
@@ -573,6 +652,10 @@ const WatchlistPage = ({
   const selectedQuote = selectedTicker ? quotesBySymbol[selectedTicker] : null;
   const selectedWatchlistEntry = visibleWatchlist.find((item) => item.symbol === selectedTicker) || null;
   const selectedName = selectedWatchlistEntry?.name || selectedTicker;
+  const selectedTradingViewSymbol = useMemo(
+    () => resolveTradingViewSymbol(selectedTicker, selectedWatchlistEntry?.exchange, selectedWatchlistEntry?.name),
+    [selectedTicker, selectedWatchlistEntry?.exchange, selectedWatchlistEntry?.name],
+  );
   const marketPrice = useMemo(() => {
     return selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.ask ?? selectedQuote?.bid ?? 0;
   }, [selectedQuote]);
@@ -1243,12 +1326,10 @@ const WatchlistPage = ({
 
             <div className="flex min-h-0 flex-1">
               <div className="min-h-0 flex-1">
-                <AlpacaLightweightChart
-                  key={`watchlist-chart-${selectedTicker}`}
-                  symbol={selectedTicker}
-                  interval="15Min"
-                  livePrice={selectedQuote?.price}
-                  liveTimestamp={selectedQuote?.timestamp}
+                <TradingViewAdvancedChart
+                  key={`watchlist-tv-${selectedTradingViewSymbol}`}
+                  symbol={selectedTradingViewSymbol}
+                  interval="15"
                 />
               </div>
 
