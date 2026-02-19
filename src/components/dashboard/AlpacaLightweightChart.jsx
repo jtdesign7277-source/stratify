@@ -83,6 +83,8 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
   const volumeSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
   const intervalRef = useRef(interval);
+  const reloadBarsRef = useRef(null);
+  const reloadCooldownRef = useRef(0);
   const [status, setStatus] = useState({ loading: true, error: null });
 
   // Keep interval ref in sync
@@ -176,7 +178,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadBars = async () => {
+    const loadBars = async ({ silent = false } = {}) => {
       if (!symbol) {
         setStatus({ loading: false, error: 'Select a symbol to load chart data.' });
         candleSeriesRef.current?.setData([]);
@@ -184,7 +186,9 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         return;
       }
 
-      setStatus({ loading: true, error: null });
+      if (!silent) {
+        setStatus({ loading: true, error: null });
+      }
       lastBarRef.current = null;
       candleSeriesRef.current?.setData([]);
       volumeSeriesRef.current?.setData([]);
@@ -212,7 +216,52 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
         if (cancelled) return;
 
-        if (data.length === 0) {
+        const parsedBars = data
+          .map((bar) => {
+            const time = Number(bar?.time);
+            const open = Number(bar?.open);
+            const high = Number(bar?.high);
+            const low = Number(bar?.low);
+            const close = Number(bar?.close);
+            const volume = Number(bar?.volume ?? 0);
+
+            if (
+              !Number.isFinite(time) ||
+              !Number.isFinite(open) ||
+              !Number.isFinite(high) ||
+              !Number.isFinite(low) ||
+              !Number.isFinite(close)
+            ) {
+              return null;
+            }
+
+            return {
+              time: Math.floor(time),
+              open,
+              high,
+              low,
+              close,
+              volume: Number.isFinite(volume) ? volume : 0,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.time - b.time);
+
+        const dedupedBars = [];
+        parsedBars.forEach((bar) => {
+          if (dedupedBars.length === 0) {
+            dedupedBars.push(bar);
+            return;
+          }
+          const prev = dedupedBars[dedupedBars.length - 1];
+          if (prev.time === bar.time) {
+            dedupedBars[dedupedBars.length - 1] = bar;
+          } else {
+            dedupedBars.push(bar);
+          }
+        });
+
+        if (dedupedBars.length === 0) {
           candleSeriesRef.current?.setData([]);
           volumeSeriesRef.current?.setData([]);
           chartRef.current?.timeScale().fitContent();
@@ -221,7 +270,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
           return;
         }
 
-        const candleData = data.map((bar) => ({
+        const candleData = dedupedBars.map((bar) => ({
           time: bar.time,
           open: bar.open,
           high: bar.high,
@@ -229,7 +278,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
           close: bar.close,
         }));
 
-        const volumeData = data.map((bar) => ({
+        const volumeData = dedupedBars.map((bar) => ({
           time: bar.time,
           value: bar.volume ?? 0,
           color: bar.close >= bar.open ? VOLUME_UP : VOLUME_DOWN,
@@ -239,7 +288,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         volumeSeriesRef.current?.setData(volumeData);
         chartRef.current?.timeScale().fitContent();
 
-        lastBarRef.current = data.length ? { ...data[data.length - 1] } : null;
+        lastBarRef.current = dedupedBars.length ? { ...dedupedBars[dedupedBars.length - 1] } : null;
 
         setStatus({ loading: false, error: null });
       } catch (err) {
@@ -253,10 +302,12 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
       }
     };
 
+    reloadBarsRef.current = () => loadBars({ silent: true });
     loadBars();
 
     return () => {
       cancelled = true;
+      reloadBarsRef.current = null;
     };
   }, [symbol, interval]);
 
@@ -289,57 +340,39 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         const now = Math.floor(Date.now() / 1000);
         const currentBarTime = Math.floor(now / tfSeconds) * tfSeconds;
 
-        // If we're in a new time period, create a new bar
+        // Roll to a new interval: reload authoritative bars from backend
         if (currentBarTime > lastBar.time) {
-          const newBar = {
-            time: currentBarTime,
-            open: price,
-            high: price,
-            low: price,
-            close: price,
-            volume: 0,
-          };
-
-          lastBarRef.current = newBar;
-
-          candleSeriesRef.current?.update({
-            time: newBar.time,
-            open: newBar.open,
-            high: newBar.high,
-            low: newBar.low,
-            close: newBar.close,
-          });
-
-          volumeSeriesRef.current?.update({
-            time: newBar.time,
-            value: 0,
-            color: VOLUME_UP,
-          });
-        } else {
-          // Update current bar
-          const updatedBar = {
-            ...lastBar,
-            close: price,
-            high: Math.max(lastBar.high, price),
-            low: Math.min(lastBar.low, price),
-          };
-
-          lastBarRef.current = updatedBar;
-
-          candleSeriesRef.current?.update({
-            time: updatedBar.time,
-            open: updatedBar.open,
-            high: updatedBar.high,
-            low: updatedBar.low,
-            close: updatedBar.close,
-          });
-
-          volumeSeriesRef.current?.update({
-            time: updatedBar.time,
-            value: updatedBar.volume ?? 0,
-            color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
-          });
+          const nowMs = Date.now();
+          if (nowMs - reloadCooldownRef.current > 4000) {
+            reloadCooldownRef.current = nowMs;
+            reloadBarsRef.current?.();
+          }
+          return;
         }
+
+        // Update in-progress current bar only
+        const updatedBar = {
+          ...lastBar,
+          close: price,
+          high: Math.max(lastBar.high, price),
+          low: Math.min(lastBar.low, price),
+        };
+
+        lastBarRef.current = updatedBar;
+
+        candleSeriesRef.current?.update({
+          time: updatedBar.time,
+          open: updatedBar.open,
+          high: updatedBar.high,
+          low: updatedBar.low,
+          close: updatedBar.close,
+        });
+
+        volumeSeriesRef.current?.update({
+          time: updatedBar.time,
+          value: updatedBar.volume ?? 0,
+          color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
+        });
       } catch (err) {
         // Silent fail for quote polling
       }
