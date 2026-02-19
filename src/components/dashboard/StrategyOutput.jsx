@@ -440,7 +440,7 @@ export default function StrategyOutput({
   }, [isEditingStrategyText]);
 
   const checkedCount = checks.filter(Boolean).length;
-  const canDeploy = saved;
+  const deployReady = checks.every(Boolean);
 
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -610,10 +610,11 @@ export default function StrategyOutput({
   };
 
   const handleDeployFromSetups = () => {
-    if (!canDeploy) return;
+    if (!deployReady) return;
     const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
     const normalizedRaw = normalizeEditorContent(ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues));
-    onDeploy?.({
+    const savedAt = Date.now();
+    const payload = {
       ...s,
       raw: normalizedRaw,
       content: normalizedRaw,
@@ -631,9 +632,20 @@ export default function StrategyOutput({
         stopLoss: activeFieldValues[4] || '',
         allocation: activeFieldValues[5] || '',
       },
+      checks,
+      savedAt,
+    };
+
+    setSaved(true);
+    setSaveStatus('saved');
+    setStrategyRaw(normalizedRaw);
+    onSave?.(payload);
+
+    onDeploy?.({
+      ...payload,
       status: 'active',
       runStatus: 'running',
-      deployedAt: Date.now(),
+      deployedAt: savedAt,
     });
   };
 
@@ -1043,7 +1055,8 @@ export default function StrategyOutput({
                   {fields.map((f, i) => {
                     const isAllocation = i === 5;
                     const isEditing = editing === i;
-                    const allocationValue = (f.value || '').replace(/^\s*\$/, '').trim();
+                    const allocationValueRaw = (f.value || '').replace(/^\s*\$/, '').trim();
+                    const allocationValue = ['—', '-', '–'].includes(allocationValueRaw) ? '' : allocationValueRaw;
 
                     return (
                       <div key={i} className="bg-black/30 rounded-lg p-2 min-h-0 flex items-start gap-2 border border-gray-700/50 overflow-hidden">
@@ -1072,14 +1085,18 @@ export default function StrategyOutput({
                           </div>
 
                           {isAllocation ? (
-                            <input
-                              value={allocationValue}
-                              onChange={(e) => {
-                                updateFieldValue(i, e.target.value);
-                              }}
-                              placeholder="Enter amount..."
-                              className="mt-1 bg-transparent border border-amber-400/50 rounded px-2 py-1 text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:border-amber-300"
-                            />
+                            <div className="relative mt-1">
+                              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-amber-300 text-sm">$</span>
+                              <input
+                                value={allocationValue}
+                                onChange={(e) => {
+                                  const cleaned = String(e.target.value || '').replace(/[^0-9.,]/g, '');
+                                  updateFieldValue(i, cleaned ? `$${cleaned}` : '');
+                                }}
+                                placeholder="Enter amount..."
+                                className="bg-transparent border border-amber-400/50 rounded pl-5 pr-2 py-1 text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:border-amber-300"
+                              />
+                            </div>
                           ) : isEditing ? (
                             <input
                               autoFocus
@@ -1118,10 +1135,10 @@ export default function StrategyOutput({
 
                   <button
                     onClick={handleDeployFromSetups}
-                    disabled={!canDeploy}
+                    disabled={!deployReady}
                     className={`text-[15px] font-medium py-2 rounded-lg border transition ${
-                      canDeploy
-                        ? 'bg-emerald-600/25 border-emerald-500/50 text-emerald-200 hover:bg-emerald-600/35'
+                      deployReady
+                        ? 'bg-emerald-500/35 border-emerald-400/70 text-emerald-100 hover:bg-emerald-500/45 shadow-[0_0_18px_rgba(16,185,129,0.35)]'
                         : 'bg-white/5 border-gray-700 text-gray-400 cursor-not-allowed'
                     }`}
                   >

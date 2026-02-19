@@ -1489,7 +1489,26 @@ export default function Dashboard({
   useEffect(() => {
     runStrategyRuntimeTick();
     const interval = setInterval(runStrategyRuntimeTick, 30000);
-    return () => clearInterval(interval);
+
+    let nextOpenTimeout = null;
+    const scheduleNextOpenTick = () => {
+      const nextOpen = getNextMarketOpen();
+      const nextOpenMs = nextOpen ? new Date(nextOpen).getTime() : NaN;
+      if (!Number.isFinite(nextOpenMs)) return;
+
+      const delay = Math.max(1000, nextOpenMs - Date.now());
+      nextOpenTimeout = setTimeout(() => {
+        runStrategyRuntimeTick();
+        scheduleNextOpenTick();
+      }, delay);
+    };
+
+    scheduleNextOpenTick();
+
+    return () => {
+      clearInterval(interval);
+      if (nextOpenTimeout) clearTimeout(nextOpenTimeout);
+    };
   }, [runStrategyRuntimeTick]);
 
   useEffect(() => {
