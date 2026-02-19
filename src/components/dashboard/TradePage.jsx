@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import SocialSentiment from './SocialSentiment';
 import AlpacaLightweightChart from './AlpacaLightweightChart';
+import TwelveDataLightweightChart from './TwelveDataLightweightChart';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
@@ -66,6 +67,18 @@ const STOCK_DATABASE = [
   { symbol: 'SMCI', name: 'Super Micro Computer', exchange: 'NASDAQ' },
   { symbol: 'ARM', name: 'Arm Holdings', exchange: 'NASDAQ' },
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
+  { symbol: 'SHEL', name: 'Shell plc', exchange: 'LSE' },
+  { symbol: 'AZN', name: 'AstraZeneca plc', exchange: 'LSE' },
+  { symbol: 'HSBA', name: 'HSBC Holdings plc', exchange: 'LSE' },
+  { symbol: 'ULVR', name: 'Unilever plc', exchange: 'LSE' },
+  { symbol: 'BP.', name: 'BP plc', exchange: 'LSE' },
+  { symbol: 'RIO', name: 'Rio Tinto plc', exchange: 'LSE' },
+  { symbol: 'GSK', name: 'GSK plc', exchange: 'LSE' },
+  { symbol: 'BARC', name: 'Barclays plc', exchange: 'LSE' },
+  { symbol: 'LLOY', name: 'Lloyds Banking Group', exchange: 'LSE' },
+  { symbol: 'VOD', name: 'Vodafone Group plc', exchange: 'LSE' },
+  { symbol: 'LSEG', name: 'London Stock Exchange', exchange: 'LSE' },
+  { symbol: 'BATS', name: 'British American Tobacco', exchange: 'LSE' },
 ];
 
 const DEFAULT_EQUITY_WATCHLIST = [
@@ -130,6 +143,58 @@ const CHART_INTERVAL_TO_ALPACA = {
 };
 
 const resolveAlpacaInterval = (value) => CHART_INTERVAL_TO_ALPACA[value] || '1Day';
+const ALPACA_TO_TWELVE_TIMEFRAME = {
+  '1Min': '1Min',
+  '5Min': '5Min',
+  '15Min': '15Min',
+  '1Hour': '1Hour',
+  '1Day': '1Day',
+  '1Week': '1Week',
+};
+
+const LSE_EXCHANGE = 'LSE';
+const LSE_TIMEZONE = 'Europe/London';
+const LSE_OPEN_MINUTES = 8 * 60;
+const LSE_CLOSE_MINUTES = 16 * 60 + 30;
+const LSE_SYMBOLS = new Set(
+  STOCK_DATABASE.filter((item) => item.exchange === LSE_EXCHANGE).map((item) => String(item.symbol).toUpperCase())
+);
+
+const normalizeLseBaseSymbol = (symbol) =>
+  String(symbol || '')
+    .trim()
+    .toUpperCase()
+    .replace(/^\$/, '')
+    .split(':')[0]
+    .replace(/\.$/, '');
+
+const isLseEquitySymbol = (symbol) => {
+  const raw = String(symbol || '').trim().toUpperCase();
+  if (!raw) return false;
+  if (raw.endsWith(':LSE') || raw.includes('.LON')) return true;
+  const base = normalizeLseBaseSymbol(raw);
+  return LSE_SYMBOLS.has(raw) || LSE_SYMBOLS.has(base) || LSE_SYMBOLS.has(`${base}.`);
+};
+
+const toLseQuoteSymbol = (symbol) => `${normalizeLseBaseSymbol(symbol)}:LSE`;
+
+const isLseMarketOpen = () => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: LSE_TIMEZONE,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const weekday = String(parts.find((part) => part.type === 'weekday')?.value || '').toLowerCase();
+  if (weekday.startsWith('sat') || weekday.startsWith('sun')) return false;
+
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
+  const minutes = hour * 60 + minute;
+  return minutes >= LSE_OPEN_MINUTES && minutes < LSE_CLOSE_MINUTES;
+};
 
 const EASTERN_TIMEZONE = 'America/New_York';
 const PRE_MARKET_START_MINUTES = 4 * 60;
@@ -318,7 +383,7 @@ const buildQuote = (quote) => {
   const fallbackPrevClose = Number.isFinite(prevClose) ? prevClose : price;
   const rawChange = toNumber(quote.change);
   const change = Number.isFinite(rawChange) ? rawChange : price - fallbackPrevClose;
-  const rawChangePercent = toNumber(quote.changePercent ?? quote.change_percent);
+  const rawChangePercent = toNumber(quote.changePercent ?? quote.change_percent ?? quote.percentChange);
   const changePercent = Number.isFinite(rawChangePercent)
     ? rawChangePercent
     : fallbackPrevClose > 0
@@ -412,7 +477,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     const chartSymbol = localStorage.getItem('stratify_chart_symbol');
     if (chartSymbol) {
       localStorage.removeItem('stratify_chart_symbol'); // Clear after reading
-      const stock = EQUITY_LIST.find(s => s.symbol === chartSymbol);
+      const stock = STOCK_DATABASE.find((s) => s.symbol === chartSymbol);
       return stock || { symbol: chartSymbol, name: chartSymbol, exchange: 'NASDAQ' };
     }
     return null;
@@ -420,6 +485,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [equitySearchMarket, setEquitySearchMarket] = useState('all');
   
   // Mini tabs - pinned tickers for quick access
   const [pinnedTabs, setPinnedTabs] = useState(() => initialTradeUiRef.current.pinnedTabs);
@@ -555,9 +621,27 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const cryptoStocks = useMemo(() => (
     cryptoWatchlist.length > 0 ? cryptoWatchlist.map(normalizeWatchlistItem) : []
   ), [cryptoWatchlist]);
+  const filteredEquityDatabase = useMemo(() => {
+    if (equitySearchMarket === 'lse') {
+      return STOCK_DATABASE.filter((stock) => stock.exchange === LSE_EXCHANGE);
+    }
+    return STOCK_DATABASE;
+  }, [equitySearchMarket]);
+  const nonLseEquityStocks = useMemo(
+    () => equityStocks.filter((stock) => !isLseEquitySymbol(stock.symbol)),
+    [equityStocks]
+  );
+  const lseEquityStocks = useMemo(
+    () => equityStocks.filter((stock) => isLseEquitySymbol(stock.symbol)),
+    [equityStocks]
+  );
+  const lseEquitySymbolsKey = useMemo(
+    () => lseEquityStocks.map((stock) => stock.symbol).join(','),
+    [lseEquityStocks]
+  );
   
   // Real-time WebSocket streaming from Alpaca
-  const stockSymbolsForStream = useMemo(() => equityStocks.map(s => s.symbol), [equityStocks]);
+  const stockSymbolsForStream = useMemo(() => nonLseEquityStocks.map(s => s.symbol), [nonLseEquityStocks]);
   const cryptoSymbolsForStream = useMemo(() => cryptoStocks.map(s => s.symbol), [cryptoStocks]);
   
   const {
@@ -572,7 +656,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   });
   
   const activeWatchlist = activeMarket === 'crypto' ? cryptoStocks : equityStocks;
-  const activeDatabase = activeMarket === 'crypto' ? CRYPTO_DATABASE : STOCK_DATABASE;
+  const activeDatabase = activeMarket === 'crypto' ? CRYPTO_DATABASE : filteredEquityDatabase;
   const defaultEquitySymbol = equityStocks.find(s => s.symbol === 'NVDA')?.symbol || equityStocks[0]?.symbol || 'NVDA';
   const defaultCryptoSymbol = cryptoStocks[0]?.symbol || 'BTC-USD';
   const selectedTicker = activeMarket === 'crypto' ? (selectedCrypto || defaultCryptoSymbol) : (selectedEquity || defaultEquitySymbol);
@@ -604,6 +688,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   }, [activeMarket, cryptoStocks, equityStocks, selectedTicker]);
   const selectedSymbol = selectedTicker;
   const selectedInterval = useMemo(() => resolveAlpacaInterval(chartInterval), [chartInterval]);
+  const isSelectedLse = activeMarket === 'equity' && isLseEquitySymbol(selectedSymbol);
+  const lseMarketOpen = useMemo(() => isLseMarketOpen(), [marketSession]);
+  const lseChartSymbol = useMemo(() => toLseQuoteSymbol(selectedSymbol), [selectedSymbol]);
+  const lseChartTimeframe = useMemo(
+    () => ALPACA_TO_TWELVE_TIMEFRAME[selectedInterval] || '1Day',
+    [selectedInterval]
+  );
   const sharesQtyNumber = useMemo(() => {
     const parsed = parseFloat(orderQty);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -731,7 +822,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   // Fetch quote snapshot via Railway backend
   const fetchSnapshot = useCallback(async () => {
     try {
-      const symbols = equityStocks.map(s => s.symbol).join(',');
+      const symbols = nonLseEquityStocks.map(s => s.symbol).join(',');
+      if (!symbols) return [];
       const res = await fetch('/api/stocks?symbols=' + symbols);
       if (!res.ok) return [];
       const data = await res.json();
@@ -740,7 +832,51 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       console.error('Snapshot fetch error:', err);
       return [];
     }
-  }, [equityStocks]);
+  }, [nonLseEquityStocks]);
+
+  const fetchLseQuotes = useCallback(async () => {
+    if (lseEquityStocks.length === 0) return {};
+
+    try {
+      const baseToOriginal = new Map();
+      const requestSymbols = lseEquityStocks.map((stock) => {
+        const base = normalizeLseBaseSymbol(stock.symbol);
+        baseToOriginal.set(base, stock.symbol);
+        return `${base}:LSE`;
+      });
+
+      const response = await fetch(`/api/lse/quotes?symbols=${encodeURIComponent(requestSymbols.join(','))}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      if (!response.ok) return {};
+      const payload = await response.json();
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const next = {};
+
+      rows.forEach((row) => {
+        const requested = normalizeLseBaseSymbol(row?.requestedSymbol || row?.symbol || row?.streamSymbol);
+        const originalSymbol = baseToOriginal.get(requested) || requested;
+        const price = toNumber(row?.price);
+        const change = toNumber(row?.change);
+        const changePercent = toNumber(row?.percentChange);
+        if (!Number.isFinite(price)) return;
+
+        const prevClose = Number.isFinite(change) ? price - change : price;
+        next[originalSymbol] = buildQuote({
+          price,
+          change,
+          changePercent,
+          prevClose,
+        });
+      });
+
+      return next;
+    } catch (error) {
+      console.error('LSE quote fetch error:', error);
+      return {};
+    }
+  }, [lseEquityStocks]);
 
   const fetchCryptoQuote = useCallback(async (symbol) => {
     try {
@@ -760,7 +896,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     }
   }, []);
 
-  const equitySymbolsKey = useMemo(() => equityStocks.map(s => s.symbol).join(','), [equityStocks]);
+  const equitySymbolsKey = useMemo(() => nonLseEquityStocks.map(s => s.symbol).join(','), [nonLseEquityStocks]);
   const cryptoSymbolsKey = useMemo(() => cryptoStocks.map(s => s.symbol).join(','), [cryptoStocks]);
 
   // Merge WebSocket data with polling data for equity quotes
@@ -787,6 +923,23 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       setEquityLoading(false);
     }
   }, [wsStockQuotes]);
+
+  // LSE quotes (REST path): fetch from Twelve Data endpoint for international symbols.
+  useEffect(() => {
+    if (lseEquityStocks.length === 0) return undefined;
+
+    const loadLseQuotes = async () => {
+      const lseQuotes = await fetchLseQuotes();
+      if (Object.keys(lseQuotes).length > 0) {
+        setEquityQuotes((prev) => ({ ...prev, ...lseQuotes }));
+      }
+      setEquityLoading(false);
+    };
+
+    loadLseQuotes();
+    const interval = setInterval(loadLseQuotes, 15000);
+    return () => clearInterval(interval);
+  }, [fetchLseQuotes, lseEquitySymbolsKey, lseEquityStocks.length]);
 
   // Merge WebSocket data with polling data for crypto quotes
   useEffect(() => {
@@ -1081,12 +1234,19 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       return;
     }
 
-    const equitySymbol = normalized.includes('/') ? normalized.split('/')[0] : normalized;
+    const cleanedInput = normalized.replace(/:LSE$/i, '').replace(/\.LON$/i, '');
+    const equitySymbolInput = cleanedInput.includes('/') ? cleanedInput.split('/')[0] : cleanedInput;
+    const matchingStock = STOCK_DATABASE.find((item) => {
+      if (item.symbol === equitySymbolInput) return true;
+      return normalizeLseBaseSymbol(item.symbol) === normalizeLseBaseSymbol(equitySymbolInput);
+    });
+    const equitySymbol = matchingStock?.symbol || equitySymbolInput;
+
     handleSelectSymbol(equitySymbol);
 
     const inWatchlist = equityStocks.some((item) => item.symbol === equitySymbol);
     if (!inWatchlist && onAddToWatchlist) {
-      const stockMeta = STOCK_DATABASE.find((item) => item.symbol === equitySymbol);
+      const stockMeta = matchingStock || STOCK_DATABASE.find((item) => item.symbol === equitySymbol);
       onAddToWatchlist({
         symbol: equitySymbol,
         name: stockMeta?.name || equitySymbol,
@@ -1375,6 +1535,32 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                 placeholder={activeMarket === 'crypto' ? 'Search coin or token...' : 'Search symbol or company...'}
                 className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               />
+              {activeMarket === 'equity' && (
+                <div className="flex items-center rounded-full bg-white/5 border border-white/10 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setEquitySearchMarket('all')}
+                    className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                      equitySearchMarket === 'all'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'text-white/55 hover:text-white'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEquitySearchMarket('lse')}
+                    className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                      equitySearchMarket === 'lse'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'text-white/55 hover:text-white'
+                    }`}
+                  >
+                    🇬🇧 LSE
+                  </button>
+                </div>
+              )}
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="text-white/50 hover:text-white">
                   <X className="w-4 h-4" />
@@ -1388,7 +1574,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                   const displaySymbol = activeMarket === 'crypto'
                     ? (stock.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
                     : stock.symbol;
-                  const exchangeLabel = stock.exchange || (activeMarket === 'crypto' ? 'CRYPTO' : '');
+                  const isLseResult = activeMarket === 'equity' && stock.exchange === LSE_EXCHANGE;
                   return (
                     <div 
                       key={stock.symbol}
@@ -1400,8 +1586,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                         <span className="text-gray-400 text-sm ml-3">{stock.name}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        {exchangeLabel && (
-                          <span className="text-white/50 text-xs">{exchangeLabel}</span>
+                        {isLseResult && (
+                          <span className="bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                            LSE
+                          </span>
                         )}
                         <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
                       </div>
@@ -1665,10 +1853,30 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
           <div className="flex items-center gap-3">
             <h2 className="text-white font-bold text-lg">${selectedDisplaySymbol}</h2>
             <span className="text-gray-400 text-sm">{selectedName}</span>
+            {Number.isFinite(selectedQuote?.price) && (
+              <span className={`text-sm font-semibold font-mono ${selectedQuote?.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {isSelectedLse
+                  ? `£${Number(selectedQuote.price).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : `$${formatPrice(selectedQuote.price)}`}
+              </span>
+            )}
+            {isSelectedLse && (
+              <span className={`text-[10px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border ${
+                lseMarketOpen
+                  ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10'
+                  : 'border-white/20 text-white/55 bg-white/5'
+              }`}>
+                {lseMarketOpen ? 'Live' : 'Closed'}
+              </span>
+            )}
             <span className={`text-[10px] uppercase tracking-[0.2em] ${
-              activeMarket === 'crypto' ? 'text-amber-400' : 'text-white/40'
+              activeMarket === 'crypto'
+                ? 'text-amber-400'
+                : isSelectedLse
+                  ? 'text-blue-400'
+                  : 'text-white/40'
             }`}>
-              {activeMarket === 'crypto' ? 'Crypto' : 'Equity'}
+              {activeMarket === 'crypto' ? 'Crypto' : isSelectedLse ? 'LSE' : 'Equity'}
             </span>
             {!isTradePanelOpen && (
               <button
@@ -1702,7 +1910,15 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                 );
               })}
             </div>
-            <AlpacaLightweightChart symbol={selectedSymbol} interval={selectedInterval} />
+            {isSelectedLse ? (
+              <TwelveDataLightweightChart
+                symbol={lseChartSymbol}
+                timeframe={lseChartTimeframe}
+                height="100%"
+              />
+            ) : (
+              <AlpacaLightweightChart symbol={selectedSymbol} interval={selectedInterval} />
+            )}
           </div>
 
           <div
@@ -1719,10 +1935,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                   type="button"
                   onClick={() => setIsTradePanelOpen(false)}
                   aria-label="Collapse trade panel"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-white/50 hover:text-white/80 transition"
+                  className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-[11px] font-medium text-emerald-300 transition-all hover:border-emerald-400 hover:text-emerald-200 hover:bg-emerald-500/12 hover:shadow-[0_0_12px_rgba(16,185,129,0.35)]"
                 >
                   <span>Collapse</span>
-                  <ChevronsRight className="h-3.5 w-3.5" />
+                  <ChevronsRight className="h-3.5 w-3.5 drop-shadow-[0_0_8px_rgba(16,185,129,0.35)]" />
                 </button>
               </div>
             </div>
@@ -1986,11 +2202,11 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               <button
                 type="button"
                 onClick={() => setSocialCollapsed(true)}
-                className="absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-md border border-white/10 bg-[#0b0b0b]/85 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-white/60 hover:text-white hover:border-white/30 transition"
+                className="absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/5 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 hover:bg-emerald-500/12 hover:shadow-[0_0_12px_rgba(16,185,129,0.35)] transition-all"
                 title="Collapse social feed"
               >
                 <span>Social</span>
-                <ChevronsRight className="h-3.5 w-3.5" />
+                <ChevronsRight className="h-3.5 w-3.5 drop-shadow-[0_0_8px_rgba(16,185,129,0.35)]" />
               </button>
             )}
             {socialCollapsed ? (
