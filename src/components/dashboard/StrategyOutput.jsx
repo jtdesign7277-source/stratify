@@ -949,19 +949,15 @@ export default function StrategyOutput({
 
         {isEditingStrategyText ? (
           <>
-            <div className="mb-3 rounded-xl border border-emerald-400/25 bg-emerald-500/5 p-3">
-              <div className="text-sm font-semibold text-emerald-300">Editable Risk Controls</div>
-              <div className="mt-1 text-xs text-emerald-200/80">
-                Click and edit these first. They map directly to Key Trade Setups and will be used by Backtest.
-              </div>
+            <div className="mb-3 rounded-xl border border-blue-400/25 bg-blue-500/5 p-3">
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {fields.map((field, index) => (
-                  <label key={`edit-control-${index}`} className="block">
-                    <span className="text-[10px] uppercase tracking-wider text-emerald-300/90">{field.label}</span>
+                  <label key={`edit-control-${index}`} className="block rounded-lg border border-blue-400/20 bg-[#0b1220]/70 p-2">
+                    <span className="text-[10px] uppercase tracking-wider text-blue-300/90">{field.label}</span>
                     <input
                       value={activeFieldValues[index] || ''}
                       onChange={(event) => updateFieldValue(index, event.target.value, { syncEditor: true })}
-                      className="mt-1 w-full rounded-md border border-emerald-400/40 bg-black/35 px-2.5 py-2 text-[16px] leading-5 font-semibold text-emerald-200 focus:border-emerald-300 focus:outline-none"
+                      className="mt-1 w-full rounded-md border border-blue-400/40 bg-black/35 px-2.5 py-2 text-[16px] leading-5 font-semibold text-blue-300 focus:border-blue-300 focus:outline-none"
                     />
                   </label>
                 ))}
@@ -1070,7 +1066,7 @@ export default function StrategyOutput({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-amber-400 text-xs font-semibold uppercase tracking-wider">{f.label}</p>
+                            <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">{f.label}</p>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1086,7 +1082,7 @@ export default function StrategyOutput({
 
                           {isAllocation ? (
                             <div className="relative mt-1">
-                              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-amber-300 text-sm">$</span>
+                              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-blue-300 text-sm">$</span>
                               <input
                                 value={allocationValue}
                                 onChange={(e) => {
@@ -1094,7 +1090,7 @@ export default function StrategyOutput({
                                   updateFieldValue(i, cleaned ? `$${cleaned}` : '');
                                 }}
                                 placeholder="Enter amount..."
-                                className="bg-transparent border border-amber-400/50 rounded pl-5 pr-2 py-1 text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:border-amber-300"
+                                className="bg-transparent border border-blue-400/50 rounded pl-5 pr-2 py-1 text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:border-blue-300"
                               />
                             </div>
                           ) : isEditing ? (
@@ -1107,7 +1103,7 @@ export default function StrategyOutput({
                                 if (e.key === 'Enter') commitEdit(i);
                                 if (e.key === 'Escape') setEditing(null);
                               }}
-                              className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-300"
+                              className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-blue-300 text-sm focus:outline-none focus:border-blue-300"
                             />
                           ) : (
                             <p className="text-white text-[14px] mt-1 whitespace-normal break-words leading-[1.35]">
