@@ -1,1304 +1,511 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Highcharts from 'highcharts';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
-import StockModule from 'highcharts/modules/stock';
-import FullScreenModule from 'highcharts/modules/full-screen';
+import IndicatorsAll from 'highcharts/indicators/indicators-all';
+import AnnotationsAdvanced from 'highcharts/modules/annotations-advanced';
+import StockTools from 'highcharts/modules/stock-tools';
 
-const initializeHighchartsModule = (moduleImport) => {
-  const moduleFactory = moduleImport?.default || moduleImport;
-  if (typeof moduleFactory === 'function') {
-    moduleFactory(Highcharts);
-  }
-};
+// Initialize modules
+IndicatorsAll(Highcharts);
+AnnotationsAdvanced(Highcharts);
+StockTools(Highcharts);
 
-initializeHighchartsModule(StockModule);
-initializeHighchartsModule(FullScreenModule);
+// ─── Twelve Data Config ───
+const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || import.meta.env.TWELVE_DATA_API_KEY || '';
+const TD_REST_BASE = 'https://api.twelvedata.com';
+const TD_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 
-const COLORS = {
-  containerBg: '#060d18',
-  plotBg: '#000000',
-  chartAreaBg: '#0a1628',
-  text: '#8892a0',
-  textMuted: '#6f7d8f',
-  up: '#22c55e',
-  down: '#ef4444',
-  crosshair: '#4a5568',
-  track: '#111827',
-  thumb: '#1f2937',
-  activePill: '#60a5fa',
-  sma20: '#3b82f6',
-  sma50: '#f59e0b',
-  ema12: '#22d3ee',
-  ema26: '#f97316',
-  bb: '#8b5cf6',
-  rsi: '#38bdf8',
-  macd: '#22c55e',
-  signal: '#f43f5e',
-};
-
-const TIMEFRAME_BUTTONS = [
-  { type: 'day', count: 1, text: '1D' },
-  { type: 'week', count: 1, text: '1W' },
-  { type: 'month', count: 1, text: '1M' },
-  { type: 'month', count: 3, text: '3M' },
-  { type: 'month', count: 6, text: '6M' },
-  { type: 'year', count: 1, text: '1Y' },
-  { type: 'all', text: 'ALL' },
+// ─── Default Watchlist ───
+const DEFAULT_WATCHLIST = [
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA',
+  'SPY', 'QQQ', 'DIA',
+  'BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'DOGE/USD',
 ];
 
-const INTERVAL_OPTIONS = [
-  { label: '1min', value: '1min', bucketMs: 60_000 },
-  { label: '5min', value: '5min', bucketMs: 300_000 },
-  { label: '15min', value: '15min', bucketMs: 900_000 },
-  { label: '30min', value: '30min', bucketMs: 1_800_000 },
-  { label: '1hr', value: '1h', bucketMs: 3_600_000 },
-  { label: '4hr', value: '4h', bucketMs: 14_400_000 },
-  { label: '1D', value: '1day', bucketMs: 86_400_000 },
-  { label: '1W', value: '1week', bucketMs: 604_800_000 },
-  { label: '1M', value: '1month', bucketMs: 2_592_000_000 },
+// ─── Interval Mapping ───
+const INTERVALS = [
+  { label: '1m', value: '1min' },
+  { label: '5m', value: '5min' },
+  { label: '15m', value: '15min' },
+  { label: '30m', value: '30min' },
+  { label: '1H', value: '1h' },
+  { label: '4H', value: '4h' },
+  { label: '1D', value: '1day' },
+  { label: '1W', value: '1week' },
+  { label: '1M', value: '1month' },
 ];
 
-const CHART_TYPE_OPTIONS = [
+const CHART_TYPES = [
   { label: 'Candles', value: 'candlestick' },
   { label: 'OHLC', value: 'ohlc' },
   { label: 'Line', value: 'line' },
   { label: 'Area', value: 'area' },
 ];
 
-const INDICATOR_OPTIONS = [
-  { key: 'sma20', label: 'SMA(20)' },
-  { key: 'sma50', label: 'SMA(50)' },
-  { key: 'ema12', label: 'EMA(12)' },
-  { key: 'ema26', label: 'EMA(26)' },
-  { key: 'rsi14', label: 'RSI(14)' },
-  { key: 'macd', label: 'MACD' },
-  { key: 'bb', label: 'Bollinger Bands' },
+const SIZE_PRESETS = [
+  { label: 'S', value: 'small', height: '300px' },
+  { label: 'M', value: 'medium', height: '500px' },
+  { label: 'L', value: 'large', height: '700px' },
+  { label: 'Fill', value: 'fill', height: '100%' },
 ];
 
-const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
-const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
+// ─── Color Presets for Candles ───
+const CANDLE_THEMES = [
+  { label: 'Classic', up: '#22c55e', down: '#ef4444' },
+  { label: 'Cyan / Magenta', up: '#06b6d4', down: '#ec4899' },
+  { label: 'Blue / Orange', up: '#3b82f6', down: '#f97316' },
+  { label: 'White / Red', up: '#e5e7eb', down: '#ef4444' },
+  { label: 'Lime / Pink', up: '#84cc16', down: '#f43f5e' },
+  { label: 'Gold / Purple', up: '#eab308', down: '#a855f7' },
+];
 
-const toNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
+// ─── Indicator Options ───
+const INDICATOR_OPTIONS = [
+  { label: 'SMA 20', id: 'sma20', type: 'sma', params: { period: 20 }, color: '#3b82f6' },
+  { label: 'SMA 50', id: 'sma50', type: 'sma', params: { period: 50 }, color: '#f97316' },
+  { label: 'SMA 200', id: 'sma200', type: 'sma', params: { period: 200 }, color: '#a855f7' },
+  { label: 'EMA 12', id: 'ema12', type: 'ema', params: { period: 12 }, color: '#a78bfa' },
+  { label: 'EMA 26', id: 'ema26', type: 'ema', params: { period: 26 }, color: '#f472b6' },
+  { label: 'Bollinger Bands', id: 'bb', type: 'bb', params: { period: 20, standardDeviation: 2 }, color: '#6ee7b7' },
+  { label: 'VWAP', id: 'vwap', type: 'vwap', params: {}, color: '#fbbf24' },
+];
 
-const toUnixMs = (value) => {
-  if (value == null) return null;
+// ─── Drawing Tools ───
+const DRAWING_TOOLS = [
+  { label: 'Trend Line', icon: '⟋', type: 'crookedLine' },
+  { label: 'Horiz Line', icon: '─', type: 'infinityLine' },
+  { label: 'Vert Line', icon: '│', type: 'verticalLine' },
+  { label: 'Parallel Ch.', icon: '═', type: 'parallelChannel' },
+  { label: 'Ray / Speed', icon: '⟶', type: 'ray' },
+  { label: 'Fib Retrace', icon: 'Fib', type: 'fibonacci' },
+  { label: 'Rectangle', icon: '▭', type: 'rectangleAnnotation' },
+  { label: 'Clear All', icon: '✕', type: 'clearAll' },
+];
 
-  if (typeof value === 'number') {
-    return value > 10_000_000_000 ? value : value * 1000;
+// ─── Fetch Historical Data ───
+async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500) {
+  const url = `${TD_REST_BASE}/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&apikey=${TD_API_KEY}&format=JSON&order=ASC`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (data.status === 'error') {
+    console.error('Twelve Data error:', data.message);
+    return { ohlc: [], volume: [] };
   }
-
-  const raw = String(value);
-  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
-  const timestamp = Date.parse(normalized);
-  return Number.isFinite(timestamp) ? timestamp : null;
-};
-
-const normalizeSymbol = (value) =>
-  String(value || '')
-    .trim()
-    .toUpperCase()
-    .replace(/^\$/, '');
-
-const normalizeWsSymbol = (value) => {
-  const symbol = normalizeSymbol(value);
-  if (!symbol) return 'AAPL';
-
-  if (symbol.includes(':')) {
-    return symbol.split(':').pop() || symbol;
-  }
-
-  if (symbol.includes('/USD')) return symbol;
-  if (symbol.includes('-USD')) return symbol.replace('-USD', '/USD');
-
-  if (symbol.endsWith('USD') && symbol.length > 3) {
-    return `${symbol.slice(0, -3)}/USD`;
-  }
-
-  return symbol;
-};
-
-const getIntervalConfig = (value) =>
-  INTERVAL_OPTIONS.find((item) => item.value === value) || INTERVAL_OPTIONS[2];
-
-const formatPrice = (value) => {
-  if (!Number.isFinite(value)) return '--';
-  if (Math.abs(value) >= 1000) return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-  if (Math.abs(value) >= 1) return `$${value.toFixed(2)}`;
-  return `$${value.toFixed(4)}`;
-};
-
-const formatPercent = (value) => {
-  if (!Number.isFinite(value)) return '--';
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
-};
-
-const formatVolume = (value) => {
-  if (!Number.isFinite(value)) return '--';
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
-  return value.toFixed(0);
-};
-
-const makeVolumeColor = (isUp) => ({
-  linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-  stops: isUp
-    ? [
-        [0, 'rgba(34,197,94,0.52)'],
-        [1, 'rgba(34,197,94,0.08)'],
-      ]
-    : [
-        [0, 'rgba(239,68,68,0.52)'],
-        [1, 'rgba(239,68,68,0.08)'],
-      ],
-});
-
-const parseTimeSeries = (values = []) => {
-  const sorted = [...values].sort((a, b) => {
-    const aTs = toUnixMs(a?.datetime || a?.time || a?.timestamp) || 0;
-    const bTs = toUnixMs(b?.datetime || b?.time || b?.timestamp) || 0;
-    return aTs - bTs;
-  });
 
   const ohlc = [];
   const volume = [];
-  let previousClose = null;
 
-  sorted.forEach((row) => {
-    const ts = toUnixMs(row?.datetime || row?.time || row?.timestamp);
-    const close = toNumber(row?.close);
-    if (!Number.isFinite(ts) || !Number.isFinite(close)) return;
-
-    const open = toNumber(row?.open);
-    const high = toNumber(row?.high);
-    const low = toNumber(row?.low);
-    const rawVolume = toNumber(row?.volume) || 0;
-
-    const resolvedOpen = Number.isFinite(open) ? open : (Number.isFinite(previousClose) ? previousClose : close);
-    const resolvedHigh = Number.isFinite(high) ? high : Math.max(resolvedOpen, close);
-    const resolvedLow = Number.isFinite(low) ? low : Math.min(resolvedOpen, close);
-
-    ohlc.push([ts, resolvedOpen, resolvedHigh, resolvedLow, close]);
-    volume.push({
-      x: ts,
-      y: rawVolume,
-      color: makeVolumeColor(close >= resolvedOpen),
+  if (data.values && Array.isArray(data.values)) {
+    data.values.forEach((bar) => {
+      const ts = new Date(bar.datetime).getTime();
+      const o = parseFloat(bar.open);
+      const h = parseFloat(bar.high);
+      const l = parseFloat(bar.low);
+      const c = parseFloat(bar.close);
+      const v = parseInt(bar.volume, 10) || 0;
+      ohlc.push([ts, o, h, l, c]);
+      volume.push({ x: ts, y: v, _o: o, _c: c });
     });
-
-    previousClose = close;
-  });
+  }
 
   return { ohlc, volume };
-};
+}
 
-const calculateSma = (ohlc, period) => {
-  if (!Array.isArray(ohlc) || ohlc.length < period) return [];
-  const out = [];
-  let running = 0;
+// ─── Helpers ───
+function fmtPrice(v) {
+  if (v == null || isNaN(v)) return '—';
+  return v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+}
 
-  for (let i = 0; i < ohlc.length; i += 1) {
-    const close = ohlc[i]?.[4];
-    if (!Number.isFinite(close)) continue;
+function fmtVol(v) {
+  if (v == null || isNaN(v)) return '—';
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return v.toString();
+}
 
-    running += close;
-    if (i >= period) {
-      const previous = ohlc[i - period]?.[4];
-      if (Number.isFinite(previous)) running -= previous;
-    }
-
-    if (i >= period - 1) {
-      out.push([ohlc[i][0], Number((running / period).toFixed(4))]);
-    }
-  }
-
-  return out;
-};
-
-const calculateEma = (ohlc, period) => {
-  if (!Array.isArray(ohlc) || ohlc.length === 0) return [];
-
-  const multiplier = 2 / (period + 1);
-  const out = [];
-  let ema = null;
-
-  for (let i = 0; i < ohlc.length; i += 1) {
-    const close = ohlc[i]?.[4];
-    if (!Number.isFinite(close)) continue;
-
-    if (ema == null) {
-      ema = close;
-    } else {
-      ema = (close - ema) * multiplier + ema;
-    }
-
-    out.push([ohlc[i][0], Number(ema.toFixed(4))]);
-  }
-
-  return out;
-};
-
-const calculateBollinger = (ohlc, period = 20, stdDevMultiplier = 2) => {
-  if (!Array.isArray(ohlc) || ohlc.length < period) {
-    return { upper: [], middle: [], lower: [] };
-  }
-
-  const upper = [];
-  const middle = [];
-  const lower = [];
-  const closes = ohlc.map((item) => item?.[4]).filter(Number.isFinite);
-
-  for (let i = period - 1; i < closes.length; i += 1) {
-    const window = closes.slice(i - period + 1, i + 1);
-    const avg = window.reduce((sum, value) => sum + value, 0) / period;
-    const variance = window.reduce((sum, value) => sum + (value - avg) ** 2, 0) / period;
-    const stdev = Math.sqrt(variance);
-
-    const ts = ohlc[i][0];
-    upper.push([ts, Number((avg + stdDevMultiplier * stdev).toFixed(4))]);
-    middle.push([ts, Number(avg.toFixed(4))]);
-    lower.push([ts, Number((avg - stdDevMultiplier * stdev).toFixed(4))]);
-  }
-
-  return { upper, middle, lower };
-};
-
-const calculateRsi = (ohlc, period = 14) => {
-  if (!Array.isArray(ohlc) || ohlc.length <= period) return [];
-
-  const closes = ohlc.map((item) => item?.[4]).filter(Number.isFinite);
-  if (closes.length <= period) return [];
-
-  const out = [];
-  let gain = 0;
-  let loss = 0;
-
-  for (let i = 1; i <= period; i += 1) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff >= 0) gain += diff;
-    else loss += Math.abs(diff);
-  }
-
-  let avgGain = gain / period;
-  let avgLoss = loss / period;
-  let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-  let rsi = 100 - 100 / (1 + rs);
-  out.push([ohlc[period][0], Number(rsi.toFixed(2))]);
-
-  for (let i = period + 1; i < closes.length; i += 1) {
-    const diff = closes[i] - closes[i - 1];
-    const up = diff > 0 ? diff : 0;
-    const down = diff < 0 ? Math.abs(diff) : 0;
-
-    avgGain = (avgGain * (period - 1) + up) / period;
-    avgLoss = (avgLoss * (period - 1) + down) / period;
-
-    rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    rsi = 100 - 100 / (1 + rs);
-
-    out.push([ohlc[i][0], Number(rsi.toFixed(2))]);
-  }
-
-  return out;
-};
-
-const calculateMacd = (ohlc) => {
-  const ema12 = calculateEma(ohlc, 12);
-  const ema26 = calculateEma(ohlc, 26);
-  if (!ema12.length || !ema26.length) {
-    return { line: [], signal: [], histogram: [] };
-  }
-
-  const ema26Map = new Map(ema26.map((point) => [point[0], point[1]]));
-  const macdLine = ema12
-    .filter((point) => ema26Map.has(point[0]))
-    .map((point) => [point[0], Number((point[1] - ema26Map.get(point[0])).toFixed(4))]);
-
-  if (!macdLine.length) return { line: [], signal: [], histogram: [] };
-
-  const signal = [];
-  const multiplier = 2 / (9 + 1);
-  let ema = null;
-
-  macdLine.forEach((point) => {
-    if (ema == null) ema = point[1];
-    else ema = (point[1] - ema) * multiplier + ema;
-    signal.push([point[0], Number(ema.toFixed(4))]);
-  });
-
-  const signalMap = new Map(signal.map((point) => [point[0], point[1]]));
-  const histogram = macdLine
-    .filter((point) => signalMap.has(point[0]))
-    .map((point) => ({
-      x: point[0],
-      y: Number((point[1] - signalMap.get(point[0])).toFixed(4)),
-      color: point[1] - signalMap.get(point[0]) >= 0 ? makeVolumeColor(true) : makeVolumeColor(false),
-    }));
-
-  return { line: macdLine, signal, histogram };
-};
-
-const getMainSeriesData = (type, ohlc) => {
-  if (type === 'candlestick' || type === 'ohlc') return ohlc;
-  return ohlc.map((point) => [point[0], point[4]]);
-};
-
-const getYAxisLayout = ({ showRsi, showMacd, livePrice, liveColor }) => {
-  const extras = [showRsi, showMacd].filter(Boolean).length;
-
-  let priceHeight = 74;
-  let volumeTop = 76;
-  let volumeHeight = 24;
-
-  if (extras === 1) {
-    priceHeight = 60;
-    volumeTop = 62;
-    volumeHeight = 18;
-  }
-
-  if (extras === 2) {
-    priceHeight = 56;
-    volumeTop = 58;
-    volumeHeight = 16;
-  }
-
-  const axes = [
-    {
-      id: 'price-axis',
-      lineWidth: 0,
-      gridLineWidth: 0,
-      labels: {
-        align: 'right',
-        x: -6,
-        style: { color: COLORS.text, fontSize: '11px' },
-      },
-      crosshair: {
-        color: COLORS.crosshair,
-        dashStyle: 'Dash',
-        width: 1,
-      },
-      height: `${priceHeight}%`,
-      resize: { enabled: true },
-      plotLines: Number.isFinite(livePrice)
-        ? [
-            {
-              value: livePrice,
-              color: liveColor,
-              dashStyle: 'Dash',
-              width: 1,
-              zIndex: 5,
-              label: {
-                align: 'right',
-                useHTML: true,
-                x: 6,
-                y: 4,
-                text: `<span style="background:${liveColor};color:#ffffff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;">${formatPrice(livePrice)}</span>`,
-              },
-            },
-          ]
-        : [],
-    },
-    {
-      id: 'volume-axis',
-      top: `${volumeTop}%`,
-      height: `${volumeHeight}%`,
-      offset: 0,
-      lineWidth: 0,
-      gridLineWidth: 0,
-      labels: {
-        align: 'right',
-        x: -6,
-        style: { color: COLORS.textMuted, fontSize: '10px' },
-      },
-      title: { text: '' },
-    },
-  ];
-
-  if (showRsi && showMacd) {
-    axes.push({
-      id: 'rsi-axis',
-      top: '76%',
-      height: '12%',
-      offset: 0,
-      min: 0,
-      max: 100,
-      lineWidth: 0,
-      gridLineWidth: 0,
-      labels: { style: { color: COLORS.textMuted, fontSize: '10px' } },
-      plotLines: [
-        { value: 70, color: '#374151', width: 1, dashStyle: 'Dash' },
-        { value: 30, color: '#374151', width: 1, dashStyle: 'Dash' },
-      ],
-      title: { text: '' },
-    });
-
-    axes.push({
-      id: 'macd-axis',
-      top: '90%',
-      height: '10%',
-      offset: 0,
-      lineWidth: 0,
-      gridLineWidth: 0,
-      labels: { style: { color: COLORS.textMuted, fontSize: '10px' } },
-      plotLines: [{ value: 0, color: '#374151', width: 1 }],
-      title: { text: '' },
-    });
-  } else if (showRsi) {
-    axes.push({
-      id: 'rsi-axis',
-      top: '82%',
-      height: '18%',
-      offset: 0,
-      min: 0,
-      max: 100,
-      lineWidth: 0,
-      gridLineWidth: 0,
-      labels: { style: { color: COLORS.textMuted, fontSize: '10px' } },
-      plotLines: [
-        { value: 70, color: '#374151', width: 1, dashStyle: 'Dash' },
-        { value: 30, color: '#374151', width: 1, dashStyle: 'Dash' },
-      ],
-      title: { text: '' },
-    });
-  } else if (showMacd) {
-    axes.push({
-      id: 'macd-axis',
-      top: '82%',
-      height: '18%',
-      offset: 0,
-      lineWidth: 0,
-      gridLineWidth: 0,
-      labels: { style: { color: COLORS.textMuted, fontSize: '10px' } },
-      plotLines: [{ value: 0, color: '#374151', width: 1 }],
-      title: { text: '' },
-    });
-  }
-
-  return axes;
-};
-
-export default function HighchartsStockChart({ symbol = 'AAPL', onSymbolChange }) {
-  const containerRef = useRef(null);
+// ═══════════════════════════════════════════════
+// COMPONENT
+// ═══════════════════════════════════════════════
+export default function HighchartsStockChart({
+  symbol: propSymbol = 'AAPL',
+  onSymbolChange,
+  watchlist = DEFAULT_WATCHLIST,
+  defaultSize = 'fill',
+}) {
   const chartRef = useRef(null);
   const wsRef = useRef(null);
+  const containerRef = useRef(null);
 
-  const [interval, setInterval] = useState('15min');
-  const [chartType, setChartType] = useState('candlestick');
-  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
-  const [indicators, setIndicators] = useState({
-    sma20: true,
-    sma50: true,
-    ema12: false,
-    ema26: false,
-    rsi14: false,
-    macd: false,
-    bb: false,
-  });
+  const [symbol, setSymbol] = useState(propSymbol);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [streaming, setStreaming] = useState(false);
-  const [hoveredTimestamp, setHoveredTimestamp] = useState(null);
-  const [seriesData, setSeriesData] = useState({ ohlc: [], volume: [] });
+  const [error, setError] = useState(null);
+  const [interval, setIv] = useState('1day');
+  const [chartType, setChartType] = useState('candlestick');
+  const [activeInd, setActiveInd] = useState(['sma20', 'sma50']);
+  const [theme, setTheme] = useState(CANDLE_THEMES[0]);
+  const [chartSize, setChartSize] = useState(defaultSize);
+  const [isFs, setIsFs] = useState(false);
+  const [isLive, setIsLive] = useState(false);
 
-  const activeSymbol = useMemo(() => normalizeSymbol(symbol) || 'AAPL', [symbol]);
-  const wsSymbol = useMemo(() => normalizeWsSymbol(activeSymbol), [activeSymbol]);
-  const intervalConfig = useMemo(() => getIntervalConfig(interval), [interval]);
+  // Dropdowns
+  const [showSym, setShowSym] = useState(false);
+  const [showInd, setShowInd] = useState(false);
+  const [showDraw, setShowDraw] = useState(false);
+  const [showColor, setShowColor] = useState(false);
+  const [showSize, setShowSize] = useState(false);
+  const [symSearch, setSymSearch] = useState('');
 
-  const twelveDataKey =
-    import.meta.env.VITE_TWELVE_DATA_API_KEY ||
-    import.meta.env.VITE_TWELVEDATA_API_KEY ||
-    '';
+  // OHLCV strip
+  const [hover, setHover] = useState({ o: null, h: null, l: null, c: null, v: null, chg: null, pct: null });
 
+  // Sync prop
+  useEffect(() => { if (propSymbol && propSymbol !== symbol) setSymbol(propSymbol); }, [propSymbol]);
+
+  // Close dropdowns
   useEffect(() => {
-    if (typeof onSymbolChange === 'function') {
-      onSymbolChange(activeSymbol);
-    }
-  }, [activeSymbol, onSymbolChange]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const handleResize = () => {
-      if (chartRef.current && typeof chartRef.current.reflow === 'function') {
-        chartRef.current.reflow();
-      }
-    };
-
-    let observer;
-    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
-      observer = new ResizeObserver(() => handleResize());
-      observer.observe(containerRef.current);
-    }
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      observer?.disconnect();
-    };
+    const fn = (e) => { if (!e.target.closest('[data-dd]')) { setShowSym(false); setShowInd(false); setShowDraw(false); setShowColor(false); setShowSize(false); } };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
   }, []);
 
-  const closeSocket = useCallback(() => {
-    if (wsRef.current) {
-      try {
-        wsRef.current.close(1000, 'cleanup');
-      } catch {
-        // Ignore socket close errors.
-      }
-      wsRef.current = null;
-    }
-    setStreaming(false);
-  }, []);
+  // ─── Build Options ───
+  const buildOpts = useCallback((ohlc, vol) => {
+    const up = theme.up;
+    const dn = theme.down;
+    const cVol = vol.map((v) => ({ x: v.x, y: v.y, color: v._c >= v._o ? up + '44' : dn + '44', borderColor: v._c >= v._o ? up + '77' : dn + '77' }));
+    const last = ohlc[ohlc.length - 1];
+    const isUp = last ? last[4] >= last[1] : true;
 
-  const fetchHistorical = useCallback(async () => {
-    if (twelveDataKey) {
-      const params = new URLSearchParams({
-        symbol: activeSymbol,
-        interval,
-        outputsize: '500',
-        order: 'ASC',
-        timezone: 'Exchange',
-        apikey: twelveDataKey,
-      });
-
-      const response = await fetch(`${TWELVE_DATA_REST_URL}?${params.toString()}`, {
-        cache: 'no-store',
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload?.status === 'error') {
-        throw new Error(payload?.message || 'Failed to fetch historical data from Twelve Data');
-      }
-      return payload;
-    }
-
-    const params = new URLSearchParams({ symbol: activeSymbol, interval, outputsize: '500' });
-    const response = await fetch(`/api/twelvedata/time-series?${params.toString()}`, {
-      cache: 'no-store',
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error || 'Failed to fetch historical data');
-    }
-    return payload;
-  }, [activeSymbol, interval, twelveDataKey]);
-
-  const openSocket = useCallback(async () => {
-    let websocketUrl = '';
-
-    if (twelveDataKey) {
-      websocketUrl = `${TWELVE_DATA_WS_URL}?apikey=${encodeURIComponent(twelveDataKey)}`;
-    } else {
-      const response = await fetch('/api/twelvedata/ws-config', { cache: 'no-store' });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.websocketUrl) {
-        throw new Error(payload?.error || 'Unable to start Twelve Data stream');
-      }
-      websocketUrl = payload.websocketUrl;
-    }
-
-    const ws = new WebSocket(websocketUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setStreaming(true);
-      ws.send(
-        JSON.stringify({
-          action: 'subscribe',
-          params: { symbols: wsSymbol },
-        })
-      );
-    };
-
-    ws.onerror = () => {
-      setStreaming(false);
-    };
-
-    ws.onclose = () => {
-      setStreaming(false);
-      if (wsRef.current === ws) wsRef.current = null;
-    };
-
-    ws.onmessage = (event) => {
-      let payload;
-      try {
-        payload = JSON.parse(event.data || '{}');
-      } catch {
-        return;
-      }
-
-      const updates = Array.isArray(payload) ? payload : [payload];
-      updates.forEach((update) => {
-        const tickPrice = toNumber(update?.price ?? update?.close ?? update?.last);
-        if (!Number.isFinite(tickPrice)) return;
-
-        const tickMs = toUnixMs(update?.timestamp || update?.datetime) || Date.now();
-        const bucketMs = intervalConfig.bucketMs;
-        const bucket = Math.floor(tickMs / bucketMs) * bucketMs;
-
-        setSeriesData((prev) => {
-          if (!prev.ohlc.length) return prev;
-
-          const ohlc = [...prev.ohlc];
-          const volume = [...prev.volume];
-          const last = ohlc[ohlc.length - 1];
-
-          if (!last) return prev;
-
-          if (bucket > last[0]) {
-            const newOpen = last[4];
-            const next = [bucket, newOpen, tickPrice, tickPrice, tickPrice];
-            ohlc.push(next);
-            volume.push({ x: bucket, y: 0, color: makeVolumeColor(next[4] >= next[1]) });
-
-            if (ohlc.length > 5000) {
-              ohlc.shift();
-              volume.shift();
-            }
-          } else {
-            const open = last[1];
-            const high = Math.max(last[2], tickPrice);
-            const low = Math.min(last[3], tickPrice);
-            const close = tickPrice;
-            ohlc[ohlc.length - 1] = [last[0], open, high, low, close];
-
-            const lastVolume = volume[volume.length - 1];
-            volume[volume.length - 1] = {
-              x: last[0],
-              y: Number(lastVolume?.y) || 0,
-              color: makeVolumeColor(close >= open),
-            };
-          }
-
-          return { ohlc, volume };
-        });
-      });
-    };
-  }, [intervalConfig.bucketMs, twelveDataKey, wsSymbol]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      closeSocket();
-      setLoading(true);
-      setError('');
-      setHoveredTimestamp(null);
-
-      try {
-        const payload = await fetchHistorical();
-        if (cancelled) return;
-
-        const values = Array.isArray(payload?.values) ? payload.values : [];
-        const parsed = parseTimeSeries(values);
-
-        if (!parsed.ohlc.length) {
-          throw new Error('No data returned for this symbol/timeframe.');
-        }
-
-        setSeriesData(parsed);
-        setLoading(false);
-
-        try {
-          await openSocket();
-        } catch (streamError) {
-          if (!cancelled) {
-            setError(streamError?.message || 'Live stream unavailable. Showing last available data.');
-          }
-        }
-      } catch (loadError) {
-        if (cancelled) return;
-        setSeriesData({ ohlc: [], volume: [] });
-        setLoading(false);
-        setError(loadError?.message || 'Failed to load chart data.');
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-      closeSocket();
-    };
-  }, [activeSymbol, closeSocket, fetchHistorical, openSocket]);
-
-  const candleMap = useMemo(() => {
-    const map = new Map();
-    seriesData.ohlc.forEach((point, index) => {
-      const v = seriesData.volume[index]?.y ?? 0;
-      map.set(point[0], {
-        ts: point[0],
-        open: point[1],
-        high: point[2],
-        low: point[3],
-        close: point[4],
-        volume: v,
-      });
-    });
-    return map;
-  }, [seriesData.ohlc, seriesData.volume]);
-
-  const latestCandle = useMemo(() => {
-    if (!seriesData.ohlc.length) return null;
-    const point = seriesData.ohlc[seriesData.ohlc.length - 1];
-    const volume = seriesData.volume[seriesData.volume.length - 1]?.y ?? 0;
-    return {
-      ts: point[0],
-      open: point[1],
-      high: point[2],
-      low: point[3],
-      close: point[4],
-      volume,
-    };
-  }, [seriesData.ohlc, seriesData.volume]);
-
-  const previousClose = useMemo(() => {
-    if (seriesData.ohlc.length < 2) return null;
-    return seriesData.ohlc[seriesData.ohlc.length - 2]?.[4] ?? null;
-  }, [seriesData.ohlc]);
-
-  const displayCandle = useMemo(() => {
-    if (hoveredTimestamp && candleMap.has(hoveredTimestamp)) {
-      return candleMap.get(hoveredTimestamp);
-    }
-    return latestCandle;
-  }, [candleMap, hoveredTimestamp, latestCandle]);
-
-  const priceChange = useMemo(() => {
-    if (!latestCandle) return 0;
-    const baseline = Number.isFinite(previousClose) ? previousClose : latestCandle.open;
-    if (!Number.isFinite(baseline) || baseline === 0) return 0;
-    return latestCandle.close - baseline;
-  }, [latestCandle, previousClose]);
-
-  const priceChangePercent = useMemo(() => {
-    if (!latestCandle) return 0;
-    const baseline = Number.isFinite(previousClose) ? previousClose : latestCandle.open;
-    if (!Number.isFinite(baseline) || baseline === 0) return 0;
-    return (priceChange / baseline) * 100;
-  }, [latestCandle, previousClose, priceChange]);
-
-  const isPriceUp = priceChange >= 0;
-
-  const sma20 = useMemo(() => calculateSma(seriesData.ohlc, 20), [seriesData.ohlc]);
-  const sma50 = useMemo(() => calculateSma(seriesData.ohlc, 50), [seriesData.ohlc]);
-  const ema12 = useMemo(() => calculateEma(seriesData.ohlc, 12), [seriesData.ohlc]);
-  const ema26 = useMemo(() => calculateEma(seriesData.ohlc, 26), [seriesData.ohlc]);
-  const bollinger = useMemo(() => calculateBollinger(seriesData.ohlc, 20, 2), [seriesData.ohlc]);
-  const rsi14 = useMemo(() => calculateRsi(seriesData.ohlc, 14), [seriesData.ohlc]);
-  const macd = useMemo(() => calculateMacd(seriesData.ohlc), [seriesData.ohlc]);
-
-  const yAxis = useMemo(
-    () =>
-      getYAxisLayout({
-        showRsi: indicators.rsi14,
-        showMacd: indicators.macd,
-        livePrice: latestCandle?.close,
-        liveColor: isPriceUp ? COLORS.up : COLORS.down,
-      }),
-    [indicators.macd, indicators.rsi14, isPriceUp, latestCandle?.close]
-  );
-
-  const mainSeriesData = useMemo(
-    () => getMainSeriesData(chartType, seriesData.ohlc),
-    [chartType, seriesData.ohlc]
-  );
-
-  const chartOptions = useMemo(() => {
     const series = [
       {
-        id: 'price-main',
-        type: chartType,
-        name: activeSymbol,
-        data: mainSeriesData,
-        yAxis: 'price-axis',
-        color: COLORS.down,
-        upColor: COLORS.up,
-        lineColor: COLORS.down,
-        upLineColor: COLORS.up,
-        marker: { enabled: false },
-        lineWidth: chartType === 'line' ? 1.2 : 1,
-        fillColor:
-          chartType === 'area'
-            ? {
-                linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-                stops: [
-                  [0, 'rgba(96,165,250,0.35)'],
-                  [1, 'rgba(96,165,250,0.03)'],
-                ],
-              }
-            : undefined,
-        point: {
-          events: {
-            mouseOver: function mouseOver() {
-              setHoveredTimestamp(this.x);
-            },
-          },
+        type: chartType === 'line' ? 'line' : chartType === 'area' ? 'area' : chartType === 'ohlc' ? 'ohlc' : 'candlestick',
+        id: 'price', name: symbol, data: ohlc, yAxis: 0, zIndex: 5,
+        lastPrice: {
+          enabled: true, color: isUp ? up : dn, dashStyle: 'Dash',
+          label: { enabled: true, backgroundColor: isUp ? up : dn, style: { color: '#fff', fontWeight: '600', fontSize: '10px' }, padding: 3, borderRadius: 3 },
         },
       },
-      {
-        id: 'volume',
-        type: 'column',
-        name: 'Volume',
-        data: seriesData.volume,
-        yAxis: 'volume-axis',
-        borderWidth: 0,
-      },
+      { type: 'column', id: 'volume', name: 'Volume', data: cVol, yAxis: 1, zIndex: 1, colorByPoint: true, borderWidth: 0, borderRadius: 0 },
     ];
 
-    if (indicators.sma20) {
-      series.push({
-        id: 'sma20',
-        type: 'line',
-        name: 'SMA(20)',
-        data: sma20,
-        yAxis: 'price-axis',
-        color: COLORS.sma20,
-        lineWidth: 1,
-        marker: { enabled: false },
-      });
-    }
-
-    if (indicators.sma50) {
-      series.push({
-        id: 'sma50',
-        type: 'line',
-        name: 'SMA(50)',
-        data: sma50,
-        yAxis: 'price-axis',
-        color: COLORS.sma50,
-        lineWidth: 1,
-        marker: { enabled: false },
-      });
-    }
-
-    if (indicators.ema12) {
-      series.push({
-        id: 'ema12',
-        type: 'line',
-        name: 'EMA(12)',
-        data: ema12,
-        yAxis: 'price-axis',
-        color: COLORS.ema12,
-        lineWidth: 1,
-        marker: { enabled: false },
-      });
-    }
-
-    if (indicators.ema26) {
-      series.push({
-        id: 'ema26',
-        type: 'line',
-        name: 'EMA(26)',
-        data: ema26,
-        yAxis: 'price-axis',
-        color: COLORS.ema26,
-        lineWidth: 1,
-        marker: { enabled: false },
-      });
-    }
-
-    if (indicators.bb) {
-      series.push(
-        {
-          id: 'bb-upper',
-          type: 'line',
-          name: 'BB Upper',
-          data: bollinger.upper,
-          yAxis: 'price-axis',
-          color: COLORS.bb,
-          lineWidth: 1,
-          dashStyle: 'ShortDot',
-          marker: { enabled: false },
-        },
-        {
-          id: 'bb-middle',
-          type: 'line',
-          name: 'BB Middle',
-          data: bollinger.middle,
-          yAxis: 'price-axis',
-          color: '#a78bfa',
-          lineWidth: 1,
-          marker: { enabled: false },
-        },
-        {
-          id: 'bb-lower',
-          type: 'line',
-          name: 'BB Lower',
-          data: bollinger.lower,
-          yAxis: 'price-axis',
-          color: COLORS.bb,
-          lineWidth: 1,
-          dashStyle: 'ShortDot',
-          marker: { enabled: false },
-        }
-      );
-    }
-
-    if (indicators.rsi14) {
-      series.push({
-        id: 'rsi14',
-        type: 'line',
-        name: 'RSI(14)',
-        data: rsi14,
-        yAxis: 'rsi-axis',
-        color: COLORS.rsi,
-        lineWidth: 1,
-        marker: { enabled: false },
-      });
-    }
-
-    if (indicators.macd) {
-      series.push(
-        {
-          id: 'macd-line',
-          type: 'line',
-          name: 'MACD',
-          data: macd.line,
-          yAxis: 'macd-axis',
-          color: COLORS.macd,
-          lineWidth: 1,
-          marker: { enabled: false },
-        },
-        {
-          id: 'macd-signal',
-          type: 'line',
-          name: 'Signal',
-          data: macd.signal,
-          yAxis: 'macd-axis',
-          color: COLORS.signal,
-          lineWidth: 1,
-          marker: { enabled: false },
-        },
-        {
-          id: 'macd-hist',
-          type: 'column',
-          name: 'MACD Hist',
-          data: macd.histogram,
-          yAxis: 'macd-axis',
-          borderWidth: 0,
-        }
-      );
-    }
+    activeInd.forEach((id) => {
+      const ind = INDICATOR_OPTIONS.find((i) => i.id === id);
+      if (!ind) return;
+      series.push({ type: ind.type, id: ind.id, linkedTo: 'price', color: ind.color, params: ind.params, yAxis: 0, zIndex: 4, lineWidth: 1.2, enableMouseTracking: false, marker: { enabled: false } });
+    });
 
     return {
-      chart: {
-        backgroundColor: COLORS.containerBg,
-        plotBackgroundColor: COLORS.plotBg,
-        animation: false,
-        spacing: [2, 2, 2, 2],
-        panning: {
-          enabled: true,
-          type: 'x',
-        },
-        zooming: {
-          mouseWheel: { enabled: true },
-          type: 'x',
-          pinchType: 'x',
-        },
-        style: {
-          fontFamily: "'Inter', 'JetBrains Mono', sans-serif",
-        },
-      },
-      credits: { enabled: false },
-      legend: { enabled: false },
+      chart: { backgroundColor: '#000', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [0, 0, 0, 0], panning: { enabled: true, type: 'x' }, zooming: { type: 'x', mouseWheel: { enabled: true } } },
+      credits: { enabled: false }, title: { text: '' },
+      stockTools: { gui: { enabled: false } },
+      navigator: { enabled: true, height: 28, outlineColor: '#1a2332', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f2937', borderColor: '#4a5568' } },
+      scrollbar: { enabled: true, barBackgroundColor: '#1f2937', barBorderColor: '#1f2937', barBorderRadius: 4, buttonArrowColor: '#4a5568', buttonBackgroundColor: '#111827', buttonBorderColor: '#111827', rifleColor: '#4a5568', trackBackgroundColor: '#111827', trackBorderColor: '#111827', trackBorderRadius: 4, height: 6 },
+      rangeSelector: { enabled: false },
+      xAxis: { gridLineWidth: 0, lineColor: '#1a2332', tickColor: '#1a2332', labels: { style: { color: '#4a5568', fontSize: '10px' } }, crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1 } },
+      yAxis: [
+        { labels: { align: 'right', x: -8, style: { color: '#8892a0', fontSize: '10px' }, formatter() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1, label: { enabled: true, backgroundColor: '#1f2937', style: { color: '#e5e7eb', fontSize: '10px' }, padding: 4, format: '${value:.2f}' } }, resize: { enabled: true } },
+        { labels: { enabled: false }, top: '77%', height: '23%', offset: 0, gridLineWidth: 0, lineWidth: 0 },
+      ],
       tooltip: { enabled: false },
-      rangeSelector: {
-        enabled: true,
-        inputEnabled: false,
-        selected: 2,
-        allButtonsEnabled: true,
-        buttons: TIMEFRAME_BUTTONS,
-        buttonSpacing: 4,
-        buttonTheme: {
-          fill: COLORS.thumb,
-          stroke: COLORS.thumb,
-          r: 10,
-          padding: 2,
-          style: {
-            color: COLORS.text,
-            fontSize: '10px',
-            fontWeight: '600',
-          },
-          states: {
-            hover: {
-              fill: '#253244',
-              style: { color: '#9ca3af' },
-            },
-            select: {
-              fill: '#1f2937',
-              style: { color: COLORS.activePill },
-            },
-          },
-        },
-        labelStyle: { color: COLORS.textMuted },
-      },
-      navigator: {
-        enabled: true,
-        maskFill: 'rgba(96,165,250,0.12)',
-        series: {
-          color: '#1f2937',
-          lineColor: '#334155',
-        },
-        xAxis: {
-          labels: { style: { color: COLORS.textMuted } },
-          gridLineWidth: 0,
-          lineWidth: 0,
-          tickWidth: 0,
-        },
-      },
-      scrollbar: {
-        enabled: true,
-        barBackgroundColor: COLORS.thumb,
-        barBorderColor: COLORS.thumb,
-        buttonBackgroundColor: COLORS.track,
-        buttonBorderColor: COLORS.track,
-        rifleColor: COLORS.textMuted,
-        trackBackgroundColor: COLORS.track,
-        trackBorderColor: COLORS.track,
-        height: 10,
-      },
-      xAxis: {
-        type: 'datetime',
-        lineWidth: 0,
-        tickWidth: 0,
-        gridLineWidth: 0,
-        labels: { style: { color: COLORS.text, fontSize: '11px' } },
-        crosshair: {
-          color: COLORS.crosshair,
-          dashStyle: 'Dash',
-          width: 1,
-          snap: true,
-          zIndex: 10,
-        },
-      },
-      yAxis,
       plotOptions: {
-        series: {
-          animation: false,
-          dataGrouping: { enabled: false },
-          turboThreshold: 0,
-          states: {
-            inactive: { opacity: 1 },
-          },
-        },
-        candlestick: {
-          color: COLORS.down,
-          upColor: COLORS.up,
-          lineColor: COLORS.down,
-          upLineColor: COLORS.up,
-          lineWidth: 1,
-        },
-        ohlc: {
-          color: COLORS.down,
-          upColor: COLORS.up,
-          lineWidth: 1,
-        },
+        candlestick: { color: dn, upColor: up, lineColor: dn, upLineColor: up, lineWidth: 1, pointPadding: 0.15, groupPadding: 0.1 },
+        ohlc: { color: dn, upColor: up, lineWidth: 1.5 },
+        line: { color: '#3b82f6', lineWidth: 1.5 },
+        area: { color: '#3b82f6', fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, 'rgba(59,130,246,0.3)'], [1, 'rgba(59,130,246,0)']] }, lineWidth: 1.5 },
+        column: { borderRadius: 0, borderWidth: 0 },
+        series: { animation: false, states: { hover: { enabled: false }, inactive: { opacity: 1 } } },
+        sma: { lineWidth: 1.2, enableMouseTracking: false, marker: { enabled: false } },
+        ema: { lineWidth: 1.2, enableMouseTracking: false, marker: { enabled: false } },
+        bb: { lineWidth: 1, enableMouseTracking: false, marker: { enabled: false } },
+        vwap: { lineWidth: 1.2, enableMouseTracking: false, marker: { enabled: false } },
       },
       series,
     };
-  }, [
-    activeSymbol,
-    bollinger.lower,
-    bollinger.middle,
-    bollinger.upper,
-    chartType,
-    ema12,
-    ema26,
-    indicators,
-    isPriceUp,
-    latestCandle?.close,
-    macd.histogram,
-    macd.line,
-    macd.signal,
-    mainSeriesData,
-    rsi14,
-    seriesData.volume,
-    sma20,
-    sma50,
-    yAxis,
-  ]);
+  }, [symbol, chartType, activeInd, theme]);
 
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !chart.container) return undefined;
+  // ─── Load ───
+  const loadData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const { ohlc, volume } = await fetchHistoricalData(symbol, interval);
+      if (ohlc.length === 0) { setError('No data for $' + symbol); setLoading(false); return; }
 
-    const handleMove = (nativeEvent) => {
-      const normalized = chart.pointer.normalize(nativeEvent);
-      const mainSeries = chart.get('price-main');
-      if (!mainSeries) return;
-      const point = mainSeries.searchPoint(normalized, true);
-      if (point && Number.isFinite(point.x)) {
-        setHoveredTimestamp(point.x);
+      const last = ohlc[ohlc.length - 1];
+      const prev = ohlc.length > 1 ? ohlc[ohlc.length - 2] : last;
+      const lv = volume[volume.length - 1]?.y || 0;
+      setHover({ o: last[1], h: last[2], l: last[3], c: last[4], v: lv, chg: last[4] - prev[4], pct: prev[4] ? ((last[4] - prev[4]) / prev[4]) * 100 : 0 });
+
+      const opts = buildOpts(ohlc, volume);
+      const chart = chartRef.current?.chart;
+      if (chart) {
+        while (chart.series.length) chart.series[0].remove(false);
+        chart.update(opts, false);
+        opts.series.forEach((s) => chart.addSeries(s, false));
+        chart.redraw();
       }
+      setLoading(false);
+    } catch (err) {
+      console.error(err); setError('Failed to load data'); setLoading(false);
+    }
+  }, [symbol, interval, buildOpts]);
+
+  const [initOpts] = useState(() => buildOpts([], []));
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // ─── WebSocket ───
+  useEffect(() => {
+    if (!TD_API_KEY) return;
+    const ok = ['1min', '5min', '15min', '30min', '1h'];
+    if (!ok.includes(interval)) { setIsLive(false); return; }
+
+    const ws = new WebSocket(`${TD_WS_URL}?apikey=${TD_API_KEY}`);
+    wsRef.current = ws;
+    ws.onopen = () => { ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: symbol } })); setIsLive(true); };
+    ws.onmessage = (e) => {
+      try {
+        const m = JSON.parse(e.data);
+        if (m.event === 'price') {
+          const p = parseFloat(m.price);
+          const chart = chartRef.current?.chart;
+          if (chart) {
+            const ps = chart.get('price');
+            if (ps?.points?.length) {
+              const lp = ps.points[ps.points.length - 1];
+              if (lp) {
+                const o = lp.open, h = Math.max(lp.high, p), l = Math.min(lp.low, p);
+                lp.update({ open: o, high: h, low: l, close: p }, true, false);
+                setHover((prev) => ({ ...prev, o, h, l, c: p, chg: p - o, pct: o ? ((p - o) / o) * 100 : 0 }));
+              }
+            }
+          }
+        }
+      } catch (_) {}
     };
-
-    const clearHover = () => setHoveredTimestamp(null);
-
-    const unbindMove = Highcharts.addEvent(chart.container, 'mousemove', handleMove);
-    const unbindTouch = Highcharts.addEvent(chart.container, 'touchmove', handleMove);
-    const unbindLeave = Highcharts.addEvent(chart.container, 'mouseleave', clearHover);
+    ws.onclose = () => setIsLive(false);
+    ws.onerror = () => setIsLive(false);
 
     return () => {
-      if (typeof unbindMove === 'function') unbindMove();
-      if (typeof unbindTouch === 'function') unbindTouch();
-      if (typeof unbindLeave === 'function') unbindLeave();
+      try { ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: symbol } })); ws.close(); } catch (_) {}
+      setIsLive(false);
     };
-  }, [chartOptions.series]);
+  }, [symbol, interval]);
 
-  const handleToggleIndicator = (key) => {
-    setIndicators((prev) => ({ ...prev, [key]: !prev[key] }));
+  // ─── Hover tracking ───
+  useEffect(() => {
+    const id = setInterval(() => {
+      const chart = chartRef.current?.chart;
+      if (!chart?.container) return;
+      clearInterval(id);
+      chart.container.addEventListener('mousemove', (e) => {
+        const ps = chart.get('price');
+        const vs = chart.get('volume');
+        if (!ps) return;
+        const ev = chart.pointer.normalize(e);
+        const pt = ps.searchPoint(ev, true);
+        if (pt) {
+          const vp = vs?.points?.find((p) => p.x === pt.x);
+          setHover({ o: pt.open ?? pt.y, h: pt.high ?? pt.y, l: pt.low ?? pt.y, c: pt.close ?? pt.y, v: vp?.y ?? 0, chg: (pt.close ?? pt.y) - (pt.open ?? pt.y), pct: pt.open ? (((pt.close - pt.open) / pt.open) * 100) : 0 });
+        }
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, [symbol, interval, chartType]);
+
+  // ─── Handlers ───
+  const pickSymbol = (s) => { setSymbol(s); setShowSym(false); setSymSearch(''); onSymbolChange?.(s); };
+  const searchSubmit = (e) => { e.preventDefault(); if (symSearch.trim()) pickSymbol(symSearch.trim().toUpperCase()); };
+  const toggleInd = (id) => setActiveInd((p) => p.includes(id) ? p.filter((i) => i !== id) : [...p, id]);
+
+  const handleDraw = (tool) => {
+    const chart = chartRef.current?.chart;
+    if (!chart) return;
+    if (tool.type === 'clearAll') {
+      if (chart.annotations) while (chart.annotations.length) chart.removeAnnotation(chart.annotations[0]);
+    } else if (chart.navigationBindings) {
+      chart.navigationBindings.selectedButton = tool.type;
+    }
+    setShowDraw(false);
   };
 
-  const toggleFullscreen = async () => {
+  const toggleFs = () => {
     if (!containerRef.current) return;
-
-    if (!document.fullscreenElement) {
-      try {
-        await containerRef.current.requestFullscreen();
-      } catch {
-        // Fullscreen unavailable in this context.
-      }
-      return;
-    }
-
-    try {
-      await document.exitFullscreen();
-    } catch {
-      // Ignore fullscreen exit errors.
-    }
+    if (!document.fullscreenElement) { containerRef.current.requestFullscreen(); setIsFs(true); }
+    else { document.exitFullscreen(); setIsFs(false); }
   };
+
+  useEffect(() => {
+    const fn = () => { setIsFs(!!document.fullscreenElement); setTimeout(() => chartRef.current?.chart?.reflow(), 100); };
+    document.addEventListener('fullscreenchange', fn);
+    return () => document.removeEventListener('fullscreenchange', fn);
+  }, []);
+
+  const h = isFs ? '100vh' : (SIZE_PRESETS.find((s) => s.value === chartSize)?.height || '100%');
+  const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
+
+  // ─── Styles ───
+  const P = 'px-2 py-0.5 text-[10px] font-medium rounded cursor-pointer transition-all duration-100 select-none whitespace-nowrap';
+  const PN = 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
+  const PF = 'text-[#555] hover:text-[#888] hover:bg-white/[0.03] border border-transparent';
+  const DD = { position: 'absolute', top: '100%', left: 0, marginTop: '4px', backgroundColor: '#0d1117', border: '1px solid #1f2937', borderRadius: '6px', padding: '4px', zIndex: 200, minWidth: '170px', boxShadow: '0 12px 40px rgba(0,0,0,0.7)', maxHeight: '320px', overflowY: 'auto' };
+  const DI = (a) => ({ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '5px 10px', backgroundColor: a ? 'rgba(59,130,246,0.1)' : 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: a ? '#60a5fa' : '#8892a0', fontSize: '11px', textAlign: 'left' });
 
   return (
-    <div ref={containerRef} className="h-full w-full min-h-0 overflow-hidden rounded-lg border border-[#0f1722] bg-[#060d18]">
-      <div className="flex items-center justify-between gap-3 border-b border-[#0f1722] bg-[#0a1628] px-3 py-2 text-[11px]">
-        <div className="flex items-center gap-3">
-          <span className="font-semibold tracking-[0.04em] text-[#9aa6b8]">{activeSymbol}</span>
-          <span className={`font-semibold ${isPriceUp ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-            {formatPrice(latestCandle?.close)}
-          </span>
-          <span className={`font-medium ${isPriceUp ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-            {isPriceUp ? '+' : ''}{formatPrice(priceChange)} ({formatPercent(priceChangePercent)})
-          </span>
-          <span className={`inline-flex items-center gap-1 text-[10px] ${streaming ? 'text-[#22c55e]' : 'text-[#8892a0]'}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${streaming ? 'bg-[#22c55e]' : 'bg-[#6b7280]'}`} />
-            {streaming ? 'LIVE' : 'CLOSED'}
-          </span>
-        </div>
+    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: h, backgroundColor: '#000', position: 'relative', overflow: 'hidden', borderRadius: isFs ? '0' : '6px', border: isFs ? 'none' : '1px solid #111827' }}>
 
-        <div className="flex flex-wrap items-center gap-2 text-[#8892a0]">
-          <span>O: {formatPrice(displayCandle?.open)}</span>
-          <span>H: {formatPrice(displayCandle?.high)}</span>
-          <span>L: {formatPrice(displayCandle?.low)}</span>
-          <span>C: {formatPrice(displayCandle?.close)}</span>
-          <span>V: {formatVolume(displayCandle?.volume)}</span>
-        </div>
-      </div>
+      {/* ═══ TOP BAR ═══ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 10px', backgroundColor: '#000', borderBottom: '1px solid #111827', flexShrink: 0 }}>
 
-      <div className="flex items-center justify-between gap-2 border-b border-[#0f1722] bg-[#060d18] px-2 py-2">
-        <div className="relative flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIndicatorsOpen((open) => !open)}
-            className="rounded-full border border-[#1f2937] bg-[#111827] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9aa6b8] hover:text-[#cbd5e1]"
-          >
-            Indicators
+        {/* Symbol Picker */}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowSym(!showSym)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 8px', backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '5px', cursor: 'pointer', color: '#e5e7eb', fontSize: '13px', fontWeight: '700' }}>
+            <span style={{ color: '#4a5568', fontSize: '11px' }}>$</span>{symbol}<span style={{ color: '#4a5568', fontSize: '8px', marginLeft: '2px' }}>▼</span>
           </button>
-
-          {indicatorsOpen && (
-            <div className="absolute left-0 top-8 z-20 min-w-[180px] rounded-md border border-[#1f2937] bg-[#0a1628] p-2 shadow-xl">
-              <div className="grid grid-cols-1 gap-1">
-                {INDICATOR_OPTIONS.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleToggleIndicator(item.key)}
-                    className={`flex items-center justify-between rounded px-2 py-1 text-left text-[11px] transition-colors ${
-                      indicators[item.key]
-                        ? 'bg-[#1f2937] text-[#93c5fd]'
-                        : 'text-[#8892a0] hover:bg-[#111827] hover:text-[#cbd5e1]'
-                    }`}
-                  >
-                    <span>{item.label}</span>
-                    <span>{indicators[item.key] ? 'ON' : 'OFF'}</span>
-                  </button>
-                ))}
-              </div>
+          {showSym && (
+            <div style={{ ...DD, minWidth: '200px' }}>
+              <form onSubmit={searchSubmit} style={{ padding: '4px' }}>
+                <input autoFocus value={symSearch} onChange={(e) => setSymSearch(e.target.value)} placeholder="Search or type symbol..." style={{ width: '100%', padding: '6px 8px', backgroundColor: '#0a0f1a', border: '1px solid #1f2937', borderRadius: '4px', color: '#e5e7eb', fontSize: '11px', outline: 'none' }} />
+              </form>
+              <div style={{ borderTop: '1px solid #1a2332', margin: '4px 0' }} />
+              {filteredWl.map((s) => (
+                <button key={s} onClick={() => pickSymbol(s)} style={{ ...DI(s === symbol), fontWeight: s === symbol ? '600' : '400' }} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = s === symbol ? 'rgba(59,130,246,0.1)' : 'transparent')}>
+                  <span style={{ color: '#4a5568', fontSize: '9px', width: '10px' }}>$</span>{s}{s === symbol && <span style={{ marginLeft: 'auto', fontSize: '9px', color: '#3b82f6' }}>●</span>}
+                </button>
+              ))}
+              {symSearch && !filteredWl.includes(symSearch.toUpperCase()) && (
+                <button onClick={() => pickSymbol(symSearch.toUpperCase())} style={{ ...DI(false), color: '#3b82f6', fontWeight: '500' }}>Search "{symSearch.toUpperCase()}"</button>
+              )}
             </div>
           )}
-
-          <div className="flex items-center gap-1">
-            {CHART_TYPE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setChartType(option.value)}
-                className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.04em] ${
-                  chartType === option.value
-                    ? 'border-[#2563eb] bg-[#1f2937] text-[#60a5fa]'
-                    : 'border-[#1f2937] bg-[#111827] text-[#8892a0] hover:text-[#cbd5e1]'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1">
-          {INTERVAL_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setInterval(option.value)}
-              className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${
-                interval === option.value
-                  ? 'border-[#2563eb] bg-[#1f2937] text-[#60a5fa]'
-                  : 'border-[#1f2937] bg-[#111827] text-[#8892a0] hover:text-[#cbd5e1]'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+        {/* Price */}
+        <span style={{ color: '#e5e7eb', fontSize: '15px', fontWeight: '700', fontFamily: "'SF Mono', monospace" }}>{fmtPrice(hover.c)}</span>
+        {hover.chg != null && <span style={{ color: hover.chg >= 0 ? '#22c55e' : '#ef4444', fontSize: '11px', fontWeight: '600', fontFamily: "'SF Mono', monospace" }}>{hover.chg >= 0 ? '+' : ''}{hover.chg?.toFixed(2)} ({hover.pct?.toFixed(2)}%)</span>}
 
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="rounded-full border border-[#1f2937] bg-[#111827] px-2 py-1 text-[10px] font-semibold text-[#8892a0] hover:text-[#cbd5e1]"
-          >
-            Fullscreen
+        {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '9px', color: '#22c55e', fontWeight: '600' }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />LIVE</div>}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Size */}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowSize(!showSize)} className={`${P} ${PF}`}>Size: {SIZE_PRESETS.find((s) => s.value === chartSize)?.label}</button>
+          {showSize && (
+            <div style={{ ...DD, minWidth: '100px', right: 0, left: 'auto' }}>
+              {SIZE_PRESETS.map((s) => (
+                <button key={s.value} onClick={() => { setChartSize(s.value); setShowSize(false); setTimeout(() => chartRef.current?.chart?.reflow(), 50); }} style={DI(chartSize === s.value)}>{s.label} <span style={{ color: '#4a5568', fontSize: '9px', marginLeft: 'auto' }}>{s.height}</span></button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button onClick={toggleFs} className={`${P} ${PF}`} title="Fullscreen">{isFs ? '⊡' : '⛶'}</button>
+      </div>
+
+      {/* ═══ TOOLBAR ═══ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '3px 10px', backgroundColor: '#000', borderBottom: '1px solid #0a0a0a', flexShrink: 0, flexWrap: 'wrap' }}>
+        {INTERVALS.map((i) => <button key={i.value} onClick={() => setIv(i.value)} className={`${P} ${interval === i.value ? PN : PF}`}>{i.label}</button>)}
+        <div style={{ width: '1px', height: '12px', backgroundColor: '#1a2332', margin: '0 2px' }} />
+        {CHART_TYPES.map((ct) => <button key={ct.value} onClick={() => setChartType(ct.value)} className={`${P} ${chartType === ct.value ? PN : PF}`}>{ct.label}</button>)}
+        <div style={{ width: '1px', height: '12px', backgroundColor: '#1a2332', margin: '0 2px' }} />
+
+        {/* Indicators */}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowInd(!showInd)} className={`${P} ${activeInd.length ? PN : PF}`}>Indicators{activeInd.length ? ` (${activeInd.length})` : ''}</button>
+          {showInd && (
+            <div style={DD}>
+              {INDICATOR_OPTIONS.map((ind) => (
+                <button key={ind.id} onClick={() => toggleInd(ind.id)} style={DI(activeInd.includes(ind.id))} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = activeInd.includes(ind.id) ? 'rgba(59,130,246,0.1)' : 'transparent')}>
+                  <span style={{ width: '12px', height: '3px', backgroundColor: ind.color, borderRadius: '2px', flexShrink: 0 }} />{ind.label}{activeInd.includes(ind.id) && <span style={{ marginLeft: 'auto', fontSize: '9px' }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Draw */}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowDraw(!showDraw)} className={`${P} ${PF}`}>Draw</button>
+          {showDraw && (
+            <div style={DD}>
+              {DRAWING_TOOLS.map((t) => (
+                <button key={t.label} onClick={() => handleDraw(t)} style={{ ...DI(false), color: t.type === 'clearAll' ? '#ef4444' : '#8892a0' }} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <span style={{ width: '16px', textAlign: 'center', fontSize: '12px', flexShrink: 0 }}>{t.icon}</span>{t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Colors */}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowColor(!showColor)} className={`${P} ${PF}`}>
+            <span style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
+              <span style={{ width: '6px', height: '10px', backgroundColor: theme.up, borderRadius: '1px' }} />
+              <span style={{ width: '6px', height: '10px', backgroundColor: theme.down, borderRadius: '1px' }} />
+              Colors
+            </span>
           </button>
+          {showColor && (
+            <div style={DD}>
+              {CANDLE_THEMES.map((t) => (
+                <button key={t.label} onClick={() => { setTheme(t); setShowColor(false); }} style={DI(theme.label === t.label)} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.label === t.label ? 'rgba(59,130,246,0.1)' : 'transparent')}>
+                  <span style={{ display: 'flex', gap: '2px' }}><span style={{ width: '8px', height: '14px', backgroundColor: t.up, borderRadius: '1px' }} /><span style={{ width: '8px', height: '14px', backgroundColor: t.down, borderRadius: '1px' }} /></span>{t.label}{theme.label === t.label && <span style={{ marginLeft: 'auto', fontSize: '9px' }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="relative h-[calc(100%-82px)] min-h-0 bg-[#0a1628]">
-        <HighchartsReact
-          highcharts={Highcharts}
-          constructorType="stockChart"
-          options={chartOptions}
-          callback={(chart) => {
-            chartRef.current = chart;
-          }}
-          containerProps={{ style: { width: '100%', height: '100%' } }}
-        />
+      {/* ═══ OHLCV STRIP ═══ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '2px 12px', backgroundColor: '#000', flexShrink: 0, fontFamily: "'SF Mono', monospace", fontSize: '10px' }}>
+        <span style={{ color: '#444' }}>O <span style={{ color: hover.c >= hover.o ? theme.up : theme.down }}>{fmtPrice(hover.o)}</span></span>
+        <span style={{ color: '#444' }}>H <span style={{ color: theme.up }}>{fmtPrice(hover.h)}</span></span>
+        <span style={{ color: '#444' }}>L <span style={{ color: theme.down }}>{fmtPrice(hover.l)}</span></span>
+        <span style={{ color: '#444' }}>C <span style={{ color: hover.c >= hover.o ? theme.up : theme.down, fontWeight: '600' }}>{fmtPrice(hover.c)}</span></span>
+        <span style={{ color: '#444' }}>V <span style={{ color: '#333' }}>{fmtVol(hover.v)}</span></span>
+      </div>
 
+      {/* ═══ CHART ═══ */}
+      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {loading && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#060d18]/80 text-sm text-[#8892a0]">
-            Loading {activeSymbol}...
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', zIndex: 50 }}>
+            <div style={{ color: '#4a5568', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="12" height="12" viewBox="0 0 16 16" style={{ animation: 'spin 1s linear infinite' }}><circle cx="8" cy="8" r="6" stroke="#3b82f6" strokeWidth="2" fill="none" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" /></svg>
+              Loading ${symbol}...
+            </div>
+          </div>
+        )}
+        {error && !loading && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', zIndex: 50, gap: '6px' }}>
+            <span style={{ color: '#ef4444', fontSize: '11px' }}>{error}</span>
+            <button onClick={loadData} style={{ padding: '3px 10px', fontSize: '10px', backgroundColor: '#1f2937', color: '#9ca3af', border: '1px solid #374151', borderRadius: '4px', cursor: 'pointer' }}>Retry</button>
           </div>
         )}
 
-        {!loading && error && (
-          <div className="pointer-events-none absolute left-3 top-3 rounded border border-red-500/20 bg-[#210f14]/80 px-3 py-1.5 text-xs text-red-300">
-            {error}
-          </div>
-        )}
+        <HighchartsReact ref={chartRef} highcharts={Highcharts} constructorType="stockChart" options={initOpts} containerProps={{ style: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }} />
 
-        <div className="pointer-events-none absolute bottom-1 right-2 text-[10px] tracking-[0.1em] text-[#64748b]">
-          MARKET DATA POWERED BY TWELVE DATA
-        </div>
+        <div style={{ position: 'absolute', bottom: '36px', right: '10px', fontSize: '8px', color: '#151a24', letterSpacing: '0.04em', fontWeight: '500', pointerEvents: 'none', zIndex: 10 }}>MARKET DATA POWERED BY TWELVE DATA</div>
       </div>
+
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+        .highcharts-range-selector-group{display:none!important}
+        .highcharts-credits{display:none!important}
+        .highcharts-scrollbar{opacity:.35;transition:opacity .2s}
+        .highcharts-scrollbar:hover{opacity:1}
+        .highcharts-navigator-mask-inside{fill:rgba(59,130,246,.04)}
+        .highcharts-navigator-outline{stroke:#1a2332}
+        .highcharts-stock-tools-wrapper{display:none!important}
+        .highcharts-bindings-wrapper{display:none!important}
+        *::-webkit-scrollbar{width:4px}
+        *::-webkit-scrollbar-track{background:#0d1117}
+        *::-webkit-scrollbar-thumb{background:#1f2937;border-radius:4px}
+      `}</style>
     </div>
   );
 }
