@@ -5,6 +5,7 @@ import {
   HistogramSeries,
   ColorType,
 } from 'lightweight-charts';
+import { subscribeTwelveDataQuotes } from '../../services/twelveDataWebSocket';
 
 const UP_COLOR = '#22c55e';
 const DOWN_COLOR = '#ef4444';
@@ -39,6 +40,9 @@ const toNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
+const baseSymbol = (value) => normalizeSymbol(value).split(':')[0].split('.')[0];
 
 const toUnix = (value) => {
   if (!value) return null;
@@ -229,80 +233,68 @@ const TwelveDataLightweightChart = ({ symbol, timeframe = '1Day', interval, heig
   useEffect(() => {
     if (!symbol) return undefined;
 
-    let cancelled = false;
+    const normalized = normalizeSymbol(symbol);
+    const base = baseSymbol(normalized);
+    const wsSymbols = [...new Set([normalized, base].filter(Boolean))];
 
-    const pollLatest = async () => {
-      if (!lastBarRef.current) return;
+    const updateFromPrice = (price) => {
+      if (!Number.isFinite(price) || !lastBarRef.current) return;
 
-      try {
-        const response = await fetch(`/api/lse/quotes?symbols=${encodeURIComponent(symbol)}`, {
-          cache: 'no-store',
-        });
-        const payload = await response.json();
-        if (!response.ok || cancelled) return;
+      const tf = timeframeRef.current;
+      const tfSeconds = INTERVAL_SECONDS[tf] || 60;
+      const now = Math.floor(Date.now() / 1000);
+      const currentBarTime = Math.floor(now / tfSeconds) * tfSeconds;
+      const lastBar = lastBarRef.current;
 
-        const latest = Array.isArray(payload?.data) ? payload.data[0] : null;
-        const price = toNumber(latest?.price);
-        if (!Number.isFinite(price)) return;
-
-        const tf = timeframeRef.current;
-        const tfSeconds = INTERVAL_SECONDS[tf] || 60;
-        const now = Math.floor(Date.now() / 1000);
-        const currentBarTime = Math.floor(now / tfSeconds) * tfSeconds;
-        const lastBar = lastBarRef.current;
-
-        if (currentBarTime > lastBar.time) {
-          const newBar = {
-            time: currentBarTime,
-            open: price,
-            high: price,
-            low: price,
-            close: price,
-            volume: 0,
-          };
-          lastBarRef.current = newBar;
-
-          candleRef.current?.update({
-            time: newBar.time,
-            open: newBar.open,
-            high: newBar.high,
-            low: newBar.low,
-            close: newBar.close,
-          });
-          volumeRef.current?.update({
-            time: newBar.time,
-            value: 0,
-            color: VOLUME_UP,
-          });
-          return;
-        }
-
-        const updated = {
-          ...lastBar,
+      if (currentBarTime > lastBar.time) {
+        const newBar = {
+          time: currentBarTime,
+          open: lastBar.close,
+          high: price,
+          low: price,
           close: price,
-          high: Math.max(lastBar.high, price),
-          low: Math.min(lastBar.low, price),
+          volume: 0,
         };
-        lastBarRef.current = updated;
+        lastBarRef.current = newBar;
 
         candleRef.current?.update({
-          time: updated.time,
-          open: updated.open,
-          high: updated.high,
-          low: updated.low,
-          close: updated.close,
+          time: newBar.time,
+          open: newBar.open,
+          high: newBar.high,
+          low: newBar.low,
+          close: newBar.close,
         });
-      } catch {
-        // Keep UI stable on transient quote failures.
+        volumeRef.current?.update({
+          time: newBar.time,
+          value: 0,
+          color: newBar.close >= newBar.open ? VOLUME_UP : VOLUME_DOWN,
+        });
+        return;
       }
+
+      const updated = {
+        ...lastBar,
+        close: price,
+        high: Math.max(lastBar.high, price),
+        low: Math.min(lastBar.low, price),
+      };
+      lastBarRef.current = updated;
+
+      candleRef.current?.update({
+        time: updated.time,
+        open: updated.open,
+        high: updated.high,
+        low: updated.low,
+        close: updated.close,
+      });
     };
 
-    const timer = setInterval(pollLatest, 15000);
-    pollLatest();
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
+    const unsubscribe = subscribeTwelveDataQuotes(wsSymbols, (update) => {
+      const price = toNumber(update?.price ?? update?.close ?? update?.last);
+      updateFromPrice(price);
+    });
+
+    return () => unsubscribe?.();
   }, [symbol]);
 
   return (

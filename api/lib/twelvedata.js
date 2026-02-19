@@ -311,7 +311,11 @@ export const fetchLseTimeSeries = async (symbol, interval = '5min', outputsize =
     values: values
       .map((item) => ({
         datetime: item?.datetime || null,
+        open: toNumber(item?.open),
+        high: toNumber(item?.high),
+        low: toNumber(item?.low),
         close: toNumber(item?.close),
+        volume: toNumber(item?.volume),
       }))
       .filter((item) => item.datetime && item.close != null),
     meta: payload?.meta || {},
