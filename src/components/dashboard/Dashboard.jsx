@@ -1752,6 +1752,7 @@ export default function Dashboard({
               watchlist={watchlist}
               onAddToWatchlist={addToWatchlist}
               onRemoveFromWatchlist={removeFromWatchlist}
+              onReorderWatchlist={reorderWatchlist}
               addTrade={addTrade}
             />
           )}

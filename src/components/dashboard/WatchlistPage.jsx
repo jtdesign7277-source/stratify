@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   ChevronsLeft,
   ChevronsRight,
+  GripVertical,
   Plus,
   RefreshCw,
   Search,
@@ -262,7 +263,13 @@ const formatTimestamp = (value) => {
   return `${lookup.month} ${lookup.day}, ${lookup.year} at ${lookup.hour}:${lookup.minute} ${lookup.dayPeriod} ${lookup.timeZoneName}`;
 };
 
-const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, addTrade }) => {
+const WatchlistPage = ({
+  watchlist = [],
+  onAddToWatchlist,
+  onRemoveFromWatchlist,
+  onReorderWatchlist,
+  addTrade,
+}) => {
   const [watchlistPanelState, setWatchlistPanelState] = useState(() => loadPanelState(WATCHLIST_PANEL_KEY, 'small'));
   const [orderPanelState, setOrderPanelState] = useState(() => loadPanelState(ORDER_PANEL_KEY, 'closed'));
 
@@ -277,6 +284,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [streamStatus, setStreamStatus] = useState({ connected: false, connecting: false, error: null, retryCount: 0 });
+  const [draggingSymbol, setDraggingSymbol] = useState(null);
+  const [dragOverSymbol, setDragOverSymbol] = useState(null);
 
   const [orderSide, setOrderSide] = useState('buy');
   const [orderQty, setOrderQty] = useState('1');
@@ -917,6 +926,68 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     setSelectedTicker(normalized);
   }, [activeSymbols, addSymbolToWatchlist, labelMap, searchResults]);
 
+  const moveWatchlistSymbol = useCallback((sourceSymbol, targetSymbol) => {
+    const from = normalizeSymbol(sourceSymbol);
+    const to = normalizeSymbol(targetSymbol);
+    if (!from || !to || from === to) return;
+    if (typeof onReorderWatchlist !== 'function') return;
+
+    const fromIndex = normalizedWatchlist.findIndex((item) => item.symbol === from);
+    const toIndex = normalizedWatchlist.findIndex((item) => item.symbol === to);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    const reordered = [...normalizedWatchlist];
+    const [moved] = reordered.splice(fromIndex, 1);
+    if (!moved) return;
+    reordered.splice(toIndex, 0, moved);
+    onReorderWatchlist(reordered);
+  }, [normalizedWatchlist, onReorderWatchlist]);
+
+  const handleRowDragStart = useCallback((event, symbol) => {
+    const normalized = normalizeSymbol(symbol);
+    if (!normalized) return;
+
+    setDraggingSymbol(normalized);
+    setDragOverSymbol(normalized);
+
+    try {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', normalized);
+    } catch {}
+  }, []);
+
+  const handleRowDragOver = useCallback((event, symbol) => {
+    const normalized = normalizeSymbol(symbol);
+    if (!draggingSymbol || !normalized || draggingSymbol === normalized) return;
+    event.preventDefault();
+    setDragOverSymbol(normalized);
+  }, [draggingSymbol]);
+
+  const handleRowDrop = useCallback((event, symbol) => {
+    event.preventDefault();
+    const normalizedTarget = normalizeSymbol(symbol);
+    const fallbackSource = (() => {
+      try {
+        return normalizeSymbol(event.dataTransfer.getData('text/plain'));
+      } catch {
+        return '';
+      }
+    })();
+    const normalizedSource = normalizeSymbol(draggingSymbol || fallbackSource);
+
+    if (normalizedSource && normalizedTarget && normalizedSource !== normalizedTarget) {
+      moveWatchlistSymbol(normalizedSource, normalizedTarget);
+    }
+
+    setDraggingSymbol(null);
+    setDragOverSymbol(null);
+  }, [draggingSymbol, moveWatchlistSymbol]);
+
+  const handleRowDragEnd = useCallback(() => {
+    setDraggingSymbol(null);
+    setDragOverSymbol(null);
+  }, []);
+
   const isWatchlistCollapsed = watchlistPanelState === 'closed';
   const isOrderPanelClosed = orderPanelState === 'closed';
 
@@ -1066,14 +1137,30 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 const pct = Number(quote?.percentChange);
                 const positive = Number.isFinite(pct) ? pct >= 0 : true;
                 const rowActive = selectedTicker === item.symbol;
+                const rowDragging = draggingSymbol === item.symbol;
+                const rowDropTarget = dragOverSymbol === item.symbol && draggingSymbol && draggingSymbol !== item.symbol;
 
                 return (
                   <button
                     key={item.symbol}
                     type="button"
+                    draggable
+                    onDragStart={(event) => handleRowDragStart(event, item.symbol)}
+                    onDragOver={(event) => handleRowDragOver(event, item.symbol)}
+                    onDrop={(event) => handleRowDrop(event, item.symbol)}
+                    onDragEnd={handleRowDragEnd}
                     onClick={() => setSelectedTicker(item.symbol)}
-                    className={`flex w-full items-center justify-between gap-1 border-b border-[#1f1f1f]/40 px-3 py-2 text-left transition-colors ${rowActive ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'}`}
+                    className={`flex w-full items-center justify-between gap-1 border-b border-[#1f1f1f]/40 px-3 py-2 text-left transition-colors ${
+                      rowActive ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'
+                    } ${
+                      rowDragging ? 'cursor-grabbing opacity-70' : 'cursor-grab'
+                    } ${
+                      rowDropTarget ? 'bg-cyan-500/10 ring-1 ring-inset ring-cyan-400/45' : ''
+                    }`}
                   >
+                    <span className="mr-1 text-gray-600">
+                      <GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </span>
                     <div className="min-w-0 flex-1 pr-1">
                       <div className="text-[13px] font-semibold text-white">${item.symbol}</div>
                       <div className="truncate text-[11px] text-gray-500">{item.name || labelMap[item.symbol] || item.symbol}</div>
