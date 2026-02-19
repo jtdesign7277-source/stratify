@@ -641,7 +641,7 @@ if __name__ == "__main__":
       <div onClick={() => setExpanded(true)}
         className="w-12 flex flex-col items-center py-4 gap-3 bg-[#0b0b0b] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
         <BrainIcon className="w-6 h-6 text-emerald-400" />
-        <span className="text-[10px] text-white/50 tracking-widest" style={{ writingMode: 'vertical-rl' }}>ATLAS AI</span>
+        <span className="text-[10px] text-white/50 tracking-widest" style={{ writingMode: 'vertical-rl' }}>SOPHIA AI</span>
       </div>
     );
   }
@@ -652,7 +652,7 @@ if __name__ == "__main__":
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <BrainIcon className="w-6 h-6 text-emerald-400" />
-          <span className="text-sm font-semibold text-white/90 tracking-wide">Grok AI</span>
+          <span className="text-sm font-semibold text-white/90 tracking-wide">Sophia AI</span>
         </div>
         <div className="flex gap-1">
           <button onClick={handleReset} className="p-1.5 hover:bg-white/10 rounded transition-colors" title="Start Fresh">

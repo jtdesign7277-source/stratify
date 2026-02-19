@@ -1,6 +1,6 @@
 # Brain Dump
 
-Last updated: 2026-02-18  
+Last updated: 2026-02-19  
 Compiled from:
 - `/Users/stratify/Desktop/second-brain`
 - `/Users/stratify/Desktop/Stratify-Memory`
@@ -12,6 +12,7 @@ Compiled from:
 - Market data rule: no polling for core market prices. Use Alpaca WebSocket streaming.
 - Deployment rule: commit + push to GitHub main and let Vercel auto-deploy.
 - Dashboard access model (current direction): auth + subscription gating is required for app access.
+- Naming lock: assistant name is Sophia only; Atlas naming is retired.
 
 ## 2) Streaming Architecture (Most Important)
 

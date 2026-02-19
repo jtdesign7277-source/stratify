@@ -440,8 +440,8 @@ Be extremely concise. Maximum 2-3 sentences per response unless asked for more d
   }
 });
 
-// Grok AI Chat Endpoint
-app.post('/api/atlas/chat', async (req, res) => {
+// Sophia AI Chat Endpoint
+app.post('/api/sophia/chat', async (req, res) => {
   try {
     const { message, stream } = req.body;
     const shouldStream = stream === true;

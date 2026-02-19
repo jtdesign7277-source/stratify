@@ -101,6 +101,13 @@ GET /api/public/quotes?symbols= # Multiple quotes
 
 ---
 
+## Naming Lock (Hard Rule)
+
+- The assistant is named `Sophia`.
+- `Atlas` naming is deprecated and must not appear in new UI, API routes, prompts, or docs.
+
+---
+
 ## Critical Incident Runbook: Markets `connection limit exceeded`
 
 **Date fixed:** 2026-02-18  
