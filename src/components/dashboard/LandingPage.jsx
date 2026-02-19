@@ -281,9 +281,9 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
         ))}
       </div>
 
-      {/* Fixed Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-black/40 backdrop-blur-md border-b border-white/5">
-        <span className="text-white font-bold text-sm tracking-[0.3em]">STRATIFY</span>
+      {/* Top Row (integrated into page, no separate header bar) */}
+      <nav className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
+        <span className="text-white/95 font-bold text-sm tracking-[0.3em]">STRATIFY</span>
         <div className="flex items-center gap-4">
           <a
             href="https://discord.gg/6RPsREggYV"
@@ -305,7 +305,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
       </nav>
 
       <main className="relative z-10">
-        <motion.section {...sectionMotion} className="py-32 md:py-36 px-6">
+        <motion.section {...sectionMotion} className="pt-20 pb-32 md:pt-24 md:pb-36 px-6">
           <div className="max-w-6xl mx-auto text-center relative">
             <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-amber-500/12 blur-3xl landing-orb" />
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
