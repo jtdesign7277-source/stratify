@@ -2,6 +2,7 @@ const RECONNECT_MIN_MS = 1400;
 const RECONNECT_MAX_MS = 12000;
 
 const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
+const baseSymbol = (value) => normalizeSymbol(value).split(':')[0].split('.')[0];
 
 class TwelveDataStream {
   constructor() {
@@ -149,6 +150,7 @@ class TwelveDataStream {
   dispatchQuote(payload) {
     const symbol = normalizeSymbol(payload?.symbol || payload?.meta?.symbol);
     if (!symbol) return;
+    const base = baseSymbol(symbol);
 
     const update = {
       symbol,
@@ -159,10 +161,21 @@ class TwelveDataStream {
       raw: payload,
     };
 
-    const listeners = this.callbacks.get(symbol);
-    if (!listeners || listeners.size === 0) return;
+    const callbackSet = new Set();
+    const exactListeners = this.callbacks.get(symbol);
+    if (exactListeners && exactListeners.size > 0) {
+      exactListeners.forEach((callback) => callbackSet.add(callback));
+    }
+    if (base && base !== symbol) {
+      const baseListeners = this.callbacks.get(base);
+      if (baseListeners && baseListeners.size > 0) {
+        baseListeners.forEach((callback) => callbackSet.add(callback));
+      }
+    }
 
-    listeners.forEach((callback) => {
+    if (callbackSet.size === 0) return;
+
+    callbackSet.forEach((callback) => {
       try {
         callback(update);
       } catch {}
