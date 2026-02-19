@@ -589,10 +589,13 @@ const TerminalStrategyWorkspace = ({
   const [deletingStrategyId, setDeletingStrategyId] = useState(null);
   const [foldersCollapsed, setFoldersCollapsed] = useState(false);
   const [foldersLoaded, setFoldersLoaded] = useState(false);
+  const [draggingStrategyId, setDraggingStrategyId] = useState(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState(null);
 
   const folderSaveTimerRef = useRef(null);
   const lastSavedFoldersRef = useRef('');
   const missingSelectionTimerRef = useRef(null);
+  const dragPayloadRef = useRef(null);
 
   const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
@@ -1048,6 +1051,97 @@ const TerminalStrategyWorkspace = ({
     }
   };
 
+  const moveStrategyToFolder = useCallback((strategyId, targetFolderId) => {
+    const targetId = String(targetFolderId || '').trim();
+    const draggedId = String(strategyId || '').trim();
+    if (!targetId || !draggedId) return;
+
+    setFolders((prev) => {
+      const next = prev.map((folder) => ({
+        ...folder,
+        strategies: Array.isArray(folder.strategies) ? [...folder.strategies] : [],
+      }));
+
+      const destinationFolder = next.find((folder) => folder.id === targetId);
+      if (!destinationFolder) return prev;
+
+      let movedStrategy = null;
+      let sourceFolderId = '';
+
+      next.forEach((folder) => {
+        const index = folder.strategies.findIndex((strategy) => String(strategy.id) === draggedId);
+        if (index < 0) return;
+        sourceFolderId = folder.id;
+        movedStrategy = folder.strategies[index];
+        folder.strategies.splice(index, 1);
+      });
+
+      if (!movedStrategy || sourceFolderId === targetId) return prev;
+
+      if (!destinationFolder.strategies.some((strategy) => String(strategy.id) === draggedId)) {
+        destinationFolder.strategies.unshift(movedStrategy);
+      }
+
+      return next;
+    });
+  }, []);
+
+  const handleStrategyDragStart = useCallback((event, strategyId, fromFolderId) => {
+    const payload = {
+      strategyId: String(strategyId || '').trim(),
+      fromFolderId: String(fromFolderId || '').trim(),
+    };
+
+    if (!payload.strategyId) return;
+
+    dragPayloadRef.current = payload;
+    setDraggingStrategyId(payload.strategyId);
+    setDragOverFolderId(null);
+
+    try {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', JSON.stringify(payload));
+    } catch {}
+  }, []);
+
+  const handleStrategyDragEnd = useCallback(() => {
+    dragPayloadRef.current = null;
+    setDraggingStrategyId(null);
+    setDragOverFolderId(null);
+  }, []);
+
+  const handleFolderDragOver = useCallback((event, folderId) => {
+    if (!dragPayloadRef.current?.strategyId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragOverFolderId(String(folderId));
+  }, []);
+
+  const handleFolderDrop = useCallback((event, folderId) => {
+    event.preventDefault();
+
+    let payload = dragPayloadRef.current;
+
+    if (!payload?.strategyId) {
+      try {
+        const raw = event.dataTransfer.getData('text/plain');
+        if (raw) payload = JSON.parse(raw);
+      } catch {}
+    }
+
+    const strategyId = String(payload?.strategyId || '').trim();
+    const fromFolderId = String(payload?.fromFolderId || '').trim();
+    const targetFolderId = String(folderId || '').trim();
+
+    if (strategyId && targetFolderId && targetFolderId !== fromFolderId) {
+      moveStrategyToFolder(strategyId, targetFolderId);
+    }
+
+    dragPayloadRef.current = null;
+    setDraggingStrategyId(null);
+    setDragOverFolderId(null);
+  }, [moveStrategyToFolder]);
+
   return (
     <div className="h-full w-full bg-transparent flex overflow-hidden">
       <aside className={`${foldersCollapsed ? 'w-10' : 'w-[250px]'} shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col transition-all duration-200`}>
@@ -1131,7 +1225,22 @@ const TerminalStrategyWorkspace = ({
                 const isProtectedFolder = PROTECTED_FOLDER_IDS.has(folder.id);
 
                 return (
-                  <div key={folder.id} className="mb-2">
+                  <div
+                    key={folder.id}
+                    className={`mb-2 rounded-lg transition-colors ${
+                      dragOverFolderId === folder.id
+                        ? 'bg-cyan-500/8 ring-1 ring-cyan-400/45'
+                        : ''
+                    }`}
+                    onDragOver={(event) => handleFolderDragOver(event, folder.id)}
+                    onDrop={(event) => handleFolderDrop(event, folder.id)}
+                    onDragLeave={(event) => {
+                      const nextTarget = event.relatedTarget || null;
+                      if (!event.currentTarget.contains(nextTarget)) {
+                        setDragOverFolderId((prev) => (prev === folder.id ? null : prev));
+                      }
+                    }}
+                  >
                     <div className="group relative">
                       <button
                         type="button"
@@ -1180,9 +1289,18 @@ const TerminalStrategyWorkspace = ({
                             const isPaused = isInPlay && !isLive;
                             const isDeleting = deletingStrategyId === id;
                             const displayTicker = normalizeTickerSymbol(strategy.ticker);
+                            const isDraggingThis = draggingStrategyId === id;
 
                             return (
-                              <div key={id} className="group relative my-1">
+                              <div
+                                key={id}
+                                className={`group relative my-1 cursor-grab active:cursor-grabbing ${
+                                  isDraggingThis ? 'opacity-60' : ''
+                                }`}
+                                draggable
+                                onDragStart={(event) => handleStrategyDragStart(event, id, folder.id)}
+                                onDragEnd={handleStrategyDragEnd}
+                              >
                                 <button
                                   type="button"
                                   onClick={() => setSelectedStrategyId(id)}
@@ -1257,7 +1375,9 @@ const TerminalStrategyWorkspace = ({
                             );
                           })
                         ) : (
-                          <div className="py-2 text-[11px] italic text-white/35">No strategies yet</div>
+                          <div className="py-2 text-[11px] italic text-white/35">
+                            {dragOverFolderId === folder.id ? 'Drop strategy here' : 'No strategies yet'}
+                          </div>
                         )}
                       </div>
                     )}
