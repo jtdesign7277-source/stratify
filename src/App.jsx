@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
@@ -992,8 +992,6 @@ function StratifyAppContent() {
   const [isCheckoutRedirecting, setIsCheckoutRedirecting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
 
-  const checkoutAttemptedRef = useRef(false);
-
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
 
@@ -1084,22 +1082,26 @@ function StratifyAppContent() {
   const mainContent =
     currentPage === 'whitepaper' ? (
       <WhitePaperPage
-        onBackHome={() => navigateToPage(isAuthenticated ? 'dashboard' : 'landing')}
+        onBackHome={() => navigateToPage('landing')}
         onGetStarted={() => navigateToPage('auth')}
       />
+    ) : currentPage === 'landing' ? (
+      <LandingPage
+        onEnter={() => navigateToPage('auth')}
+        onSignUp={() => navigateToPage('auth')}
+        isAuthenticated={isAuthenticated}
+      />
+    ) : currentPage === 'auth' ? (
+      <SignUpPage
+        onSuccess={() => navigateToPage('dashboard')}
+        onBackToLanding={() => navigateToPage('landing')}
+      />
     ) : !isAuthenticated ? (
-      currentPage === 'auth' ? (
-        <SignUpPage
-          onSuccess={() => navigateToPage('dashboard')}
-          onBackToLanding={() => navigateToPage('landing')}
-        />
-      ) : (
-        <LandingPage
-          onEnter={() => navigateToPage('auth')}
-          onSignUp={() => navigateToPage('auth')}
-          isAuthenticated={isAuthenticated}
-        />
-      )
+      <LandingPage
+        onEnter={() => navigateToPage('auth')}
+        onSignUp={() => navigateToPage('auth')}
+        isAuthenticated={isAuthenticated}
+      />
     ) : !isProUser ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
         <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
@@ -1110,10 +1112,7 @@ function StratifyAppContent() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              checkoutAttemptedRef.current = true;
-              startCheckout();
-            }}
+            onClick={startCheckout}
             disabled={isCheckoutRedirecting}
             className="mt-6 inline-flex items-center justify-center rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
@@ -1150,11 +1149,11 @@ function StratifyAppContent() {
       }
 
       if (path === '/auth') {
-        setCurrentPage(isAuthenticated ? 'dashboard' : 'auth');
+        setCurrentPage('auth');
         return;
       }
 
-      setCurrentPage(isAuthenticated ? 'dashboard' : 'landing');
+      setCurrentPage('landing');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -1163,40 +1162,11 @@ function StratifyAppContent() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      checkoutAttemptedRef.current = false;
       if (currentPage === 'dashboard') {
         openAuth();
       }
-      return;
-    }
-
-    if (currentPage === 'landing' || currentPage === 'auth') {
-      navigateToPage('dashboard');
     }
   }, [currentPage, isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated || currentPage === 'whitepaper') {
-      checkoutAttemptedRef.current = false;
-      return;
-    }
-
-    if (subscriptionLoading || isProUser) {
-      if (isProUser) {
-        setCheckoutError('');
-        setIsCheckoutRedirecting(false);
-      }
-      checkoutAttemptedRef.current = false;
-      return;
-    }
-
-    if (checkoutAttemptedRef.current) {
-      return;
-    }
-
-    checkoutAttemptedRef.current = true;
-    startCheckout();
-  }, [currentPage, isAuthenticated, isProUser, startCheckout, subscriptionLoading]);
 
   const isInternalAppPage =
     isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth';
