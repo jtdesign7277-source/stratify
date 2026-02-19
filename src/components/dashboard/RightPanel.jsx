@@ -1,5 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  INDICATOR_OPTIONS,
+  STRATEGY_INDICATOR_MAP,
+  evaluateSignals,
+  useStrategyIndicators,
+} from '../../hooks/useIndicators';
 
 // Brain Icon (thin line, matches left sidebar)
 const BrainIcon = ({ className }) => (
@@ -55,6 +61,53 @@ const starterPrompts = [
   { label: 'Breakout', prompt: 'Buy when price breaks above 20-day high with volume spike' },
   { label: 'Mean Reversion', prompt: 'Buy when price is 2 standard deviations below 20-day mean' },
 ];
+
+const INDICATOR_LABELS = INDICATOR_OPTIONS.reduce((acc, option) => {
+  acc[option.id] = option.label;
+  return acc;
+}, {});
+
+const getTemplateIndicatorDefaults = (templateId) => {
+  const key = String(templateId || '').trim().toLowerCase();
+  return [...new Set(STRATEGY_INDICATOR_MAP[key] || [])];
+};
+
+const formatValue = (value, digits = 2) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return '--';
+  return parsed.toFixed(digits);
+};
+
+const formatIndicatorSummary = (indicatorName, payload) => {
+  const latest = payload?.latest || {};
+
+  switch (indicatorName) {
+    case 'rsi':
+      return `RSI ${formatValue(latest?.rsi)}`;
+    case 'macd':
+      return `MACD ${formatValue(latest?.macd)} • Signal ${formatValue(latest?.macd_signal ?? latest?.signal)}`;
+    case 'bbands':
+      return `Upper ${formatValue(latest?.upper_band)} • Mid ${formatValue(latest?.middle_band)} • Lower ${formatValue(latest?.lower_band)}`;
+    case 'ema':
+      return `EMA ${formatValue(latest?.ema)}`;
+    case 'sma':
+      return `SMA ${formatValue(latest?.sma)}`;
+    case 'stoch':
+      return `%K ${formatValue(latest?.slow_k ?? latest?.stoch_k ?? latest?.k)} • %D ${formatValue(latest?.slow_d ?? latest?.stoch_d ?? latest?.d)}`;
+    case 'adx':
+      return `ADX ${formatValue(latest?.adx)} • +DI ${formatValue(latest?.plus_di)} • -DI ${formatValue(latest?.minus_di)}`;
+    case 'atr':
+      return `ATR ${formatValue(latest?.atr)}`;
+    case 'supertrend':
+      return `Supertrend ${formatValue(latest?.supertrend)}${latest?.trend ? ` • ${String(latest.trend).toUpperCase()}` : ''}`;
+    case 'obv':
+      return `OBV ${formatValue(latest?.obv, 0)}`;
+    case 'ichimoku':
+      return `Conversion ${formatValue(latest?.conversion_line)} • Base ${formatValue(latest?.base_line)}`;
+    default:
+      return 'Data available';
+  }
+};
 
 // Typewriter Streaming Component
 const TypewriterStream = ({ strategyName, streamingText }) => {
@@ -240,6 +293,33 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   const [generatedStrategy, setGeneratedStrategy] = useState(null);
   const [editableCode, setEditableCode] = useState('');
   const [resultMessage, setResultMessage] = useState('');
+  const [selectedIndicators, setSelectedIndicators] = useState([]);
+  const [indicatorRequest, setIndicatorRequest] = useState(null);
+
+  const runSymbol = indicatorRequest?.symbol || '';
+  const runTemplateId = indicatorRequest?.templateId || '';
+  const runIndicators = indicatorRequest?.indicators || [];
+
+  const {
+    data: strategyIndicators,
+    loading: indicatorsLoading,
+    error: indicatorsError,
+    errors: indicatorErrors,
+    indicatorList: resolvedIndicatorList,
+    refresh: refreshStrategyIndicators,
+  } = useStrategyIndicators({
+    symbol: runSymbol,
+    templateId: runTemplateId,
+    indicators: runIndicators,
+    interval: '1day',
+    outputsize: 3,
+    enabled: Boolean(runSymbol && runTemplateId && runIndicators.length > 0 && activeTab === 'results'),
+  });
+
+  const indicatorEvaluation = useMemo(
+    () => evaluateSignals(strategyIndicators),
+    [strategyIndicators],
+  );
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -264,12 +344,23 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     if (selectedTemplate?.id === template.id) {
       setSelectedTemplate(null);
       setStrategyName(selectedTicker ? '' : strategyName);
+      setSelectedIndicators([]);
     } else {
       setSelectedTemplate(template);
+      setSelectedIndicators(getTemplateIndicatorDefaults(template.id));
       if (selectedTicker) {
         setStrategyName(`$${selectedTicker} ${template.name}`);
       }
     }
+  };
+
+  const handleToggleIndicator = (indicatorId) => {
+    setSelectedIndicators((prev) => {
+      if (prev.includes(indicatorId)) {
+        return prev.filter((item) => item !== indicatorId);
+      }
+      return [...prev, indicatorId];
+    });
   };
 
   // Reset everything
@@ -287,15 +378,24 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     setEditableCode('');
     setStreamingText('');
     setResultMessage('');
+    setSelectedIndicators([]);
+    setIndicatorRequest(null);
     setActiveTab('quick');
   };
 
   // Generate from Quick Build
   const handleQuickGenerate = async () => {
     if (!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe) return;
+    if (!selectedIndicators.length) return;
     
     const selectedTimeframeObj = timeframeOptions.find(tf => tf.id === backtestTimeframe);
     const timeframeLabel = selectedTimeframeObj?.fullLabel || '6 Months';
+    setIndicatorRequest({
+      symbol: selectedTicker,
+      templateId: selectedTemplate.id,
+      indicators: selectedIndicators,
+      requestedAt: Date.now(),
+    });
     
     const prompt = `Create a ${selectedTemplate.name} trading strategy called "${strategyName}" for $${selectedTicker}. ${selectedTemplate.desc}. Backtest period: ${timeframeLabel}.`;
     await generateStrategy(prompt, strategyName, selectedTicker, timeframeLabel);
@@ -311,6 +411,14 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
     const name = chatStrategyName;
     const selectedTimeframeObj = timeframeOptions.find(tf => tf.id === chatTimeframe);
     const timeframeLabel = selectedTimeframeObj?.fullLabel || '6 Months';
+    if (selectedTemplate && selectedIndicators.length) {
+      setIndicatorRequest({
+        symbol: ticker,
+        templateId: selectedTemplate.id,
+        indicators: selectedIndicators,
+        requestedAt: Date.now(),
+      });
+    }
 
     // Add user message to chat
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -643,6 +751,52 @@ if __name__ == "__main__":
                 </div>
               </div>
 
+              {/* Indicators */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[11px] text-gray-400 block uppercase tracking-widest">Indicators</label>
+                  {selectedTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIndicators(getTemplateIndicatorDefaults(selectedTemplate.id))}
+                      className="text-[10px] text-blue-300 hover:text-blue-200 transition-colors"
+                    >
+                      Reset to template
+                    </button>
+                  )}
+                </div>
+
+                {!selectedTemplate ? (
+                  <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/50">
+                    Select a strategy template to auto-load recommended indicators.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
+                    {INDICATOR_OPTIONS.map((indicator) => {
+                      const checked = selectedIndicators.includes(indicator.id);
+                      return (
+                        <label
+                          key={indicator.id}
+                          className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs cursor-pointer transition-colors ${
+                            checked
+                              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
+                              : 'border-white/10 bg-[#10151f] text-gray-300 hover:border-blue-500/40'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleToggleIndicator(indicator.id)}
+                            className="h-3.5 w-3.5 accent-emerald-500"
+                          />
+                          <span>{indicator.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Strategy Name */}
               <div className="mb-4">
                 <label className="text-[11px] text-gray-400 mb-2 block uppercase tracking-widest">Strategy Name</label>
@@ -678,9 +832,9 @@ if __name__ == "__main__":
               {/* Generate Button */}
               <button
                 onClick={handleQuickGenerate}
-                disabled={!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe}
+                disabled={!selectedTicker || !selectedTemplate || !strategyName || !backtestTimeframe || !selectedIndicators.length}
                 className={`mt-auto py-3 rounded-lg text-sm font-semibold tracking-wide transition-all duration-200 flex-shrink-0 ${
-                  selectedTicker && selectedTemplate && strategyName && backtestTimeframe
+                  selectedTicker && selectedTemplate && strategyName && backtestTimeframe && selectedIndicators.length
                     ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 text-[#0b0b12] shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:-translate-y-0.5'
                     : 'bg-white/5 text-white/50 cursor-not-allowed'
                 }`}>
@@ -829,6 +983,72 @@ if __name__ == "__main__":
                         {generatedStrategy.status === 'deployed' ? 'Deployed ✓' : 'Click code to edit'}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Indicator Signal Block */}
+                  <div className="mb-3 rounded-xl border border-blue-500/30 bg-[#060d18]/80 p-3 backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-[0.14em] text-blue-300">Indicator Signal</div>
+                        <div className="text-xs text-white/55 mt-0.5">
+                          {runSymbol ? `$${runSymbol}` : '--'} • {resolvedIndicatorList.length} indicators
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div
+                          className={`text-sm font-semibold ${
+                            indicatorEvaluation.signal === 'BUY'
+                              ? 'text-emerald-300'
+                              : indicatorEvaluation.signal === 'SELL'
+                                ? 'text-red-300'
+                                : 'text-amber-300'
+                          }`}
+                        >
+                          {indicatorEvaluation.signal}
+                        </div>
+                        <div className="text-[11px] text-white/65">{indicatorEvaluation.confidence}% confidence</div>
+                      </div>
+                    </div>
+
+                    {indicatorsLoading ? (
+                      <div className="mt-3 text-xs text-blue-200/80">Loading live indicator data...</div>
+                    ) : indicatorsError ? (
+                      <div className="mt-3 text-xs text-red-300">{indicatorsError}</div>
+                    ) : (
+                      <div className="mt-3 grid grid-cols-1 gap-2">
+                        {resolvedIndicatorList.map((indicatorName) => {
+                          const indicatorPayload = strategyIndicators[indicatorName];
+                          const hasError = indicatorErrors?.[indicatorName];
+                          return (
+                            <div
+                              key={indicatorName}
+                              className="rounded-md border border-white/10 bg-[#0a1628]/75 px-2.5 py-2"
+                            >
+                              <div className="text-[11px] font-semibold text-white">
+                                {INDICATOR_LABELS[indicatorName] || indicatorName.toUpperCase()}
+                              </div>
+                              <div className="text-[11px] text-white/65 mt-0.5">
+                                {hasError
+                                  ? hasError.message || 'Unavailable'
+                                  : indicatorPayload
+                                    ? formatIndicatorSummary(indicatorName, indicatorPayload)
+                                    : 'Waiting for data...'}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {!indicatorsLoading && runSymbol && resolvedIndicatorList.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={refreshStrategyIndicators}
+                        className="mt-3 w-full rounded-lg border border-blue-500/40 bg-blue-500/15 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/25 transition-colors"
+                      >
+                        Refresh Indicators
+                      </button>
+                    )}
                   </div>
 
                   {/* Editable Code - Fills remaining space */}
