@@ -155,13 +155,41 @@ const NYSE_SYMBOLS = new Set([
   'MRK', 'ABBV', 'KO', 'PEP', 'MCD', 'LOW', 'GE', 'CAT', 'DE', 'F', 'GM',
 ]);
 
-const resolveEquityExchange = (symbol, exchangeHint = '') => {
+const TRADINGVIEW_EXCHANGE_OVERRIDES = {
+  SPY: 'AMEX',
+  DIA: 'AMEX',
+  IWM: 'AMEX',
+  GLD: 'AMEX',
+  XLF: 'AMEX',
+  XLK: 'AMEX',
+  XLE: 'AMEX',
+  XLI: 'AMEX',
+  XLY: 'AMEX',
+  XLP: 'AMEX',
+  XLU: 'AMEX',
+  XLV: 'AMEX',
+  XLB: 'AMEX',
+  XLC: 'AMEX',
+  QQQ: 'NASDAQ',
+};
+
+const resolveEquityExchange = (symbol, exchangeHint = '', nameHint = '') => {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  if (TRADINGVIEW_EXCHANGE_OVERRIDES[normalizedSymbol]) {
+    return TRADINGVIEW_EXCHANGE_OVERRIDES[normalizedSymbol];
+  }
+
   const hint = String(exchangeHint || '').toUpperCase();
+  const name = String(nameHint || '').toUpperCase();
+
   if (hint.includes('NASDAQ')) return 'NASDAQ';
   if (hint.includes('NYSE')) return 'NYSE';
   if (hint.includes('AMEX')) return 'AMEX';
-  if (hint.includes('ARCA')) return 'ARCA';
-  return NYSE_SYMBOLS.has(symbol) ? 'NYSE' : 'NASDAQ';
+  if (hint.includes('ARCA')) return 'AMEX';
+
+  if (name.includes('ETF')) return 'AMEX';
+
+  return NYSE_SYMBOLS.has(normalizedSymbol) ? 'NYSE' : 'NASDAQ';
 };
 
 const loadPanelState = (key, fallback) => {
@@ -537,7 +565,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const selectedName = selectedWatchlistEntry?.name || selectedTicker;
   const selectedExchange = resolveEquityExchange(
     selectedTicker,
-    selectedWatchlistEntry?.exchange || selectedQuote?.exchange
+    selectedWatchlistEntry?.exchange || selectedQuote?.exchange,
+    selectedName
   );
   const tradingViewSymbol = selectedTicker
     ? `${selectedExchange}:${selectedTicker}`
