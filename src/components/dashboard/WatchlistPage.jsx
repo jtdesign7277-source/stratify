@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ChevronsLeft,
@@ -83,6 +83,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshInFlightRef = useRef(false);
 
   const normalizedWatchlist = useMemo(() => {
     const source = Array.isArray(watchlist) && watchlist.length > 0 ? watchlist : DEFAULT_WATCHLIST;
@@ -112,14 +113,19 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     [visibleWatchlist]
   );
 
-  const refreshQuotes = useCallback(async () => {
+  const refreshQuotes = useCallback(async ({ manual = false } = {}) => {
     if (activeSymbols.length === 0) {
       setQuotesBySymbol({});
       setLastUpdated(null);
       return;
     }
 
-    setIsRefreshing(true);
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+
+    if (manual) {
+      setIsRefreshing(true);
+    }
     setLoading((prev) => prev || Object.keys(quotesBySymbol).length === 0);
     setError('');
 
@@ -149,13 +155,16 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       setError(loadError?.message || 'Failed to refresh quotes');
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
+      if (manual) {
+        setIsRefreshing(false);
+      }
+      refreshInFlightRef.current = false;
     }
   }, [activeSymbols, quotesBySymbol]);
 
   useEffect(() => {
-    refreshQuotes();
-    const timer = setInterval(refreshQuotes, AUTO_REFRESH_MS);
+    refreshQuotes({ manual: false });
+    const timer = setInterval(() => refreshQuotes({ manual: false }), AUTO_REFRESH_MS);
     return () => clearInterval(timer);
   }, [refreshQuotes]);
 
@@ -194,7 +203,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
   return (
     <div className="flex h-full flex-1 overflow-hidden bg-transparent">
-      <div className={`flex flex-col border-r border-[#1f1f1f] transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-[420px]'}`}>
+      <div className={`flex flex-col border-r border-[#1f1f1f] transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-[380px]'}`}>
         <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
           {!isCollapsed && (
             <div>
@@ -251,7 +260,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 <span>{activeSymbols.length}/{MAX_SYMBOLS} symbols</span>
                 <span className="inline-flex items-center gap-1 text-blue-300">
                   <Activity className="h-3 w-3" strokeWidth={1.5} />
-                  Batch refresh: {activeSymbols.length} symbols in 1 call
+                  Batch quote: {activeSymbols.length} symbols / 1 request
                 </span>
               </div>
 
@@ -259,11 +268,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                 <span className="text-[11px] text-gray-500">Last update: {formatTime(lastUpdated)}</span>
                 <button
                   type="button"
-                  onClick={refreshQuotes}
+                  onClick={() => refreshQuotes({ manual: true })}
                   className="inline-flex items-center gap-1 rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-300 hover:bg-blue-500/20"
                 >
                   <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-                  Refresh
+                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
 
@@ -295,17 +304,17 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                     key={item.symbol}
                     type="button"
                     onClick={() => setSelectedTicker(item.symbol)}
-                    className={`flex w-full items-center justify-between border-b border-[#1f1f1f]/40 px-4 py-3 text-left transition-colors ${
+                    className={`flex w-full items-center justify-between gap-2 border-b border-[#1f1f1f]/40 px-4 py-2.5 text-left transition-colors ${
                       rowActive ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'
                     }`}
                   >
-                    <div className="min-w-0 pr-2">
+                    <div className="min-w-0 flex-1 pr-1">
                       <div className="text-sm font-semibold text-white">${item.symbol}</div>
                       <div className="truncate text-xs text-gray-500">{item.name || SYMBOL_LABELS[item.symbol] || item.symbol}</div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-[88px] text-right">
                         <div className="text-sm font-mono text-white">{formatPrice(quote?.price)}</div>
                         <div className={`text-xs font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
                           {formatPercent(quote?.percentChange)}
