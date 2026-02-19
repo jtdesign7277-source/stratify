@@ -48,7 +48,7 @@ const STRATEGY_PRESETS = [
   },
 ];
 
-const PANEL_WIDTHS = { full: 480, half: 280, collapsed: 40 };
+const PANEL_WIDTHS = { full: 430, half: 280, collapsed: 40 };
 const TRUMP_ALERT_POLL_MS = 60000;
 const TRUMP_LAST_SEEN_KEY = 'stratify-trump-last-seen';
 const ALERT_SEVERITY_TEXT = { '🔴': 'text-red-400', '🟠': 'text-orange-400', '🟡': 'text-yellow-400', '🔵': 'text-blue-400' };
@@ -504,31 +504,34 @@ const SophiaPanel = ({
                 msg.isWarRoom &&
                 Boolean(String(msg.content || '').trim()) &&
                 !/^📡\s*War Room Intel:\s*\n\nError:/i.test(String(msg.content || '').trim());
+              const isUser = msg.role === 'user';
 
               return (
-                <div key={msg.id || index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[90%] ${msg.role === 'user' ? 'text-right' : ''}`}>
-                    {msg.role === 'assistant' && (
-                      <span className="text-emerald-400 text-[10px] font-semibold uppercase tracking-wider mb-0.5 block">
-                        Sophia
-                      </span>
-                    )}
-
-                    <div className={`text-sm ${msg.role === 'user' ? 'text-gray-300' : 'text-gray-200'}`}>
-                      {msg.role === 'assistant' && msg.content === '' && isLoading ? (
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span className="text-xs">Sophia is thinking...</span>
-                        </div>
-                      ) : msg.role === 'assistant' ? (
-                        renderContent(msg.content)
-                      ) : (
-                        <span className="text-gray-400">{renderTickerText(msg.content, `user-${index}`)}</span>
-                      )}
+                <div key={msg.id || index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[90%] ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
+                    <div
+                      className={`w-full rounded-[18px] px-3 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.25)] ${
+                        isUser
+                          ? 'bg-[#0a84ff] border border-[#5cb3ff]/40 text-white rounded-br-md'
+                          : 'bg-[#1c1c1f]/95 border border-white/10 text-gray-100 rounded-bl-md'
+                      }`}
+                    >
+                      <div className="text-sm">
+                        {!isUser && msg.content === '' && isLoading ? (
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span className="text-xs">Sophia is thinking...</span>
+                          </div>
+                        ) : !isUser ? (
+                          renderContent(msg.content)
+                        ) : (
+                          <span className="text-white">{renderTickerText(msg.content, `user-${index}`)}</span>
+                        )}
+                      </div>
                     </div>
 
                     {showWarRoomSave ? (
-                      <div className="mt-2 space-y-2">
+                      <div className="mt-2 w-full space-y-2">
                         <button
                           type="button"
                           onClick={() => handleSaveToWarRoom(msg)}
