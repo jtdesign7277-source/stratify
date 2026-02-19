@@ -17,7 +17,6 @@ const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'alloc
 const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4, 5];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
-const EDIT_MODE_VALUE_REGEX = /([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%|\b\d+:\d+\b|\b\d{4}-\d{2}-\d{2}\b|\b\d+(?:\.\d+)?\b)/g;
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -31,34 +30,6 @@ const REAL_TRADE_ANALYSIS_TEMPLATE = [
   '- **Shares:** [count] shares',
   '- **Profit:** +$[amount] ✅',
 ].join('\n');
-
-const renderEditModeLine = (lineText = '', keyPrefix = 'edit-line') => {
-  const text = String(lineText ?? '');
-  if (!text.length) return <span className="text-pink-300">&nbsp;</span>;
-
-  const trimmed = text.trim();
-  const isBlueHeader =
-    /^#{1,6}\s+/.test(trimmed)
-    || /^🔥\s*/.test(trimmed)
-    || (/^\*\*.+\*\*$/.test(trimmed) && !trimmed.includes(':'));
-
-  if (isBlueHeader) {
-    return <span className="text-blue-400 font-semibold">{text}</span>;
-  }
-
-  const parts = text.split(EDIT_MODE_VALUE_REGEX).filter((part) => part !== '');
-  return parts.map((part, index) => {
-    const isNumericValue = /^([+-]?\$[\d,]+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?%|\d+:\d+|\d{4}-\d{2}-\d{2}|\d+(?:\.\d+)?)$/.test(String(part).trim());
-    return (
-      <span
-        key={`${keyPrefix}-${index}`}
-        className={isNumericValue ? 'text-emerald-400 font-semibold' : 'text-pink-300'}
-      >
-        {part}
-      </span>
-    );
-  });
-};
 
 const formatTickerWithDollar = (ticker) => {
   const clean = normalizeTickerSymbol(ticker);
@@ -411,7 +382,6 @@ export default function StrategyOutput({
   const [isSavingToSophia, setIsSavingToSophia] = useState(false);
   const [savedToSophia, setSavedToSophia] = useState(Boolean(s.savedToSophia));
   const editorTextareaRef = useRef(null);
-  const editorHighlightRef = useRef(null);
   const editorSavedNoticeTimeoutRef = useRef(null);
 
   // Load from localStorage
@@ -508,10 +478,6 @@ export default function StrategyOutput({
         editorTextareaRef.current.scrollTop = 0;
         editorTextareaRef.current.scrollLeft = 0;
       }
-      if (editorHighlightRef.current) {
-        editorHighlightRef.current.scrollTop = 0;
-        editorHighlightRef.current.scrollLeft = 0;
-      }
     }, 0);
     return () => clearTimeout(timeoutId);
   }, [isEditingStrategyText]);
@@ -554,10 +520,6 @@ export default function StrategyOutput({
   );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
-  const editorLines = useMemo(
-    () => String(editorValue || '').split('\n'),
-    [editorValue],
-  );
   const editorSetupValues = useMemo(
     () => ensureKeyTradeSetupsSection(editorValue, fieldValues).values,
     [editorValue, fieldValues],
@@ -587,10 +549,6 @@ export default function StrategyOutput({
       if (editorTextareaRef.current) {
         editorTextareaRef.current.scrollTop = 0;
         editorTextareaRef.current.scrollLeft = 0;
-      }
-      if (editorHighlightRef.current) {
-        editorHighlightRef.current.scrollTop = 0;
-        editorHighlightRef.current.scrollLeft = 0;
       }
     });
   };
@@ -661,12 +619,6 @@ export default function StrategyOutput({
     } finally {
       setIsSavingEditor(false);
     }
-  };
-
-  const handleEditorScroll = (event) => {
-    if (!editorHighlightRef.current) return;
-    editorHighlightRef.current.scrollTop = event.target.scrollTop;
-    editorHighlightRef.current.scrollLeft = event.target.scrollLeft;
   };
 
   const handleBacktestEditedStrategy = () => {
@@ -1004,31 +956,17 @@ export default function StrategyOutput({
 
         {isEditingStrategyText ? (
           <>
-            <div className="rounded-xl border border-fuchsia-500/20 bg-[#0d1117]/30 overflow-hidden">
-              <div className="relative h-[56vh] min-h-[320px]">
-                <pre
-                  ref={editorHighlightRef}
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 overflow-hidden px-4 py-4 font-mono text-sm leading-7 whitespace-pre-wrap break-words"
-                >
-                  {editorLines.map((line, index) => (
-                    <div key={`edit-line-${index}`} className="min-h-[28px]">
-                      {renderEditModeLine(line, `edit-line-${index}`)}
-                    </div>
-                  ))}
-                </pre>
-                <textarea
-                  ref={editorTextareaRef}
-                  value={editorValue}
-                  onChange={(event) => updateEditorValue(event.target.value)}
-                  onScroll={handleEditorScroll}
-                  className="relative z-10 h-[56vh] min-h-[320px] w-full bg-transparent px-4 py-4 font-mono text-sm leading-7 text-transparent caret-pink-300 selection:bg-fuchsia-500/30 resize-none outline-none"
-                  spellCheck={false}
-                />
-              </div>
+            <div className="rounded-xl border border-white/10 bg-[#0d1117]/40 overflow-hidden">
+              <textarea
+                ref={editorTextareaRef}
+                value={editorValue}
+                onChange={(event) => updateEditorValue(event.target.value)}
+                className="h-[56vh] min-h-[320px] w-full bg-transparent px-4 py-4 font-mono text-sm leading-7 text-zinc-100 caret-emerald-400 selection:bg-emerald-500/25 resize-none outline-none"
+                spellCheck={false}
+              />
             </div>
-            <div className="mt-2 text-xs text-pink-300/90">
-              Edit Mode: headers are blue, body text is pink, editable values are green.
+            <div className="mt-2 text-xs text-zinc-400">
+              Edit Mode: update strategy text directly, then save.
             </div>
             <button
               type="button"
