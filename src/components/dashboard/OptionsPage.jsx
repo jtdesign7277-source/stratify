@@ -98,7 +98,7 @@ const OptionsPage = () => {
 
   useEffect(() => {
     fetchChain(activeTicker);
-  }, [activeTicker, fetchChain]);
+  }, [activeTicker, numStrikes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // WS for live updates
   useEffect(() => {
@@ -204,7 +204,7 @@ const OptionsPage = () => {
         </div>
 
         {/* Strike center */}
-        <div className="w-20 text-center px-2 py-1.5 font-semibold text-white/50">Strike</div>
+        <div className="w-24 text-center flex-shrink-0 px-2 py-1.5 font-semibold text-white/50">Strike</div>
 
         {/* Puts header */}
         <div className="flex-1 flex items-center">
@@ -260,7 +260,7 @@ const OptionsPage = () => {
                   </div>
 
                   {/* DTE centered in strike column */}
-                  <div className="w-20 text-center flex-shrink-0">
+                  <div className="w-24 text-center flex-shrink-0 flex-shrink-0">
                     <span className="text-white/50 text-xs font-mono font-semibold">{daysToExp} D</span>
                   </div>
 
@@ -319,7 +319,7 @@ const OptionsPage = () => {
                         </div>
 
                         {/* ── Strike ── */}
-                        <div className={`w-20 text-center px-2 py-1.5 font-semibold ${isATM ? 'text-amber-300' : 'text-white'}`}>
+                        <div className={`w-24 text-center flex-shrink-0 px-2 py-1.5 font-semibold ${isATM ? 'text-amber-300' : 'text-white'}`}>
                           {fmtStrike(strike)}
                         </div>
 
