@@ -29,12 +29,12 @@ const spaceBackgroundStyles = `
     border-radius: 9999px;
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.98) 0%,
-      rgba(232, 244, 255, 0.72) 12%,
-      rgba(169, 205, 255, 0.18) 45%,
-      rgba(151, 197, 255, 0) 78%
+      rgba(151, 197, 255, 0) 0%,
+      rgba(169, 205, 255, 0.18) 52%,
+      rgba(232, 244, 255, 0.72) 86%,
+      rgba(255, 255, 255, 0.98) 100%
     );
-    transform-origin: left center;
+    transform-origin: right center;
     filter: drop-shadow(0 0 6px rgba(186, 222, 255, 0.55));
     opacity: 0;
     animation: spaceMeteor var(--meteor-duration, 18s) cubic-bezier(0.17, 0.67, 0.32, 0.99) infinite;
@@ -43,7 +43,7 @@ const spaceBackgroundStyles = `
   .space-bg-meteor::before {
     content: '';
     position: absolute;
-    left: -2px;
+    right: -2px;
     top: 50%;
     width: 6px;
     height: 6px;
@@ -62,19 +62,19 @@ const spaceBackgroundStyles = `
   .space-bg-meteor::after {
     content: '';
     position: absolute;
-    left: 14%;
+    right: 12%;
     top: 50%;
-    width: 52%;
+    width: 58%;
     height: 8px;
     transform: translateY(-50%);
-    background: linear-gradient(90deg, rgba(165, 198, 255, 0.24), rgba(165, 198, 255, 0));
+    background: linear-gradient(270deg, rgba(165, 198, 255, 0.24), rgba(165, 198, 255, 0));
     filter: blur(3px);
   }
 
   @keyframes spaceMeteor {
     0%, 88% {
       opacity: 0;
-      transform: translate3d(0, 0, 0) rotate(var(--meteor-angle, -32deg)) scaleX(0.42);
+      transform: translate3d(0, 0, 0) rotate(var(--meteor-angle, 30deg)) scaleX(0.35);
     }
     89% {
       opacity: 0.9;
@@ -88,7 +88,7 @@ const spaceBackgroundStyles = `
     100% {
       opacity: 0;
       transform: translate3d(var(--meteor-x, 520px), var(--meteor-y, 270px), 0)
-        rotate(var(--meteor-angle, -32deg)) scaleX(1);
+        rotate(var(--meteor-angle, 30deg)) scaleX(1);
     }
   }
 
@@ -116,17 +116,21 @@ const createStars = (count = 80) =>
   }));
 
 const createMeteors = (count = 4) =>
-  Array.from({ length: count }, (_, index) => ({
-    id: `space-meteor-${index}`,
-    left: 4 + Math.random() * 38,
-    top: 6 + Math.random() * 56,
-    length: 180 + Math.random() * 125,
-    duration: 15 + Math.random() * 9,
-    delay: -Math.random() * 18,
-    travelX: 420 + Math.random() * 260,
-    travelY: 210 + Math.random() * 150,
-    angle: -24 - Math.random() * 16,
-  }));
+  Array.from({ length: count }, (_, index) => {
+    const travelX = 360 + Math.random() * 300;
+    const travelY = 190 + Math.random() * 220;
+    return {
+      id: `space-meteor-${index}`,
+      left: 3 + Math.random() * 44,
+      top: 4 + Math.random() * 52,
+      length: 140 + Math.random() * 95,
+      duration: 13 + Math.random() * 8,
+      delay: -Math.random() * 20,
+      travelX,
+      travelY,
+      angle: (Math.atan2(travelY, travelX) * 180) / Math.PI,
+    };
+  });
 
 export default function SpaceBackground() {
   const stars = useMemo(() => createStars(80), []);
