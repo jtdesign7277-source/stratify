@@ -16,6 +16,67 @@ const LSE_COMPANY_NAMES = {
   VOD: 'Vodafone Group',
 };
 
+const LSE_FALLBACK_UNIVERSE = [
+  { symbol: 'SHEL', instrumentName: 'Shell plc' },
+  { symbol: 'AZN', instrumentName: 'AstraZeneca' },
+  { symbol: 'HSBA', instrumentName: 'HSBC Holdings' },
+  { symbol: 'BP', instrumentName: 'BP plc' },
+  { symbol: 'ULVR', instrumentName: 'Unilever PLC' },
+  { symbol: 'RIO', instrumentName: 'Rio Tinto' },
+  { symbol: 'GSK', instrumentName: 'GSK plc' },
+  { symbol: 'BARC', instrumentName: 'Barclays PLC' },
+  { symbol: 'LLOY', instrumentName: 'Lloyds Banking Group' },
+  { symbol: 'NG', instrumentName: 'National Grid' },
+  { symbol: 'REL', instrumentName: 'RELX' },
+  { symbol: 'VOD', instrumentName: 'Vodafone Group' },
+  { symbol: 'DGE', instrumentName: 'Diageo' },
+  { symbol: 'BATS', instrumentName: 'British American Tobacco' },
+  { symbol: 'GLEN', instrumentName: 'Glencore' },
+  { symbol: 'PRU', instrumentName: 'Prudential' },
+  { symbol: 'STAN', instrumentName: 'Standard Chartered' },
+  { symbol: 'AAL', instrumentName: 'Anglo American' },
+  { symbol: 'LSEG', instrumentName: 'London Stock Exchange Group' },
+  { symbol: 'CPG', instrumentName: 'Compass Group' },
+  { symbol: 'BA', instrumentName: 'BAE Systems' },
+  { symbol: 'TSCO', instrumentName: 'Tesco' },
+  { symbol: 'IMB', instrumentName: 'Imperial Brands' },
+  { symbol: 'MNG', instrumentName: 'M&G' },
+  { symbol: 'SSE', instrumentName: 'SSE' },
+  { symbol: 'SMIN', instrumentName: 'Smiths Group' },
+  { symbol: 'AHT', instrumentName: 'Ashtead Group' },
+  { symbol: 'JD', instrumentName: 'JD Sports Fashion' },
+  { symbol: 'RR', instrumentName: 'Rolls-Royce Holdings' },
+  { symbol: 'IAG', instrumentName: 'International Consolidated Airlines Group' },
+  { symbol: 'EXPN', instrumentName: 'Experian' },
+  { symbol: 'SPX', instrumentName: 'Spirax Group' },
+  { symbol: 'LAND', instrumentName: 'Land Securities' },
+  { symbol: 'HLN', instrumentName: 'Haleon' },
+  { symbol: 'SGE', instrumentName: 'Sage Group' },
+  { symbol: 'WPP', instrumentName: 'WPP' },
+  { symbol: 'ABF', instrumentName: 'Associated British Foods' },
+  { symbol: 'BLND', instrumentName: 'British Land' },
+  { symbol: 'HIK', instrumentName: 'Hikma Pharmaceuticals' },
+  { symbol: 'CNA', instrumentName: 'Centrica' },
+  { symbol: 'BT.A', instrumentName: 'BT Group' },
+  { symbol: 'MKS', instrumentName: 'Marks and Spencer Group' },
+  { symbol: 'WEIR', instrumentName: 'The Weir Group' },
+  { symbol: 'ADM', instrumentName: 'Admiral Group' },
+  { symbol: 'AUTO', instrumentName: 'Auto Trader Group' },
+  { symbol: 'BKG', instrumentName: 'Berkeley Group Holdings' },
+  { symbol: 'EDV', instrumentName: 'Endeavour Mining' },
+  { symbol: 'FRES', instrumentName: 'Fresnillo' },
+  { symbol: 'ICG', instrumentName: 'Intermediate Capital Group' },
+  { symbol: 'ITRK', instrumentName: 'Intertek Group' },
+  { symbol: 'PSN', instrumentName: 'Persimmon' },
+  { symbol: 'RKT', instrumentName: 'Reckitt Benckiser' },
+  { symbol: 'SN', instrumentName: 'Smith & Nephew' },
+  { symbol: 'SVT', instrumentName: 'Severn Trent' },
+  { symbol: 'UU', instrumentName: 'United Utilities Group' },
+  { symbol: 'WTB', instrumentName: 'Whitbread' },
+  { symbol: 'ENT', instrumentName: 'Entain' },
+  { symbol: 'INF', instrumentName: 'Informa' },
+];
+
 const toNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -51,6 +112,41 @@ const extractBaseSymbol = (symbol) => {
   const colonBase = normalized.split(':')[0];
   const dotBase = colonBase.split('.')[0];
   return dotBase.replace(/^\$/, '').trim().toUpperCase();
+};
+
+const isLseVenue = (value) => {
+  const text = String(value || '').toUpperCase();
+  return text.includes('LSE') || text.includes('XLON') || text.includes('LONDON');
+};
+
+const normalizeListRow = (item = {}) => {
+  const symbol = extractBaseSymbol(item.symbol || item.code || item.ticker || '');
+  if (!symbol) return null;
+
+  return {
+    symbol,
+    instrumentName:
+      item.instrument_name ||
+      item.name ||
+      item.company_name ||
+      item.description ||
+      LSE_COMPANY_NAMES[symbol] ||
+      symbol,
+    exchange: item.exchange || item.market || 'LSE',
+    micCode: item.mic_code || item.mic || 'XLON',
+    country: item.country || 'United Kingdom',
+    currency: item.currency || 'GBP',
+    type: item.type || item.instrument_type || 'Common Stock',
+  };
+};
+
+const dedupeListRows = (rows) => {
+  const map = new Map();
+  rows.forEach((row) => {
+    if (!row?.symbol) return;
+    if (!map.has(row.symbol)) map.set(row.symbol, row);
+  });
+  return [...map.values()];
 };
 
 const symbolCandidates = (symbol) => {
@@ -219,15 +315,57 @@ export const searchLseSymbols = async (query) => {
   const payload = await requestTwelveData('/symbol_search', { symbol: q, outputsize: 30 });
   const data = Array.isArray(payload?.data) ? payload.data : [];
 
-  return data
-    .filter((item) => String(item?.exchange || '').toUpperCase().includes('LSE'))
-    .map((item) => ({
-      symbol: String(item?.symbol || '').toUpperCase(),
-      instrumentName: item?.instrument_name || item?.symbol || '',
-      exchange: item?.exchange || '',
-      micCode: item?.mic_code || '',
-      country: item?.country || '',
-      currency: item?.currency || '',
-      type: item?.type || '',
-    }));
+  const filtered = data
+    .filter((item) => isLseVenue(item?.exchange) || isLseVenue(item?.mic_code) || isLseVenue(item?.country))
+    .map((item) => normalizeListRow(item))
+    .filter(Boolean);
+
+  return dedupeListRows(filtered);
+};
+
+const collectRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.values)) return payload.values;
+  if (Array.isArray(payload?.result)) return payload.result;
+  if (payload && typeof payload === 'object') return [payload];
+  return [];
+};
+
+export const fetchLseUniverse = async (limit = 600) => {
+  const safeLimit = Math.max(50, Math.min(Number(limit) || 600, 1200));
+  const attemptParams = [
+    { exchange: 'LSE', outputsize: safeLimit },
+    { exchange: 'XLON', outputsize: safeLimit },
+    { mic_code: 'XLON', outputsize: safeLimit },
+    { country: 'United Kingdom', outputsize: safeLimit },
+  ];
+
+  for (const params of attemptParams) {
+    try {
+      const payload = await requestTwelveData('/stocks', params);
+      const rows = collectRows(payload)
+        .map((item) => normalizeListRow(item))
+        .filter(Boolean)
+        .filter((item) => isLseVenue(item.exchange) || isLseVenue(item.micCode) || isLseVenue(item.country));
+
+      const deduped = dedupeListRows(rows);
+      if (deduped.length > 0) return deduped.slice(0, safeLimit);
+    } catch {
+      // Try next query strategy.
+    }
+  }
+
+  return dedupeListRows(
+    LSE_FALLBACK_UNIVERSE.map((item) =>
+      normalizeListRow({
+        symbol: item.symbol,
+        instrument_name: item.instrumentName,
+        exchange: 'LSE',
+        mic_code: 'XLON',
+        country: 'United Kingdom',
+        currency: 'GBP',
+      })
+    ).filter(Boolean)
+  ).slice(0, safeLimit);
 };
