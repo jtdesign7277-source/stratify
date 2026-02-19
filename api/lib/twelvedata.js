@@ -1,5 +1,20 @@
 const TWELVE_DATA_BASE = 'https://api.twelvedata.com';
-const DEFAULT_LSE_SYMBOLS = ['VOD:LSE', 'HSBA:LSE', 'BP:LSE', 'AZN:LSE', 'BARC:LSE', 'SHEL:LSE'];
+const DEFAULT_LSE_SYMBOLS = ['SHEL', 'AZN', 'HSBA', 'BP', 'ULVR', 'RIO', 'GSK', 'BARC', 'LLOY', 'NG', 'REL', 'VOD'];
+
+const LSE_COMPANY_NAMES = {
+  SHEL: 'Shell plc',
+  AZN: 'AstraZeneca',
+  HSBA: 'HSBC Holdings',
+  BP: 'BP plc',
+  ULVR: 'Unilever PLC',
+  RIO: 'Rio Tinto',
+  GSK: 'GSK plc',
+  BARC: 'Barclays PLC',
+  LLOY: 'Lloyds Banking Group',
+  NG: 'National Grid',
+  REL: 'RELX',
+  VOD: 'Vodafone Group',
+};
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -28,6 +43,28 @@ const normalizeSymbols = (symbols) => {
       seen.add(symbol);
       return true;
     });
+};
+
+const extractBaseSymbol = (symbol) => {
+  const normalized = normalizeSymbols([symbol])[0] || '';
+  if (!normalized) return '';
+  const colonBase = normalized.split(':')[0];
+  const dotBase = colonBase.split('.')[0];
+  return dotBase.replace(/^\$/, '').trim().toUpperCase();
+};
+
+const symbolCandidates = (symbol) => {
+  const normalized = normalizeSymbols([symbol])[0] || '';
+  const base = extractBaseSymbol(normalized);
+  const candidates = [
+    normalized,
+    `${base}:LSE`,
+    `${base}:XLON`,
+    `${base}.LON`,
+    `${base}.LSE`,
+    base,
+  ];
+  return normalizeSymbols(candidates);
 };
 
 const makeUrl = (path, params = {}) => {
@@ -70,41 +107,79 @@ export const getTwelveDataWebSocketUrl = () => {
 
 export const getDefaultLseSymbols = () => [...DEFAULT_LSE_SYMBOLS];
 
+const toQuoteRow = ({ requestedSymbol, attemptedSymbol, payload }) => {
+  const base = extractBaseSymbol(requestedSymbol) || extractBaseSymbol(attemptedSymbol);
+  const streamSymbol = String(payload?.symbol || attemptedSymbol || requestedSymbol || '').toUpperCase();
+  return {
+    requestedSymbol: String(requestedSymbol || base || '').toUpperCase(),
+    symbol: streamSymbol,
+    streamSymbol,
+    name: payload?.name || LSE_COMPANY_NAMES[base] || base || streamSymbol,
+    exchange: payload?.exchange || 'LSE',
+    currency: payload?.currency || 'GBP',
+    price: toNumber(payload?.close || payload?.price || payload?.last),
+    change: toNumber(payload?.change),
+    percentChange: toNumber(payload?.percent_change ?? payload?.percentChange),
+    timestamp: payload?.datetime || payload?.timestamp || null,
+    raw: payload,
+  };
+};
+
+const fetchSingleLseQuote = async (inputSymbol) => {
+  const requestedBase = extractBaseSymbol(inputSymbol);
+  const requestedSymbol = requestedBase || normalizeSymbols([inputSymbol])[0];
+  if (!requestedSymbol) return null;
+
+  const candidates = symbolCandidates(requestedSymbol);
+  for (const candidate of candidates) {
+    try {
+      const payload = await requestTwelveData('/quote', { symbol: candidate });
+      const row = toQuoteRow({ requestedSymbol, attemptedSymbol: candidate, payload });
+      if (row.price != null) return row;
+    } catch {
+      // Try next candidate format.
+    }
+  }
+
+  try {
+    const searchPayload = await requestTwelveData('/symbol_search', {
+      symbol: requestedBase,
+      outputsize: 20,
+    });
+    const searchItems = Array.isArray(searchPayload?.data) ? searchPayload.data : [];
+    const lseMatch = searchItems.find((item) =>
+      String(item?.exchange || '').toUpperCase().includes('LSE')
+    );
+
+    if (lseMatch?.symbol) {
+      const payload = await requestTwelveData('/quote', { symbol: lseMatch.symbol });
+      const row = toQuoteRow({ requestedSymbol, attemptedSymbol: lseMatch.symbol, payload });
+      if (row.price != null) return row;
+    }
+  } catch {
+    // No-op fallback below.
+  }
+
+  return {
+    requestedSymbol,
+    symbol: requestedSymbol,
+    streamSymbol: requestedSymbol,
+    name: LSE_COMPANY_NAMES[requestedBase] || requestedSymbol,
+    exchange: 'LSE',
+    currency: 'GBP',
+    price: null,
+    change: null,
+    percentChange: null,
+    timestamp: null,
+    raw: null,
+  };
+};
+
 export const fetchLseQuotes = async (symbols) => {
   const normalized = normalizeSymbols(symbols);
   const targetSymbols = normalized.length > 0 ? normalized : DEFAULT_LSE_SYMBOLS;
-  const payload = await requestTwelveData('/quote', { symbol: targetSymbols.join(',') });
-
-  if (Array.isArray(payload)) {
-    return payload.map((item) => ({
-      symbol: String(item?.symbol || '').toUpperCase(),
-      name: item?.name || item?.symbol || '',
-      exchange: item?.exchange || '',
-      currency: item?.currency || '',
-      price: toNumber(item?.close || item?.price || item?.last),
-      change: toNumber(item?.change),
-      percentChange: toNumber(item?.percent_change),
-      timestamp: item?.datetime || null,
-      raw: item,
-    }));
-  }
-
-  if (payload && typeof payload === 'object') {
-    const symbol = String(payload.symbol || '').toUpperCase();
-    return [{
-      symbol,
-      name: payload?.name || symbol,
-      exchange: payload?.exchange || '',
-      currency: payload?.currency || '',
-      price: toNumber(payload?.close || payload?.price || payload?.last),
-      change: toNumber(payload?.change),
-      percentChange: toNumber(payload?.percent_change),
-      timestamp: payload?.datetime || null,
-      raw: payload,
-    }];
-  }
-
-  return [];
+  const rows = await Promise.all(targetSymbols.map((symbol) => fetchSingleLseQuote(symbol)));
+  return rows.filter(Boolean);
 };
 
 export const fetchLseTimeSeries = async (symbol, interval = '5min', outputsize = 120) => {

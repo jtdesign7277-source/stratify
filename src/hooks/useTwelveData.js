@@ -11,8 +11,10 @@ const toNumber = (value) => {
 };
 
 const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
+const baseSymbol = (value) => normalizeSymbol(value).split(':')[0].split('.')[0];
+const toWsSymbol = (value) => `${baseSymbol(value)}:LSE`;
 
-export default function useTwelveData({ symbols = [] } = {}) {
+export default function useTwelveData({ symbols = [], labelsBySymbol = {} } = {}) {
   const targetSymbols = useMemo(
     () =>
       [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))],
@@ -45,11 +47,15 @@ export default function useTwelveData({ symbols = [] } = {}) {
 
       const next = {};
       (payload?.data || []).forEach((item) => {
-        const symbol = normalizeSymbol(item?.symbol);
-        if (!symbol) return;
-        next[symbol] = {
-          symbol,
-          name: item?.name || symbol,
+        const requestedSymbol = normalizeSymbol(item?.requestedSymbol);
+        const streamSymbol = normalizeSymbol(item?.streamSymbol || item?.symbol);
+        const keySymbol = requestedSymbol || baseSymbol(streamSymbol);
+        if (!keySymbol) return;
+
+        next[keySymbol] = {
+          symbol: keySymbol,
+          streamSymbol,
+          name: item?.name || labelsBySymbol[keySymbol] || keySymbol,
           exchange: item?.exchange || '',
           currency: item?.currency || '',
           price: toNumber(item?.price),
@@ -66,7 +72,7 @@ export default function useTwelveData({ symbols = [] } = {}) {
     } finally {
       setLoadingQuotes(false);
     }
-  }, [targetSymbols]);
+  }, [labelsBySymbol, targetSymbols]);
 
   const searchSymbols = useCallback(async (query) => {
     const q = String(query || '').trim();
@@ -121,15 +127,20 @@ export default function useTwelveData({ symbols = [] } = {}) {
   useEffect(() => {
     if (targetSymbols.length === 0) return undefined;
 
-    const unsubscribeQuotes = subscribeTwelveDataQuotes(targetSymbols, (update) => {
-      const symbol = normalizeSymbol(update?.symbol);
-      if (!symbol) return;
+    const wsSymbols = targetSymbols.map(toWsSymbol);
+    const unsubscribeQuotes = subscribeTwelveDataQuotes(wsSymbols, (update) => {
+      const incoming = normalizeSymbol(update?.symbol);
+      if (!incoming) return;
+      const resolvedKey = baseSymbol(incoming);
+      const symbol = targetSymbols.includes(resolvedKey) ? resolvedKey : incoming;
+
       setQuotes((prev) => ({
         ...prev,
         [symbol]: {
           ...(prev[symbol] || {}),
           symbol,
-          name: prev[symbol]?.name || symbol,
+          streamSymbol: incoming,
+          name: prev[symbol]?.name || labelsBySymbol[symbol] || symbol,
           exchange: prev[symbol]?.exchange || 'LSE',
           currency: prev[symbol]?.currency || 'GBP',
           price: toNumber(update?.price),
@@ -152,13 +163,27 @@ export default function useTwelveData({ symbols = [] } = {}) {
       unsubscribeQuotes?.();
       unsubscribeStatus?.();
     };
-  }, [targetSymbols]);
+  }, [labelsBySymbol, targetSymbols]);
 
   useEffect(() => () => disconnectTwelveData(), []);
 
   const quoteList = useMemo(
-    () => targetSymbols.map((symbol) => quotes[symbol]).filter(Boolean),
-    [quotes, targetSymbols]
+    () =>
+      targetSymbols.map((symbol) => {
+        if (quotes[symbol]) return quotes[symbol];
+        return {
+          symbol,
+          name: labelsBySymbol[symbol] || symbol,
+          exchange: 'LSE',
+          currency: 'GBP',
+          price: null,
+          change: null,
+          percentChange: null,
+          timestamp: null,
+          source: 'pending',
+        };
+      }),
+    [labelsBySymbol, quotes, targetSymbols]
   );
 
   return {
