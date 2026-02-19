@@ -82,6 +82,14 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const normalizeWatchlistSymbol = (value) => {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return '';
+  const noDollar = raw.replace(/^\$/, '');
+  const base = noDollar.split(':')[0];
+  return base;
+};
+
 const getApiKey = () => String(process.env.TWELVEDATA_API_KEY || '').trim();
 
 const assertApiKey = () => {
@@ -730,4 +738,66 @@ export const fetchGlobalUniverse = async (market, limit = 300) => {
       type: 'Common Stock',
     }))
     .slice(0, safeLimit);
+};
+
+const parseBatchQuotePayload = (payload) => {
+  const quoteMap = {};
+  if (!payload || typeof payload !== 'object') return quoteMap;
+
+  if (Array.isArray(payload?.data)) {
+    payload.data.forEach((item) => {
+      const symbol = normalizeWatchlistSymbol(item?.symbol);
+      if (symbol) quoteMap[symbol] = item;
+    });
+    return quoteMap;
+  }
+
+  const isSingleQuoteShape = payload?.symbol || payload?.close || payload?.price || payload?.last;
+  if (isSingleQuoteShape) {
+    const symbol = normalizeWatchlistSymbol(payload?.symbol);
+    if (symbol) quoteMap[symbol] = payload;
+    return quoteMap;
+  }
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (['status', 'code', 'message', 'meta'].includes(String(key))) return;
+    if (!value || typeof value !== 'object') return;
+    const symbol = normalizeWatchlistSymbol(value?.symbol || key);
+    if (symbol) quoteMap[symbol] = value;
+  });
+
+  return quoteMap;
+};
+
+export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
+  const source = Array.isArray(symbols) ? symbols : String(symbols || '').split(',');
+  const seen = new Set();
+  const normalized = source
+    .map((item) => normalizeWatchlistSymbol(item))
+    .filter((item) => {
+      if (!item || seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    })
+    .slice(0, Math.max(1, Math.min(Number(limit) || 120, 120)));
+
+  if (normalized.length === 0) return [];
+
+  const payload = await requestTwelveData('/quote', { symbol: normalized.join(',') });
+  const quoteMap = parseBatchQuotePayload(payload);
+
+  return normalized.map((symbol) => {
+    const quote = quoteMap[symbol];
+    return {
+      symbol,
+      name: quote?.name || symbol,
+      exchange: quote?.exchange || '',
+      currency: quote?.currency || 'USD',
+      price: toNumber(quote?.close || quote?.price || quote?.last),
+      change: toNumber(quote?.change),
+      percentChange: toNumber(quote?.percent_change ?? quote?.percentChange),
+      timestamp: quote?.datetime || quote?.timestamp || null,
+      raw: quote || null,
+    };
+  });
 };

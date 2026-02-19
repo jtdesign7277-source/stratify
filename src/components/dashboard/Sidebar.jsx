@@ -66,6 +66,7 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
+    { id: 'watchlist', label: 'Watchlist', icon: Layout },
     { id: 'markets', label: 'Markets', icon: Globe },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
