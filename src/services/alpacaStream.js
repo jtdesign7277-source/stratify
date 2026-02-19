@@ -75,11 +75,13 @@ class AlpacaStreamManager {
 
     this.stockListeners = new Map();
     this.cryptoListeners = new Map();
+    this.cryptoOrderbookListeners = new Map();
     this.statusListeners = new Map();
     this.listenerId = 0;
 
     this.stockQuotes = new Map();
     this.cryptoQuotes = new Map();
+    this.cryptoOrderbooks = new Map();
 
     this.stockSubscribedSymbols = new Set();
     this.cryptoSubscribedSymbols = new Set();
@@ -217,6 +219,30 @@ class AlpacaStreamManager {
     };
   }
 
+  subscribeCryptoOrderbooks(symbols, callback) {
+    if (typeof callback !== 'function') return () => {};
+
+    const id = ++this.listenerId;
+    const normalizedSymbols = new Set(normalizeCryptoSymbols(symbols));
+
+    this.cryptoOrderbookListeners.set(id, {
+      symbols: normalizedSymbols,
+      callback,
+    });
+
+    normalizedSymbols.forEach((symbol) => {
+      const orderbook = this.cryptoOrderbooks.get(symbol);
+      if (orderbook) callback({ symbol, orderbook });
+    });
+
+    this.syncCryptoStream();
+
+    return () => {
+      this.cryptoOrderbookListeners.delete(id);
+      this.syncCryptoStream();
+    };
+  }
+
   getDesiredStockSymbols() {
     const symbols = new Set();
     this.stockListeners.forEach((listener) => {
@@ -228,6 +254,14 @@ class AlpacaStreamManager {
   getDesiredCryptoSymbols() {
     const symbols = new Set();
     this.cryptoListeners.forEach((listener) => {
+      listener.symbols.forEach((symbol) => symbols.add(symbol));
+    });
+    return symbols;
+  }
+
+  getDesiredCryptoOrderbookSymbols() {
+    const symbols = new Set();
+    this.cryptoOrderbookListeners.forEach((listener) => {
       listener.symbols.forEach((symbol) => symbols.add(symbol));
     });
     return symbols;
@@ -251,6 +285,17 @@ class AlpacaStreamManager {
         callback({ symbol, quote });
       } catch (error) {
         console.error('[Alpaca Stream] Crypto listener error:', error);
+      }
+    });
+  }
+
+  emitCryptoOrderbookUpdate(symbol, orderbook) {
+    this.cryptoOrderbookListeners.forEach(({ symbols, callback }) => {
+      if (!symbols.has(symbol)) return;
+      try {
+        callback({ symbol, orderbook });
+      } catch (error) {
+        console.error('[Alpaca Stream] Crypto orderbook listener error:', error);
       }
     });
   }
@@ -568,6 +613,74 @@ class AlpacaStreamManager {
               return;
             }
 
+            if (msg.T === 'o') {
+              const symbol = fromCryptoStreamSymbol(msg.S);
+              if (!symbol) return;
+
+              const existing = this.cryptoOrderbooks.get(symbol) || {
+                bidsMap: new Map(),
+                asksMap: new Map(),
+                bids: [],
+                asks: [],
+                timestamp: null,
+              };
+
+              const bidsMap = existing.bidsMap instanceof Map ? existing.bidsMap : new Map();
+              const asksMap = existing.asksMap instanceof Map ? existing.asksMap : new Map();
+
+              if (Array.isArray(msg.b)) {
+                msg.b.forEach((level) => {
+                  const price = Number(level?.p);
+                  const size = Number(level?.s);
+                  if (!Number.isFinite(price)) return;
+                  if (!Number.isFinite(size) || size <= 0) {
+                    bidsMap.delete(price);
+                  } else {
+                    bidsMap.set(price, size);
+                  }
+                });
+              }
+
+              if (Array.isArray(msg.a)) {
+                msg.a.forEach((level) => {
+                  const price = Number(level?.p);
+                  const size = Number(level?.s);
+                  if (!Number.isFinite(price)) return;
+                  if (!Number.isFinite(size) || size <= 0) {
+                    asksMap.delete(price);
+                  } else {
+                    asksMap.set(price, size);
+                  }
+                });
+              }
+
+              const bids = [...bidsMap.entries()]
+                .map(([price, size]) => ({ price, size }))
+                .sort((a, b) => b.price - a.price)
+                .slice(0, 20);
+
+              const asks = [...asksMap.entries()]
+                .map(([price, size]) => ({ price, size }))
+                .sort((a, b) => a.price - b.price)
+                .slice(0, 20);
+
+              const nextOrderbook = {
+                bidsMap,
+                asksMap,
+                bids,
+                asks,
+                timestamp: msg.t || new Date().toISOString(),
+              };
+
+              this.cryptoOrderbooks.set(symbol, nextOrderbook);
+              this.emitCryptoOrderbookUpdate(symbol, {
+                bids: nextOrderbook.bids,
+                asks: nextOrderbook.asks,
+                timestamp: nextOrderbook.timestamp,
+              });
+              return;
+            }
+
             if (msg.T === 't' || msg.T === 'q' || msg.T === 'b' || msg.T === 'u') {
               const symbol = fromCryptoStreamSymbol(msg.S);
               if (!symbol) return;
@@ -676,7 +789,10 @@ class AlpacaStreamManager {
   }
 
   syncCryptoStream() {
-    const desiredInternalSymbols = this.getDesiredCryptoSymbols();
+    const desiredInternalSymbols = new Set([
+      ...this.getDesiredCryptoSymbols(),
+      ...this.getDesiredCryptoOrderbookSymbols(),
+    ]);
 
     if (desiredInternalSymbols.size === 0) {
       this.teardownCryptoSocket();
@@ -703,6 +819,7 @@ class AlpacaStreamManager {
         trades: symbolsToAdd,
         quotes: symbolsToAdd,
         bars: symbolsToAdd,
+        orderbooks: symbolsToAdd,
       }));
       symbolsToAdd.forEach((symbol) => this.cryptoSubscribedSymbols.add(symbol));
     }
@@ -713,6 +830,7 @@ class AlpacaStreamManager {
         trades: symbolsToRemove,
         quotes: symbolsToRemove,
         bars: symbolsToRemove,
+        orderbooks: symbolsToRemove,
       }));
       symbolsToRemove.forEach((symbol) => this.cryptoSubscribedSymbols.delete(symbol));
     }
@@ -747,6 +865,7 @@ const manager = getSingleton();
 
 export const subscribeStocks = (symbols, callback) => manager.subscribeStocks(symbols, callback);
 export const subscribeCrypto = (symbols, callback) => manager.subscribeCrypto(symbols, callback);
+export const subscribeCryptoOrderbooks = (symbols, callback) => manager.subscribeCryptoOrderbooks(symbols, callback);
 export const subscribeAlpacaStatus = (callback) => manager.subscribeStatus(callback);
 export const reconnectStocksStream = () => manager.reconnectStock();
 export const reconnectCryptoStream = () => manager.reconnectCrypto();

@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  subscribeAlpacaStatus,
+  subscribeCrypto,
+  subscribeCryptoOrderbooks,
+} from '../../services/alpacaStream';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -122,128 +127,75 @@ async function loadUserPreference(userId) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ALPACA LEVEL 2 ORDERBOOK HOOK
 // ═══════════════════════════════════════════════════════════════════════════════
+const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
+  .trim()
+  .toUpperCase()
+  .replace(/\//g, '-')
+  .replace(/_/g, '-');
+
 function useAlpacaOrderbook(alpacaSymbol) {
   const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
   const [connected, setConnected] = useState(false);
   const [trades, setTrades] = useState([]);
   const [lastPrice, setLastPrice] = useState(null);
   const [priceDirection, setPriceDirection] = useState(null);
-  const wsRef = useRef(null);
-  const orderbookRef = useRef({ bids: {}, asks: {} });
   const lastPriceRef = useRef(null);
+  const normalizedSymbol = useMemo(() => normalizeCryptoSymbol(alpacaSymbol), [alpacaSymbol]);
 
   useEffect(() => {
-    orderbookRef.current = { bids: {}, asks: {} };
     setOrderbook({ bids: [], asks: [] });
     setTrades([]);
     setLastPrice(null);
+    setPriceDirection(null);
+    lastPriceRef.current = null;
 
-    const ALPACA_KEY = import.meta.env.VITE_ALPACA_API_KEY;
-    const ALPACA_SECRET = import.meta.env.VITE_ALPACA_SECRET_KEY;
+    if (!normalizedSymbol) return undefined;
 
-    if (!ALPACA_KEY || !ALPACA_SECRET) {
-      console.warn('Alpaca keys not found — using demo data');
-      const cleanup = generateDemoOrderbook(alpacaSymbol);
-      return cleanup;
-    }
+    const unsubscribeStatus = subscribeAlpacaStatus((status) => {
+      setConnected(Boolean(status?.cryptoConnected));
+    });
 
-    const ws = new WebSocket('wss://stream.data.alpaca.markets/v1beta3/crypto/us');
-    wsRef.current = ws;
+    const unsubscribeQuotes = subscribeCrypto([normalizedSymbol], ({ quote }) => {
+      if (!quote || typeof quote !== 'object') return;
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ action: 'auth', key: ALPACA_KEY, secret: ALPACA_SECRET }));
-    };
-
-    ws.onmessage = (event) => {
-      const messages = JSON.parse(event.data);
-      messages.forEach((msg) => {
-        if (msg.T === 'success' && msg.msg === 'authenticated') {
-          setConnected(true);
-          ws.send(JSON.stringify({
-            action: 'subscribe',
-            orderbooks: [alpacaSymbol],
-            trades: [alpacaSymbol],
-          }));
-        }
-
-        if (msg.T === 'o') {
-          const book = orderbookRef.current;
-          if (msg.b) msg.b.forEach(({ p, s }) => { if (s === 0) delete book.bids[p]; else book.bids[p] = s; });
-          if (msg.a) msg.a.forEach(({ p, s }) => { if (s === 0) delete book.asks[p]; else book.asks[p] = s; });
-
-          const bids = Object.entries(book.bids)
-            .map(([p, s]) => ({ price: parseFloat(p), size: s }))
-            .sort((a, b) => b.price - a.price).slice(0, 20);
-          const asks = Object.entries(book.asks)
-            .map(([p, s]) => ({ price: parseFloat(p), size: s }))
-            .sort((a, b) => a.price - b.price).slice(0, 20);
-
-          setOrderbook({ bids, asks });
-        }
-
-        if (msg.T === 't') {
-          const newPrice = msg.p;
-          if (lastPriceRef.current !== null) {
-            setPriceDirection(newPrice > lastPriceRef.current ? 'up' : newPrice < lastPriceRef.current ? 'down' : null);
-          }
-          lastPriceRef.current = newPrice;
-          setLastPrice(newPrice);
-
-          setTrades((prev) => [{
-            price: msg.p, size: msg.s, timestamp: msg.t, taker: msg.tks,
-          }, ...prev].slice(0, 100));
-        }
-      });
-    };
-
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ action: 'unsubscribe', orderbooks: [alpacaSymbol], trades: [alpacaSymbol] }));
-        ws.close();
-      }
-    };
-  }, [alpacaSymbol]);
-
-  function generateDemoOrderbook(symbol) {
-    setConnected(true);
-    const basePrice = symbol === 'BTC/USD' ? 97500 : symbol === 'ETH/USD' ? 3200 : symbol === 'SOL/USD' ? 195 : symbol === 'XRP/USD' ? 2.45 : symbol === 'DOGE/USD' ? 0.32 : 1.50;
-    const spread = basePrice * 0.0002;
-    lastPriceRef.current = basePrice;
-    setLastPrice(basePrice);
-
-    const interval = setInterval(() => {
-      const bids = Array.from({ length: 20 }, (_, i) => ({
-        price: parseFloat((basePrice - spread * (i + 1) - Math.random() * spread).toFixed(2)),
-        size: parseFloat((Math.random() * 3 + 0.01).toFixed(4)),
-      }));
-      const asks = Array.from({ length: 20 }, (_, i) => ({
-        price: parseFloat((basePrice + spread * (i + 1) + Math.random() * spread).toFixed(2)),
-        size: parseFloat((Math.random() * 3 + 0.01).toFixed(4)),
-      }));
-      setOrderbook({ bids, asks });
-
-      if (Math.random() > 0.4) {
-        const isBuy = Math.random() > 0.5;
-        const newPrice = isBuy ? asks[0]?.price || basePrice : bids[0]?.price || basePrice;
+      const nextPrice = Number(quote.lastTrade ?? quote.price ?? quote.ask ?? quote.bid);
+      if (Number.isFinite(nextPrice)) {
         if (lastPriceRef.current !== null) {
-          setPriceDirection(newPrice > lastPriceRef.current ? 'up' : newPrice < lastPriceRef.current ? 'down' : null);
+          setPriceDirection(nextPrice > lastPriceRef.current ? 'up' : nextPrice < lastPriceRef.current ? 'down' : null);
         }
-        lastPriceRef.current = newPrice;
-        setLastPrice(newPrice);
+        lastPriceRef.current = nextPrice;
+        setLastPrice(nextPrice);
+      }
+
+      const tradeSize = Number(quote.size);
+      const tradeTime = quote.timestamp || new Date().toISOString();
+      if (Number.isFinite(nextPrice) && Number.isFinite(tradeSize) && tradeSize > 0) {
+        const ask = Number(quote.ask);
+        const tradeIsBuy = Number.isFinite(ask) ? nextPrice >= ask : true;
+
         setTrades((prev) => [{
-          price: newPrice,
-          size: parseFloat((Math.random() * 0.8 + 0.001).toFixed(4)),
-          timestamp: new Date().toISOString(),
-          taker: isBuy ? 'B' : 'S',
+          price: nextPrice,
+          size: tradeSize,
+          timestamp: tradeTime,
+          taker: tradeIsBuy ? 'B' : 'S',
         }, ...prev].slice(0, 100));
       }
-    }, 600);
+    });
 
-    return () => clearInterval(interval);
-  }
+    const unsubscribeOrderbooks = subscribeCryptoOrderbooks([normalizedSymbol], ({ orderbook: nextOrderbook }) => {
+      if (!nextOrderbook || typeof nextOrderbook !== 'object') return;
+      setOrderbook({
+        bids: Array.isArray(nextOrderbook.bids) ? nextOrderbook.bids : [],
+        asks: Array.isArray(nextOrderbook.asks) ? nextOrderbook.asks : [],
+      });
+    });
+
+    return () => {
+      unsubscribeOrderbooks?.();
+      unsubscribeQuotes?.();
+      unsubscribeStatus?.();
+    };
+  }, [normalizedSymbol]);
 
   return { orderbook, connected, trades, lastPrice, priceDirection };
 }
@@ -409,7 +361,7 @@ function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceC
 // ═══════════════════════════════════════════════════════════════════════════════
 // THINKORSWIM-STYLE ORDER ENTRY
 // ═══════════════════════════════════════════════════════════════════════════════
-function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced }) {
+function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPrice, onPriceConsumed }) {
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
   const [quantity, setQuantity] = useState('');
@@ -422,12 +374,12 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced }) {
 
   // Auto-fill limit price from L2 click
   useEffect(() => {
-    if (window.__cryptoClickedPrice) {
-      setLimitPrice(window.__cryptoClickedPrice.toString());
+    if (clickedPrice !== null && clickedPrice !== undefined) {
+      setLimitPrice(String(clickedPrice));
       setOrderType('limit');
-      window.__cryptoClickedPrice = null;
+      onPriceConsumed?.();
     }
-  });
+  }, [clickedPrice, onPriceConsumed]);
 
   const estimatedTotal = useMemo(() => {
     const qty = parseFloat(quantity) || 0;
@@ -848,7 +800,8 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function CryptoPage() {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
-  const [rightTab, setRightTab] = useState('l2'); // 'l2' | 'trades' | 'order'
+  const [rightTab, setRightTab] = useState('order'); // 'l2' | 'trades' | 'order'
+  const [clickedPrice, setClickedPrice] = useState(null);
   const [userId, setUserId] = useState(null);
   const [orderHistory, setOrderHistory] = useState([]);
   const { orderbook, connected, trades, lastPrice, priceDirection } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
@@ -881,7 +834,7 @@ export default function CryptoPage() {
 
   // Handle price click from L2 → auto-fill order entry
   const handlePriceClick = (price) => {
-    window.__cryptoClickedPrice = price;
+    setClickedPrice(price);
     setRightTab('order');
   };
 
@@ -1006,6 +959,8 @@ export default function CryptoPage() {
                 lastPrice={lastPrice}
                 userId={userId}
                 onOrderPlaced={handleOrderPlaced}
+                clickedPrice={clickedPrice}
+                onPriceConsumed={() => setClickedPrice(null)}
               />
             )}
           </div>
