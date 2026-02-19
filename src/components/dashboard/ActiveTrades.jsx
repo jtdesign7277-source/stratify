@@ -302,7 +302,7 @@ const ActiveTrades = ({
               return (
                 <div
                   key={strategy.id}
-                  className="rounded-xl border border-[#1f1f1f] bg-[#111111] px-4 py-3 grid grid-cols-1 xl:grid-cols-[1.8fr_1fr_1fr_1.1fr_1.6fr_auto] gap-3 items-start xl:items-center"
+                  className="rounded-xl border border-[#1f1f1f] bg-[#111111] px-4 py-2.5 grid grid-cols-1 xl:grid-cols-[1.7fr_0.9fr_1fr_1fr_1.6fr_0.7fr_auto] gap-3 items-start xl:items-center"
                 >
                   <div>
                     <div className="text-sm font-semibold text-white/95">{strategy.name || 'Untitled Strategy'}</div>
