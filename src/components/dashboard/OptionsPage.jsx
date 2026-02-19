@@ -8,7 +8,20 @@ const WS_URL = (API_URL || 'https://stratify-backend-production-3ebd.up.railway.
 
 const API_BASE = API_URL || 'https://stratify-backend-production-3ebd.up.railway.app';
 
+// Mag 7 + popular options tickers
+const QUICK_TICKERS = [
+  { symbol: 'ALL', label: 'All Flow' },
+  { symbol: 'AAPL', label: 'AAPL' },
+  { symbol: 'MSFT', label: 'MSFT' },
+  { symbol: 'GOOGL', label: 'GOOGL' },
+  { symbol: 'AMZN', label: 'AMZN' },
+  { symbol: 'NVDA', label: 'NVDA' },
+  { symbol: 'META', label: 'META' },
+  { symbol: 'TSLA', label: 'TSLA' },
+];
+
 const formatPremium = (val) => {
+  if (!val || val === 0) return '$0';
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
   return `$${val.toFixed(0)}`;
@@ -46,7 +59,7 @@ const FILTERS = [
 
 const SkeletonRow = () => (
   <tr className="border-b border-[#1f1f1f]">
-    {Array.from({ length: 12 }).map((_, i) => (
+    {Array.from({ length: 11 }).map((_, i) => (
       <td key={i} className="px-3 py-3">
         <div className="h-4 bg-white/5 rounded animate-pulse" style={{ width: `${40 + Math.random() * 40}%` }} />
       </td>
@@ -59,10 +72,12 @@ const RECONNECT_MAX = 30000;
 
 const OptionsPage = () => {
   const [alerts, setAlerts] = useState([]);
+  const [snapshotAlerts, setSnapshotAlerts] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [tickerFilter, setTickerFilter] = useState(null);
+  const [activeTicker, setActiveTicker] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortCol, setSortCol] = useState('estimatedPremium');
   const [sortDir, setSortDir] = useState('desc');
@@ -87,24 +102,39 @@ const OptionsPage = () => {
     }, 1500);
   }, []);
 
-  // Fetch initial state via REST
-  const fetchInitial = useCallback(async () => {
+  // Fetch snapshot data from Vercel API (works anytime, uses REST snapshots)
+  const fetchSnapshot = useCallback(async (symbol) => {
     try {
-      setLoading(true);
-      const res = await fetch(`${API_BASE}/api/options/flow`);
+      setSnapshotLoading(true);
+      const symbols = symbol === 'ALL'
+        ? 'AAPL,MSFT,GOOGL,AMZN,NVDA,META,TSLA,SPY,QQQ,AMD,COIN,SOFI,PYPL'
+        : symbol;
+      const res = await fetch(`/api/options/flow?symbols=${symbols}`);
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
-      setAlerts(json.alerts || []);
-      setSummary(json.summary || null);
+      setSnapshotAlerts(json.alerts || []);
+      if (!summary || (json.summary && json.summary.totalAlerts > 0)) {
+        setSummary(json.summary || null);
+      }
       setError(null);
     } catch (err) {
-      setError(err.message);
+      // If Vercel endpoint fails, try Railway
+      try {
+        const res = await fetch(`${API_BASE}/api/options/flow`);
+        if (res.ok) {
+          const json = await res.json();
+          setSnapshotAlerts(json.alerts || []);
+          if (json.summary) setSummary(json.summary);
+        }
+      } catch {}
+      if (snapshotAlerts.length === 0) setError(err.message);
     } finally {
+      setSnapshotLoading(false);
       setLoading(false);
     }
-  }, []);
+  }, [summary, snapshotAlerts.length]);
 
-  // WebSocket connection
+  // WebSocket connection for live stream
   const connectWs = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState <= 1) return;
 
@@ -114,17 +144,12 @@ const OptionsPage = () => {
     socket.onopen = () => {
       setWsConnected(true);
       reconnectDelayRef.current = RECONNECT_BASE;
-      // Subscribe to options flow channel
       socket.send(JSON.stringify({ action: 'subscribe', channels: ['options_flow'] }));
     };
 
     socket.onmessage = (event) => {
       let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        return;
-      }
+      try { data = JSON.parse(event.data); } catch { return; }
 
       if (data.type === 'options_flow_alert' && data.alert) {
         const alert = data.alert;
@@ -155,14 +180,13 @@ const OptionsPage = () => {
       }
     };
 
-    socket.onerror = () => {
-      socket.close();
-    };
+    socket.onerror = () => { socket.close(); };
   }, [flashAlert]);
 
+  // Initial load
   useEffect(() => {
     mountedRef.current = true;
-    fetchInitial();
+    fetchSnapshot('ALL');
     connectWs();
 
     return () => {
@@ -170,13 +194,48 @@ const OptionsPage = () => {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [fetchInitial, connectWs]);
+  }, [connectWs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle ticker tab click
+  const handleTickerClick = useCallback((symbol) => {
+    setActiveTicker(symbol);
+    fetchSnapshot(symbol);
+  }, [fetchSnapshot]);
+
+  // Merge live alerts + snapshot alerts, dedupe by symbol key
+  const mergedAlerts = useMemo(() => {
+    const seen = new Set();
+    const combined = [];
+
+    // Live alerts first (fresher)
+    for (const a of alerts) {
+      const key = `${a.symbol}-${a.timestamp}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push({ ...a, _live: true });
+      }
+    }
+
+    // Snapshot alerts as backfill
+    for (const a of snapshotAlerts) {
+      const key = `${a.symbol}-${a.timestamp}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push(a);
+      }
+    }
+
+    return combined;
+  }, [alerts, snapshotAlerts]);
 
   // Filtering + sorting
   const filteredAlerts = useMemo(() => {
-    let result = [...alerts];
+    let result = [...mergedAlerts];
 
-    if (tickerFilter) result = result.filter((a) => a.underlying === tickerFilter);
+    // Filter by active ticker tab
+    if (activeTicker !== 'ALL') {
+      result = result.filter((a) => a.underlying === activeTicker);
+    }
 
     if (typeFilter === 'calls') result = result.filter((a) => a.type === 'call');
     else if (typeFilter === 'puts') result = result.filter((a) => a.type === 'put');
@@ -192,7 +251,7 @@ const OptionsPage = () => {
     });
 
     return result;
-  }, [alerts, tickerFilter, typeFilter, sortCol, sortDir]);
+  }, [mergedAlerts, activeTicker, typeFilter, sortCol, sortDir]);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -206,9 +265,9 @@ const OptionsPage = () => {
       .sort((a, b) => b.total - a.total);
   }, [byTicker]);
 
-  const SortHeader = ({ col, children, className = '' }) => (
+  const SortHeader = ({ col, children }) => (
     <th
-      className={`px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider cursor-pointer hover:text-white/70 select-none ${className}`}
+      className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider cursor-pointer hover:text-white/70 select-none"
       onClick={() => handleSort(col)}
     >
       <span className="inline-flex items-center gap-1">
@@ -220,47 +279,68 @@ const OptionsPage = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Top Bar */}
-      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-3">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+      {/* Mag 7 Quick Tabs */}
+      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-2.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
           {/* LIVE indicator */}
-          <div className="flex-shrink-0 flex items-center gap-1.5 mr-2">
+          <div className="flex-shrink-0 flex items-center gap-1.5 mr-3 pr-3 border-r border-[#1f1f1f]">
             <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
             <span className={`text-[10px] font-medium uppercase tracking-wider ${wsConnected ? 'text-emerald-400' : 'text-red-400'}`}>
-              {wsConnected ? 'LIVE' : 'OFFLINE'}
+              {wsConnected ? 'LIVE' : 'OFF'}
             </span>
             {liveCount > 0 && (
-              <span className="text-[10px] text-white/30 ml-1">
+              <span className="text-[10px] text-white/30">
                 <Zap size={8} className="inline text-amber-400" /> {liveCount}
               </span>
             )}
           </div>
 
-          <button
-            onClick={() => setTickerFilter(null)}
-            className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded border transition-colors ${
-              !tickerFilter ? 'border-emerald-500/50 text-emerald-400' : 'border-[#1f1f1f] text-white/40 hover:text-white/70'
-            }`}
-          >
-            All
-          </button>
-          {tickerBadges.map(({ ticker, calls, puts, total }) => {
-            const isBullish = calls >= puts;
-            const isActive = tickerFilter === ticker;
+          {QUICK_TICKERS.map(({ symbol, label }) => {
+            const isActive = activeTicker === symbol;
+            const tickerData = byTicker[symbol];
+            const isBullish = tickerData ? tickerData.calls >= tickerData.puts : true;
+
             return (
               <button
-                key={ticker}
-                onClick={() => setTickerFilter(isActive ? null : ticker)}
-                className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded border transition-colors ${
+                key={symbol}
+                onClick={() => handleTickerClick(symbol)}
+                className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded transition-all ${
                   isActive
-                    ? isBullish ? 'border-emerald-500/50 text-emerald-400' : 'border-red-500/50 text-red-400'
-                    : `border-[#1f1f1f] hover:border-white/20 ${isBullish ? 'text-emerald-400/70' : 'text-red-400/70'}`
+                    ? 'bg-white/10 text-white border border-white/20'
+                    : symbol === 'ALL'
+                      ? 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                      : `hover:bg-white/5 ${isBullish ? 'text-emerald-400/70 hover:text-emerald-400' : 'text-red-400/70 hover:text-red-400'}`
                 }`}
               >
-                {ticker} ({total})
+                {label}
+                {tickerData && symbol !== 'ALL' && (
+                  <span className="ml-1 text-[10px] text-white/30">({tickerData.calls + tickerData.puts})</span>
+                )}
               </button>
             );
           })}
+
+          {/* Extra tickers from data */}
+          {tickerBadges
+            .filter((t) => !QUICK_TICKERS.some((q) => q.symbol === t.ticker))
+            .slice(0, 8)
+            .map(({ ticker, calls, puts, total }) => {
+              const isBullish = calls >= puts;
+              const isActive = activeTicker === ticker;
+              return (
+                <button
+                  key={ticker}
+                  onClick={() => handleTickerClick(ticker)}
+                  className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                    isActive
+                      ? 'bg-white/10 text-white border border-white/20'
+                      : `hover:bg-white/5 ${isBullish ? 'text-emerald-400/60' : 'text-red-400/60'}`
+                  }`}
+                >
+                  {ticker} <span className="text-[10px] text-white/30">({total})</span>
+                </button>
+              );
+            })}
         </div>
       </div>
 
@@ -281,24 +361,30 @@ const OptionsPage = () => {
                 {label}
               </button>
             ))}
+            {snapshotLoading && (
+              <div className="ml-auto flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-[10px] text-white/30">Loading...</span>
+              </div>
+            )}
           </div>
 
           {/* Table */}
           <div className="flex-1 overflow-auto">
-            {loading && alerts.length === 0 ? (
+            {loading && mergedAlerts.length === 0 ? (
               <div className="px-4 py-12 flex flex-col items-center justify-center gap-3">
                 <Activity size={24} className="text-emerald-400 animate-pulse" />
-                <span className="text-white/40 text-sm">Connecting to options flow<span className="animate-pulse">...</span></span>
+                <span className="text-white/40 text-sm">Scanning options flow<span className="animate-pulse">...</span></span>
                 <table className="w-full mt-4">
                   <tbody>
                     {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
                   </tbody>
                 </table>
               </div>
-            ) : error && alerts.length === 0 ? (
+            ) : error && mergedAlerts.length === 0 ? (
               <div className="px-4 py-12 text-center">
                 <p className="text-red-400 text-sm">{error}</p>
-                <button onClick={fetchInitial} className="mt-2 text-xs text-white/40 hover:text-white/60">Retry</button>
+                <button onClick={() => fetchSnapshot(activeTicker)} className="mt-2 text-xs text-white/40 hover:text-white/60">Retry</button>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -312,7 +398,8 @@ const OptionsPage = () => {
                     <SortHeader col="expiration">Exp</SortHeader>
                     <SortHeader col="lastPrice">Last</SortHeader>
                     <SortHeader col="volume">Vol</SortHeader>
-                    <SortHeader col="tradeSize">Size</SortHeader>
+                    <SortHeader col="openInterest">OI</SortHeader>
+                    <SortHeader col="volumeOIRatio">V/OI</SortHeader>
                     <SortHeader col="estimatedPremium">Premium</SortHeader>
                     <th className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Badge</th>
                   </tr>
@@ -320,16 +407,21 @@ const OptionsPage = () => {
                 <tbody>
                   {filteredAlerts.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-4 py-8 text-center text-white/30 text-sm">
-                        {wsConnected ? 'Waiting for unusual activity...' : 'No unusual activity found'}
+                      <td colSpan={12} className="px-4 py-8 text-center text-white/30 text-sm">
+                        {wsConnected
+                          ? 'Waiting for unusual activity...'
+                          : activeTicker !== 'ALL'
+                            ? `No unusual options activity for ${activeTicker}`
+                            : 'No unusual activity found — market may be closed'}
                       </td>
                     </tr>
                   ) : filteredAlerts.map((alert, i) => {
                     const isCall = alert.type === 'call';
                     const borderColor = isCall ? 'border-l-emerald-500' : 'border-l-red-500';
                     const textColor = isCall ? 'text-emerald-400' : 'text-red-400';
-                    const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize}`;
+                    const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize || i}`;
                     const isFlashing = flashIds.has(alertKey);
+                    const voiColor = (alert.volumeOIRatio || 0) > 10 ? 'text-red-400' : (alert.volumeOIRatio || 0) > 5 ? 'text-amber-400' : 'text-white/70';
 
                     return (
                       <tr
@@ -338,15 +430,19 @@ const OptionsPage = () => {
                           isFlashing ? 'bg-emerald-500/10' : ''
                         }`}
                       >
-                        <td className="px-3 py-2 text-white/40 text-xs">{formatTime(alert.timestamp)}</td>
+                        <td className="px-3 py-2 text-white/40 text-xs">
+                          {formatTime(alert.timestamp)}
+                          {alert._live && <span className="ml-1 text-emerald-400 text-[9px]">●</span>}
+                        </td>
                         <td className="px-1 py-2 text-center">{isCall ? '🟢' : '🔴'}</td>
                         <td className="px-3 py-2 text-white font-medium">{alert.underlying}</td>
                         <td className={`px-3 py-2 ${textColor} font-mono text-xs`}>{formatStrike(alert.strike, alert.type)}</td>
                         <td className={`px-3 py-2 text-xs ${textColor}`}>{isCall ? 'CALL' : 'PUT'}</td>
                         <td className="px-3 py-2 text-white/50 text-xs">{formatExp(alert.expiration)}</td>
-                        <td className="px-3 py-2 text-white/70 font-mono text-xs">${alert.lastPrice?.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-white/70 font-mono text-xs">${(alert.lastPrice || 0).toFixed(2)}</td>
                         <td className="px-3 py-2 text-white/70 text-xs">{(alert.volume || 0).toLocaleString()}</td>
-                        <td className="px-3 py-2 text-white/50 text-xs font-mono">{(alert.tradeSize || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-white/50 text-xs">{(alert.openInterest || 0).toLocaleString()}</td>
+                        <td className={`px-3 py-2 font-mono text-xs font-medium ${voiColor}`}>{(alert.volumeOIRatio || 0).toFixed(1)}x</td>
                         <td className="px-3 py-2 text-white font-medium text-xs">{formatPremium(alert.estimatedPremium)}</td>
                         <td className={`px-3 py-2 text-xs font-medium ${BADGE_COLORS[alert.badge] || 'text-white/30'}`}>
                           {alert.badge || '—'}
@@ -426,14 +522,18 @@ const OptionsPage = () => {
                 <h4 className="text-[10px] text-white/30 uppercase tracking-wider mb-2">By Ticker</h4>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {tickerBadges.slice(0, 10).map(({ ticker, calls, puts, premium }) => (
-                    <div key={ticker} className="flex items-center justify-between text-[11px]">
-                      <span className="text-white/60 font-medium">{ticker}</span>
+                    <button
+                      key={ticker}
+                      onClick={() => handleTickerClick(ticker)}
+                      className="w-full flex items-center justify-between text-[11px] hover:bg-white/5 rounded px-1 py-0.5 transition-colors"
+                    >
+                      <span className={`font-medium ${activeTicker === ticker ? 'text-white' : 'text-white/60'}`}>{ticker}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-emerald-400/60">{calls}C</span>
                         <span className="text-red-400/60">{puts}P</span>
                         <span className="text-white/40">{formatPremium(premium)}</span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
