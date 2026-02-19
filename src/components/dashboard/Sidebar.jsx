@@ -63,19 +63,19 @@ const Sidebar = ({
 
   const navItems = [
     { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
-    { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
-    { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
-    { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
     { id: 'watchlist', label: 'Watchlist', icon: Layout },
+    { id: 'trade', label: 'Trade', icon: SlidersHorizontal },
+    { id: 'crypto', label: 'Crypto', icon: Bitcoin },
+    { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
+    { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
-    { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
-    { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'options', label: 'Options Flow', icon: Zap, isNew: true, labelClass: 'font-semibold text-orange-400', iconClass: 'text-orange-400' },
     { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
+    { id: 'fred', label: 'FRED', icon: Landmark },
+    { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
+    { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
-    { id: 'fred', label: 'FRED', icon: Landmark },
-    { id: 'crypto', label: 'Crypto', icon: Bitcoin },
   ];
 
   const handleTabClick = (id) => {
