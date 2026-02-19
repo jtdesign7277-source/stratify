@@ -19,7 +19,7 @@ initModule(AnnotationsAdvanced);
 initModule(StockTools);
 
 // ─── Twelve Data Config ───
-const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || import.meta.env.TWELVE_DATA_API_KEY || '';
+const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
 const TD_REST_BASE = 'https://api.twelvedata.com';
 const TD_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 
@@ -91,13 +91,14 @@ const DRAWING_TOOLS = [
 ];
 
 // ─── Fetch Historical Data ───
-async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500) {
-  const url = `${TD_REST_BASE}/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&apikey=${TD_API_KEY}&format=JSON&order=ASC`;
-  const res = await fetch(url);
+async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500, apiKey = '') {
+  const directUrl = `${TD_REST_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}&apikey=${encodeURIComponent(apiKey)}&format=JSON&order=ASC`;
+  const fallbackUrl = `/api/lse/timeseries?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}`;
+  const res = await fetch(apiKey ? directUrl : fallbackUrl, { cache: 'no-store' });
   const data = await res.json();
 
-  if (data.status === 'error') {
-    console.error('Twelve Data error:', data.message);
+  if (!res.ok || data?.status === 'error' || data?.error) {
+    console.error('Twelve Data error:', data?.message || data?.error || `request failed (${res.status})`);
     return { ohlc: [], volume: [] };
   }
 
@@ -238,7 +239,7 @@ export default function HighchartsStockChart({
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const { ohlc, volume } = await fetchHistoricalData(symbol, interval);
+      const { ohlc, volume } = await fetchHistoricalData(symbol, interval, 500, TD_API_KEY);
       if (ohlc.length === 0) { setError('No data for $' + symbol); setLoading(false); return; }
 
       const last = ohlc[ohlc.length - 1];
@@ -266,38 +267,85 @@ export default function HighchartsStockChart({
 
   // ─── WebSocket ───
   useEffect(() => {
-    if (!TD_API_KEY) return;
     const ok = ['1min', '5min', '15min', '30min', '1h'];
     if (!ok.includes(interval)) { setIsLive(false); return; }
 
-    const ws = new WebSocket(`${TD_WS_URL}?apikey=${TD_API_KEY}`);
-    wsRef.current = ws;
-    ws.onopen = () => { ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: symbol } })); setIsLive(true); };
-    ws.onmessage = (e) => {
+    let cancelled = false;
+
+    const connect = async () => {
       try {
-        const m = JSON.parse(e.data);
-        if (m.event === 'price') {
-          const p = parseFloat(m.price);
-          const chart = chartRef.current?.chart;
-          if (chart) {
-            const ps = chart.get('price');
-            if (ps?.points?.length) {
-              const lp = ps.points[ps.points.length - 1];
-              if (lp) {
-                const o = lp.open, h = Math.max(lp.high, p), l = Math.min(lp.low, p);
-                lp.update({ open: o, high: h, low: l, close: p }, true, false);
-                setHover((prev) => ({ ...prev, o, h, l, c: p, chg: p - o, pct: o ? ((p - o) / o) * 100 : 0 }));
-              }
-            }
+        let socketUrl = '';
+
+        if (TD_API_KEY) {
+          socketUrl = `${TD_WS_URL}?apikey=${encodeURIComponent(TD_API_KEY)}`;
+        } else {
+          const cfgResponse = await fetch(`/api/lse/ws-config?symbols=${encodeURIComponent(symbol)}`, {
+            cache: 'no-store',
+          });
+          const cfgPayload = await cfgResponse.json().catch(() => ({}));
+          if (!cfgResponse.ok || !cfgPayload?.websocketUrl) {
+            throw new Error(cfgPayload?.error || `ws-config failed (${cfgResponse.status})`);
           }
+          socketUrl = cfgPayload.websocketUrl;
         }
-      } catch (_) {}
+
+        if (cancelled) return;
+
+        const ws = new WebSocket(socketUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: symbol } }));
+          setIsLive(true);
+        };
+
+        ws.onmessage = (e) => {
+          try {
+            const m = JSON.parse(e.data);
+            if (m.event !== 'price') return;
+
+            const p = parseFloat(m.price);
+            const chart = chartRef.current?.chart;
+            if (!chart) return;
+
+            const ps = chart.get('price');
+            if (!ps?.points?.length) return;
+
+            const lp = ps.points[ps.points.length - 1];
+            if (!lp) return;
+
+            const o = lp.open;
+            const h = Math.max(lp.high, p);
+            const l = Math.min(lp.low, p);
+            lp.update({ open: o, high: h, low: l, close: p }, true, false);
+            setHover((prev) => ({ ...prev, o, h, l, c: p, chg: p - o, pct: o ? ((p - o) / o) * 100 : 0 }));
+          } catch {
+            // Ignore malformed websocket payloads.
+          }
+        };
+
+        ws.onclose = () => setIsLive(false);
+        ws.onerror = () => setIsLive(false);
+      } catch {
+        setIsLive(false);
+      }
     };
-    ws.onclose = () => setIsLive(false);
-    ws.onerror = () => setIsLive(false);
+
+    connect();
 
     return () => {
-      try { ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: symbol } })); ws.close(); } catch (_) {}
+      cancelled = true;
+      try {
+        wsRef.current?.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: symbol } }));
+      } catch {
+        // Ignore close errors.
+      }
+      try {
+        wsRef.current?.close();
+      } catch {
+        // Ignore close errors.
+      }
+      wsRef.current = null;
       setIsLive(false);
     };
   }, [symbol, interval]);

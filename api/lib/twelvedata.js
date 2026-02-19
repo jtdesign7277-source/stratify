@@ -92,12 +92,19 @@ const normalizeWatchlistSymbol = (value) => {
   return base;
 };
 
-const getApiKey = () => String(process.env.TWELVEDATA_API_KEY || '').trim();
+const getApiKey = () =>
+  String(
+    process.env.TWELVEDATA_API_KEY ||
+      process.env.TWELVE_DATA_API_KEY ||
+      process.env.VITE_TWELVE_DATA_API_KEY ||
+      process.env.VITE_TWELVEDATA_API_KEY ||
+      ''
+  ).trim();
 
 const assertApiKey = () => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    const error = new Error('TWELVEDATA_API_KEY not configured');
+    const error = new Error('Twelve Data API key not configured');
     error.status = 500;
     throw error;
   }
