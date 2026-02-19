@@ -17,6 +17,41 @@ const INTRADAY_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour']);
 const INTRADAY_LOOKBACK_DAYS = 21;
 const ALLOWED_TIMEFRAMES = new Set(Object.keys(TIMEFRAME_MAP));
 
+const normalizeRawSymbol = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/^\$/, '');
+
+const normalizeCryptoSymbol = (value) => {
+  const raw = normalizeRawSymbol(value);
+  if (!raw) return null;
+  if (raw.includes('/')) {
+    const [base, quote] = raw.split('/');
+    if (!base || !quote) return null;
+    return `${base}/${quote}`;
+  }
+  if (raw.endsWith('-USD')) return `${raw.slice(0, -4)}/USD`;
+  if (raw.endsWith('USD') && raw.length > 3) return `${raw.slice(0, -3)}/USD`;
+  return null;
+};
+
+const getBarsArrayFromPayload = (payload, symbolKey) => {
+  const barsMap = payload?.bars;
+  if (!barsMap || typeof barsMap !== 'object') return [];
+  if (Array.isArray(barsMap[symbolKey])) return barsMap[symbolKey];
+
+  const compact = symbolKey.replace('/', '');
+  if (Array.isArray(barsMap[compact])) return barsMap[compact];
+
+  const dotted = symbolKey.replace('/', '-');
+  if (Array.isArray(barsMap[dotted])) return barsMap[dotted];
+
+  const firstKey = Object.keys(barsMap)[0];
+  if (firstKey && Array.isArray(barsMap[firstKey])) return barsMap[firstKey];
+  return [];
+};
+
 const parseLimit = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT;
@@ -58,7 +93,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing or invalid symbol' });
   }
 
-  const normalizedSymbol = symbol.toUpperCase();
+  const normalizedInputSymbol = normalizeRawSymbol(symbol);
+  const cryptoSymbol = normalizeCryptoSymbol(normalizedInputSymbol);
+  const isCrypto = Boolean(cryptoSymbol);
+  const normalizedSymbol = isCrypto ? cryptoSymbol : normalizedInputSymbol;
   const normalizedTimeframe = typeof timeframe === 'string' ? timeframe : String(timeframe);
 
   if (!ALLOWED_TIMEFRAMES.has(normalizedTimeframe)) {
@@ -98,6 +136,57 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (isCrypto) {
+      const params = new URLSearchParams({
+        symbols: normalizedSymbol,
+        timeframe: mappedTimeframe,
+        limit: String(parseLimit(limit)),
+      });
+      if (startIso) params.set('start', startIso);
+      if (endIso) params.set('end', endIso);
+
+      const url = `https://data.alpaca.markets/v1beta3/crypto/us/bars?${params.toString()}`;
+      const response = await fetch(url, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_SECRET,
+          Accept: 'application/json',
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return res.status(response.status).json({
+          error: data?.message || data?.error || `Alpaca crypto bars request failed (${response.status})`,
+        });
+      }
+
+      const bars = getBarsArrayFromPayload(data, normalizedSymbol);
+      const payload = bars
+        .map((bar) => {
+          const rawTime = bar?.t || bar?.Timestamp || bar?.timestamp;
+          const timestamp = rawTime ? new Date(rawTime).getTime() : null;
+          if (!timestamp) return null;
+          const open = Number(bar?.o ?? bar?.OpenPrice);
+          const high = Number(bar?.h ?? bar?.HighPrice);
+          const low = Number(bar?.l ?? bar?.LowPrice);
+          const close = Number(bar?.c ?? bar?.ClosePrice);
+          const volume = Number(bar?.v ?? bar?.Volume ?? 0);
+          if (![open, high, low, close].every(Number.isFinite)) return null;
+          return {
+            time: Math.floor(timestamp / 1000),
+            open,
+            high,
+            low,
+            close,
+            volume: Number.isFinite(volume) ? volume : 0,
+          };
+        })
+        .filter(Boolean);
+
+      return res.status(200).json(payload);
+    }
+
     const alpaca = new Alpaca({
       keyId: ALPACA_KEY,
       secretKey: ALPACA_SECRET,

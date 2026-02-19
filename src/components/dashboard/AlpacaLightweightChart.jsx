@@ -186,6 +186,8 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
       setStatus({ loading: true, error: null });
       lastBarRef.current = null;
+      candleSeriesRef.current?.setData([]);
+      volumeSeriesRef.current?.setData([]);
 
       try {
         const start = getStartForInterval(interval);
@@ -242,6 +244,8 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         setStatus({ loading: false, error: null });
       } catch (err) {
         if (cancelled) return;
+        candleSeriesRef.current?.setData([]);
+        volumeSeriesRef.current?.setData([]);
         setStatus({
           loading: false,
           error: err?.message || 'Failed to load bars',
