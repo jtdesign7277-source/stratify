@@ -115,7 +115,7 @@ const createStars = (count = 80) =>
     driftX: (Math.random() - 0.5) * 40,
   }));
 
-const createMeteors = (count = 4) =>
+const createMeteors = (count = 4, minDuration = 13, durationRange = 8, delayRange = 20) =>
   Array.from({ length: count }, (_, index) => {
     const travelX = 360 + Math.random() * 300;
     const travelY = 190 + Math.random() * 220;
@@ -124,17 +124,24 @@ const createMeteors = (count = 4) =>
       left: 3 + Math.random() * 44,
       top: 4 + Math.random() * 52,
       length: 140 + Math.random() * 95,
-      duration: 13 + Math.random() * 8,
-      delay: -Math.random() * 20,
+      duration: minDuration + Math.random() * durationRange,
+      delay: -Math.random() * delayRange,
       travelX,
       travelY,
       angle: (Math.atan2(travelY, travelX) * 180) / Math.PI,
     };
   });
 
-export default function SpaceBackground() {
-  const stars = useMemo(() => createStars(80), []);
-  const meteors = useMemo(() => createMeteors(4), []);
+export default function SpaceBackground({ variant = 'app' }) {
+  const isMarketing = variant === 'marketing';
+  const stars = useMemo(() => createStars(isMarketing ? 86 : 70), [isMarketing]);
+  const meteors = useMemo(
+    () =>
+      isMarketing
+        ? createMeteors(4, 13, 8, 24)
+        : createMeteors(2, 42, 36, 120),
+    [isMarketing]
+  );
 
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">

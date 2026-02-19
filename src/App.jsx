@@ -1198,42 +1198,47 @@ function StratifyAppContent() {
     startCheckout();
   }, [currentPage, isAuthenticated, isProUser, startCheckout, subscriptionLoading]);
 
+  const isInternalAppPage =
+    isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth';
+  const backgroundVariant = isInternalAppPage ? 'app' : 'marketing';
+
   if (loading || (isAuthenticated && subscriptionLoading)) {
     return (
-      <div className="min-h-screen bg-transparent text-white flex items-center justify-center">
-        <div className="flex items-center gap-3 rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-4 text-sm text-gray-300">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
-          Checking your session...
+      <div className="relative min-h-screen">
+        <SpaceBackground variant={backgroundVariant} />
+        <div className="relative z-10 min-h-screen bg-transparent text-white flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-4 text-sm text-gray-300">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
+            Checking your session...
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-      {mainContent}
-      <LiveScoresPill
-        isOpen={isLiveScoresOpen}
-        onOpenChange={setIsLiveScoresOpen}
-        onUnreadChange={setHasLiveScoresUnread}
-      />
-      <BlueSkyFeed
-        isOpen={isSocialFeedOpen}
-        onClose={() => setIsSocialFeedOpen(false)}
-      />
-    </>
+    <div className="relative min-h-screen">
+      <SpaceBackground variant={backgroundVariant} />
+      <div className="relative z-10 min-h-screen">
+        {mainContent}
+        <LiveScoresPill
+          isOpen={isLiveScoresOpen}
+          onOpenChange={setIsLiveScoresOpen}
+          onUnreadChange={setHasLiveScoresUnread}
+        />
+        <BlueSkyFeed
+          isOpen={isSocialFeedOpen}
+          onClose={() => setIsSocialFeedOpen(false)}
+        />
+      </div>
+    </div>
   );
 }
 
 export default function StratifyApp() {
   return (
     <AuthProvider>
-      <div className="relative min-h-screen">
-        <SpaceBackground />
-        <div className="relative z-10 min-h-screen">
-          <StratifyAppContent />
-        </div>
-      </div>
+      <StratifyAppContent />
     </AuthProvider>
   );
 }
