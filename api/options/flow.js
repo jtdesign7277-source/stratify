@@ -57,10 +57,10 @@ function processContract(contract, snapshot) {
     estimatedPremium = db.v * db.vw * 100;
   }
 
-  const volumeOIRatio = openInterest > 0 ? volume / openInterest : volume > 0 ? 999 : 0;
+  const volumeOIRatio = openInterest > 0 ? volume / openInterest : 0;
 
   // Filter: unusual activity
-  const isUnusual = (volumeOIRatio > 3) || (volume > 500) || (estimatedPremium > 100000);
+  const isUnusual = (openInterest > 0 && volumeOIRatio > 3) || (volume > 500) || (estimatedPremium > 50000);
   if (!isUnusual) return null;
 
   const type = contract.type || (contract.symbol?.includes('C') ? 'call' : 'put');

@@ -421,7 +421,8 @@ const OptionsPage = () => {
                     const textColor = isCall ? 'text-emerald-400' : 'text-red-400';
                     const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize || i}`;
                     const isFlashing = flashIds.has(alertKey);
-                    const voiColor = (alert.volumeOIRatio || 0) > 10 ? 'text-red-400' : (alert.volumeOIRatio || 0) > 5 ? 'text-amber-400' : 'text-white/70';
+                    const voi = alert.volumeOIRatio || 0;
+                    const voiColor = voi > 10 ? 'text-red-400' : voi > 5 ? 'text-amber-400' : 'text-white/70';
 
                     return (
                       <tr
@@ -442,7 +443,7 @@ const OptionsPage = () => {
                         <td className="px-3 py-2 text-white/70 font-mono text-xs">${(alert.lastPrice || 0).toFixed(2)}</td>
                         <td className="px-3 py-2 text-white/70 text-xs">{(alert.volume || 0).toLocaleString()}</td>
                         <td className="px-3 py-2 text-white/50 text-xs">{(alert.openInterest || 0).toLocaleString()}</td>
-                        <td className={`px-3 py-2 font-mono text-xs font-medium ${voiColor}`}>{(alert.volumeOIRatio || 0).toFixed(1)}x</td>
+                        <td className={`px-3 py-2 font-mono text-xs font-medium ${voiColor}`}>{voi > 0 ? `${voi.toFixed(1)}x` : '—'}</td>
                         <td className="px-3 py-2 text-white font-medium text-xs">{formatPremium(alert.estimatedPremium)}</td>
                         <td className={`px-3 py-2 text-xs font-medium ${BADGE_COLORS[alert.badge] || 'text-white/30'}`}>
                           {alert.badge || '—'}
