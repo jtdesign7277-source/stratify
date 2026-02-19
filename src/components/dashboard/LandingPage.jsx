@@ -14,6 +14,7 @@ import {
   Monitor,
   Shield,
 } from 'lucide-react';
+import GlobalMarketsBadge from './GlobalMarketsBadge';
 
 const PROBLEM_CARDS = [
   { title: 'Charts & Technicals', cost: '$60/mo' },
@@ -349,6 +350,8 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
                 Join the Stratify community on Discord
               </a>
             </div>
+
+            <GlobalMarketsBadge />
 
             {/* Powered By — inline SVGs only, no boxes, no backgrounds */}
             <div className="mt-20 mb-16 flex flex-col items-center gap-10">
