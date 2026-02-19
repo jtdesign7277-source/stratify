@@ -24,6 +24,12 @@ import {
   getAccount,
   getPositions,
 } from './services/alpaca.js';
+import {
+  startOptionsStream,
+  getRecentAlerts,
+  getFlowSummary,
+  isOptionsStreamConnected,
+} from './services/optionsStream.js';
 
 dotenv.config();
 
@@ -64,6 +70,16 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     connections: wss.clients.size,
+    optionsStream: isOptionsStreamConnected(),
+  });
+});
+
+// ==================== OPTIONS FLOW (REAL-TIME) ====================
+app.get('/api/options/flow', (req, res) => {
+  res.json({
+    alerts: getRecentAlerts(),
+    summary: getFlowSummary(),
+    live: isOptionsStreamConnected(),
   });
 });
 
@@ -542,6 +558,28 @@ startAlpacaStream(
   (quote) => broadcast(quote),
   (bar) => broadcast(bar)
 );
+
+// Start real-time options flow stream
+startOptionsStream((alert) => {
+  // Broadcast each new alert to all connected WS clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(JSON.stringify({ type: 'options_flow_alert', alert }));
+    }
+  });
+});
+
+// Broadcast options flow summary every 10 seconds
+setInterval(() => {
+  const summary = getFlowSummary();
+  if (summary.totalAlerts > 0) {
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify({ type: 'options_flow_summary', summary }));
+      }
+    });
+  }
+}, 10000);
 
 // Market data endpoints
 app.get('/api/public/quote/:symbol', async (req, res) => {

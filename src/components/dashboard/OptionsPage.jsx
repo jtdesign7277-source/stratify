@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Activity, ArrowUpDown, RefreshCw, TrendingUp, TrendingDown, Filter } from 'lucide-react';
+import { Activity, ArrowUpDown, TrendingUp, TrendingDown, Filter, Zap } from 'lucide-react';
+import { API_URL } from '../../config';
+
+const WS_URL = (API_URL || 'https://stratify-backend-production-3ebd.up.railway.app')
+  .replace(/^https/, 'wss')
+  .replace(/^http/, 'ws');
+
+const API_BASE = API_URL || 'https://stratify-backend-production-3ebd.up.railway.app';
 
 const formatPremium = (val) => {
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
@@ -47,71 +54,152 @@ const SkeletonRow = () => (
   </tr>
 );
 
+const RECONNECT_BASE = 1000;
+const RECONNECT_MAX = 30000;
+
 const OptionsPage = () => {
-  const [data, setData] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tickerFilter, setTickerFilter] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortCol, setSortCol] = useState('estimatedPremium');
   const [sortDir, setSortDir] = useState('desc');
-  const [refreshing, setRefreshing] = useState(false);
-  const intervalRef = useRef(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [liveCount, setLiveCount] = useState(0);
+  const [flashIds, setFlashIds] = useState(new Set());
 
-  const fetchData = useCallback(async (isRefresh = false) => {
+  const wsRef = useRef(null);
+  const reconnectDelayRef = useRef(RECONNECT_BASE);
+  const reconnectTimerRef = useRef(null);
+  const mountedRef = useRef(true);
+
+  // Flash animation for new alerts
+  const flashAlert = useCallback((alertKey) => {
+    setFlashIds((prev) => new Set([...prev, alertKey]));
+    setTimeout(() => {
+      setFlashIds((prev) => {
+        const next = new Set(prev);
+        next.delete(alertKey);
+        return next;
+      });
+    }, 1500);
+  }, []);
+
+  // Fetch initial state via REST
+  const fetchInitial = useCallback(async () => {
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-
-      const res = await fetch('/api/options/flow');
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/options/flow`);
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
-      setData(json);
+      setAlerts(json.alerts || []);
+      setSummary(json.summary || null);
       setError(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
+  // WebSocket connection
+  const connectWs = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState <= 1) return;
+
+    const socket = new WebSocket(WS_URL);
+    wsRef.current = socket;
+
+    socket.onopen = () => {
+      setWsConnected(true);
+      reconnectDelayRef.current = RECONNECT_BASE;
+      // Subscribe to options flow channel
+      socket.send(JSON.stringify({ action: 'subscribe', channels: ['options_flow'] }));
+    };
+
+    socket.onmessage = (event) => {
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      if (data.type === 'options_flow_alert' && data.alert) {
+        const alert = data.alert;
+        const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize}`;
+
+        setAlerts((prev) => {
+          const merged = [alert, ...prev];
+          merged.sort((a, b) => b.estimatedPremium - a.estimatedPremium);
+          return merged.slice(0, 200);
+        });
+
+        setLiveCount((c) => c + 1);
+        flashAlert(alertKey);
+      }
+
+      if (data.type === 'options_flow_summary' && data.summary) {
+        setSummary(data.summary);
+      }
+    };
+
+    socket.onclose = () => {
+      setWsConnected(false);
+      if (mountedRef.current) {
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, RECONNECT_MAX);
+          connectWs();
+        }, reconnectDelayRef.current);
+      }
+    };
+
+    socket.onerror = () => {
+      socket.close();
+    };
+  }, [flashAlert]);
+
   useEffect(() => {
-    fetchData();
-    intervalRef.current = setInterval(() => fetchData(true), 30000);
-    return () => clearInterval(intervalRef.current);
-  }, [fetchData]);
+    mountedRef.current = true;
+    fetchInitial();
+    connectWs();
 
+    return () => {
+      mountedRef.current = false;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [fetchInitial, connectWs]);
+
+  // Filtering + sorting
   const filteredAlerts = useMemo(() => {
-    if (!data?.alerts) return [];
-    let alerts = [...data.alerts];
+    let result = [...alerts];
 
-    if (tickerFilter) alerts = alerts.filter((a) => a.underlying === tickerFilter);
+    if (tickerFilter) result = result.filter((a) => a.underlying === tickerFilter);
 
-    if (typeFilter === 'calls') alerts = alerts.filter((a) => a.type === 'call');
-    else if (typeFilter === 'puts') alerts = alerts.filter((a) => a.type === 'put');
-    else if (typeFilter === 'sweeps') alerts = alerts.filter((a) => a.badge === 'SWEEP');
-    else if (typeFilter === '100k') alerts = alerts.filter((a) => a.estimatedPremium > 100_000);
-    else if (typeFilter === '500k') alerts = alerts.filter((a) => a.estimatedPremium > 500_000);
-    else if (typeFilter === '1m') alerts = alerts.filter((a) => a.estimatedPremium > 1_000_000);
+    if (typeFilter === 'calls') result = result.filter((a) => a.type === 'call');
+    else if (typeFilter === 'puts') result = result.filter((a) => a.type === 'put');
+    else if (typeFilter === 'sweeps') result = result.filter((a) => a.badge === 'SWEEP');
+    else if (typeFilter === '100k') result = result.filter((a) => a.estimatedPremium > 100_000);
+    else if (typeFilter === '500k') result = result.filter((a) => a.estimatedPremium > 500_000);
+    else if (typeFilter === '1m') result = result.filter((a) => a.estimatedPremium > 1_000_000);
 
-    alerts.sort((a, b) => {
+    result.sort((a, b) => {
       const av = a[sortCol], bv = b[sortCol];
       if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
       return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
 
-    return alerts;
-  }, [data, tickerFilter, typeFilter, sortCol, sortDir]);
+    return result;
+  }, [alerts, tickerFilter, typeFilter, sortCol, sortDir]);
 
   const handleSort = (col) => {
-    if (sortCol === col) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
+    if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortCol(col); setSortDir('desc'); }
   };
 
-  const summary = data?.summary;
   const byTicker = summary?.byTicker || {};
-
   const tickerBadges = useMemo(() => {
     return Object.entries(byTicker)
       .map(([ticker, info]) => ({ ticker, ...info, total: info.calls + info.puts }))
@@ -132,9 +220,22 @@ const OptionsPage = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Top Bar: Ticker Summary */}
+      {/* Top Bar */}
       <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-3">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+          {/* LIVE indicator */}
+          <div className="flex-shrink-0 flex items-center gap-1.5 mr-2">
+            <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+            <span className={`text-[10px] font-medium uppercase tracking-wider ${wsConnected ? 'text-emerald-400' : 'text-red-400'}`}>
+              {wsConnected ? 'LIVE' : 'OFFLINE'}
+            </span>
+            {liveCount > 0 && (
+              <span className="text-[10px] text-white/30 ml-1">
+                <Zap size={8} className="inline text-amber-400" /> {liveCount}
+              </span>
+            )}
+          </div>
+
           <button
             onClick={() => setTickerFilter(null)}
             className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded border transition-colors ${
@@ -156,14 +257,10 @@ const OptionsPage = () => {
                     : `border-[#1f1f1f] hover:border-white/20 ${isBullish ? 'text-emerald-400/70' : 'text-red-400/70'}`
                 }`}
               >
-                ${ticker} ({total})
+                {ticker} ({total})
               </button>
             );
           })}
-          <div className="flex-shrink-0 ml-auto flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${refreshing ? 'bg-emerald-400 animate-pulse' : 'bg-white/10'}`} />
-            <span className="text-[10px] text-white/30">30s</span>
-          </div>
         </div>
       </div>
 
@@ -188,20 +285,20 @@ const OptionsPage = () => {
 
           {/* Table */}
           <div className="flex-1 overflow-auto">
-            {loading && !data ? (
+            {loading && alerts.length === 0 ? (
               <div className="px-4 py-12 flex flex-col items-center justify-center gap-3">
                 <Activity size={24} className="text-emerald-400 animate-pulse" />
-                <span className="text-white/40 text-sm">Scanning options flow<span className="animate-pulse">...</span></span>
+                <span className="text-white/40 text-sm">Connecting to options flow<span className="animate-pulse">...</span></span>
                 <table className="w-full mt-4">
                   <tbody>
                     {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
                   </tbody>
                 </table>
               </div>
-            ) : error ? (
+            ) : error && alerts.length === 0 ? (
               <div className="px-4 py-12 text-center">
                 <p className="text-red-400 text-sm">{error}</p>
-                <button onClick={() => fetchData()} className="mt-2 text-xs text-white/40 hover:text-white/60">Retry</button>
+                <button onClick={fetchInitial} className="mt-2 text-xs text-white/40 hover:text-white/60">Retry</button>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -215,33 +312,41 @@ const OptionsPage = () => {
                     <SortHeader col="expiration">Exp</SortHeader>
                     <SortHeader col="lastPrice">Last</SortHeader>
                     <SortHeader col="volume">Vol</SortHeader>
-                    <SortHeader col="openInterest">OI</SortHeader>
-                    <SortHeader col="volumeOIRatio">V/OI</SortHeader>
+                    <SortHeader col="tradeSize">Size</SortHeader>
                     <SortHeader col="estimatedPremium">Premium</SortHeader>
                     <th className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Badge</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAlerts.length === 0 ? (
-                    <tr><td colSpan={12} className="px-4 py-8 text-center text-white/30 text-sm">No unusual activity found</td></tr>
+                    <tr>
+                      <td colSpan={11} className="px-4 py-8 text-center text-white/30 text-sm">
+                        {wsConnected ? 'Waiting for unusual activity...' : 'No unusual activity found'}
+                      </td>
+                    </tr>
                   ) : filteredAlerts.map((alert, i) => {
                     const isCall = alert.type === 'call';
                     const borderColor = isCall ? 'border-l-emerald-500' : 'border-l-red-500';
                     const textColor = isCall ? 'text-emerald-400' : 'text-red-400';
-                    const voiColor = alert.volumeOIRatio > 10 ? 'text-red-400' : alert.volumeOIRatio > 5 ? 'text-amber-400' : 'text-white/70';
+                    const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize}`;
+                    const isFlashing = flashIds.has(alertKey);
 
                     return (
-                      <tr key={`${alert.symbol}-${i}`} className={`border-b border-[#1f1f1f] border-l-2 ${borderColor} hover:bg-white/[0.02] transition-colors`}>
+                      <tr
+                        key={`${alert.symbol}-${i}`}
+                        className={`border-b border-[#1f1f1f] border-l-2 ${borderColor} hover:bg-white/[0.02] transition-all duration-500 ${
+                          isFlashing ? 'bg-emerald-500/10' : ''
+                        }`}
+                      >
                         <td className="px-3 py-2 text-white/40 text-xs">{formatTime(alert.timestamp)}</td>
                         <td className="px-1 py-2 text-center">{isCall ? '🟢' : '🔴'}</td>
                         <td className="px-3 py-2 text-white font-medium">{alert.underlying}</td>
                         <td className={`px-3 py-2 ${textColor} font-mono text-xs`}>{formatStrike(alert.strike, alert.type)}</td>
                         <td className={`px-3 py-2 text-xs ${textColor}`}>{isCall ? 'CALL' : 'PUT'}</td>
                         <td className="px-3 py-2 text-white/50 text-xs">{formatExp(alert.expiration)}</td>
-                        <td className="px-3 py-2 text-white/70 font-mono text-xs">${alert.lastPrice.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-white/70 text-xs">{alert.volume.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-white/50 text-xs">{alert.openInterest.toLocaleString()}</td>
-                        <td className={`px-3 py-2 font-mono text-xs font-medium ${voiColor}`}>{alert.volumeOIRatio.toFixed(1)}x</td>
+                        <td className="px-3 py-2 text-white/70 font-mono text-xs">${alert.lastPrice?.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-white/70 text-xs">{(alert.volume || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-white/50 text-xs font-mono">{(alert.tradeSize || 0).toLocaleString()}</td>
                         <td className="px-3 py-2 text-white font-medium text-xs">{formatPremium(alert.estimatedPremium)}</td>
                         <td className={`px-3 py-2 text-xs font-medium ${BADGE_COLORS[alert.badge] || 'text-white/30'}`}>
                           {alert.badge || '—'}
