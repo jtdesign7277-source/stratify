@@ -305,7 +305,7 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
       </nav>
 
       <main className="relative z-10">
-        <motion.section {...sectionMotion} className="pt-24 pb-32 md:pt-28 md:pb-36 px-6">
+        <motion.section {...sectionMotion} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
           <div className="max-w-6xl mx-auto text-center relative">
             <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-amber-500/12 blur-3xl landing-orb" />
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
