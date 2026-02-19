@@ -1,552 +1,338 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Activity, ArrowUpDown, TrendingUp, TrendingDown, Filter, Zap } from 'lucide-react';
+import { ChevronDown, ChevronRight, Settings, Zap } from 'lucide-react';
 import { API_URL } from '../../config';
 
-const WS_URL = (API_URL || 'https://stratify-backend-production-3ebd.up.railway.app')
-  .replace(/^https/, 'wss')
-  .replace(/^http/, 'ws');
-
 const API_BASE = API_URL || 'https://stratify-backend-production-3ebd.up.railway.app';
+const WS_URL = (API_BASE).replace(/^https/, 'wss').replace(/^http/, 'ws');
 
-// Mag 7 + popular options tickers
-const QUICK_TICKERS = [
-  { symbol: 'ALL', label: 'All Flow' },
-  { symbol: 'AAPL', label: 'AAPL' },
-  { symbol: 'MSFT', label: 'MSFT' },
-  { symbol: 'GOOGL', label: 'GOOGL' },
-  { symbol: 'AMZN', label: 'AMZN' },
-  { symbol: 'NVDA', label: 'NVDA' },
-  { symbol: 'META', label: 'META' },
-  { symbol: 'TSLA', label: 'TSLA' },
-];
+// ── Mag 7 + Popular ──
+const QUICK_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'SPY', 'QQQ', 'AMD'];
 
-const formatPremium = (val) => {
-  if (!val || val === 0) return '$0';
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
-  return `$${val.toFixed(0)}`;
+// ── Helpers ──
+const fmt = (v, dec = 2) => v != null ? Number(v).toFixed(dec) : '—';
+const fmtPct = (v) => {
+  if (v == null || isNaN(v)) return '—';
+  const n = Number(v);
+  return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+};
+const fmtIV = (v) => v != null ? (Number(v) * 100).toFixed(2) + '%' : '—';
+const fmtStrike = (v) => Number(v).toFixed(v % 1 === 0 ? 0 : 2);
+const fmtDate = (d) => {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' });
+};
+const dte = (d) => {
+  if (!d) return 0;
+  const now = new Date();
+  const exp = new Date(d + 'T16:00:00');
+  return Math.max(0, Math.ceil((exp - now) / 86400000));
 };
 
-const formatStrike = (strike, type) => `$${strike} ${type === 'call' ? 'C' : 'P'}`;
+// ── OCC Parser ──
+function parseOCC(occ) {
+  if (!occ || occ.length < 15) return null;
+  const tail = occ.slice(-15);
+  const underlying = occ.slice(0, -15).trim();
+  const year = 2000 + parseInt(tail.slice(0, 2), 10);
+  const month = tail.slice(2, 4);
+  const day = tail.slice(4, 6);
+  const type = tail[6] === 'C' ? 'call' : 'put';
+  const strike = parseInt(tail.slice(7), 10) / 1000;
+  return { underlying, expiration: `${year}-${month}-${day}`, type, strike };
+}
 
-const formatTime = (ts) => {
-  if (!ts) return '—';
-  const d = new Date(ts);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-};
-
-const formatExp = (date) => {
-  if (!date) return '—';
-  const d = new Date(date + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-const BADGE_COLORS = {
-  SWEEP: 'text-purple-400',
-  BLOCK: 'text-blue-400',
-  UNUSUAL: 'text-amber-400',
-};
-
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'calls', label: 'Calls' },
-  { key: 'puts', label: 'Puts' },
-  { key: 'sweeps', label: 'Sweeps' },
-  { key: '100k', label: '>$100K' },
-  { key: '500k', label: '>$500K' },
-  { key: '1m', label: '>$1M' },
-];
-
-const SkeletonRow = () => (
-  <tr className="border-b border-[#1f1f1f]">
-    {Array.from({ length: 11 }).map((_, i) => (
-      <td key={i} className="px-3 py-3">
-        <div className="h-4 bg-white/5 rounded animate-pulse" style={{ width: `${40 + Math.random() * 40}%` }} />
-      </td>
-    ))}
-  </tr>
-);
-
-const RECONNECT_BASE = 1000;
-const RECONNECT_MAX = 30000;
+// ── Color constants (matching reference screenshots) ──
+const CALL_COLOR = '#00E5FF';     // teal/cyan for call bid/ask
+const PUT_COLOR = '#FF4081';      // magenta/pink for put bid/ask
+const GREEN = '#00E676';          // positive % change
+const RED = '#FF1744';            // negative % change
+const ITM_BG = '#0D0D1A';        // dark navy for ITM rows
+const OTM_BG = 'transparent';    // black bg for OTM rows
+const HEADER_BG = '#111118';     // slightly lighter header
+const SEPARATOR_BG = '#0A0A14';  // ITM separator bar
 
 const OptionsPage = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [snapshotAlerts, setSnapshotAlerts] = useState([]);
-  const [summary, setSummary] = useState(null);
+  const [activeTicker, setActiveTicker] = useState('AAPL');
+  const [stockPrice, setStockPrice] = useState(null);
+  const [stockChange, setStockChange] = useState(null);
+  const [stockChangePct, setStockChangePct] = useState(null);
+  const [chains, setChains] = useState([]); // grouped by expiration
   const [loading, setLoading] = useState(true);
-  const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTicker, setActiveTicker] = useState('ALL');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [sortCol, setSortCol] = useState('estimatedPremium');
-  const [sortDir, setSortDir] = useState('desc');
+  const [numStrikes, setNumStrikes] = useState(6);
+  const [showBoth, setShowBoth] = useState(true);
+  const [expandedExps, setExpandedExps] = useState(new Set());
   const [wsConnected, setWsConnected] = useState(false);
-  const [liveCount, setLiveCount] = useState(0);
-  const [flashIds, setFlashIds] = useState(new Set());
-
   const wsRef = useRef(null);
-  const reconnectDelayRef = useRef(RECONNECT_BASE);
-  const reconnectTimerRef = useRef(null);
-  const mountedRef = useRef(true);
 
-  // Flash animation for new alerts
-  const flashAlert = useCallback((alertKey) => {
-    setFlashIds((prev) => new Set([...prev, alertKey]));
-    setTimeout(() => {
-      setFlashIds((prev) => {
-        const next = new Set(prev);
-        next.delete(alertKey);
-        return next;
-      });
-    }, 1500);
-  }, []);
-
-  // Fetch snapshot data from Vercel API (works anytime, uses REST snapshots)
-  const fetchSnapshot = useCallback(async (symbol) => {
+  // Fetch options chain for a ticker
+  const fetchChain = useCallback(async (symbol) => {
     try {
-      setSnapshotLoading(true);
-      const symbols = symbol === 'ALL'
-        ? 'AAPL,MSFT,GOOGL,AMZN,NVDA,META,TSLA,SPY,QQQ,AMD,COIN,SOFI,PYPL'
-        : symbol;
-      const res = await fetch(`/api/options/flow?symbols=${symbols}`);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json = await res.json();
-      setSnapshotAlerts(json.alerts || []);
-      if (!summary || (json.summary && json.summary.totalAlerts > 0)) {
-        setSummary(json.summary || null);
-      }
+      setLoading(true);
       setError(null);
+
+      // Fetch stock price
+      const quoteRes = await fetch(`${API_BASE}/api/public/quote/${symbol}`);
+      if (quoteRes.ok) {
+        const q = await quoteRes.json();
+        setStockPrice(q.latestTrade?.p || q.price || q.close || null);
+        setStockChange(q.change ?? q.dailyBar?.c - q.prevDailyBar?.c ?? null);
+        setStockChangePct(q.changePercent ?? null);
+      }
+
+      // Fetch options contracts + snapshots
+      const res = await fetch(`/api/options/chain?symbol=${symbol}&strikes=${numStrikes}`);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+      setChains(data.expirations || []);
+
+      // Auto-expand first 2 expirations
+      if (data.expirations?.length > 0) {
+        setExpandedExps(new Set(data.expirations.slice(0, 2).map((e) => e.expiration)));
+      }
     } catch (err) {
-      // If Vercel endpoint fails, try Railway
-      try {
-        const res = await fetch(`${API_BASE}/api/options/flow`);
-        if (res.ok) {
-          const json = await res.json();
-          setSnapshotAlerts(json.alerts || []);
-          if (json.summary) setSummary(json.summary);
-        }
-      } catch {}
-      if (snapshotAlerts.length === 0) setError(err.message);
+      setError(err.message);
     } finally {
-      setSnapshotLoading(false);
       setLoading(false);
     }
-  }, [summary, snapshotAlerts.length]);
+  }, [numStrikes]);
 
-  // WebSocket connection for live stream
-  const connectWs = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState <= 1) return;
+  useEffect(() => {
+    fetchChain(activeTicker);
+  }, [activeTicker, fetchChain]);
 
+  // WS for live updates
+  useEffect(() => {
     const socket = new WebSocket(WS_URL);
     wsRef.current = socket;
+    socket.onopen = () => setWsConnected(true);
+    socket.onclose = () => setWsConnected(false);
+    socket.onerror = () => socket.close();
+    return () => socket.close();
+  }, []);
 
-    socket.onopen = () => {
-      setWsConnected(true);
-      reconnectDelayRef.current = RECONNECT_BASE;
-      socket.send(JSON.stringify({ action: 'subscribe', channels: ['options_flow'] }));
-    };
-
-    socket.onmessage = (event) => {
-      let data;
-      try { data = JSON.parse(event.data); } catch { return; }
-
-      if (data.type === 'options_flow_alert' && data.alert) {
-        const alert = data.alert;
-        const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize}`;
-
-        setAlerts((prev) => {
-          const merged = [alert, ...prev];
-          merged.sort((a, b) => b.estimatedPremium - a.estimatedPremium);
-          return merged.slice(0, 200);
-        });
-
-        setLiveCount((c) => c + 1);
-        flashAlert(alertKey);
-      }
-
-      if (data.type === 'options_flow_summary' && data.summary) {
-        setSummary(data.summary);
-      }
-    };
-
-    socket.onclose = () => {
-      setWsConnected(false);
-      if (mountedRef.current) {
-        reconnectTimerRef.current = setTimeout(() => {
-          reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, RECONNECT_MAX);
-          connectWs();
-        }, reconnectDelayRef.current);
-      }
-    };
-
-    socket.onerror = () => { socket.close(); };
-  }, [flashAlert]);
-
-  // Initial load
-  useEffect(() => {
-    mountedRef.current = true;
-    fetchSnapshot('ALL');
-    connectWs();
-
-    return () => {
-      mountedRef.current = false;
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, [connectWs]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Handle ticker tab click
-  const handleTickerClick = useCallback((symbol) => {
-    setActiveTicker(symbol);
-    fetchSnapshot(symbol);
-  }, [fetchSnapshot]);
-
-  // Merge live alerts + snapshot alerts, dedupe by symbol key
-  const mergedAlerts = useMemo(() => {
-    const seen = new Set();
-    const combined = [];
-
-    // Live alerts first (fresher)
-    for (const a of alerts) {
-      const key = `${a.symbol}-${a.timestamp}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        combined.push({ ...a, _live: true });
-      }
-    }
-
-    // Snapshot alerts as backfill
-    for (const a of snapshotAlerts) {
-      const key = `${a.symbol}-${a.timestamp}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        combined.push(a);
-      }
-    }
-
-    return combined;
-  }, [alerts, snapshotAlerts]);
-
-  // Filtering + sorting
-  const filteredAlerts = useMemo(() => {
-    let result = [...mergedAlerts];
-
-    // Filter by active ticker tab
-    if (activeTicker !== 'ALL') {
-      result = result.filter((a) => a.underlying === activeTicker);
-    }
-
-    if (typeFilter === 'calls') result = result.filter((a) => a.type === 'call');
-    else if (typeFilter === 'puts') result = result.filter((a) => a.type === 'put');
-    else if (typeFilter === 'sweeps') result = result.filter((a) => a.badge === 'SWEEP');
-    else if (typeFilter === '100k') result = result.filter((a) => a.estimatedPremium > 100_000);
-    else if (typeFilter === '500k') result = result.filter((a) => a.estimatedPremium > 500_000);
-    else if (typeFilter === '1m') result = result.filter((a) => a.estimatedPremium > 1_000_000);
-
-    result.sort((a, b) => {
-      const av = a[sortCol], bv = b[sortCol];
-      if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
-      return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  const toggleExp = (exp) => {
+    setExpandedExps((prev) => {
+      const next = new Set(prev);
+      next.has(exp) ? next.delete(exp) : next.add(exp);
+      return next;
     });
-
-    return result;
-  }, [mergedAlerts, activeTicker, typeFilter, sortCol, sortDir]);
-
-  const handleSort = (col) => {
-    if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortCol(col); setSortDir('desc'); }
   };
 
-  const byTicker = summary?.byTicker || {};
-  const tickerBadges = useMemo(() => {
-    return Object.entries(byTicker)
-      .map(([ticker, info]) => ({ ticker, ...info, total: info.calls + info.puts }))
-      .sort((a, b) => b.total - a.total);
-  }, [byTicker]);
+  const handleTickerClick = (symbol) => {
+    setActiveTicker(symbol);
+  };
 
-  const SortHeader = ({ col, children }) => (
-    <th
-      className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider cursor-pointer hover:text-white/70 select-none"
-      onClick={() => handleSort(col)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {children}
-        {sortCol === col && <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />}
-      </span>
-    </th>
-  );
-
+  // ── Render ──
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Mag 7 Quick Tabs */}
-      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-2.5">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-          {/* LIVE indicator */}
-          <div className="flex-shrink-0 flex items-center gap-1.5 mr-3 pr-3 border-r border-[#1f1f1f]">
-            <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-            <span className={`text-[10px] font-medium uppercase tracking-wider ${wsConnected ? 'text-emerald-400' : 'text-red-400'}`}>
-              {wsConnected ? 'LIVE' : 'OFF'}
-            </span>
-            {liveCount > 0 && (
-              <span className="text-[10px] text-white/30">
-                <Zap size={8} className="inline text-amber-400" /> {liveCount}
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: '#000' }}>
+      {/* ── Toolbar ── */}
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-[#1f1f1f]" style={{ background: HEADER_BG }}>
+        {/* Strategy type */}
+        <span className="text-[11px] text-white/60 px-2 py-1 rounded border border-[#333] cursor-default">Single</span>
+
+        {/* Strikes selector */}
+        <select
+          value={numStrikes}
+          onChange={(e) => setNumStrikes(Number(e.target.value))}
+          className="text-[11px] text-white bg-transparent border border-[#333] rounded px-2 py-1 cursor-pointer outline-none"
+        >
+          {[4, 6, 8, 10, 14, 20, 30, 50].map((n) => (
+            <option key={n} value={n} className="bg-[#111]">{n}</option>
+          ))}
+        </select>
+
+        {/* Both/Calls/Puts */}
+        <select
+          value={showBoth ? 'both' : 'calls'}
+          onChange={(e) => setShowBoth(e.target.value === 'both')}
+          className="text-[11px] text-white bg-transparent border border-[#333] rounded px-2 py-1 cursor-pointer outline-none"
+        >
+          <option value="both" className="bg-[#111]">Both</option>
+          <option value="calls" className="bg-[#111]">Calls</option>
+          <option value="puts" className="bg-[#111]">Puts</option>
+        </select>
+
+        {/* Live indicator */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+          <span className={`text-[10px] uppercase tracking-wider ${wsConnected ? 'text-emerald-400' : 'text-red-400/60'}`}>
+            {wsConnected ? 'LIVE' : 'OFF'}
+          </span>
+        </div>
+
+        {/* Stock info */}
+        {stockPrice && (
+          <div className="flex items-center gap-2 ml-4">
+            <span className="text-sm text-white font-semibold">{activeTicker}</span>
+            <span className="text-sm text-white font-mono">{fmt(stockPrice)}</span>
+            {stockChange != null && (
+              <span className="text-xs font-mono" style={{ color: stockChange >= 0 ? GREEN : RED }}>
+                {stockChange >= 0 ? '+' : ''}{fmt(stockChange)} ({fmtPct(stockChangePct ? stockChangePct : (stockChange / (stockPrice - stockChange)) * 100)})
               </span>
             )}
           </div>
+        )}
+      </div>
 
-          {QUICK_TICKERS.map(({ symbol, label }) => {
-            const isActive = activeTicker === symbol;
-            const tickerData = byTicker[symbol];
-            const isBullish = tickerData ? tickerData.calls >= tickerData.puts : true;
+      {/* ── Quick Ticker Tabs ── */}
+      <div className="flex-shrink-0 flex items-center gap-1 px-4 py-2 border-b border-[#1f1f1f] overflow-x-auto scrollbar-hide">
+        {QUICK_TICKERS.map((sym) => (
+          <button
+            key={sym}
+            onClick={() => handleTickerClick(sym)}
+            className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+              activeTicker === sym
+                ? 'bg-white/10 text-white border border-white/20'
+                : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+            }`}
+          >
+            {sym}
+          </button>
+        ))}
+      </div>
 
-            return (
-              <button
-                key={symbol}
-                onClick={() => handleTickerClick(symbol)}
-                className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded transition-all ${
-                  isActive
-                    ? 'bg-white/10 text-white border border-white/20'
-                    : symbol === 'ALL'
-                      ? 'text-white/50 hover:text-white/80 hover:bg-white/5'
-                      : `hover:bg-white/5 ${isBullish ? 'text-emerald-400/70 hover:text-emerald-400' : 'text-red-400/70 hover:text-red-400'}`
-                }`}
-              >
-                {label}
-                {tickerData && symbol !== 'ALL' && (
-                  <span className="ml-1 text-[10px] text-white/30">({tickerData.calls + tickerData.puts})</span>
-                )}
-              </button>
-            );
-          })}
+      {/* ── Column Headers ── */}
+      <div className="flex-shrink-0 flex items-center text-[10px] text-white/35 uppercase tracking-wider font-medium" style={{ background: HEADER_BG }}>
+        {/* Calls header */}
+        <div className="flex-1 flex items-center">
+          <div className="w-[13%] px-2 py-1.5 text-right">Impl Vol</div>
+          <div className="w-[13%] px-2 py-1.5 text-right">Mid</div>
+          <div className="w-[14%] px-2 py-1.5 text-right">% Chg</div>
+          <div className="w-[13%] px-2 py-1.5 text-right">Last</div>
+          <div className="w-[13%] px-2 py-1.5 text-right" style={{ color: CALL_COLOR + '80' }}>Ask</div>
+          <div className="w-[13%] px-2 py-1.5 text-right" style={{ color: CALL_COLOR + '80' }}>Bid</div>
+        </div>
 
-          {/* Extra tickers from data */}
-          {tickerBadges
-            .filter((t) => !QUICK_TICKERS.some((q) => q.symbol === t.ticker))
-            .slice(0, 8)
-            .map(({ ticker, calls, puts, total }) => {
-              const isBullish = calls >= puts;
-              const isActive = activeTicker === ticker;
-              return (
-                <button
-                  key={ticker}
-                  onClick={() => handleTickerClick(ticker)}
-                  className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded transition-all ${
-                    isActive
-                      ? 'bg-white/10 text-white border border-white/20'
-                      : `hover:bg-white/5 ${isBullish ? 'text-emerald-400/60' : 'text-red-400/60'}`
-                  }`}
-                >
-                  {ticker} <span className="text-[10px] text-white/30">({total})</span>
-                </button>
-              );
-            })}
+        {/* Strike center */}
+        <div className="w-20 text-center px-2 py-1.5 font-semibold text-white/50">Strike</div>
+
+        {/* Puts header */}
+        <div className="flex-1 flex items-center">
+          <div className="w-[13%] px-2 py-1.5 text-left" style={{ color: PUT_COLOR + '80' }}>Bid</div>
+          <div className="w-[13%] px-2 py-1.5 text-left" style={{ color: PUT_COLOR + '80' }}>Ask</div>
+          <div className="w-[13%] px-2 py-1.5 text-left">Last</div>
+          <div className="w-[14%] px-2 py-1.5 text-left">% Chg</div>
+          <div className="w-[13%] px-2 py-1.5 text-left">Mid</div>
+          <div className="w-[13%] px-2 py-1.5 text-left">Impl Vol</div>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Main: Flow Table */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Filter Row */}
-          <div className="flex-shrink-0 flex items-center gap-1 px-4 py-2 border-b border-[#1f1f1f]">
-            <Filter size={12} className="text-white/30 mr-1" />
-            {FILTERS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setTypeFilter(key)}
-                className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
-                  typeFilter === key ? 'text-emerald-400 border border-emerald-500/30' : 'text-white/40 hover:text-white/60'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            {snapshotLoading && (
-              <div className="ml-auto flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-[10px] text-white/30">Loading...</span>
-              </div>
-            )}
+      {/* ── Chain Body ── */}
+      <div className="flex-1 overflow-auto">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <span className="text-white/30 text-sm">Loading {activeTicker} options...</span>
           </div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <p className="text-red-400 text-sm mb-2">{error}</p>
+            <button onClick={() => fetchChain(activeTicker)} className="text-xs text-white/40 hover:text-white/60">Retry</button>
+          </div>
+        ) : chains.length === 0 ? (
+          <div className="text-center py-20 text-white/30 text-sm">No options data available</div>
+        ) : (
+          chains.map((expGroup) => {
+            const isExpanded = expandedExps.has(expGroup.expiration);
+            const daysToExp = dte(expGroup.expiration);
+            const dateLabel = fmtDate(expGroup.expiration);
+            const isWeekly = expGroup.isWeekly;
+            const strikeCount = expGroup.strikes?.length || 0;
 
-          {/* Table */}
-          <div className="flex-1 overflow-auto">
-            {loading && mergedAlerts.length === 0 ? (
-              <div className="px-4 py-12 flex flex-col items-center justify-center gap-3">
-                <Activity size={24} className="text-emerald-400 animate-pulse" />
-                <span className="text-white/40 text-sm">Scanning options flow<span className="animate-pulse">...</span></span>
-                <table className="w-full mt-4">
-                  <tbody>
-                    {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
-                  </tbody>
-                </table>
-              </div>
-            ) : error && mergedAlerts.length === 0 ? (
-              <div className="px-4 py-12 text-center">
-                <p className="text-red-400 text-sm">{error}</p>
-                <button onClick={() => fetchSnapshot(activeTicker)} className="mt-2 text-xs text-white/40 hover:text-white/60">Retry</button>
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-[#0b0b0b] z-10">
-                  <tr className="border-b border-[#1f1f1f]">
-                    <SortHeader col="timestamp">Time</SortHeader>
-                    <th className="px-3 py-2 w-6"></th>
-                    <SortHeader col="underlying">Ticker</SortHeader>
-                    <SortHeader col="strike">Strike</SortHeader>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Type</th>
-                    <SortHeader col="expiration">Exp</SortHeader>
-                    <SortHeader col="lastPrice">Last</SortHeader>
-                    <SortHeader col="volume">Vol</SortHeader>
-                    <SortHeader col="openInterest">OI</SortHeader>
-                    <SortHeader col="volumeOIRatio">V/OI</SortHeader>
-                    <SortHeader col="estimatedPremium">Premium</SortHeader>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Badge</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAlerts.length === 0 ? (
-                    <tr>
-                      <td colSpan={12} className="px-4 py-8 text-center text-white/30 text-sm">
-                        {wsConnected
-                          ? 'Waiting for unusual activity...'
-                          : activeTicker !== 'ALL'
-                            ? `No unusual options activity for ${activeTicker}`
-                            : 'No unusual activity found — market may be closed'}
-                      </td>
-                    </tr>
-                  ) : filteredAlerts.map((alert, i) => {
-                    const isCall = alert.type === 'call';
-                    const borderColor = isCall ? 'border-l-emerald-500' : 'border-l-red-500';
-                    const textColor = isCall ? 'text-emerald-400' : 'text-red-400';
-                    const alertKey = `${alert.symbol}-${alert.timestamp}-${alert.tradeSize || i}`;
-                    const isFlashing = flashIds.has(alertKey);
-                    const voi = alert.volumeOIRatio || 0;
-                    const voiColor = voi > 10 ? 'text-red-400' : voi > 5 ? 'text-amber-400' : 'text-white/70';
+            return (
+              <div key={expGroup.expiration}>
+                {/* Expiration header */}
+                <button
+                  onClick={() => toggleExp(expGroup.expiration)}
+                  className="w-full flex items-center px-3 py-2 border-b border-[#1a1a1a] hover:bg-white/[0.02] transition-colors"
+                  style={{ background: '#080810' }}
+                >
+                  {isExpanded
+                    ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                    : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                  }
+                  <span className="text-white text-xs font-medium">
+                    {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
+                  </span>
+                  <span className="text-[10px] text-white/30 ml-2">↗ Calls</span>
+                  <span className="text-white/50 text-xs font-mono mx-auto">{daysToExp} D</span>
+                  <span className="text-[10px] text-white/30 mr-2">Puts ↘</span>
+                </button>
 
-                    return (
-                      <tr
-                        key={`${alert.symbol}-${i}`}
-                        className={`border-b border-[#1f1f1f] border-l-2 ${borderColor} hover:bg-white/[0.02] transition-all duration-500 ${
-                          isFlashing ? 'bg-emerald-500/10' : ''
-                        }`}
+                {/* Strike rows */}
+                {isExpanded && expGroup.strikes?.map((row, idx) => {
+                  const call = row.call || {};
+                  const put = row.put || {};
+                  const strike = row.strike;
+                  const isCallITM = stockPrice && strike < stockPrice;
+                  const isPutITM = stockPrice && strike > stockPrice;
+                  const isATM = stockPrice && Math.abs(strike - stockPrice) < (expGroup.strikeGap || 2.5) / 2;
+                  const rowBg = (isCallITM || isPutITM) ? ITM_BG : OTM_BG;
+
+                  // ITM separator (render once at the ATM boundary)
+                  const prevStrike = idx > 0 ? expGroup.strikes[idx - 1].strike : null;
+                  const showSeparator = stockPrice && prevStrike && prevStrike < stockPrice && strike >= stockPrice;
+
+                  return (
+                    <React.Fragment key={`${expGroup.expiration}-${strike}`}>
+                      {showSeparator && (
+                        <div className="flex items-center px-4 py-1" style={{ background: SEPARATOR_BG }}>
+                          <span className="text-[10px] text-white/25">△ ITM</span>
+                          <div className="flex-1 text-center">
+                            <span className="text-[11px] font-mono font-medium" style={{ color: CALL_COLOR }}>
+                              {activeTicker}: {fmt(stockPrice)} {stockChange != null && (
+                                <span style={{ color: stockChange >= 0 ? GREEN : RED }}>
+                                  {stockChange >= 0 ? '+' : ''}{fmt(stockChange)} {fmtPct(stockChangePct || 0)}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-white/25">ITM ▽</span>
+                        </div>
+                      )}
+
+                      <div
+                        className="flex items-center text-[11px] font-mono border-b border-[#0f0f0f] hover:bg-white/[0.03] transition-colors"
+                        style={{ background: rowBg }}
                       >
-                        <td className="px-3 py-2 text-white/40 text-xs">
-                          {formatTime(alert.timestamp)}
-                          {alert._live && <span className="ml-1 text-emerald-400 text-[9px]">●</span>}
-                        </td>
-                        <td className="px-1 py-2 text-center">{isCall ? '🟢' : '🔴'}</td>
-                        <td className="px-3 py-2 text-white font-medium">{alert.underlying}</td>
-                        <td className={`px-3 py-2 ${textColor} font-mono text-xs`}>{formatStrike(alert.strike, alert.type)}</td>
-                        <td className={`px-3 py-2 text-xs ${textColor}`}>{isCall ? 'CALL' : 'PUT'}</td>
-                        <td className="px-3 py-2 text-white/50 text-xs">{formatExp(alert.expiration)}</td>
-                        <td className="px-3 py-2 text-white/70 font-mono text-xs">${(alert.lastPrice || 0).toFixed(2)}</td>
-                        <td className="px-3 py-2 text-white/70 text-xs">{(alert.volume || 0).toLocaleString()}</td>
-                        <td className="px-3 py-2 text-white/50 text-xs">{(alert.openInterest || 0).toLocaleString()}</td>
-                        <td className={`px-3 py-2 font-mono text-xs font-medium ${voiColor}`}>{voi > 0 ? `${voi.toFixed(1)}x` : '—'}</td>
-                        <td className="px-3 py-2 text-white font-medium text-xs">{formatPremium(alert.estimatedPremium)}</td>
-                        <td className={`px-3 py-2 text-xs font-medium ${BADGE_COLORS[alert.badge] || 'text-white/30'}`}>
-                          {alert.badge || '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+                        {/* ── Calls side ── */}
+                        <div className="flex-1 flex items-center">
+                          <div className="w-[13%] px-2 py-1.5 text-right text-white/60">{call.iv ? fmtIV(call.iv) : '—'}</div>
+                          <div className="w-[13%] px-2 py-1.5 text-right text-white/70">{call.mid ? fmt(call.mid) : '—'}</div>
+                          <div className="w-[14%] px-2 py-1.5 text-right" style={{ color: call.pctChange > 0 ? GREEN : call.pctChange < 0 ? RED : '#888' }}>
+                            {call.pctChange != null ? fmtPct(call.pctChange) : '—'}
+                          </div>
+                          <div className="w-[13%] px-2 py-1.5 text-right text-white/70">{call.last ? fmt(call.last) : '—'}</div>
+                          <div className="w-[13%] px-2 py-1.5 text-right font-medium" style={{ color: CALL_COLOR }}>{call.ask ? fmt(call.ask) : '—'}</div>
+                          <div className="w-[13%] px-2 py-1.5 text-right font-medium" style={{ color: CALL_COLOR }}>{call.bid ? fmt(call.bid) : '—'}</div>
+                        </div>
 
-        {/* Sidebar: Sentiment */}
-        <div className="w-64 flex-shrink-0 border-l border-[#1f1f1f] p-4 overflow-y-auto hidden lg:block">
-          <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">Sentiment</h3>
+                        {/* ── Strike ── */}
+                        <div className={`w-20 text-center px-2 py-1.5 font-semibold ${isATM ? 'text-amber-300' : 'text-white'}`}>
+                          {fmtStrike(strike)}
+                        </div>
 
-          {summary ? (
-            <div className="space-y-5">
-              {/* Call/Put Ratio Bar */}
-              <div>
-                <div className="flex justify-between text-[11px] text-white/50 mb-1.5">
-                  <span className="text-emerald-400">Calls</span>
-                  <span className="text-red-400">Puts</span>
-                </div>
-                <div className="flex h-2 rounded-sm overflow-hidden bg-white/5">
-                  {(() => {
-                    const total = summary.totalCallPremium + summary.totalPutPremium;
-                    const callPct = total > 0 ? (summary.totalCallPremium / total) * 100 : 50;
-                    return (
-                      <>
-                        <div className="bg-emerald-500/60 transition-all" style={{ width: `${callPct}%` }} />
-                        <div className="bg-red-500/60 transition-all" style={{ width: `${100 - callPct}%` }} />
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Premium Totals */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-white/40">Call Premium</span>
-                  <span className="text-xs text-emerald-400 font-medium">{formatPremium(summary.totalCallPremium)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-white/40">Put Premium</span>
-                  <span className="text-xs text-red-400 font-medium">{formatPremium(summary.totalPutPremium)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-white/40">C/P Ratio</span>
-                  <span className="text-xs text-white/70 font-mono">{summary.callPutRatio}x</span>
-                </div>
-              </div>
-
-              <div className="border-t border-[#1f1f1f] pt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-white/40">Alerts</span>
-                  <span className="text-xs text-white/70">{summary.totalAlerts}</span>
-                </div>
-                {summary.topBullish && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/40 flex items-center gap-1"><TrendingUp size={10} className="text-emerald-400" /> Bullish</span>
-                    <span className="text-xs text-emerald-400 font-medium">{summary.topBullish}</span>
-                  </div>
-                )}
-                {summary.topBearish && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/40 flex items-center gap-1"><TrendingDown size={10} className="text-red-400" /> Bearish</span>
-                    <span className="text-xs text-red-400 font-medium">{summary.topBearish}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Per-Ticker Breakdown */}
-              <div className="border-t border-[#1f1f1f] pt-3">
-                <h4 className="text-[10px] text-white/30 uppercase tracking-wider mb-2">By Ticker</h4>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {tickerBadges.slice(0, 10).map(({ ticker, calls, puts, premium }) => (
-                    <button
-                      key={ticker}
-                      onClick={() => handleTickerClick(ticker)}
-                      className="w-full flex items-center justify-between text-[11px] hover:bg-white/5 rounded px-1 py-0.5 transition-colors"
-                    >
-                      <span className={`font-medium ${activeTicker === ticker ? 'text-white' : 'text-white/60'}`}>{ticker}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-emerald-400/60">{calls}C</span>
-                        <span className="text-red-400/60">{puts}P</span>
-                        <span className="text-white/40">{formatPremium(premium)}</span>
+                        {/* ── Puts side ── */}
+                        <div className="flex-1 flex items-center">
+                          <div className="w-[13%] px-2 py-1.5 text-left font-medium" style={{ color: PUT_COLOR }}>{put.bid ? fmt(put.bid) : '—'}</div>
+                          <div className="w-[13%] px-2 py-1.5 text-left font-medium" style={{ color: PUT_COLOR }}>{put.ask ? fmt(put.ask) : '—'}</div>
+                          <div className="w-[13%] px-2 py-1.5 text-left text-white/70">{put.last ? fmt(put.last) : '—'}</div>
+                          <div className="w-[14%] px-2 py-1.5 text-left" style={{ color: put.pctChange > 0 ? GREEN : put.pctChange < 0 ? RED : '#888' }}>
+                            {put.pctChange != null ? fmtPct(put.pctChange) : '—'}
+                          </div>
+                          <div className="w-[13%] px-2 py-1.5 text-left text-white/70">{put.mid ? fmt(put.mid) : '—'}</div>
+                          <div className="w-[13%] px-2 py-1.5 text-left text-white/60">{put.iv ? fmtIV(put.iv) : '—'}</div>
+                        </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
+                    </React.Fragment>
+                  );
+                })}
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-4 bg-white/5 rounded animate-pulse" />
-              ))}
-            </div>
-          )}
-        </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
