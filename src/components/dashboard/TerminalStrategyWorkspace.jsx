@@ -30,6 +30,20 @@ const DEFAULT_FOLDERS = [
 ];
 
 const LIVE_STATUSES = new Set(['active', 'live', 'running', 'deployed']);
+const ACTIVE_FOLDER_STATUSES = new Set(['active', 'live', 'running', 'deployed', 'paused']);
+
+const normalizeStrategyStatus = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-')
+    .trim();
+
+const isActiveFolderStatus = (status) => {
+  const normalized = normalizeStrategyStatus(status);
+  if (!normalized) return false;
+  if (normalized.startsWith('paused')) return true;
+  return ACTIVE_FOLDER_STATUSES.has(normalized);
+};
 
 const buildDefaultFolders = () =>
   DEFAULT_FOLDERS.map((folder) => ({
@@ -301,7 +315,7 @@ const mergeFoldersWithStrategies = (prevFolders, strategies, deployedStrategies)
 
   const resolveFolderId = (strategy) => {
     const status = deriveStatus(strategy, deployedIds);
-    if (LIVE_STATUSES.has(status)) return 'active-strategies';
+    if (isActiveFolderStatus(status)) return 'active-strategies';
     if (isSophiaStrategy(strategy)) return 'sophia-strategies';
     if (strategy?.isStarred) return 'favorites';
     if (strategy?.archived) return 'archive';
@@ -1100,7 +1114,7 @@ const TerminalStrategyWorkspace = ({
                             const id = String(strategy.id);
                             const isSelected = id === String(selectedStrategyId || '');
                             const profitText = formatProfit(strategy.profit);
-                            const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
+                            const isLive = LIVE_STATUSES.has(normalizeStrategyStatus(strategy.status));
                             const isDeleting = deletingStrategyId === id;
                             const displayTicker = normalizeTickerSymbol(strategy.ticker);
 
