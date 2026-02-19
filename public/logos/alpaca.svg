@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
-  <circle cx="25" cy="30" r="20" fill="#FFC107"/>
-  <path d="M20 20 Q25 15 30 20 L30 40 Q25 45 20 40 Z" fill="#1a1a1a"/>
-  <text x="55" y="40" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="white">Alpaca</text>
-</svg>
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M60 10C32.4 10 10 32.4 10 60s22.4 50 50 50 50-22.4 50-50S87.6 10 60 10zm0 90c-22.1 0-40-17.9-40-40s17.9-40 40-40 40 17.9 40 40-17.9 40-40 40z" fill="#FBBF24"/><text x="60" y="72" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="36" fill="#FBBF24">A</text></svg>

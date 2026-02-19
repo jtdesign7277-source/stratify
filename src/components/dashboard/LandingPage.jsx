@@ -349,6 +349,50 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
                 Join the Stratify community on Discord
               </a>
             </div>
+
+            {/* Powered By logos */}
+            <div className="mt-12 flex flex-col items-center gap-4">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-gray-600">Powered By</p>
+              <div className="flex items-center justify-center gap-8 flex-wrap">
+                {/* Vercel */}
+                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 opacity-40 hover:opacity-80 transition-opacity" title="Vercel">
+                  <svg width="20" height="18" viewBox="0 0 76 65" fill="none"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="white"/></svg>
+                  <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Vercel</span>
+                </a>
+
+                <span className="text-gray-700">·</span>
+
+                {/* Alpaca */}
+                <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 opacity-40 hover:opacity-80 transition-opacity" title="Alpaca Markets">
+                  <svg width="20" height="20" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="8" fill="#FBBF24"/><path d="M12 28V16l8-6 8 6v12H12z" fill="white"/><circle cx="17" cy="20" r="2" fill="#FBBF24"/><circle cx="23" cy="20" r="2" fill="#FBBF24"/></svg>
+                  <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Alpaca</span>
+                </a>
+
+                <span className="text-gray-700">·</span>
+
+                {/* Railway */}
+                <a href="https://railway.app" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 opacity-40 hover:opacity-80 transition-opacity" title="Railway">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M.113 13.029c.075.32.165.636.27.946h5.715c.2-.3.4-.6.538-.946H.113zM4.87 18.472c.21.2.428.39.654.57h2.348a34 34 0 0 0 2.248-1.517H5.824c-.342.337-.662.66-.954.947zM.685 15.908c.128.248.266.491.413.728h4.424c.4-.1.555-.451.743-.728H.685zM10.065 20.91c.492.204 1.003.37 1.527.497.147-.163.32-.333.52-.497h-2.047zM12.063.5C6.308.647 1.606 4.87.502 10.365h5.968c1.072-4.022 4.766-6.985 9.146-6.985 1.217 0 2.378.233 3.448.655A11.46 11.46 0 0 0 12.063.5zM23.5 12.063a11.46 11.46 0 0 0-4.574-8.94c1.62 2.074 2.592 4.675 2.592 7.503 0 3.193-1.24 6.098-3.264 8.265A11.46 11.46 0 0 0 23.5 12.063zM15.616 3.38c-4.838 0-8.765 3.927-8.765 8.765 0 4.838 3.927 8.765 8.765 8.765 4.838 0 8.765-3.927 8.765-8.765 0-4.838-3.927-8.765-8.765-8.765z"/></svg>
+                  <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Railway</span>
+                </a>
+
+                <span className="text-gray-700">·</span>
+
+                {/* Claude / Anthropic */}
+                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 opacity-40 hover:opacity-80 transition-opacity" title="Anthropic Claude">
+                  <svg width="20" height="20" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" fill="#D97757"/><path d="M17.2 13.5c-.4-1.1-2-1.1-2.3 0L11.6 23c-.1.4.2.8.6.8h2.1c.3 0 .5-.2.6-.4l.7-2h3.8l.7 2c.1.2.3.4.6.4h2.1c.4 0 .7-.4.6-.8l-3.3-9.5zm-.6 6.3l.9-2.8.9 2.8h-1.8zM26 13.4c-.6 0-1 .5-1 1v8.5c0 .9.7 1.6 1.6 1.6h2.5c.6 0 1-.5 1-1s-.5-1-1-1h-1.9v-8c0-.6-.5-1.1-1.1-1.1z" fill="white"/></svg>
+                  <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Claude</span>
+                </a>
+
+                <span className="text-gray-700">·</span>
+
+                {/* Anthropic */}
+                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 opacity-40 hover:opacity-80 transition-opacity" title="Anthropic">
+                  <svg width="18" height="18" viewBox="0 0 60 60" fill="none"><path d="M35.4 8H24.6L4 52h11.4l4.2-9h20.8l4.2 9H56L35.4 8zM23.4 36L30 21.6 36.6 36H23.4z" fill="white"/></svg>
+                  <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Anthropic</span>
+                </a>
+              </div>
+            </div>
           </div>
         </motion.section>
 
