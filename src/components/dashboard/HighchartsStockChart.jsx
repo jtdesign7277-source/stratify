@@ -7,8 +7,12 @@ import StockTools from 'highcharts/modules/stock-tools';
 
 // Initialize modules safely
 const initModule = (mod) => {
-  const fn = mod?.default || mod;
-  if (typeof fn === 'function') fn(Highcharts);
+  try {
+    const fn = mod?.default || mod;
+    if (typeof fn === 'function') fn(Highcharts);
+  } catch (e) {
+    console.warn('Highcharts module init failed:', e);
+  }
 };
 initModule(IndicatorsAll);
 initModule(AnnotationsAdvanced);
