@@ -1,338 +1,346 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Activity, ArrowUpDown, RefreshCw, TrendingUp, TrendingDown, Filter } from 'lucide-react';
 
-// ── Formatters ──────────────────────────────────────────────
-const fmtK = (v) => {
-  if (v == null) return '—';
-  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
-  return v.toLocaleString();
+const formatPremium = (val) => {
+  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
+  return `$${val.toFixed(0)}`;
 };
 
-const fmtPremium = (v) => {
-  if (v == null) return '—';
-  if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
-  if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
-  return '$' + v.toLocaleString();
+const formatStrike = (strike, type) => `$${strike} ${type === 'call' ? 'C' : 'P'}`;
+
+const formatTime = (ts) => {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
-const fmtExp = (d) => {
-  if (!d) return '';
-  const parts = d.split('-');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
+const formatExp = (date) => {
+  if (!date) return '—';
+  const d = new Date(date + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-// ── Badge config ────────────────────────────────────────────
-const BADGE_MAP = {
-  'SWEEP':     { text: 'SWEEP',     color: 'text-yellow-400', border: 'border-yellow-400/30', bg: 'bg-yellow-400/5' },
-  'BLOCK':     { text: 'BLOCK',     color: 'text-orange-400', border: 'border-orange-400/30', bg: 'bg-orange-400/5' },
-  'UNUSUAL':   { text: 'UNUSUAL',   color: 'text-cyan-400',   border: 'border-cyan-400/30',   bg: 'bg-cyan-400/5' },
-  'DARK POOL': { text: 'DARK POOL', color: 'text-purple-400', border: 'border-purple-400/30', bg: 'bg-purple-400/5' },
+const BADGE_COLORS = {
+  SWEEP: 'text-purple-400',
+  BLOCK: 'text-blue-400',
+  UNUSUAL: 'text-amber-400',
 };
 
-// ── Filter presets ──────────────────────────────────────────
 const FILTERS = [
-  { id: 'all',       label: 'All' },
-  { id: 'calls',     label: 'Calls Only' },
-  { id: 'puts',      label: 'Puts Only' },
-  { id: 'sweeps',    label: 'Sweeps' },
-  { id: 'prem100k',  label: '$100K+' },
-  { id: 'prem500k',  label: '$500K+' },
-  { id: 'prem1m',    label: '$1M+' },
+  { key: 'all', label: 'All' },
+  { key: 'calls', label: 'Calls' },
+  { key: 'puts', label: 'Puts' },
+  { key: 'sweeps', label: 'Sweeps' },
+  { key: '100k', label: '>$100K' },
+  { key: '500k', label: '>$500K' },
+  { key: '1m', label: '>$1M' },
 ];
 
-const SORT_COLS = [
-  { id: 'volumeOIRatio',   label: 'V/OI' },
-  { id: 'volume',          label: 'Volume' },
-  { id: 'estimatedPremium', label: 'Premium' },
-  { id: 'openInterest',    label: 'OI' },
-];
+const SkeletonRow = () => (
+  <tr className="border-b border-[#1f1f1f]">
+    {Array.from({ length: 12 }).map((_, i) => (
+      <td key={i} className="px-3 py-3">
+        <div className="h-4 bg-white/5 rounded animate-pulse" style={{ width: `${40 + Math.random() * 40}%` }} />
+      </td>
+    ))}
+  </tr>
+);
 
-// ═════════════════════════════════════════════════════════════
-// Component
-// ═════════════════════════════════════════════════════════════
 const OptionsPage = () => {
-  const [alerts, setAlerts] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [filter, setFilter] = useState('all');
+  const [error, setError] = useState(null);
   const [tickerFilter, setTickerFilter] = useState(null);
-  const [sortCol, setSortCol] = useState('volumeOIRatio');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [sortCol, setSortCol] = useState('estimatedPremium');
   const [sortDir, setSortDir] = useState('desc');
+  const [refreshing, setRefreshing] = useState(false);
+  const intervalRef = useRef(null);
 
-  // ── Fetch ───────────────────────────────────────────────
-  const fetchFlow = useCallback(async () => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+
       const res = await fetch('/api/options/flow');
-      const data = await res.json();
-      if (data.alerts) {
-        setAlerts(data.alerts);
-        setLastUpdate(new Date());
-      }
-    } catch (e) { console.error('Options flow fetch error:', e); }
-    setLoading(false);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      setData(json);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
-    fetchFlow();
-    const iv = setInterval(fetchFlow, 30000);
-    return () => clearInterval(iv);
-  }, [fetchFlow]);
+    fetchData();
+    intervalRef.current = setInterval(() => fetchData(true), 30000);
+    return () => clearInterval(intervalRef.current);
+  }, [fetchData]);
 
-  // ── Derived: ticker summary ─────────────────────────────
-  const tickerSummary = useMemo(() => {
-    const map = {};
-    alerts.forEach(a => {
-      if (!map[a.symbol]) map[a.symbol] = { symbol: a.symbol, count: 0, calls: 0, puts: 0, callPremium: 0, putPremium: 0 };
-      map[a.symbol].count++;
-      if (a.type === 'call') { map[a.symbol].calls++; map[a.symbol].callPremium += a.estimatedPremium || 0; }
-      else { map[a.symbol].puts++; map[a.symbol].putPremium += a.estimatedPremium || 0; }
-    });
-    return Object.values(map).sort((a, b) => b.count - a.count);
-  }, [alerts]);
-
-  // ── Derived: stats ──────────────────────────────────────
-  const stats = useMemo(() => {
-    let totalCalls = 0, totalPuts = 0, callPremium = 0, putPremium = 0, darkPool = 0;
-    alerts.forEach(a => {
-      if (a.type === 'call') { totalCalls++; callPremium += a.estimatedPremium || 0; }
-      else { totalPuts++; putPremium += a.estimatedPremium || 0; }
-      if (a.tradeType === 'DARK POOL') darkPool++;
-    });
-    const mostBullish = tickerSummary.reduce((best, t) => (!best || (t.calls - t.puts) > (best.calls - best.puts) ? t : best), null);
-    const mostBearish = tickerSummary.reduce((best, t) => (!best || (t.puts - t.calls) > (best.puts - best.calls) ? t : best), null);
-    return { totalCalls, totalPuts, callPremium, putPremium, darkPool, mostBullish, mostBearish };
-  }, [alerts, tickerSummary]);
-
-  // ── Derived: filtered & sorted alerts ───────────────────
   const filteredAlerts = useMemo(() => {
-    let list = [...alerts];
-    if (tickerFilter) list = list.filter(a => a.symbol === tickerFilter);
-    switch (filter) {
-      case 'calls':    list = list.filter(a => a.type === 'call'); break;
-      case 'puts':     list = list.filter(a => a.type === 'put'); break;
-      case 'sweeps':   list = list.filter(a => a.tradeType === 'SWEEP'); break;
-      case 'prem100k': list = list.filter(a => (a.estimatedPremium || 0) >= 100000); break;
-      case 'prem500k': list = list.filter(a => (a.estimatedPremium || 0) >= 500000); break;
-      case 'prem1m':   list = list.filter(a => (a.estimatedPremium || 0) >= 1000000); break;
-      default: break;
-    }
-    list.sort((a, b) => {
-      const av = a[sortCol] ?? 0, bv = b[sortCol] ?? 0;
-      return sortDir === 'desc' ? bv - av : av - bv;
+    if (!data?.alerts) return [];
+    let alerts = [...data.alerts];
+
+    if (tickerFilter) alerts = alerts.filter((a) => a.underlying === tickerFilter);
+
+    if (typeFilter === 'calls') alerts = alerts.filter((a) => a.type === 'call');
+    else if (typeFilter === 'puts') alerts = alerts.filter((a) => a.type === 'put');
+    else if (typeFilter === 'sweeps') alerts = alerts.filter((a) => a.badge === 'SWEEP');
+    else if (typeFilter === '100k') alerts = alerts.filter((a) => a.estimatedPremium > 100_000);
+    else if (typeFilter === '500k') alerts = alerts.filter((a) => a.estimatedPremium > 500_000);
+    else if (typeFilter === '1m') alerts = alerts.filter((a) => a.estimatedPremium > 1_000_000);
+
+    alerts.sort((a, b) => {
+      const av = a[sortCol], bv = b[sortCol];
+      if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
+      return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-    return list;
-  }, [alerts, filter, tickerFilter, sortCol, sortDir]);
+
+    return alerts;
+  }, [data, tickerFilter, typeFilter, sortCol, sortDir]);
 
   const handleSort = (col) => {
-    if (sortCol === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    if (sortCol === col) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('desc'); }
   };
 
-  const callPutRatio = stats.totalPuts > 0 ? (stats.totalCalls / stats.totalPuts).toFixed(2) : '∞';
+  const summary = data?.summary;
+  const byTicker = summary?.byTicker || {};
+
+  const tickerBadges = useMemo(() => {
+    return Object.entries(byTicker)
+      .map(([ticker, info]) => ({ ticker, ...info, total: info.calls + info.puts }))
+      .sort((a, b) => b.total - a.total);
+  }, [byTicker]);
+
+  const SortHeader = ({ col, children, className = '' }) => (
+    <th
+      className={`px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider cursor-pointer hover:text-white/70 select-none ${className}`}
+      onClick={() => handleSort(col)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {children}
+        {sortCol === col && <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />}
+      </span>
+    </th>
+  );
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden bg-[#0b0b0b] text-white/80">
-
-      {/* ── Section 2: Top Tickers Summary Bar ─────────────── */}
-      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-2 overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Top Bar: Ticker Summary */}
+      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-3">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setTickerFilter(null)}
-            className={`text-[10px] px-2 py-1 rounded font-mono transition-colors ${
-              !tickerFilter ? 'text-white bg-white/10' : 'text-white/30 hover:text-white/50'
+            className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded border transition-colors ${
+              !tickerFilter ? 'border-emerald-500/50 text-emerald-400' : 'border-[#1f1f1f] text-white/40 hover:text-white/70'
             }`}
-          >ALL</button>
-          {tickerSummary.map(t => {
-            const net = t.calls - t.puts;
-            const sentColor = net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/50';
-            const isActive = tickerFilter === t.symbol;
+          >
+            All
+          </button>
+          {tickerBadges.map(({ ticker, calls, puts, total }) => {
+            const isBullish = calls >= puts;
+            const isActive = tickerFilter === ticker;
             return (
               <button
-                key={t.symbol}
-                onClick={() => setTickerFilter(isActive ? null : t.symbol)}
-                className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded font-mono transition-colors ${
-                  isActive ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/60 hover:bg-white/[0.03]'
+                key={ticker}
+                onClick={() => setTickerFilter(isActive ? null : ticker)}
+                className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded border transition-colors ${
+                  isActive
+                    ? isBullish ? 'border-emerald-500/50 text-emerald-400' : 'border-red-500/50 text-red-400'
+                    : `border-[#1f1f1f] hover:border-white/20 ${isBullish ? 'text-emerald-400/70' : 'text-red-400/70'}`
                 }`}
               >
-                <span className={sentColor}>${t.symbol}</span>
-                <span className="text-white/20">{t.count}</span>
+                ${ticker} ({total})
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* ── Section 3: Stats Cards ─────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-2">
-        <div className="flex items-center gap-6 text-[10px] font-mono flex-wrap">
-          {/* Sentiment */}
-          <div className="flex items-center gap-2">
-            <span className="text-white/25 uppercase tracking-wider">Sentiment</span>
-            <span className="text-emerald-400">{stats.totalCalls} calls</span>
-            <span className="text-white/15">/</span>
-            <span className="text-red-400">{stats.totalPuts} puts</span>
-            <span className="text-white/20">({callPutRatio})</span>
-          </div>
-          {/* Premium */}
-          <div className="flex items-center gap-2">
-            <span className="text-white/25 uppercase tracking-wider">Premium</span>
-            <span className="text-emerald-400">{fmtPremium(stats.callPremium)}</span>
-            <span className="text-white/15">/</span>
-            <span className="text-red-400">{fmtPremium(stats.putPremium)}</span>
-          </div>
-          {/* Most bullish/bearish */}
-          {stats.mostBullish && (
-            <div className="flex items-center gap-1">
-              <span className="text-white/25 uppercase tracking-wider">Bull</span>
-              <span className="text-emerald-400">${stats.mostBullish.symbol}</span>
-            </div>
-          )}
-          {stats.mostBearish && (
-            <div className="flex items-center gap-1">
-              <span className="text-white/25 uppercase tracking-wider">Bear</span>
-              <span className="text-red-400">${stats.mostBearish.symbol}</span>
-            </div>
-          )}
-          {/* Dark Pool */}
-          {stats.darkPool > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="text-white/25 uppercase tracking-wider">Dark Pool</span>
-              <span className="text-purple-400">{stats.darkPool}</span>
-            </div>
-          )}
-          {/* Last update */}
-          <div className="ml-auto flex items-center gap-2">
-            {lastUpdate && (
-              <span className="text-white/15">
-                Updated {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            )}
-            {loading && (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/20 animate-spin">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-              </svg>
-            )}
-            <span className="text-white/10">{filteredAlerts.length} alerts</span>
+          <div className="flex-shrink-0 ml-auto flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${refreshing ? 'bg-emerald-400 animate-pulse' : 'bg-white/10'}`} />
+            <span className="text-[10px] text-white/30">30s</span>
           </div>
         </div>
       </div>
 
-      {/* ── Filter Bar ─────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-[#1f1f1f] px-4 py-1.5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            {FILTERS.map(f => (
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main: Flow Table */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Filter Row */}
+          <div className="flex-shrink-0 flex items-center gap-1 px-4 py-2 border-b border-[#1f1f1f]">
+            <Filter size={12} className="text-white/30 mr-1" />
+            {FILTERS.map(({ key, label }) => (
               <button
-                key={f.id}
-                onClick={() => setFilter(f.id)}
-                className={`text-[10px] px-2 py-0.5 rounded transition-colors font-mono ${
-                  filter === f.id ? 'text-white bg-white/10' : 'text-white/25 hover:text-white/50'
-                }`}
-              >{f.label}</button>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-1 text-[9px] text-white/20">
-            <span>Sort:</span>
-            {SORT_COLS.map(s => (
-              <button
-                key={s.id}
-                onClick={() => handleSort(s.id)}
-                className={`px-1.5 py-0.5 rounded transition-colors ${
-                  sortCol === s.id ? 'text-emerald-400 bg-emerald-400/5' : 'text-white/25 hover:text-white/40'
+                key={key}
+                onClick={() => setTypeFilter(key)}
+                className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                  typeFilter === key ? 'text-emerald-400 border border-emerald-500/30' : 'text-white/40 hover:text-white/60'
                 }`}
               >
-                {s.label}{sortCol === s.id ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+                {label}
               </button>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* ── Section 1: Live Flow Feed (main area) ──────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Column headers */}
-        <div className="sticky top-0 z-10 bg-[#0b0b0b] border-b border-[#1f1f1f] px-4 py-1.5 flex items-center gap-2 text-[9px] text-white/20 uppercase tracking-wider font-mono">
-          <span className="w-4"></span>
-          <span className="w-12">Ticker</span>
-          <span className="w-16">Strike</span>
-          <span className="w-14">Exp</span>
-          <span className="w-14 text-right">Last</span>
-          <span className="w-14 text-right cursor-pointer hover:text-white/40" onClick={() => handleSort('volume')}>Vol</span>
-          <span className="w-14 text-right cursor-pointer hover:text-white/40" onClick={() => handleSort('openInterest')}>OI</span>
-          <span className="w-12 text-right cursor-pointer hover:text-white/40" onClick={() => handleSort('volumeOIRatio')}>V/OI</span>
-          <span className="w-16 text-right cursor-pointer hover:text-white/40" onClick={() => handleSort('estimatedPremium')}>Premium</span>
-          <span className="w-16 text-right">Type</span>
-        </div>
+          {/* Table */}
+          <div className="flex-1 overflow-auto">
+            {loading && !data ? (
+              <div className="px-4 py-12 flex flex-col items-center justify-center gap-3">
+                <Activity size={24} className="text-emerald-400 animate-pulse" />
+                <span className="text-white/40 text-sm">Scanning options flow<span className="animate-pulse">...</span></span>
+                <table className="w-full mt-4">
+                  <tbody>
+                    {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
+                  </tbody>
+                </table>
+              </div>
+            ) : error ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-red-400 text-sm">{error}</p>
+                <button onClick={() => fetchData()} className="mt-2 text-xs text-white/40 hover:text-white/60">Retry</button>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-[#0b0b0b] z-10">
+                  <tr className="border-b border-[#1f1f1f]">
+                    <SortHeader col="timestamp">Time</SortHeader>
+                    <th className="px-3 py-2 w-6"></th>
+                    <SortHeader col="underlying">Ticker</SortHeader>
+                    <SortHeader col="strike">Strike</SortHeader>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Type</th>
+                    <SortHeader col="expiration">Exp</SortHeader>
+                    <SortHeader col="lastPrice">Last</SortHeader>
+                    <SortHeader col="volume">Vol</SortHeader>
+                    <SortHeader col="openInterest">OI</SortHeader>
+                    <SortHeader col="volumeOIRatio">V/OI</SortHeader>
+                    <SortHeader col="estimatedPremium">Premium</SortHeader>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Badge</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAlerts.length === 0 ? (
+                    <tr><td colSpan={12} className="px-4 py-8 text-center text-white/30 text-sm">No unusual activity found</td></tr>
+                  ) : filteredAlerts.map((alert, i) => {
+                    const isCall = alert.type === 'call';
+                    const borderColor = isCall ? 'border-l-emerald-500' : 'border-l-red-500';
+                    const textColor = isCall ? 'text-emerald-400' : 'text-red-400';
+                    const voiColor = alert.volumeOIRatio > 10 ? 'text-red-400' : alert.volumeOIRatio > 5 ? 'text-amber-400' : 'text-white/70';
 
-        {/* Rows */}
-        {filteredAlerts.length === 0 && !loading && (
-          <div className="text-white/10 text-xs py-12 text-center">
-            {alerts.length === 0 ? 'Loading unusual options flow...' : 'No alerts match current filters'}
+                    return (
+                      <tr key={`${alert.symbol}-${i}`} className={`border-b border-[#1f1f1f] border-l-2 ${borderColor} hover:bg-white/[0.02] transition-colors`}>
+                        <td className="px-3 py-2 text-white/40 text-xs">{formatTime(alert.timestamp)}</td>
+                        <td className="px-1 py-2 text-center">{isCall ? '🟢' : '🔴'}</td>
+                        <td className="px-3 py-2 text-white font-medium">{alert.underlying}</td>
+                        <td className={`px-3 py-2 ${textColor} font-mono text-xs`}>{formatStrike(alert.strike, alert.type)}</td>
+                        <td className={`px-3 py-2 text-xs ${textColor}`}>{isCall ? 'CALL' : 'PUT'}</td>
+                        <td className="px-3 py-2 text-white/50 text-xs">{formatExp(alert.expiration)}</td>
+                        <td className="px-3 py-2 text-white/70 font-mono text-xs">${alert.lastPrice.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-white/70 text-xs">{alert.volume.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-white/50 text-xs">{alert.openInterest.toLocaleString()}</td>
+                        <td className={`px-3 py-2 font-mono text-xs font-medium ${voiColor}`}>{alert.volumeOIRatio.toFixed(1)}x</td>
+                        <td className="px-3 py-2 text-white font-medium text-xs">{formatPremium(alert.estimatedPremium)}</td>
+                        <td className={`px-3 py-2 text-xs font-medium ${BADGE_COLORS[alert.badge] || 'text-white/30'}`}>
+                          {alert.badge || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
-        {filteredAlerts.map((a, i) => {
-          const isCall = a.type === 'call';
-          const rowBg = isCall ? 'hover:bg-emerald-500/[0.03]' : 'hover:bg-red-500/[0.03]';
-          const strikeStr = a.strike % 1 === 0 ? a.strike.toFixed(0) : a.strike.toFixed(1);
-          const badge = a.tradeType && BADGE_MAP[a.tradeType] ? BADGE_MAP[a.tradeType]
-            : a.volumeOIRatio >= 5 ? BADGE_MAP['UNUSUAL'] : null;
+        </div>
 
-          return (
-            <div
-              key={`${a.contractSymbol}-${i}`}
-              className={`flex items-center gap-2 px-4 py-2 border-b border-[#0a0a0a] transition-colors ${rowBg}`}
-            >
-              {/* Dot */}
-              <span className="w-4 text-[11px] flex-shrink-0">{isCall ? '🟢' : '🔴'}</span>
+        {/* Sidebar: Sentiment */}
+        <div className="w-64 flex-shrink-0 border-l border-[#1f1f1f] p-4 overflow-y-auto hidden lg:block">
+          <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-4">Sentiment</h3>
 
-              {/* Ticker */}
-              <span className="w-12 text-[12px] font-semibold font-mono text-white flex-shrink-0">{a.symbol}</span>
+          {summary ? (
+            <div className="space-y-5">
+              {/* Call/Put Ratio Bar */}
+              <div>
+                <div className="flex justify-between text-[11px] text-white/50 mb-1.5">
+                  <span className="text-emerald-400">Calls</span>
+                  <span className="text-red-400">Puts</span>
+                </div>
+                <div className="flex h-2 rounded-sm overflow-hidden bg-white/5">
+                  {(() => {
+                    const total = summary.totalCallPremium + summary.totalPutPremium;
+                    const callPct = total > 0 ? (summary.totalCallPremium / total) * 100 : 50;
+                    return (
+                      <>
+                        <div className="bg-emerald-500/60 transition-all" style={{ width: `${callPct}%` }} />
+                        <div className="bg-red-500/60 transition-all" style={{ width: `${100 - callPct}%` }} />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
 
-              {/* Strike + C/P */}
-              <span className={`w-16 text-[11px] font-mono flex-shrink-0 ${isCall ? 'text-emerald-400' : 'text-red-400'}`}>
-                {strikeStr}{isCall ? 'C' : 'P'}
-              </span>
+              {/* Premium Totals */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-white/40">Call Premium</span>
+                  <span className="text-xs text-emerald-400 font-medium">{formatPremium(summary.totalCallPremium)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-white/40">Put Premium</span>
+                  <span className="text-xs text-red-400 font-medium">{formatPremium(summary.totalPutPremium)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-white/40">C/P Ratio</span>
+                  <span className="text-xs text-white/70 font-mono">{summary.callPutRatio}x</span>
+                </div>
+              </div>
 
-              {/* Expiration */}
-              <span className="w-14 text-[10px] text-white/30 font-mono flex-shrink-0">{fmtExp(a.expiration)}</span>
-
-              {/* Last */}
-              <span className="w-14 text-[11px] text-white/50 font-mono text-right flex-shrink-0">
-                {a.last != null ? '$' + (a.last < 1 ? a.last.toFixed(2) : a.last.toFixed(2)) : '—'}
-              </span>
-
-              {/* Volume */}
-              <span className={`w-14 text-[11px] font-mono text-right flex-shrink-0 ${
-                a.volume >= 5000 ? 'text-white font-semibold' : a.volume >= 1000 ? 'text-white/70' : 'text-white/40'
-              }`}>{fmtK(a.volume)}</span>
-
-              {/* OI */}
-              <span className="w-14 text-[11px] text-white/30 font-mono text-right flex-shrink-0">{fmtK(a.openInterest)}</span>
-
-              {/* V/OI */}
-              <span className={`w-12 text-[11px] font-mono font-semibold text-right flex-shrink-0 ${
-                a.volumeOIRatio >= 20 ? 'text-red-400' : a.volumeOIRatio >= 10 ? 'text-orange-400' : a.volumeOIRatio >= 5 ? 'text-yellow-400' : 'text-white/40'
-              }`}>
-                {a.volumeOIRatio >= 999 ? '∞' : a.volumeOIRatio + 'x'}
-              </span>
-
-              {/* Premium */}
-              <span className={`w-16 text-[11px] font-mono font-medium text-right flex-shrink-0 ${
-                (a.estimatedPremium || 0) >= 1000000 ? 'text-white' : (a.estimatedPremium || 0) >= 100000 ? 'text-white/70' : 'text-white/40'
-              }`}>{fmtPremium(a.estimatedPremium)}</span>
-
-              {/* Badge */}
-              <span className="w-16 flex justify-end flex-shrink-0">
-                {badge && (
-                  <span className={`text-[8px] tracking-wider font-semibold border rounded px-1.5 py-0.5 ${badge.color} ${badge.border} ${badge.bg}`}>
-                    {badge.text}
-                  </span>
+              <div className="border-t border-[#1f1f1f] pt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-white/40">Alerts</span>
+                  <span className="text-xs text-white/70">{summary.totalAlerts}</span>
+                </div>
+                {summary.topBullish && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-white/40 flex items-center gap-1"><TrendingUp size={10} className="text-emerald-400" /> Bullish</span>
+                    <span className="text-xs text-emerald-400 font-medium">{summary.topBullish}</span>
+                  </div>
                 )}
-              </span>
+                {summary.topBearish && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-white/40 flex items-center gap-1"><TrendingDown size={10} className="text-red-400" /> Bearish</span>
+                    <span className="text-xs text-red-400 font-medium">{summary.topBearish}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Per-Ticker Breakdown */}
+              <div className="border-t border-[#1f1f1f] pt-3">
+                <h4 className="text-[10px] text-white/30 uppercase tracking-wider mb-2">By Ticker</h4>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {tickerBadges.slice(0, 10).map(({ ticker, calls, puts, premium }) => (
+                    <div key={ticker} className="flex items-center justify-between text-[11px]">
+                      <span className="text-white/60 font-medium">{ticker}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-emerald-400/60">{calls}C</span>
+                        <span className="text-red-400/60">{puts}P</span>
+                        <span className="text-white/40">{formatPremium(premium)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          );
-        })}
+          ) : (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-4 bg-white/5 rounded animate-pulse" />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
