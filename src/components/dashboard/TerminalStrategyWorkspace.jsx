@@ -28,7 +28,7 @@ const DEFAULT_FOLDERS = [
   { id: 'sophia-strategies', name: 'Sophia Strategies', isExpanded: true, strategies: [] },
   { id: 'archive', name: 'Archive', isExpanded: false, strategies: [] },
 ];
-const SYSTEM_FOLDER_IDS = new Set(DEFAULT_FOLDERS.map((folder) => folder.id));
+const PROTECTED_FOLDER_IDS = new Set(['stratify']);
 
 const LIVE_STATUSES = new Set(['active', 'live', 'running', 'deployed']);
 const ACTIVE_FOLDER_STATUSES = new Set(['active', 'live', 'running', 'deployed', 'paused']);
@@ -206,19 +206,16 @@ const ensureDefaultFolders = (folders) => {
     if (!byId.has(folder.id)) byId.set(folder.id, folder);
   });
 
-  const merged = buildDefaultFolders().map((defaultFolder) => {
-    const existing = byId.get(defaultFolder.id);
-    if (!existing) return defaultFolder;
-    byId.delete(defaultFolder.id);
-    return {
-      ...defaultFolder,
-      name: existing.name || defaultFolder.name,
-      isExpanded: existing.isExpanded,
-      strategies: existing.strategies,
-    };
-  });
-
+  const merged = [];
   byId.forEach((folder) => merged.push(folder));
+
+  if (merged.length === 0) {
+    return buildDefaultFolders();
+  }
+
+  if (!merged.some((folder) => folder.id === 'stratify')) {
+    merged.unshift(normalizeFolder(DEFAULT_FOLDERS[0], 0));
+  }
 
   const seenStrategyIds = new Set();
   return merged.map((folder) => ({
@@ -932,7 +929,8 @@ const TerminalStrategyWorkspace = ({
 
   const handleDeleteFolder = (folderId) => {
     const targetId = String(folderId || '').trim();
-    if (!targetId || SYSTEM_FOLDER_IDS.has(targetId)) return;
+    if (!targetId) return;
+    if (PROTECTED_FOLDER_IDS.has(targetId)) return;
 
     const confirmed =
       typeof window === 'undefined' ? true : window.confirm('Delete this folder? Strategies will be moved to Archive.');
@@ -1130,7 +1128,7 @@ const TerminalStrategyWorkspace = ({
               {folders.map((folder) => {
                 const hasStrategies = folder.strategies.length > 0;
 
-                const isSystemFolder = SYSTEM_FOLDER_IDS.has(folder.id);
+                const isProtectedFolder = PROTECTED_FOLDER_IDS.has(folder.id);
 
                 return (
                   <div key={folder.id} className="mb-2">
@@ -1153,7 +1151,7 @@ const TerminalStrategyWorkspace = ({
                         </span>
                       </button>
 
-                      {!isSystemFolder && (
+                      {!isProtectedFolder && (
                         <button
                           type="button"
                           onClick={(event) => {
@@ -1176,7 +1174,10 @@ const TerminalStrategyWorkspace = ({
                             const id = String(strategy.id);
                             const isSelected = id === String(selectedStrategyId || '');
                             const profitText = formatProfit(strategy.profit);
-                            const isLive = LIVE_STATUSES.has(normalizeStrategyStatus(strategy.status));
+                            const normalizedStatus = normalizeStrategyStatus(strategy.status);
+                            const isLive = LIVE_STATUSES.has(normalizedStatus);
+                            const isInPlay = isActiveFolderStatus(normalizedStatus);
+                            const isPaused = isInPlay && !isLive;
                             const isDeleting = deletingStrategyId === id;
                             const displayTicker = normalizeTickerSymbol(strategy.ticker);
 
@@ -1188,7 +1189,11 @@ const TerminalStrategyWorkspace = ({
                                   className={`w-full text-left rounded-lg border px-2.5 py-2 pr-9 transition-colors ${
                                     isSelected
                                       ? 'border-emerald-500/45 bg-emerald-500/12'
-                                      : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
+                                      : isInPlay
+                                        ? isPaused
+                                          ? 'border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/15'
+                                          : 'border-cyan-400/45 bg-cyan-500/12 shadow-[0_0_16px_rgba(34,211,238,0.12)] hover:bg-cyan-500/16'
+                                        : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
                                   }`}
                                 >
                                   <div className="flex items-start justify-between gap-2">
@@ -1200,6 +1205,17 @@ const TerminalStrategyWorkspace = ({
                                         {displayTicker && (
                                           <span className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400 font-semibold">
                                             ${displayTicker}
+                                          </span>
+                                        )}
+                                        {isInPlay && (
+                                          <span
+                                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                                              isPaused
+                                                ? 'border border-amber-400/40 bg-amber-500/12 text-amber-300'
+                                                : 'border border-cyan-400/45 bg-cyan-500/12 text-cyan-200'
+                                            }`}
+                                          >
+                                            {isPaused ? 'PAUSED' : 'IN PLAY'}
                                           </span>
                                         )}
                                         <span className="text-[10px] text-white/45">{formatDate(strategy.createdAt)}</span>
@@ -1215,7 +1231,12 @@ const TerminalStrategyWorkspace = ({
                                       </div>
                                     </div>
 
-                                    {isLive && <Play className="h-3.5 w-3.5 text-emerald-300 mt-0.5" strokeWidth={1.7} />}
+                                    {isInPlay && (
+                                      <Play
+                                        className={`h-3.5 w-3.5 mt-0.5 ${isPaused ? 'text-amber-300' : 'text-cyan-300'}`}
+                                        strokeWidth={1.7}
+                                      />
+                                    )}
                                   </div>
                                 </button>
 
