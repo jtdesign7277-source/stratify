@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, GripVertical, ChevronRight, CheckCircle2, Pin } from 'lucide-react';
+import { Search, Plus, X, Trash2, ChevronsLeft, ChevronsRight, GripVertical, CheckCircle2, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
@@ -1673,9 +1673,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             {!isTradePanelOpen && (
               <button
                 onClick={() => setIsTradePanelOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#111111] border border-[#2a2a2a] text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#111111] border border-[#2a2a2a] text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
               >
-                Trade
+                <span>Trade</span>
+                <ChevronsLeft className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -1707,24 +1708,26 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
           <div
             className={`relative flex flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
               isTradePanelOpen
-                ? 'w-[430px] border-l border-white/10 opacity-100'
+                ? 'w-[344px] border-l border-white/10 opacity-100'
                 : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
             }`}
           >
-            <div className="border-b border-white/10 px-4 py-4">
-              <div className="flex items-center justify-end">
+            <div className="border-b border-white/10 px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">Trade Entry</span>
                 <button
                   type="button"
                   onClick={() => setIsTradePanelOpen(false)}
                   aria-label="Collapse trade panel"
-                  className="text-white/40 hover:text-white/70 transition"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-white/50 hover:text-white/80 transition"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <span>Collapse</span>
+                  <ChevronsRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-3 py-3">
               {/* Entry Step */}
               <div className={`space-y-4 overflow-hidden transition-all duration-300 ${
                 orderStep === 'entry' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
@@ -1766,11 +1769,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                   buyingPowerDisplay={buyingPowerDisplay}
                   onReview={handleReview}
                   reviewDisabled={!canReview}
+                  density="trade"
                   extraFields={
                     <div className="space-y-2">
                       {(orderType === 'limit' || orderType === 'stop_limit') && (
                         <div className="space-y-1">
-                          <label className="block text-sm font-semibold text-[#2f3238]">Limit Price</label>
+                          <label className="block text-sm font-semibold text-slate-300">Limit Price</label>
                           <input
                             type="number"
                             min="0"
@@ -1780,13 +1784,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                               clearOrderError();
                               setLimitPrice(event.target.value);
                             }}
-                            className="h-[52px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 text-[17px] font-semibold text-[#2f3238] outline-none focus:border-[#95999d]"
+                            className="h-[46px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60"
                           />
                         </div>
                       )}
                       {(orderType === 'stop' || orderType === 'stop_limit') && (
                         <div className="space-y-1">
-                          <label className="block text-sm font-semibold text-[#2f3238]">Stop Price</label>
+                          <label className="block text-sm font-semibold text-slate-300">Stop Price</label>
                           <input
                             type="number"
                             min="0"
@@ -1796,13 +1800,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                               clearOrderError();
                               setStopPrice(event.target.value);
                             }}
-                            className="h-[52px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 text-[17px] font-semibold text-[#2f3238] outline-none focus:border-[#95999d]"
+                            className="h-[46px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60"
                           />
                         </div>
                       )}
                       {orderType === 'trailing_stop' && (
                         <div className="space-y-1">
-                          <label className="block text-sm font-semibold text-[#2f3238]">Trail Amount ($)</label>
+                          <label className="block text-sm font-semibold text-slate-300">Trail Amount ($)</label>
                           <input
                             type="number"
                             min="0"
@@ -1812,12 +1816,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                               clearOrderError();
                               setTrailAmount(event.target.value);
                             }}
-                            className="h-[52px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 text-[17px] font-semibold text-[#2f3238] outline-none focus:border-[#95999d]"
+                            className="h-[46px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60"
                           />
                         </div>
                       )}
                       {orderSide === 'sell' && orderSizeMode === 'shares' && (
-                        <div className="text-xs font-semibold text-[#595d63]">
+                        <div className="text-xs font-semibold text-slate-400">
                           {availableSharesDisplay} shares available
                         </div>
                       )}
@@ -1975,39 +1979,44 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             </div>
           </div>
 
-          <div className={`border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] min-h-0 transition-all duration-300 ${
-            socialCollapsed ? 'w-full xl:w-14 p-1' : 'w-full xl:w-80 p-1.5'
+          <div className={`relative border-t xl:border-t-0 xl:border-l border-white/[0.06] bg-[#0b0b0b] min-h-0 transition-all duration-300 ${
+            socialCollapsed ? 'w-full xl:w-14 p-1' : 'w-full xl:w-72 p-1.5'
           }`}>
+            {!socialCollapsed && (
+              <button
+                type="button"
+                onClick={() => setSocialCollapsed(true)}
+                className="absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-md border border-white/10 bg-[#0b0b0b]/85 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-white/60 hover:text-white hover:border-white/30 transition"
+                title="Collapse social feed"
+              >
+                <span>Social</span>
+                <ChevronsRight className="h-3.5 w-3.5" />
+              </button>
+            )}
             {socialCollapsed ? (
               <div className="h-[360px] xl:h-full flex flex-col items-center gap-3 pt-2">
-                {/* X Social Pulse collapsed icon */}
-                <div
-                  className="flex flex-col items-center justify-center w-10 h-10 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-blue-500/40 transition-all group"
+                {/* Social collapsed icon */}
+                <button
+                  type="button"
+                  className="flex flex-col items-center justify-center w-11 h-11 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-blue-500/40 transition-all group"
                   onClick={() => setSocialCollapsed(false)}
                   title="Expand Social Pulse"
                 >
                   <div className="relative">
-                    <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-md group-hover:bg-blue-500/40 transition-all" />
-                    <svg className="relative w-5 h-5 text-white/60 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
+                    <ChevronsLeft className="relative w-4 h-4 text-blue-300/80 group-hover:text-blue-200 transition-colors" />
                   </div>
-                </div>
-                {/* Grok collapsed icon */}
+                </button>
                 {!isTradePanelOpen && (
-                  <div
-                    className="flex flex-col items-center justify-center w-10 h-10 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-emerald-500/40 transition-all group"
+                  <button
+                    type="button"
+                    className="flex flex-col items-center justify-center w-11 h-11 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-emerald-500/40 transition-all group"
                     onClick={() => setIsTradePanelOpen(true)}
                     title="Open Trade Panel"
                   >
                     <div className="relative">
-                      <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-md group-hover:bg-emerald-500/40 transition-all" />
-                      <svg className="relative w-5 h-5 text-emerald-400/60 group-hover:text-emerald-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="5" y1="19" x2="19" y2="5" />
-                      </svg>
+                      <ChevronsLeft className="relative w-4 h-4 text-emerald-300/80 group-hover:text-emerald-300 transition-colors" />
                     </div>
-                  </div>
+                  </button>
                 )}
               </div>
             ) : (

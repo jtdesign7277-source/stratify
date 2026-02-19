@@ -57,6 +57,7 @@ export default function AlpacaOrderTicket({
   reviewDisabled,
   reviewLabel = 'Review Order',
   extraFields = null,
+  density = 'default',
   className = '',
 }) {
   const [symbolInput, setSymbolInput] = useState(symbol);
@@ -86,16 +87,32 @@ export default function AlpacaOrderTicket({
   const estimatedCostText = useMemo(() => formatMoney(estimatedCost), [estimatedCost]);
   const buyingPowerText = useMemo(() => normalizeDisplayMoney(buyingPowerDisplay), [buyingPowerDisplay]);
 
+  const isTradeDensity = density === 'trade';
+  const isCryptoDensity = density === 'crypto';
+
+  const panelPaddingClass = isTradeDensity ? 'p-4' : 'p-5';
+  const tabTextClass = isTradeDensity ? 'text-[19px]' : isCryptoDensity ? 'text-[20px]' : 'text-[22px]';
+  const tabPaddingClass = isTradeDensity ? 'pb-1.5' : 'pb-2';
+  const contentTopClass = isTradeDensity ? 'mt-4' : 'mt-5';
+  const verticalGapClass = isTradeDensity ? 'space-y-3' : 'space-y-4';
+  const controlHeightClass = isTradeDensity ? 'h-[46px]' : isCryptoDensity ? 'h-[50px]' : 'h-[54px]';
+  const controlTextClass = isTradeDensity ? 'text-[15px]' : 'text-[16px]';
+  const labelTextClass = isTradeDensity ? 'text-[15px]' : 'text-[16px]';
+  const valueTextClass = isTradeDensity ? 'text-[17px]' : 'text-[18px]';
+  const searchIconClass = isTradeDensity ? 'h-5 w-5' : 'h-6 w-6';
+  const reviewButtonClass = isTradeDensity ? 'h-[48px] text-[16px]' : 'h-[52px] text-[17px]';
+  const radioSizeClass = isTradeDensity ? 'h-4 w-4' : 'h-5 w-5';
+
   return (
     <div
-      className={`rounded-2xl border border-[#c5c8cc] bg-[#ececec] p-5 text-[#24262b] shadow-[0_10px_24px_rgba(0,0,0,0.2)] ${className}`}
+      className={`rounded-2xl border border-white/10 bg-[#0a1628]/95 ${panelPaddingClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
     >
-      <div className="grid grid-cols-2 border-b border-[#d6d9dc]">
+      <div className="grid grid-cols-2 border-b border-white/10">
         <button
           type="button"
           onClick={() => onSideChange?.('buy')}
-          className={`pb-2 text-[22px] font-semibold transition-colors ${
-            side === 'buy' ? 'border-b-[3px] border-[#22a454] text-[#22a454]' : 'text-[#939393]'
+          className={`${tabPaddingClass} ${tabTextClass} font-semibold transition-colors ${
+            side === 'buy' ? 'border-b-[3px] border-emerald-500 text-emerald-400' : 'text-gray-500'
           }`}
         >
           Buy
@@ -103,17 +120,20 @@ export default function AlpacaOrderTicket({
         <button
           type="button"
           onClick={() => onSideChange?.('sell')}
-          className={`pb-2 text-[22px] font-semibold transition-colors ${
-            side === 'sell' ? 'border-b-[3px] border-[#c54c4c] text-[#c54c4c]' : 'text-[#939393]'
+          className={`${tabPaddingClass} ${tabTextClass} font-semibold transition-colors ${
+            side === 'sell' ? 'border-b-[3px] border-red-500 text-red-400' : 'text-gray-500'
           }`}
         >
           Sell
         </button>
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className={`${contentTopClass} ${verticalGapClass}`}>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-6 w-6 -translate-y-1/2 text-[#7d7d7d]" strokeWidth={1.8} />
+          <Search
+            className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 ${searchIconClass}`}
+            strokeWidth={1.6}
+          />
           <input
             type="text"
             value={symbolInput}
@@ -126,34 +146,34 @@ export default function AlpacaOrderTicket({
               }
             }}
             placeholder="Search by symbol..."
-            className="h-[58px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] pl-14 pr-4 text-[18px] font-semibold text-[#6f7175] outline-none placeholder:text-[#7f8185] focus:border-[#95999d]"
+            className={`${controlHeightClass} w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] pl-12 pr-4 ${controlTextClass} font-semibold text-white outline-none placeholder:text-gray-500 focus:border-blue-500/60`}
           />
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-[17px] font-semibold">Market Price</span>
-          <span className="text-[19px] font-semibold">{marketPriceText}</span>
+          <span className={`${labelTextClass} font-semibold text-slate-200`}>Market Price</span>
+          <span className={`${valueTextClass} font-semibold text-white`}>{marketPriceText}</span>
         </div>
 
         <div>
-          <label className="mb-2 block text-[17px] font-semibold">Quantity</label>
+          <label className={`mb-1.5 block ${labelTextClass} font-semibold text-slate-200`}>Quantity</label>
           <input
             type="number"
             step="any"
             min="0"
             value={activeAmount}
             onChange={(event) => handleAmountChange(event.target.value)}
-            className="h-[58px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 text-[18px] font-semibold text-[#5e6063] outline-none focus:border-[#94989c]"
+            className={`${controlHeightClass} w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 ${controlTextClass} font-semibold text-white outline-none focus:border-blue-500/60`}
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-[17px] font-semibold">Order Type</label>
+          <label className={`mb-1.5 block ${labelTextClass} font-semibold text-slate-200`}>Order Type</label>
           <div className="relative">
             <select
               value={orderType}
               onChange={(event) => onOrderTypeChange?.(event.target.value)}
-              className="h-[58px] w-full appearance-none rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 pr-12 text-[18px] font-semibold text-[#2e2f32] outline-none focus:border-[#94989c]"
+              className={`${controlHeightClass} w-full appearance-none rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 pr-12 ${controlTextClass} font-semibold text-white outline-none focus:border-blue-500/60`}
             >
               {orderTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -162,8 +182,8 @@ export default function AlpacaOrderTicket({
               ))}
             </select>
             <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-7 w-7 -translate-y-1/2 text-[#2e2f32]"
-              strokeWidth={2.2}
+              className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
+              strokeWidth={1.8}
             />
           </div>
         </div>
@@ -171,15 +191,15 @@ export default function AlpacaOrderTicket({
         {extraFields}
 
         <div>
-          <div className="mb-2 text-[17px] font-semibold">Choose how to buy</div>
-          <div className="flex items-center gap-7 text-[17px] text-[#4f5256]">
+          <div className={`mb-1.5 ${labelTextClass} font-semibold text-slate-200`}>Choose how to buy</div>
+          <div className={`flex items-center gap-6 ${controlTextClass} text-slate-300`}>
             <label className="inline-flex cursor-pointer items-center gap-2">
               <input
                 type="radio"
                 name="size-mode"
                 checked={sizeMode === 'shares'}
                 onChange={() => onSizeModeChange?.('shares')}
-                className="h-5 w-5 accent-[#2f6fe0]"
+                className={`${radioSizeClass} accent-blue-500`}
               />
               <span>Shares</span>
             </label>
@@ -189,7 +209,7 @@ export default function AlpacaOrderTicket({
                 name="size-mode"
                 checked={sizeMode === 'dollars'}
                 onChange={() => onSizeModeChange?.('dollars')}
-                className="h-5 w-5 accent-[#2f6fe0]"
+                className={`${radioSizeClass} accent-blue-500`}
               />
               <span>Dollars</span>
             </label>
@@ -197,12 +217,12 @@ export default function AlpacaOrderTicket({
         </div>
 
         <div>
-          <label className="mb-2 block text-[17px] font-semibold">Time in Force</label>
+          <label className={`mb-1.5 block ${labelTextClass} font-semibold text-slate-200`}>Time in Force</label>
           <div className="relative">
             <select
               value={timeInForce}
               onChange={(event) => onTimeInForceChange?.(event.target.value)}
-              className="h-[58px] w-full appearance-none rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 pr-12 text-[18px] font-semibold text-[#2e2f32] outline-none focus:border-[#94989c]"
+              className={`${controlHeightClass} w-full appearance-none rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 pr-12 ${controlTextClass} font-semibold text-white outline-none focus:border-blue-500/60`}
             >
               {timeInForceOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -211,20 +231,20 @@ export default function AlpacaOrderTicket({
               ))}
             </select>
             <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-7 w-7 -translate-y-1/2 text-[#2e2f32]"
-              strokeWidth={2.2}
+              className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
+              strokeWidth={1.8}
             />
           </div>
         </div>
 
-        <div className="space-y-1 pt-1">
+        <div className="space-y-1 pt-0.5">
           <div className="flex items-center justify-between">
-            <span className="text-[17px] font-semibold">Estimated Cost</span>
-            <span className="text-[17px] font-semibold">{estimatedCostText}</span>
+            <span className={`${labelTextClass} font-semibold text-slate-200`}>Estimated Cost</span>
+            <span className={`${labelTextClass} font-semibold text-white`}>{estimatedCostText}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[17px] font-semibold">Buying Power</span>
-            <span className="text-[17px] font-semibold">{buyingPowerText}</span>
+            <span className={`${labelTextClass} font-semibold text-slate-200`}>Buying Power</span>
+            <span className={`${labelTextClass} font-semibold text-white`}>{buyingPowerText}</span>
           </div>
         </div>
 
@@ -232,10 +252,10 @@ export default function AlpacaOrderTicket({
           type="button"
           onClick={onReview}
           disabled={reviewDisabled}
-          className={`h-[60px] w-full rounded-2xl text-[18px] font-semibold transition ${
+          className={`${reviewButtonClass} w-full rounded-xl border font-semibold transition ${
             reviewDisabled
-              ? 'cursor-not-allowed bg-[#e4d48c] text-[#8e8488]'
-              : 'bg-[#e5d27f] text-[#706663] hover:bg-[#e2cb6d]'
+              ? 'cursor-not-allowed border-amber-500/20 bg-amber-500/20 text-amber-100/50'
+              : 'border-emerald-500/40 bg-emerald-600 text-white hover:bg-emerald-500'
           }`}
         >
           {reviewLabel}

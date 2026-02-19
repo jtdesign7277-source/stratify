@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
   subscribeAlpacaStatus,
   subscribeCrypto,
@@ -530,7 +531,7 @@ function OrderEntry({
   };
 
   const fieldClassName =
-    'h-[52px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 text-[17px] font-semibold text-[#2f3238] outline-none focus:border-[#95999d]';
+    'h-[48px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60';
 
   const handleSymbolSubmit = (input) => {
     const normalized = String(input || '')
@@ -574,11 +575,12 @@ function OrderEntry({
         onReview={handleSubmit}
         reviewDisabled={submitting || !hasValidOrderSize}
         reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
+        density="crypto"
         extraFields={
           <div className="space-y-2">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-[#2f3238]">Limit Price</label>
+                <label className="block text-sm font-semibold text-slate-300">Limit Price</label>
                 <input
                   type="number"
                   step="any"
@@ -592,7 +594,7 @@ function OrderEntry({
             )}
             {orderType === 'stop_limit' && (
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-[#2f3238]">Stop Price</label>
+                <label className="block text-sm font-semibold text-slate-300">Stop Price</label>
                 <input
                   type="number"
                   step="any"
@@ -605,7 +607,7 @@ function OrderEntry({
               </div>
             )}
             {sizeMode === 'dollars' && (
-              <div className="text-sm font-semibold text-[#4f555d]">
+              <div className="text-sm font-semibold text-slate-300">
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
               </div>
             )}
@@ -878,7 +880,7 @@ export default function CryptoPage() {
 
         {/* ── RIGHT: L2 / Trades / Order Entry (tabbed) ───────────── */}
         <div
-          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[340px]'} shrink-0 flex flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
+          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[306px]'} shrink-0 flex flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
           style={glassStyle}
         >
           {isRightPanelCollapsed ? (
@@ -894,7 +896,7 @@ export default function CryptoPage() {
                 title="Expand order entry panel"
                 aria-label="Expand order entry panel"
               >
-                «
+                <ChevronsLeft className="h-3.5 w-3.5 mx-auto" strokeWidth={1.7} />
               </button>
               <div
                 className="text-[9px] font-bold tracking-[0.2em] uppercase"
@@ -931,12 +933,12 @@ export default function CryptoPage() {
                 ))}
                 <button
                   onClick={() => setIsRightPanelCollapsed(true)}
-                  className="w-8 text-[12px] font-bold transition-colors"
+                  className="w-9 flex items-center justify-center transition-colors hover:bg-white/[0.03]"
                   style={{ color: 'rgba(148, 163, 184, 0.55)' }}
                   title="Collapse order entry panel"
                   aria-label="Collapse order entry panel"
                 >
-                  »
+                  <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
                 </button>
               </div>
 
