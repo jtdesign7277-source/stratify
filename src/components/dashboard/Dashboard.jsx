@@ -1746,7 +1746,15 @@ export default function Dashboard({
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
           {/* Tab-based Views */}
-          {activeTab === 'watchlist' && <WatchlistPage themeClasses={themeClasses} watchlist={watchlist} onAddToWatchlist={addToWatchlist} onRemoveFromWatchlist={removeFromWatchlist} />}
+          {activeTab === 'watchlist' && (
+            <WatchlistPage
+              themeClasses={themeClasses}
+              watchlist={watchlist}
+              onAddToWatchlist={addToWatchlist}
+              onRemoveFromWatchlist={removeFromWatchlist}
+              addTrade={addTrade}
+            />
+          )}
           {activeTab === 'trade' && (
             <ProGate
               featureName="Paper Trading"
