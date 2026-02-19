@@ -249,7 +249,8 @@ export default function HighchartsStockChart({
       const opts = buildOpts(ohlc, volume);
       const chart = chartRef.current?.chart;
       if (chart) {
-        while (chart.series.length) chart.series[0].remove(false);
+        // Remove series in reverse order so indicators (linked) are removed before their parent
+        while (chart.series.length) chart.series[chart.series.length - 1].remove(false);
         chart.update(opts, false);
         opts.series.forEach((s) => chart.addSeries(s, false));
         chart.redraw();
