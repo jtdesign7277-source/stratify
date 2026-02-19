@@ -5,17 +5,10 @@ import IndicatorsAll from 'highcharts/indicators/indicators-all';
 import AnnotationsAdvanced from 'highcharts/modules/annotations-advanced';
 import StockTools from 'highcharts/modules/stock-tools';
 
-const initializeModule = (moduleImport) => {
-  const moduleFactory = moduleImport?.default || moduleImport;
-  if (typeof moduleFactory === 'function') {
-    moduleFactory(Highcharts);
-  }
-};
-
-// Initialize modules safely across bundlers
-initializeModule(IndicatorsAll);
-initializeModule(AnnotationsAdvanced);
-initializeModule(StockTools);
+// Initialize modules
+IndicatorsAll(Highcharts);
+AnnotationsAdvanced(Highcharts);
+StockTools(Highcharts);
 
 // ─── Twelve Data Config ───
 const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || import.meta.env.TWELVE_DATA_API_KEY || '';
