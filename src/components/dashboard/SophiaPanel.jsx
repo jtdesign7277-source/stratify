@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Send,
   Loader2,
@@ -49,6 +49,27 @@ const STRATEGY_PRESETS = [
 ];
 
 const PANEL_WIDTHS = { full: 480, half: 280, collapsed: 40 };
+const TRUMP_ALERT_POLL_MS = 60000;
+const TRUMP_LAST_SEEN_KEY = 'stratify-trump-last-seen';
+const ALERT_SEVERITY_TEXT = { '🔴': 'text-red-400', '🟠': 'text-orange-400', '🟡': 'text-yellow-400', '🔵': 'text-blue-400' };
+const ALERT_SEVERITY_BORDER = { '🔴': 'border-l-2 border-red-500', '🟠': 'border-l-2 border-orange-500' };
+
+const formatRelativeTime = (ts) => {
+  const t = new Date(ts || '').getTime(); if (!Number.isFinite(t)) return 'just now';
+  const m = Math.floor(Math.max(0, Date.now() - t) / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24); return d < 7 ? `${d}d ago` : `${Math.floor(d / 7)}w ago`;
+};
+const extractSourceUrl = (a) => {
+  for (const v of [a?.source_url, a?.raw_response, a?.url]) {
+    const s = String(v || '').trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    const m = s.match(/https?:\/\/[^\s)]+/i);
+    if (m?.[0]) return m[0];
+  }
+  return '';
+};
 
 const renderTickerText = (text, keyPrefix = 'ticker') =>
   tokenizeTickerText(text).map((token, index) =>
@@ -120,6 +141,13 @@ const SophiaPanel = ({
   const [presetValue, setPresetValue] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [activeTab, setActiveTab] = useState('sophia');
+  const [trumpAlerts, setTrumpAlerts] = useState([]);
+  const [trumpLoading, setTrumpLoading] = useState(true);
+  const [trumpError, setTrumpError] = useState('');
+  const [lastSeenCount, setLastSeenCount] = useState(() => {
+    try { return Math.max(0, parseInt(localStorage.getItem(TRUMP_LAST_SEEN_KEY) || '0', 10) || 0); } catch { return 0; }
+  });
   const [panelState, setPanelState] = useState(() => {
     try {
       const saved = localStorage.getItem('stratify-sophia-panel-state');
@@ -131,6 +159,14 @@ const SophiaPanel = ({
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const unreadTrumpAlerts = Math.max(0, trumpAlerts.length - lastSeenCount);
+  const hasUnreadTrumpAlerts = unreadTrumpAlerts > 0;
+  const updateTrumpLastSeen = useCallback((c) => { const n = Math.max(0, c || 0); setLastSeenCount(n); try { localStorage.setItem(TRUMP_LAST_SEEN_KEY, String(n)); } catch {} }, []);
+  const fetchTrumpAlerts = useCallback(async () => {
+    try { const r = await fetch('/api/trump-alerts'); const d = await r.json(); setTrumpAlerts(Array.isArray(d?.alerts) ? d.alerts : []); setTrumpError(''); }
+    catch { setTrumpError('Failed to load.'); } finally { setTrumpLoading(false); }
+  }, []);
+  const handleTabSelect = (tab) => { setActiveTab(tab); if (tab === 'trump') updateTrumpLastSeen(trumpAlerts.length); };
 
   useEffect(() => {
     try {
@@ -141,6 +177,9 @@ const SophiaPanel = ({
   useEffect(() => {
     onCollapsedChange && onCollapsedChange(panelState === 'collapsed', panelState);
   }, [panelState, onCollapsedChange]);
+
+  useEffect(() => { fetchTrumpAlerts(); const id = setInterval(fetchTrumpAlerts, TRUMP_ALERT_POLL_MS); return () => clearInterval(id); }, [fetchTrumpAlerts]);
+  useEffect(() => { if (activeTab === 'trump' && trumpAlerts.length > lastSeenCount) updateTrumpLastSeen(trumpAlerts.length); }, [activeTab, trumpAlerts.length, lastSeenCount, updateTrumpLastSeen]);
 
   useEffect(() => {
     onLoadingChange?.(isLoading);
@@ -357,7 +396,55 @@ const SophiaPanel = ({
         </div>
       </div>
 
-      {panelState === 'full' && (
+      {/* Tab pills */}
+      <div className="flex gap-1 px-3 py-1.5 border-b border-[#1f1f1f]">
+        <button onClick={() => handleTabSelect('sophia')}
+          className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${activeTab === 'sophia' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+          💬 Sophia
+        </button>
+        <button onClick={() => handleTabSelect('trump')}
+          className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all relative ${activeTab === 'trump' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : hasUnreadTrumpAlerts ? 'text-orange-400 animate-pulse ring-2 ring-orange-500/50 bg-orange-500/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+          🇺🇸 Trump Intel
+          {hasUnreadTrumpAlerts && activeTab !== 'trump' && (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">{unreadTrumpAlerts > 99 ? '99+' : unreadTrumpAlerts}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Trump Intel Feed */}
+      {activeTab === 'trump' && (
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {trumpLoading && <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-400" /></div>}
+          {!trumpLoading && trumpError && <p className="text-xs text-red-400 text-center py-4">{trumpError}</p>}
+          {!trumpLoading && !trumpError && trumpAlerts.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-zinc-500 text-sm">🇺🇸 No intel yet</p>
+              <p className="text-zinc-600 text-xs mt-1">Scans at 7am, 10am, 2pm, 6pm ET</p>
+            </div>
+          )}
+          {!trumpLoading && trumpAlerts.map((alert) => {
+            const sev = alert.severity || '🔵';
+            const url = extractSourceUrl(alert);
+            return (
+              <div key={alert.id} className={`rounded-lg border border-white/10 bg-black/30 p-3 ${ALERT_SEVERITY_BORDER[sev] || ''}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span className="text-sm shrink-0 mt-0.5">{sev}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-zinc-100 leading-tight">{alert.title}</p>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{alert.message}</p>
+                      {url && <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-[10px] text-zinc-600 hover:text-zinc-400 truncate max-w-full">{(() => { try { return new URL(url).hostname; } catch { return 'source'; } })()}</a>}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-zinc-600 whitespace-nowrap shrink-0">{formatRelativeTime(alert.created_at)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {activeTab === 'sophia' && panelState === 'full' && (
         <div className="px-3 py-2 border-b border-[#1f1f1f] flex gap-2">
           <button
             onClick={() => setShowBuilder(true)}
@@ -387,7 +474,7 @@ const SophiaPanel = ({
         </div>
       )}
 
-      {showBuilder ? (
+      {activeTab === 'sophia' && showBuilder ? (
         <div className="flex-1 overflow-y-auto min-h-0">
           <BacktestWizard
             onSubmit={(prompt) => {
@@ -398,7 +485,7 @@ const SophiaPanel = ({
             inline
           />
         </div>
-      ) : (
+      ) : activeTab === 'sophia' ? (
         <>
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0">
             {messages.length === 0 && (
@@ -517,7 +604,7 @@ const SophiaPanel = ({
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 };
