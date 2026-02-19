@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
-  Globe,
   Loader2,
   Plus,
   RefreshCcw,
@@ -262,11 +261,18 @@ const LSEPage = () => {
       <div className="mx-auto w-full max-w-7xl space-y-4">
         <div className="relative z-30 rounded-xl border border-blue-500/20 bg-[#060d18]/70 p-4 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-blue-400" strokeWidth={1.5} />
-              <div>
-                <h1 className="text-lg font-semibold text-white">Global Markets</h1>
-                <p className="text-xs text-white/55">Build your London watchlist in one click, then stream quotes live.</p>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="leading-none text-blue-500">
+                <div className="text-[28px] font-black tracking-[0.08em] sm:text-[30px]">LONDON</div>
+                <div className="text-[28px] font-black tracking-[0.08em] sm:text-[30px]">STOCK</div>
+                <div className="text-[28px] font-black tracking-[0.08em] sm:text-[30px]">EXCHANGE</div>
+                <div className="mt-1 text-[13px] font-medium tracking-[0.02em] text-blue-300">
+                  An LSEG Business
+                </div>
+              </div>
+
+              <div className="pb-1 text-xs text-white/55">
+                Build your London watchlist in one click, then stream quotes live.
               </div>
             </div>
 
