@@ -142,6 +142,28 @@ const normalizeSymbol = (value) =>
     .split(':')[0]
     .split('.')[0];
 
+const toNumber = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const NYSE_SYMBOLS = new Set([
+  'SPY', 'DIA', 'IWM', 'JPM', 'BAC', 'WFC', 'V', 'MA', 'PLTR', 'UBER', 'ABNB', 'SHOP',
+  'XOM', 'CVX', 'WMT', 'UNH', 'JNJ', 'LLY', 'PG', 'HD', 'DIS', 'BA', 'NKE', 'T', 'PFE',
+  'MRK', 'ABBV', 'KO', 'PEP', 'MCD', 'LOW', 'GE', 'CAT', 'DE', 'F', 'GM',
+]);
+
+const resolveEquityExchange = (symbol, exchangeHint = '') => {
+  const hint = String(exchangeHint || '').toUpperCase();
+  if (hint.includes('NASDAQ')) return 'NASDAQ';
+  if (hint.includes('NYSE')) return 'NYSE';
+  if (hint.includes('AMEX')) return 'AMEX';
+  if (hint.includes('ARCA')) return 'ARCA';
+  return NYSE_SYMBOLS.has(symbol) ? 'NYSE' : 'NASDAQ';
+};
+
 const loadPanelState = (key, fallback) => {
   if (typeof window === 'undefined') return fallback;
   try {
@@ -268,7 +290,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
         const symbol = normalizeSymbol(typeof item === 'string' ? item : item?.symbol);
         if (!symbol) return null;
         const name = typeof item === 'object' && item?.name ? item.name : symbol;
-        return { symbol, name };
+        const exchange = typeof item === 'object' ? item?.exchange : undefined;
+        return { symbol, name, exchange };
       })
       .filter((item) => {
         if (!item?.symbol || seen.has(item.symbol)) return false;
@@ -306,7 +329,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     refreshInFlightRef.current = true;
 
     if (manual) setIsRefreshing(true);
-    setLoading((previous) => previous || Object.keys(quotesBySymbol).length === 0);
+    setLoading(true);
 
     try {
       const response = await fetch('/api/watchlist/quotes', {
@@ -331,6 +354,16 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           ...row,
           symbol,
           name: row?.name || labelMap[symbol] || symbol,
+          exchange: row?.exchange || null,
+          dayBaselinePrice: Number.isFinite(toNumber(row?.change))
+            ? (toNumber(row?.price) ?? 0) - toNumber(row?.change)
+            : (
+              Number.isFinite(toNumber(row?.price))
+              && Number.isFinite(toNumber(row?.percentChange))
+              && toNumber(row?.percentChange) !== -100
+                ? (toNumber(row?.price) / (1 + (toNumber(row?.percentChange) / 100)))
+                : null
+            ),
           source: 'rest',
         };
       });
@@ -345,7 +378,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
       if (manual) setIsRefreshing(false);
       refreshInFlightRef.current = false;
     }
-  }, [activeSymbols, labelMap, quotesBySymbol]);
+  }, [activeSymbols, labelMap]);
 
   useEffect(() => {
     refreshQuotes({ manual: false });
@@ -360,12 +393,31 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
 
       setQuotesBySymbol((previous) => {
         const current = previous[symbol] || {};
-        const nextPrice = Number(update?.price);
-        const previousPrice = Number(current?.price);
-        const streamPercent = Number(update?.percentChange);
-        const derivedPercent = Number.isFinite(nextPrice) && Number.isFinite(previousPrice) && previousPrice !== 0
-          ? ((nextPrice - previousPrice) / previousPrice) * 100
+        const nextPrice = toNumber(update?.price);
+        const previousPrice = toNumber(current?.price);
+        const streamPercent = toNumber(update?.percentChange);
+        const baselineFromCurrent = toNumber(current?.dayBaselinePrice);
+        const baselineFromPercent = (
+          Number.isFinite(previousPrice)
+          && Number.isFinite(toNumber(current?.percentChange))
+          && toNumber(current?.percentChange) !== -100
+        )
+          ? previousPrice / (1 + (toNumber(current?.percentChange) / 100))
           : null;
+        const baseline = baselineFromCurrent ?? baselineFromPercent;
+        const derivedPercent = (
+          Number.isFinite(nextPrice)
+          && Number.isFinite(baseline)
+          && baseline !== 0
+        )
+          ? ((nextPrice - baseline) / baseline) * 100
+          : null;
+        const nextChange = (
+          Number.isFinite(nextPrice)
+          && Number.isFinite(baseline)
+        )
+          ? nextPrice - baseline
+          : toNumber(update?.change) ?? toNumber(current?.change);
 
         return {
           ...previous,
@@ -374,12 +426,13 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             symbol,
             name: current?.name || labelMap[symbol] || symbol,
             price: Number.isFinite(nextPrice) ? nextPrice : current?.price ?? null,
-            change: Number.isFinite(Number(update?.change)) ? Number(update.change) : current?.change ?? null,
+            change: nextChange,
             percentChange: Number.isFinite(streamPercent)
               ? streamPercent
               : Number.isFinite(derivedPercent)
                 ? derivedPercent
                 : current?.percentChange ?? null,
+            dayBaselinePrice: baseline,
             timestamp: update?.timestamp || new Date().toISOString(),
             source: 'ws',
           },
@@ -430,6 +483,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
           ? payload.data.map((item) => ({
               symbol: normalizeSymbol(item?.symbol),
               name: item?.instrumentName || item?.name || item?.symbol,
+              exchange: item?.exchange || '',
             }))
           : [];
 
@@ -479,7 +533,15 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
   }, [activeSymbols, selectedTicker]);
 
   const selectedQuote = selectedTicker ? quotesBySymbol[selectedTicker] : null;
-  const selectedName = visibleWatchlist.find((item) => item.symbol === selectedTicker)?.name || selectedTicker;
+  const selectedWatchlistEntry = visibleWatchlist.find((item) => item.symbol === selectedTicker) || null;
+  const selectedName = selectedWatchlistEntry?.name || selectedTicker;
+  const selectedExchange = resolveEquityExchange(
+    selectedTicker,
+    selectedWatchlistEntry?.exchange || selectedQuote?.exchange
+  );
+  const tradingViewSymbol = selectedTicker
+    ? `${selectedExchange}:${selectedTicker}`
+    : '';
 
   const marketPrice = useMemo(() => {
     return selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.ask ?? selectedQuote?.bid ?? 0;
@@ -773,7 +835,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     setOrderError('');
   }, []);
 
-  const addSymbolToWatchlist = useCallback((symbol, name) => {
+  const addSymbolToWatchlist = useCallback((symbol, name, exchange) => {
     const normalized = normalizeSymbol(symbol);
     if (!normalized) return;
     if (activeSymbols.includes(normalized)) return;
@@ -786,6 +848,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     onAddToWatchlist?.({
       symbol: normalized,
       name: name || labelMap[normalized] || normalized,
+      exchange: resolveEquityExchange(normalized, exchange),
     });
 
     setSearchQuery('');
@@ -797,7 +860,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     const normalized = normalizeSymbol(searchQuery);
     if (!normalized) return;
     const exactResult = searchResults.find((item) => item.symbol === normalized);
-    addSymbolToWatchlist(normalized, exactResult?.name || labelMap[normalized]);
+    addSymbolToWatchlist(
+      normalized,
+      exactResult?.name || labelMap[normalized],
+      exactResult?.exchange
+    );
   }, [addSymbolToWatchlist, labelMap, searchQuery, searchResults]);
 
   const handleTicketSymbolSubmit = useCallback((symbolInput) => {
@@ -813,7 +880,11 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
     const searchMatch = searchResults.find((item) => item.symbol === normalized)
       || SEARCH_FALLBACK.find((item) => item.symbol === normalized);
 
-    addSymbolToWatchlist(normalized, searchMatch?.name || labelMap[normalized]);
+    addSymbolToWatchlist(
+      normalized,
+      searchMatch?.name || labelMap[normalized],
+      searchMatch?.exchange
+    );
     setSelectedTicker(normalized);
   }, [activeSymbols, addSymbolToWatchlist, labelMap, searchResults]);
 
@@ -913,7 +984,7 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
                       <button
                         key={result.symbol}
                         type="button"
-                        onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
+                        onClick={() => addSymbolToWatchlist(result.symbol, result.name, result.exchange)}
                         className="flex w-full items-center justify-between rounded px-2 py-2 text-left hover:bg-blue-500/10"
                       >
                         <div className="min-w-0">
@@ -1065,8 +1136,8 @@ const WatchlistPage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist
             <div className="flex min-h-0 flex-1">
               <div className="min-h-0 flex-1">
                 <iframe
-                  key={selectedTicker}
-                  src={`https://s.tradingview.com/widgetembed/?frameElementId=watchlist_widget&symbol=${encodeURIComponent(selectedTicker)}&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en`}
+                  key={tradingViewSymbol || selectedTicker}
+                  src={`https://s.tradingview.com/widgetembed/?frameElementId=watchlist_widget&symbol=${encodeURIComponent(tradingViewSymbol || selectedTicker)}&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en`}
                   style={{ width: '100%', height: '100%', border: 'none' }}
                   allowFullScreen
                 />

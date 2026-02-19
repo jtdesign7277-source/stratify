@@ -3,6 +3,12 @@ const RECONNECT_MAX_MS = 12000;
 
 const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
 const baseSymbol = (value) => normalizeSymbol(value).split(':')[0].split('.')[0];
+const toNumber = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 class TwelveDataStream {
   constructor() {
@@ -154,9 +160,9 @@ class TwelveDataStream {
 
     const update = {
       symbol,
-      price: Number(payload?.price),
-      percentChange: Number(payload?.percent_change ?? payload?.percentChange),
-      change: Number(payload?.change),
+      price: toNumber(payload?.price),
+      percentChange: toNumber(payload?.percent_change ?? payload?.percentChange),
+      change: toNumber(payload?.change),
       timestamp: payload?.timestamp || payload?.datetime || new Date().toISOString(),
       raw: payload,
     };
