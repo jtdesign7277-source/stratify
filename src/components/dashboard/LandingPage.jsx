@@ -353,18 +353,19 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
             {/* Powered By logos */}
             <div className="mt-20 mb-16 flex flex-col items-center gap-10">
               <p className="text-xs uppercase tracking-[0.35em] text-gray-500 font-medium">Powered By</p>
-              <div className="flex items-center justify-center gap-14 flex-wrap">
-                <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
-                  <img src="/logos/stripe.png" alt="Stripe" className="h-14 w-auto" />
+              <div className="flex items-center justify-center gap-12 flex-wrap">
+                <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="text-[28px] font-bold text-white/50 hover:text-white transition-colors duration-300 tracking-tight" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>stripe</a>
+                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors duration-300">
+                  <svg width="24" height="24" viewBox="0 0 109 113" fill="none"><path d="M63.7 110.3c-2.1 2.6-6.4.8-6.4-2.7V71.5h45.5c4.1 0 6.4 4.8 3.8 7.9L63.7 110.3z" fill="url(#supa1)"/><path d="M63.7 110.3c-2.1 2.6-6.4.8-6.4-2.7V71.5h45.5c4.1 0 6.4 4.8 3.8 7.9L63.7 110.3z" fill="url(#supa2)" fillOpacity=".2"/><path d="M45.3 2.7c2.1-2.6 6.4-.8 6.4 2.7v36.1H6.2c-4.1 0-6.4-4.8-3.8-7.9L45.3 2.7z" fill="#3ECF8E"/><defs><linearGradient id="supa1" x1="57.3" y1="86.7" x2="93.7" y2="104.1" gradientUnits="userSpaceOnUse"><stop stopColor="#249361"/><stop offset="1" stopColor="#3ECF8E"/></linearGradient><linearGradient id="supa2" x1="36.2" y1="60.4" x2="57.3" y2="88.8" gradientUnits="userSpaceOnUse"><stop/><stop offset="1" stopOpacity="0"/></linearGradient></defs></svg>
+                  <span className="text-[26px] font-semibold tracking-tight">supabase</span>
                 </a>
-                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
-                  <img src="/logos/supabase.png" alt="Supabase" className="h-14 w-auto" />
+                <a href="https://anthropic.com/claude" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors duration-300">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.308 3.616L12.478.304a.96.96 0 0 0-1.016 0L6.632 3.616A.97.97 0 0 0 6.17 4.5v6.632a.97.97 0 0 0 .462.884l4.83 3.312a.96.96 0 0 0 1.016 0l4.83-3.312a.97.97 0 0 0 .462-.884V4.5a.97.97 0 0 0-.462-.884z"/><path d="M4.282 16.38L1.814 18.07a.96.96 0 0 0-.462.884v3.312a.97.97 0 0 0 .462.884.96.96 0 0 0 1.016 0l2.468-1.692a.97.97 0 0 0 .462-.884v-3.312a.97.97 0 0 0-.462-.884.96.96 0 0 0-1.016 0zM19.718 16.38l-2.468 1.692a.97.97 0 0 0-.462.884v3.312a.97.97 0 0 0 .462.884.96.96 0 0 0 1.016 0l2.468-1.692a.97.97 0 0 0 .462-.884v-3.312a.97.97 0 0 0-.462-.884.96.96 0 0 0-1.016 0z"/></svg>
+                  <span className="text-[26px] font-semibold tracking-tight">Claude</span>
                 </a>
-                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
-                  <img src="/logos/claude.png" alt="Claude" className="h-14 w-auto" />
-                </a>
-                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
-                  <img src="/logos/vercel-full.png" alt="Vercel" className="h-12 w-auto invert" />
+                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors duration-300">
+                  <svg width="22" height="20" viewBox="0 0 76 65" fill="currentColor"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>
+                  <span className="text-[26px] font-semibold tracking-tight">Vercel</span>
                 </a>
               </div>
             </div>
