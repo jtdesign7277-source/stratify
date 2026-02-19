@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
-import TwelveDataLightweightChart from './TwelveDataLightweightChart';
+import AlpacaChart from './AlpacaChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 
 const MAX_SYMBOLS = 120;
@@ -1240,12 +1240,7 @@ const WatchlistPage = ({
 
             <div className="flex min-h-0 flex-1">
               <div className="min-h-0 flex-1">
-                <TwelveDataLightweightChart
-                  key={`watchlist-td-${selectedTicker}`}
-                  symbol={selectedTicker}
-                  interval="15Min"
-                  height="100%"
-                />
+                <AlpacaChart key={`watchlist-highcharts-${selectedTicker}`} symbol={selectedTicker} />
               </div>
 
               {!isOrderPanelClosed ? (
