@@ -12,15 +12,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { symbol, side, orderType, quantity, limitPrice, stopPrice, timeInForce } = req.body;
+    const { symbol, side, orderType, quantity, notionalAmount, limitPrice, stopPrice, timeInForce } = req.body;
+    const normalizedTimeInForce = String(timeInForce || 'gtc').toLowerCase() === 'day'
+      ? 'gtc'
+      : String(timeInForce || 'gtc').toLowerCase();
 
     const orderParams = {
       symbol: symbol.replace('/', ''), // BTC/USD → BTCUSD
-      qty: quantity,
       side,
       type: orderType === 'stop_limit' ? 'stop_limit' : orderType,
-      time_in_force: timeInForce || 'gtc',
+      time_in_force: normalizedTimeInForce,
     };
+
+    const parsedQuantity = Number(quantity);
+    const parsedNotional = Number(notionalAmount);
+    if (Number.isFinite(parsedQuantity) && parsedQuantity > 0) {
+      orderParams.qty = parsedQuantity;
+    } else if (orderType === 'market' && Number.isFinite(parsedNotional) && parsedNotional > 0) {
+      orderParams.notional = parsedNotional;
+    } else {
+      throw new Error('Order quantity is required');
+    }
 
     if (orderType === 'limit' || orderType === 'stop_limit') {
       orderParams.limit_price = limitPrice;

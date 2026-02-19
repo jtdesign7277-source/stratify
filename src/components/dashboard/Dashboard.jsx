@@ -297,14 +297,8 @@ const sanitizeCurrencyInput = (value) => String(value || '').replace(/[^0-9.]/g,
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-const parsePositionAllocation = (strategy, accountBalance = PAPER_TRADING_BALANCE) => {
-  const raw = strategy?.allocation
-    ?? strategy?.positionSize
-    ?? strategy?.size
-    ?? strategy?.backtestAmount
-    ?? strategy?.capital
-    ?? null;
-  if (raw === null || raw === undefined) return Math.min(accountBalance * 0.1, accountBalance);
+const parseAllocationCandidate = (raw, accountBalance = PAPER_TRADING_BALANCE) => {
+  if (raw === null || raw === undefined) return null;
 
   if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
     if (raw <= 1) return accountBalance * raw;
@@ -313,7 +307,7 @@ const parsePositionAllocation = (strategy, accountBalance = PAPER_TRADING_BALANC
   }
 
   const text = String(raw).trim();
-  if (!text) return Math.min(accountBalance * 0.1, accountBalance);
+  if (!text || text === '—' || text === '-' || text === '–') return null;
 
   if (text.endsWith('%')) {
     const pct = Number(text.replace('%', '').trim());
@@ -329,6 +323,38 @@ const parsePositionAllocation = (strategy, accountBalance = PAPER_TRADING_BALANC
     return Math.min(numeric, accountBalance);
   }
 
+  return null;
+};
+
+const resolveStrategyAllocationPreference = (strategy, accountBalance = PAPER_TRADING_BALANCE) => {
+  const candidates = [
+    strategy?.allocation,
+    strategy?.keyTradeSetups?.allocation,
+    strategy?.summary?.allocation,
+    strategy?.summary?.keyTradeSetups?.allocation,
+    strategy?.key_trade_setups?.allocation,
+    strategy?.rules?.key_trade_setups?.allocation,
+    strategy?.positionSize,
+    strategy?.size,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parseAllocationCandidate(candidate, accountBalance);
+    if (parsed !== null && parsed > 0) return parsed;
+  }
+
+  return null;
+};
+
+const parsePositionAllocation = (strategy, accountBalance = PAPER_TRADING_BALANCE) => {
+  const raw = strategy?.allocation
+    ?? strategy?.positionSize
+    ?? strategy?.size
+    ?? strategy?.backtestAmount
+    ?? strategy?.capital
+    ?? null;
+  const parsed = parseAllocationCandidate(raw, accountBalance);
+  if (parsed !== null && parsed > 0) return parsed;
   return Math.min(accountBalance * 0.1, accountBalance);
 };
 
@@ -962,6 +988,7 @@ export default function Dashboard({
     const allocation = clamp(
       toNumberOrNull(allocationOverride)
         ?? toNumberOrNull(existingStrategy?.paper?.allocation)
+        ?? resolveStrategyAllocationPreference(strategy, normalizedPaperTradingBalance)
         ?? resolveBacktestAmount(strategy)
         ?? parsePositionAllocation(strategy, normalizedPaperTradingBalance),
       MIN_STRATEGY_ALLOCATION,
@@ -1048,10 +1075,11 @@ export default function Dashboard({
     }
 
     const maxAllocation = getRemainingAllocationCapacity(existingActive || null);
-    const backtestAmount = resolveBacktestAmount(strategy);
+    const setupAllocation = resolveStrategyAllocationPreference(strategy, normalizedPaperTradingBalance);
+    const backtestAmount = resolveBacktestAmount(strategy) ?? setupAllocation;
     const suggestedAllocation = existingActive
       ? getStrategyAllocation(existingActive, normalizedPaperTradingBalance)
-      : backtestAmount;
+      : setupAllocation ?? backtestAmount;
     const selectedAllocation = await requestStrategyAllocation({
       strategy,
       maxAllocation,

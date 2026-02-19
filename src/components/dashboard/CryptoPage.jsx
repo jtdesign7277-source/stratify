@@ -4,6 +4,7 @@ import {
   subscribeCrypto,
   subscribeCryptoOrderbooks,
 } from '../../services/alpacaStream';
+import AlpacaOrderTicket from './AlpacaOrderTicket';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -383,22 +384,30 @@ function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceC
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// THINKORSWIM-STYLE ORDER ENTRY
+// ALPACA-STYLE ORDER ENTRY
 // ═══════════════════════════════════════════════════════════════════════════════
-function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPrice, onPriceConsumed }) {
+function OrderEntry({
+  selectedCoin,
+  lastPrice,
+  userId,
+  onOrderPlaced,
+  clickedPrice,
+  onPriceConsumed,
+  onSymbolChange,
+}) {
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
-  const [sizeMode, setSizeMode] = useState('quantity');
+  const [sizeMode, setSizeMode] = useState('shares');
   const [quantity, setQuantity] = useState('');
-  const [notionalAmount, setNotionalAmount] = useState('');
+  const [dollarAmount, setDollarAmount] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
-  const [timeInForce, setTimeInForce] = useState('gtc');
+  const [timeInForce, setTimeInForce] = useState('day');
   const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [buyingPowerDisplay, setBuyingPowerDisplay] = useState('$ -');
 
-  // Auto-fill limit price from L2 click
   useEffect(() => {
     if (clickedPrice !== null && clickedPrice !== undefined) {
       setLimitPrice(String(clickedPrice));
@@ -415,22 +424,57 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
   }, [orderType, limitPrice, lastPrice]);
 
   const resolvedQuantity = useMemo(() => {
-    if (sizeMode === 'quantity') {
+    if (sizeMode === 'shares') {
       return parseFloat(quantity) || 0;
     }
-    const dollars = parseFloat(notionalAmount) || 0;
+    const dollars = parseFloat(dollarAmount) || 0;
     if (!referencePrice || referencePrice <= 0) return 0;
     return dollars / referencePrice;
-  }, [sizeMode, quantity, notionalAmount, referencePrice]);
+  }, [sizeMode, quantity, dollarAmount, referencePrice]);
+
+  const notionalNumber = useMemo(() => {
+    const parsed = parseFloat(dollarAmount);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [dollarAmount]);
 
   const estimatedTotal = useMemo(() => {
-    if (sizeMode === 'notional') {
-      return parseFloat(notionalAmount) || 0;
+    if (sizeMode === 'dollars') {
+      return notionalNumber;
     }
     return resolvedQuantity * referencePrice;
-  }, [sizeMode, notionalAmount, resolvedQuantity, referencePrice]);
+  }, [sizeMode, notionalNumber, resolvedQuantity, referencePrice]);
 
-  const hasValidOrderSize = resolvedQuantity > 0;
+  const hasValidOrderSize = sizeMode === 'dollars' ? notionalNumber > 0 : resolvedQuantity > 0;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchBuyingPower = async () => {
+      try {
+        const response = await fetch('/api/account');
+        const payload = await response.json();
+        if (!response.ok || cancelled) return;
+        const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
+        const parsed = Number(buyingPower);
+        if (!Number.isFinite(parsed)) return;
+        setBuyingPowerDisplay(new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(parsed));
+      } catch {
+        if (!cancelled) {
+          setBuyingPowerDisplay('$ -');
+        }
+      }
+    };
+
+    fetchBuyingPower();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = () => {
     if (!hasValidOrderSize) return;
@@ -442,19 +486,21 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
   const executeOrder = async () => {
     setSubmitting(true);
     setConfirmModal(false);
+    const normalizedTimeInForce = String(timeInForce || 'day').toLowerCase() === 'day'
+      ? 'gtc'
+      : String(timeInForce || 'gtc').toLowerCase();
 
     const order = {
       symbol: selectedCoin.alpacaSymbol,
       side,
       orderType,
       quantity: resolvedQuantity,
-      notionalAmount: sizeMode === 'notional' ? parseFloat(notionalAmount) : null,
+      notionalAmount: sizeMode === 'dollars' ? notionalNumber : null,
       limitPrice: orderType !== 'market' ? parseFloat(limitPrice) : null,
       stopPrice: orderType === 'stop_limit' ? parseFloat(stopPrice) : null,
-      timeInForce,
+      timeInForce: normalizedTimeInForce,
     };
 
-    // Submit to Alpaca via your backend
     try {
       const response = await fetch('/api/crypto/order', {
         method: 'POST',
@@ -473,7 +519,6 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
 
       if (result.success && onOrderPlaced) onOrderPlaced();
     } catch (err) {
-      // Still save to Supabase as attempted
       if (userId) {
         await saveOrder(userId, { ...order, status: 'error' });
       }
@@ -484,302 +529,92 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
     setSubmitting(false);
   };
 
-  const inputStyle = {
-    background: 'rgba(255, 255, 255, 0.04)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    color: '#e2e8f0',
+  const fieldClassName =
+    'h-[52px] w-full rounded-xl border border-[#aeb1b5] bg-[#f0f0f0] px-4 text-[17px] font-semibold text-[#2f3238] outline-none focus:border-[#95999d]';
+
+  const handleSymbolSubmit = (input) => {
+    const normalized = String(input || '')
+      .replace(/^\$/, '')
+      .replace(/[-/_]/g, '')
+      .toUpperCase();
+    if (!normalized) return;
+    onSymbolChange?.(normalized);
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08]"
-        style={{ background: 'rgba(6, 13, 24, 0.8)' }}
-      >
-        <span className="text-xs font-bold tracking-wider uppercase" style={{ color: '#60a5fa' }}>
-          Order Entry
-        </span>
-        <span className="text-xs font-mono font-bold" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-          ${selectedCoin.symbol}
-        </span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ scrollbarWidth: 'none' }}>
-
-        {/* ── Buy / Sell Toggle ─────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-          <button
-            onClick={() => setSide('buy')}
-            className="py-2.5 rounded-md text-sm font-bold tracking-wide transition-all duration-200"
-            style={{
-              background: side === 'buy' ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
-              color: side === 'buy' ? '#22c55e' : 'rgba(148, 163, 184, 0.4)',
-              border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid transparent',
-              boxShadow: side === 'buy' ? '0 0 20px rgba(34, 197, 94, 0.1)' : 'none',
-            }}
-          >
-            BUY
-          </button>
-          <button
-            onClick={() => setSide('sell')}
-            className="py-2.5 rounded-md text-sm font-bold tracking-wide transition-all duration-200"
-            style={{
-              background: side === 'sell' ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-              color: side === 'sell' ? '#ef4444' : 'rgba(148, 163, 184, 0.4)',
-              border: side === 'sell' ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid transparent',
-              boxShadow: side === 'sell' ? '0 0 20px rgba(239, 68, 68, 0.1)' : 'none',
-            }}
-          >
-            SELL
-          </button>
-        </div>
-
-        {/* ── Order Type ───────────────────────────────────────── */}
-        <div>
-          <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-            style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-          >
-            Order Type
-          </label>
-          <div className="grid grid-cols-3 gap-1">
-            {[
-              { id: 'market', label: 'Market' },
-              { id: 'limit', label: 'Limit' },
-              { id: 'stop_limit', label: 'Stop Lmt' },
-            ].map((type) => (
-              <button
-                key={type.id}
-                onClick={() => setOrderType(type.id)}
-                className="py-2 rounded-md text-[11px] font-semibold tracking-wide transition-all"
-                style={{
-                  background: orderType === type.id ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  color: orderType === type.id ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
-                  border: orderType === type.id ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
-                }}
-              >
-                {type.label}
-              </button>
-            ))}
+    <div className="relative flex h-full flex-col overflow-y-auto p-3" style={{ scrollbarWidth: 'none' }}>
+      <AlpacaOrderTicket
+        side={side}
+        onSideChange={setSide}
+        symbol={`$${selectedCoin.symbol}`}
+        onSymbolSubmit={handleSymbolSubmit}
+        marketPrice={referencePrice}
+        quantity={quantity}
+        onQuantityChange={setQuantity}
+        orderType={orderType}
+        onOrderTypeChange={setOrderType}
+        orderTypeOptions={[
+          { value: 'market', label: 'Market' },
+          { value: 'limit', label: 'Limit' },
+          { value: 'stop_limit', label: 'Stop Limit' },
+        ]}
+        sizeMode={sizeMode}
+        onSizeModeChange={setSizeMode}
+        dollarAmount={dollarAmount}
+        onDollarAmountChange={setDollarAmount}
+        timeInForce={timeInForce}
+        onTimeInForceChange={setTimeInForce}
+        timeInForceOptions={[
+          { value: 'day', label: 'DAY' },
+          { value: 'gtc', label: 'GTC' },
+          { value: 'ioc', label: 'IOC' },
+        ]}
+        estimatedCost={estimatedTotal}
+        buyingPowerDisplay={buyingPowerDisplay}
+        onReview={handleSubmit}
+        reviewDisabled={submitting || !hasValidOrderSize}
+        reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
+        extraFields={
+          <div className="space-y-2">
+            {(orderType === 'limit' || orderType === 'stop_limit') && (
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-[#2f3238]">Limit Price</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={limitPrice}
+                  onChange={(event) => setLimitPrice(event.target.value)}
+                  placeholder={lastPrice ? lastPrice.toFixed(2) : '0.00'}
+                  className={fieldClassName}
+                />
+              </div>
+            )}
+            {orderType === 'stop_limit' && (
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-[#2f3238]">Stop Price</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={stopPrice}
+                  onChange={(event) => setStopPrice(event.target.value)}
+                  placeholder="0.00"
+                  className={fieldClassName}
+                />
+              </div>
+            )}
+            {sizeMode === 'dollars' && (
+              <div className="text-sm font-semibold text-[#4f555d]">
+                Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
+              </div>
+            )}
           </div>
-        </div>
+        }
+      />
 
-        {/* ── Size Mode ─────────────────────────────────────────── */}
-        <div>
-          <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-            style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-          >
-            Order Size
-          </label>
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-            <button
-              onClick={() => setSizeMode('quantity')}
-              className="py-2 rounded-md text-[11px] font-semibold tracking-wide transition-all"
-              style={{
-                background: sizeMode === 'quantity' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                color: sizeMode === 'quantity' ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
-                border: sizeMode === 'quantity' ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid transparent',
-              }}
-            >
-              Coin Qty
-            </button>
-            <button
-              onClick={() => setSizeMode('notional')}
-              className="py-2 rounded-md text-[11px] font-semibold tracking-wide transition-all"
-              style={{
-                background: sizeMode === 'notional' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                color: sizeMode === 'notional' ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
-                border: sizeMode === 'notional' ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid transparent',
-              }}
-            >
-              $ Amount
-            </button>
-          </div>
-        </div>
-
-        {/* ── Quantity ─────────────────────────────────────────── */}
-        {sizeMode === 'quantity' ? (
-          <div>
-            <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-              style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-            >
-              Quantity ({selectedCoin.symbol})
-            </label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="0.00"
-              className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-              style={inputStyle}
-            />
-            <div className="grid grid-cols-4 gap-1 mt-1.5">
-              {['0.001', '0.01', '0.1', '1'].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setQuantity(amt)}
-                  className="py-1 rounded text-[10px] font-mono transition-colors hover:bg-white/[0.06]"
-                  style={{ background: 'rgba(255, 255, 255, 0.03)', color: 'rgba(148, 163, 184, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
-                >
-                  {amt}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-              style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-            >
-              Dollar Amount (USD)
-            </label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              value={notionalAmount}
-              onChange={(e) => setNotionalAmount(e.target.value)}
-              placeholder="100.00"
-              className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-              style={inputStyle}
-            />
-            <div className="grid grid-cols-4 gap-1 mt-1.5">
-              {['50', '100', '250', '500'].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setNotionalAmount(amt)}
-                  className="py-1 rounded text-[10px] font-mono transition-colors hover:bg-white/[0.06]"
-                  style={{ background: 'rgba(255, 255, 255, 0.03)', color: 'rgba(148, 163, 184, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
-                >
-                  ${amt}
-                </button>
-              ))}
-            </div>
-            <div className="mt-1.5 text-[11px] font-mono" style={{ color: 'rgba(96, 165, 250, 0.8)' }}>
-              Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
-            </div>
-          </div>
-        )}
-
-        {/* ── Limit Price (shown for limit & stop_limit) ───────── */}
-        {(orderType === 'limit' || orderType === 'stop_limit') && (
-          <div>
-            <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-              style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-            >
-              Limit Price (USD)
-            </label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              value={limitPrice}
-              onChange={(e) => setLimitPrice(e.target.value)}
-              placeholder={lastPrice ? lastPrice.toFixed(2) : '0.00'}
-              className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-              style={inputStyle}
-            />
-          </div>
-        )}
-
-        {/* ── Stop Price (shown for stop_limit) ─────────────────── */}
-        {orderType === 'stop_limit' && (
-          <div>
-            <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-              style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-            >
-              Stop Price (USD)
-            </label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              value={stopPrice}
-              onChange={(e) => setStopPrice(e.target.value)}
-              placeholder="0.00"
-              className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-              style={inputStyle}
-            />
-          </div>
-        )}
-
-        {/* ── Time in Force ─────────────────────────────────────── */}
-        <div>
-          <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
-            style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-          >
-            Time in Force
-          </label>
-          <div className="grid grid-cols-2 gap-1">
-            {[
-              { id: 'gtc', label: 'GTC' },
-              { id: 'ioc', label: 'IOC' },
-            ].map((tif) => (
-              <button
-                key={tif.id}
-                onClick={() => setTimeInForce(tif.id)}
-                className="py-2 rounded-md text-[11px] font-semibold tracking-wide transition-all"
-                style={{
-                  background: timeInForce === tif.id ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  color: timeInForce === tif.id ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
-                  border: timeInForce === tif.id ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
-                }}
-              >
-                {tif.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Order Summary ─────────────────────────────────────── */}
-        <div className="rounded-lg p-3 space-y-2" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <div className="flex justify-between text-[11px]">
-            <span style={{ color: 'rgba(148, 163, 184, 0.4)' }}>Side</span>
-            <span className="font-semibold" style={{ color: side === 'buy' ? '#22c55e' : '#ef4444' }}>
-              {side.toUpperCase()}
-            </span>
-          </div>
-          <div className="flex justify-between text-[11px]">
-            <span style={{ color: 'rgba(148, 163, 184, 0.4)' }}>Type</span>
-            <span className="font-semibold" style={{ color: '#e2e8f0' }}>
-              {orderType === 'stop_limit' ? 'Stop Limit' : orderType.charAt(0).toUpperCase() + orderType.slice(1)}
-            </span>
-          </div>
-          <div className="flex justify-between text-[11px]">
-            <span style={{ color: 'rgba(148, 163, 184, 0.4)' }}>Quantity</span>
-            <span className="font-mono font-semibold" style={{ color: '#e2e8f0' }}>
-              {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
-            </span>
-          </div>
-          <div className="flex justify-between text-[11px]">
-            <span style={{ color: 'rgba(148, 163, 184, 0.4)' }}>Est. Total</span>
-            <span className="font-mono font-bold" style={{ color: '#e2e8f0' }}>
-              ${estimatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
-
-        {/* ── Submit Button ─────────────────────────────────────── */}
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || !hasValidOrderSize}
-          className="w-full py-3 rounded-lg text-sm font-bold tracking-wide transition-all duration-200"
-          style={{
-            background: side === 'buy'
-              ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.15))'
-              : 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.15))',
-            color: side === 'buy' ? '#22c55e' : '#ef4444',
-            border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-            boxShadow: side === 'buy' ? '0 4px 24px rgba(34, 197, 94, 0.15)' : '0 4px 24px rgba(239, 68, 68, 0.15)',
-            opacity: submitting || !hasValidOrderSize ? 0.4 : 1,
-            cursor: submitting || !hasValidOrderSize ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {submitting ? 'Submitting...' : `${side.toUpperCase()} ${selectedCoin.symbol}`}
-        </button>
-
-        {/* ── Order Result Flash ────────────────────────────────── */}
+      {/* ── Order Result Flash ────────────────────────────────── */}
+      <div className="px-2">
         {lastResult && (
           <div className="text-center text-xs font-semibold py-2 rounded-lg animate-pulse"
             style={{
@@ -806,9 +641,9 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
                 {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedCoin.symbol} @ {orderType === 'market' ? 'MARKET' : `$${limitPrice}`}
               </div>
-              {sizeMode === 'notional' && (
+              {sizeMode === 'dollars' && (
                 <div className="text-[10px] mt-1" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
-                  From ${parseFloat(notionalAmount || 0).toFixed(2)} notional
+                  From ${notionalNumber.toFixed(2)} notional
                 </div>
               )}
             </div>
@@ -1127,6 +962,16 @@ export default function CryptoPage() {
                     onOrderPlaced={handleOrderPlaced}
                     clickedPrice={clickedPrice}
                     onPriceConsumed={() => setClickedPrice(null)}
+                    onSymbolChange={(symbolInput) => {
+                      const normalized = String(symbolInput || '').toUpperCase();
+                      const nextCoin = CRYPTO_COINS.find((coin) =>
+                        coin.symbol === normalized ||
+                        `${coin.symbol}USD` === normalized
+                      );
+                      if (nextCoin) {
+                        handleCoinSelect(nextCoin);
+                      }
+                    }}
                   />
                 )}
               </div>
