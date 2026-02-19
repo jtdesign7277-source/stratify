@@ -507,6 +507,7 @@ const TerminalStrategyWorkspace = ({
 
   const folderSaveTimerRef = useRef(null);
   const lastSavedFoldersRef = useRef('');
+  const missingSelectionTimerRef = useRef(null);
 
   const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
@@ -740,10 +741,50 @@ const TerminalStrategyWorkspace = ({
   const allStrategies = useMemo(() => uniqueStrategiesFromFolders(folders), [folders]);
 
   useEffect(() => {
-    if (!selectedStrategyId) return;
-    const exists = allStrategies.some((strategy) => String(strategy.id) === String(selectedStrategyId));
-    if (!exists) setSelectedStrategyId(null);
-  }, [allStrategies, selectedStrategyId]);
+    if (!selectedStrategyId) {
+      if (missingSelectionTimerRef.current) {
+        clearTimeout(missingSelectionTimerRef.current);
+        missingSelectionTimerRef.current = null;
+      }
+      return;
+    }
+
+    const targetId = String(selectedStrategyId);
+    const existsInFolders = allStrategies.some((strategy) => String(strategy.id) === targetId);
+    const existsInSource = strategySourceMap.has(targetId);
+
+    if (existsInFolders || existsInSource) {
+      if (missingSelectionTimerRef.current) {
+        clearTimeout(missingSelectionTimerRef.current);
+        missingSelectionTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (missingSelectionTimerRef.current) {
+      clearTimeout(missingSelectionTimerRef.current);
+    }
+
+    // Guard against brief sync windows where strategy maps are rebuilding.
+    missingSelectionTimerRef.current = setTimeout(() => {
+      setSelectedStrategyId((prev) => (String(prev || '') === targetId ? null : prev));
+      missingSelectionTimerRef.current = null;
+    }, 900);
+
+    return () => {
+      if (missingSelectionTimerRef.current) {
+        clearTimeout(missingSelectionTimerRef.current);
+        missingSelectionTimerRef.current = null;
+      }
+    };
+  }, [allStrategies, selectedStrategyId, strategySourceMap]);
+
+  useEffect(() => () => {
+    if (missingSelectionTimerRef.current) {
+      clearTimeout(missingSelectionTimerRef.current);
+      missingSelectionTimerRef.current = null;
+    }
+  }, []);
 
   const selectedStrategy = useMemo(() => {
     if (!selectedStrategyId) return null;
@@ -1036,7 +1077,7 @@ const TerminalStrategyWorkspace = ({
                                     handleDeleteStrategy(id);
                                   }}
                                   disabled={isDeleting}
-                                  className="absolute right-2 top-2 inline-flex items-center justify-center rounded p-1 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-rose-300 transition-opacity disabled:opacity-60"
+                                  className="absolute right-2 top-2 inline-flex items-center justify-center rounded p-1 text-gray-600 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:text-rose-300 transition-opacity disabled:opacity-60"
                                   aria-label={`Delete ${strategy.name}`}
                                   title="Delete strategy"
                                 >
