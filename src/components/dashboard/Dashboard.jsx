@@ -30,7 +30,6 @@ import BacktestWizard from './BacktestWizard';
 import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
-import MarketsPage from './MarketsPage';
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
@@ -124,6 +123,7 @@ const sanitizeActiveTab = (tab, fallback = 'war-room') => {
   if (normalized === 'builder') return 'terminal';
   if (normalized === 'strategies') return 'terminal';
   if (normalized === 'home') return 'war-room';
+  if (normalized === 'markets') return 'global-markets';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
 };
@@ -1770,7 +1770,6 @@ export default function Dashboard({
               />
             </ProGate>
           )}
-          {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
           {activeTab === 'ai-chat' && (
             <ProGate
