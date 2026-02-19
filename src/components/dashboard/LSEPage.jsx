@@ -260,7 +260,7 @@ const LSEPage = () => {
   return (
     <div className="h-full w-full overflow-y-auto bg-transparent px-5 py-4" style={{ scrollbarWidth: 'none' }}>
       <div className="mx-auto w-full max-w-7xl space-y-4">
-        <div className="rounded-xl border border-blue-500/20 bg-[#060d18]/70 p-4 backdrop-blur">
+        <div className="relative z-30 rounded-xl border border-blue-500/20 bg-[#060d18]/70 p-4 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Globe className="h-5 w-5 text-blue-400" strokeWidth={1.5} />
@@ -300,7 +300,7 @@ const LSEPage = () => {
                 </button>
 
                 {isPickerOpen && (
-                  <div className="absolute right-0 top-9 z-40 w-[460px] rounded-xl border border-blue-500/30 bg-[#060d18]/95 p-3 shadow-2xl backdrop-blur">
+                  <div className="absolute right-0 top-9 z-[100] w-[460px] rounded-xl border border-blue-500/30 bg-[#060d18]/95 p-3 shadow-2xl backdrop-blur">
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <h2 className="text-sm font-semibold text-white">LSE Stock Selector</h2>
@@ -417,7 +417,7 @@ const LSEPage = () => {
           )}
         </div>
 
-        <section className="rounded-xl border border-blue-500/20 bg-[#0a1628]/75 p-4 backdrop-blur">
+        <section className="relative z-10 rounded-xl border border-blue-500/20 bg-[#0a1628]/75 p-4 backdrop-blur">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-white">Your London Watchlist ({watchlistSymbols.length})</h2>
             {loadingQuotes ? <Loader2 className="h-4 w-4 animate-spin text-blue-400" strokeWidth={1.5} /> : null}
