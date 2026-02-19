@@ -606,6 +606,7 @@ export default function Dashboard({
   const [isFloatingGrokOpen, setIsFloatingGrokOpen] = useState(false);
   const [sophiaStrategy, setSophiaStrategy] = useState(null);
   const [sophiaWizardPrompt, setSophiaWizardPrompt] = useState(null);
+  const [isSophiaThinking, setIsSophiaThinking] = useState(false);
   const [currentMarketStatus, setCurrentMarketStatus] = useState(() => getMarketStatus());
   const [nextMarketOpenAt, setNextMarketOpenAt] = useState(() => getNextMarketOpen());
   const [allocationPrompt, setAllocationPrompt] = useState(null);
@@ -1942,6 +1943,7 @@ export default function Dashboard({
               onSaveStrategy={setSavedStrategies}
               onDeleteStrategy={handleDeleteStrategy}
               onClearStrategies={handleClearAllStrategies}
+              isSophiaThinking={isSophiaThinking}
             />
           )}
           {activeTab === 'more' && <MoreInfoPage />}
@@ -1949,6 +1951,7 @@ export default function Dashboard({
         
         <SophiaPanel 
           onCollapsedChange={setIsGrokPanelCollapsed}
+          onLoadingChange={setIsSophiaThinking}
           onStrategyGenerated={(strategy) => {
             const generatedAt = strategy?.generatedAt || Date.now();
             setSophiaStrategy({

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Brain,
   ChevronsLeft,
   ChevronsRight,
   ChevronRight,
@@ -370,6 +371,77 @@ const renderFolderIcon = (folderId) => {
   return <Folder className={`h-4 w-4 ${folderIconClass(folderId)}`} strokeWidth={1.8} />;
 };
 
+const SophiaThinkingState = ({ onOpenBuilder }) => (
+  <div className="h-full flex items-center justify-center px-8 bg-transparent relative overflow-hidden">
+    <style>{`
+      @keyframes sophia-galaxy-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes sophia-galaxy-pulse {
+        0%, 100% { opacity: 0.5; transform: scale(0.96); }
+        50% { opacity: 0.9; transform: scale(1.06); }
+      }
+      @keyframes sophia-star-drift {
+        from { transform: translateY(0px); }
+        to { transform: translateY(-18px); }
+      }
+    `}</style>
+
+    <div className="relative z-10 max-w-2xl text-center">
+      <div className="mx-auto relative h-72 w-72">
+        <div
+          className="absolute inset-0 rounded-full blur-2xl"
+          style={{
+            background:
+              'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25) 0%, rgba(168,85,247,0.45) 35%, rgba(15,23,42,0.1) 70%, transparent 100%)',
+            animation: 'sophia-galaxy-pulse 5.5s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute inset-2 rounded-full opacity-90"
+          style={{
+            background:
+              'conic-gradient(from 45deg, rgba(255,255,255,0.35), rgba(168,85,247,0.2), rgba(99,102,241,0.38), rgba(0,0,0,0.05), rgba(255,255,255,0.32))',
+            animation: 'sophia-galaxy-spin 24s linear infinite',
+          }}
+        />
+        <div
+          className="absolute inset-10 rounded-full mix-blend-screen"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(192,132,252,0.35) 28%, rgba(76,29,149,0.12) 55%, transparent 76%)',
+          }}
+        />
+        <div
+          className="absolute inset-0 rounded-full opacity-70"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 18% 24%, rgba(255,255,255,0.9) 0 1px, transparent 1px), radial-gradient(circle at 64% 32%, rgba(255,255,255,0.6) 0 1px, transparent 1px), radial-gradient(circle at 38% 70%, rgba(255,255,255,0.75) 0 1px, transparent 1px), radial-gradient(circle at 82% 64%, rgba(255,255,255,0.7) 0 1px, transparent 1px)',
+            animation: 'sophia-star-drift 8s ease-in-out infinite alternate',
+          }}
+        />
+      </div>
+
+      <div className="mt-1 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-violet-200/90">
+        <Brain className="h-3.5 w-3.5 text-violet-300" strokeWidth={1.7} />
+        Sophia is thinking
+      </div>
+      <h2 className="mt-4 text-2xl font-semibold text-white">Building your strategy...</h2>
+      <p className="mt-2 text-sm text-white/60">
+        Scanning setup logic, risk controls, and backtest conditions before the result appears.
+      </p>
+      <button
+        type="button"
+        onClick={() => onOpenBuilder?.()}
+        className="mt-6 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+      >
+        Open Builder
+      </button>
+    </div>
+  </div>
+);
+
 const firstNonEmpty = (...values) => {
   for (const value of values) {
     if (value == null) continue;
@@ -495,6 +567,7 @@ const TerminalStrategyWorkspace = ({
   onDeployStrategy,
   onRetestStrategy,
   onOpenBuilder,
+  isSophiaThinking = false,
 }) => {
   const { user } = useAuth();
   const [folders, setFolders] = useState(() => loadFoldersFromStorage());
@@ -1126,6 +1199,8 @@ const TerminalStrategyWorkspace = ({
               onRetestStrategy?.(prompt);
             }}
           />
+        ) : isSophiaThinking ? (
+          <SophiaThinkingState onOpenBuilder={onOpenBuilder} />
         ) : (
           <div className="h-full flex items-center justify-center px-8 bg-transparent">
             <div className="text-center max-w-lg">

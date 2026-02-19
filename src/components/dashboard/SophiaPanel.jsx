@@ -105,6 +105,7 @@ const SophiaPanel = ({
   onOpenWizard,
   wizardPrompt,
   onWizardPromptConsumed,
+  onLoadingChange,
 }) => {
   const {
     messages,
@@ -140,6 +141,10 @@ const SophiaPanel = ({
   useEffect(() => {
     onCollapsedChange && onCollapsedChange(panelState === 'collapsed', panelState);
   }, [panelState, onCollapsedChange]);
+
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
