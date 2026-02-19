@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createChart,
   CandlestickSeries,
@@ -76,15 +76,15 @@ class ChartErrorBoundary extends React.Component {
   }
 }
 
-const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
+const AlpacaLightweightChartInner = ({ symbol, interval = '1Day', livePrice = null, liveTimestamp = null }) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
+  const lastTickEpochRef = useRef(0);
+  const lastAppliedPriceRef = useRef(null);
   const intervalRef = useRef(interval);
-  const reloadBarsRef = useRef(null);
-  const reloadCooldownRef = useRef(0);
   const [status, setStatus] = useState({ loading: true, error: null });
 
   // Keep interval ref in sync
@@ -188,10 +188,12 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
       if (!silent) {
         setStatus({ loading: true, error: null });
+        lastBarRef.current = null;
+        lastTickEpochRef.current = 0;
+        lastAppliedPriceRef.current = null;
+        candleSeriesRef.current?.setData([]);
+        volumeSeriesRef.current?.setData([]);
       }
-      lastBarRef.current = null;
-      candleSeriesRef.current?.setData([]);
-      volumeSeriesRef.current?.setData([]);
 
       try {
         const start = getStartForInterval(interval);
@@ -262,11 +264,13 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
         });
 
         if (dedupedBars.length === 0) {
-          candleSeriesRef.current?.setData([]);
-          volumeSeriesRef.current?.setData([]);
-          chartRef.current?.timeScale().fitContent();
-          lastBarRef.current = null;
-          setStatus({ loading: false, error: 'No data available.' });
+          if (!silent) {
+            candleSeriesRef.current?.setData([]);
+            volumeSeriesRef.current?.setData([]);
+            chartRef.current?.timeScale().fitContent();
+            lastBarRef.current = null;
+            setStatus({ loading: false, error: 'No data available.' });
+          }
           return;
         }
 
@@ -286,38 +290,129 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
 
         candleSeriesRef.current?.setData(candleData);
         volumeSeriesRef.current?.setData(volumeData);
-        chartRef.current?.timeScale().fitContent();
+        if (!silent) {
+          chartRef.current?.timeScale().fitContent();
+        }
 
         lastBarRef.current = dedupedBars.length ? { ...dedupedBars[dedupedBars.length - 1] } : null;
+        lastAppliedPriceRef.current = dedupedBars.length ? dedupedBars[dedupedBars.length - 1].close : null;
+        lastTickEpochRef.current = 0;
 
         setStatus({ loading: false, error: null });
       } catch (err) {
         if (cancelled) return;
-        candleSeriesRef.current?.setData([]);
-        volumeSeriesRef.current?.setData([]);
-        setStatus({
-          loading: false,
-          error: err?.message || 'Failed to load bars',
-        });
+        if (!silent) {
+          candleSeriesRef.current?.setData([]);
+          volumeSeriesRef.current?.setData([]);
+          setStatus({
+            loading: false,
+            error: err?.message || 'Failed to load bars',
+          });
+        }
       }
     };
 
-    reloadBarsRef.current = () => loadBars({ silent: true });
     loadBars();
 
     return () => {
       cancelled = true;
-      reloadBarsRef.current = null;
     };
   }, [symbol, interval]);
 
-  // Real-time updates: poll latest quote AND periodically refetch bars for new candles
+  // Apply live tick updates directly to the current candle.
+  // If a new interval starts, create a new in-memory bar instead of reloading all bars.
+  const applyLivePrice = useCallback((rawPrice, rawTimestamp = null) => {
+    if (!lastBarRef.current) return;
+
+    const price = Number(rawPrice);
+    if (!Number.isFinite(price) || price <= 0) return;
+
+    const tsCandidate = rawTimestamp ? new Date(rawTimestamp).getTime() : 0;
+    const tickEpoch = Number.isFinite(tsCandidate) && tsCandidate > 0 ? tsCandidate : Date.now();
+
+    // Prevent out-of-order ticks from rewinding candles.
+    if (tickEpoch < lastTickEpochRef.current) return;
+    lastTickEpochRef.current = tickEpoch;
+
+    const lastBar = lastBarRef.current;
+    const tfSeconds = TIMEFRAME_SECONDS[intervalRef.current] || 60;
+    const currentBarTime = Math.floor((tickEpoch / 1000) / tfSeconds) * tfSeconds;
+
+    if (currentBarTime > lastBar.time) {
+      const nextBar = {
+        time: currentBarTime,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 0,
+      };
+
+      lastBarRef.current = nextBar;
+      lastAppliedPriceRef.current = price;
+
+      candleSeriesRef.current?.update({
+        time: nextBar.time,
+        open: nextBar.open,
+        high: nextBar.high,
+        low: nextBar.low,
+        close: nextBar.close,
+      });
+
+      volumeSeriesRef.current?.update({
+        time: nextBar.time,
+        value: nextBar.volume,
+        color: VOLUME_UP,
+      });
+      return;
+    }
+
+    if (
+      Number(lastAppliedPriceRef.current) === price &&
+      currentBarTime === lastBar.time
+    ) {
+      return;
+    }
+
+    const updatedBar = {
+      ...lastBar,
+      close: price,
+      high: Math.max(lastBar.high, price),
+      low: Math.min(lastBar.low, price),
+    };
+
+    lastBarRef.current = updatedBar;
+    lastAppliedPriceRef.current = price;
+
+    candleSeriesRef.current?.update({
+      time: updatedBar.time,
+      open: updatedBar.open,
+      high: updatedBar.high,
+      low: updatedBar.low,
+      close: updatedBar.close,
+    });
+
+    volumeSeriesRef.current?.update({
+      time: updatedBar.time,
+      value: updatedBar.volume ?? 0,
+      color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
+    });
+  }, []);
+
+  // Primary realtime path: use the same price feed as the watchlist (passed from TradePage).
+  useEffect(() => {
+    const parsedPrice = Number(livePrice);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) return;
+    applyLivePrice(parsedPrice, liveTimestamp);
+  }, [livePrice, liveTimestamp, applyLivePrice]);
+
+  // Fallback realtime path for pages that don't pass livePrice.
   useEffect(() => {
     if (!symbol) return undefined;
+    if (Number.isFinite(Number(livePrice)) && Number(livePrice) > 0) return undefined;
 
     let cancelled = false;
 
-    // Poll latest quote to update the current bar in real-time
     const pollLatest = async () => {
       if (!lastBarRef.current) return;
 
@@ -334,52 +429,14 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
             : data?.bid;
 
         if (!Number.isFinite(price)) return;
-
-        const lastBar = lastBarRef.current;
-        const tfSeconds = TIMEFRAME_SECONDS[intervalRef.current] || 60;
-        const now = Math.floor(Date.now() / 1000);
-        const currentBarTime = Math.floor(now / tfSeconds) * tfSeconds;
-
-        // Roll to a new interval: reload authoritative bars from backend
-        if (currentBarTime > lastBar.time) {
-          const nowMs = Date.now();
-          if (nowMs - reloadCooldownRef.current > 4000) {
-            reloadCooldownRef.current = nowMs;
-            reloadBarsRef.current?.();
-          }
-          return;
-        }
-
-        // Update in-progress current bar only
-        const updatedBar = {
-          ...lastBar,
-          close: price,
-          high: Math.max(lastBar.high, price),
-          low: Math.min(lastBar.low, price),
-        };
-
-        lastBarRef.current = updatedBar;
-
-        candleSeriesRef.current?.update({
-          time: updatedBar.time,
-          open: updatedBar.open,
-          high: updatedBar.high,
-          low: updatedBar.low,
-          close: updatedBar.close,
-        });
-
-        volumeSeriesRef.current?.update({
-          time: updatedBar.time,
-          value: updatedBar.volume ?? 0,
-          color: updatedBar.close >= updatedBar.open ? VOLUME_UP : VOLUME_DOWN,
-        });
+        applyLivePrice(price, data?.timestamp || Date.now());
       } catch (err) {
         // Silent fail for quote polling
       }
     };
 
-    // Poll every 3 seconds for intraday, 10 seconds for daily+
-    const pollMs = INTRADAY_TIMEFRAMES.has(interval) ? 3000 : 10000;
+    // Poll every 2 seconds for intraday, 10 seconds for daily+
+    const pollMs = INTRADAY_TIMEFRAMES.has(interval) ? 2000 : 10000;
     const quoteInterval = setInterval(pollLatest, pollMs);
     pollLatest();
 
@@ -387,7 +444,7 @@ const AlpacaLightweightChartInner = ({ symbol, interval = '1Day' }) => {
       cancelled = true;
       clearInterval(quoteInterval);
     };
-  }, [symbol, interval]);
+  }, [symbol, interval, livePrice, applyLivePrice]);
 
   return (
     <div className="relative h-full w-full bg-[#060d18]">

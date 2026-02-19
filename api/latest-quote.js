@@ -58,8 +58,8 @@ export default async function handler(req, res) {
     const cryptoSymbol = normalizeCryptoSymbol(upperSymbol);
 
     if (cryptoSymbol) {
-      const quotesUrl = `https://data.alpaca.markets/v1beta3/crypto/us/latest/quotes?symbols=${encodeURIComponent(cryptoSymbol)}`;
-      const quotesResponse = await fetch(quotesUrl, {
+      const tradesUrl = `https://data.alpaca.markets/v1beta3/crypto/us/latest/trades?symbols=${encodeURIComponent(cryptoSymbol)}`;
+      const tradesResponse = await fetch(tradesUrl, {
         headers: {
           'APCA-API-KEY-ID': ALPACA_KEY,
           'APCA-API-SECRET-KEY': ALPACA_SECRET,
@@ -67,30 +67,24 @@ export default async function handler(req, res) {
         },
       });
 
-      const quotesPayload = await quotesResponse.json().catch(() => ({}));
-      const quoteMap = quotesPayload?.quotes && typeof quotesPayload.quotes === 'object' ? quotesPayload.quotes : {};
-      const quote =
-        quoteMap[cryptoSymbol] ||
-        quoteMap[cryptoSymbol.replace('/', '')] ||
-        quoteMap[cryptoSymbol.replace('/', '-')] ||
+      const tradesPayload = await tradesResponse.json().catch(() => ({}));
+      const tradesMap =
+        tradesPayload?.trades && typeof tradesPayload.trades === 'object' ? tradesPayload.trades : {};
+      const trade =
+        tradesMap[cryptoSymbol] ||
+        tradesMap[cryptoSymbol.replace('/', '')] ||
+        tradesMap[cryptoSymbol.replace('/', '-')] ||
         null;
 
-      const bid = toNumber(quote?.bp ?? quote?.BidPrice);
-      const ask = toNumber(quote?.ap ?? quote?.AskPrice);
-      const timestamp = quote?.t ?? quote?.Timestamp ?? null;
-
-      let price = null;
-      if (Number.isFinite(bid) && Number.isFinite(ask)) {
-        price = (bid + ask) / 2;
-      } else if (Number.isFinite(ask)) {
-        price = ask;
-      } else if (Number.isFinite(bid)) {
-        price = bid;
-      }
+      let price = toNumber(trade?.p ?? trade?.Price);
+      let timestamp = trade?.t ?? trade?.Timestamp ?? null;
+      let bid = null;
+      let ask = null;
+      let source = Number.isFinite(price) ? 'trade' : null;
 
       if (!Number.isFinite(price)) {
-        const tradesUrl = `https://data.alpaca.markets/v1beta3/crypto/us/latest/trades?symbols=${encodeURIComponent(cryptoSymbol)}`;
-        const tradesResponse = await fetch(tradesUrl, {
+        const quotesUrl = `https://data.alpaca.markets/v1beta3/crypto/us/latest/quotes?symbols=${encodeURIComponent(cryptoSymbol)}`;
+        const quotesResponse = await fetch(quotesUrl, {
           headers: {
             'APCA-API-KEY-ID': ALPACA_KEY,
             'APCA-API-SECRET-KEY': ALPACA_SECRET,
@@ -98,22 +92,34 @@ export default async function handler(req, res) {
           },
         });
 
-        if (tradesResponse.ok) {
-          const tradesPayload = await tradesResponse.json().catch(() => ({}));
-          const tradesMap = tradesPayload?.trades && typeof tradesPayload.trades === 'object' ? tradesPayload.trades : {};
-          const trade =
-            tradesMap[cryptoSymbol] ||
-            tradesMap[cryptoSymbol.replace('/', '')] ||
-            tradesMap[cryptoSymbol.replace('/', '-')] ||
-            null;
-          price = toNumber(trade?.p ?? trade?.Price);
+        const quotesPayload = await quotesResponse.json().catch(() => ({}));
+        const quoteMap =
+          quotesPayload?.quotes && typeof quotesPayload.quotes === 'object' ? quotesPayload.quotes : {};
+        const quote =
+          quoteMap[cryptoSymbol] ||
+          quoteMap[cryptoSymbol.replace('/', '')] ||
+          quoteMap[cryptoSymbol.replace('/', '-')] ||
+          null;
+
+        bid = toNumber(quote?.bp ?? quote?.BidPrice);
+        ask = toNumber(quote?.ap ?? quote?.AskPrice);
+        timestamp = quote?.t ?? quote?.Timestamp ?? timestamp;
+
+        if (Number.isFinite(bid) && Number.isFinite(ask)) {
+          price = (bid + ask) / 2;
+        } else if (Number.isFinite(ask)) {
+          price = ask;
+        } else if (Number.isFinite(bid)) {
+          price = bid;
         }
+
+        source = Number.isFinite(price) ? 'quote' : source;
       }
 
-      if (!Number.isFinite(price) && !quotesResponse.ok) {
-        return res.status(quotesResponse.status).json({
-          error: `Alpaca crypto API error: ${quotesResponse.status}`,
-          detail: quotesPayload,
+      if (!Number.isFinite(price) && !tradesResponse.ok) {
+        return res.status(tradesResponse.status).json({
+          error: `Alpaca crypto API error: ${tradesResponse.status}`,
+          detail: tradesPayload,
         });
       }
 
@@ -122,14 +128,15 @@ export default async function handler(req, res) {
         bid,
         ask,
         timestamp,
+        source,
       });
     }
 
-    const url = `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(
+    const tradeUrl = `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(
       upperSymbol
-    )}/quotes/latest?feed=sip`;
+    )}/trades/latest?feed=sip`;
 
-    const response = await fetch(url, {
+    const tradeResponse = await fetch(tradeUrl, {
       headers: {
         'APCA-API-KEY-ID': ALPACA_KEY,
         'APCA-API-SECRET-KEY': ALPACA_SECRET,
@@ -137,34 +144,57 @@ export default async function handler(req, res) {
       },
     });
 
-    if (!response.ok) {
-      const detail = await response.text();
-      return res.status(response.status).json({
-        error: `Alpaca API error: ${response.status}`,
-        detail,
+    const tradePayload = await tradeResponse.json().catch(() => ({}));
+    const trade = tradePayload?.trade || tradePayload?.latestTrade || {};
+    let price = toNumber(trade.p ?? trade.Price);
+    let timestamp = trade.t ?? trade.Timestamp ?? null;
+    let bid = null;
+    let ask = null;
+    let source = Number.isFinite(price) ? 'trade' : null;
+
+    if (!Number.isFinite(price)) {
+      const quoteUrl = `https://data.alpaca.markets/v2/stocks/${encodeURIComponent(
+        upperSymbol
+      )}/quotes/latest?feed=sip`;
+
+      const quoteResponse = await fetch(quoteUrl, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_SECRET,
+          Accept: 'application/json',
+        },
       });
-    }
 
-    const data = await response.json();
-    const quote = data?.quote || data?.latestQuote || {};
-    const bid = toNumber(quote.bp ?? quote.BidPrice);
-    const ask = toNumber(quote.ap ?? quote.AskPrice);
-    const timestamp = quote.t ?? quote.Timestamp ?? null;
+      if (!quoteResponse.ok && !tradeResponse.ok) {
+        const detail = await quoteResponse.text();
+        return res.status(quoteResponse.status).json({
+          error: `Alpaca API error: ${quoteResponse.status}`,
+          detail,
+        });
+      }
 
-    let price = null;
-    if (Number.isFinite(bid) && Number.isFinite(ask)) {
-      price = (bid + ask) / 2;
-    } else if (Number.isFinite(ask)) {
-      price = ask;
-    } else if (Number.isFinite(bid)) {
-      price = bid;
+      const quotePayload = await quoteResponse.json().catch(() => ({}));
+      const quote = quotePayload?.quote || quotePayload?.latestQuote || {};
+      bid = toNumber(quote.bp ?? quote.BidPrice);
+      ask = toNumber(quote.ap ?? quote.AskPrice);
+      timestamp = quote.t ?? quote.Timestamp ?? timestamp;
+
+      if (Number.isFinite(bid) && Number.isFinite(ask)) {
+        price = (bid + ask) / 2;
+      } else if (Number.isFinite(ask)) {
+        price = ask;
+      } else if (Number.isFinite(bid)) {
+        price = bid;
+      }
+      source = Number.isFinite(price) ? 'quote' : source;
     }
 
     return res.status(200).json({
-      price,
+      price: Number.isFinite(price) ? price : null,
       bid,
       ask,
       timestamp,
+      source,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to fetch latest quote' });

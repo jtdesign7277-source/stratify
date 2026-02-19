@@ -467,6 +467,8 @@ class AlpacaStreamManager {
               if (!symbol) return;
 
               const previous = this.stockQuotes.get(symbol) || { symbol };
+              const previousTrade = Number(previous.lastTrade);
+              const hasPreviousTrade = Number.isFinite(previousTrade) && previousTrade > 0;
               const update = msg.T === 't'
                 ? {
                     symbol,
@@ -481,7 +483,7 @@ class AlpacaStreamManager {
                     ask: msg.ap,
                     bidSize: msg.bs,
                     askSize: msg.as,
-                    price: msg.ap || msg.bp || previous.price,
+                    price: hasPreviousTrade ? previousTrade : (msg.ap || msg.bp || previous.price),
                     timestamp: msg.t,
                   };
 
@@ -686,6 +688,8 @@ class AlpacaStreamManager {
               if (!symbol) return;
 
               const previous = this.cryptoQuotes.get(symbol) || { symbol };
+              const previousTrade = Number(previous.lastTrade);
+              const hasPreviousTrade = Number.isFinite(previousTrade) && previousTrade > 0;
               const update = msg.T === 't'
                 ? {
                     symbol,
@@ -708,7 +712,9 @@ class AlpacaStreamManager {
                       symbol,
                       bid: msg.bp ?? msg.bid ?? msg.BP,
                       ask: msg.ap ?? msg.ask ?? msg.AP,
-                      price: msg.ap ?? msg.bp ?? msg.ask ?? msg.bid ?? msg.AP ?? msg.BP ?? previous.price,
+                      price: hasPreviousTrade
+                        ? previousTrade
+                        : (msg.ap ?? msg.bp ?? msg.ask ?? msg.bid ?? msg.AP ?? msg.BP ?? previous.price),
                       timestamp: msg.t ?? msg.timestamp,
                     };
 

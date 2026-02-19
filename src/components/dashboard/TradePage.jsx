@@ -2050,7 +2050,12 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                 height="100%"
               />
             ) : (
-              <AlpacaLightweightChart symbol={selectedSymbol} interval={selectedInterval} />
+              <AlpacaLightweightChart
+                symbol={selectedSymbol}
+                interval={selectedInterval}
+                livePrice={selectedQuote?.price}
+                liveTimestamp={selectedQuote?.timestamp}
+              />
             )}
           </div>
 
