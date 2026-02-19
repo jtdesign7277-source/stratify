@@ -149,6 +149,17 @@ const GlobalMarketsPage = () => {
     }, {})
   );
 
+  const searchDebounceKey = useMemo(
+    () =>
+      JSON.stringify(
+        MARKETS.map((market) => {
+          const ui = searchUiByMarket[market.id] || {};
+          return [market.id, Boolean(ui.open), String(ui.query || '')];
+        })
+      ),
+    [searchUiByMarket]
+  );
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     MARKETS.forEach((market) => {
@@ -207,6 +218,21 @@ const GlobalMarketsPage = () => {
   }, [fetchQuotesForMarket]);
 
   const searchSymbols = useCallback(async (marketId, query) => {
+    const trimmedQuery = String(query || '').trim();
+
+    if (!trimmedQuery) {
+      setSearchUiByMarket((prev) => ({
+        ...prev,
+        [marketId]: {
+          ...prev[marketId],
+          loading: false,
+          error: null,
+          results: [],
+        },
+      }));
+      return;
+    }
+
     setSearchUiByMarket((prev) => ({
       ...prev,
       [marketId]: {
@@ -219,7 +245,7 @@ const GlobalMarketsPage = () => {
     try {
       const params = new URLSearchParams({
         market: marketId,
-        q: String(query || '').trim(),
+        q: trimmedQuery,
         limit: '250',
       });
       const response = await fetch(`/api/global-markets/list?${params.toString()}`, { cache: 'no-store' });
@@ -266,7 +292,7 @@ const GlobalMarketsPage = () => {
     return () => {
       timeouts.forEach((timeout) => clearTimeout(timeout));
     };
-  }, [searchUiByMarket, searchSymbols]);
+  }, [searchDebounceKey, searchSymbols]);
 
   const toggleSearch = (marketId) => {
     setSearchUiByMarket((prev) => ({
