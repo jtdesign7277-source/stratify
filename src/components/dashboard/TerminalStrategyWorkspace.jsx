@@ -28,6 +28,7 @@ const DEFAULT_FOLDERS = [
   { id: 'sophia-strategies', name: 'Sophia Strategies', isExpanded: true, strategies: [] },
   { id: 'archive', name: 'Archive', isExpanded: false, strategies: [] },
 ];
+const SYSTEM_FOLDER_IDS = new Set(DEFAULT_FOLDERS.map((folder) => folder.id));
 
 const LIVE_STATUSES = new Set(['active', 'live', 'running', 'deployed']);
 const ACTIVE_FOLDER_STATUSES = new Set(['active', 'live', 'running', 'deployed', 'paused']);
@@ -929,6 +930,48 @@ const TerminalStrategyWorkspace = ({
     );
   };
 
+  const handleDeleteFolder = (folderId) => {
+    const targetId = String(folderId || '').trim();
+    if (!targetId || SYSTEM_FOLDER_IDS.has(targetId)) return;
+
+    const confirmed =
+      typeof window === 'undefined' ? true : window.confirm('Delete this folder? Strategies will be moved to Archive.');
+    if (!confirmed) return;
+
+    setFolders((prev) => {
+      const folderToDelete = prev.find((folder) => folder.id === targetId);
+      if (!folderToDelete) return prev;
+
+      const remainingFolders = prev.filter((folder) => folder.id !== targetId);
+      const deletedStrategies = Array.isArray(folderToDelete.strategies) ? folderToDelete.strategies : [];
+      if (deletedStrategies.length === 0) return remainingFolders;
+
+      const fallbackFolderId =
+        remainingFolders.some((folder) => folder.id === 'archive')
+          ? 'archive'
+          : remainingFolders.some((folder) => folder.id === 'stratify')
+            ? 'stratify'
+            : remainingFolders[0]?.id;
+
+      if (!fallbackFolderId) return remainingFolders;
+
+      return remainingFolders.map((folder) => {
+        if (folder.id !== fallbackFolderId) return folder;
+
+        const existingIds = new Set(folder.strategies.map((strategy) => String(strategy.id)));
+        const mergedStrategies = [...folder.strategies];
+        deletedStrategies.forEach((strategy) => {
+          const strategyId = String(strategy?.id || '');
+          if (!strategyId || existingIds.has(strategyId)) return;
+          existingIds.add(strategyId);
+          mergedStrategies.push(strategy);
+        });
+
+        return { ...folder, strategies: mergedStrategies };
+      });
+    });
+  };
+
   const handleDeleteStrategy = async (strategyId) => {
     const targetId = String(strategyId || '').trim();
     if (!targetId || deletingStrategyId === targetId) return;
@@ -1087,25 +1130,44 @@ const TerminalStrategyWorkspace = ({
               {folders.map((folder) => {
                 const hasStrategies = folder.strategies.length > 0;
 
+                const isSystemFolder = SYSTEM_FOLDER_IDS.has(folder.id);
+
                 return (
                   <div key={folder.id} className="mb-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleFolderExpanded(folder.id)}
-                      className="w-full flex items-center gap-2 rounded-lg px-2 py-2 border border-transparent hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors"
-                    >
-                      <ChevronRight
-                        className={`h-3.5 w-3.5 text-white/50 transition-transform ${folder.isExpanded ? 'rotate-90' : ''}`}
-                        strokeWidth={2}
-                      />
-                      {renderFolderIcon(folder.id)}
-                      <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/90">
-                        {folder.name}
-                      </span>
-                      <span className="rounded-md border border-zinc-700 bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-semibold text-white/55">
-                        {folder.strategies.length}
-                      </span>
-                    </button>
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        onClick={() => toggleFolderExpanded(folder.id)}
+                        className="w-full flex items-center gap-2 rounded-lg px-2 py-2 pr-9 border border-transparent hover:border-zinc-700 hover:bg-zinc-900/40 transition-colors"
+                      >
+                        <ChevronRight
+                          className={`h-3.5 w-3.5 text-white/50 transition-transform ${folder.isExpanded ? 'rotate-90' : ''}`}
+                          strokeWidth={2}
+                        />
+                        {renderFolderIcon(folder.id)}
+                        <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-white/90">
+                          {folder.name}
+                        </span>
+                        <span className="rounded-md border border-zinc-700 bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-semibold text-white/55">
+                          {folder.strategies.length}
+                        </span>
+                      </button>
+
+                      {!isSystemFolder && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteFolder(folder.id);
+                          }}
+                          className="absolute right-2 top-2 inline-flex items-center justify-center rounded p-1 text-gray-600 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto hover:text-rose-300"
+                          aria-label={`Delete folder ${folder.name}`}
+                          title={`Delete folder ${folder.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                        </button>
+                      )}
+                    </div>
 
                     {folder.isExpanded && (
                       <div className="ml-6 border-l border-zinc-800 pl-2">
