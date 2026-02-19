@@ -31,6 +31,7 @@ import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
 import MarketsPage from './MarketsPage';
+import LSEPage from './LSEPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
@@ -1760,6 +1761,7 @@ export default function Dashboard({
             </ProGate>
           )}
           {activeTab === 'markets' && <MarketsPage themeClasses={themeClasses} />}
+          {activeTab === 'global-markets' && <LSEPage />}
           {activeTab === 'ai-chat' && (
             <ProGate
               featureName="AI Chat"
