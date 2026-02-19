@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
+import AlpacaLightweightChart from './AlpacaLightweightChart';
 import {
   subscribeTwelveDataQuotes,
   subscribeTwelveDataStatus,
@@ -572,15 +573,6 @@ const WatchlistPage = ({
   const selectedQuote = selectedTicker ? quotesBySymbol[selectedTicker] : null;
   const selectedWatchlistEntry = visibleWatchlist.find((item) => item.symbol === selectedTicker) || null;
   const selectedName = selectedWatchlistEntry?.name || selectedTicker;
-  const selectedExchange = resolveEquityExchange(
-    selectedTicker,
-    selectedWatchlistEntry?.exchange || selectedQuote?.exchange,
-    selectedName
-  );
-  const tradingViewSymbol = selectedTicker
-    ? `${selectedExchange}:${selectedTicker}`
-    : '';
-
   const marketPrice = useMemo(() => {
     return selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.ask ?? selectedQuote?.bid ?? 0;
   }, [selectedQuote]);
@@ -1251,11 +1243,12 @@ const WatchlistPage = ({
 
             <div className="flex min-h-0 flex-1">
               <div className="min-h-0 flex-1">
-                <iframe
-                  key={tradingViewSymbol || selectedTicker}
-                  src={`https://s.tradingview.com/widgetembed/?frameElementId=watchlist_widget&symbol=${encodeURIComponent(tradingViewSymbol || selectedTicker)}&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=America%2FNew_York&withdateranges=1&showpopupbutton=0&locale=en`}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  allowFullScreen
+                <AlpacaLightweightChart
+                  key={`watchlist-chart-${selectedTicker}`}
+                  symbol={selectedTicker}
+                  interval="15Min"
+                  livePrice={selectedQuote?.price}
+                  liveTimestamp={selectedQuote?.timestamp}
                 />
               </div>
 
