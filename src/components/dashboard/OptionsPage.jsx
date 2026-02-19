@@ -87,10 +87,8 @@ const OptionsPage = () => {
       const data = await res.json();
       setChains(data.expirations || []);
 
-      // Auto-expand first 2 expirations
-      if (data.expirations?.length > 0) {
-        setExpandedExps(new Set(data.expirations.slice(0, 2).map((e) => e.expiration)));
-      }
+      // Start all collapsed — user clicks to expand
+      setExpandedExps(new Set());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -246,19 +244,30 @@ const OptionsPage = () => {
                 {/* Expiration header */}
                 <button
                   onClick={() => toggleExp(expGroup.expiration)}
-                  className="w-full flex items-center px-3 py-2 border-b border-[#1a1a1a] hover:bg-white/[0.02] transition-colors"
+                  className="w-full flex items-center border-b border-[#1a1a1a] hover:bg-white/[0.02] transition-colors"
                   style={{ background: '#080810' }}
                 >
-                  {isExpanded
-                    ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
-                    : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
-                  }
-                  <span className="text-white text-xs font-medium">
-                    {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
-                  </span>
-                  <span className="text-[10px] text-white/30 ml-2">↗ Calls</span>
-                  <span className="text-white/50 text-xs font-mono mx-auto">{daysToExp} D</span>
-                  <span className="text-[10px] text-white/30 mr-2">Puts ↘</span>
+                  {/* Calls side */}
+                  <div className="flex-1 flex items-center px-3 py-2">
+                    {isExpanded
+                      ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                      : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                    }
+                    <span className="text-white text-xs font-medium">
+                      {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
+                    </span>
+                    <span className="text-[10px] text-white/30 ml-auto mr-2">↗ Calls</span>
+                  </div>
+
+                  {/* DTE centered in strike column */}
+                  <div className="w-20 text-center flex-shrink-0">
+                    <span className="text-white/50 text-xs font-mono font-semibold">{daysToExp} D</span>
+                  </div>
+
+                  {/* Puts side */}
+                  <div className="flex-1 flex items-center px-3 py-2">
+                    <span className="text-[10px] text-white/30 ml-2">Puts ↘</span>
+                  </div>
                 </button>
 
                 {/* Strike rows */}
