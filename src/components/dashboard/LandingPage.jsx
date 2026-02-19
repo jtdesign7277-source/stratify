@@ -353,18 +353,18 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
             {/* Powered By logos */}
             <div className="mt-20 mb-16 flex flex-col items-center gap-10">
               <p className="text-xs uppercase tracking-[0.35em] text-gray-500 font-medium">Powered By</p>
-              <div className="flex items-center justify-center gap-16 flex-wrap">
-                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
-                  <img src="/logos/supabase.png" alt="Supabase" className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="flex items-center justify-center gap-14 flex-wrap">
+                <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
+                  <img src="/logos/stripe.png" alt="Stripe" className="h-14 w-auto" />
                 </a>
-                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
-                  <img src="/logos/vercel-full.png" alt="Vercel" className="h-8 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300 invert" />
+                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
+                  <img src="/logos/supabase.png" alt="Supabase" className="h-14 w-auto" />
                 </a>
-                <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
-                  <img src="/logos/stripe.png" alt="Stripe" className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
+                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
+                  <img src="/logos/claude.png" alt="Claude" className="h-14 w-auto" />
                 </a>
-                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
-                  <img src="/logos/claude.png" alt="Claude by Anthropic" className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
+                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 opacity-70 transition-opacity duration-300">
+                  <img src="/logos/vercel-full.png" alt="Vercel" className="h-12 w-auto invert" />
                 </a>
               </div>
             </div>
