@@ -482,7 +482,6 @@ export default function StrategyOutput({
     return () => clearTimeout(timeoutId);
   }, [isEditingStrategyText]);
 
-  const allChecked = checks.every(Boolean);
   const allPreChecked = preChecks.every(Boolean);
   const checkedCount = checks.filter(Boolean).length;
   const activationLocked = !saved;
@@ -494,12 +493,22 @@ export default function StrategyOutput({
   const toggleCheck = (i) => setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
   const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
 
-  const updateFieldValue = (index, value) => {
+  const updateFieldValue = (index, value, options = {}) => {
+    const { syncEditor = false } = options;
     const normalizedValue = withDollarTickers(String(value ?? '').trim());
     setFieldValues((prev) => {
       const next = [...prev];
       next[index] = normalizedValue;
-      setStrategyRaw((currentRaw) => applyKeyTradeSetupsSection(currentRaw || s.raw || '', next));
+      if (isEditingStrategyText || syncEditor) {
+        setEditorValue((currentEditorRaw) => {
+          const sourceRaw = normalizeEditorContent(currentEditorRaw || strategyRaw || s.raw || '');
+          const updatedRaw = normalizeEditorContent(applyKeyTradeSetupsSection(sourceRaw, next));
+          setIsEditorModified(updatedRaw !== String(strategyRaw || ''));
+          return updatedRaw;
+        });
+      } else {
+        setStrategyRaw((currentRaw) => applyKeyTradeSetupsSection(currentRaw || s.raw || '', next));
+      }
       return next;
     });
   };
@@ -661,8 +670,6 @@ export default function StrategyOutput({
   };
 
   const handleSave = async () => {
-    if (!allChecked) return;
-
     const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
     const normalizedRaw = normalizeEditorContent(ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues));
     setStrategyRaw(normalizedRaw);
@@ -882,7 +889,13 @@ export default function StrategyOutput({
     }
 
     try {
-      onSaveToSophia?.(payload);
+      if (typeof onSaveToSophia === 'function') {
+        onSaveToSophia(payload);
+      } else if (typeof onSave === 'function') {
+        onSave(payload);
+      }
+      setSaved(true);
+      setSaveStatus('saved');
       setSavedToSophia(true);
     } catch (error) {
       console.warn('[StrategyOutput] Save to Sophia state callback failed:', error);
@@ -956,6 +969,24 @@ export default function StrategyOutput({
 
         {isEditingStrategyText ? (
           <>
+            <div className="mb-3 rounded-xl border border-emerald-400/25 bg-emerald-500/5 p-3">
+              <div className="text-sm font-semibold text-emerald-300">Editable Risk Controls</div>
+              <div className="mt-1 text-xs text-emerald-200/80">
+                Click and edit these first. They map directly to Key Trade Setups and will be used by Backtest.
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {fields.map((field, index) => (
+                  <label key={`edit-control-${index}`} className="block">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-300/90">{field.label}</span>
+                    <input
+                      value={activeFieldValues[index] || ''}
+                      onChange={(event) => updateFieldValue(index, event.target.value, { syncEditor: true })}
+                      className="mt-1 w-full rounded-md border border-emerald-400/40 bg-black/35 px-2.5 py-2 text-[16px] leading-5 font-semibold text-emerald-200 focus:border-emerald-300 focus:outline-none"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="rounded-xl border border-white/10 bg-[#0d1117]/40 overflow-hidden">
               <textarea
                 ref={editorTextareaRef}
@@ -1029,7 +1060,7 @@ export default function StrategyOutput({
                     <span className="text-gray-400 text-[15px]">{checkedCount}/6</span>
                     <button
                       onClick={handleSave}
-                      disabled={!allChecked || saveStatus === 'saving'}
+                      disabled={saveStatus === 'saving'}
                       className={`rounded-lg px-4 py-1 border transition ${
                         saveStatus === 'saved'
                           ? 'bg-emerald-600 border-emerald-500 text-white'
