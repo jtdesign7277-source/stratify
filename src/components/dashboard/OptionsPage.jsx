@@ -51,6 +51,7 @@ const ITM_BG = '#0D0D1A';        // dark navy for ITM rows
 const OTM_BG = 'transparent';    // black bg for OTM rows
 const HEADER_BG = '#111118';     // slightly lighter header
 const SEPARATOR_BG = '#0A0A14';  // ITM separator bar
+const SIDE_COL_WIDTH = '16.6667%';
 
 const OptionsPage = () => {
   const [activeTicker, setActiveTicker] = useState('AAPL');
@@ -61,10 +62,12 @@ const OptionsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [numStrikes, setNumStrikes] = useState(6);
-  const [showBoth, setShowBoth] = useState(true);
+  const [chainView, setChainView] = useState('both');
   const [expandedExps, setExpandedExps] = useState(new Set());
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
+  const visibleExpCount = useMemo(() => Math.max(1, Math.min(numStrikes, 10)), [numStrikes]);
+  const visibleChains = useMemo(() => chains.slice(0, visibleExpCount), [chains, visibleExpCount]);
 
   // Fetch options chain for a ticker
   const fetchChain = useCallback(async (symbol) => {
@@ -85,10 +88,17 @@ const OptionsPage = () => {
       const res = await fetch(`/api/options/chain?symbol=${symbol}&strikes=${numStrikes}`);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      setChains(data.expirations || []);
+      const expirations = data.expirations || [];
+      setChains(expirations);
 
-      // Start all collapsed — user clicks to expand
-      setExpandedExps(new Set());
+      // Keep expiry date count in sync with strike-count selector:
+      // selecting 4 opens the nearest 4 expiration days.
+      const autoExpanded = new Set(
+        expirations
+          .slice(0, Math.min(Math.max(1, numStrikes), 10))
+          .map((exp) => exp.expiration)
+      );
+      setExpandedExps(autoExpanded);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -143,8 +153,8 @@ const OptionsPage = () => {
 
         {/* Both/Calls/Puts */}
         <select
-          value={showBoth ? 'both' : 'calls'}
-          onChange={(e) => setShowBoth(e.target.value === 'both')}
+          value={chainView}
+          onChange={(e) => setChainView(e.target.value)}
           className="text-[11px] text-white bg-transparent border border-[#333] rounded px-2 py-1 cursor-pointer outline-none"
         >
           <option value="both" className="bg-[#111]">Both</option>
@@ -194,27 +204,32 @@ const OptionsPage = () => {
       {/* ── Column Headers ── */}
       <div className="flex-shrink-0 flex items-center text-[10px] text-white/35 uppercase tracking-wider font-medium" style={{ background: HEADER_BG }}>
         {/* Calls header */}
-        <div className="flex-1 flex items-center">
-          <div className="w-[13%] px-2 py-1.5 text-right">Impl Vol</div>
-          <div className="w-[13%] px-2 py-1.5 text-right">Mid</div>
-          <div className="w-[14%] px-2 py-1.5 text-right">% Chg</div>
-          <div className="w-[13%] px-2 py-1.5 text-right">Last</div>
-          <div className="w-[13%] px-2 py-1.5 text-right" style={{ color: CALL_COLOR + '80' }}>Ask</div>
-          <div className="w-[13%] px-2 py-1.5 text-right" style={{ color: CALL_COLOR + '80' }}>Bid</div>
-        </div>
+        {chainView !== 'puts' && (
+          <div className="flex-1 flex items-center">
+            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>Impl Vol</div>
+            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>Mid</div>
+            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>% Chg</div>
+            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>Last</div>
+            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR + '80' }}>Ask</div>
+            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR + '80' }}>Bid</div>
+          </div>
+        )}
 
-        {/* Strike center */}
-        <div className="w-24 text-center flex-shrink-0 px-2 py-1.5 font-semibold text-white/50">Strike</div>
+        {chainView === 'both' && (
+          <div className="w-16 text-center px-1 py-1.5 font-semibold text-white/55">Strike</div>
+        )}
 
         {/* Puts header */}
-        <div className="flex-1 flex items-center">
-          <div className="w-[13%] px-2 py-1.5 text-left" style={{ color: PUT_COLOR + '80' }}>Bid</div>
-          <div className="w-[13%] px-2 py-1.5 text-left" style={{ color: PUT_COLOR + '80' }}>Ask</div>
-          <div className="w-[13%] px-2 py-1.5 text-left">Last</div>
-          <div className="w-[14%] px-2 py-1.5 text-left">% Chg</div>
-          <div className="w-[13%] px-2 py-1.5 text-left">Mid</div>
-          <div className="w-[13%] px-2 py-1.5 text-left">Impl Vol</div>
-        </div>
+        {chainView !== 'calls' && (
+          <div className="flex-1 flex items-center">
+            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR + '80' }}>Bid</div>
+            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR + '80' }}>Ask</div>
+            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>Last</div>
+            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>% Chg</div>
+            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>Mid</div>
+            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>Impl Vol</div>
+          </div>
+        )}
       </div>
 
       {/* ── Chain Body ── */}
@@ -232,7 +247,7 @@ const OptionsPage = () => {
         ) : chains.length === 0 ? (
           <div className="text-center py-20 text-white/30 text-sm">No options data available</div>
         ) : (
-          chains.map((expGroup) => {
+          visibleChains.map((expGroup) => {
             const isExpanded = expandedExps.has(expGroup.expiration);
             const daysToExp = dte(expGroup.expiration);
             const dateLabel = fmtDate(expGroup.expiration);
@@ -248,26 +263,42 @@ const OptionsPage = () => {
                   style={{ background: '#080810' }}
                 >
                   {/* Calls side */}
-                  <div className="flex-1 flex items-center px-3 py-2">
-                    {isExpanded
-                      ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
-                      : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
-                    }
-                    <span className="text-white text-xs font-medium">
-                      {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
-                    </span>
-                    <span className="text-[10px] text-white/30 ml-auto mr-2">↗ Calls</span>
-                  </div>
+                  {chainView !== 'puts' && (
+                    <div className="flex-1 flex items-center px-3 py-2">
+                      {isExpanded
+                        ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                        : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                      }
+                      <span className="text-white text-xs font-medium">
+                        {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
+                      </span>
+                      <span className="text-[10px] text-white/30 ml-auto mr-2">↗ Calls</span>
+                    </div>
+                  )}
 
-                  {/* DTE centered in strike column */}
-                  <div className="w-24 text-center flex-shrink-0 flex-shrink-0">
-                    <span className="text-white/50 text-xs font-mono font-semibold">{daysToExp} D</span>
-                  </div>
+                  {chainView === 'both' && (
+                    <div className="w-16 text-center flex-shrink-0">
+                      <span className="text-white/50 text-xs font-mono font-semibold">{daysToExp} D</span>
+                    </div>
+                  )}
 
                   {/* Puts side */}
-                  <div className="flex-1 flex items-center px-3 py-2">
-                    <span className="text-[10px] text-white/30 ml-2">Puts ↘</span>
-                  </div>
+                  {chainView !== 'calls' && (
+                    <div className="flex-1 flex items-center px-3 py-2">
+                      {chainView === 'puts' && (
+                        <>
+                          {isExpanded
+                            ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                            : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
+                          }
+                          <span className="text-white text-xs font-medium">
+                            {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
+                          </span>
+                        </>
+                      )}
+                      <span className={`text-[10px] text-white/30 ${chainView === 'puts' ? 'ml-auto' : 'ml-2'}`}>Puts ↘</span>
+                    </div>
+                  )}
                 </button>
 
                 {/* Strike rows */}
@@ -307,33 +338,39 @@ const OptionsPage = () => {
                         style={{ background: rowBg }}
                       >
                         {/* ── Calls side ── */}
-                        <div className="flex-1 flex items-center">
-                          <div className="w-[13%] px-2 py-1.5 text-right text-white/60">{call.iv ? fmtIV(call.iv) : '—'}</div>
-                          <div className="w-[13%] px-2 py-1.5 text-right text-white/70">{call.mid ? fmt(call.mid) : '—'}</div>
-                          <div className="w-[14%] px-2 py-1.5 text-right" style={{ color: call.pctChange > 0 ? GREEN : call.pctChange < 0 ? RED : '#888' }}>
-                            {call.pctChange != null ? fmtPct(call.pctChange) : '—'}
+                        {chainView !== 'puts' && (
+                          <div className="flex-1 flex items-center">
+                            <div className="px-2 py-1.5 text-right text-white/60" style={{ width: SIDE_COL_WIDTH }}>{call.iv ? fmtIV(call.iv) : '—'}</div>
+                            <div className="px-2 py-1.5 text-right text-white/70" style={{ width: SIDE_COL_WIDTH }}>{call.mid ? fmt(call.mid) : '—'}</div>
+                            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH, color: call.pctChange > 0 ? GREEN : call.pctChange < 0 ? RED : '#888' }}>
+                              {call.pctChange != null ? fmtPct(call.pctChange) : '—'}
+                            </div>
+                            <div className="px-2 py-1.5 text-right text-white/70" style={{ width: SIDE_COL_WIDTH }}>{call.last ? fmt(call.last) : '—'}</div>
+                            <div className="px-2 py-1.5 text-right font-medium" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR }}>{call.ask ? fmt(call.ask) : '—'}</div>
+                            <div className="px-2 py-1.5 text-right font-medium" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR }}>{call.bid ? fmt(call.bid) : '—'}</div>
                           </div>
-                          <div className="w-[13%] px-2 py-1.5 text-right text-white/70">{call.last ? fmt(call.last) : '—'}</div>
-                          <div className="w-[13%] px-2 py-1.5 text-right font-medium" style={{ color: CALL_COLOR }}>{call.ask ? fmt(call.ask) : '—'}</div>
-                          <div className="w-[13%] px-2 py-1.5 text-right font-medium" style={{ color: CALL_COLOR }}>{call.bid ? fmt(call.bid) : '—'}</div>
-                        </div>
+                        )}
 
                         {/* ── Strike ── */}
-                        <div className={`w-24 text-center flex-shrink-0 px-2 py-1.5 font-semibold ${isATM ? 'text-amber-300' : 'text-white'}`}>
-                          {fmtStrike(strike)}
-                        </div>
+                        {chainView === 'both' && (
+                          <div className={`w-16 text-center px-1 py-1.5 font-semibold ${isATM ? 'text-amber-300' : 'text-white'}`}>
+                            {fmtStrike(strike)}
+                          </div>
+                        )}
 
                         {/* ── Puts side ── */}
-                        <div className="flex-1 flex items-center">
-                          <div className="w-[13%] px-2 py-1.5 text-left font-medium" style={{ color: PUT_COLOR }}>{put.bid ? fmt(put.bid) : '—'}</div>
-                          <div className="w-[13%] px-2 py-1.5 text-left font-medium" style={{ color: PUT_COLOR }}>{put.ask ? fmt(put.ask) : '—'}</div>
-                          <div className="w-[13%] px-2 py-1.5 text-left text-white/70">{put.last ? fmt(put.last) : '—'}</div>
-                          <div className="w-[14%] px-2 py-1.5 text-left" style={{ color: put.pctChange > 0 ? GREEN : put.pctChange < 0 ? RED : '#888' }}>
-                            {put.pctChange != null ? fmtPct(put.pctChange) : '—'}
+                        {chainView !== 'calls' && (
+                          <div className="flex-1 flex items-center">
+                            <div className="px-2 py-1.5 text-left font-medium" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR }}>{put.bid ? fmt(put.bid) : '—'}</div>
+                            <div className="px-2 py-1.5 text-left font-medium" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR }}>{put.ask ? fmt(put.ask) : '—'}</div>
+                            <div className="px-2 py-1.5 text-left text-white/70" style={{ width: SIDE_COL_WIDTH }}>{put.last ? fmt(put.last) : '—'}</div>
+                            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH, color: put.pctChange > 0 ? GREEN : put.pctChange < 0 ? RED : '#888' }}>
+                              {put.pctChange != null ? fmtPct(put.pctChange) : '—'}
+                            </div>
+                            <div className="px-2 py-1.5 text-left text-white/70" style={{ width: SIDE_COL_WIDTH }}>{put.mid ? fmt(put.mid) : '—'}</div>
+                            <div className="px-2 py-1.5 text-left text-white/60" style={{ width: SIDE_COL_WIDTH }}>{put.iv ? fmtIV(put.iv) : '—'}</div>
                           </div>
-                          <div className="w-[13%] px-2 py-1.5 text-left text-white/70">{put.mid ? fmt(put.mid) : '—'}</div>
-                          <div className="w-[13%] px-2 py-1.5 text-left text-white/60">{put.iv ? fmtIV(put.iv) : '—'}</div>
-                        </div>
+                        )}
                       </div>
                     </React.Fragment>
                   );
