@@ -18,55 +18,143 @@ const TRADE_UI_LOCAL_KEY = 'stratify-trade-ui-state';
 const TRADE_UI_USER_STATE_KEY = 'trade_ui';
 const DEFAULT_PINNED_TABS = ['NVDA', 'TSLA', 'AAPL'];
 
-const STOCK_DATABASE = [
+const US_STOCK_UNIVERSE = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ' },
-  { symbol: 'AMZN', name: 'Amazon.com, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ' },
   { symbol: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ' },
+  { symbol: 'AMZN', name: 'Amazon.com, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc. Class A', exchange: 'NASDAQ' },
+  { symbol: 'GOOG', name: 'Alphabet Inc. Class C', exchange: 'NASDAQ' },
   { symbol: 'META', name: 'Meta Platforms, Inc.', exchange: 'NASDAQ' },
   { symbol: 'TSLA', name: 'Tesla, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ' },
-  { symbol: 'HOOD', name: 'Robinhood Markets, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'SOFI', name: 'SoFi Technologies, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'AMD', name: 'Advanced Micro Devices', exchange: 'NASDAQ' },
-  { symbol: 'INTC', name: 'Intel Corporation', exchange: 'NASDAQ' },
-  { symbol: 'NFLX', name: 'Netflix, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'PYPL', name: 'PayPal Holdings, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'COIN', name: 'Coinbase Global, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'PLTR', name: 'Palantir Technologies', exchange: 'NYSE' },
-  { symbol: 'SPY', name: 'SPDR S&P 500 ETF', exchange: 'NYSE' },
-  { symbol: 'QQQ', name: 'Invesco QQQ Trust', exchange: 'NASDAQ' },
-  { symbol: 'DIA', name: 'SPDR Dow Jones ETF', exchange: 'NYSE' },
+  { symbol: 'AVGO', name: 'Broadcom Inc.', exchange: 'NASDAQ' },
+  { symbol: 'BRK.B', name: 'Berkshire Hathaway Class B', exchange: 'NYSE' },
   { symbol: 'JPM', name: 'JPMorgan Chase & Co.', exchange: 'NYSE' },
-  { symbol: 'BAC', name: 'Bank of America Corp.', exchange: 'NYSE' },
   { symbol: 'V', name: 'Visa Inc.', exchange: 'NYSE' },
   { symbol: 'MA', name: 'Mastercard Inc.', exchange: 'NYSE' },
+  { symbol: 'XOM', name: 'Exxon Mobil Corp.', exchange: 'NYSE' },
+  { symbol: 'WMT', name: 'Walmart Inc.', exchange: 'NYSE' },
+  { symbol: 'UNH', name: 'UnitedHealth Group', exchange: 'NYSE' },
+  { symbol: 'JNJ', name: 'Johnson & Johnson', exchange: 'NYSE' },
+  { symbol: 'PG', name: 'Procter & Gamble', exchange: 'NYSE' },
+  { symbol: 'ORCL', name: 'Oracle Corporation', exchange: 'NYSE' },
+  { symbol: 'HD', name: 'Home Depot', exchange: 'NYSE' },
+  { symbol: 'COST', name: 'Costco Wholesale', exchange: 'NASDAQ' },
+  { symbol: 'ABBV', name: 'AbbVie Inc.', exchange: 'NYSE' },
+  { symbol: 'MRK', name: 'Merck & Co., Inc.', exchange: 'NYSE' },
+  { symbol: 'CVX', name: 'Chevron Corporation', exchange: 'NYSE' },
+  { symbol: 'BAC', name: 'Bank of America Corp.', exchange: 'NYSE' },
+  { symbol: 'KO', name: 'Coca-Cola Company', exchange: 'NYSE' },
+  { symbol: 'PEP', name: 'PepsiCo, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'CRM', name: 'Salesforce, Inc.', exchange: 'NYSE' },
+  { symbol: 'ADBE', name: 'Adobe Inc.', exchange: 'NASDAQ' },
+  { symbol: 'ACN', name: 'Accenture plc', exchange: 'NYSE' },
+  { symbol: 'NFLX', name: 'Netflix, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'CSCO', name: 'Cisco Systems, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'AMD', name: 'Advanced Micro Devices', exchange: 'NASDAQ' },
+  { symbol: 'QCOM', name: 'Qualcomm, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'TMUS', name: 'T-Mobile US, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'MCD', name: "McDonald's Corporation", exchange: 'NYSE' },
+  { symbol: 'ABT', name: 'Abbott Laboratories', exchange: 'NYSE' },
+  { symbol: 'DHR', name: 'Danaher Corporation', exchange: 'NYSE' },
+  { symbol: 'TMO', name: 'Thermo Fisher Scientific', exchange: 'NYSE' },
+  { symbol: 'TXN', name: 'Texas Instruments', exchange: 'NASDAQ' },
+  { symbol: 'INTU', name: 'Intuit Inc.', exchange: 'NASDAQ' },
+  { symbol: 'LIN', name: 'Linde plc', exchange: 'NASDAQ' },
+  { symbol: 'AMGN', name: 'Amgen Inc.', exchange: 'NASDAQ' },
   { symbol: 'DIS', name: 'Walt Disney Company', exchange: 'NYSE' },
+  { symbol: 'PM', name: 'Philip Morris International', exchange: 'NYSE' },
+  { symbol: 'RTX', name: 'RTX Corporation', exchange: 'NYSE' },
+  { symbol: 'GE', name: 'GE Aerospace', exchange: 'NYSE' },
+  { symbol: 'SPGI', name: 'S&P Global Inc.', exchange: 'NYSE' },
+  { symbol: 'IBM', name: 'IBM', exchange: 'NYSE' },
+  { symbol: 'WFC', name: 'Wells Fargo & Company', exchange: 'NYSE' },
+  { symbol: 'GS', name: 'Goldman Sachs Group', exchange: 'NYSE' },
+  { symbol: 'CAT', name: 'Caterpillar Inc.', exchange: 'NYSE' },
+  { symbol: 'BLK', name: 'BlackRock, Inc.', exchange: 'NYSE' },
+  { symbol: 'BKNG', name: 'Booking Holdings Inc.', exchange: 'NASDAQ' },
+  { symbol: 'SBUX', name: 'Starbucks Corporation', exchange: 'NASDAQ' },
+  { symbol: 'GILD', name: 'Gilead Sciences, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'NOW', name: 'ServiceNow, Inc.', exchange: 'NYSE' },
+  { symbol: 'ADP', name: 'Automatic Data Processing', exchange: 'NASDAQ' },
+  { symbol: 'LRCX', name: 'Lam Research Corp.', exchange: 'NASDAQ' },
+  { symbol: 'MU', name: 'Micron Technology, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'KLAC', name: 'KLA Corporation', exchange: 'NASDAQ' },
+  { symbol: 'PANW', name: 'Palo Alto Networks', exchange: 'NASDAQ' },
+  { symbol: 'CRWD', name: 'CrowdStrike Holdings', exchange: 'NASDAQ' },
+  { symbol: 'SNPS', name: 'Synopsys, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'CDNS', name: 'Cadence Design Systems', exchange: 'NASDAQ' },
+  { symbol: 'ANET', name: 'Arista Networks', exchange: 'NYSE' },
+  { symbol: 'SNOW', name: 'Snowflake Inc.', exchange: 'NYSE' },
+  { symbol: 'PLTR', name: 'Palantir Technologies', exchange: 'NASDAQ' },
   { symbol: 'UBER', name: 'Uber Technologies', exchange: 'NYSE' },
   { symbol: 'ABNB', name: 'Airbnb, Inc.', exchange: 'NASDAQ' },
-  { symbol: 'SQ', name: 'Block, Inc.', exchange: 'NYSE' },
-  { symbol: 'CRWD', name: 'CrowdStrike Holdings', exchange: 'NASDAQ' },
-  { symbol: 'GME', name: 'GameStop Corp.', exchange: 'NYSE' },
-  { symbol: 'AMC', name: 'AMC Entertainment', exchange: 'NYSE' },
+  { symbol: 'PYPL', name: 'PayPal Holdings, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'COIN', name: 'Coinbase Global, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'SHOP', name: 'Shopify Inc.', exchange: 'NASDAQ' },
+  { symbol: 'SOFI', name: 'SoFi Technologies, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'HOOD', name: 'Robinhood Markets, Inc.', exchange: 'NASDAQ' },
   { symbol: 'RIVN', name: 'Rivian Automotive', exchange: 'NASDAQ' },
   { symbol: 'NIO', name: 'NIO Inc.', exchange: 'NYSE' },
   { symbol: 'F', name: 'Ford Motor Company', exchange: 'NYSE' },
-  { symbol: 'XOM', name: 'Exxon Mobil Corp.', exchange: 'NYSE' },
-  { symbol: 'JNJ', name: 'Johnson & Johnson', exchange: 'NYSE' },
-  { symbol: 'WMT', name: 'Walmart Inc.', exchange: 'NYSE' },
-  { symbol: 'HD', name: 'Home Depot', exchange: 'NYSE' },
-  { symbol: 'BA', name: 'Boeing Company', exchange: 'NYSE' },
-  { symbol: 'AVGO', name: 'Broadcom Inc.', exchange: 'NASDAQ' },
-  { symbol: 'CRM', name: 'Salesforce, Inc.', exchange: 'NYSE' },
-  { symbol: 'ADBE', name: 'Adobe Inc.', exchange: 'NASDAQ' },
-  { symbol: 'PANW', name: 'Palo Alto Networks', exchange: 'NASDAQ' },
-  { symbol: 'SNOW', name: 'Snowflake Inc.', exchange: 'NYSE' },
+  { symbol: 'GM', name: 'General Motors Company', exchange: 'NYSE' },
+  { symbol: 'T', name: 'AT&T Inc.', exchange: 'NYSE' },
+  { symbol: 'VZ', name: 'Verizon Communications', exchange: 'NYSE' },
+  { symbol: 'CMCSA', name: 'Comcast Corporation', exchange: 'NASDAQ' },
+  { symbol: 'CHTR', name: 'Charter Communications', exchange: 'NASDAQ' },
+  { symbol: 'DE', name: 'Deere & Company', exchange: 'NYSE' },
+  { symbol: 'NKE', name: 'Nike, Inc.', exchange: 'NYSE' },
+  { symbol: 'PFE', name: 'Pfizer Inc.', exchange: 'NYSE' },
+  { symbol: 'BMY', name: 'Bristol-Myers Squibb', exchange: 'NYSE' },
+  { symbol: 'LLY', name: 'Eli Lilly and Company', exchange: 'NYSE' },
+  { symbol: 'VRTX', name: 'Vertex Pharmaceuticals', exchange: 'NASDAQ' },
+  { symbol: 'MDT', name: 'Medtronic plc', exchange: 'NYSE' },
+  { symbol: 'SYK', name: 'Stryker Corporation', exchange: 'NYSE' },
+  { symbol: 'C', name: 'Citigroup Inc.', exchange: 'NYSE' },
+  { symbol: 'USB', name: 'U.S. Bancorp', exchange: 'NYSE' },
+  { symbol: 'CME', name: 'CME Group Inc.', exchange: 'NASDAQ' },
+  { symbol: 'ICE', name: 'Intercontinental Exchange', exchange: 'NYSE' },
+  { symbol: 'AON', name: 'Aon plc', exchange: 'NYSE' },
+  { symbol: 'CB', name: 'Chubb Limited', exchange: 'NYSE' },
+  { symbol: 'MMC', name: 'Marsh & McLennan Companies', exchange: 'NYSE' },
+  { symbol: 'HCA', name: 'HCA Healthcare', exchange: 'NYSE' },
+  { symbol: 'ZTS', name: 'Zoetis Inc.', exchange: 'NYSE' },
+  { symbol: 'ROST', name: 'Ross Stores, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'WDAY', name: 'Workday, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'MELI', name: 'MercadoLibre, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'MAR', name: 'Marriott International', exchange: 'NASDAQ' },
+  { symbol: 'APD', name: 'Air Products and Chemicals', exchange: 'NYSE' },
+  { symbol: 'ETN', name: 'Eaton Corporation', exchange: 'NYSE' },
+  { symbol: 'DUK', name: 'Duke Energy Corporation', exchange: 'NYSE' },
+  { symbol: 'SO', name: 'Southern Company', exchange: 'NYSE' },
+  { symbol: 'FDX', name: 'FedEx Corporation', exchange: 'NYSE' },
+  { symbol: 'UPS', name: 'United Parcel Service', exchange: 'NYSE' },
+  { symbol: 'UNP', name: 'Union Pacific Corporation', exchange: 'NYSE' },
+  { symbol: 'PLD', name: 'Prologis, Inc.', exchange: 'NYSE' },
+  { symbol: 'SPY', name: 'SPDR S&P 500 ETF', exchange: 'NYSE' },
+  { symbol: 'QQQ', name: 'Invesco QQQ Trust', exchange: 'NASDAQ' },
+  { symbol: 'DIA', name: 'SPDR Dow Jones ETF', exchange: 'NYSE' },
+  { symbol: 'IWM', name: 'iShares Russell 2000 ETF', exchange: 'NYSE' },
+  { symbol: 'GLD', name: 'SPDR Gold Shares', exchange: 'NYSE' },
+  { symbol: 'XLF', name: 'Financial Select Sector SPDR', exchange: 'NYSE' },
+  { symbol: 'XLK', name: 'Technology Select Sector SPDR', exchange: 'NYSE' },
+  { symbol: 'XLE', name: 'Energy Select Sector SPDR', exchange: 'NYSE' },
+  { symbol: 'XLI', name: 'Industrial Select Sector SPDR', exchange: 'NYSE' },
+  { symbol: 'XLY', name: 'Consumer Discretionary SPDR', exchange: 'NYSE' },
+  { symbol: 'SQ', name: 'Block, Inc.', exchange: 'NYSE' },
   { symbol: 'NET', name: 'Cloudflare, Inc.', exchange: 'NYSE' },
   { symbol: 'HIMS', name: 'Hims & Hers Health', exchange: 'NYSE' },
   { symbol: 'MARA', name: 'Marathon Digital', exchange: 'NASDAQ' },
   { symbol: 'SMCI', name: 'Super Micro Computer', exchange: 'NASDAQ' },
   { symbol: 'ARM', name: 'Arm Holdings', exchange: 'NASDAQ' },
   { symbol: 'RKLB', name: 'Rocket Lab USA', exchange: 'NASDAQ' },
+  { symbol: 'GME', name: 'GameStop Corp.', exchange: 'NYSE' },
+  { symbol: 'AMC', name: 'AMC Entertainment', exchange: 'NYSE' },
+  { symbol: 'BA', name: 'Boeing Company', exchange: 'NYSE' },
+  { symbol: 'INTC', name: 'Intel Corporation', exchange: 'NASDAQ' },
+];
+
+const LSE_STOCK_UNIVERSE = [
   { symbol: 'SHEL', name: 'Shell plc', exchange: 'LSE' },
   { symbol: 'AZN', name: 'AstraZeneca plc', exchange: 'LSE' },
   { symbol: 'HSBA', name: 'HSBC Holdings plc', exchange: 'LSE' },
@@ -80,6 +168,11 @@ const STOCK_DATABASE = [
   { symbol: 'LSEG', name: 'London Stock Exchange', exchange: 'LSE' },
   { symbol: 'BATS', name: 'British American Tobacco', exchange: 'LSE' },
 ];
+
+const STOCK_DATABASE = [...US_STOCK_UNIVERSE, ...LSE_STOCK_UNIVERSE].filter((stock, index, allStocks) => {
+  const key = `${stock.exchange}:${stock.symbol}`.toUpperCase();
+  return allStocks.findIndex((candidate) => `${candidate.exchange}:${candidate.symbol}`.toUpperCase() === key) === index;
+});
 
 const DEFAULT_EQUITY_WATCHLIST = [
   { symbol: 'AAPL', name: 'Apple Inc.' },
@@ -1141,14 +1234,16 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       return;
     }
     const query = searchQuery.toLowerCase();
-    const existingSymbols = activeWatchlist.map(s => s.symbol);
+    const existingSymbols = new Set(activeWatchlist.map((stock) => stock.symbol));
     const filtered = activeDatabase.filter(s => {
-      if (existingSymbols.includes(s.symbol)) return false;
       const symbolMatch = s.symbol.toLowerCase().includes(query);
       const nameMatch = s.name.toLowerCase().includes(query);
       const displayMatch = s.displaySymbol ? s.displaySymbol.toLowerCase().includes(query) : false;
       return symbolMatch || nameMatch || displayMatch;
-    }).slice(0, 10);
+    }).slice(0, 20).map((stock) => ({
+      ...stock,
+      alreadyInWatchlist: existingSymbols.has(stock.symbol),
+    }));
     setSearchResults(filtered);
   }, [searchQuery, activeDatabase, activeWatchlist]);
 
@@ -1185,13 +1280,23 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
   const handleAddStock = (stock) => {
     if (activeMarket === 'crypto') {
       const normalizedStock = normalizeCryptoWatchlistItem(stock);
+      if (stock?.alreadyInWatchlist) {
+        setSelectedCrypto(normalizedStock.symbol);
+        setSearchQuery('');
+        setSearchResults([]);
+        return;
+      }
       setCryptoWatchlist(prev => {
         if (prev.some(s => s.symbol === normalizedStock.symbol)) return prev;
         // Add new tickers to TOP of list (prepend)
         return [normalizedStock, ...prev];
       });
+      setSelectedCrypto(normalizedStock.symbol);
     } else if (onAddToWatchlist) {
-      onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
+      if (!stock?.alreadyInWatchlist) {
+        onAddToWatchlist({ symbol: stock.symbol, name: stock.name });
+      }
+      setSelectedEquity(stock.symbol);
     }
     setSearchQuery('');
     setSearchResults([]);
@@ -1531,7 +1636,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(String(e.target.value || '').toUpperCase())}
                 placeholder={activeMarket === 'crypto' ? 'Search coin or token...' : 'Search symbol or company...'}
                 className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none"
               />
@@ -1575,6 +1680,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                     ? (stock.displaySymbol || getCryptoDisplaySymbol(stock.symbol))
                     : stock.symbol;
                   const isLseResult = activeMarket === 'equity' && stock.exchange === LSE_EXCHANGE;
+                  const inWatchlist = Boolean(stock.alreadyInWatchlist);
                   return (
                     <div 
                       key={stock.symbol}
@@ -1586,12 +1692,21 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                         <span className="text-gray-400 text-sm ml-3">{stock.name}</span>
                       </div>
                       <div className="flex items-center gap-3">
+                        {inWatchlist && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-300 font-medium">
+                            In Watchlist
+                          </span>
+                        )}
                         {isLseResult && (
                           <span className="bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full font-medium">
                             LSE
                           </span>
                         )}
-                        <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                        {inWatchlist ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" strokeWidth={1.75} />
+                        ) : (
+                          <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                        )}
                       </div>
                     </div>
                   );
@@ -1910,6 +2025,24 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                 );
               })}
             </div>
+            {isSelectedLse && (
+              <>
+                <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-lg border border-blue-500/35 bg-[#060d18]/80 px-3 py-2 backdrop-blur">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base leading-none">🇬🇧</span>
+                    <div className="leading-none">
+                      <div className="text-[10px] font-bold tracking-[0.2em] text-blue-300">LONDON STOCK EXCHANGE</div>
+                      <div className="mt-1 text-[9px] font-medium tracking-[0.15em] text-blue-300/75">AN LSEG BUSINESS</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="pointer-events-none absolute bottom-4 right-4 z-[8] text-right leading-none opacity-[0.14]">
+                  <div className="text-[18px] font-black tracking-[0.12em] text-blue-300">LONDON</div>
+                  <div className="text-[18px] font-black tracking-[0.12em] text-blue-300">STOCK</div>
+                  <div className="text-[18px] font-black tracking-[0.12em] text-blue-300">EXCHANGE</div>
+                </div>
+              </>
+            )}
             {isSelectedLse ? (
               <TwelveDataLightweightChart
                 symbol={lseChartSymbol}

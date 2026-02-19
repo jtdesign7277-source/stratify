@@ -137,7 +137,7 @@ export default function AlpacaOrderTicket({
           <input
             type="text"
             value={symbolInput}
-            onChange={(event) => setSymbolInput(event.target.value)}
+            onChange={(event) => setSymbolInput(String(event.target.value || '').toUpperCase())}
             onBlur={handleCommitSymbol}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
