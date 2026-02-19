@@ -369,3 +369,365 @@ export const fetchLseUniverse = async (limit = 600) => {
     ).filter(Boolean)
   ).slice(0, safeLimit);
 };
+
+const GLOBAL_MARKETS = {
+  nyse: {
+    id: 'nyse',
+    label: 'New York Stock Exchange',
+    currency: 'USD',
+    country: 'United States',
+    defaultSymbols: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'],
+    exchangeHints: ['NYSE', 'NASDAQ', 'AMEX', 'ARCA', 'US'],
+    candidateFormats: (base) => [base, `${base}:NYSE`, `${base}:NASDAQ`, `${base}:AMEX`, `${base}:ARCA`, `${base}.US`],
+    stockListParams: [
+      { exchange: 'NYSE' },
+      { exchange: 'NASDAQ' },
+      { country: 'United States' },
+    ],
+    fallbackUniverse: [
+      { symbol: 'AAPL', instrumentName: 'Apple Inc.' },
+      { symbol: 'MSFT', instrumentName: 'Microsoft Corporation' },
+      { symbol: 'NVDA', instrumentName: 'NVIDIA Corporation' },
+      { symbol: 'TSLA', instrumentName: 'Tesla, Inc.' },
+      { symbol: 'AMZN', instrumentName: 'Amazon.com, Inc.' },
+      { symbol: 'META', instrumentName: 'Meta Platforms, Inc.' },
+      { symbol: 'GOOGL', instrumentName: 'Alphabet Inc. Class A' },
+      { symbol: 'GOOG', instrumentName: 'Alphabet Inc. Class C' },
+      { symbol: 'AVGO', instrumentName: 'Broadcom Inc.' },
+      { symbol: 'BRK.B', instrumentName: 'Berkshire Hathaway Inc. Class B' },
+      { symbol: 'JPM', instrumentName: 'JPMorgan Chase & Co.' },
+      { symbol: 'V', instrumentName: 'Visa Inc.' },
+      { symbol: 'MA', instrumentName: 'Mastercard Inc.' },
+      { symbol: 'XOM', instrumentName: 'Exxon Mobil Corporation' },
+      { symbol: 'WMT', instrumentName: 'Walmart Inc.' },
+      { symbol: 'UNH', instrumentName: 'UnitedHealth Group Incorporated' },
+      { symbol: 'LLY', instrumentName: 'Eli Lilly and Company' },
+      { symbol: 'HD', instrumentName: 'The Home Depot, Inc.' },
+      { symbol: 'PG', instrumentName: 'The Procter & Gamble Company' },
+      { symbol: 'NFLX', instrumentName: 'Netflix, Inc.' },
+      { symbol: 'AMD', instrumentName: 'Advanced Micro Devices, Inc.' },
+      { symbol: 'INTC', instrumentName: 'Intel Corporation' },
+      { symbol: 'PYPL', instrumentName: 'PayPal Holdings, Inc.' },
+      { symbol: 'SPY', instrumentName: 'SPDR S&P 500 ETF Trust' },
+      { symbol: 'QQQ', instrumentName: 'Invesco QQQ Trust' },
+      { symbol: 'DIA', instrumentName: 'SPDR Dow Jones Industrial Average ETF Trust' },
+      { symbol: 'IWM', instrumentName: 'iShares Russell 2000 ETF' },
+      { symbol: 'GLD', instrumentName: 'SPDR Gold Shares' },
+    ],
+  },
+  lse: {
+    id: 'lse',
+    label: 'London Stock Exchange',
+    currency: 'GBP',
+    country: 'United Kingdom',
+    defaultSymbols: ['SHEL', 'AZN', 'HSBA', 'BP', 'BARC', 'LLOY'],
+    exchangeHints: ['LSE', 'XLON', 'LONDON'],
+    candidateFormats: (base) => [`${base}:LSE`, `${base}:XLON`, `${base}.LON`, `${base}.LSE`, base],
+    stockListParams: [
+      { exchange: 'LSE' },
+      { exchange: 'XLON' },
+      { mic_code: 'XLON' },
+      { country: 'United Kingdom' },
+    ],
+    fallbackUniverse: LSE_FALLBACK_UNIVERSE,
+  },
+  tokyo: {
+    id: 'tokyo',
+    label: 'Tokyo Stock Exchange',
+    currency: 'JPY',
+    country: 'Japan',
+    defaultSymbols: ['7203', '6758', '9984', '8306', '6861', '9432'],
+    exchangeHints: ['TYO', 'TSE', 'JPX', 'TOKYO', 'JAPAN'],
+    candidateFormats: (base) => [`${base}:TYO`, `${base}:TSE`, `${base}:JPX`, `${base}.JP`, base],
+    stockListParams: [
+      { exchange: 'TYO' },
+      { exchange: 'TSE' },
+      { country: 'Japan' },
+    ],
+    fallbackUniverse: [
+      { symbol: '7203', instrumentName: 'Toyota Motor Corporation' },
+      { symbol: '6758', instrumentName: 'Sony Group Corporation' },
+      { symbol: '9984', instrumentName: 'SoftBank Group Corp.' },
+      { symbol: '8306', instrumentName: 'Mitsubishi UFJ Financial Group, Inc.' },
+      { symbol: '6861', instrumentName: 'Keyence Corporation' },
+      { symbol: '9432', instrumentName: 'Nippon Telegraph and Telephone Corporation' },
+      { symbol: '6501', instrumentName: 'Hitachi, Ltd.' },
+      { symbol: '8035', instrumentName: 'Tokyo Electron Limited' },
+      { symbol: '4063', instrumentName: 'Shin-Etsu Chemical Co., Ltd.' },
+      { symbol: '6098', instrumentName: 'Recruit Holdings Co., Ltd.' },
+      { symbol: '9433', instrumentName: 'KDDI Corporation' },
+      { symbol: '8058', instrumentName: 'Mitsubishi Corporation' },
+      { symbol: '8001', instrumentName: 'ITOCHU Corporation' },
+      { symbol: '8766', instrumentName: 'Tokio Marine Holdings, Inc.' },
+      { symbol: '2914', instrumentName: 'Japan Tobacco Inc.' },
+      { symbol: '7267', instrumentName: 'Honda Motor Co., Ltd.' },
+      { symbol: '9983', instrumentName: 'Fast Retailing Co., Ltd.' },
+      { symbol: '4519', instrumentName: 'Chugai Pharmaceutical Co., Ltd.' },
+      { symbol: '4568', instrumentName: 'Daiichi Sankyo Company, Limited' },
+      { symbol: '6503', instrumentName: 'Mitsubishi Electric Corporation' },
+    ],
+  },
+  sydney: {
+    id: 'sydney',
+    label: 'Sydney Stock Exchange',
+    currency: 'AUD',
+    country: 'Australia',
+    defaultSymbols: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
+    exchangeHints: ['ASX', 'XASX', 'SYDNEY', 'AUSTRALIA'],
+    candidateFormats: (base) => [`${base}:ASX`, `${base}:XASX`, `${base}.AU`, base],
+    stockListParams: [
+      { exchange: 'ASX' },
+      { exchange: 'XASX' },
+      { country: 'Australia' },
+    ],
+    fallbackUniverse: [
+      { symbol: 'BHP', instrumentName: 'BHP Group Limited' },
+      { symbol: 'CBA', instrumentName: 'Commonwealth Bank of Australia' },
+      { symbol: 'WBC', instrumentName: 'Westpac Banking Corporation' },
+      { symbol: 'NAB', instrumentName: 'National Australia Bank Limited' },
+      { symbol: 'ANZ', instrumentName: 'ANZ Group Holdings Limited' },
+      { symbol: 'CSL', instrumentName: 'CSL Limited' },
+      { symbol: 'WES', instrumentName: 'Wesfarmers Limited' },
+      { symbol: 'MQG', instrumentName: 'Macquarie Group Limited' },
+      { symbol: 'WOW', instrumentName: 'Woolworths Group Limited' },
+      { symbol: 'RIO', instrumentName: 'Rio Tinto Limited' },
+      { symbol: 'GMG', instrumentName: 'Goodman Group' },
+      { symbol: 'TLS', instrumentName: 'Telstra Group Limited' },
+      { symbol: 'TCL', instrumentName: 'Transurban Group' },
+      { symbol: 'ALL', instrumentName: 'Aristocrat Leisure Limited' },
+      { symbol: 'COL', instrumentName: 'Coles Group Limited' },
+      { symbol: 'QBE', instrumentName: 'QBE Insurance Group Limited' },
+      { symbol: 'FMG', instrumentName: 'Fortescue Ltd' },
+      { symbol: 'STO', instrumentName: 'Santos Limited' },
+      { symbol: 'ORG', instrumentName: 'Origin Energy Limited' },
+      { symbol: 'REA', instrumentName: 'REA Group Ltd' },
+    ],
+  },
+};
+
+const normalizeMarketId = (market) => {
+  const normalized = String(market || '').trim().toLowerCase();
+  if (normalized === 'nyse' || normalized === 'new-york' || normalized === 'newyork' || normalized === 'us') return 'nyse';
+  if (normalized === 'lse' || normalized === 'london' || normalized === 'uk') return 'lse';
+  if (normalized === 'tokyo' || normalized === 'tse' || normalized === 'tyo' || normalized === 'japan') return 'tokyo';
+  if (normalized === 'sydney' || normalized === 'asx' || normalized === 'australia') return 'sydney';
+  return normalized;
+};
+
+const getMarketConfig = (market) => {
+  const key = normalizeMarketId(market);
+  return GLOBAL_MARKETS[key] || null;
+};
+
+const normalizeGlobalListRow = (item = {}, marketConfig) => {
+  const symbol = extractBaseSymbol(item.symbol || item.code || item.ticker || '');
+  if (!symbol) return null;
+
+  return {
+    symbol,
+    instrumentName:
+      item.instrument_name ||
+      item.name ||
+      item.company_name ||
+      item.description ||
+      symbol,
+    exchange: item.exchange || item.market || marketConfig.label,
+    micCode: item.mic_code || item.mic || '',
+    country: item.country || marketConfig.country,
+    currency: item.currency || marketConfig.currency,
+    type: item.type || item.instrument_type || 'Common Stock',
+  };
+};
+
+const matchesMarketConfig = (item, marketConfig) => {
+  const text = [
+    item?.exchange,
+    item?.mic_code,
+    item?.micCode,
+    item?.country,
+    item?.instrument_name,
+    item?.name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toUpperCase();
+
+  return marketConfig.exchangeHints.some((hint) => text.includes(String(hint).toUpperCase()));
+};
+
+const normalizeRequestedSymbols = (symbols, marketConfig) => {
+  const input = normalizeSymbols(symbols);
+  if (input.length > 0) return input;
+  return [...marketConfig.defaultSymbols];
+};
+
+const globalSymbolCandidates = (symbol, marketConfig) => {
+  const normalized = normalizeSymbols([symbol])[0] || '';
+  const base = extractBaseSymbol(normalized);
+  if (!base) return [];
+  const candidates = marketConfig.candidateFormats(base);
+  return normalizeSymbols(candidates);
+};
+
+const toGlobalQuoteRow = ({ requestedSymbol, attemptedSymbol, payload, marketConfig }) => {
+  const base = extractBaseSymbol(requestedSymbol) || extractBaseSymbol(attemptedSymbol);
+  const streamSymbol = String(payload?.symbol || attemptedSymbol || requestedSymbol || '').toUpperCase();
+  return {
+    requestedSymbol: String(requestedSymbol || base || '').toUpperCase(),
+    symbol: streamSymbol,
+    streamSymbol,
+    name: payload?.name || base || streamSymbol,
+    exchange: payload?.exchange || marketConfig.label,
+    currency: payload?.currency || marketConfig.currency,
+    price: toNumber(payload?.close || payload?.price || payload?.last),
+    change: toNumber(payload?.change),
+    percentChange: toNumber(payload?.percent_change ?? payload?.percentChange),
+    timestamp: payload?.datetime || payload?.timestamp || null,
+    raw: payload,
+  };
+};
+
+const fetchSingleGlobalQuote = async (inputSymbol, marketConfig) => {
+  const requestedBase = extractBaseSymbol(inputSymbol);
+  const requestedSymbol = requestedBase || normalizeSymbols([inputSymbol])[0];
+  if (!requestedSymbol) return null;
+
+  const candidates = globalSymbolCandidates(requestedSymbol, marketConfig);
+  for (const candidate of candidates) {
+    try {
+      const payload = await requestTwelveData('/quote', { symbol: candidate });
+      const row = toGlobalQuoteRow({ requestedSymbol, attemptedSymbol: candidate, payload, marketConfig });
+      if (row.price != null) return row;
+    } catch {
+      // Try the next candidate format.
+    }
+  }
+
+  try {
+    const searchPayload = await requestTwelveData('/symbol_search', {
+      symbol: requestedBase,
+      outputsize: 30,
+    });
+    const searchItems = Array.isArray(searchPayload?.data) ? searchPayload.data : [];
+    const marketMatch = searchItems.find((item) => matchesMarketConfig(item, marketConfig));
+    if (marketMatch?.symbol) {
+      const payload = await requestTwelveData('/quote', { symbol: marketMatch.symbol });
+      const row = toGlobalQuoteRow({
+        requestedSymbol,
+        attemptedSymbol: marketMatch.symbol,
+        payload,
+        marketConfig,
+      });
+      if (row.price != null) return row;
+    }
+  } catch {
+    // No-op fallback below.
+  }
+
+  return {
+    requestedSymbol,
+    symbol: requestedSymbol,
+    streamSymbol: requestedSymbol,
+    name: requestedSymbol,
+    exchange: marketConfig.label,
+    currency: marketConfig.currency,
+    price: null,
+    change: null,
+    percentChange: null,
+    timestamp: null,
+    raw: null,
+  };
+};
+
+export const getDefaultGlobalSymbols = (market) => {
+  const marketConfig = getMarketConfig(market);
+  if (!marketConfig) return [];
+  return [...marketConfig.defaultSymbols];
+};
+
+export const fetchGlobalQuotes = async (symbols, market) => {
+  const marketConfig = getMarketConfig(market);
+  if (!marketConfig) {
+    const error = new Error('Unsupported market');
+    error.status = 400;
+    throw error;
+  }
+
+  const targetSymbols = normalizeRequestedSymbols(symbols, marketConfig);
+  const rows = await Promise.all(targetSymbols.map((symbol) => fetchSingleGlobalQuote(symbol, marketConfig)));
+  return rows.filter(Boolean);
+};
+
+export const searchGlobalSymbols = async (query, market) => {
+  const marketConfig = getMarketConfig(market);
+  if (!marketConfig) {
+    const error = new Error('Unsupported market');
+    error.status = 400;
+    throw error;
+  }
+
+  const q = String(query || '').trim();
+  if (!q) return [];
+
+  try {
+    const payload = await requestTwelveData('/symbol_search', { symbol: q, outputsize: 60 });
+    const rows = (Array.isArray(payload?.data) ? payload.data : [])
+      .filter((item) => matchesMarketConfig(item, marketConfig))
+      .map((item) => normalizeGlobalListRow(item, marketConfig))
+      .filter(Boolean);
+
+    const deduped = dedupeListRows(rows);
+    if (deduped.length > 0) return deduped;
+  } catch {
+    // Fallback to local list search.
+  }
+
+  return marketConfig.fallbackUniverse
+    .filter((item) => `${item.symbol} ${item.instrumentName}`.toUpperCase().includes(q.toUpperCase()))
+    .map((item) => ({
+      symbol: extractBaseSymbol(item.symbol),
+      instrumentName: item.instrumentName,
+      exchange: marketConfig.label,
+      micCode: '',
+      country: marketConfig.country,
+      currency: marketConfig.currency,
+      type: 'Common Stock',
+    }));
+};
+
+export const fetchGlobalUniverse = async (market, limit = 300) => {
+  const marketConfig = getMarketConfig(market);
+  if (!marketConfig) {
+    const error = new Error('Unsupported market');
+    error.status = 400;
+    throw error;
+  }
+
+  const safeLimit = Math.max(50, Math.min(Number(limit) || 300, 1000));
+  for (const params of marketConfig.stockListParams) {
+    try {
+      const payload = await requestTwelveData('/stocks', { ...params, outputsize: safeLimit });
+      const rows = collectRows(payload)
+        .filter((item) => matchesMarketConfig(item, marketConfig))
+        .map((item) => normalizeGlobalListRow(item, marketConfig))
+        .filter(Boolean);
+
+      const deduped = dedupeListRows(rows);
+      if (deduped.length > 0) return deduped.slice(0, safeLimit);
+    } catch {
+      // try next params
+    }
+  }
+
+  return marketConfig.fallbackUniverse
+    .map((item) => ({
+      symbol: extractBaseSymbol(item.symbol),
+      instrumentName: item.instrumentName,
+      exchange: marketConfig.label,
+      micCode: '',
+      country: marketConfig.country,
+      currency: marketConfig.currency,
+      type: 'Common Stock',
+    }))
+    .slice(0, safeLimit);
+};
