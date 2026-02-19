@@ -19,6 +19,15 @@ export function useSophiaChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStrategy, setCurrentStrategy] = useState(null);
 
+  const firstMatch = (content, patterns = []) => {
+    for (const pattern of patterns) {
+      const match = String(content || '').match(pattern);
+      const value = String(match?.[1] || '').trim();
+      if (value) return value;
+    }
+    return '';
+  };
+
   const parseKeyTradeSetups = (content) => {
     const hasKeySection = /(?:🔥\s*Key Trade Setups|KEY TRADE SETUPS)/i.test(content);
     const sectionMatch = content.match(/(?:🔥\s*Key Trade Setups|KEY TRADE SETUPS)([\s\S]*)$/i);
@@ -43,16 +52,75 @@ export function useSophiaChat() {
     return { entry, volume, trend, riskReward, stopLoss, allocation, hasAll, hasKeySection };
   };
 
+  const ensureKeyTradeSetupsInContent = (content) => {
+    const raw = String(content || '').trimEnd();
+    const parsed = parseKeyTradeSetups(raw);
+    const hasFullSection = parsed.hasKeySection && parsed.hasAll;
+    if (hasFullSection) {
+      return {
+        content: raw,
+        setups: parsed,
+      };
+    }
+
+    const entry = parsed.entry || firstMatch(raw, [
+      /(?:Entry Logic|Entry Condition)\s*:\s*(.+)/i,
+      /-\s*\*\*Entry:\*\*\s*(.+)/i,
+    ]);
+    const volume = parsed.volume || firstMatch(raw, [
+      /(?:Volume)\s*:\s*(.+)/i,
+      /(volume[^.\n]+)/i,
+    ]);
+    const trend = parsed.trend || firstMatch(raw, [
+      /(?:Trend)\s*:\s*(.+)/i,
+      /(bullish|bearish|neutral(?:\s+to\s+(?:bullish|bearish))?[^.\n]*)/i,
+    ]);
+    const riskReward = parsed.riskReward || firstMatch(raw, [
+      /(?:Risk\/Reward(?:\s*Ratio)?)\s*:\s*(.+)/i,
+      /(\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?)/,
+    ]);
+    const stopLoss = parsed.stopLoss || firstMatch(raw, [
+      /(?:Stop Loss)\s*:\s*(.+)/i,
+      /\|\s*\*\*Stop Loss:\*\*\s*([^\n]+)/i,
+    ]);
+    const allocation = parsed.allocation || firstMatch(raw, [
+      /(?:Backtest amount|Position Size|\$ ?Allocation)\s*:\s*(.+)/i,
+    ]);
+
+    const setupLines = [
+      '🔥 Key Trade Setups',
+      `● Entry Signal: ${entry || '—'}`,
+      `● Volume: ${volume || '—'}`,
+      `● Trend: ${trend || '—'}`,
+      `● Risk/Reward: ${riskReward || '—'}`,
+      `● Stop Loss: ${stopLoss || '—'}`,
+      `● $ Allocation: ${allocation || '—'}`,
+    ];
+
+    const hasAnyKeyHeading = /(?:🔥\s*Key Trade Setups|KEY TRADE SETUPS)/i.test(raw);
+    const normalized = hasAnyKeyHeading
+      ? raw.replace(/(?:🔥\s*Key Trade Setups|KEY TRADE SETUPS)[\s\S]*$/i, setupLines.join('\n'))
+      : `${raw}\n\n${setupLines.join('\n')}`.trim();
+
+    const parsedNormalized = parseKeyTradeSetups(normalized);
+    return {
+      content: normalized,
+      setups: parsedNormalized,
+    };
+  };
+
   const parseStrategy = (content) => {
     if (!content) return null;
 
-    const { entry, volume, trend, riskReward, stopLoss, allocation, hasAll } = parseKeyTradeSetups(content);
+    const normalized = ensureKeyTradeSetupsInContent(content);
+    const { entry, volume, trend, riskReward, stopLoss, allocation, hasAll } = normalized.setups;
+    const normalizedContent = normalized.content;
 
-    const nameMatch = content.match(/## 🏷️ Strategy Name:\s*(.+)/);
-    const valueMatch = content.match(/## 💰 Backtest Value:\s*(.+)/);
-    const codeMatch = content.match(/```python\n([\s\S]*?)```/);
+    const nameMatch = normalizedContent.match(/## 🏷️ Strategy Name:\s*(.+)/);
+    const valueMatch = normalizedContent.match(/## 💰 Backtest Value:\s*(.+)/);
+    const codeMatch = normalizedContent.match(/```python\n([\s\S]*?)```/);
     const tickerMatch =
-      content.match(/\bTicker:\s*\$?([A-Z]{1,5})\b/i) || content.match(/\$([A-Z]{1,5})/);
+      normalizedContent.match(/\bTicker:\s*\$?([A-Z]{1,5})\b/i) || normalizedContent.match(/\$([A-Z]{1,5})/);
 
     return {
       name: nameMatch?.[1]?.trim() || 'Sophia Strategy',
@@ -65,7 +133,7 @@ export function useSophiaChat() {
       stopLoss,
       allocation,
       code: codeMatch?.[1]?.trim() || '',
-      raw: content,
+      raw: normalizedContent,
       parseError: !hasAll,
       keyTradeSetups: { entry, volume, trend, riskReward, stopLoss, allocation },
       generatedAt: Date.now(),
@@ -215,7 +283,17 @@ export function useSophiaChat() {
           }
         }
 
-        const strategy = parseStrategy(fullContent);
+        const normalizedResponse = ensureKeyTradeSetupsInContent(fullContent);
+        const finalContent = normalizedResponse.content;
+        if (finalContent && finalContent !== fullContent) {
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantMessageId ? { ...message, content: finalContent } : message
+            )
+          );
+        }
+
+        const strategy = parseStrategy(finalContent || fullContent);
         if (strategy) setCurrentStrategy(strategy);
       } catch (err) {
         setMessages((prev) =>

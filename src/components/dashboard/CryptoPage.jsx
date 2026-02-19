@@ -136,18 +136,36 @@ const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
 function useAlpacaOrderbook(alpacaSymbol) {
   const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
   const [connected, setConnected] = useState(false);
+  const [hasRecentMessage, setHasRecentMessage] = useState(false);
   const [trades, setTrades] = useState([]);
   const [lastPrice, setLastPrice] = useState(null);
   const [priceDirection, setPriceDirection] = useState(null);
   const lastPriceRef = useRef(null);
+  const heartbeatTimerRef = useRef(null);
   const normalizedSymbol = useMemo(() => normalizeCryptoSymbol(alpacaSymbol), [alpacaSymbol]);
+
+  const markStreamHeartbeat = () => {
+    setHasRecentMessage(true);
+    if (heartbeatTimerRef.current) {
+      clearTimeout(heartbeatTimerRef.current);
+    }
+    heartbeatTimerRef.current = setTimeout(() => {
+      setHasRecentMessage(false);
+      heartbeatTimerRef.current = null;
+    }, 15000);
+  };
 
   useEffect(() => {
     setOrderbook({ bids: [], asks: [] });
+    setHasRecentMessage(false);
     setTrades([]);
     setLastPrice(null);
     setPriceDirection(null);
     lastPriceRef.current = null;
+    if (heartbeatTimerRef.current) {
+      clearTimeout(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = null;
+    }
 
     if (!normalizedSymbol) return undefined;
 
@@ -157,6 +175,7 @@ function useAlpacaOrderbook(alpacaSymbol) {
 
     const unsubscribeQuotes = subscribeCrypto([normalizedSymbol], ({ quote }) => {
       if (!quote || typeof quote !== 'object') return;
+      markStreamHeartbeat();
 
       const nextPrice = Number(quote.lastTrade ?? quote.price ?? quote.ask ?? quote.bid);
       if (Number.isFinite(nextPrice)) {
@@ -184,6 +203,7 @@ function useAlpacaOrderbook(alpacaSymbol) {
 
     const unsubscribeOrderbooks = subscribeCryptoOrderbooks([normalizedSymbol], ({ orderbook: nextOrderbook }) => {
       if (!nextOrderbook || typeof nextOrderbook !== 'object') return;
+      markStreamHeartbeat();
       setOrderbook({
         bids: Array.isArray(nextOrderbook.bids) ? nextOrderbook.bids : [],
         asks: Array.isArray(nextOrderbook.asks) ? nextOrderbook.asks : [],
@@ -191,13 +211,17 @@ function useAlpacaOrderbook(alpacaSymbol) {
     });
 
     return () => {
+      if (heartbeatTimerRef.current) {
+        clearTimeout(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
+      }
       unsubscribeOrderbooks?.();
       unsubscribeQuotes?.();
       unsubscribeStatus?.();
     };
   }, [normalizedSymbol]);
 
-  return { orderbook, connected, trades, lastPrice, priceDirection };
+  return { orderbook, connected, hasRecentMessage, trades, lastPrice, priceDirection };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -364,7 +388,9 @@ function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceC
 function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPrice, onPriceConsumed }) {
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
+  const [sizeMode, setSizeMode] = useState('quantity');
   const [quantity, setQuantity] = useState('');
+  const [notionalAmount, setNotionalAmount] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
   const [timeInForce, setTimeInForce] = useState('gtc');
@@ -381,15 +407,34 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
     }
   }, [clickedPrice, onPriceConsumed]);
 
+  const referencePrice = useMemo(() => {
+    if (orderType === 'market') {
+      return Number(lastPrice) || 0;
+    }
+    return parseFloat(limitPrice) || Number(lastPrice) || 0;
+  }, [orderType, limitPrice, lastPrice]);
+
+  const resolvedQuantity = useMemo(() => {
+    if (sizeMode === 'quantity') {
+      return parseFloat(quantity) || 0;
+    }
+    const dollars = parseFloat(notionalAmount) || 0;
+    if (!referencePrice || referencePrice <= 0) return 0;
+    return dollars / referencePrice;
+  }, [sizeMode, quantity, notionalAmount, referencePrice]);
+
   const estimatedTotal = useMemo(() => {
-    const qty = parseFloat(quantity) || 0;
-    const price = orderType === 'market' ? (lastPrice || 0) : (parseFloat(limitPrice) || 0);
-    return qty * price;
-  }, [quantity, limitPrice, lastPrice, orderType]);
+    if (sizeMode === 'notional') {
+      return parseFloat(notionalAmount) || 0;
+    }
+    return resolvedQuantity * referencePrice;
+  }, [sizeMode, notionalAmount, resolvedQuantity, referencePrice]);
+
+  const hasValidOrderSize = resolvedQuantity > 0;
 
   const handleSubmit = () => {
-    if (!quantity || parseFloat(quantity) <= 0) return;
-    if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) return;
+    if (!hasValidOrderSize) return;
+    if ((orderType === 'limit' || orderType === 'stop_limit') && (!limitPrice || parseFloat(limitPrice) <= 0)) return;
     if (orderType === 'stop_limit' && (!stopPrice || parseFloat(stopPrice) <= 0)) return;
     setConfirmModal(true);
   };
@@ -402,7 +447,8 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
       symbol: selectedCoin.alpacaSymbol,
       side,
       orderType,
-      quantity: parseFloat(quantity),
+      quantity: resolvedQuantity,
+      notionalAmount: sizeMode === 'notional' ? parseFloat(notionalAmount) : null,
       limitPrice: orderType !== 'market' ? parseFloat(limitPrice) : null,
       stopPrice: orderType === 'stop_limit' ? parseFloat(stopPrice) : null,
       timeInForce,
@@ -517,37 +563,104 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
           </div>
         </div>
 
-        {/* ── Quantity ─────────────────────────────────────────── */}
+        {/* ── Size Mode ─────────────────────────────────────────── */}
         <div>
           <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
             style={{ color: 'rgba(148, 163, 184, 0.4)' }}
           >
-            Quantity ({selectedCoin.symbol})
+            Order Size
           </label>
-          <input
-            type="number"
-            step="any"
-            min="0"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="0.00"
-            className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-            style={inputStyle}
-          />
-          {/* Quick amount buttons */}
-          <div className="grid grid-cols-4 gap-1 mt-1.5">
-            {['0.001', '0.01', '0.1', '1'].map((amt) => (
-              <button
-                key={amt}
-                onClick={() => setQuantity(amt)}
-                className="py-1 rounded text-[10px] font-mono transition-colors hover:bg-white/[0.06]"
-                style={{ background: 'rgba(255, 255, 255, 0.03)', color: 'rgba(148, 163, 184, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
-              >
-                {amt}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+            <button
+              onClick={() => setSizeMode('quantity')}
+              className="py-2 rounded-md text-[11px] font-semibold tracking-wide transition-all"
+              style={{
+                background: sizeMode === 'quantity' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: sizeMode === 'quantity' ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
+                border: sizeMode === 'quantity' ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid transparent',
+              }}
+            >
+              Coin Qty
+            </button>
+            <button
+              onClick={() => setSizeMode('notional')}
+              className="py-2 rounded-md text-[11px] font-semibold tracking-wide transition-all"
+              style={{
+                background: sizeMode === 'notional' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: sizeMode === 'notional' ? '#60a5fa' : 'rgba(148, 163, 184, 0.5)',
+                border: sizeMode === 'notional' ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid transparent',
+              }}
+            >
+              $ Amount
+            </button>
           </div>
         </div>
+
+        {/* ── Quantity ─────────────────────────────────────────── */}
+        {sizeMode === 'quantity' ? (
+          <div>
+            <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
+              style={{ color: 'rgba(148, 163, 184, 0.4)' }}
+            >
+              Quantity ({selectedCoin.symbol})
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="0.00"
+              className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              style={inputStyle}
+            />
+            <div className="grid grid-cols-4 gap-1 mt-1.5">
+              {['0.001', '0.01', '0.1', '1'].map((amt) => (
+                <button
+                  key={amt}
+                  onClick={() => setQuantity(amt)}
+                  className="py-1 rounded text-[10px] font-mono transition-colors hover:bg-white/[0.06]"
+                  style={{ background: 'rgba(255, 255, 255, 0.03)', color: 'rgba(148, 163, 184, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
+                >
+                  {amt}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-[10px] font-bold tracking-widest uppercase mb-1.5"
+              style={{ color: 'rgba(148, 163, 184, 0.4)' }}
+            >
+              Dollar Amount (USD)
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              value={notionalAmount}
+              onChange={(e) => setNotionalAmount(e.target.value)}
+              placeholder="100.00"
+              className="w-full px-3 py-2.5 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              style={inputStyle}
+            />
+            <div className="grid grid-cols-4 gap-1 mt-1.5">
+              {['50', '100', '250', '500'].map((amt) => (
+                <button
+                  key={amt}
+                  onClick={() => setNotionalAmount(amt)}
+                  className="py-1 rounded text-[10px] font-mono transition-colors hover:bg-white/[0.06]"
+                  style={{ background: 'rgba(255, 255, 255, 0.03)', color: 'rgba(148, 163, 184, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
+                >
+                  ${amt}
+                </button>
+              ))}
+            </div>
+            <div className="mt-1.5 text-[11px] font-mono" style={{ color: 'rgba(96, 165, 250, 0.8)' }}>
+              Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
+            </div>
+          </div>
+        )}
 
         {/* ── Limit Price (shown for limit & stop_limit) ───────── */}
         {(orderType === 'limit' || orderType === 'stop_limit') && (
@@ -634,6 +747,12 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
             </span>
           </div>
           <div className="flex justify-between text-[11px]">
+            <span style={{ color: 'rgba(148, 163, 184, 0.4)' }}>Quantity</span>
+            <span className="font-mono font-semibold" style={{ color: '#e2e8f0' }}>
+              {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
+            </span>
+          </div>
+          <div className="flex justify-between text-[11px]">
             <span style={{ color: 'rgba(148, 163, 184, 0.4)' }}>Est. Total</span>
             <span className="font-mono font-bold" style={{ color: '#e2e8f0' }}>
               ${estimatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -644,7 +763,7 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
         {/* ── Submit Button ─────────────────────────────────────── */}
         <button
           onClick={handleSubmit}
-          disabled={submitting || !quantity}
+          disabled={submitting || !hasValidOrderSize}
           className="w-full py-3 rounded-lg text-sm font-bold tracking-wide transition-all duration-200"
           style={{
             background: side === 'buy'
@@ -653,8 +772,8 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
             color: side === 'buy' ? '#22c55e' : '#ef4444',
             border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
             boxShadow: side === 'buy' ? '0 4px 24px rgba(34, 197, 94, 0.15)' : '0 4px 24px rgba(239, 68, 68, 0.15)',
-            opacity: submitting || !quantity ? 0.4 : 1,
-            cursor: submitting || !quantity ? 'not-allowed' : 'pointer',
+            opacity: submitting || !hasValidOrderSize ? 0.4 : 1,
+            cursor: submitting || !hasValidOrderSize ? 'not-allowed' : 'pointer',
           }}
         >
           {submitting ? 'Submitting...' : `${side.toUpperCase()} ${selectedCoin.symbol}`}
@@ -685,8 +804,13 @@ function OrderEntry({ selectedCoin, lastPrice, userId, onOrderPlaced, clickedPri
             <div className="text-center">
               <div className="text-sm font-bold mb-1" style={{ color: '#e2e8f0' }}>Confirm Order</div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-                {side.toUpperCase()} {quantity} ${selectedCoin.symbol} @ {orderType === 'market' ? 'MARKET' : `$${limitPrice}`}
+                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedCoin.symbol} @ {orderType === 'market' ? 'MARKET' : `$${limitPrice}`}
               </div>
+              {sizeMode === 'notional' && (
+                <div className="text-[10px] mt-1" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
+                  From ${parseFloat(notionalAmount || 0).toFixed(2)} notional
+                </div>
+              )}
             </div>
             <div className="text-center text-lg font-mono font-black" style={{ color: side === 'buy' ? '#22c55e' : '#ef4444' }}>
               ${estimatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -801,10 +925,12 @@ function CoinSelector({ coins, selected, onSelect }) {
 export default function CryptoPage() {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
   const [rightTab, setRightTab] = useState('order'); // 'l2' | 'trades' | 'order'
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const [clickedPrice, setClickedPrice] = useState(null);
   const [userId, setUserId] = useState(null);
   const [orderHistory, setOrderHistory] = useState([]);
-  const { orderbook, connected, trades, lastPrice, priceDirection } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
+  const { orderbook, connected, hasRecentMessage, trades, lastPrice, priceDirection } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
+  const streamLive = connected || hasRecentMessage;
 
   // Get current user from Supabase auth
   useEffect(() => {
@@ -863,19 +989,19 @@ export default function CryptoPage() {
         <div className="flex items-center gap-3 px-4">
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
-              {connected && (
+              {streamLive && (
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
                   style={{ backgroundColor: '#22c55e' }}
                 />
               )}
               <span className="relative inline-flex rounded-full h-2 w-2"
-                style={{ backgroundColor: connected ? '#22c55e' : '#ef4444' }}
+                style={{ backgroundColor: streamLive ? '#22c55e' : '#ef4444' }}
               />
             </span>
             <span className="text-[10px] font-bold tracking-wider uppercase"
-              style={{ color: connected ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)' }}
+              style={{ color: streamLive ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)' }}
             >
-              {connected ? 'Live' : 'Offline'}
+              {streamLive ? 'Live' : 'Offline'}
             </span>
           </div>
           <span className="text-[10px] font-mono" style={{ color: 'rgba(148, 163, 184, 0.25)' }}>
@@ -916,54 +1042,96 @@ export default function CryptoPage() {
         </div>
 
         {/* ── RIGHT: L2 / Trades / Order Entry (tabbed) ───────────── */}
-        <div className="w-[340px] shrink-0 flex flex-col rounded-xl overflow-hidden relative" style={glassStyle}>
-          {/* Tab Bar */}
-          <div className="flex border-b border-white/[0.06] shrink-0">
-            {[
-              { id: 'l2', label: 'Level II' },
-              { id: 'trades', label: 'T&S' },
-              { id: 'order', label: 'Order' },
-            ].map((tab) => (
+        <div
+          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[340px]'} shrink-0 flex flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
+          style={glassStyle}
+        >
+          {isRightPanelCollapsed ? (
+            <div className="h-full flex flex-col items-center py-2 gap-2">
               <button
-                key={tab.id}
-                onClick={() => setRightTab(tab.id)}
-                className="flex-1 py-2.5 text-[10px] font-bold tracking-wider uppercase transition-all duration-200"
+                onClick={() => setIsRightPanelCollapsed(false)}
+                className="h-7 w-7 rounded-md text-xs font-bold transition-colors"
                 style={{
-                  color: rightTab === tab.id ? '#60a5fa' : 'rgba(148, 163, 184, 0.35)',
-                  borderBottom: rightTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
-                  background: rightTab === tab.id ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                  color: 'rgba(148, 163, 184, 0.6)',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+                title="Expand order entry panel"
+                aria-label="Expand order entry panel"
+              >
+                «
+              </button>
+              <div
+                className="text-[9px] font-bold tracking-[0.2em] uppercase"
+                style={{
+                  color: 'rgba(96, 165, 250, 0.75)',
+                  writingMode: 'vertical-rl',
+                  textOrientation: 'mixed',
                 }}
               >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+                Order
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Tab Bar */}
+              <div className="flex border-b border-white/[0.06] shrink-0">
+                {[
+                  { id: 'l2', label: 'Level II' },
+                  { id: 'trades', label: 'T&S' },
+                  { id: 'order', label: 'Order' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setRightTab(tab.id)}
+                    className="flex-1 py-2.5 text-[10px] font-bold tracking-wider uppercase transition-all duration-200"
+                    style={{
+                      color: rightTab === tab.id ? '#60a5fa' : 'rgba(148, 163, 184, 0.35)',
+                      borderBottom: rightTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
+                      background: rightTab === tab.id ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setIsRightPanelCollapsed(true)}
+                  className="w-8 text-[12px] font-bold transition-colors"
+                  style={{ color: 'rgba(148, 163, 184, 0.55)' }}
+                  title="Collapse order entry panel"
+                  aria-label="Collapse order entry panel"
+                >
+                  »
+                </button>
+              </div>
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-hidden">
-            {rightTab === 'l2' && (
-              <Level2Book
-                orderbook={orderbook}
-                coinSymbol={selectedCoin.symbol}
-                lastPrice={lastPrice}
-                priceDirection={priceDirection}
-                onPriceClick={handlePriceClick}
-              />
-            )}
-            {rightTab === 'trades' && (
-              <TradesTape trades={trades} />
-            )}
-            {rightTab === 'order' && (
-              <OrderEntry
-                selectedCoin={selectedCoin}
-                lastPrice={lastPrice}
-                userId={userId}
-                onOrderPlaced={handleOrderPlaced}
-                clickedPrice={clickedPrice}
-                onPriceConsumed={() => setClickedPrice(null)}
-              />
-            )}
-          </div>
+              {/* Tab Content */}
+              <div className="flex-1 overflow-hidden">
+                {rightTab === 'l2' && (
+                  <Level2Book
+                    orderbook={orderbook}
+                    coinSymbol={selectedCoin.symbol}
+                    lastPrice={lastPrice}
+                    priceDirection={priceDirection}
+                    onPriceClick={handlePriceClick}
+                  />
+                )}
+                {rightTab === 'trades' && (
+                  <TradesTape trades={trades} />
+                )}
+                {rightTab === 'order' && (
+                  <OrderEntry
+                    selectedCoin={selectedCoin}
+                    lastPrice={lastPrice}
+                    userId={userId}
+                    onOrderPlaced={handleOrderPlaced}
+                    clickedPrice={clickedPrice}
+                    onPriceConsumed={() => setClickedPrice(null)}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

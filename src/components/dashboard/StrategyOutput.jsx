@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronsLeft, Check, Target, AlertTriangle, Play, TrendingUp, BarChart3, Zap, Shield, DollarSign, Pencil, Save as SaveIcon } from 'lucide-react';
+import { ChevronsLeft, Pencil, Save as SaveIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatTickersAsHtml, normalizeTickerSymbol, tokenizeTickerText, withDollarTickers } from '../../lib/tickerStyling';
-
-const CHECKLIST_ITEMS = [
-  { id: 'entry-signal', label: 'Entry Signal Confirmed', icon: TrendingUp },
-  { id: 'volume-check', label: 'Volume Above Average', icon: BarChart3 },
-  { id: 'trend-alignment', label: 'Trend Alignment', icon: Zap },
-  { id: 'risk-reward', label: 'Risk/Reward ≥ 2:1', icon: Target },
-  { id: 'stop-loss-set', label: 'Stop Loss Defined', icon: Shield },
-  { id: 'position-sized', label: 'Position Size OK', icon: DollarSign },
-];
 
 const FIELD_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'allocation'];
@@ -361,13 +352,6 @@ export default function StrategyOutput({
   const [saved, setSaved] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
 
-  // Activation fields
-  const [size, setSize] = useState('');
-  const [maxDay, setMaxDay] = useState('');
-  const [stopPct, setStopPct] = useState('');
-  const [takePct, setTakePct] = useState('');
-  const [preChecks, setPreChecks] = useState(Array(6).fill(false));
-  const [active, setActive] = useState(false);
   const [cardsCollapsed, setCardsCollapsed] = useState(false);
   const [strategyRaw, setStrategyRaw] = useState(() =>
     normalizeEditorContent(ensureKeyTradeSetupsSection(String(s.raw || ''), defaultFieldValues).raw)
@@ -387,16 +371,9 @@ export default function StrategyOutput({
   // Load from localStorage
   useEffect(() => {
     const fallbackChecks = Array(6).fill(false);
-    const fallbackPreChecks = Array(6).fill(false);
     let nextFieldValues = defaultFieldValues;
     let nextChecks = fallbackChecks;
-    let nextPreChecks = fallbackPreChecks;
-    let nextActive = false;
     let nextSaved = false;
-    let nextSize = '';
-    let nextMaxDay = '';
-    let nextStopPct = '';
-    let nextTakePct = '';
     let nextStrategyRaw = String(s.raw || '');
 
     try {
@@ -409,13 +386,7 @@ export default function StrategyOutput({
           nextFieldValues[5] = String(stored.allocation);
         }
         if (stored.checks) nextChecks = stored.checks;
-        if (stored.preChecks) nextPreChecks = stored.preChecks;
-        if (stored.active) nextActive = stored.active;
         if (stored.saved) nextSaved = stored.saved;
-        if (stored.size) nextSize = stored.size;
-        if (stored.maxDay) nextMaxDay = stored.maxDay;
-        if (stored.stopPct) nextStopPct = stored.stopPct;
-        if (stored.takePct) nextTakePct = stored.takePct;
         if (typeof stored.editedRaw === 'string') nextStrategyRaw = stored.editedRaw;
       }
     } catch {}
@@ -424,18 +395,10 @@ export default function StrategyOutput({
     nextStrategyRaw = normalizeEditorContent(ensured.raw);
     nextFieldValues = mergeCenterValuesIntoFieldValues(nextFieldValues, ensured.values);
 
-    if (!nextSaved) nextActive = false;
-
     setFieldValues(nextFieldValues);
     setChecks(nextChecks);
-    setPreChecks(nextPreChecks);
-    setActive(nextActive);
     setSaved(nextSaved);
     setSaveStatus(nextSaved ? 'saved' : 'idle');
-    setSize(nextSize);
-    setMaxDay(nextMaxDay);
-    setStopPct(nextStopPct);
-    setTakePct(nextTakePct);
     setStrategyRaw(nextStrategyRaw);
     setEditorValue(nextStrategyRaw);
     setIsEditorModified(false);
@@ -454,16 +417,10 @@ export default function StrategyOutput({
       checks,
       fieldValues,
       allocation: fieldValues[5],
-      size,
-      maxDay,
-      stopPct,
-      takePct,
-      preChecks,
-      active,
       saved,
       editedRaw: strategyRaw,
     }));
-  }, [checks, fieldValues, size, maxDay, stopPct, takePct, preChecks, active, saved, strategyRaw, storageKey]);
+  }, [checks, fieldValues, saved, strategyRaw, storageKey]);
 
   useEffect(() => () => {
     if (editorSavedNoticeTimeoutRef.current) {
@@ -482,16 +439,13 @@ export default function StrategyOutput({
     return () => clearTimeout(timeoutId);
   }, [isEditingStrategyText]);
 
-  const allPreChecked = preChecks.every(Boolean);
   const checkedCount = checks.filter(Boolean).length;
-  const activationLocked = !saved;
-  const canActivate = saved && allPreChecked;
+  const canDeploy = saved;
 
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
 
   const toggleCheck = (i) => setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
-  const togglePre = (i) => setPreChecks((p) => p.map((v, j) => (j === i ? !v : v)));
 
   const updateFieldValue = (index, value, options = {}) => {
     const { syncEditor = false } = options;
@@ -507,7 +461,7 @@ export default function StrategyOutput({
           return updatedRaw;
         });
       } else {
-        setStrategyRaw((currentRaw) => applyKeyTradeSetupsSection(currentRaw || s.raw || '', next));
+        setStrategyRaw((currentRaw) => normalizeEditorContent(applyKeyTradeSetupsSection(currentRaw || s.raw || '', next)));
       }
       return next;
     });
@@ -655,17 +609,31 @@ export default function StrategyOutput({
     onRetest?.(prompt);
   };
 
-  const handleActivate = () => {
-    if (!canActivate) return;
-    setActive(true);
+  const handleDeployFromSetups = () => {
+    if (!canDeploy) return;
+    const rawWithSetups = applyKeyTradeSetupsSection(strategyRaw || s.raw || '', activeFieldValues);
+    const normalizedRaw = normalizeEditorContent(ensureRealTradeAnalysisSection(rawWithSetups, activeFieldValues));
     onDeploy?.({
-      symbol: s.ticker,
-      size,
-      maxDay,
-      stopPct,
-      takePct,
+      ...s,
+      raw: normalizedRaw,
+      content: normalizedRaw,
+      entry: activeFieldValues[0] || '',
+      volume: activeFieldValues[1] || '',
+      trend: activeFieldValues[2] || '',
+      riskReward: activeFieldValues[3] || '',
+      stopLoss: activeFieldValues[4] || '',
+      allocation: activeFieldValues[5] || '',
+      keyTradeSetups: {
+        entry: activeFieldValues[0] || '',
+        volume: activeFieldValues[1] || '',
+        trend: activeFieldValues[2] || '',
+        riskReward: activeFieldValues[3] || '',
+        stopLoss: activeFieldValues[4] || '',
+        allocation: activeFieldValues[5] || '',
+      },
       status: 'active',
       runStatus: 'running',
+      deployedAt: Date.now(),
     });
   };
 
@@ -1047,9 +1015,8 @@ export default function StrategyOutput({
         </div>
       ) : (
         <div className="w-[480px] xl:w-[520px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3 overflow-hidden">
-          <div className="h-full min-h-0 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-            {/* Card 1: Key Trade Setups */}
-            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-2.5 min-h-0 flex flex-col overflow-hidden">
+          <div className="h-full min-h-0">
+            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-2.5 h-full min-h-0 flex flex-col overflow-hidden">
               <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-2.5 h-full min-h-0 flex flex-col">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1136,178 +1103,31 @@ export default function StrategyOutput({
                   })}
                 </div>
 
-                <button
-                  onClick={() => {
-                    const params = fields.map((f) => `${f.label}: ${withDollarTickers(f.value || '—')}`).join('\n');
-                    const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
-                    onRetest?.(prompt);
-                  }}
-                  className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[15px] font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition shrink-0"
-                >
-                  <span aria-hidden="true">🔄</span>
-                  Ask Sophia to Retest
-                </button>
-              </div>
-            </div>
-
-            {/* Card 2: Strategy Activation */}
-            <div
-              className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-3 flex flex-col gap-3 min-h-0 overflow-y-auto"
-              style={{ opacity: activationLocked ? 0.82 : 1 }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="flex h-6 w-6 items-center justify-center rounded-md border"
-                    style={{
-                      background: active ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
-                      borderColor: active ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.16)',
+                <div className="mt-2 grid grid-cols-2 gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      const params = fields.map((f) => `${f.label}: ${withDollarTickers(f.value || '—')}`).join('\n');
+                      const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
+                      onRetest?.(prompt);
                     }}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-[15px] font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition"
                   >
-                    <Target className={`h-3.5 w-3.5 ${active ? 'text-emerald-400' : 'text-zinc-500'}`} />
-                  </div>
-                  <div>
-                    <span className="text-base font-semibold text-white block">Strategy Activation</span>
-                    <span className="text-sm text-amber-300">
-                      {activationLocked ? 'Save strategy to unlock activation' : 'Check conditions to activate'}
-                    </span>
-                  </div>
-                </div>
-                <span
-                  className="text-xs font-mono px-2 py-1 rounded border"
-                  style={{
-                    background: active ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
-                    borderColor: active ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.12)',
-                    color: active ? '#4ade80' : 'rgba(255,255,255,0.5)',
-                  }}
-                >
-                  {active ? '● Live' : activationLocked ? 'Locked' : 'Inactive'}
-                </span>
-              </div>
+                    <span aria-hidden="true">🔄</span>
+                    Ask Sophia to Retest
+                  </button>
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs uppercase tracking-wide text-white/55">Symbol</label>
-                    <div className="mt-1 rounded-md px-2 py-1.5 text-sm font-mono text-emerald-400 font-semibold border border-white/10 bg-white/5">
-                      {displayTicker}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs uppercase tracking-wide text-white/55">Size ($)</label>
-                    <input
-                      value={size}
-                      onChange={(e) => setSize(e.target.value)}
-                      placeholder="10K"
-                      disabled={activationLocked}
-                      className="mt-1 w-full rounded-md px-2 py-1.5 text-sm text-zinc-100 focus:outline-none disabled:opacity-40 border border-white/10 bg-white/5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs uppercase tracking-wide text-white/55">Max/Day</label>
-                    <input
-                      value={maxDay}
-                      onChange={(e) => setMaxDay(e.target.value)}
-                      placeholder="10"
-                      disabled={activationLocked}
-                      className="mt-1 w-full rounded-md px-2 py-1.5 text-sm text-zinc-100 focus:outline-none disabled:opacity-40 border border-white/10 bg-white/5"
-                    />
-                  </div>
+                  <button
+                    onClick={handleDeployFromSetups}
+                    disabled={!canDeploy}
+                    className={`text-[15px] font-medium py-2 rounded-lg border transition ${
+                      canDeploy
+                        ? 'bg-emerald-600/25 border-emerald-500/50 text-emerald-200 hover:bg-emerald-600/35'
+                        : 'bg-white/5 border-gray-700 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Deploy Strategy
+                  </button>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs uppercase tracking-wide text-white/55">Stop Loss %</label>
-                    <input
-                      value={stopPct}
-                      onChange={(e) => setStopPct(e.target.value)}
-                      placeholder="2.0"
-                      disabled={activationLocked}
-                      className="mt-1 w-full rounded-md px-2 py-1.5 text-sm text-red-400 focus:outline-none disabled:opacity-40 border border-white/10 bg-white/5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs uppercase tracking-wide text-white/55">Take Profit %</label>
-                    <input
-                      value={takePct}
-                      onChange={(e) => setTakePct(e.target.value)}
-                      placeholder="4.0"
-                      disabled={activationLocked}
-                      className="mt-1 w-full rounded-md px-2 py-1.5 text-sm text-emerald-400 focus:outline-none disabled:opacity-40 border border-white/10 bg-white/5"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-white/60">Pre-Trade Checklist</span>
-                  <span className="text-xs text-white/40">{preChecks.filter(Boolean).length}/6</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {CHECKLIST_ITEMS.map((item, i) => (
-                    <button
-                      key={item.id}
-                      onClick={() => togglePre(i)}
-                      disabled={activationLocked}
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition"
-                      style={{
-                        background: preChecks[i] ? 'rgba(74,222,128,0.06)' : 'rgba(255,255,255,0.02)',
-                        border: preChecks[i] ? '1px solid rgba(74,222,128,0.2)' : '1px solid rgba(255,255,255,0.08)',
-                      }}
-                    >
-                      <div
-                        className="shrink-0 flex items-center justify-center rounded transition"
-                        style={{
-                          width: 14,
-                          height: 14,
-                          background: preChecks[i] ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                          border: preChecks[i] ? '1px solid rgba(74,222,128,0.5)' : '1px solid rgba(255,255,255,0.12)',
-                        }}
-                      >
-                        {preChecks[i] && <Check className="h-2 w-2 text-emerald-400" />}
-                      </div>
-                      <span className="text-[13px]" style={{ color: preChecks[i] ? '#fff' : 'rgba(255,255,255,0.72)' }}>
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs">
-                  {!saved ? (
-                    <>
-                      <AlertTriangle className="h-3 w-3 text-amber-400" />
-                      <span className="text-white/45">Save strategy to unlock</span>
-                    </>
-                  ) : !allPreChecked ? (
-                    <>
-                      <AlertTriangle className="h-3 w-3 text-amber-400" />
-                      <span className="text-white/45">Check all to activate</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-3 w-3 text-emerald-400" />
-                      <span className="text-emerald-400">Ready</span>
-                    </>
-                  )}
-                </div>
-                <button
-                  onClick={handleActivate}
-                  disabled={!canActivate}
-                  className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-medium transition"
-                  style={{
-                    background: canActivate ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.04)',
-                    border: canActivate ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                    color: canActivate ? '#4ade80' : 'rgba(255,255,255,0.3)',
-                    cursor: canActivate ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  <Play className="h-3 w-3" />
-                  Activate
-                </button>
               </div>
             </div>
           </div>
