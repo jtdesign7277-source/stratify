@@ -351,39 +351,20 @@ const LandingPage = ({ onEnter, onSignUp, isAuthenticated }) => {
             </div>
 
             {/* Powered By logos */}
-            <div className="mt-16 mb-8 flex flex-col items-center gap-8">
+            <div className="mt-20 mb-16 flex flex-col items-center gap-10">
               <p className="text-xs uppercase tracking-[0.35em] text-gray-500 font-medium">Powered By</p>
-              <div className="flex items-center justify-center gap-14 flex-wrap">
-                {/* Vercel */}
-                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-3 hover:scale-105 transition-all duration-300" title="Vercel">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm group-hover:border-white/25 group-hover:bg-white/10 transition-all duration-300 shadow-lg shadow-black/20">
-                    <svg width="28" height="24" viewBox="0 0 76 65" fill="none"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="white"/></svg>
-                  </div>
-                  <span className="text-sm font-semibold text-white/60 group-hover:text-white transition-colors duration-300">Vercel</span>
+              <div className="flex items-center justify-center gap-16 flex-wrap">
+                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
+                  <img src="/logos/supabase.png" alt="Supabase" className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
                 </a>
-
-                {/* Alpaca */}
-                <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-3 hover:scale-105 transition-all duration-300" title="Alpaca Markets">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-500/15 bg-amber-500/5 backdrop-blur-sm group-hover:border-amber-400/30 group-hover:bg-amber-500/10 transition-all duration-300 shadow-lg shadow-black/20">
-                    <svg width="30" height="30" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="8" fill="#FBBF24"/><path d="M12 28V16l8-6 8 6v12H12z" fill="white"/><circle cx="17" cy="20" r="2" fill="#FBBF24"/><circle cx="23" cy="20" r="2" fill="#FBBF24"/></svg>
-                  </div>
-                  <span className="text-sm font-semibold text-white/60 group-hover:text-amber-300 transition-colors duration-300">Alpaca</span>
+                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
+                  <img src="/logos/vercel-full.png" alt="Vercel" className="h-8 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300 invert" />
                 </a>
-
-                {/* Railway */}
-                <a href="https://railway.app" target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-3 hover:scale-105 transition-all duration-300" title="Railway">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm group-hover:border-purple-400/25 group-hover:bg-purple-500/10 transition-all duration-300 shadow-lg shadow-black/20">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M.113 13.029c.075.32.165.636.27.946h5.715c.2-.3.4-.6.538-.946H.113zM4.87 18.472c.21.2.428.39.654.57h2.348a34 34 0 0 0 2.248-1.517H5.824c-.342.337-.662.66-.954.947zM.685 15.908c.128.248.266.491.413.728h4.424c.4-.1.555-.451.743-.728H.685zM10.065 20.91c.492.204 1.003.37 1.527.497.147-.163.32-.333.52-.497h-2.047zM12.063.5C6.308.647 1.606 4.87.502 10.365h5.968c1.072-4.022 4.766-6.985 9.146-6.985 1.217 0 2.378.233 3.448.655A11.46 11.46 0 0 0 12.063.5zM23.5 12.063a11.46 11.46 0 0 0-4.574-8.94c1.62 2.074 2.592 4.675 2.592 7.503 0 3.193-1.24 6.098-3.264 8.265A11.46 11.46 0 0 0 23.5 12.063zM15.616 3.38c-4.838 0-8.765 3.927-8.765 8.765 0 4.838 3.927 8.765 8.765 8.765 4.838 0 8.765-3.927 8.765-8.765 0-4.838-3.927-8.765-8.765-8.765z"/></svg>
-                  </div>
-                  <span className="text-sm font-semibold text-white/60 group-hover:text-purple-300 transition-colors duration-300">Railway</span>
+                <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
+                  <img src="/logos/stripe.png" alt="Stripe" className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
                 </a>
-
-                {/* Anthropic */}
-                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-3 hover:scale-105 transition-all duration-300" title="Anthropic">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm group-hover:border-orange-400/25 group-hover:bg-orange-500/10 transition-all duration-300 shadow-lg shadow-black/20">
-                    <svg width="26" height="26" viewBox="0 0 60 60" fill="none"><path d="M35.4 8H24.6L4 52h11.4l4.2-9h20.8l4.2 9H56L35.4 8zM23.4 36L30 21.6 36.6 36H23.4z" fill="white"/></svg>
-                  </div>
-                  <span className="text-sm font-semibold text-white/60 group-hover:text-orange-300 transition-colors duration-300">Anthropic</span>
+                <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer" className="group hover:scale-105 transition-all duration-300">
+                  <img src="/logos/claude.png" alt="Claude by Anthropic" className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
                 </a>
               </div>
             </div>
