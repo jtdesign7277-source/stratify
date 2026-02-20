@@ -1055,14 +1055,7 @@ const WatchlistPage = ({
                     <X className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={handleDirectAdd}
-                  className="inline-flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
-                >
-                  <Plus className="h-3 w-3" strokeWidth={1.5} />
-                  Add
-                </button>
+
               </div>
 
               {searchQuery.trim() ? (
