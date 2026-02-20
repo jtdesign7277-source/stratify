@@ -35,6 +35,14 @@ const INTERVAL_MS = {
   '1h': 3_600_000, '1day': 86_400_000, '1month': 2_592_000_000,
 };
 
+const STORAGE_KEY = 'stratify-community-chart-prefs';
+function loadPrefs() {
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+}
+function savePrefs(patch) {
+  try { const cur = loadPrefs(); localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...cur, ...patch })); } catch {}
+}
+
 const toMs = (v) => {
   if (v == null) return null;
   if (typeof v === 'number') return v > 1e10 ? v : v * 1000;
@@ -68,9 +76,11 @@ async function fetchData(symbol, interval, outputsize = 500) {
 export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
   const chartRef = useRef(null);
   const dragRef = useRef(null);
-  const [interval, setInterval_] = useState('1day');
-  const [activeIdx, setActiveIdx] = useState(4); // 1D
-  const [theme, setTheme] = useState(CANDLE_THEMES[0]);
+  const prefs = useMemo(loadPrefs, []);
+  const savedIdx = INTERVALS.findIndex(iv => iv.value === prefs.interval);
+  const [interval, setInterval_] = useState(prefs.interval || '1day');
+  const [activeIdx, setActiveIdx] = useState(savedIdx >= 0 ? savedIdx : 4);
+  const [theme, setTheme] = useState(CANDLE_THEMES.find(t => t.label === prefs.themeLabel) || CANDLE_THEMES[0]);
   const [showColors, setShowColors] = useState(false);
   const [seed, setSeed] = useState({ ohlc: [], volume: [] });
   const [loading, setLoading] = useState(true);
@@ -315,7 +325,7 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
               {CANDLE_THEMES.map((t, i) => (
                 <button
                   key={i}
-                  onClick={() => { setTheme(t); setShowColors(false); }}
+                  onClick={() => { setTheme(t); setShowColors(false); savePrefs({ themeLabel: t.label }); }}
                   className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ${
                     theme.label === t.label ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
@@ -352,7 +362,7 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
         {INTERVALS.map((iv, i) => (
           <button
             key={iv.label}
-            onClick={() => { setActiveIdx(i); setInterval_(iv.value); }}
+            onClick={() => { setActiveIdx(i); setInterval_(iv.value); savePrefs({ interval: iv.value }); }}
             className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-colors ${
               activeIdx === i
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'

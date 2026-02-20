@@ -22,6 +22,14 @@ const CANDLE_THEMES = [
 
 const INTERVAL_MS = { '5min': 300000, '15min': 900000, '1h': 3600000, '1day': 86400000 };
 
+const STORAGE_KEY = 'stratify-v2trade-prefs';
+function loadPrefs() {
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+}
+function savePrefs(patch) {
+  try { const cur = loadPrefs(); localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...cur, ...patch })); } catch {}
+}
+
 const toMs = (v) => {
   if (v == null) return null;
   if (typeof v === 'number') return v > 1e10 ? v : v * 1000;
@@ -56,9 +64,10 @@ export default function V2TradePage() {
   const containerRef = useRef(null);
   const chartObjRef = useRef(null);
   const dragRef = useRef(null);
-  const [symbol, setSymbol] = useState('AAPL');
-  const [interval, setInterval_] = useState('1day');
-  const [theme, setTheme] = useState(CANDLE_THEMES[0]);
+  const prefs = useMemo(loadPrefs, []);
+  const [symbol, setSymbol] = useState(prefs.symbol || 'AAPL');
+  const [interval, setInterval_] = useState(prefs.interval || '1day');
+  const [theme, setTheme] = useState(CANDLE_THEMES.find(function(t) { return t.label === prefs.themeLabel; }) || CANDLE_THEMES[0]);
   const [showColors, setShowColors] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
@@ -192,7 +201,7 @@ export default function V2TradePage() {
     return function() { document.removeEventListener('mousedown', fn); };
   }, []);
 
-  var handleSearchSubmit = function(sym) { setSearch(''); setShowSearch(false); setSymbol(sym.toUpperCase()); };
+  var handleSearchSubmit = function(sym) { var s = sym.toUpperCase(); setSearch(''); setShowSearch(false); setSymbol(s); savePrefs({ symbol: s }); };
   var fmt = function(v) { return v == null ? '—' : '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   var fmtV = function(v) { if (!v) return '—'; if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K'; return v; };
 
@@ -227,7 +236,7 @@ export default function V2TradePage() {
               <div className="absolute right-0 top-full mt-1 bg-black/90 border border-white/10 rounded-lg p-2 backdrop-blur-xl w-44 z-50">
                 {CANDLE_THEMES.map(function(t, i) {
                   return (
-                    <button key={i} onClick={function() { setTheme(t); setShowColors(false); }} className={'w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ' + (theme.label === t.label ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5')}>
+                    <button key={i} onClick={function() { setTheme(t); setShowColors(false); savePrefs({ themeLabel: t.label }); }} className={'w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ' + (theme.label === t.label ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5')}>
                       <span className="w-3 h-3 rounded-sm" style={{ background: t.up }} />
                       <span className="w-3 h-3 rounded-sm" style={{ background: t.down }} />
                       <span>{t.label}</span>
@@ -243,7 +252,7 @@ export default function V2TradePage() {
       <div className="flex-shrink-0 flex items-center justify-center gap-1 py-2">
         {INTERVALS.map(function(iv) {
           return (
-            <button key={iv.label} onClick={function() { setInterval_(iv.value); }} className={'px-3 py-1 text-[11px] font-semibold rounded-md transition-colors ' + (interval === iv.value ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-gray-500 border border-transparent hover:text-white hover:bg-white/5')}>
+            <button key={iv.label} onClick={function() { setInterval_(iv.value); savePrefs({ interval: iv.value }); }} className={'px-3 py-1 text-[11px] font-semibold rounded-md transition-colors ' + (interval === iv.value ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-gray-500 border border-transparent hover:text-white hover:bg-white/5')}>
               {iv.label}
             </button>
           );
