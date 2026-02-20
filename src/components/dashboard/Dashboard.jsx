@@ -35,7 +35,7 @@ import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import AnalyticsPage from './AnalyticsPage';
-import AdvancedChartsPage from './AdvancedChartsPage';
+// import AdvancedChartsPage from './AdvancedChartsPage';
 import TradePage from './TradePage';
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
@@ -1803,7 +1803,7 @@ export default function Dashboard({
               />
             </ProGate>
           )}
-          {activeTab === 'advanced' && <AdvancedChartsPage />}
+          {/* {activeTab === 'advanced' && <AdvancedChartsPage />} */}
           {activeTab === 'war-room' && <WarRoom />}
           {activeTab === 'grok' && <DemoPanel />}
           {activeTab === 'backtest-wizard' && (

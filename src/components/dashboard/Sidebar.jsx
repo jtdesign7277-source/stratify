@@ -71,7 +71,7 @@ const Sidebar = ({
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'options', label: 'Options Flow', icon: Zap, isNew: true, labelClass: 'font-semibold text-orange-400', iconClass: 'text-orange-400' },
-    { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
+    // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
