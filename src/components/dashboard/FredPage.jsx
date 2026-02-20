@@ -915,11 +915,11 @@ const FredPage = () => {
             backgroundSize: '32px 32px',
           }}
         />
-        <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)_minmax(170px,0.42fr)] gap-3">
+        <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)] gap-3">
           <div className="h-full min-h-[86px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
           </div>
-          <div className="grid grid-cols-[minmax(0,1.85fr)_minmax(0,1.15fr)] gap-3 min-h-0">
+          <div className="grid grid-cols-2 gap-3 min-h-0">
             <div className="min-h-0">
               <YieldCurve
                 activeSymbol={activeSymbol}
@@ -927,23 +927,12 @@ const FredPage = () => {
                 onSelectSymbol={handleSelectSymbol}
               />
             </div>
-            <div className="min-h-0 flex flex-col gap-3">
-              <FredSearch
-                onSelectSymbol={handleSelectSymbol}
-                collapsed={exploreCollapsed}
-                onToggle={() => setExploreCollapsed((prev) => !prev)}
+            <div className="min-h-0">
+              <EconCalendar
+                collapsed={calendarCollapsed}
+                onToggle={() => setCalendarCollapsed((prev) => !prev)}
               />
-              <div className="flex-1 min-h-0">
-                <EconCalendar
-                  collapsed={calendarCollapsed}
-                  onToggle={() => setCalendarCollapsed((prev) => !prev)}
-                />
-              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-3 min-h-0">
-            <MarketOverviewPanel />
-            <ForexCrossRatesPanel />
           </div>
         </div>
       </div>
