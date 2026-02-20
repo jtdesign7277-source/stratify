@@ -179,6 +179,46 @@ export default function V2TradePage() {
             <div className="mb-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
           ) : null}
 
+          {activePreset.id === 'stock-tools-popup-events' ? (
+            <>
+              <div className="highcharts-popup-indicators hidden">
+                <div className="popup-title">Indicators</div>
+                <label className="popup-row">
+                  <span>Type</span>
+                  <select defaultValue="sma">
+                    <option value="sma">SMA</option>
+                    <option value="ema">EMA</option>
+                    <option value="rsi">RSI</option>
+                    <option value="macd">MACD</option>
+                  </select>
+                </label>
+                <label className="popup-row">
+                  <span>Period</span>
+                  <input type="number" min="1" defaultValue="14" />
+                </label>
+                <div className="popup-actions">
+                  <button type="button">Add indicator</button>
+                  <button type="button" className="highcharts-close-popup">Close</button>
+                </div>
+              </div>
+              <div className="highcharts-popup-annotations hidden">
+                <div className="popup-title">Annotation</div>
+                <label className="popup-row">
+                  <span>Stroke width</span>
+                  <input type="number" name="stroke-width" min="1" max="8" defaultValue="2" />
+                </label>
+                <label className="popup-row">
+                  <span>Stroke color</span>
+                  <input type="color" name="stroke" defaultValue="#3b82f6" />
+                </label>
+                <div className="popup-actions">
+                  <button type="button">Update annotation</button>
+                  <button type="button" className="highcharts-close-popup">Close</button>
+                </div>
+              </div>
+            </>
+          ) : null}
+
           <div ref={containerRef} id="v2-trade-container" className="h-[calc(100%-36px)] min-h-[500px] w-full" />
         </div>
       </div>
@@ -224,6 +264,70 @@ export default function V2TradePage() {
           fill: rgba(0, 0, 0, 0.7);
           stroke: #34343a;
           stroke-width: 1px;
+        }
+        .highcharts-popup-indicators,
+        .highcharts-popup-annotations {
+          position: absolute;
+          top: 56px;
+          right: 18px;
+          z-index: 40;
+          width: 220px;
+          border-radius: 8px;
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          background: rgba(6, 13, 24, 0.96);
+          padding: 10px;
+          color: #e2e8f0;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+        }
+        .highcharts-popup-indicators.hidden,
+        .highcharts-popup-annotations.hidden {
+          display: none;
+        }
+        .popup-title {
+          margin-bottom: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #bae6fd;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+        .popup-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 4px;
+          margin-bottom: 8px;
+        }
+        .popup-row span {
+          font-size: 11px;
+          color: #94a3b8;
+        }
+        .popup-row input,
+        .popup-row select {
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          border-radius: 6px;
+          background: #0a1628;
+          color: #e2e8f0;
+          font-size: 12px;
+          padding: 6px 8px;
+        }
+        .popup-actions {
+          display: flex;
+          gap: 8px;
+        }
+        .popup-actions button {
+          border: 1px solid rgba(56, 189, 248, 0.45);
+          border-radius: 6px;
+          background: rgba(56, 189, 248, 0.12);
+          color: #e0f2fe;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 6px 8px;
+          cursor: pointer;
+        }
+        .popup-actions .highcharts-close-popup {
+          border-color: rgba(239, 68, 68, 0.45);
+          background: rgba(239, 68, 68, 0.12);
+          color: #fecaca;
         }
       `}</style>
     </div>

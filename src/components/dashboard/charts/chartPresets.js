@@ -7,6 +7,12 @@ export const CHART_PRESETS = [
     engine: 'chart',
   },
   {
+    id: 'stock-tools-popup-events',
+    name: 'Stock tools popup events',
+    description: 'Candlestick + volume with indicator/annotation popup controls.',
+    dataUrl: 'https://demo-live-data.highcharts.com/aapl-ohlcv.json',
+  },
+  {
     id: 'aapl-basic-exact',
     name: 'AAPL Stock Price (Exact)',
     description: 'Exact basic candlestick setup from your snippet.',
@@ -434,6 +440,259 @@ const buildOrderBookLive = () => {
         yAxis: 1,
       },
     ],
+  };
+};
+
+const buildStockToolsPopupEvents = (data) => {
+  const addPopupEvents = (chart) => {
+    const closePopupButtons = document.getElementsByClassName('highcharts-close-popup');
+    const indicatorsPopup = document.getElementsByClassName('highcharts-popup-indicators')[0];
+    const annotationsPopup = document.getElementsByClassName('highcharts-popup-annotations')[0];
+
+    if (!indicatorsPopup || !annotationsPopup) return;
+
+    chart.stockToolbar = chart.stockToolbar || {};
+    chart.stockToolbar.indicatorsPopupContainer = indicatorsPopup;
+    chart.stockToolbar.annotationsPopupContainer = annotationsPopup;
+
+    if (closePopupButtons[0] && closePopupButtons[0].dataset.bound !== '1') {
+      Highcharts.addEvent(closePopupButtons[0], 'click', function closeIndicatorsPopup() {
+        this.parentNode.style.display = 'none';
+      });
+      closePopupButtons[0].dataset.bound = '1';
+    }
+
+    if (closePopupButtons[1] && closePopupButtons[1].dataset.bound !== '1') {
+      Highcharts.addEvent(closePopupButtons[1], 'click', function closeAnnotationsPopup() {
+        this.parentNode.style.display = 'none';
+      });
+      closePopupButtons[1].dataset.bound = '1';
+    }
+
+    const addIndicatorButton = document.querySelectorAll('.highcharts-popup-indicators button')[0];
+    if (addIndicatorButton && addIndicatorButton.dataset.bound !== '1') {
+      Highcharts.addEvent(addIndicatorButton, 'click', function addIndicator() {
+        const typeSelect = document.querySelectorAll('.highcharts-popup-indicators select')[0];
+        const periodInput = document.querySelectorAll('.highcharts-popup-indicators input')[0];
+
+        if (!typeSelect) return;
+
+        const type = typeSelect.options[typeSelect.selectedIndex].value;
+        const period = periodInput?.value || 14;
+
+        chart.addSeries({
+          linkedTo: 'aapl-ohlc',
+          type,
+          params: {
+            period: parseInt(period, 10),
+          },
+        });
+
+        chart.stockToolbar.indicatorsPopupContainer.style.display = 'none';
+      });
+      addIndicatorButton.dataset.bound = '1';
+    }
+
+    const updateAnnotationButton = document.querySelectorAll('.highcharts-popup-annotations button')[0];
+    if (updateAnnotationButton && updateAnnotationButton.dataset.bound !== '1') {
+      Highcharts.addEvent(updateAnnotationButton, 'click', function updateAnnotation() {
+        const strokeWidthInput = document.querySelectorAll(
+          '.highcharts-popup-annotations input[name="stroke-width"]',
+        )[0];
+        const strokeColorInput = document.querySelectorAll(
+          '.highcharts-popup-annotations input[name="stroke"]',
+        )[0];
+
+        const strokeWidth = parseInt(strokeWidthInput?.value || '1', 10);
+        const strokeColor = strokeColorInput?.value || '#3b82f6';
+
+        if (!chart.currentAnnotation) return;
+
+        if (chart.currentAnnotation.options.typeOptions) {
+          chart.currentAnnotation.update({
+            typeOptions: {
+              lineColor: strokeColor,
+              lineWidth: strokeWidth,
+              line: {
+                strokeWidth,
+                stroke: strokeColor,
+              },
+              background: {
+                strokeWidth,
+                stroke: strokeColor,
+              },
+              innerBackground: {
+                strokeWidth,
+                stroke: strokeColor,
+              },
+              outerBackground: {
+                strokeWidth,
+                stroke: strokeColor,
+              },
+              connector: {
+                strokeWidth,
+                stroke: strokeColor,
+              },
+            },
+          });
+        } else {
+          chart.currentAnnotation.update({
+            shapes: [
+              {
+                'stroke-width': strokeWidth,
+                stroke: strokeColor,
+              },
+            ],
+            labels: [
+              {
+                borderWidth: strokeWidth,
+                borderColor: strokeColor,
+              },
+            ],
+          });
+        }
+
+        chart.stockToolbar.annotationsPopupContainer.style.display = 'none';
+      });
+      updateAnnotationButton.dataset.bound = '1';
+    }
+  };
+
+  const ohlc = [];
+  const volume = [];
+  const dataLength = Array.isArray(data) ? data.length : 0;
+
+  for (let i = 0; i < dataLength; i += 1) {
+    ohlc.push([
+      data[i][0], // date
+      data[i][1], // open
+      data[i][2], // high
+      data[i][3], // low
+      data[i][4], // close
+    ]);
+
+    volume.push([
+      data[i][0], // date
+      data[i][5], // volume
+    ]);
+  }
+
+  return {
+    chart: {
+      events: {
+        load() {
+          addPopupEvents(this);
+        },
+      },
+    },
+    rangeSelector: {
+      selected: 2,
+    },
+    yAxis: [
+      {
+        labels: {
+          align: 'left',
+        },
+        height: '80%',
+        resize: {
+          enabled: true,
+        },
+      },
+      {
+        labels: {
+          align: 'left',
+        },
+        top: '80%',
+        height: '20%',
+        offset: 0,
+      },
+    ],
+    navigationBindings: {
+      events: {
+        selectButton(event) {
+          let newClassName = `${event.button.className} highcharts-active`;
+          const topButton = event.button.parentNode.parentNode;
+
+          if (topButton.classList.contains('right')) {
+            newClassName += ' right';
+          }
+
+          if (!topButton.classList.contains('highcharts-menu-wrapper')) {
+            topButton.className = newClassName;
+          }
+
+          this.chart.activeButton = event.button;
+        },
+        deselectButton(event) {
+          event.button.parentNode.parentNode.classList.remove('highcharts-active');
+          this.chart.activeButton = null;
+        },
+        showPopup(event) {
+          if (!this.indicatorsPopupContainer) {
+            this.indicatorsPopupContainer = document.getElementsByClassName(
+              'highcharts-popup-indicators',
+            )[0];
+          }
+
+          if (!this.annotationsPopupContainer) {
+            this.annotationsPopupContainer = document.getElementsByClassName(
+              'highcharts-popup-annotations',
+            )[0];
+          }
+
+          if (event.formType === 'indicators' && this.indicatorsPopupContainer) {
+            this.indicatorsPopupContainer.style.display = 'block';
+          } else if (event.formType === 'annotation-toolbar') {
+            if (!this.chart.activeButton && this.annotationsPopupContainer) {
+              this.chart.currentAnnotation = event.annotation;
+              this.annotationsPopupContainer.style.display = 'block';
+            }
+          }
+        },
+        closePopup() {
+          if (this.indicatorsPopupContainer) {
+            this.indicatorsPopupContainer.style.display = 'none';
+          }
+          if (this.annotationsPopupContainer) {
+            this.annotationsPopupContainer.style.display = 'none';
+          }
+        },
+      },
+    },
+    stockTools: {
+      gui: {
+        enabled: false,
+      },
+    },
+    series: [
+      {
+        type: 'candlestick',
+        id: 'aapl-ohlc',
+        name: 'AAPL Stock Price',
+        data: ohlc,
+      },
+      {
+        type: 'column',
+        id: 'aapl-volume',
+        name: 'AAPL Volume',
+        data: volume,
+        yAxis: 1,
+      },
+    ],
+    responsive: {
+      rules: [
+        {
+          condition: {
+            maxWidth: 800,
+          },
+          chartOptions: {
+            rangeSelector: {
+              inputEnabled: false,
+            },
+          },
+        },
+      ],
+    },
   };
 };
 
@@ -991,6 +1250,9 @@ Volume<span style="color:${colorTemplate}";>{points.1.y}</span>`,
 export const buildChartOptions = ({ presetId, data }) => {
   if (presetId === 'order-book-live') {
     return buildOrderBookLive();
+  }
+  if (presetId === 'stock-tools-popup-events') {
+    return buildStockToolsPopupEvents(data);
   }
   if (presetId === 'aapl-basic-exact') {
     return buildAaplBasicExact(data);
