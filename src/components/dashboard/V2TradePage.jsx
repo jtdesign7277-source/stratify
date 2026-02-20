@@ -549,7 +549,7 @@ export default function V2TradePage() {
         const interval = getPresetInterval(activePreset.id);
         const outputsize = interval === '1min' || interval === '5min' ? 700 : 500;
         const response = await fetch(
-          `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}`,
+          `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&prepost=true`,
           { cache: 'no-store' }
         );
 

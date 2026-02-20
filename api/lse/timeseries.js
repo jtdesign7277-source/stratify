@@ -13,13 +13,15 @@ export default async function handler(req, res) {
   const symbol = String(req.query.symbol || '').trim();
   const interval = String(req.query.interval || '5min').trim();
   const outputsize = Number(req.query.outputsize || 120);
+  const prepostParam = String(req.query.prepost ?? 'true').trim().toLowerCase();
+  const includePrepost = !['false', '0', 'no', 'off'].includes(prepostParam);
 
   if (!symbol) {
     return res.status(400).json({ error: 'Missing symbol' });
   }
 
   try {
-    const data = await fetchLseTimeSeries(symbol, interval, outputsize);
+    const data = await fetchLseTimeSeries(symbol, interval, outputsize, includePrepost);
     return res.status(200).json(data);
   } catch (error) {
     const status = Number(error?.status) || 500;
