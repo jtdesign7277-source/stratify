@@ -84,8 +84,8 @@ export default function V2TradePage() {
     var chart = Highcharts.stockChart(containerRef.current, {
       chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
       credits: { enabled: false }, title: { text: '' }, stockTools: { gui: { enabled: false } },
-      navigator: { enabled: true, height: 28, outlineColor: '#1a233244', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f293788', borderColor: '#4a556888' } },
-      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#e2e8f0', buttonBackgroundColor: '#1f2937', buttonBorderColor: '#475569', rifleColor: '#e2e8f0', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4, height: 14, margin: 6 },
+      navigator: { enabled: true, height: 28, outlineColor: '#1a233244', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#22c55e', borderColor: '#16a34a', width: 8, height: 20 } },
+      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#22c55e', buttonBackgroundColor: '#14532d', buttonBorderColor: '#22c55e', rifleColor: '#22c55e', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4, height: 14, margin: 6 },
       rangeSelector: { enabled: false },
       xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#4a5568', fontSize: '10px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
       yAxis: [
@@ -199,8 +199,8 @@ export default function V2TradePage() {
   return (
     <div className="h-full w-full bg-transparent flex flex-col overflow-hidden">
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-3 text-[11px] font-mono">
-          <span className="text-white font-bold text-sm">{symbol}</span>
+        <div className="flex items-center gap-4 text-base font-mono">
+          <span className="text-white font-bold text-xl">{symbol}</span>
           <span className="text-white/40">O <span className="text-white/70">{fmt(hover.o)}</span></span>
           <span className="text-white/40">H <span className="text-emerald-400/80">{fmt(hover.h)}</span></span>
           <span className="text-white/40">L <span className="text-red-400/80">{fmt(hover.l)}</span></span>
@@ -210,7 +210,7 @@ export default function V2TradePage() {
         </div>
         <div className="flex items-center gap-1">
           <div className="relative" data-dd>
-            <button onClick={function() { setShowSearch(!showSearch); }} className="px-2 py-1 rounded text-[11px] text-gray-400 hover:text-white hover:bg-white/5 transition-colors">🔍</button>
+            <button onClick={function() { setShowSearch(!showSearch); }} className="px-3 py-1.5 rounded text-base text-gray-400 hover:text-white hover:bg-white/5 transition-colors">🔍</button>
             {showSearch && (
               <div className="absolute right-0 top-full mt-1 bg-black/90 border border-white/10 rounded-lg p-2 backdrop-blur-xl w-56 z-50">
                 <input autoFocus value={search} onChange={function(e) { setSearch(e.target.value.toUpperCase()); }} onKeyDown={function(e) { if (e.key === 'Enter' && search.trim()) handleSearchSubmit(search.trim()); }} placeholder="Symbol (e.g. TSLA)" className="w-full bg-transparent text-white text-sm outline-none placeholder-gray-500 px-2 py-1.5 border border-white/10 rounded" />
@@ -219,9 +219,9 @@ export default function V2TradePage() {
             )}
           </div>
           <div className="relative" data-dd>
-            <button onClick={function() { setShowColors(!showColors); }} className="px-2 py-1 rounded text-[11px] text-gray-400 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: theme.up }} />
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: theme.down }} />
+            <button onClick={function() { setShowColors(!showColors); }} className="px-3 py-1.5 rounded text-base text-gray-400 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-sm" style={{ background: theme.up }} />
+              <span className="w-3.5 h-3.5 rounded-sm" style={{ background: theme.down }} />
             </button>
             {showColors && (
               <div className="absolute right-0 top-full mt-1 bg-black/90 border border-white/10 rounded-lg p-2 backdrop-blur-xl w-44 z-50">
