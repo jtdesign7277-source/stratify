@@ -136,10 +136,20 @@ async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500, 
         return;
       }
 
+      const maxPrice = Math.max(o, h, l, c);
+      const minPrice = Math.min(o, h, l, c);
+      if (!Number.isFinite(maxPrice) || !Number.isFinite(minPrice) || minPrice <= 0) return;
+
+      // Drop obviously broken bars that can crush axis scaling and hide candles.
+      if (maxPrice / minPrice > 20) return;
+
       ohlc.push([ts, o, h, l, c]);
       volume.push({ x: ts, y: v, _o: o, _c: c });
     });
   }
+
+  ohlc.sort((a, b) => a[0] - b[0]);
+  volume.sort((a, b) => a.x - b.x);
 
   return { ohlc, volume };
 }
@@ -231,7 +241,14 @@ export default function HighchartsStockChart({
     });
 
     return {
-      chart: { backgroundColor: '#000', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [0, 0, 0, 0], panning: { enabled: true, type: 'x' }, zooming: { type: 'x', mouseWheel: { enabled: true } } },
+      chart: {
+        backgroundColor: '#000',
+        style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" },
+        animation: false,
+        spacing: [0, 0, 0, 0],
+        panning: { enabled: true, type: 'x', panKey: 'shift' },
+        zooming: { type: 'x', mouseWheel: { enabled: true, sensitivity: 1.35 }, pinchType: 'x' },
+      },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
       navigator: { enabled: true, height: 28, outlineColor: '#1a2332', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f2937', borderColor: '#4a5568' } },
@@ -290,6 +307,22 @@ export default function HighchartsStockChart({
     [buildOpts, seriesSeed.ohlc, seriesSeed.volume]
   );
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (seriesSeed.ohlc.length < 5) return;
+    const chart = chartRef.current?.chart;
+    const xAxis = chart?.xAxis?.[0];
+    if (!xAxis) return;
+
+    // Default to a recent working window so users immediately see candles.
+    const tail = Math.max(80, Math.min(200, seriesSeed.ohlc.length));
+    const start = seriesSeed.ohlc[Math.max(0, seriesSeed.ohlc.length - tail)]?.[0];
+    const end = seriesSeed.ohlc[seriesSeed.ohlc.length - 1]?.[0];
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+      xAxis.setExtremes(start, end, true, false, { trigger: 'initial-focus' });
+    }
+    chart.reflow();
+  }, [seriesSeed.ohlc, symbol, interval]);
 
   // ─── WebSocket ───
   useEffect(() => {
@@ -425,6 +458,57 @@ export default function HighchartsStockChart({
     return () => document.removeEventListener('fullscreenchange', fn);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const reflow = () => chartRef.current?.chart?.reflow();
+    const timer = setTimeout(reflow, 80);
+    let observer;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      observer = new ResizeObserver(() => reflow());
+      observer.observe(containerRef.current);
+    }
+    window.addEventListener('resize', reflow);
+    return () => {
+      clearTimeout(timer);
+      observer?.disconnect();
+      window.removeEventListener('resize', reflow);
+    };
+  }, [chartSize, isFs]);
+
+  const handleZoom = useCallback((direction) => {
+    const chart = chartRef.current?.chart;
+    const xAxis = chart?.xAxis?.[0];
+    if (!xAxis || !Number.isFinite(xAxis.min) || !Number.isFinite(xAxis.max)) return;
+
+    const currentRange = xAxis.max - xAxis.min;
+    if (!Number.isFinite(currentRange) || currentRange <= 0) return;
+
+    const scale = direction === 'in' ? 0.72 : 1.4;
+    const nextRange = Math.max(60_000, currentRange * scale);
+    const center = xAxis.min + currentRange / 2;
+    const dataMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : xAxis.min;
+    const dataMax = Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : xAxis.max;
+
+    let nextMin = center - nextRange / 2;
+    let nextMax = center + nextRange / 2;
+    if (nextMin < dataMin) {
+      nextMin = dataMin;
+      nextMax = Math.min(dataMax, dataMin + nextRange);
+    }
+    if (nextMax > dataMax) {
+      nextMax = dataMax;
+      nextMin = Math.max(dataMin, dataMax - nextRange);
+    }
+
+    xAxis.setExtremes(nextMin, nextMax, true, false, { trigger: 'zoom-button' });
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    const xAxis = chartRef.current?.chart?.xAxis?.[0];
+    if (!xAxis) return;
+    xAxis.setExtremes(null, null, true, false, { trigger: 'reset-zoom' });
+  }, []);
+
   const h = isFs ? '100vh' : (SIZE_PRESETS.find((s) => s.value === chartSize)?.height || '100%');
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
 
@@ -485,6 +569,9 @@ export default function HighchartsStockChart({
         </div>
 
         <button onClick={toggleFs} className={`${P} ${PF}`} title="Fullscreen">{isFs ? '⊡' : '⛶'}</button>
+        <button onClick={() => handleZoom('in')} className={`${P} ${PF}`} title="Zoom in">＋</button>
+        <button onClick={() => handleZoom('out')} className={`${P} ${PF}`} title="Zoom out">－</button>
+        <button onClick={handleResetZoom} className={`${P} ${PF}`} title="Reset zoom">Reset</button>
       </div>
 
       {/* ═══ TOOLBAR ═══ */}
