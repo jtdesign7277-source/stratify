@@ -98,7 +98,7 @@ export default function V2TradePage() {
       rangeSelector: { enabled: false },
       xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#4a5568', fontSize: '10px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
       yAxis: [
-        { labels: { align: 'right', x: -8, style: { color: '#8892a0bb', fontSize: '10px' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 } },
+        { labels: { align: 'right', x: -8, style: { color: '#8892a0bb', fontSize: '10px' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#22c55e', buttonBackgroundColor: '#14532d', buttonBorderColor: '#22c55e', rifleColor: '#22c55e', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4 } },
         { labels: { enabled: false }, top: '77%', height: '23%', gridLineWidth: 0, lineWidth: 0 }
       ],
       tooltip: { enabled: false },
