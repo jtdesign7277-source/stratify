@@ -265,7 +265,11 @@ export default function HighchartsStockChart({
         spacing: [0, 0, 0, 0],
         panning: { enabled: true, type: 'xy' },
         panKey: null,
-        zooming: { type: undefined, mouseWheel: { enabled: true, sensitivity: 1.2 }, pinchType: 'x' },
+        zooming: {
+          type: '',
+          mouseWheel: { enabled: true, sensitivity: 1.2 },
+          pinchType: 'xy',
+        },
       },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
@@ -276,6 +280,7 @@ export default function HighchartsStockChart({
         gridLineWidth: 0,
         lineColor: '#1a2332',
         tickColor: '#1a2332',
+        crosshair: false,
         labels: { style: { color: '#4a5568', fontSize: '10px' } },
         minPadding: 0,
         maxPadding: 0.06,
@@ -287,6 +292,7 @@ export default function HighchartsStockChart({
           height: '75%',
           gridLineWidth: 0,
           lineWidth: 0,
+          crosshair: false,
           startOnTick: false,
           endOnTick: false,
           scrollbar: {
@@ -302,7 +308,7 @@ export default function HighchartsStockChart({
           },
           resize: { enabled: true },
         },
-        { labels: { enabled: false }, top: '77%', height: '23%', offset: 0, gridLineWidth: 0, lineWidth: 0 },
+        { labels: { enabled: false }, top: '77%', height: '23%', offset: 0, gridLineWidth: 0, lineWidth: 0, crosshair: false },
       ],
       tooltip: { enabled: false },
       plotOptions: {
@@ -705,6 +711,7 @@ export default function HighchartsStockChart({
         .highcharts-navigator-outline{stroke:#1a2332}
         .highcharts-stock-tools-wrapper{display:none!important}
         .highcharts-bindings-wrapper{display:none!important}
+        .highcharts-crosshair,.highcharts-crosshair-thin,.highcharts-axis-resizer{display:none!important}
         .highcharts-root,.highcharts-container{cursor:grab}
         .highcharts-root:active,.highcharts-container:active{cursor:grabbing}
         *::-webkit-scrollbar{width:4px}
