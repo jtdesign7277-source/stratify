@@ -478,7 +478,7 @@ export default function HighchartsStockChart({
       if (nextXMax > rightLimit) { const shift = nextXMax - rightLimit; nextXMin -= shift; nextXMax -= shift; }
       let nextYMin = drag.yMin + dy * yPerPx;
       let nextYMax = drag.yMax + dy * yPerPx;
-      const yPadding = yRange * 0.8;
+      const yPadding = yRange * 0.2;
       const yMinLimit = drag.yDataMin - yPadding;
       const yMaxLimit = drag.yDataMax + yPadding;
       if (nextYMin < yMinLimit) { const shift = yMinLimit - nextYMin; nextYMin += shift; nextYMax += shift; }
@@ -489,10 +489,35 @@ export default function HighchartsStockChart({
       event.preventDefault();
     };
 
+    const fitYToVisibleX = () => {
+      const xAxis = chart.xAxis?.[0];
+      const yAxis = chart.yAxis?.[0];
+      const priceSeries = chart.get('price');
+      if (!xAxis || !yAxis || !priceSeries?.points?.length) return;
+      const xMin = xAxis.min;
+      const xMax = xAxis.max;
+      if (!Number.isFinite(xMin) || !Number.isFinite(xMax)) return;
+
+      let visMin = Infinity;
+      let visMax = -Infinity;
+      for (const point of priceSeries.points) {
+        if (point.x >= xMin && point.x <= xMax) {
+          if (Number.isFinite(point.low) && point.low < visMin) visMin = point.low;
+          if (Number.isFinite(point.high) && point.high > visMax) visMax = point.high;
+        }
+      }
+
+      if (visMin < Infinity && visMax > -Infinity) {
+        const pad = Math.max((visMax - visMin) * 0.1, visMax * 0.002);
+        yAxis.setExtremes(visMin - pad, visMax + pad, false, false, { trigger: 'auto-fit-visible' });
+      }
+    };
+
     const stopDragging = () => {
       if (!dragStateRef.current) return;
       dragStateRef.current = null;
       container.style.cursor = 'crosshair';
+      fitYToVisibleX();
       chart.redraw();
     };
 
@@ -636,20 +661,20 @@ export default function HighchartsStockChart({
   const maxChartHeight = isFs ? '100vh' : undefined;
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
 
-  const P = 'px-4 py-1 text-[20px] font-medium rounded cursor-pointer transition-all duration-100 select-none whitespace-nowrap';
+  const P = 'px-3 py-0.5 text-[18px] font-medium rounded cursor-pointer transition-all duration-100 select-none whitespace-nowrap';
   const PN = 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
   const PF = 'text-[#555] hover:text-[#888] hover:bg-white/[0.03] border border-transparent';
   const DD = { position: 'absolute', top: '100%', left: 0, marginTop: '4px', backgroundColor: '#0d1117', border: '1px solid #1f2937', borderRadius: '6px', padding: '4px', zIndex: 200, minWidth: '170px', boxShadow: '0 12px 40px rgba(0,0,0,0.7)', maxHeight: '320px', overflowY: 'auto' };
-  const DI = (a) => ({ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', backgroundColor: a ? 'rgba(59,130,246,0.1)' : 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: a ? '#60a5fa' : '#8892a0', fontSize: '20px', textAlign: 'left' });
+  const DI = (a) => ({ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', backgroundColor: a ? 'rgba(59,130,246,0.1)' : 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: a ? '#60a5fa' : '#8892a0', fontSize: '16px', textAlign: 'left' });
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: h, maxHeight: maxChartHeight, backgroundColor: '#000', position: 'relative', overflow: 'hidden', borderRadius: isFs ? '0' : '6px', border: isFs ? 'none' : '1px solid #111827' }}>
 
       {/* ── Top bar: symbol, price, controls ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 10px', backgroundColor: '#000', borderBottom: '1px solid #111827', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 10px', backgroundColor: '#000', borderBottom: '1px solid #111827', flexShrink: 0, whiteSpace: 'nowrap', overflowX: 'auto' }}>
         <div style={{ position: 'relative' }} data-dd>
-          <button onClick={() => setShowSym(!showSym)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '5px', cursor: 'pointer', color: '#e5e7eb', fontSize: '26px', fontWeight: '700' }}>
-            <span style={{ color: '#4a5568', fontSize: '22px' }}>$</span>{symbol}<span style={{ color: '#4a5568', fontSize: '16px', marginLeft: '2px' }}>▼</span>
+          <button onClick={() => setShowSym(!showSym)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '5px', cursor: 'pointer', color: '#e5e7eb', fontSize: '20px', fontWeight: '700' }}>
+            <span style={{ color: '#4a5568', fontSize: '16px' }}>$</span>{symbol}<span style={{ color: '#4a5568', fontSize: '12px', marginLeft: '2px' }}>▼</span>
           </button>
           {showSym && (
             <div style={{ ...DD, minWidth: '200px' }}>
@@ -671,22 +696,22 @@ export default function HighchartsStockChart({
           )}
         </div>
 
-        <span style={{ color: '#e5e7eb', fontSize: '30px', fontWeight: '700', fontFamily: "'SF Mono', monospace" }}>{fmtPrice(hover.c)}</span>
-        {hover.chg != null && <span style={{ color: hover.chg >= 0 ? '#22c55e' : '#ef4444', fontSize: '22px', fontWeight: '600', fontFamily: "'SF Mono', monospace" }}>{hover.chg >= 0 ? '+' : ''}{hover.chg?.toFixed(2)} ({hover.pct?.toFixed(2)}%)</span>}
-        {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '18px', color: '#22c55e', fontWeight: '600' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />LIVE</div>}
+        <span style={{ color: '#e5e7eb', fontSize: '24px', fontWeight: '700', fontFamily: "'SF Mono', monospace" }}>{fmtPrice(hover.c)}</span>
+        {hover.chg != null && <span style={{ color: hover.chg >= 0 ? '#22c55e' : '#ef4444', fontSize: '18px', fontWeight: '600', fontFamily: "'SF Mono', monospace" }}>{hover.chg >= 0 ? '+' : ''}{hover.chg?.toFixed(2)} ({hover.pct?.toFixed(2)}%)</span>}
+        {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#22c55e', fontWeight: '600' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />LIVE</div>}
 
         <div style={{ flex: 1 }} />
 
-        <span style={{ color: '#6b7280', fontSize: '20px', fontWeight: '600' }}>Size: Fill</span>
+        <span style={{ color: '#6b7280', fontSize: '16px', fontWeight: '600' }}>Size: Fill</span>
 
         <button onClick={toggleFs} className={`${P} ${PF}`} title="Fullscreen">{isFs ? '⊡' : '⛶'}</button>
-        <button onClick={() => handleZoom('in')} className={`${P} border border-emerald-500/50 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10`} title="Zoom in" style={{ fontSize: '40px', lineHeight: 1, fontWeight: 700 }}>＋</button>
-        <button onClick={() => handleZoom('out')} className={`${P} border border-red-500/50 text-red-400 hover:text-red-300 hover:bg-red-500/10`} title="Zoom out" style={{ fontSize: '40px', lineHeight: 1, fontWeight: 700 }}>－</button>
+        <button onClick={() => handleZoom('in')} className={`${P} border border-emerald-500/50 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10`} title="Zoom in" style={{ fontSize: '36px', lineHeight: 1, fontWeight: 700 }}>＋</button>
+        <button onClick={() => handleZoom('out')} className={`${P} border border-red-500/50 text-red-400 hover:text-red-300 hover:bg-red-500/10`} title="Zoom out" style={{ fontSize: '36px', lineHeight: 1, fontWeight: 700 }}>－</button>
         <button onClick={handleResetZoom} className={`${P} ${PF}`} title="Reset zoom">Reset</button>
       </div>
 
       {/* ── Second bar: indicators + chart type + drawing + colors ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '3px 10px', backgroundColor: '#000', borderBottom: '1px solid #0a0a0a', flexShrink: 0, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '3px 10px', backgroundColor: '#000', borderBottom: '1px solid #0a0a0a', flexShrink: 0, flexWrap: 'nowrap', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         {TOP_INDICATOR_CHIPS.map((chipId) => {
           const chip = INDICATOR_OPTIONS.find((opt) => opt.id === chipId);
           if (!chip) return null;
@@ -753,7 +778,7 @@ export default function HighchartsStockChart({
       </div>
 
       {/* ── OHLCV hover bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '6px 14px', backgroundColor: '#000', flexShrink: 0, fontFamily: "'SF Mono', monospace", fontSize: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '4px 12px', backgroundColor: '#000', flexShrink: 0, fontFamily: "'SF Mono', monospace", fontSize: '16px', whiteSpace: 'nowrap', overflowX: 'auto' }}>
         <span style={{ color: '#444' }}>O <span style={{ color: hover.c >= hover.o ? theme.up : theme.down }}>{fmtPrice(hover.o)}</span></span>
         <span style={{ color: '#444' }}>H <span style={{ color: theme.up }}>{fmtPrice(hover.h)}</span></span>
         <span style={{ color: '#444' }}>L <span style={{ color: theme.down }}>{fmtPrice(hover.l)}</span></span>
@@ -762,7 +787,7 @@ export default function HighchartsStockChart({
       </div>
 
       {/* ── Chart area ── */}
-      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+      <div style={{ flex: 1, position: 'relative', minHeight: 180 }}>
         {loading && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', zIndex: 50 }}>
             <div style={{ color: '#4a5568', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -784,12 +809,12 @@ export default function HighchartsStockChart({
           options={chartOptions}
           containerProps={{ style: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }}
         />
-        <div style={{ position: 'absolute', bottom: '36px', right: '10px', fontSize: '8px', color: '#151a24', letterSpacing: '0.04em', fontWeight: '500', pointerEvents: 'none', zIndex: 10 }}>MARKET DATA POWERED BY TWELVE DATA</div>
+        <div style={{ position: 'absolute', bottom: '50px', right: '10px', fontSize: '8px', color: '#151a24', letterSpacing: '0.04em', fontWeight: '500', pointerEvents: 'none', zIndex: 10 }}>MARKET DATA POWERED BY TWELVE DATA</div>
       </div>
 
       {/* ── Bottom bar: range + interval ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', backgroundColor: '#000', borderTop: '1px solid #0f1722', flexShrink: 0, fontFamily: "'SF Mono', monospace" }}>
-        <span style={{ color: '#4a5568', fontSize: '22px' }}>Range:</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px', backgroundColor: '#000', borderTop: '1px solid #0f1722', flexShrink: 0, fontFamily: "'SF Mono', monospace", whiteSpace: 'nowrap', overflowX: 'auto' }}>
+        <span style={{ color: '#4a5568', fontSize: '16px' }}>Range:</span>
         {RANGE_PRESETS_PRIMARY.map((item) => (
           <button key={item.value} onClick={() => applyRangePreset(item.value)} className={`${P} ${activeRange === item.value ? PN : PF}`}>{item.label}</button>
         ))}
@@ -804,7 +829,7 @@ export default function HighchartsStockChart({
           )}
         </div>
         <div style={{ width: '1px', height: '14px', backgroundColor: '#1a2332', margin: '0 4px' }} />
-        <span style={{ color: '#4a5568', fontSize: '22px' }}>Interval:</span>
+        <span style={{ color: '#4a5568', fontSize: '16px' }}>Interval:</span>
         {BOTTOM_INTERVALS_PRIMARY.map((item) => (
           <button key={item.value} onClick={() => setIv(item.value)} className={`${P} ${interval === item.value ? PN : PF}`}>{item.label}</button>
         ))}
@@ -836,7 +861,7 @@ export default function HighchartsStockChart({
         .highcharts-root:active,.highcharts-container:active{cursor:grabbing}
         .highcharts-plot-background{cursor:crosshair}
         .highcharts-plot-background:active{cursor:grabbing}
-        *::-webkit-scrollbar{width:4px}
+        *::-webkit-scrollbar{width:4px;height:4px}
         *::-webkit-scrollbar-track{background:#0d1117}
         *::-webkit-scrollbar-thumb{background:#1f2937;border-radius:4px}
       `}</style>
