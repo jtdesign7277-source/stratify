@@ -239,6 +239,33 @@ export default function V2TradePage() {
 
   var handleSearchSubmit = function(sym) { var s = sym.toUpperCase(); setSearch(''); setShowSearch(false); setSymbol(s); savePrefs({ symbol: s }); };
 
+  var handleZoom = function(direction) {
+    var chart = chartObjRef.current;
+    if (!chart) return;
+    var xAxis = chart.xAxis && chart.xAxis[0];
+    if (!xAxis || !Number.isFinite(xAxis.min) || !Number.isFinite(xAxis.max)) return;
+    var xRange = xAxis.max - xAxis.min;
+    var factor = direction === 'in' ? 0.6 : 1.6;
+    var center = xAxis.min + xRange / 2;
+    var newRange = xRange * factor;
+    var minR = (INTERVAL_MS[interval] || 86400000) * 2;
+    if (newRange < minR) newRange = minR;
+    var dMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : xAxis.min;
+    var dMax = (Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : xAxis.max) + rightPad;
+    var nMin = center - newRange / 2, nMax = center + newRange / 2;
+    if (nMin < dMin) { nMin = dMin; nMax = Math.min(dMax, dMin + newRange); }
+    if (nMax > dMax) { nMax = dMax; nMin = Math.max(dMin, dMax - newRange); }
+    xAxis.setExtremes(nMin, nMax, false, false);
+    // Auto-fit Y
+    var ps = chart.get('price'), yAxis = chart.yAxis && chart.yAxis[0];
+    if (ps && ps.points && ps.points.length && yAxis) {
+      var lo = Infinity, hi = -Infinity;
+      for (var i = 0; i < ps.points.length; i++) { var p = ps.points[i]; if (p.x >= nMin && p.x <= nMax) { if (p.low < lo) lo = p.low; if (p.high > hi) hi = p.high; } }
+      if (lo < Infinity) { var pad = (hi - lo) * 0.08 || hi * 0.02; yAxis.setExtremes(lo - pad, hi + pad, false, false); }
+    }
+    chart.redraw(false);
+  };
+
   var handleDrawingTool = function(tool) {
     var chart = chartObjRef.current;
     if (!chart) return;
@@ -302,6 +329,11 @@ export default function V2TradePage() {
                 className="bg-transparent text-white text-sm font-medium outline-none placeholder-gray-500 w-32"
               />
             </div>
+          </div>
+          {/* Zoom buttons */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={function() { handleZoom('in'); }} title="Zoom In" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all">+</button>
+            <button onClick={function() { handleZoom('out'); }} title="Zoom Out" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all">−</button>
           </div>
           {/* Color picker */}
           <div className="relative" data-dd>
