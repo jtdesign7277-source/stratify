@@ -1,5 +1,11 @@
 export const CHART_PRESETS = [
   {
+    id: 'aapl-basic-exact',
+    name: 'AAPL Stock Price (Exact)',
+    description: 'Exact basic candlestick setup from your snippet.',
+    dataUrl: 'https://demo-live-data.highcharts.com/aapl-ohlc.json',
+  },
+  {
     id: 'candlestick-basic',
     name: 'Candlestick Demo',
     description: 'AAPL OHLC candlestick chart.',
@@ -123,6 +129,28 @@ const buildCandlestickDemo = (data) => ({
       upColor: '#22c55e',
       lineColor: '#ef4444',
       upLineColor: '#22c55e',
+      dataGrouping: {
+        units: [
+          ['week', [1]],
+          ['month', [1, 2, 3, 4, 6]],
+        ],
+      },
+    },
+  ],
+});
+
+const buildAaplBasicExact = (data) => ({
+  rangeSelector: {
+    selected: 1,
+  },
+  title: {
+    text: 'AAPL Stock Price',
+  },
+  series: [
+    {
+      type: 'candlestick',
+      name: 'AAPL Stock Price',
+      data,
       dataGrouping: {
         units: [
           ['week', [1]],
@@ -663,6 +691,9 @@ Volume<span style="color:${colorTemplate}";>{points.1.y}</span>`,
 };
 
 export const buildChartOptions = ({ presetId, data }) => {
+  if (presetId === 'aapl-basic-exact') {
+    return buildAaplBasicExact(data);
+  }
   if (presetId === 'technical-annotations') {
     return buildTechnicalWithAnnotations(data);
   }
