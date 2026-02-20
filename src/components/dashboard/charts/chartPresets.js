@@ -23,6 +23,12 @@ export const CHART_PRESETS = [
     description: 'Dark style candlesticks with volume and Ichimoku overlay.',
     dataUrl: 'https://demo-live-data.highcharts.com/aapl-ohlcv.json',
   },
+  {
+    id: 'styled-crosshair-candles',
+    name: 'Styled crosshair candlestick',
+    description: 'Styled-mode candles + volume with custom crosshair labels.',
+    dataUrl: 'https://demo-live-data.highcharts.com/aapl-ohlcv.json',
+  },
 ];
 
 const baseDarkTheme = {
@@ -516,6 +522,146 @@ const buildCandlestickVolumeIkh = (data) => {
   };
 };
 
+const buildStyledCrosshairCandles = (data) => {
+  const colorTemplate = '{#ge point.open point.close}#ff6e6e{else}#51af7b{/ge}';
+  const ohlc = [];
+  const volume = [];
+
+  for (let i = 0; i < data.length; i += 1) {
+    const row = data[i];
+    if (!Array.isArray(row) || row.length < 6) continue;
+
+    ohlc.push([row[0], row[1], row[2], row[3], row[4]]);
+    volume.push([
+      row[0],
+      row[5],
+      row[1] < row[4] ? 'highcharts-point-up' : 'highcharts-point-down',
+    ]);
+  }
+
+  return {
+    lang: {
+      accessibility: {
+        defaultChartTitle: 'AAPL Stock Price',
+      },
+    },
+    chart: {
+      styledMode: true,
+      backgroundColor: '#0a0a0a',
+    },
+    credits: {
+      enabled: false,
+    },
+    title: {
+      text: 'AAPL Stock Price',
+    },
+    xAxis: {
+      crosshair: {
+        className: 'highcharts-crosshair-custom',
+        enabled: true,
+      },
+    },
+    yAxis: [
+      {
+        title: { text: 'price (USD)' },
+        crosshair: {
+          snap: false,
+          className: 'highcharts-crosshair-custom',
+          enabled: true,
+          label: {
+            className: 'highcharts-crosshair-custom-label',
+            enabled: true,
+            format: '{value:.2f}',
+          },
+        },
+        labels: { align: 'left' },
+        height: '70%',
+      },
+      {
+        title: { text: 'volume' },
+        crosshair: {
+          className: 'highcharts-crosshair-custom',
+          snap: false,
+          enabled: true,
+          label: {
+            format:
+              '{#if value ge 1000000} {(divide value 1000000):.2f} M {else} {value} {/if}',
+            className: 'highcharts-crosshair-custom-label',
+            enabled: true,
+          },
+        },
+        labels: { align: 'left' },
+        top: '70%',
+        height: '30%',
+        offset: 0,
+      },
+    ],
+    tooltip: {
+      shape: 'square',
+      split: false,
+      shared: true,
+      headerShape: 'callout',
+      fixed: true,
+      format: `<span style="font-size: 1.4em">{point.series.name}</span><br/>
+O<span style="color:${colorTemplate}";>{point.open}</span>
+H<span style="color:${colorTemplate}";>{point.high}</span>
+L<span style="color:${colorTemplate}";>{point.low}</span>
+C<span style="color:${colorTemplate}";>{point.close}
+{(subtract point.open point.close):.2f}
+{(multiply (divide (subtract point.open point.close) point.close) 100):.2f}%
+</span><br/>
+Volume<span style="color:${colorTemplate}";>{points.1.y}</span>`,
+    },
+    series: [
+      {
+        type: 'candlestick',
+        id: 'aapl-ohlc',
+        name: 'AAPL Stock Price',
+        lastPrice: {
+          enabled: true,
+          label: {
+            enabled: true,
+            align: 'left',
+            x: 8,
+          },
+        },
+        data: ohlc,
+      },
+      {
+        type: 'column',
+        id: 'aapl-volume',
+        name: 'AAPL Volume',
+        keys: ['x', 'y', 'className'],
+        data: volume,
+        yAxis: 1,
+        lastPrice: {
+          enabled: true,
+          label: {
+            format:
+              '{#if value ge 1000000} {(divide value 1000000):.2f} M {else} {value} {/if}',
+            enabled: true,
+            align: 'left',
+            x: 8,
+          },
+        },
+      },
+    ],
+    rangeSelector: {
+      verticalAlign: 'bottom',
+    },
+    responsive: {
+      rules: [
+        {
+          condition: { maxWidth: 800 },
+          chartOptions: {
+            rangeSelector: { inputEnabled: false },
+          },
+        },
+      ],
+    },
+  };
+};
+
 export const buildChartOptions = ({ presetId, data }) => {
   if (presetId === 'technical-annotations') {
     return buildTechnicalWithAnnotations(data);
@@ -525,6 +671,9 @@ export const buildChartOptions = ({ presetId, data }) => {
   }
   if (presetId === 'candlestick-volume-ikh') {
     return buildCandlestickVolumeIkh(data);
+  }
+  if (presetId === 'styled-crosshair-candles') {
+    return buildStyledCrosshairCandles(data);
   }
   return buildCandlestickDemo(data);
 };

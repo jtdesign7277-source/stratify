@@ -164,6 +164,50 @@ export default function V2TradePage() {
           <div ref={containerRef} id="v2-trade-container" className="h-[calc(100%-36px)] min-h-[500px] w-full" />
         </div>
       </div>
+      <style>{`
+        #v2-trade-container .highcharts-background {
+          fill: #0a0a0a;
+        }
+        #v2-trade-container .highcharts-title,
+        #v2-trade-container .highcharts-axis-title,
+        #v2-trade-container .highcharts-axis-labels text,
+        #v2-trade-container .highcharts-range-selector text {
+          fill: #9d9da2 !important;
+          color: #9d9da2 !important;
+        }
+        #v2-trade-container .highcharts-grid-line {
+          stroke: #181816;
+        }
+        #v2-trade-container .highcharts-candlestick-series .highcharts-point-up {
+          fill: #51af7b;
+          stroke: #51af7b;
+        }
+        #v2-trade-container .highcharts-candlestick-series .highcharts-point-down {
+          fill: #ff6e6e;
+          stroke: #ff6e6e;
+        }
+        #v2-trade-container .highcharts-series.highcharts-column-series .highcharts-point-up {
+          fill: #51af7b;
+          stroke: #51af7b;
+        }
+        #v2-trade-container .highcharts-series.highcharts-column-series .highcharts-point-down {
+          fill: #ff6e6e;
+          stroke: #ff6e6e;
+        }
+        #v2-trade-container .highcharts-crosshair-custom {
+          stroke: #4f86ff !important;
+          stroke-width: 1px !important;
+          stroke-dasharray: 3 3;
+        }
+        #v2-trade-container .highcharts-crosshair-custom-label text {
+          fill: #d4d4d8 !important;
+        }
+        #v2-trade-container .highcharts-crosshair-custom-label rect {
+          fill: rgba(0, 0, 0, 0.7);
+          stroke: #34343a;
+          stroke-width: 1px;
+        }
+      `}</style>
     </div>
   );
 }
