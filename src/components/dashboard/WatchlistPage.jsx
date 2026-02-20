@@ -997,7 +997,7 @@ const WatchlistPage = ({
   };
 
   return (
-    <div className="flex h-full flex-1 overflow-hidden bg-transparent">
+    <div className="flex h-full flex-1 overflow-hidden bg-transparent pb-10">
       <div
         className="relative z-10 flex flex-col border-r border-[#1f1f1f] transition-all duration-300"
         style={{ width: WATCHLIST_PANEL_WIDTHS[watchlistPanelState] }}
