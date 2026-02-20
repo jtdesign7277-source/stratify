@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Calendar, Clock, RefreshCw, AlertTriangle, Minus, ChevronDown } from 'lucide-react';
 
-const ECON_CALENDAR_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+const ECON_CALENDAR_URL = '/api/economic-calendar';
 
 const IMPACT_CONFIG = {
   High: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'HIGH', dot: 'bg-red-400' },
