@@ -1801,6 +1801,7 @@ export default function Dashboard({
                 savedStrategies={savedStrategies}
                 deployedStrategies={deployedStrategies}
                 alpacaData={alpacaData}
+                watchlist={watchlist}
               />
             </ProGate>
           )}

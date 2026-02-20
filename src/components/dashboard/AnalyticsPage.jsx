@@ -1,594 +1,649 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import Highcharts from 'highcharts/highstock';
+import HighchartsReact from 'highcharts-react-official';
+import indicators from 'highcharts/indicators/indicators-all';
+import annotationsAdvanced from 'highcharts/modules/annotations-advanced';
+import priceIndicator from 'highcharts/modules/price-indicator';
+import fullScreen from 'highcharts/modules/full-screen';
+import dragPanes from 'highcharts/modules/drag-panes';
+import stockTools from 'highcharts/modules/stock-tools';
+import 'highcharts/css/stocktools/gui.css';
 import {
-  BarChart3,
-  PieChart,
-  Target,
-  TrendingDown,
+  ChevronDown,
   TrendingUp,
-  Zap,
+  TrendingDown,
+  BarChart3,
+  Search,
 } from 'lucide-react';
+import useAnalyticsPrefs from '../../hooks/useAnalyticsPrefs';
 
-const DEFAULT_CAPITAL_BASE = 100000;
+// Initialize Highcharts modules (idempotent)
+indicators(Highcharts);
+annotationsAdvanced(Highcharts);
+priceIndicator(Highcharts);
+fullScreen(Highcharts);
+dragPanes(Highcharts);
+stockTools(Highcharts);
 
-const toNumber = (value) => {
-  if (Number.isFinite(value)) return Number(value);
-  if (typeof value !== 'string') return null;
+// ── Constants ──────────────────────────────────────────────────────────
+const TWELVE_DATA_REST = 'https://api.twelvedata.com/time_series';
+const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 
-  const cleaned = value.replace(/,/g, '').trim();
-  const match = cleaned.match(/[-+]?\d*\.?\d+/);
-  if (!match) return null;
+const INTERVALS = [
+  { label: '1m', value: '1min' },
+  { label: '5m', value: '5min' },
+  { label: '15m', value: '15min' },
+  { label: '1H', value: '1h' },
+  { label: '1D', value: '1day' },
+];
 
-  const parsed = Number(match[0]);
-  return Number.isFinite(parsed) ? parsed : null;
-};
+const INDICATOR_DEFS = [
+  { id: 'sma20', label: 'SMA 20', type: 'sma', params: { period: 20 }, overlay: true },
+  { id: 'sma50', label: 'SMA 50', type: 'sma', params: { period: 50 }, overlay: true },
+  { id: 'sma200', label: 'SMA 200', type: 'sma', params: { period: 200 }, overlay: true },
+  { id: 'ema12', label: 'EMA 12', type: 'ema', params: { period: 12 }, overlay: true },
+  { id: 'ema26', label: 'EMA 26', type: 'ema', params: { period: 26 }, overlay: true },
+  { id: 'bb', label: 'Bollinger', type: 'bb', params: { period: 20, standardDeviation: 2 }, overlay: true },
+  { id: 'rsi', label: 'RSI 14', type: 'rsi', params: { period: 14 }, overlay: false },
+  { id: 'macd', label: 'MACD', type: 'macd', params: { shortPeriod: 12, longPeriod: 26, signalPeriod: 9, period: 26 }, overlay: false },
+  { id: 'volume', label: 'Volume', type: 'volume', overlay: false },
+];
 
-const toTimestamp = (value) => {
-  if (Number.isFinite(value)) return Number(value);
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
+const SMA_COLORS = { 20: '#f59e0b', 50: '#3b82f6', 200: '#a855f7' };
+const EMA_COLORS = { 12: '#ec4899', 26: '#14b8a6' };
 
-const normalizeSymbol = (value) => {
-  if (!value) return '';
-  return String(value).trim().replace(/^\$/, '').toUpperCase();
-};
+const resolveApiKey = () =>
+  import.meta.env.VITE_TWELVE_DATA_API_KEY ||
+  import.meta.env.VITE_TWELVE_DATA_APIKEY ||
+  import.meta.env.VITE_TWELVEDATA_API_KEY ||
+  '';
 
-const formatCurrency = (value) => {
-  const numeric = Number(value) || 0;
-  return `$${Math.abs(numeric).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
+const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 
-const formatSignedCurrency = (value) => {
-  const numeric = Number(value) || 0;
-  if (numeric === 0) return '$0.00';
-  return `${numeric > 0 ? '+' : '-'}${formatCurrency(numeric)}`;
-};
+const normalizeSymbol = (v) => String(v || '').trim().replace(/^\$/, '').toUpperCase();
 
-const formatSignedPercent = (value, precision = 2) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return '--';
-  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(precision)}%`;
-};
-
-const normalizeTrade = (raw) => {
-  if (!raw || typeof raw !== 'object') return null;
-
-  const symbol = normalizeSymbol(raw.symbol ?? raw.ticker ?? raw.asset ?? raw.Symbol);
-  if (!symbol) return null;
-
-  const shares = Math.abs(toNumber(raw.shares ?? raw.qty ?? raw.quantity ?? raw.filled_qty ?? raw.size) ?? 0);
-  const price = toNumber(
-    raw.price
-      ?? raw.fillPrice
-      ?? raw.avgPrice
-      ?? raw.avg_entry_price
-      ?? raw.filled_avg_price
-      ?? raw.executionPrice,
-  ) ?? 0;
-
-  if (!Number.isFinite(shares) || shares <= 0) return null;
-  if (!Number.isFinite(price) || price <= 0) return null;
-
-  const sideRaw = String(
-    raw.side
-      ?? raw.type
-      ?? raw.action
-      ?? raw.order_side
-      ?? raw.orderSide
-      ?? '',
-  ).toLowerCase();
-  const side = (sideRaw.includes('sell') || sideRaw === 'short' || sideRaw === 'close') ? 'sell' : 'buy';
-
-  const timestamp = toTimestamp(
-    raw.timestamp
-      ?? raw.time
-      ?? raw.date
-      ?? raw.filled_at
-      ?? raw.filledAt
-      ?? raw.submitted_at
-      ?? raw.created_at,
-  ) ?? Date.now();
-
-  const id = String(raw.id ?? raw.tradeId ?? raw.orderId ?? '').trim();
-
-  return {
-    id,
-    symbol,
-    side,
-    shares,
-    price,
-    timestamp,
-  };
-};
-
-const buildTradeKey = (trade) => {
-  const tsBucket = Math.floor(Number(trade.timestamp || 0) / 1000);
-  return `${trade.id || 'noid'}|${trade.symbol}|${trade.side}|${trade.shares.toFixed(6)}|${trade.price.toFixed(6)}|${tsBucket}`;
-};
-
-const toMonthKey = (timestamp) => {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  return `${year}-${month}`;
-};
-
-const getLast12MonthKeys = () => {
-  const result = [];
-  const cursor = new Date();
-  cursor.setDate(1);
-  cursor.setHours(0, 0, 0, 0);
-
-  for (let i = 11; i >= 0; i -= 1) {
-    const next = new Date(cursor);
-    next.setMonth(cursor.getMonth() - i);
-    result.push(toMonthKey(next.getTime()));
-  }
-
-  return result;
-};
-
-const monthLabel = (monthKey) => {
-  const [year, month] = monthKey.split('-').map(Number);
-  if (!Number.isFinite(year) || !Number.isFinite(month)) return monthKey;
-  return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short' });
-};
-
-const clampPercent = (value) => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.min(100, Math.max(0, numeric));
-};
-
-const extractStrategyPnl = (strategy) => {
-  const candidates = [
-    strategy?.paper?.pnl,
-    strategy?.unrealizedPnl,
-    strategy?.dailyPnl,
-    strategy?.pnl,
-    strategy?.profit_return_data?.pnl,
-    strategy?.profit_return_data?.profit,
-    strategy?.backtestResults?.totalPnL,
-    strategy?.backtestResults?.pnl,
-    strategy?.results?.totalPnL,
-    strategy?.results?.pnl,
-    strategy?.totalReturnAmount,
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = toNumber(candidate);
-    if (parsed !== null) return parsed;
-  }
-
-  return 0;
-};
-
-const extractStrategyTrades = (strategy) => {
-  const candidates = [
-    strategy?.paper?.trades,
-    strategy?.totalTrades,
-    strategy?.trades,
-    strategy?.metrics?.trades,
-    strategy?.metrics?.totalTrades,
-    strategy?.results?.trades,
-    strategy?.backtestResults?.trades,
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = toNumber(candidate);
-    if (parsed !== null && parsed >= 0) return Math.round(parsed);
-  }
-
-  return 0;
-};
-
-const extractStrategyWinRate = (strategy) => {
-  const candidates = [
-    strategy?.paper?.winRate,
-    strategy?.winRate,
-    strategy?.metrics?.winRate,
-    strategy?.results?.winRate,
-    strategy?.backtestResults?.winRate,
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = toNumber(candidate);
-    if (parsed !== null) return clampPercent(parsed);
-  }
-
-  return 0;
-};
-
-const normalizeStrategy = (strategy, fallbackIndex = 0) => {
-  if (!strategy || typeof strategy !== 'object') return null;
-
-  const name = String(strategy.name || strategy.title || strategy.strategyName || 'Untitled Strategy').trim();
-  const ticker = normalizeSymbol(strategy.ticker ?? strategy.symbol ?? strategy.asset ?? strategy.tickers?.[0] ?? '');
-  const key = String(strategy.id ?? `${name}-${ticker || fallbackIndex}`).trim();
-
-  const trades = extractStrategyTrades(strategy);
-  const winRate = extractStrategyWinRate(strategy);
-  const pnl = extractStrategyPnl(strategy);
-  const updatedAt = toTimestamp(
-    strategy.updatedAt
-      ?? strategy.savedAt
-      ?? strategy.activatedAt
-      ?? strategy.deployedAt
-      ?? strategy.createdAt
-      ?? strategy.timestamp,
-  ) ?? Date.now();
-
-  return {
-    key,
-    name,
-    ticker,
-    pnl,
-    trades,
-    winRate,
-    updatedAt,
-  };
-};
-
-const calculateTradeStats = (trades) => {
-  const sorted = [...trades].sort((a, b) => a.timestamp - b.timestamp);
-  const lotsBySymbol = new Map();
-  const realizedEvents = [];
-  const monthlyPnl = {};
-  let realizedPnl = 0;
-
-  sorted.forEach((trade) => {
-    const symbol = trade.symbol;
-    if (!lotsBySymbol.has(symbol)) lotsBySymbol.set(symbol, []);
-    const lots = lotsBySymbol.get(symbol);
-
-    if (trade.side === 'buy') {
-      lots.push({ shares: trade.shares, price: trade.price });
-      return;
-    }
-
-    let remaining = trade.shares;
-    let sellPnl = 0;
-
-    while (remaining > 0 && lots.length > 0) {
-      const lot = lots[0];
-      const matchedShares = Math.min(remaining, lot.shares);
-      sellPnl += matchedShares * (trade.price - lot.price);
-      lot.shares -= matchedShares;
-      remaining -= matchedShares;
-      if (lot.shares <= 0) lots.shift();
-    }
-
-    if (sellPnl !== 0) {
-      realizedPnl += sellPnl;
-      realizedEvents.push({ timestamp: trade.timestamp, pnl: sellPnl });
-      const month = toMonthKey(trade.timestamp);
-      monthlyPnl[month] = (monthlyPnl[month] || 0) + sellPnl;
-    }
-  });
-
-  const winEvents = realizedEvents.filter((item) => item.pnl > 0);
-  const lossEvents = realizedEvents.filter((item) => item.pnl < 0);
-  const winsAbs = winEvents.reduce((sum, item) => sum + item.pnl, 0);
-  const lossesAbs = Math.abs(lossEvents.reduce((sum, item) => sum + item.pnl, 0));
-
-  const avgWin = winEvents.length > 0 ? winsAbs / winEvents.length : 0;
-  const avgLoss = lossEvents.length > 0 ? -lossesAbs / lossEvents.length : 0;
-  const profitFactor = lossesAbs > 0 ? winsAbs / lossesAbs : (winsAbs > 0 ? Infinity : 0);
-
-  let equity = 0;
-  let peak = 0;
-  let maxDrawdown = 0;
-  realizedEvents.forEach((event) => {
-    equity += event.pnl;
-    peak = Math.max(peak, equity);
-    if (peak > 0) {
-      const drawdownPct = ((peak - equity) / peak) * 100;
-      maxDrawdown = Math.max(maxDrawdown, drawdownPct);
-    }
-  });
-
-  return {
-    realizedPnl,
-    realizedEvents,
-    monthlyPnl,
-    wins: winEvents.length,
-    losses: lossEvents.length,
-    closedTrades: realizedEvents.length,
-    avgWin,
-    avgLoss,
-    profitFactor,
-    maxDrawdown,
-  };
-};
-
-const StatCard = ({ title, value, subtitle, icon: Icon, color = 'text-white' }) => (
-  <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
-    <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-      <Icon className="w-4 h-4" strokeWidth={1.5} />
-      {title}
-    </div>
-    <div className={`text-2xl font-bold ${color}`}>{value}</div>
-    {subtitle ? <div className="text-white/50 text-xs mt-1">{subtitle}</div> : null}
-  </div>
-);
-
+// ── Component ──────────────────────────────────────────────────────────
 const AnalyticsPage = ({
+  watchlist = [],
+  alpacaData = {},
   tradeHistory = [],
   savedStrategies = [],
   deployedStrategies = [],
-  alpacaData = {},
 }) => {
-  const normalizedTrades = useMemo(() => {
-    const localTrades = Array.isArray(tradeHistory) ? tradeHistory : [];
-    const brokerOrders = Array.isArray(alpacaData?.orders) ? alpacaData.orders : [];
-    const brokerTrades = Array.isArray(alpacaData?.trades) ? alpacaData.trades : [];
+  const { prefs, updatePrefs } = useAnalyticsPrefs();
+  const chartRef = useRef(null);
+  const wsRef = useRef(null);
+  const requestIdRef = useRef(0);
 
-    const byKey = new Map();
-    [...localTrades, ...brokerOrders, ...brokerTrades]
-      .map(normalizeTrade)
-      .filter(Boolean)
-      .forEach((trade) => {
-        const key = buildTradeKey(trade);
-        byKey.set(key, trade);
+  const [symbol, setSymbol] = useState(() => {
+    if (prefs.symbol) return prefs.symbol;
+    const first = watchlist?.[0];
+    return normalizeSymbol(typeof first === 'string' ? first : first?.symbol) || 'AAPL';
+  });
+  const [interval, setInterval_] = useState(prefs.interval || '1day');
+  const [activeIndicators, setActiveIndicators] = useState(prefs.indicators || ['sma20', 'volume']);
+  const [ohlcData, setOhlcData] = useState([]);
+  const [volumeData, setVolumeData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [indicatorDropdown, setIndicatorDropdown] = useState(false);
+
+  const apiKey = useMemo(resolveApiKey, []);
+
+  // Sync prefs
+  useEffect(() => { updatePrefs({ symbol }); }, [symbol]);
+  useEffect(() => { updatePrefs({ interval }); }, [interval]);
+  useEffect(() => { updatePrefs({ indicators: activeIndicators }); }, [activeIndicators]);
+
+  // ── Fetch historical data ──
+  useEffect(() => {
+    let cancelled = false;
+    const id = ++requestIdRef.current;
+
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      if (!apiKey) { setError('Missing API key'); setLoading(false); return; }
+
+      try {
+        const url = `${TWELVE_DATA_REST}?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=500&apikey=${apiKey}&format=JSON&order=ASC`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const json = await res.json();
+        if (cancelled || id !== requestIdRef.current) return;
+        if (json.status === 'error') throw new Error(json.message || 'API error');
+
+        const values = json.values || [];
+        const ohlc = [];
+        const vol = [];
+        values.forEach((v) => {
+          const ts = new Date(v.datetime).getTime();
+          if (isNaN(ts)) return;
+          const o = +v.open, h = +v.high, l = +v.low, c = +v.close, vl = +(v.volume || 0);
+          ohlc.push([ts, o, h, l, c]);
+          vol.push([ts, vl]);
+        });
+        setOhlcData(ohlc);
+        setVolumeData(vol);
+        setLoading(false);
+      } catch (err) {
+        if (!cancelled && id === requestIdRef.current) {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [symbol, interval, apiKey]);
+
+  // ── WebSocket live ticks ──
+  useEffect(() => {
+    if (!apiKey || !ohlcData.length) return;
+    let ws = null;
+    let cancelled = false;
+
+    const connect = () => {
+      ws = new WebSocket(`${TWELVE_DATA_WS_URL}?apikey=${encodeURIComponent(apiKey)}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (cancelled) return;
+        ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: symbol } }));
+      };
+
+      ws.onmessage = (evt) => {
+        if (cancelled) return;
+        try {
+          const d = JSON.parse(evt.data);
+          if (d.event && d.event !== 'price') return;
+          const msgSym = String(d.symbol || '').toUpperCase();
+          if (msgSym !== symbol && msgSym.split(':')[0] !== symbol) return;
+          const price = toNum(d.price ?? d.close ?? d.last);
+          if (!price) return;
+          const ts = d.timestamp ? d.timestamp * 1000 : Date.now();
+
+          // Update last candle in chart
+          const chart = chartRef.current?.chart;
+          if (!chart) return;
+          const series = chart.series[0]; // ohlc series
+          if (!series || !series.points?.length) return;
+          const last = series.points[series.points.length - 1];
+          if (!last) return;
+          last.update({
+            high: Math.max(last.high, price),
+            low: Math.min(last.low, price),
+            close: price,
+          }, true);
+        } catch { /* ignore */ }
+      };
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      if (ws) {
+        try { ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: symbol } })); } catch {}
+        ws.close();
+      }
+      wsRef.current = null;
+    };
+  }, [symbol, apiKey, ohlcData.length]);
+
+  // ── Trade markers ──
+  const tradeFlags = useMemo(() => {
+    if (!tradeHistory?.length) return [];
+    return tradeHistory
+      .filter((t) => normalizeSymbol(t?.symbol || t?.ticker) === symbol)
+      .map((t) => {
+        const ts = new Date(t.timestamp || t.time || t.date || t.filled_at || t.created_at).getTime();
+        if (isNaN(ts)) return null;
+        const side = String(t.side || t.type || t.action || '').toLowerCase();
+        const isBuy = side.includes('buy') || side === 'long';
+        return {
+          x: ts,
+          title: isBuy ? 'B' : 'S',
+          text: `${isBuy ? 'Buy' : 'Sell'} ${t.shares || t.qty || ''} @ $${toNum(t.price)?.toFixed(2) || '?'}`,
+          color: isBuy ? '#22c55e' : '#ef4444',
+          fillColor: isBuy ? '#22c55e' : '#ef4444',
+          style: { color: '#fff' },
+        };
+      })
+      .filter(Boolean);
+  }, [tradeHistory, symbol]);
+
+  // ── Position info ──
+  const position = useMemo(() => {
+    const positions = alpacaData?.positions || [];
+    return positions.find((p) => normalizeSymbol(p.symbol) === symbol);
+  }, [alpacaData, symbol]);
+
+  // ── Toggle indicator ──
+  const toggleIndicator = useCallback((id) => {
+    setActiveIndicators((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  }, []);
+
+  // ── Build Highcharts options ──
+  const chartOptions = useMemo(() => {
+    if (!ohlcData.length) return null;
+
+    let yAxisIndex = 2; // 0=price, 1=volume
+    const yAxes = [
+      { labels: { align: 'right', x: -3, style: { color: '#8892a0' } }, title: { text: '' }, height: '60%', lineWidth: 1, lineColor: '#1f1f1f', gridLineColor: '#1a2332', resize: { enabled: true }, opposite: true },
+      { labels: { align: 'right', x: -3, style: { color: '#8892a0' } }, title: { text: '' }, top: '63%', height: '12%', offset: 0, lineWidth: 1, lineColor: '#1f1f1f', gridLineColor: '#1a2332', opposite: true },
+    ];
+
+    const series = [
+      {
+        type: 'candlestick',
+        name: symbol,
+        id: 'ohlc',
+        data: ohlcData,
+        color: '#ef4444',
+        upColor: '#22c55e',
+        lineColor: '#ef4444',
+        upLineColor: '#22c55e',
+        zIndex: 2,
+      },
+    ];
+
+    // Volume
+    if (activeIndicators.includes('volume')) {
+      series.push({
+        type: 'column',
+        name: 'Volume',
+        id: 'vol',
+        data: volumeData,
+        yAxis: 1,
+        color: 'rgba(34,197,94,0.3)',
+        zIndex: 0,
       });
+    }
 
-    return [...byKey.values()];
-  }, [tradeHistory, alpacaData]);
+    // Overlay indicators
+    activeIndicators.forEach((id) => {
+      const def = INDICATOR_DEFS.find((d) => d.id === id);
+      if (!def || def.id === 'volume') return;
 
-  const strategyRows = useMemo(() => {
-    const merged = new Map();
-    const source = [...(Array.isArray(savedStrategies) ? savedStrategies : []), ...(Array.isArray(deployedStrategies) ? deployedStrategies : [])];
+      if (def.overlay) {
+        const indicatorSeries = {
+          type: def.type,
+          linkedTo: 'ohlc',
+          params: { ...def.params },
+          zIndex: 1,
+        };
+        if (def.type === 'sma') {
+          indicatorSeries.color = SMA_COLORS[def.params.period] || '#f59e0b';
+          indicatorSeries.name = `SMA ${def.params.period}`;
+        } else if (def.type === 'ema') {
+          indicatorSeries.color = EMA_COLORS[def.params.period] || '#ec4899';
+          indicatorSeries.name = `EMA ${def.params.period}`;
+        } else if (def.type === 'bb') {
+          indicatorSeries.color = '#6366f1';
+          indicatorSeries.name = 'Bollinger Bands';
+        }
+        series.push(indicatorSeries);
+      } else {
+        // Separate pane
+        const paneIdx = yAxisIndex++;
+        const prevBottom = yAxes.length === 2 ? 75 : 75 + (paneIdx - 2) * 13;
+        const paneHeight = '12%';
+        const paneTop = `${prevBottom}%`;
 
-    source.forEach((item, index) => {
-      const normalized = normalizeStrategy(item, index);
-      if (!normalized) return;
-      const existing = merged.get(normalized.key);
-      if (!existing || normalized.updatedAt >= existing.updatedAt) {
-        merged.set(normalized.key, normalized);
+        yAxes.push({
+          labels: { align: 'right', x: -3, style: { color: '#8892a0' } },
+          title: { text: '' },
+          top: paneTop,
+          height: paneHeight,
+          offset: 0,
+          lineWidth: 1,
+          lineColor: '#1f1f1f',
+          gridLineColor: '#1a2332',
+          opposite: true,
+        });
+
+        if (def.type === 'rsi') {
+          series.push({
+            type: 'rsi',
+            linkedTo: 'ohlc',
+            yAxis: paneIdx,
+            params: { period: def.params.period },
+            color: '#f59e0b',
+            name: 'RSI 14',
+            zones: [
+              { value: 30, color: '#ef4444' },
+              { value: 70, color: '#f59e0b' },
+              { color: '#22c55e' },
+            ],
+          });
+        } else if (def.type === 'macd') {
+          series.push({
+            type: 'macd',
+            linkedTo: 'ohlc',
+            yAxis: paneIdx,
+            params: def.params,
+            name: 'MACD',
+            color: '#3b82f6',
+            signalLine: { styles: { lineColor: '#f59e0b' } },
+            macdLine: { styles: { lineColor: '#3b82f6' } },
+          });
+        }
       }
     });
 
-    return [...merged.values()].sort((a, b) => b.pnl - a.pnl);
-  }, [savedStrategies, deployedStrategies]);
+    // Adjust pane heights dynamically
+    const separatePanes = activeIndicators.filter((id) => {
+      const d = INDICATOR_DEFS.find((x) => x.id === id);
+      return d && !d.overlay && d.id !== 'volume';
+    }).length;
+    const hasVolume = activeIndicators.includes('volume');
+    const priceHeight = Math.max(35, 70 - separatePanes * 13);
+    const volumeHeight = hasVolume ? 12 : 0;
 
-  const tradeStats = useMemo(() => calculateTradeStats(normalizedTrades), [normalizedTrades]);
-
-  const brokerUnrealizedPnl = useMemo(() => {
-    const positions = Array.isArray(alpacaData?.positions) ? alpacaData.positions : [];
-    return positions.reduce((sum, position) => {
-      const unrealized = toNumber(position?.unrealized_pl ?? position?.unrealizedPnl);
-      return sum + (unrealized || 0);
-    }, 0);
-  }, [alpacaData]);
-
-  const strategyTotalPnl = useMemo(
-    () => strategyRows.reduce((sum, strategy) => sum + (toNumber(strategy.pnl) || 0), 0),
-    [strategyRows],
-  );
-
-  const totalPnl = tradeStats.realizedPnl + brokerUnrealizedPnl + strategyTotalPnl;
-
-  const strategyTrades = useMemo(
-    () => strategyRows.reduce((sum, strategy) => sum + (Number(strategy.trades) || 0), 0),
-    [strategyRows],
-  );
-
-  const strategyWinsWeighted = useMemo(
-    () => strategyRows.reduce((sum, strategy) => sum + ((Number(strategy.trades) || 0) * (Number(strategy.winRate) || 0) / 100), 0),
-    [strategyRows],
-  );
-
-  const totalTrades = tradeStats.closedTrades + strategyTrades;
-  const winCount = tradeStats.closedTrades > 0
-    ? tradeStats.wins
-    : strategyWinsWeighted;
-  const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
-
-  const accountEquity = toNumber(
-    alpacaData?.account?.equity
-      ?? alpacaData?.account?.portfolio_value
-      ?? alpacaData?.account?.last_equity,
-  ) || DEFAULT_CAPITAL_BASE;
-
-  const monthKeys = useMemo(() => getLast12MonthKeys(), []);
-  const monthlyReturns = useMemo(() => {
-    const monthlyPnl = {};
-    monthKeys.forEach((key) => {
-      monthlyPnl[key] = Number(tradeStats.monthlyPnl[key] || 0);
-    });
-
-    const noTradeMonthlyData = Object.values(monthlyPnl).every((value) => value === 0);
-    if (noTradeMonthlyData && strategyTotalPnl !== 0) {
-      monthlyPnl[monthKeys[monthKeys.length - 1]] = strategyTotalPnl;
+    yAxes[0].height = `${priceHeight}%`;
+    if (hasVolume) {
+      yAxes[1].top = `${priceHeight + 2}%`;
+      yAxes[1].height = `${volumeHeight}%`;
+    } else {
+      yAxes[1].height = '0%';
+      yAxes[1].top = `${priceHeight}%`;
     }
 
-    return monthKeys.map((key) => {
-      const amount = monthlyPnl[key] || 0;
-      const returnPct = accountEquity > 0 ? (amount / accountEquity) * 100 : 0;
-      return {
-        key,
-        month: monthLabel(key),
-        amount,
-        return: returnPct,
-      };
-    });
-  }, [monthKeys, tradeStats.monthlyPnl, strategyTotalPnl, accountEquity]);
+    let nextTop = priceHeight + (hasVolume ? volumeHeight + 3 : 2);
+    for (let i = 2; i < yAxes.length; i++) {
+      yAxes[i].top = `${nextTop}%`;
+      yAxes[i].height = '12%';
+      nextTop += 14;
+    }
 
-  const sharpeRatio = useMemo(() => {
-    const values = monthlyReturns.map((item) => item.return / 100);
-    const active = values.filter((value) => Number.isFinite(value) && value !== 0);
-    if (active.length < 2) return 0;
+    // Trade flags
+    if (tradeFlags.length) {
+      series.push({
+        type: 'flags',
+        data: tradeFlags,
+        onSeries: 'ohlc',
+        shape: 'flag',
+        width: 16,
+        style: { fontSize: '10px' },
+        states: { hover: { fillColor: '#1f1f1f' } },
+      });
+    }
 
-    const mean = active.reduce((sum, value) => sum + value, 0) / active.length;
-    const variance = active.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (active.length - 1);
-    const stdDev = Math.sqrt(variance);
-    if (stdDev === 0) return 0;
-    return (mean / stdDev) * Math.sqrt(12);
-  }, [monthlyReturns]);
+    return {
+      chart: {
+        backgroundColor: 'transparent',
+        style: { fontFamily: 'Inter, system-ui, sans-serif' },
+        spacing: [10, 10, 10, 10],
+      },
+      credits: { enabled: false },
+      navigator: {
+        enabled: true,
+        series: { color: '#22c55e', lineWidth: 1 },
+        xAxis: { gridLineColor: '#1a2332', labels: { style: { color: '#8892a0' } } },
+        maskFill: 'rgba(34,197,94,0.08)',
+        outlineColor: '#1f1f1f',
+      },
+      scrollbar: { enabled: false },
+      rangeSelector: {
+        enabled: true,
+        inputEnabled: false,
+        buttonTheme: {
+          fill: 'transparent',
+          stroke: '#1f1f1f',
+          'stroke-width': 1,
+          style: { color: '#8892a0', fontWeight: '500', fontSize: '11px' },
+          states: {
+            hover: { fill: 'rgba(34,197,94,0.15)', style: { color: '#22c55e' } },
+            select: { fill: 'rgba(34,197,94,0.2)', style: { color: '#22c55e', fontWeight: '600' } },
+          },
+        },
+        buttons: [
+          { type: 'day', count: 1, text: '1D' },
+          { type: 'week', count: 1, text: '1W' },
+          { type: 'month', count: 1, text: '1M' },
+          { type: 'month', count: 3, text: '3M' },
+          { type: 'month', count: 6, text: '6M' },
+          { type: 'year', count: 1, text: '1Y' },
+          { type: 'all', text: 'All' },
+        ],
+        selected: interval === '1day' ? 4 : 6,
+        labelStyle: { color: '#8892a0' },
+      },
+      xAxis: {
+        gridLineColor: '#1a2332',
+        lineColor: '#1f1f1f',
+        tickColor: '#1f1f1f',
+        labels: { style: { color: '#8892a0' } },
+        crosshair: { color: 'rgba(136,146,160,0.3)', dashStyle: 'Dash' },
+      },
+      yAxis: yAxes,
+      tooltip: {
+        backgroundColor: 'rgba(6,13,24,0.95)',
+        borderColor: '#1f1f1f',
+        borderRadius: 8,
+        style: { color: '#e5e7eb', fontSize: '12px' },
+        split: true,
+      },
+      plotOptions: {
+        candlestick: {
+          lineColor: '#ef4444',
+          upLineColor: '#22c55e',
+          color: '#ef4444',
+          upColor: '#22c55e',
+        },
+        series: {
+          dataGrouping: { enabled: true },
+        },
+      },
+      stockTools: {
+        gui: {
+          enabled: true,
+          buttons: [
+            'indicators',
+            'separator',
+            'simpleShapes',
+            'lines',
+            'crookedLines',
+            'measure',
+            'advanced',
+            'toggleAnnotations',
+            'separator',
+            'verticalLabels',
+            'flags',
+            'separator',
+            'zoomChange',
+            'fullScreen',
+            'separator',
+            'currentPriceIndicator',
+          ],
+          toolbarClassName: 'highcharts-stocktools-toolbar',
+        },
+      },
+      navigation: {
+        bindingsClassName: 'tools-container',
+        annotationsOptions: {
+          shapeOptions: {
+            stroke: '#22c55e',
+            strokeWidth: 1,
+            fill: 'rgba(34,197,94,0.1)',
+          },
+        },
+      },
+      series,
+    };
+  }, [ohlcData, volumeData, activeIndicators, symbol, tradeFlags, interval]);
 
-  const maxAbsMonthlyReturn = Math.max(
-    1,
-    ...monthlyReturns.map((item) => Math.abs(item.return)),
-  );
+  // ── Symbol change handler ──
+  const handleSymbolChange = useCallback((newSymbol) => {
+    const s = normalizeSymbol(newSymbol);
+    if (s) setSymbol(s);
+    setSearchOpen(false);
+    setSearchText('');
+  }, []);
 
-  const totalPnLColor = totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400';
-  const winRateColor = winRate >= 50 ? 'text-emerald-400' : 'text-red-400';
-  const maxDrawdown = tradeStats.maxDrawdown;
+  // ── Watchlist items ──
+  const watchlistSymbols = useMemo(() => {
+    if (!watchlist?.length) return [];
+    return watchlist.map((w) => normalizeSymbol(typeof w === 'string' ? w : w?.symbol)).filter(Boolean);
+  }, [watchlist]);
+
+  const filteredWatchlist = useMemo(() => {
+    if (!searchText) return watchlistSymbols;
+    const q = searchText.toUpperCase();
+    return watchlistSymbols.filter((s) => s.includes(q));
+  }, [watchlistSymbols, searchText]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent p-4 overflow-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">Analytics</h1>
-        <p className="text-gray-400 text-sm">
-          Live performance metrics from your current account, trade history, and strategy data.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title="Total P&L"
-          value={formatSignedCurrency(totalPnl)}
-          subtitle="Realized + unrealized + strategy"
-          icon={TrendingUp}
-          color={totalPnLColor}
-        />
-        <StatCard
-          title="Win Rate"
-          value={`${winRate.toFixed(1)}%`}
-          subtitle={`${totalTrades} total trades`}
-          icon={Target}
-          color={winRateColor}
-        />
-        <StatCard
-          title="Sharpe Ratio"
-          value={sharpeRatio.toFixed(2)}
-          subtitle="12-month monthly return basis"
-          icon={Zap}
-          color="text-emerald-400"
-        />
-        <StatCard
-          title="Max Drawdown"
-          value={`-${maxDrawdown.toFixed(2)}%`}
-          subtitle="From closed-trade equity curve"
-          icon={TrendingDown}
-          color="text-red-400"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
-            <h3 className="text-white font-medium">Monthly Returns</h3>
-          </div>
-          <div className="flex items-end gap-2 h-40">
-            {monthlyReturns.map((month) => {
-              const isPositive = month.return >= 0;
-              const scaledHeight = Math.max(8, (Math.abs(month.return) / maxAbsMonthlyReturn) * 120);
-              return (
-                <div key={month.key} className="flex-1 flex flex-col items-center justify-end">
-                  <div
-                    className={`w-full rounded-t ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`}
-                    style={{ height: `${scaledHeight}px` }}
-                    title={`${month.month}: ${formatSignedPercent(month.return)}`}
-                  />
-                  <span className="text-[10px] text-white/50 mt-2">{month.month}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChart className="w-5 h-5 text-emerald-400" strokeWidth={1.5} />
-            <h3 className="text-white font-medium">Trade Distribution</h3>
-          </div>
-          <div className="flex items-center justify-center gap-8">
-            <div className="text-center">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 border-4 border-emerald-500 flex items-center justify-center">
-                <span className="text-2xl font-bold text-emerald-400">{winRate.toFixed(1)}%</span>
-              </div>
-              <span className="text-sm text-gray-400 mt-2 block">Wins</span>
-            </div>
-            <div className="space-y-2">
-              <div>
-                <span className="text-gray-400 text-sm">Avg Win</span>
-                <div className="text-emerald-400 font-bold">{formatSignedCurrency(tradeStats.avgWin)}</div>
-              </div>
-              <div>
-                <span className="text-gray-400 text-sm">Avg Loss</span>
-                <div className="text-red-400 font-bold">{formatSignedCurrency(tradeStats.avgLoss)}</div>
-              </div>
-              <div>
-                <span className="text-gray-400 text-sm">Profit Factor</span>
-                <div className="text-white font-bold">
-                  {Number.isFinite(tradeStats.profitFactor) ? tradeStats.profitFactor.toFixed(2) : '∞'}
-                </div>
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
+      {/* ── Top bar ── */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-[#1f1f1f] flex-shrink-0">
+        {/* Symbol selector */}
+        <div className="relative">
+          <button
+            onClick={() => setSearchOpen(!searchOpen)}
+            className="flex items-center gap-1.5 text-white font-semibold text-base hover:text-emerald-400 transition-colors"
+          >
+            <Search className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+            {symbol}
+            <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+          </button>
+          {searchOpen && (
+            <div className="absolute top-full left-0 mt-1 z-50 w-56 bg-[#0d1117] border border-[#1f1f1f] rounded-lg shadow-xl overflow-hidden">
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search symbol..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchText.trim()) handleSymbolChange(searchText);
+                  if (e.key === 'Escape') setSearchOpen(false);
+                }}
+                className="w-full px-3 py-2 bg-transparent text-white text-sm outline-none border-b border-[#1f1f1f] placeholder:text-gray-600"
+              />
+              <div className="max-h-48 overflow-y-auto">
+                {filteredWatchlist.length === 0 && searchText && (
+                  <button
+                    onClick={() => handleSymbolChange(searchText)}
+                    className="w-full px-3 py-2 text-left text-sm text-emerald-400 hover:bg-white/5"
+                  >
+                    Go to {searchText.toUpperCase()}
+                  </button>
+                )}
+                {filteredWatchlist.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSymbolChange(s)}
+                    className={`w-full px-3 py-1.5 text-left text-sm hover:bg-white/5 transition-colors ${
+                      s === symbol ? 'text-emerald-400' : 'text-gray-300'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
-          <h3 className="text-white font-medium">Strategy Performance</h3>
-          <span className="text-[11px] text-gray-500">{strategyRows.length} strategies</span>
-        </div>
-        <div className="overflow-auto">
-          {strategyRows.length === 0 ? (
-            <div className="px-4 py-8 text-sm text-gray-500">
-              No saved or deployed strategies yet.
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="text-xs text-white/50 border-b border-[#1f1f1f]">
-                  <th className="text-left px-4 py-2">Strategy</th>
-                  <th className="text-right px-4 py-2">P&L</th>
-                  <th className="text-right px-4 py-2">Trades</th>
-                  <th className="text-right px-4 py-2">Win Rate</th>
-                  <th className="text-right px-4 py-2">Performance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {strategyRows.map((strategy) => {
-                  const pnl = Number(strategy.pnl) || 0;
-                  const trades = Number(strategy.trades) || 0;
-                  const winRateValue = clampPercent(strategy.winRate);
-                  return (
-                    <tr key={strategy.key} className="border-b border-[#1f1f1f]/50 hover:bg-white/5">
-                      <td className="px-4 py-3">
-                        <div className="text-white font-medium text-sm">{strategy.name}</div>
-                        {strategy.ticker ? (
-                          <div className="text-[11px] text-emerald-400 font-semibold">${strategy.ticker}</div>
-                        ) : null}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-mono text-sm ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {formatSignedCurrency(pnl)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-300 text-sm">{trades}</td>
-                      <td className="px-4 py-3 text-right text-white text-sm">{winRateValue.toFixed(1)}%</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="w-20 h-2 bg-gray-800 rounded-full overflow-hidden ml-auto">
-                          <div
-                            className={`h-full ${winRateValue >= 60 ? 'bg-emerald-500' : winRateValue >= 45 ? 'bg-yellow-500' : 'bg-red-500'} rounded-full`}
-                            style={{ width: `${winRateValue}%` }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           )}
         </div>
+
+        {/* Interval buttons */}
+        <div className="flex items-center gap-0.5 ml-2">
+          {INTERVALS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setInterval_(opt.value)}
+              className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                interval === opt.value
+                  ? 'text-emerald-400'
+                  : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Indicator toggles */}
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setIndicatorDropdown(!indicatorDropdown)}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            <BarChart3 className="w-3.5 h-3.5" strokeWidth={1.5} />
+            Indicators ({activeIndicators.length})
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          {indicatorDropdown && (
+            <div className="absolute top-full right-0 mt-1 z-50 w-52 bg-[#0d1117] border border-[#1f1f1f] rounded-lg shadow-xl py-1">
+              {INDICATOR_DEFS.map((def) => (
+                <button
+                  key={def.id}
+                  onClick={() => toggleIndicator(def.id)}
+                  className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between hover:bg-white/5 transition-colors ${
+                    activeIndicators.includes(def.id) ? 'text-emerald-400' : 'text-gray-400'
+                  }`}
+                >
+                  {def.label}
+                  {activeIndicators.includes(def.id) && <span className="text-emerald-400">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Position info */}
+        {position && (
+          <div className="flex items-center gap-3 ml-4 text-xs">
+            <span className="text-gray-500">Position:</span>
+            <span className="text-white font-medium">{position.qty || position.quantity} shares</span>
+            {(() => {
+              const pnl = toNum(position.unrealized_pl ?? position.unrealizedPnl);
+              if (pnl === null) return null;
+              return (
+                <span className={`flex items-center gap-0.5 font-medium ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                </span>
+              );
+            })()}
+          </div>
+        )}
       </div>
+
+      {/* ── Chart area ── */}
+      <div className="flex-1 relative min-h-0">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <div className="text-gray-400 text-sm">Loading {symbol}...</div>
+          </div>
+        )}
+        {error && !loading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <div className="text-red-400 text-sm">{error}</div>
+          </div>
+        )}
+        {chartOptions && (
+          <HighchartsReact
+            highcharts={Highcharts}
+            constructorType="stockChart"
+            options={chartOptions}
+            ref={chartRef}
+            containerProps={{ style: { width: '100%', height: '100%' } }}
+          />
+        )}
+      </div>
+
+      {/* Click-outside close for dropdowns */}
+      {(searchOpen || indicatorDropdown) && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => { setSearchOpen(false); setIndicatorDropdown(false); }}
+        />
+      )}
     </div>
   );
 };
