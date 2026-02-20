@@ -542,7 +542,7 @@ export default function V2TradePage() {
           const outputsize = interval === '1min' || interval === '5min' ? 700 : 500;
           const isIntradayInterval = ['1min', '5min', '15min', '30min', '1h', '4h'].includes(interval);
           const response = await fetch(
-            `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&prepost=${isIntradayInterval ? 'true' : 'false'}`,
+            `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&prepost=${isIntradayInterval ? 'true' : 'false'}&timezone=${encodeURIComponent('America/New_York')}`,
             { cache: 'no-store' }
           );
 
@@ -588,6 +588,10 @@ export default function V2TradePage() {
         data,
       });
       const optionsWithPalette = applyCandlePalette(options, activeCandlePalette);
+      optionsWithPalette.time = {
+        ...(optionsWithPalette.time || {}),
+        timezone: 'America/New_York',
+      };
 
       if (selectedTicker) {
         const selectedTitle = `${selectedTicker} • ${activePreset.name}`;

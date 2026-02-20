@@ -15,13 +15,14 @@ export default async function handler(req, res) {
   const outputsize = Number(req.query.outputsize || 120);
   const prepostParam = String(req.query.prepost ?? 'true').trim().toLowerCase();
   const includePrepost = !['false', '0', 'no', 'off'].includes(prepostParam);
+  const timezone = String(req.query.timezone || '').trim() || null;
 
   if (!symbol) {
     return res.status(400).json({ error: 'Missing symbol' });
   }
 
   try {
-    const data = await fetchLseTimeSeries(symbol, interval, outputsize, includePrepost);
+    const data = await fetchLseTimeSeries(symbol, interval, outputsize, includePrepost, timezone);
     return res.status(200).json(data);
   } catch (error) {
     const status = Number(error?.status) || 500;

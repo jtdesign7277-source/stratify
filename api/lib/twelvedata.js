@@ -295,7 +295,13 @@ export const fetchLseQuotes = async (symbols) => {
   return rows.filter(Boolean);
 };
 
-export const fetchLseTimeSeries = async (symbol, interval = '5min', outputsize = 120, prepost = true) => {
+export const fetchLseTimeSeries = async (
+  symbol,
+  interval = '5min',
+  outputsize = 120,
+  prepost = true,
+  timezone = null
+) => {
   const normalizedSymbol = normalizeSymbols([symbol])[0];
   if (!normalizedSymbol) {
     const error = new Error('Missing symbol');
@@ -310,6 +316,7 @@ export const fetchLseTimeSeries = async (symbol, interval = '5min', outputsize =
     order: 'ASC',
     dp: 4,
     prepost: prepost ? 'true' : 'false',
+    timezone: timezone || undefined,
   });
 
   const values = Array.isArray(payload?.values) ? payload.values : [];
