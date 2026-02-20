@@ -94,12 +94,12 @@ export default function V2TradePage() {
     var chart = Highcharts.stockChart(containerRef.current, {
       chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
       credits: { enabled: false }, title: { text: '' }, stockTools: { gui: { enabled: false } },
-      navigator: { enabled: true, height: 28, outlineColor: '#1a233244', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#22c55e', borderColor: '#16a34a', width: 8, height: 20 } },
-      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#22c55e', buttonBackgroundColor: '#14532d', buttonBorderColor: '#22c55e', rifleColor: '#22c55e', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4, height: 14, margin: 6 },
+      navigator: { enabled: false },
+      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#94a3b8', buttonBackgroundColor: '#1e293b', buttonBorderColor: '#475569', rifleColor: '#94a3b8', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4, height: 12, margin: 4, liveRedraw: true },
       rangeSelector: { enabled: false },
-      xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#4a5568', fontSize: '10px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
+      xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#ffffffcc', fontSize: '11px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
       yAxis: [
-        { labels: { align: 'right', x: -8, style: { color: '#8892a0bb', fontSize: '10px' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 } },
+        { labels: { align: 'right', x: -8, style: { color: '#ffffffcc', fontSize: '11px', cursor: 'ns-resize' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 } },
         { labels: { enabled: false }, top: '77%', height: '23%', gridLineWidth: 0, lineWidth: 0 }
       ],
       tooltip: { enabled: false },
@@ -131,24 +131,46 @@ export default function V2TradePage() {
       if (!xAxis || !yAxis) return;
       var rect = container.getBoundingClientRect();
       var px = e.clientX - rect.left, py = e.clientY - rect.top;
+      // Y-axis scale drag: click on the price labels area (right of plot)
+      var inYAxis = px > chart.plotLeft + chart.plotWidth && px < rect.width && py >= chart.plotTop && py <= chart.plotTop + chart.plotHeight;
+      if (inYAxis) {
+        dragRef.current = { mode: 'yscale', sy: e.clientY, yMin: yAxis.min, yMax: yAxis.max, yCenter: (yAxis.min + yAxis.max) / 2, yRange: yAxis.max - yAxis.min };
+        container.style.cursor = 'ns-resize'; e.preventDefault(); return;
+      }
+      // Normal chart pan: inside plot area
       if (px < chart.plotLeft || px > chart.plotLeft + chart.plotWidth || py < chart.plotTop || py > chart.plotTop + chart.plotHeight) return;
-      dragRef.current = { sx: e.clientX, sy: e.clientY, xMin: xAxis.min, xMax: xAxis.max, yMin: yAxis.min, yMax: yAxis.max, dMin: xAxis.dataMin, dMax: xAxis.dataMax };
+      dragRef.current = { mode: 'pan', sx: e.clientX, sy: e.clientY, xMin: xAxis.min, xMax: xAxis.max, yMin: yAxis.min, yMax: yAxis.max, dMin: xAxis.dataMin, dMax: xAxis.dataMax };
       container.style.cursor = 'grabbing'; e.preventDefault();
     };
     var onMove = function(e) {
       var d = dragRef.current; if (!d) return;
       var chart = getChart(); if (!chart) return;
-      var xAxis = chart.xAxis && chart.xAxis[0], yAxis = chart.yAxis && chart.yAxis[0];
+      var yAxis = chart.yAxis && chart.yAxis[0];
+      // Y-axis scale mode: drag up = compress (zoom out), drag down = expand (zoom in)
+      if (d.mode === 'yscale') {
+        if (!yAxis) return;
+        var dy = e.clientY - d.sy;
+        var scaleFactor = Math.pow(1.005, dy); // each pixel = 0.5% scale change
+        var newRange = d.yRange * scaleFactor;
+        var minRange = d.yRange * 0.1;
+        var maxRange = d.yRange * 10;
+        if (newRange < minRange) newRange = minRange;
+        if (newRange > maxRange) newRange = maxRange;
+        yAxis.setExtremes(d.yCenter - newRange / 2, d.yCenter + newRange / 2, true, false);
+        e.preventDefault(); return;
+      }
+      // Normal pan mode
+      var xAxis = chart.xAxis && chart.xAxis[0];
       if (!xAxis || !yAxis) return;
       var xRange = d.xMax - d.xMin, yRange = d.yMax - d.yMin;
       if (xRange <= 0 || yRange <= 0) return;
-      var dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+      var dx = e.clientX - d.sx, panDy = e.clientY - d.sy;
       var xPx = xRange / Math.max(chart.plotWidth, 1), yPx = yRange / Math.max(chart.plotHeight, 1);
       var nxMin = d.xMin - dx * xPx, nxMax = d.xMax - dx * xPx;
       var right = d.dMax + rightPad;
       if (nxMin < d.dMin) { nxMax += d.dMin - nxMin; nxMin = d.dMin; }
       if (nxMax > right) { nxMin -= nxMax - right; nxMax = right; }
-      var nyMin = d.yMin + dy * yPx, nyMax = d.yMax + dy * yPx;
+      var nyMin = d.yMin + panDy * yPx, nyMax = d.yMax + panDy * yPx;
       xAxis.setExtremes(nxMin, nxMax, false, false);
       yAxis.setExtremes(nyMin, nyMax, false, false);
       chart.redraw(false); e.preventDefault();
