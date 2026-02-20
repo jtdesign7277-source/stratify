@@ -277,7 +277,7 @@ export default function HighchartsStockChart({
       title: { text: '' },
       stockTools: { gui: { enabled: false } },
       navigator: {
-        enabled: true, height: 20, outlineColor: '#1a2332',
+        enabled: true, height: 26, outlineColor: '#1a2332',
         maskFill: 'rgba(59,130,246,0.06)',
         series: { color: '#3b82f6', lineWidth: 1 },
         xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } },
@@ -287,7 +287,7 @@ export default function HighchartsStockChart({
         enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569',
         barBorderRadius: 4, buttonArrowColor: '#e2e8f0', buttonBackgroundColor: '#1f2937',
         buttonBorderColor: '#475569', rifleColor: '#e2e8f0', trackBackgroundColor: '#0b1220',
-        trackBorderColor: '#334155', trackBorderRadius: 4, height: 10, margin: 2, liveRedraw: false,
+        trackBorderColor: '#334155', trackBorderRadius: 4, height: 12, margin: 4, liveRedraw: false,
       },
       rangeSelector: { enabled: false },
       xAxis: {
@@ -299,10 +299,10 @@ export default function HighchartsStockChart({
       yAxis: [
         {
           labels: { align: 'right', x: -8, style: { color: '#8892a0', fontSize: '10px' }, formatter() { return '$' + this.value.toFixed(2); } },
-          height: '79%', gridLineWidth: 0, lineWidth: 0, crosshair: false,
+          height: '66%', gridLineWidth: 0, lineWidth: 0, crosshair: false,
           startOnTick: false, endOnTick: false, scrollbar: { enabled: false }, resize: { enabled: true },
         },
-        { labels: { enabled: false }, top: '81%', height: '19%', offset: 0, gridLineWidth: 0, lineWidth: 0, crosshair: false },
+        { labels: { enabled: false }, top: '68%', height: '14%', offset: 0, gridLineWidth: 0, lineWidth: 0, crosshair: false },
       ],
       tooltip: { enabled: false },
       plotOptions: {
@@ -787,7 +787,7 @@ export default function HighchartsStockChart({
       </div>
 
       {/* ── Chart area ── */}
-      <div style={{ flex: 1, position: 'relative', minHeight: 120 }}>
+      <div style={{ flex: 1, position: 'relative', minHeight: 220 }}>
         {loading && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', zIndex: 50 }}>
             <div style={{ color: '#4a5568', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
