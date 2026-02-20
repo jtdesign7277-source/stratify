@@ -170,12 +170,12 @@ const LSE_STOCK_UNIVERSE = [
   { symbol: 'BATS', name: 'British American Tobacco', exchange: 'LSE' },
 ];
 
-const STOCK_DATABASE = [...US_STOCK_UNIVERSE, ...LSE_STOCK_UNIVERSE].filter((stock, index, allStocks) => {
+export const STOCK_DATABASE = [...US_STOCK_UNIVERSE, ...LSE_STOCK_UNIVERSE].filter((stock, index, allStocks) => {
   const key = `${stock.exchange}:${stock.symbol}`.toUpperCase();
   return allStocks.findIndex((candidate) => `${candidate.exchange}:${candidate.symbol}`.toUpperCase() === key) === index;
 });
 
-const DEFAULT_EQUITY_WATCHLIST = [
+export const DEFAULT_EQUITY_WATCHLIST = [
   { symbol: 'AAPL', name: 'Apple Inc.' },
   { symbol: 'MSFT', name: 'Microsoft Corporation' },
   { symbol: 'GOOGL', name: 'Alphabet Inc.' },
