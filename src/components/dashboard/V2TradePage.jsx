@@ -89,7 +89,12 @@ const toNumber = (value) => {
 
 const getPresetInterval = (presetId) => PRESET_INTERVAL_MAP[presetId] || '1day';
 
-const normalizeWsSymbol = (value) => String(value || '').trim().toUpperCase().replace(/^\$/, '').split(':')[0].split('.')[0];
+const normalizeWsSymbol = (value) => {
+  const raw = String(value || '').trim().toUpperCase().replace(/^\$/, '');
+  if (!raw) return '';
+  const parts = raw.split(':').filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : raw;
+};
 
 const toTimestampMs = (value) => {
   if (value == null) return NaN;
@@ -241,78 +246,9 @@ const savePinnedTabs = (tabs) => {
   localStorage.setItem(V2_PINNED_TABS_KEY, JSON.stringify(normalizePinnedTabs(tabs)));
 };
 
-const buildQuote = (quote) => {
-  if (!quote) return null;
-
-  const price = toNumber(
-    quote.price
-    ?? quote.last
-    ?? quote.trade?.p
-    ?? quote.p,
-  );
-  if (!Number.isFinite(price)) return null;
-
-  const prevClose = toNumber(quote.prevClose ?? quote.previousClose ?? quote.prev_close);
-  const fallbackPrevClose = Number.isFinite(prevClose) ? prevClose : price;
-
-  const rawChange = toNumber(quote.change);
-  const change = Number.isFinite(rawChange) ? rawChange : price - fallbackPrevClose;
-
-  const rawChangePercent = toNumber(quote.changePercent ?? quote.change_percent ?? quote.percentChange);
-  const changePercent = Number.isFinite(rawChangePercent)
-    ? rawChangePercent
-    : fallbackPrevClose > 0
-      ? (change / fallbackPrevClose) * 100
-      : 0;
-
-  return {
-    symbol: quote.symbol,
-    price,
-    change,
-    changePercent,
-    prevClose: fallbackPrevClose,
-    bid: toNumber(quote.bid),
-    ask: toNumber(quote.ask),
-    timestamp: quote.timestamp,
-  };
-};
-
 const formatPrice = (price) => {
   if (!Number.isFinite(price)) return '...';
   return Number(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
-const generateFallbackData = (points = 320) => {
-  const data = [];
-  const day = 24 * 60 * 60 * 1000;
-  let close = 182;
-
-  for (let i = points; i > 0; i -= 1) {
-    const ts = Date.now() - i * day;
-    const open = close + (Math.random() - 0.5) * 2.2;
-    const high = Math.max(open, close) + Math.random() * 2.6;
-    const low = Math.min(open, close) - Math.random() * 2.6;
-    close = low + Math.random() * (high - low);
-    const volume = Math.round(250000 + Math.random() * 1600000);
-    data.push([
-      ts,
-      Number(open.toFixed(2)),
-      Number(high.toFixed(2)),
-      Number(low.toFixed(2)),
-      Number(close.toFixed(2)),
-      volume,
-    ]);
-  }
-
-  return data;
-};
-
-const getFallbackDataForPreset = (presetId) => {
-  const full = generateFallbackData();
-  if (presetId === 'aapl-basic-exact' || presetId === 'candlestick-basic' || presetId === 'technical-annotations') {
-    return full.map((row) => row.slice(0, 5));
-  }
-  return full;
 };
 
 if (!Highcharts.__stratifyVolumeWidthPluginInstalled) {
@@ -385,6 +321,7 @@ export default function V2TradePage() {
     () => watchlist.map((item) => item.symbol).filter(Boolean),
     [watchlist],
   );
+  const activeSymbolSet = useMemo(() => new Set(activeSymbols), [activeSymbols]);
 
   const selectedQuote = selectedTicker ? equityQuotes[selectedTicker] : null;
   const selectedStock = useMemo(
@@ -431,40 +368,6 @@ export default function V2TradePage() {
     setSearchResults(results);
   }, [searchQuery, activeSymbols]);
 
-  const fetchSnapshot = useCallback(async () => {
-    if (activeSymbols.length === 0) return;
-
-    try {
-      setQuotesError('');
-      const symbols = activeSymbols.join(',');
-      const response = await fetch(`/api/lse/quotes?symbols=${encodeURIComponent(symbols)}`, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(`snapshot failed (${response.status})`);
-      }
-
-      const payload = await response.json();
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
-      const next = {};
-
-      rows.forEach((row) => {
-        const normalized = normalizeWsSymbol(row?.requestedSymbol || row?.symbol);
-        if (!normalized) return;
-        const parsed = buildQuote({ ...row, symbol: normalized });
-        if (!parsed) return;
-        next[normalized] = parsed;
-      });
-
-      if (Object.keys(next).length > 0) {
-        setEquityQuotes((prev) => ({ ...prev, ...next }));
-      }
-      setEquityLoading(false);
-    } catch (snapshotError) {
-      console.warn('[V.2_Trade] Snapshot fetch failed:', snapshotError);
-      setQuotesError('Quote snapshot unavailable');
-      setEquityLoading(false);
-    }
-  }, [activeSymbols]);
-
   useEffect(() => {
     if (activeSymbols.length === 0) {
       setEquityQuotes({});
@@ -473,13 +376,27 @@ export default function V2TradePage() {
     }
 
     setEquityLoading(true);
-    fetchSnapshot();
+    setQuotesError('');
+    setEquityQuotes((prev) => {
+      const next = {};
+      activeSymbols.forEach((symbol) => {
+        if (prev[symbol]) {
+          next[symbol] = prev[symbol];
+        }
+      });
+      return next;
+    });
     return undefined;
-  }, [activeSymbols, fetchSnapshot]);
+  }, [activeSymbols]);
 
   useEffect(() => {
     const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
       setWsConnected(Boolean(status?.connected));
+      if (status?.error) {
+        setQuotesError(status.error);
+      } else if (status?.connected) {
+        setQuotesError('');
+      }
     });
 
     if (activeSymbols.length === 0) {
@@ -489,8 +406,17 @@ export default function V2TradePage() {
     }
 
     const unsubscribeQuotes = subscribeTwelveDataQuotes(activeSymbols, (update) => {
-      const normalized = normalizeWsSymbol(update?.symbol);
-      if (!normalized) return;
+      const normalizedRaw = normalizeWsSymbol(update?.symbol);
+      if (!normalizedRaw) return;
+
+      let normalized = normalizedRaw;
+      if (!activeSymbolSet.has(normalized)) {
+        const dotBase = normalizedRaw.split('.')[0];
+        const slashBase = normalizedRaw.split('/')[0];
+        const fallback = [dotBase, slashBase].find((candidate) => activeSymbolSet.has(candidate));
+        if (fallback) normalized = fallback;
+      }
+      if (!activeSymbolSet.has(normalized)) return;
 
       const livePrice = toNumber(update?.price);
       if (!Number.isFinite(livePrice)) return;
@@ -532,7 +458,7 @@ export default function V2TradePage() {
       unsubscribeQuotes?.();
       unsubscribeStatus?.();
     };
-  }, [activeSymbols]);
+  }, [activeSymbols, activeSymbolSet]);
 
   const applyLiveTickToChart = useCallback((price, timestamp) => {
     const chart = chartRef.current;
@@ -586,7 +512,8 @@ export default function V2TradePage() {
     if (!selectedTicker) return undefined;
     const unsubscribe = subscribeTwelveDataQuotes([selectedTicker], (update) => {
       const normalized = normalizeWsSymbol(update?.symbol);
-      if (normalized !== selectedTicker) return;
+      if (!normalized) return;
+      if (normalized !== selectedTicker && normalized.split('.')[0] !== selectedTicker) return;
       const livePrice = toNumber(update?.price);
       if (!Number.isFinite(livePrice)) return;
       applyLiveTickToChart(livePrice, update?.timestamp);
@@ -608,10 +535,8 @@ export default function V2TradePage() {
       }
 
       let data = null;
-      let usingFallback = false;
-      const isDemoPrimaryPreset = activePreset.id === 'async-minute-history';
 
-      if (!isDemoPrimaryPreset) {
+      if (activePreset.id !== 'order-book-live') {
         try {
           const interval = getPresetInterval(activePreset.id);
           const outputsize = interval === '1min' || interval === '5min' ? 700 : 500;
@@ -651,19 +576,9 @@ export default function V2TradePage() {
         }
       }
 
-      if (!data && activePreset.dataUrl) {
-        try {
-          const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
-          if (!response.ok) {
-            throw new Error(`fetch failed (${response.status})`);
-          }
-          data = await response.json();
-          usingFallback = !isDemoPrimaryPreset;
-        } catch (fetchError) {
-          console.warn('[V.2_Trade] Preset fetch failed, using local fallback data:', fetchError);
-          data = getFallbackDataForPreset(activePreset.id);
-          usingFallback = true;
-        }
+      if (!data && activePreset.id !== 'order-book-live') {
+        data = OHLC_ONLY_PRESETS.has(activePreset.id) ? [] : [];
+        setError('Live Twelve Data history unavailable for this preset.');
       }
 
       if (!containerRef.current) return;
@@ -697,10 +612,6 @@ export default function V2TradePage() {
         activePreset.engine === 'chart'
           ? Highcharts.chart(containerRef.current, optionsWithPalette)
           : Highcharts.stockChart(containerRef.current, optionsWithPalette);
-
-      if (usingFallback) {
-        setError('Using fallback chart dataset. Live Twelve Data history unavailable for this preset.');
-      }
     } catch (loadError) {
       console.error('[V.2_Trade] Failed to load chart:', loadError);
       setError('Failed to load chart data.');

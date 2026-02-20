@@ -1546,25 +1546,13 @@ Volume<span style="color:${colorTemplate}";>{points.1.y}</span>`,
 };
 
 const buildAsyncMinuteHistory = (data) => {
-  const dataURL = 'https://demo-live-data.highcharts.com/aapl-historical.json';
   const seed = Array.isArray(data) ? [...data] : [];
   if (seed.length > 0) {
     seed.push(['2011-10-14 18:00', null, null, null, null]);
   }
 
-  const afterSetExtremes = async function afterSetExtremes(event) {
-    const { chart } = event.target;
-    chart.showLoading('Loading data from server...');
-    try {
-      const response = await fetch(`${dataURL}?start=${Math.round(event.min)}&end=${Math.round(event.max)}`);
-      const payload = await response.json();
-      if (!Array.isArray(payload)) return;
-      chart.series[0].setData(payload, true, false, false);
-    } catch (error) {
-      console.error('[chartPresets] async-minute-history load failed', error?.message || error);
-    } finally {
-      chart.hideLoading();
-    }
+  const afterSetExtremes = function afterSetExtremes() {
+    // Keep the chart on the currently loaded dataset; no remote demo fetch.
   };
 
   return {
