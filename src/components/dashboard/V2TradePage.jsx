@@ -347,11 +347,6 @@ export default function V2TradePage() {
               />
             </div>
           </div>
-          {/* Zoom buttons */}
-          <div className="flex items-center gap-0.5">
-            <button onClick={function() { handleZoom('in'); }} title="Zoom In" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all">+</button>
-            <button onClick={function() { handleZoom('out'); }} title="Zoom Out" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all">−</button>
-          </div>
           {/* Color picker */}
           <div className="relative" data-dd>
             <button onClick={function() { setShowColors(!showColors); }} className="px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white bg-white/5 border border-white/10 hover:border-white/20 transition-colors flex items-center gap-2">
@@ -397,7 +392,12 @@ export default function V2TradePage() {
         {/* Chart */}
         <div ref={containerRef} className="flex-1 min-h-0 min-w-0" style={{ cursor: activeTool ? 'crosshair' : 'default' }} />
       </div>
-      <div className="flex-shrink-0 flex items-center justify-center gap-2 py-2">
+      <div className="flex-shrink-0 flex flex-col items-center gap-1 py-2">
+        <div className="flex items-center gap-1">
+          <button onClick={function() { handleZoom('in'); }} title="Zoom In" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all">+</button>
+          <button onClick={function() { handleZoom('out'); }} title="Zoom Out" className="w-8 h-8 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-white/5 border border-white/10 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all">−</button>
+        </div>
+        <div className="flex items-center gap-1">
         {INTERVALS.map(function(iv) {
           return (
             <button key={iv.label} onClick={function() { setInterval_(iv.value); savePrefs({ interval: iv.value }); }} className={'px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ' + (interval === iv.value ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-gray-500 border border-transparent hover:text-white hover:bg-white/5')}>
@@ -405,6 +405,7 @@ export default function V2TradePage() {
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );
