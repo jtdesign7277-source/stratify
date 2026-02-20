@@ -239,6 +239,21 @@ export default function V2TradePage() {
 
   var handleSearchSubmit = function(sym) { var s = sym.toUpperCase(); setSearch(''); setShowSearch(false); setSymbol(s); savePrefs({ symbol: s }); };
 
+  var handleNudge = function(direction) {
+    var chart = chartObjRef.current;
+    if (!chart) return;
+    var xAxis = chart.xAxis && chart.xAxis[0];
+    if (!xAxis || !Number.isFinite(xAxis.min) || !Number.isFinite(xAxis.max)) return;
+    var range = xAxis.max - xAxis.min;
+    var step = range * 0.15;
+    var dMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : xAxis.min;
+    var dMax = (Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : xAxis.max) + rightPad;
+    var nMin, nMax;
+    if (direction === 'left') { nMin = Math.max(dMin, xAxis.min - step); nMax = nMin + range; }
+    else { nMax = Math.min(dMax, xAxis.max + step); nMin = nMax - range; }
+    xAxis.setExtremes(nMin, nMax, true, false);
+  };
+
   var handleZoom = function(direction) {
     var chart = chartObjRef.current;
     if (!chart) return;
@@ -380,7 +395,8 @@ export default function V2TradePage() {
         {/* Chart */}
         <div ref={containerRef} className="flex-1 min-h-0 min-w-0" style={{ cursor: activeTool ? 'crosshair' : 'default' }} />
       </div>
-      <div className="flex-shrink-0 flex items-center justify-center gap-1 py-2">
+      <div className="flex-shrink-0 flex items-center justify-center gap-2 py-2">
+        <button onClick={function() { handleNudge('left'); }} title="Scroll Left" className="w-9 h-9 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 hover:shadow-[0_0_10px_rgba(34,197,94,0.3)] transition-all">◀</button>
         {INTERVALS.map(function(iv) {
           return (
             <button key={iv.label} onClick={function() { setInterval_(iv.value); savePrefs({ interval: iv.value }); }} className={'px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ' + (interval === iv.value ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-gray-500 border border-transparent hover:text-white hover:bg-white/5')}>
@@ -388,6 +404,7 @@ export default function V2TradePage() {
             </button>
           );
         })}
+        <button onClick={function() { handleNudge('right'); }} title="Scroll Right" className="w-9 h-9 flex items-center justify-center rounded-lg text-lg font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 hover:shadow-[0_0_10px_rgba(34,197,94,0.3)] transition-all">▶</button>
       </div>
     </div>
   );
