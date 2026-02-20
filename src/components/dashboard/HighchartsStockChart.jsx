@@ -296,9 +296,8 @@ export default function HighchartsStockChart({
         height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
-        panning: { enabled: true, type: 'xy' },
-        panKey: undefined,
-        zooming: { type: undefined, mouseWheel: { enabled: true, sensitivity: 1.1 }, pinchType: 'xy' },
+        panning: { enabled: false },
+        zooming: { type: undefined, mouseWheel: { enabled: false } },
       },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
@@ -315,29 +314,6 @@ export default function HighchartsStockChart({
         maxPadding: 0.06,
         overscroll: rightOffsetMs,
         minRange: Math.max(getIntervalMs(interval) * 10, 60_000),
-        events: {
-          afterSetExtremes(e) {
-            if (e.trigger === 'autofit-y') return;
-            const chart = this.chart;
-            const yAxis = chart.yAxis?.[0];
-            const priceSeries = chart.get('price');
-            if (!yAxis || !priceSeries?.points?.length) return;
-            const xMin = this.min;
-            const xMax = this.max;
-            let visMin = Infinity;
-            let visMax = -Infinity;
-            for (const p of priceSeries.points) {
-              if (p.x >= xMin && p.x <= xMax) {
-                if (p.low < visMin) visMin = p.low;
-                if (p.high > visMax) visMax = p.high;
-              }
-            }
-            if (visMin < Infinity && visMax > -Infinity) {
-              const pad = (visMax - visMin) * 0.08 || visMax * 0.02;
-              yAxis.setExtremes(visMin - pad, visMax + pad, true, false, { trigger: 'autofit-y' });
-            }
-          },
-        },
       },
       yAxis: [
         {
@@ -593,6 +569,126 @@ export default function HighchartsStockChart({
       window.removeEventListener('resize', reflow);
     };
   }, [chartSize, isFs, fitChartViewport, activeRange]);
+
+  // ─── TradingView-style custom drag pan + scroll zoom ───
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startXMin = 0;
+    let startXMax = 0;
+    let startYMin = 0;
+    let startYMax = 0;
+
+    const getChart = () => chartRef.current?.chart;
+
+    const onMouseDown = (e) => {
+      const chart = getChart();
+      if (!chart?.plotBackground?.element) return;
+      // Only start drag on the plot area
+      const plotBox = chart.plotBackground.element.getBoundingClientRect();
+      if (e.clientX < plotBox.left || e.clientX > plotBox.right || e.clientY < plotBox.top || e.clientY > plotBox.bottom) return;
+
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const xAxis = chart.xAxis[0];
+      const yAxis = chart.yAxis[0];
+      startXMin = xAxis.min;
+      startXMax = xAxis.max;
+      startYMin = yAxis.min;
+      startYMax = yAxis.max;
+      container.style.cursor = 'grabbing';
+      e.preventDefault();
+    };
+
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+      const chart = getChart();
+      if (!chart) return;
+      const xAxis = chart.xAxis[0];
+      const yAxis = chart.yAxis[0];
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      // Convert pixel delta to axis units
+      const plotWidth = chart.plotWidth;
+      const plotHeight = chart.plotHeight;
+      const xRange = startXMax - startXMin;
+      const yRange = startYMax - startYMin;
+
+      const xShift = -(dx / plotWidth) * xRange;
+      const yShift = (dy / plotHeight) * yRange;
+
+      xAxis.setExtremes(startXMin + xShift, startXMax + xShift, false, false, { trigger: 'drag-pan' });
+      yAxis.setExtremes(startYMin + yShift, startYMax + yShift, false, false, { trigger: 'drag-pan' });
+      chart.redraw(false);
+      e.preventDefault();
+    };
+
+    const onMouseUp = () => {
+      if (isDragging) {
+        isDragging = false;
+        container.style.cursor = '';
+      }
+    };
+
+    const onWheel = (e) => {
+      const chart = getChart();
+      if (!chart?.plotBackground?.element) return;
+      const plotBox = chart.plotBackground.element.getBoundingClientRect();
+      if (e.clientX < plotBox.left || e.clientX > plotBox.right || e.clientY < plotBox.top || e.clientY > plotBox.bottom) return;
+
+      e.preventDefault();
+      const xAxis = chart.xAxis[0];
+      const factor = e.deltaY > 0 ? 1.15 : 0.87; // zoom out / zoom in
+
+      const xRange = xAxis.max - xAxis.min;
+      // Zoom centered on mouse position
+      const mouseRatio = (e.clientX - plotBox.left) / (plotBox.right - plotBox.left);
+      const newRange = xRange * factor;
+      const xCenter = xAxis.min + xRange * mouseRatio;
+      const newMin = xCenter - newRange * mouseRatio;
+      const newMax = xCenter + newRange * (1 - mouseRatio);
+
+      xAxis.setExtremes(newMin, newMax, false, false, { trigger: 'wheel-zoom' });
+
+      // Auto-fit Y to visible candles after zoom
+      const priceSeries = chart.get('price');
+      const yAxis = chart.yAxis[0];
+      if (priceSeries?.points?.length && yAxis) {
+        let visMin = Infinity;
+        let visMax = -Infinity;
+        for (const p of priceSeries.points) {
+          if (p.x >= newMin && p.x <= newMax) {
+            if (p.low < visMin) visMin = p.low;
+            if (p.high > visMax) visMax = p.high;
+          }
+        }
+        if (visMin < Infinity && visMax > -Infinity) {
+          const pad = (visMax - visMin) * 0.08 || visMax * 0.02;
+          yAxis.setExtremes(visMin - pad, visMax + pad, false, false, { trigger: 'autofit-y' });
+        }
+      }
+      chart.redraw(false);
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      container.removeEventListener('wheel', onWheel);
+    };
+  }, []);
 
   useEffect(() => {
     const chart = chartRef.current?.chart;
