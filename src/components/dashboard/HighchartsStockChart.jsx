@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
 import IndicatorsAll from 'highcharts/indicators/indicators-all';
@@ -22,6 +22,24 @@ initModule(StockTools);
 const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
 const TD_REST_BASE = 'https://api.twelvedata.com';
 const TD_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
+
+const toTimestampMs = (value) => {
+  if (value == null) return null;
+
+  if (typeof value === 'number') {
+    return value > 10_000_000_000 ? value : value * 1000;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  let ts = Date.parse(normalized);
+  if (!Number.isFinite(ts)) {
+    ts = Date.parse(`${normalized}Z`);
+  }
+  return Number.isFinite(ts) ? ts : null;
+};
 
 // ─── Default Watchlist ───
 const DEFAULT_WATCHLIST = [
@@ -107,12 +125,17 @@ async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500, 
 
   if (data.values && Array.isArray(data.values)) {
     data.values.forEach((bar) => {
-      const ts = new Date(bar.datetime).getTime();
+      const ts = toTimestampMs(bar.datetime || bar.timestamp || bar.time);
       const o = parseFloat(bar.open);
       const h = parseFloat(bar.high);
       const l = parseFloat(bar.low);
       const c = parseFloat(bar.close);
       const v = parseInt(bar.volume, 10) || 0;
+
+      if (!Number.isFinite(ts) || !Number.isFinite(o) || !Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) {
+        return;
+      }
+
       ohlc.push([ts, o, h, l, c]);
       volume.push({ x: ts, y: v, _o: o, _c: c });
     });
@@ -158,6 +181,7 @@ export default function HighchartsStockChart({
   const [chartSize, setChartSize] = useState(defaultSize);
   const [isFs, setIsFs] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [seriesSeed, setSeriesSeed] = useState({ ohlc: [], volume: [] });
 
   // Dropdowns
   const [showSym, setShowSym] = useState(false);
@@ -240,29 +264,31 @@ export default function HighchartsStockChart({
     setLoading(true); setError(null);
     try {
       const { ohlc, volume } = await fetchHistoricalData(symbol, interval, 500, TD_API_KEY);
-      if (ohlc.length === 0) { setError('No data for $' + symbol); setLoading(false); return; }
+      if (ohlc.length === 0) {
+        setSeriesSeed({ ohlc: [], volume: [] });
+        setError('No data for $' + symbol);
+        setLoading(false);
+        return;
+      }
 
       const last = ohlc[ohlc.length - 1];
       const prev = ohlc.length > 1 ? ohlc[ohlc.length - 2] : last;
       const lv = volume[volume.length - 1]?.y || 0;
       setHover({ o: last[1], h: last[2], l: last[3], c: last[4], v: lv, chg: last[4] - prev[4], pct: prev[4] ? ((last[4] - prev[4]) / prev[4]) * 100 : 0 });
-
-      const opts = buildOpts(ohlc, volume);
-      const chart = chartRef.current?.chart;
-      if (chart) {
-        // Remove series in reverse order so indicators (linked) are removed before their parent
-        while (chart.series.length) chart.series[chart.series.length - 1].remove(false);
-        chart.update(opts, false);
-        opts.series.forEach((s) => chart.addSeries(s, false));
-        chart.redraw();
-      }
+      setSeriesSeed({ ohlc, volume });
       setLoading(false);
     } catch (err) {
-      console.error(err); setError('Failed to load data'); setLoading(false);
+      console.error(err);
+      setSeriesSeed({ ohlc: [], volume: [] });
+      setError('Failed to load data');
+      setLoading(false);
     }
-  }, [symbol, interval, buildOpts]);
+  }, [symbol, interval]);
 
-  const [initOpts] = useState(() => buildOpts([], []));
+  const chartOptions = useMemo(
+    () => buildOpts(seriesSeed.ohlc, seriesSeed.volume),
+    [buildOpts, seriesSeed.ohlc, seriesSeed.volume]
+  );
   useEffect(() => { loadData(); }, [loadData]);
 
   // ─── WebSocket ───
@@ -543,7 +569,7 @@ export default function HighchartsStockChart({
           </div>
         )}
 
-        <HighchartsReact ref={chartRef} highcharts={Highcharts} constructorType="stockChart" options={initOpts} containerProps={{ style: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }} />
+        <HighchartsReact ref={chartRef} highcharts={Highcharts} constructorType="stockChart" options={chartOptions} containerProps={{ style: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }} />
 
         <div style={{ position: 'absolute', bottom: '36px', right: '10px', fontSize: '8px', color: '#151a24', letterSpacing: '0.04em', fontWeight: '500', pointerEvents: 'none', zIndex: 10 }}>MARKET DATA POWERED BY TWELVE DATA</div>
       </div>
