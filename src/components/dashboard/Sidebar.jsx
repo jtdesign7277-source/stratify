@@ -64,9 +64,9 @@ const Sidebar = ({
   const navItems = [
     { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
     { id: 'watchlist', label: 'Trade', icon: Layout },
+    { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'v2-trade', label: 'V.2_Trade', icon: LineChart, labelClass: 'font-semibold text-cyan-300', iconClass: 'text-cyan-300' },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
-    { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
