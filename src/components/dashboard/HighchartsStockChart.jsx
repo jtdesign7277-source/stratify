@@ -296,12 +296,35 @@ export default function HighchartsStockChart({
         height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
-        panning: { enabled: false, type: 'xy' },
-        panKey: null,
-        zooming: {
-          type: 'xy',
-          mouseWheel: { enabled: true, sensitivity: 1.2 },
-          pinchType: 'xy',
+        panning: { enabled: true, type: 'x' },
+        panKey: undefined,
+        zooming: { type: undefined, mouseWheel: { enabled: true, sensitivity: 1.1 }, pinchType: 'x' },
+        events: {
+          render() {
+            const chart = this;
+            const xAxis = chart.xAxis?.[0];
+            const yAxis = chart.yAxis?.[0];
+            const priceSeries = chart.get('price');
+            if (!xAxis || !yAxis || !priceSeries?.points?.length) return;
+            const xMin = xAxis.min;
+            const xMax = xAxis.max;
+            let visMin = Infinity;
+            let visMax = -Infinity;
+            for (const p of priceSeries.points) {
+              if (p.x >= xMin && p.x <= xMax) {
+                if (p.low < visMin) visMin = p.low;
+                if (p.high > visMax) visMax = p.high;
+              }
+            }
+            if (visMin < Infinity && visMax > -Infinity) {
+              const pad = (visMax - visMin) * 0.06 || visMax * 0.02;
+              const newMin = visMin - pad;
+              const newMax = visMax + pad;
+              if (Math.abs((yAxis.min || 0) - newMin) > pad * 0.1 || Math.abs((yAxis.max || 0) - newMax) > pad * 0.1) {
+                yAxis.setExtremes(newMin, newMax, false, false, { trigger: 'autofit' });
+              }
+            }
+          },
         },
       },
       credits: { enabled: false }, title: { text: '' },
@@ -329,17 +352,7 @@ export default function HighchartsStockChart({
           crosshair: false,
           startOnTick: false,
           endOnTick: false,
-          scrollbar: {
-            enabled: true,
-            opposite: true,
-            barBackgroundColor: '#475569',
-            barBorderColor: '#475569',
-            buttonBackgroundColor: '#1f2937',
-            buttonBorderColor: '#475569',
-            trackBackgroundColor: '#0b1220',
-            trackBorderColor: '#334155',
-            rifleColor: '#e2e8f0',
-          },
+          scrollbar: { enabled: false },
           resize: { enabled: true },
         },
         { labels: { enabled: false }, top: '77%', height: '23%', offset: 0, gridLineWidth: 0, lineWidth: 0, crosshair: false },
@@ -741,7 +754,7 @@ export default function HighchartsStockChart({
   }, [rightOffsetMs]);
 
   const h = isFs ? '100vh' : (SIZE_PRESETS.find((s) => s.value === chartSize)?.height || '100%');
-  const maxChartHeight = isFs ? '100vh' : 'calc(100vh - 330px)';
+  const maxChartHeight = isFs ? '100vh' : undefined;
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
 
   // ─── Styles ───
@@ -977,8 +990,10 @@ export default function HighchartsStockChart({
         .highcharts-stock-tools-wrapper{display:none!important}
         .highcharts-bindings-wrapper{display:none!important}
         .highcharts-crosshair,.highcharts-crosshair-thin,.highcharts-axis-resizer{display:none!important}
-        .highcharts-root,.highcharts-container{cursor:grab}
+        .highcharts-root,.highcharts-container{cursor:crosshair}
         .highcharts-root:active,.highcharts-container:active{cursor:grabbing}
+        .highcharts-plot-background{cursor:crosshair}
+        .highcharts-plot-background:active{cursor:grabbing}
         *::-webkit-scrollbar{width:4px}
         *::-webkit-scrollbar-track{background:#0d1117}
         *::-webkit-scrollbar-thumb{background:#1f2937;border-radius:4px}
