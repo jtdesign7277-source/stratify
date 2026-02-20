@@ -109,7 +109,7 @@ export default function V2TradePage() {
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
       navigation: { bindings: { verticalLine: { className: 'highcharts-verticalLine' }, infinityLine: { className: 'highcharts-infinityLine' }, crookedLine: { className: 'highcharts-crookedLine' }, parallelChannel: { className: 'highcharts-parallelChannel' }, fibonacci: { className: 'highcharts-fibonacci' } }, annotationsOptions: { shapeOptions: { stroke: '#22c55e', strokeWidth: 2 }, labelOptions: { style: { color: '#ffffff', fontSize: '11px' }, backgroundColor: 'rgba(0,0,0,0.6)', borderColor: '#22c55e' } } },
-      navigator: { enabled: true, height: 40, outlineColor: '#334155', outlineWidth: 1, maskFill: 'rgba(34,197,94,0.08)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#ffffffaa', fontSize: '10px' } } }, handles: { backgroundColor: '#22c55e', borderColor: '#16a34a', width: 20, height: 34 } },
+      navigator: { enabled: true, height: 40, outlineColor: '#334155', outlineWidth: 1, maskFill: 'rgba(34,197,94,0.08)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#ffffffaa', fontSize: '10px' } } }, handles: { backgroundColor: '#3b82f6', borderColor: '#2563eb', width: 20, height: 34 } },
       scrollbar: { enabled: false },
       rangeSelector: { enabled: false },
       xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#ffffffcc', fontSize: '11px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
@@ -317,11 +317,11 @@ export default function V2TradePage() {
       <style>{`
         .highcharts-navigator-handle { cursor: ew-resize !important; }
         .highcharts-navigator-handle:active { cursor: grabbing !important; }
-        .highcharts-navigator-handle rect { rx: 6; ry: 6; filter: drop-shadow(0 0 6px rgba(34,197,94,0.4)); }
+        .highcharts-navigator-handle rect { rx: 6; ry: 6; filter: drop-shadow(0 0 6px rgba(59,130,246,0.4)); }
         .highcharts-navigator-handle path { stroke: #ffffff !important; stroke-width: 2.5 !important; stroke-linecap: round !important; }
-        .highcharts-navigator-mask-inside { fill: rgba(34,197,94,0.06) !important; }
+        .highcharts-navigator-mask-inside { fill: rgba(59,130,246,0.06) !important; }
         .highcharts-navigator-outline { stroke: #334155 !important; }
-        .highcharts-navigator-handle:hover rect { fill: #16a34a !important; }
+        .highcharts-navigator-handle:hover rect { fill: #2563eb !important; }
       `}</style>
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-4 text-base font-mono">
