@@ -151,12 +151,13 @@ const createMeteors = (count = 4, minDuration = 13, durationRange = 8, delayRang
 export default function SpaceBackground({ variant = 'app' }) {
   const isMarketing = variant === 'marketing';
   const stars = useMemo(() => createStars(isMarketing ? 86 : 70), [isMarketing]);
+  const shouldRenderMeteors = isMarketing;
   const meteors = useMemo(
     () =>
-      isMarketing
+      shouldRenderMeteors
         ? createMeteors(4, 13, 8, 24)
-        : createMeteors(2, 42, 36, 120),
-    [isMarketing]
+        : [],
+    [shouldRenderMeteors]
   );
 
   return (
