@@ -30,6 +30,10 @@ initModule(HollowCandlestickModule);
 initModule(IndicatorsModule);
 initModule(IchimokuModule);
 
+if (typeof window !== 'undefined' && !window.Highcharts) {
+  window.Highcharts = Highcharts;
+}
+
 const generateFallbackData = (points = 320) => {
   const data = [];
   const day = 24 * 60 * 60 * 1000;
