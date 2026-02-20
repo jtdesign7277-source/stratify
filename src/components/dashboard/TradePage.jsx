@@ -347,7 +347,7 @@ const TradingViewWidget = ({ symbol, interval }) => {
       theme: 'dark',
       style: '1',
       locale: 'en',
-      backgroundColor: 'rgba(11, 11, 11, 1)',
+      backgroundColor: 'rgba(0, 0, 0, 1)',
       gridColor: 'rgba(30, 30, 30, 0.3)',
       hide_top_toolbar: false,
       hide_legend: false,
