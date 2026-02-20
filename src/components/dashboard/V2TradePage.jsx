@@ -1,9 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Highcharts from 'highcharts/highstock';
 import DataModule from 'highcharts/modules/data';
 import ExportingModule from 'highcharts/modules/exporting';
 import ExportDataModule from 'highcharts/modules/export-data';
 import AccessibilityModule from 'highcharts/modules/accessibility';
+import AnnotationsAdvancedModule from 'highcharts/modules/annotations-advanced';
+import StockToolsModule from 'highcharts/modules/stock-tools';
+import { CHART_PRESETS, buildChartOptions } from './charts/chartPresets';
 
 const initModule = (moduleFactory) => {
   try {
@@ -18,46 +21,50 @@ initModule(DataModule);
 initModule(ExportingModule);
 initModule(ExportDataModule);
 initModule(AccessibilityModule);
+initModule(AnnotationsAdvancedModule);
+initModule(StockToolsModule);
 
 export default function V2TradePage() {
   const containerRef = useRef(null);
+  const chartRef = useRef(null);
+
+  const [activePresetId, setActivePresetId] = useState(CHART_PRESETS[0].id);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const activePreset = useMemo(
+    () => CHART_PRESETS.find((preset) => preset.id === activePresetId) || CHART_PRESETS[0],
+    [activePresetId],
+  );
 
   useEffect(() => {
     let mounted = true;
-    let chart;
 
     const loadChart = async () => {
+      setLoading(true);
+      setError('');
+
       try {
-        const response = await fetch('https://demo-live-data.highcharts.com/aapl-ohlc.json', {
-          cache: 'no-store',
-        });
+        const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
         const data = await response.json();
 
         if (!mounted || !containerRef.current) return;
 
-        chart = Highcharts.stockChart(containerRef.current, {
-          rangeSelector: {
-            selected: 1,
-          },
-          title: {
-            text: 'AAPL Stock Price',
-          },
-          series: [
-            {
-              type: 'candlestick',
-              name: 'AAPL Stock Price',
-              data,
-              dataGrouping: {
-                units: [
-                  ['week', [1]],
-                  ['month', [1, 2, 3, 4, 6]],
-                ],
-              },
-            },
-          ],
+        const options = buildChartOptions({
+          presetId: activePreset.id,
+          data,
         });
-      } catch (error) {
-        console.error('[V.2_Trade] Failed to load chart:', error);
+
+        if (chartRef.current) {
+          chartRef.current.destroy();
+        }
+
+        chartRef.current = Highcharts.stockChart(containerRef.current, options);
+      } catch (loadError) {
+        console.error('[V.2_Trade] Failed to load chart:', loadError);
+        if (mounted) setError('Failed to load chart data.');
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
 
@@ -65,14 +72,57 @@ export default function V2TradePage() {
 
     return () => {
       mounted = false;
-      if (chart) chart.destroy();
+    };
+  }, [activePreset]);
+
+  useEffect(() => {
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
     };
   }, []);
 
   return (
     <div className="h-full w-full bg-transparent p-4">
-      <div className="h-full w-full rounded-xl border border-white/10 bg-black/30 p-3">
-        <div ref={containerRef} id="v2-trade-container" className="h-full min-h-[500px] w-full" />
+      <div className="flex h-full w-full gap-4 rounded-xl border border-white/10 bg-black/30 p-3">
+        <div className="w-[280px] shrink-0 rounded-lg border border-white/10 bg-[#0a1628]/70 p-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Chart Folder</div>
+          <div className="space-y-2">
+            {CHART_PRESETS.map((preset) => {
+              const active = preset.id === activePresetId;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setActivePresetId(preset.id)}
+                  className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                    active
+                      ? 'border-cyan-400/70 bg-cyan-500/15 text-cyan-200'
+                      : 'border-white/10 bg-black/20 text-gray-300 hover:border-cyan-500/40 hover:text-white'
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{preset.name}</div>
+                  <div className="mt-0.5 text-xs text-gray-400">{preset.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#060d18]/70 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white">{activePreset.name}</h2>
+            {loading ? <span className="text-xs text-cyan-300">Loading...</span> : null}
+          </div>
+
+          {error ? (
+            <div className="mb-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
+          ) : null}
+
+          <div ref={containerRef} id="v2-trade-container" className="h-[calc(100%-36px)] min-h-[500px] w-full" />
+        </div>
       </div>
     </div>
   );
