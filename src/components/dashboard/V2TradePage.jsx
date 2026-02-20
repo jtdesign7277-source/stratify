@@ -11,7 +11,7 @@ import StockToolsModule from 'highcharts/modules/stock-tools';
 import HollowCandlestickModule from 'highcharts/modules/hollowcandlestick';
 import IndicatorsModule from 'highcharts/indicators/indicators';
 import IchimokuModule from 'highcharts/indicators/ichimoku-kinko-hyo';
-import useAlpacaStream from '../../hooks/useAlpacaStream';
+import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { STOCK_DATABASE, DEFAULT_EQUITY_WATCHLIST } from './TradePage';
 import { CHART_PRESETS, buildChartOptions } from './charts/chartPresets';
 
@@ -20,6 +20,34 @@ const V2_WATCHLIST_STATE_KEY = 'stratify-v2-trade-watchlist-state';
 const V2_PINNED_TABS_KEY = 'stratify-v2-trade-pinned-tabs';
 
 const stateWidths = { open: 384, small: 280, closed: 80 };
+const LIVE_CHART_PRESETS = CHART_PRESETS.filter((preset) => preset.id !== 'order-book-live');
+const PRESET_INTERVAL_MAP = {
+  'dark-intraday-oval': '1min',
+  'stock-tools-popup-events': '5min',
+  'aapl-basic-exact': '1day',
+  'candlestick-basic': '1day',
+  'technical-annotations': '1day',
+  'volume-proportional-width': '1day',
+  'candlestick-volume-ikh': '1day',
+  'styled-crosshair-candles': '1day',
+};
+const OHLC_ONLY_PRESETS = new Set([
+  'aapl-basic-exact',
+  'candlestick-basic',
+  'technical-annotations',
+  'dark-intraday-oval',
+]);
+const INTERVAL_MS = {
+  '1min': 60_000,
+  '5min': 300_000,
+  '15min': 900_000,
+  '30min': 1_800_000,
+  '1h': 3_600_000,
+  '4h': 14_400_000,
+  '1day': 86_400_000,
+  '1week': 604_800_000,
+  '1month': 2_592_000_000,
+};
 
 const initModule = (moduleFactory) => {
   try {
@@ -49,6 +77,21 @@ const toNumber = (value) => {
   if (value == null) return NaN;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : NaN;
+};
+
+const getPresetInterval = (presetId) => PRESET_INTERVAL_MAP[presetId] || '1day';
+
+const normalizeWsSymbol = (value) => String(value || '').trim().toUpperCase().replace(/^\$/, '').split(':')[0].split('.')[0];
+
+const toTimestampMs = (value) => {
+  if (value == null) return NaN;
+  if (typeof value === 'number') return value > 10_000_000_000 ? value : value * 1000;
+  const raw = String(value).trim();
+  if (!raw) return NaN;
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  let ts = Date.parse(normalized);
+  if (!Number.isFinite(ts)) ts = Date.parse(`${normalized}Z`);
+  return ts;
 };
 
 const normalizeWatchlistItem = (item) => {
@@ -260,15 +303,16 @@ export default function V2TradePage() {
   const [selectedTicker, setSelectedTicker] = useState(() => initialWatchlistRef.current[0]?.symbol || 'AAPL');
   const [showDollarChange, setShowDollarChange] = useState(false);
 
-  const [activePresetId, setActivePresetId] = useState(CHART_PRESETS[0].id);
+  const [activePresetId, setActivePresetId] = useState(LIVE_CHART_PRESETS[0]?.id || CHART_PRESETS[0].id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [quotesError, setQuotesError] = useState('');
   const [equityQuotes, setEquityQuotes] = useState({});
   const [equityLoading, setEquityLoading] = useState(true);
+  const [wsConnected, setWsConnected] = useState(false);
 
   const activePreset = useMemo(
-    () => CHART_PRESETS.find((preset) => preset.id === activePresetId) || CHART_PRESETS[0],
+    () => LIVE_CHART_PRESETS.find((preset) => preset.id === activePresetId) || LIVE_CHART_PRESETS[0] || CHART_PRESETS[0],
     [activePresetId],
   );
 
@@ -282,11 +326,6 @@ export default function V2TradePage() {
     () => STOCK_DATABASE.find((stock) => stock.symbol === selectedTicker) || watchlist.find((item) => item.symbol === selectedTicker),
     [selectedTicker, watchlist],
   );
-
-  const { stockQuotes: wsStockQuotes, stockConnected } = useAlpacaStream({
-    stockSymbols: activeSymbols,
-    enabled: activeSymbols.length > 0,
-  });
 
   useEffect(() => {
     saveWatchlist(watchlist);
@@ -333,20 +372,21 @@ export default function V2TradePage() {
     try {
       setQuotesError('');
       const symbols = activeSymbols.join(',');
-      const response = await fetch(`/api/stocks?symbols=${encodeURIComponent(symbols)}`, { cache: 'no-store' });
+      const response = await fetch(`/api/lse/quotes?symbols=${encodeURIComponent(symbols)}`, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`snapshot failed (${response.status})`);
       }
 
       const payload = await response.json();
-      const rows = Array.isArray(payload) ? payload : [];
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
       const next = {};
 
       rows.forEach((row) => {
-        if (!row?.symbol) return;
-        const parsed = buildQuote(row);
+        const normalized = normalizeWsSymbol(row?.requestedSymbol || row?.symbol);
+        if (!normalized) return;
+        const parsed = buildQuote({ ...row, symbol: normalized });
         if (!parsed) return;
-        next[String(row.symbol).toUpperCase()] = parsed;
+        next[normalized] = parsed;
       });
 
       if (Object.keys(next).length > 0) {
@@ -369,45 +409,125 @@ export default function V2TradePage() {
 
     setEquityLoading(true);
     fetchSnapshot();
-    const interval = setInterval(fetchSnapshot, stockConnected ? 60000 : 10000);
-    return () => clearInterval(interval);
-  }, [activeSymbols, fetchSnapshot, stockConnected]);
+    return undefined;
+  }, [activeSymbols, fetchSnapshot]);
 
   useEffect(() => {
-    if (Object.keys(wsStockQuotes).length === 0) return;
-
-    setEquityQuotes((prev) => {
-      const merged = { ...prev };
-
-      Object.entries(wsStockQuotes).forEach(([symbol, wsQuote]) => {
-        const price = toNumber(wsQuote?.price);
-        if (!Number.isFinite(price)) return;
-
-        const previous = prev[symbol] || {};
-        const prevClose = Number.isFinite(toNumber(previous.prevClose))
-          ? Number(previous.prevClose)
-          : Number.isFinite(toNumber(wsQuote.prevClose))
-            ? Number(wsQuote.prevClose)
-            : price;
-
-        const change = price - prevClose;
-        const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-
-        merged[symbol] = {
-          ...previous,
-          ...wsQuote,
-          price,
-          prevClose,
-          change,
-          changePercent,
-        };
-      });
-
-      return merged;
+    const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
+      setWsConnected(Boolean(status?.connected));
     });
 
-    setEquityLoading(false);
-  }, [wsStockQuotes]);
+    if (activeSymbols.length === 0) {
+      return () => {
+        unsubscribeStatus?.();
+      };
+    }
+
+    const unsubscribeQuotes = subscribeTwelveDataQuotes(activeSymbols, (update) => {
+      const normalized = normalizeWsSymbol(update?.symbol);
+      if (!normalized) return;
+
+      const livePrice = toNumber(update?.price);
+      if (!Number.isFinite(livePrice)) return;
+
+      setEquityQuotes((prev) => {
+        const previous = prev[normalized] || {};
+        const previousPrevClose = toNumber(previous.prevClose);
+        const feedChange = toNumber(update?.change);
+        const feedPct = toNumber(update?.percentChange);
+        const derivedPrevClose = Number.isFinite(previousPrevClose)
+          ? previousPrevClose
+          : Number.isFinite(feedChange)
+            ? livePrice - feedChange
+            : livePrice;
+        const change = Number.isFinite(feedChange) ? feedChange : livePrice - derivedPrevClose;
+        const changePercent = Number.isFinite(feedPct)
+          ? feedPct
+          : derivedPrevClose > 0
+            ? (change / derivedPrevClose) * 100
+            : 0;
+
+        return {
+          ...prev,
+          [normalized]: {
+            ...previous,
+            symbol: normalized,
+            price: livePrice,
+            prevClose: derivedPrevClose,
+            change,
+            changePercent,
+            timestamp: update?.timestamp || new Date().toISOString(),
+          },
+        };
+      });
+      setEquityLoading(false);
+    });
+
+    return () => {
+      unsubscribeQuotes?.();
+      unsubscribeStatus?.();
+    };
+  }, [activeSymbols]);
+
+  const applyLiveTickToChart = useCallback((price, timestamp) => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const candleSeries = chart.series.find((series) => ['candlestick', 'hollowcandlestick', 'ohlc'].includes(series.type));
+    if (!candleSeries?.points?.length) return;
+
+    const lastPoint = candleSeries.points[candleSeries.points.length - 1];
+    if (!lastPoint) return;
+
+    const lastClose = toNumber(lastPoint.close);
+    if (!Number.isFinite(lastClose) || lastClose <= 0) return;
+    const jumpRatio = Math.abs(price - lastClose) / lastClose;
+    if (jumpRatio > 0.25) return;
+
+    const interval = getPresetInterval(activePreset.id);
+    const intervalMs = INTERVAL_MS[interval] || INTERVAL_MS['1day'];
+    const tickTs = toTimestampMs(timestamp || Date.now());
+    if (!Number.isFinite(tickTs)) return;
+    const tickBucket = Math.floor(tickTs / intervalMs) * intervalMs;
+    const lastBucket = Math.floor(Number(lastPoint.x) / intervalMs) * intervalMs;
+
+    if (!Number.isFinite(lastBucket) || tickBucket < lastBucket) return;
+
+    if (tickBucket > lastBucket) {
+      const nextOpen = lastClose;
+      const nextHigh = Math.max(nextOpen, price);
+      const nextLow = Math.min(nextOpen, price);
+      candleSeries.addPoint([tickBucket, nextOpen, nextHigh, nextLow, price], false, false, false);
+
+      const volumeSeries = chart.series.find((series) => series.type === 'column');
+      if (volumeSeries) {
+        if (volumeSeries.options?.keys && Array.isArray(volumeSeries.options.keys) && volumeSeries.options.keys.includes('className')) {
+          volumeSeries.addPoint([tickBucket, 0, price >= nextOpen ? 'highcharts-point-up' : 'highcharts-point-down'], false, false, false);
+        } else {
+          volumeSeries.addPoint([tickBucket, 0], false, false, false);
+        }
+      }
+    } else {
+      const nextOpen = toNumber(lastPoint.open);
+      const nextHigh = Math.max(toNumber(lastPoint.high), price);
+      const nextLow = Math.min(toNumber(lastPoint.low), price);
+      lastPoint.update([lastPoint.x, nextOpen, nextHigh, nextLow, price], false, false);
+    }
+
+    chart.redraw(false);
+  }, [activePreset.id]);
+
+  useEffect(() => {
+    if (!selectedTicker) return undefined;
+    const unsubscribe = subscribeTwelveDataQuotes([selectedTicker], (update) => {
+      const normalized = normalizeWsSymbol(update?.symbol);
+      if (normalized !== selectedTicker) return;
+      const livePrice = toNumber(update?.price);
+      if (!Number.isFinite(livePrice)) return;
+      applyLiveTickToChart(livePrice, update?.timestamp);
+    });
+    return () => unsubscribe?.();
+  }, [selectedTicker, applyLiveTickToChart]);
 
   const loadChart = useCallback(async () => {
     setLoading(true);
@@ -425,15 +545,53 @@ export default function V2TradePage() {
       let data = null;
       let usingFallback = false;
 
-      if (activePreset.dataUrl) {
+      try {
+        const interval = getPresetInterval(activePreset.id);
+        const outputsize = interval === '1min' || interval === '5min' ? 700 : 500;
+        const response = await fetch(
+          `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}`,
+          { cache: 'no-store' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`timeseries failed (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const values = Array.isArray(payload?.values) ? payload.values : [];
+        const normalized = values
+          .map((row) => {
+            const ts = toTimestampMs(row?.datetime);
+            const open = toNumber(row?.open);
+            const high = toNumber(row?.high);
+            const low = toNumber(row?.low);
+            const close = toNumber(row?.close);
+            const volume = Number.isFinite(toNumber(row?.volume)) ? Number(row.volume) : 0;
+            if (!Number.isFinite(ts) || !Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) return null;
+            return [ts, open, high, low, close, volume];
+          })
+          .filter(Boolean)
+          .sort((a, b) => a[0] - b[0]);
+
+        if (normalized.length > 0) {
+          data = OHLC_ONLY_PRESETS.has(activePreset.id)
+            ? normalized.map((row) => row.slice(0, 5))
+            : normalized;
+        }
+      } catch (twelveDataError) {
+        console.warn('[V.2_Trade] Twelve Data chart history failed:', twelveDataError);
+      }
+
+      if (!data && activePreset.dataUrl) {
         try {
           const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
           if (!response.ok) {
             throw new Error(`fetch failed (${response.status})`);
           }
           data = await response.json();
+          usingFallback = true;
         } catch (fetchError) {
-          console.warn('[V.2_Trade] Preset fetch failed, using fallback data:', fetchError);
+          console.warn('[V.2_Trade] Preset fetch failed, using local fallback data:', fetchError);
           data = getFallbackDataForPreset(activePreset.id);
           usingFallback = true;
         }
@@ -471,7 +629,7 @@ export default function V2TradePage() {
           : Highcharts.stockChart(containerRef.current, options);
 
       if (usingFallback) {
-        setError('Live demo feed unavailable. Showing local fallback dataset.');
+        setError('Using fallback chart dataset. Live Twelve Data history unavailable for this preset.');
       }
     } catch (loadError) {
       console.error('[V.2_Trade] Failed to load chart:', loadError);
@@ -712,7 +870,7 @@ export default function V2TradePage() {
               <div className="flex items-center justify-between mt-2 text-[10px]">
                 <span className="text-gray-500">{watchlist.length} symbols</span>
                 <div className="flex items-center gap-2">
-                  {stockConnected ? (
+                  {wsConnected ? (
                     <>
                       <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -721,7 +879,7 @@ export default function V2TradePage() {
                       <span className="text-emerald-400 font-medium">LIVE STREAMING</span>
                     </>
                   ) : (
-                    <span className="text-gray-500 font-medium">POLLING (10s)</span>
+                    <span className="text-gray-500 font-medium">CONNECTING...</span>
                   )}
                   <button
                     type="button"
@@ -851,7 +1009,7 @@ export default function V2TradePage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Live
                 </span>
-                <span className="text-emerald-400">Alpaca</span>
+                <span className="text-emerald-400">Twelve Data</span>
               </div>
             </div>
           ) : null}
@@ -870,21 +1028,12 @@ export default function V2TradePage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {activePreset.id === 'order-book-live' ? (
-                <button
-                  id="animation-toggle"
-                  type="button"
-                  className="rounded border border-cyan-500/50 bg-cyan-500/10 px-2 py-1 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20"
-                >
-                  Start animation
-                </button>
-              ) : null}
               {loading ? <span className="text-xs text-cyan-300">Loading...</span> : null}
             </div>
           </div>
 
           <div className="mb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
-            {CHART_PRESETS.map((preset) => {
+            {LIVE_CHART_PRESETS.map((preset) => {
               const active = preset.id === activePresetId;
               return (
                 <button

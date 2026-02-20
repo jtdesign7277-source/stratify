@@ -67,6 +67,7 @@ const RANGE_PRESETS_MORE = [
 ];
 
 const RIGHT_OFFSET_BARS = 30;
+const MAX_TICK_JUMP_RATIO = 0.25;
 const INTERVAL_TO_MS = {
   '1min': 60_000,
   '5min': 300_000,
@@ -400,15 +401,66 @@ export default function HighchartsStockChart({
             const m = JSON.parse(e.data);
             if (m.event !== 'price') return;
             const p = parseFloat(m.price);
+            if (!Number.isFinite(p) || p <= 0) return;
             const chart = chartRef.current?.chart;
             if (!chart) return;
             const ps = chart.get('price');
             if (!ps?.points?.length) return;
             const lp = ps.points[ps.points.length - 1];
             if (!lp) return;
-            const o = lp.open;
-            const h = Math.max(lp.high, p);
-            const l = Math.min(lp.low, p);
+
+            const prevClose = Number(lp.close);
+            if (!Number.isFinite(prevClose) || prevClose <= 0) return;
+            const jumpRatio = Math.abs(p - prevClose) / prevClose;
+            if (jumpRatio > MAX_TICK_JUMP_RATIO) return;
+
+            const intervalMs = getIntervalMs(interval);
+            const lastX = Number(lp.x);
+            const tickTs = toTimestampMs(m.timestamp || m.datetime || m.time) ?? Date.now();
+            const tickBucket = Math.floor(tickTs / intervalMs) * intervalMs;
+            const lastBucket = Math.floor(lastX / intervalMs) * intervalMs;
+
+            if (!Number.isFinite(tickBucket) || !Number.isFinite(lastBucket)) return;
+            if (tickBucket < lastBucket) return;
+
+            if (tickBucket > lastBucket) {
+              const newOpen = prevClose;
+              const newHigh = Math.max(newOpen, p);
+              const newLow = Math.min(newOpen, p);
+              ps.addPoint([tickBucket, newOpen, newHigh, newLow, p], true, false, false);
+
+              const volumeSeries = chart.get('volume');
+              if (volumeSeries) {
+                const up = theme.up;
+                const dn = theme.down;
+                volumeSeries.addPoint(
+                  {
+                    x: tickBucket,
+                    y: 0,
+                    color: p >= newOpen ? up + '44' : dn + '44',
+                    borderColor: p >= newOpen ? up + '77' : dn + '77',
+                  },
+                  true,
+                  false,
+                  false
+                );
+              }
+
+              setHover((prev) => ({
+                ...prev,
+                o: newOpen,
+                h: newHigh,
+                l: newLow,
+                c: p,
+                chg: p - newOpen,
+                pct: newOpen ? ((p - newOpen) / newOpen) * 100 : 0,
+              }));
+              return;
+            }
+
+            const o = Number(lp.open);
+            const h = Math.max(Number(lp.high), p);
+            const l = Math.min(Number(lp.low), p);
             lp.update({ open: o, high: h, low: l, close: p }, true, false);
             setHover((prev) => ({ ...prev, o, h, l, c: p, chg: p - o, pct: o ? ((p - o) / o) * 100 : 0 }));
           } catch {}
@@ -424,7 +476,7 @@ export default function HighchartsStockChart({
       try { wsRef.current?.close(); } catch {}
       wsRef.current = null; setIsLive(false);
     };
-  }, [symbol, interval]);
+  }, [symbol, interval, theme.down, theme.up]);
 
   // ─── SINGLE unified drag-to-pan + scroll-to-zoom handler ───
   // FIX: removed the old duplicate useEffect — this is the only drag/wheel handler
