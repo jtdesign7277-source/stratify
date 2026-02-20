@@ -95,7 +95,7 @@ export default function V2TradePage() {
       chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
       credits: { enabled: false }, title: { text: '' }, stockTools: { gui: { enabled: false } },
       navigator: { enabled: false },
-      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#94a3b8', buttonBackgroundColor: '#1e293b', buttonBorderColor: '#475569', rifleColor: '#94a3b8', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4, height: 12, margin: 4, liveRedraw: true },
+      scrollbar: { enabled: true, showFull: true, barBackgroundColor: '#475569', barBorderColor: '#64748b', barBorderRadius: 4, barBorderWidth: 1, buttonArrowColor: '#ffffff', buttonBackgroundColor: '#22c55e', buttonBorderColor: '#16a34a', buttonBorderRadius: 4, buttonBorderWidth: 1, rifleColor: '#cbd5e1', trackBackgroundColor: '#0f172a', trackBorderColor: '#334155', trackBorderRadius: 4, trackBorderWidth: 1, height: 18, margin: 4, liveRedraw: true },
       rangeSelector: { enabled: false },
       xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#ffffffcc', fontSize: '11px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
       yAxis: [
