@@ -272,7 +272,7 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
   const fmtV = (v) => { if (!v) return '—'; if (v >= 1e6) return (v/1e6).toFixed(1)+'M'; if (v >= 1e3) return (v/1e3).toFixed(1)+'K'; return v; };
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* OHLCV strip */}
       <div className="absolute top-2 left-3 z-10 flex items-center gap-3 text-[11px] font-mono">
         <span className="text-white/70 font-semibold">{symbol}</span>
@@ -338,7 +338,7 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-0" style={{ cursor: 'crosshair' }}>
+      <div className="flex-1 min-h-0 overflow-hidden" style={{ cursor: 'crosshair' }}>
         {loading && seed.ohlc.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-gray-500 text-sm animate-pulse">Loading {symbol}…</div>

@@ -272,7 +272,7 @@ export default function V2TradePage() {
       </div>
       <style>{`
         #v2-trade-container .highcharts-background {
-          fill: #0a0a0a;
+          fill: transparent;
         }
         #v2-trade-container .highcharts-title,
         #v2-trade-container .highcharts-axis-title,
