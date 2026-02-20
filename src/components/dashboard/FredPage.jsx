@@ -891,7 +891,6 @@ const FredPage = () => {
   ].filter((value, index, array) => array.indexOf(value) === index), []);
 
   const { seriesMap, loading, error, reload } = useFredSeries(seriesIds);
-  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
   const [exploreCollapsed, setExploreCollapsed] = useState(true);
   const [activeSymbol, setActiveSymbol] = useState('FRED:DGS10');
   const [activeLabel, setActiveLabel] = useState('10Y Treasury');
@@ -925,10 +924,7 @@ const FredPage = () => {
               />
             </div>
             <div className="min-h-0">
-              <EconCalendar
-                collapsed={calendarCollapsed}
-                onToggle={() => setCalendarCollapsed((prev) => !prev)}
-              />
+              <HistoricalTrends />
             </div>
           </div>
         </div>

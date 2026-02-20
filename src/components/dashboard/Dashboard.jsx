@@ -50,6 +50,7 @@ import OptionsPage from './OptionsPage';
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
+import EconomicsCalendarPage from './EconomicsCalendarPage';
 import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
@@ -1948,6 +1949,7 @@ export default function Dashboard({
           {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
+          {activeTab === 'calendar' && <EconomicsCalendarPage />}
           {activeTab === 'crypto' && <CryptoPage />}
           {activeTab === 'options' && <OptionsPage />}
           {activeTab === 'terminal' && (
