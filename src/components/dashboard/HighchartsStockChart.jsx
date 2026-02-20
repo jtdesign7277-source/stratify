@@ -84,9 +84,9 @@ const CHART_TYPES = [
 ];
 
 const SIZE_PRESETS = [
-  { label: 'S', value: 'small', height: '420px' },
-  { label: 'M', value: 'medium', height: '540px' },
-  { label: 'L', value: 'large', height: '640px' },
+  { label: 'S', value: 'small', height: '380px' },
+  { label: 'M', value: 'medium', height: '480px' },
+  { label: 'L', value: 'large', height: '560px' },
   { label: 'Fill', value: 'fill', height: '100%' },
 ];
 
@@ -265,12 +265,12 @@ export default function HighchartsStockChart({
         spacing: [0, 0, 0, 0],
         panning: { enabled: true, type: 'xy' },
         panKey: null,
-        zooming: { mouseWheel: { enabled: true, sensitivity: 1.2 }, pinchType: 'x' },
+        zooming: { type: undefined, mouseWheel: { enabled: true, sensitivity: 1.2 }, pinchType: 'x' },
       },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
       navigator: { enabled: true, height: 28, outlineColor: '#1a2332', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f2937', borderColor: '#4a5568' } },
-      scrollbar: { enabled: true, barBackgroundColor: '#1f2937', barBorderColor: '#1f2937', barBorderRadius: 4, buttonArrowColor: '#4a5568', buttonBackgroundColor: '#111827', buttonBorderColor: '#111827', rifleColor: '#4a5568', trackBackgroundColor: '#111827', trackBorderColor: '#111827', trackBorderRadius: 4, height: 12, liveRedraw: false },
+      scrollbar: { enabled: true, barBackgroundColor: '#1f2937', barBorderColor: '#1f2937', barBorderRadius: 4, buttonArrowColor: '#9ca3af', buttonBackgroundColor: '#111827', buttonBorderColor: '#111827', rifleColor: '#9ca3af', trackBackgroundColor: '#0b1220', trackBorderColor: '#1f2937', trackBorderRadius: 4, height: 14, margin: 6, liveRedraw: false },
       rangeSelector: { enabled: false },
       xAxis: {
         gridLineWidth: 0,
@@ -280,6 +280,7 @@ export default function HighchartsStockChart({
         crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1 },
         minPadding: 0,
         maxPadding: 0.06,
+        overscroll: rightOffsetMs,
       },
       yAxis: [
         {
@@ -320,7 +321,7 @@ export default function HighchartsStockChart({
       },
       series,
     };
-  }, [symbol, chartType, activeInd, theme]);
+  }, [symbol, chartType, activeInd, theme, rightOffsetMs]);
 
   // ─── Load ───
   const loadData = useCallback(async () => {
@@ -721,12 +722,14 @@ export default function HighchartsStockChart({
         @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
         .highcharts-range-selector-group{display:none!important}
         .highcharts-credits{display:none!important}
-        .highcharts-scrollbar{opacity:.35;transition:opacity .2s}
+        .highcharts-scrollbar{opacity:1;transition:opacity .2s}
         .highcharts-scrollbar:hover{opacity:1}
         .highcharts-navigator-mask-inside{fill:rgba(59,130,246,.04)}
         .highcharts-navigator-outline{stroke:#1a2332}
         .highcharts-stock-tools-wrapper{display:none!important}
         .highcharts-bindings-wrapper{display:none!important}
+        .highcharts-root,.highcharts-container{cursor:grab}
+        .highcharts-root:active,.highcharts-container:active{cursor:grabbing}
         *::-webkit-scrollbar{width:4px}
         *::-webkit-scrollbar-track{background:#0d1117}
         *::-webkit-scrollbar-thumb{background:#1f2937;border-radius:4px}
