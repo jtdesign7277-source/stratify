@@ -1,6 +1,37 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Highcharts from 'highcharts/highstock';
 
+// Register custom hand/grip symbol for navigator handles
+if (Highcharts.SVGRenderer && !Highcharts.SVGRenderer.prototype.symbols['navigator-handle']) {
+  Highcharts.SVGRenderer.prototype.symbols['navigator-handle'] = function(x, y, w, h) {
+    // Hand/grip icon: rounded rect with 3 horizontal grip lines
+    var r = 3;
+    var path = [
+      // Rounded rectangle
+      'M', x + r, y,
+      'L', x + w - r, y,
+      'A', r, r, 0, 0, 1, x + w, y + r,
+      'L', x + w, y + h - r,
+      'A', r, r, 0, 0, 1, x + w - r, y + h,
+      'L', x + r, y + h,
+      'A', r, r, 0, 0, 1, x, y + h - r,
+      'L', x, y + r,
+      'A', r, r, 0, 0, 1, x + r, y,
+      'Z',
+      // Grip line 1
+      'M', x + 4, y + h * 0.3,
+      'L', x + w - 4, y + h * 0.3,
+      // Grip line 2
+      'M', x + 4, y + h * 0.5,
+      'L', x + w - 4, y + h * 0.5,
+      // Grip line 3
+      'M', x + 4, y + h * 0.7,
+      'L', x + w - 4, y + h * 0.7
+    ];
+    return path;
+  };
+}
+
 const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
 const TD_REST = 'https://api.twelvedata.com';
 
@@ -94,7 +125,7 @@ export default function V2TradePage() {
     var chart = Highcharts.stockChart(containerRef.current, {
       chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
       credits: { enabled: false }, title: { text: '' }, stockTools: { gui: { enabled: false } },
-      navigator: { enabled: false },
+      navigator: { enabled: true, height: 30, outlineColor: '#1a233244', maskFill: 'rgba(59,130,246,0.08)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#ffffffaa', fontSize: '10px' } } }, handles: { backgroundColor: '#22c55e', borderColor: '#16a34a', width: 14, height: 24, symbols: ['navigator-handle', 'navigator-handle'], lineWidth: 1 } },
       scrollbar: { enabled: true, showFull: true, barBackgroundColor: '#475569', barBorderColor: '#64748b', barBorderRadius: 4, barBorderWidth: 1, buttonArrowColor: '#ffffff', buttonBackgroundColor: '#22c55e', buttonBorderColor: '#16a34a', buttonBorderRadius: 4, buttonBorderWidth: 1, rifleColor: '#cbd5e1', trackBackgroundColor: '#0f172a', trackBorderColor: '#334155', trackBorderRadius: 4, trackBorderWidth: 1, height: 18, margin: 4, liveRedraw: true },
       rangeSelector: { enabled: false },
       xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#ffffffcc', fontSize: '11px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
