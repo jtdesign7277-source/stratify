@@ -1654,10 +1654,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                             LSE
                           </span>
                         )}
-                        {inWatchlist ? (
+                        {inWatchlist && (
                           <CheckCircle2 className="w-5 h-5 text-emerald-400" strokeWidth={1.75} />
-                        ) : (
-                          <Plus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
                         )}
                       </div>
                     </div>
