@@ -6,6 +6,7 @@ import ExportDataModule from 'highcharts/modules/export-data';
 import AccessibilityModule from 'highcharts/modules/accessibility';
 import AnnotationsAdvancedModule from 'highcharts/modules/annotations-advanced';
 import StockToolsModule from 'highcharts/modules/stock-tools';
+import HollowCandlestickModule from 'highcharts/modules/hollowcandlestick';
 import { CHART_PRESETS, buildChartOptions } from './charts/chartPresets';
 
 const initModule = (moduleFactory) => {
@@ -23,6 +24,41 @@ initModule(ExportDataModule);
 initModule(AccessibilityModule);
 initModule(AnnotationsAdvancedModule);
 initModule(StockToolsModule);
+initModule(HollowCandlestickModule);
+
+if (!Highcharts.__stratifyVolumeWidthPluginInstalled) {
+  Highcharts.addEvent(
+    Highcharts.seriesTypes.column,
+    'afterColumnTranslate',
+    function applyVolumeWidthVariation() {
+      const series = this;
+
+      if (!series.options.baseVolume || !series.is('column') || !series.points) return;
+
+      const volumeSeries = series.chart.get(series.options.baseVolume);
+      const processedYData = volumeSeries?.getColumn('y', true);
+      if (!volumeSeries || !processedYData) return;
+
+      const maxVolume = volumeSeries.dataMax;
+      const metrics = series.getColumnMetrics();
+      const baseWidth = metrics?.width || 0;
+      if (!maxVolume || !baseWidth) return;
+
+      series.points.forEach((point, i) => {
+        const volume = Number(processedYData[i] ?? 0);
+        if (!Number.isFinite(volume) || !point.shapeArgs) return;
+
+        const scale = Math.max(0.08, volume / maxVolume);
+        const width = baseWidth * scale;
+
+        point.shapeArgs.x = point.shapeArgs.x - (width / 2) + (point.shapeArgs.width / 2);
+        point.shapeArgs.width = width;
+      });
+    },
+  );
+
+  Highcharts.__stratifyVolumeWidthPluginInstalled = true;
+}
 
 export default function V2TradePage() {
   const containerRef = useRef(null);

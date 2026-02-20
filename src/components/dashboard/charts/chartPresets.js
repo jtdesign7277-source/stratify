@@ -11,6 +11,12 @@ export const CHART_PRESETS = [
     description: 'Resistance zone + Fibonacci + trendline.',
     dataUrl: 'https://www.highcharts.com/samples/data/mini-ohlc.json',
   },
+  {
+    id: 'volume-proportional-width',
+    name: 'Volume width candlesticks',
+    description: 'Hollow candlesticks with proportional width by volume.',
+    dataUrl: 'https://demo-live-data.highcharts.com/aapl-ohlcv.json',
+  },
 ];
 
 const baseDarkTheme = {
@@ -179,9 +185,122 @@ const buildTechnicalWithAnnotations = (data) => ({
   ],
 });
 
+const buildVolumeProportionalWidth = (data) => {
+  const ohlc = [];
+  const volume = [];
+  let previousCandleClose = 0;
+
+  for (let i = 0; i < data.length; i += 1) {
+    const row = data[i];
+    if (!Array.isArray(row) || row.length < 6) continue;
+
+    ohlc.push([
+      row[0], // date
+      row[1], // open
+      row[2], // high
+      row[3], // low
+      row[4], // close
+    ]);
+
+    volume.push({
+      x: row[0],
+      y: row[5],
+      color: row[4] > previousCandleClose ? '#466742' : '#a23f43',
+    });
+
+    previousCandleClose = row[4];
+  }
+
+  return {
+    ...baseDarkTheme,
+    title: {
+      text: 'Volume width candlesticks',
+      style: { color: '#f8fafc' },
+    },
+    plotOptions: {
+      series: {
+        dataGrouping: {
+          units: [
+            ['week', [1]],
+            ['month', [1, 2, 3, 4, 6]],
+          ],
+        },
+        groupPadding: 0,
+        pointPadding: 0,
+      },
+    },
+    rangeSelector: {
+      ...baseDarkTheme.rangeSelector,
+      selected: 4,
+    },
+    navigator: {
+      enabled: false,
+    },
+    yAxis: [
+      {
+        labels: {
+          align: 'left',
+          style: { color: '#94a3b8' },
+        },
+        height: '80%',
+        resize: { enabled: true },
+      },
+      {
+        labels: {
+          align: 'left',
+          style: { color: '#94a3b8' },
+        },
+        top: '80%',
+        height: '20%',
+        offset: 0,
+      },
+    ],
+    tooltip: {
+      shape: 'square',
+      headerShape: 'callout',
+      borderWidth: 0,
+      shadow: false,
+      fixed: true,
+      backgroundColor: '#0a1628',
+      style: { color: '#e2e8f0' },
+    },
+    series: [
+      {
+        type: 'hollowcandlestick',
+        id: 'aapl-ohlc',
+        name: 'AAPL Stock Price',
+        data: ohlc,
+        baseVolume: 'aapl-volume',
+      },
+      {
+        type: 'column',
+        id: 'aapl-volume',
+        name: 'AAPL Volume',
+        data: volume,
+        yAxis: 1,
+        baseVolume: 'aapl-volume',
+        borderRadius: 0,
+      },
+    ],
+    responsive: {
+      rules: [
+        {
+          condition: { maxWidth: 800 },
+          chartOptions: {
+            rangeSelector: { inputEnabled: false },
+          },
+        },
+      ],
+    },
+  };
+};
+
 export const buildChartOptions = ({ presetId, data }) => {
   if (presetId === 'technical-annotations') {
     return buildTechnicalWithAnnotations(data);
+  }
+  if (presetId === 'volume-proportional-width') {
+    return buildVolumeProportionalWidth(data);
   }
   return buildCandlestickDemo(data);
 };
