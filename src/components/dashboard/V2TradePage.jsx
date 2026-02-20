@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Highcharts from 'highcharts/highstock';
+import AnnotationsAdvanced from 'highcharts/modules/annotations-advanced';
+import StockTools from 'highcharts/modules/stock-tools';
+
+var initMod = function(mod) { try { var fn = mod && mod.default || mod; if (typeof fn === 'function') fn(Highcharts); } catch(e) { console.warn('HC mod:', e); } };
+initMod(AnnotationsAdvanced);
+initMod(StockTools);
+
+const DRAWING_TOOLS = [
+  { label: '─', title: 'Horizontal Line', type: 'infinityLine' },
+  { label: '⟋', title: 'Trend Line', type: 'crookedLine' },
+  { label: '│', title: 'Vertical Line', type: 'verticalLine' },
+  { label: '═', title: 'Parallel Channel', type: 'parallelChannel' },
+  { label: 'Fib', title: 'Fibonacci Retracement', type: 'fibonacci' },
+  { label: '✕', title: 'Clear All', type: 'clearAll' },
+];
 
 const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
 const TD_REST = 'https://api.twelvedata.com';
@@ -71,6 +86,7 @@ export default function V2TradePage() {
   const [theme, setTheme] = useState(CANDLE_THEMES.find(function(t) { return t.label === prefs.themeLabel; }) || CANDLE_THEMES[0]);
   const [showColors, setShowColors] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [activeTool, setActiveTool] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [hover, setHover] = useState({ o: null, h: null, l: null, c: null, v: null });
@@ -93,7 +109,9 @@ export default function V2TradePage() {
     });
     var chart = Highcharts.stockChart(containerRef.current, {
       chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
-      credits: { enabled: false }, title: { text: '' }, stockTools: { gui: { enabled: false } },
+      credits: { enabled: false }, title: { text: '' },
+      stockTools: { gui: { enabled: false } },
+      navigation: { bindings: { verticalLine: { className: 'highcharts-verticalLine' }, infinityLine: { className: 'highcharts-infinityLine' }, crookedLine: { className: 'highcharts-crookedLine' }, parallelChannel: { className: 'highcharts-parallelChannel' }, fibonacci: { className: 'highcharts-fibonacci' } }, annotationsOptions: { shapeOptions: { stroke: '#22c55e', strokeWidth: 2 }, labelOptions: { style: { color: '#ffffff', fontSize: '11px' }, backgroundColor: 'rgba(0,0,0,0.6)', borderColor: '#22c55e' } } },
       navigator: { enabled: true, height: 40, outlineColor: '#334155', outlineWidth: 1, maskFill: 'rgba(34,197,94,0.08)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#ffffffaa', fontSize: '10px' } } }, handles: { backgroundColor: '#22c55e', borderColor: '#16a34a', width: 16, height: 30 } },
       scrollbar: { enabled: false },
       rangeSelector: { enabled: false },
@@ -225,6 +243,35 @@ export default function V2TradePage() {
   }, []);
 
   var handleSearchSubmit = function(sym) { var s = sym.toUpperCase(); setSearch(''); setShowSearch(false); setSymbol(s); savePrefs({ symbol: s }); };
+
+  var handleDrawingTool = function(tool) {
+    var chart = chartObjRef.current;
+    if (!chart) return;
+    if (tool.type === 'clearAll') {
+      // Remove all annotations
+      while (chart.annotations && chart.annotations.length > 0) {
+        chart.removeAnnotation(chart.annotations[0]);
+      }
+      setActiveTool(null);
+      return;
+    }
+    // Toggle tool
+    if (activeTool === tool.type) {
+      // Deselect
+      chart.navigationBindings && chart.navigationBindings.deselectAnnotation && chart.navigationBindings.deselectAnnotation();
+      setActiveTool(null);
+    } else {
+      setActiveTool(tool.type);
+      // Trigger the Highcharts navigation binding
+      if (chart.navigationBindings) {
+        var binding = chart.navigationBindings.boundClassNames && chart.navigationBindings.boundClassNames['highcharts-' + tool.type];
+        if (binding) {
+          chart.navigationBindings.selectedButtonElement = null;
+          chart.navigationBindings.selectedButton = binding;
+        }
+      }
+    }
+  };
   var fmt = function(v) { return v == null ? '—' : '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   var fmtV = function(v) { if (!v) return '—'; if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K'; return v; };
 
@@ -284,7 +331,28 @@ export default function V2TradePage() {
           </div>
         </div>
       </div>
-      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ cursor: 'crosshair' }} />
+      {/* Chart + Drawing toolbar */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Drawing tools sidebar */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-1 py-2 px-1 border-r border-white/10">
+          {DRAWING_TOOLS.map(function(tool) {
+            var isActive = activeTool === tool.type;
+            var isClear = tool.type === 'clearAll';
+            return (
+              <button
+                key={tool.type}
+                title={tool.title}
+                onClick={function() { handleDrawingTool(tool); }}
+                className={'w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ' + (isClear ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300' : isActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_8px_rgba(34,197,94,0.3)]' : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent')}
+              >
+                {tool.label}
+              </button>
+            );
+          })}
+        </div>
+        {/* Chart */}
+        <div ref={containerRef} className="flex-1 min-h-0 min-w-0" style={{ cursor: activeTool ? 'crosshair' : 'default' }} />
+      </div>
       <div className="flex-shrink-0 flex items-center justify-center gap-1 py-2">
         {INTERVALS.map(function(iv) {
           return (
