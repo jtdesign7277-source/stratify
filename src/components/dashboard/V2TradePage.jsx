@@ -7,6 +7,8 @@ import AccessibilityModule from 'highcharts/modules/accessibility';
 import AnnotationsAdvancedModule from 'highcharts/modules/annotations-advanced';
 import StockToolsModule from 'highcharts/modules/stock-tools';
 import HollowCandlestickModule from 'highcharts/modules/hollowcandlestick';
+import IndicatorsModule from 'highcharts/indicators/indicators';
+import IchimokuModule from 'highcharts/indicators/ichimoku-kinko-hyo';
 import { CHART_PRESETS, buildChartOptions } from './charts/chartPresets';
 
 const initModule = (moduleFactory) => {
@@ -25,6 +27,8 @@ initModule(AccessibilityModule);
 initModule(AnnotationsAdvancedModule);
 initModule(StockToolsModule);
 initModule(HollowCandlestickModule);
+initModule(IndicatorsModule);
+initModule(IchimokuModule);
 
 if (!Highcharts.__stratifyVolumeWidthPluginInstalled) {
   Highcharts.addEvent(
