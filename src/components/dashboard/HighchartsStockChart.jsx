@@ -84,9 +84,9 @@ const CHART_TYPES = [
 ];
 
 const SIZE_PRESETS = [
-  { label: 'S', value: 'small', height: '300px' },
-  { label: 'M', value: 'medium', height: '500px' },
-  { label: 'L', value: 'large', height: '700px' },
+  { label: 'S', value: 'small', height: '420px' },
+  { label: 'M', value: 'medium', height: '540px' },
+  { label: 'L', value: 'large', height: '640px' },
   { label: 'Fill', value: 'fill', height: '100%' },
 ];
 
@@ -201,7 +201,7 @@ export default function HighchartsStockChart({
   const [error, setError] = useState(null);
   const [interval, setIv] = useState('1day');
   const [chartType, setChartType] = useState('candlestick');
-  const [activeInd, setActiveInd] = useState(['sma20', 'sma50']);
+  const [activeInd, setActiveInd] = useState([]);
   const [theme, setTheme] = useState(CANDLE_THEMES[0]);
   const [chartSize, setChartSize] = useState(defaultSize);
   const [isFs, setIsFs] = useState(false);
@@ -263,8 +263,8 @@ export default function HighchartsStockChart({
         height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
-        panning: { enabled: true, type: 'x', panKey: 'shift' },
-        zooming: { type: 'x', mouseWheel: { enabled: true, sensitivity: 1.35 }, pinchType: 'x' },
+        panning: { enabled: true, type: 'x' },
+        zooming: { mouseWheel: { enabled: true, sensitivity: 1.35 }, pinchType: 'x' },
       },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
@@ -543,6 +543,7 @@ export default function HighchartsStockChart({
   }, [rightOffsetMs]);
 
   const h = isFs ? '100vh' : (SIZE_PRESETS.find((s) => s.value === chartSize)?.height || '100%');
+  const maxChartHeight = isFs ? '100vh' : 'calc(100vh - 260px)';
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
 
   // ─── Styles ───
@@ -553,7 +554,7 @@ export default function HighchartsStockChart({
   const DI = (a) => ({ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '5px 10px', backgroundColor: a ? 'rgba(59,130,246,0.1)' : 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: a ? '#60a5fa' : '#8892a0', fontSize: '11px', textAlign: 'left' });
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: h, backgroundColor: '#000', position: 'relative', overflow: 'hidden', borderRadius: isFs ? '0' : '6px', border: isFs ? 'none' : '1px solid #111827' }}>
+    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: h, maxHeight: maxChartHeight, backgroundColor: '#000', position: 'relative', overflow: 'hidden', borderRadius: isFs ? '0' : '6px', border: isFs ? 'none' : '1px solid #111827' }}>
 
       {/* ═══ TOP BAR ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 10px', backgroundColor: '#000', borderBottom: '1px solid #111827', flexShrink: 0 }}>
