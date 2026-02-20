@@ -260,6 +260,7 @@ export default function HighchartsStockChart({
       chart: {
         backgroundColor: '#000',
         style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" },
+        height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
         panning: { enabled: true, type: 'x', panKey: 'shift' },
