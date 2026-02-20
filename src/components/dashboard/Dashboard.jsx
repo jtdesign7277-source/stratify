@@ -1757,7 +1757,14 @@ export default function Dashboard({
               addTrade={addTrade}
             />
           )}
-          {activeTab === 'v2-trade' && <V2TradePage />}
+          {activeTab === 'v2-trade' && (
+            <V2TradePage
+              watchlist={watchlist}
+              onAddToWatchlist={addToWatchlist}
+              onRemoveFromWatchlist={removeFromWatchlist}
+              onReorderWatchlist={reorderWatchlist}
+            />
+          )}
           {activeTab === 'trade' && (
             <ProGate
               featureName="Paper Trading"
