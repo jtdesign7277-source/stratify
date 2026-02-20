@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { X } from 'lucide-react';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
@@ -34,7 +34,7 @@ import V2TradePage from './V2TradePage';
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
-import AnalyticsPage from './AnalyticsPage';
+const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 import TradePage from './TradePage';
 import MoreInfoPage from './MoreInfoPage';
@@ -1795,14 +1795,16 @@ export default function Dashboard({
               featureName="Analytics"
               description="Deep portfolio analytics, performance metrics, and risk analysis."
             >
-              <AnalyticsPage
-                themeClasses={themeClasses}
-                tradeHistory={trades}
-                savedStrategies={savedStrategies}
-                deployedStrategies={deployedStrategies}
-                alpacaData={alpacaData}
-                watchlist={watchlist}
-              />
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading analytics...</div>}>
+                <AnalyticsPage
+                  themeClasses={themeClasses}
+                  tradeHistory={trades}
+                  savedStrategies={savedStrategies}
+                  deployedStrategies={deployedStrategies}
+                  alpacaData={alpacaData}
+                  watchlist={watchlist}
+                />
+              </Suspense>
             </ProGate>
           )}
           {/* {activeTab === 'advanced' && <AdvancedChartsPage />} */}

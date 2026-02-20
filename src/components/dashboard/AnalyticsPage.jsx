@@ -15,9 +15,9 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-// Initialize Highcharts modules
-HighchartsMore(Highcharts);
-SolidGauge(Highcharts);
+// Initialize Highcharts modules (guard against double-init)
+if (typeof HighchartsMore === 'function') HighchartsMore(Highcharts);
+if (typeof SolidGauge === 'function') SolidGauge(Highcharts);
 
 // Highcharts global dark theme
 Highcharts.setOptions({
