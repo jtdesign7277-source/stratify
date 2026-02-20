@@ -400,7 +400,7 @@ export default function V2TradePage() {
         <div className="flex items-center gap-1">
         {INTERVALS.map(function(iv) {
           return (
-            <button key={iv.label} onClick={function() { setInterval_(iv.value); savePrefs({ interval: iv.value }); }} className={'px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ' + (interval === iv.value ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-gray-500 border border-transparent hover:text-white hover:bg-white/5')}>
+            <button key={iv.label} onClick={function() { setInterval_(iv.value); savePrefs({ interval: iv.value }); }} className={'px-3 py-1 text-sm font-semibold rounded transition-colors ' + (interval === iv.value ? 'text-emerald-400' : 'text-gray-500 hover:text-white')}>
               {iv.label}
             </button>
           );
