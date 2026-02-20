@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronsRight } from 'lucide-react';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import * as am5stock from '@amcharts/amcharts5/stock';
 import am5themes_Dark from '@amcharts/amcharts5/themes/Dark';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
+import AlpacaOrderTicket from './AlpacaOrderTicket';
+import {
+  subscribeTwelveDataQuotes,
+  subscribeTwelveDataStatus,
+} from '../../services/twelveDataWebSocket';
 
 const TIMEFRAME_GROUPS = [
   {
@@ -41,6 +46,36 @@ const TIMEFRAME_GROUPS = [
 
 const TIMEFRAMES = TIMEFRAME_GROUPS.flatMap((group) => group.options);
 
+const TWELVE_INTERVAL_MAP = {
+  '1m': '1min',
+  '2m': '1min',
+  '3m': '1min',
+  '5m': '5min',
+  '10m': '5min',
+  '15m': '15min',
+  '20m': '15min',
+  '30m': '30min',
+  '1h': '1h',
+  '2h': '1h',
+  '4h': '4h',
+  '1d': '1day',
+  '1w': '1week',
+  '1mo': '1month',
+  '1q': '1month',
+};
+
+const TWELVE_INTERVAL_MS = {
+  '1min': 60_000,
+  '5min': 300_000,
+  '15min': 900_000,
+  '30min': 1_800_000,
+  '1h': 3_600_000,
+  '4h': 14_400_000,
+  '1day': 86_400_000,
+  '1week': 604_800_000,
+  '1month': 2_592_000_000,
+};
+
 const RANGE_PRESETS = [
   { key: '1D', label: '1D', days: 1, tradingDays: true },
   { key: '5D', label: '5D', days: 5, tradingDays: true },
@@ -66,23 +101,6 @@ const getTradingDaysAgoIso = (tradingDays) => {
     if (day !== 0 && day !== 6) {
       remaining -= 1;
     }
-  }
-  return date.toISOString();
-};
-
-const getRangeStartIso = (rangePreset) => {
-  if (!rangePreset) return undefined;
-  if (rangePreset.days) {
-    return rangePreset.tradingDays
-      ? getTradingDaysAgoIso(rangePreset.days)
-      : new Date(Date.now() - rangePreset.days * 24 * 60 * 60 * 1000).toISOString();
-  }
-  const date = new Date();
-  if (rangePreset.months) {
-    date.setMonth(date.getMonth() - rangePreset.months);
-  }
-  if (rangePreset.years) {
-    date.setFullYear(date.getFullYear() - rangePreset.years);
   }
   return date.toISOString();
 };
@@ -143,6 +161,20 @@ const formatTimestamp = (value) => {
   return `${lookup.month} ${lookup.day}, ${lookup.year} at ${lookup.hour}:${lookup.minute} ${lookup.dayPeriod} ${lookup.timeZoneName}`;
 };
 
+const toTimestampMs = (value) => {
+  if (value == null) return NaN;
+  if (typeof value === 'number') return value > 10_000_000_000 ? value : value * 1000;
+  const raw = String(value).trim();
+  if (!raw) return NaN;
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  let ts = Date.parse(normalized);
+  if (!Number.isFinite(ts)) ts = Date.parse(`${normalized}Z`);
+  return ts;
+};
+
+const getTwelveInterval = (timeframeKey) => TWELVE_INTERVAL_MAP[timeframeKey] || '1day';
+const getTwelveIntervalMs = (interval) => TWELVE_INTERVAL_MS[interval] || TWELVE_INTERVAL_MS['1day'];
+
 const ORDER_TYPE_LABELS = {
   market: 'Market',
   limit: 'Limit',
@@ -157,6 +189,12 @@ const ORDER_TYPE_OPTIONS = [
   { value: 'stop', label: 'Stop' },
   { value: 'stop_limit', label: 'Stop Limit' },
   { value: 'trailing_stop', label: 'Trailing Stop' },
+];
+
+const TIME_IN_FORCE_OPTIONS = [
+  { value: 'day', label: 'DAY' },
+  { value: 'gtc', label: 'GTC' },
+  { value: 'ioc', label: 'IOC' },
 ];
 
 export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
@@ -181,6 +219,9 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [orderSide, setOrderSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
   const [orderQty, setOrderQty] = useState('1');
+  const [sizeMode, setSizeMode] = useState('shares');
+  const [dollarAmount, setDollarAmount] = useState('');
+  const [timeInForce, setTimeInForce] = useState('day');
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
   const [trailAmount, setTrailAmount] = useState('');
@@ -344,6 +385,11 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     return Number.isFinite(parsed) ? parsed : 0;
   }, [orderQty]);
 
+  const dollarAmountNumber = useMemo(() => {
+    const parsed = parseFloat(dollarAmount);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [dollarAmount]);
+
   const limitPriceNumber = useMemo(() => {
     const parsed = parseFloat(limitPrice);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -365,14 +411,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
 
   const bidPrice = quote?.bid ?? null;
   const askPrice = quote?.ask ?? null;
-
-  const priceDirection = useMemo(() => {
-    const reference = quote?.open ?? lastPriceRef.current;
-    if (!marketPrice || !reference) return 'neutral';
-    if (marketPrice > reference) return 'up';
-    if (marketPrice < reference) return 'down';
-    return 'neutral';
-  }, [marketPrice, quote?.open]);
 
   useEffect(() => {
     if (marketPrice) {
@@ -398,7 +436,13 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   }, [orderType, limitPriceNumber, stopPriceNumber, marketPrice]);
 
   const estimatedTotal =
-    orderQtyNumber > 0 && priceForEstimate > 0 ? orderQtyNumber * priceForEstimate : 0;
+    sizeMode === 'dollars'
+      ? dollarAmountNumber > 0
+        ? dollarAmountNumber
+        : 0
+      : orderQtyNumber > 0 && priceForEstimate > 0
+        ? orderQtyNumber * priceForEstimate
+        : 0;
 
   const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
   const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
@@ -409,8 +453,10 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     (requiresStop && stopPriceNumber <= 0) ||
     (requiresTrail && trailAmountNumber <= 0);
 
-  const canReview =
-    ticker && orderQtyNumber > 0 && !isPriceMissing && orderStep === 'entry';
+  const hasValidSize =
+    sizeMode === 'dollars' ? dollarAmountNumber > 0 : orderQtyNumber > 0;
+
+  const canReview = ticker && hasValidSize && !isPriceMissing && orderStep === 'entry';
 
   const positionForTicker = useMemo(() => {
     return positions.find(
@@ -437,19 +483,21 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
             maximumFractionDigits: 4,
           });
 
-  const priceTextClass =
-    priceDirection === 'up'
-      ? 'text-emerald-400'
-      : priceDirection === 'down'
-        ? 'text-red-400'
-        : 'text-white';
-
   const actionButtonClass =
     orderSide === 'buy'
       ? 'bg-emerald-500 hover:bg-emerald-400'
       : 'bg-red-500 hover:bg-red-400';
 
   const orderTypeLabel = ORDER_TYPE_LABELS[orderType] || 'Market';
+  const timeInForceLabel =
+    TIME_IN_FORCE_OPTIONS.find((option) => option.value === timeInForce)?.label || 'DAY';
+  const orderAmountLabel = sizeMode === 'dollars' ? 'Dollars' : 'Shares';
+  const orderAmountValue =
+    sizeMode === 'dollars'
+      ? estimatedTotal > 0
+        ? formatUsd(estimatedTotal)
+        : '--'
+      : orderQtyNumber;
 
   const orderTimestamp =
     orderStatus.data?.filled_at ||
@@ -457,17 +505,16 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     orderStatus.data?.created_at ||
     orderStatus.timestamp;
 
-  const inputBaseClass =
-    'w-28 rounded-md border border-white/10 bg-transparent px-2 py-1 text-right text-sm text-white focus:border-white/30 focus:outline-none';
-  const selectBaseClass =
-    'w-full rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none';
-
   const handleReview = () => {
     if (!ticker) {
       setOrderError('Select a ticker to continue.');
       return;
     }
-    if (orderQtyNumber <= 0) {
+    if (sizeMode === 'dollars' && dollarAmountNumber <= 0) {
+      setOrderError('Enter a valid dollar amount.');
+      return;
+    }
+    if (sizeMode !== 'dollars' && orderQtyNumber <= 0) {
       setOrderError('Enter a valid share quantity.');
       return;
     }
@@ -499,11 +546,15 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     try {
       const payload = {
         symbol: ticker,
-        qty: orderQtyNumber,
         side: orderSide,
         type: orderType,
-        time_in_force: 'day',
+        time_in_force: timeInForce,
       };
+      if (sizeMode === 'dollars') {
+        payload.notional = dollarAmountNumber;
+      } else {
+        payload.qty = orderQtyNumber;
+      }
       if (requiresLimit) {
         payload.limit_price = limitPriceNumber;
       }
@@ -825,6 +876,86 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     }
   }, [ticker]);
 
+  const applyLiveTickToChart = useCallback((price, timestamp) => {
+    const chart = chartRef.current;
+    if (!chart?.valueSeries || !Number.isFinite(price)) return;
+
+    const tf = getTimeframe(timeframe);
+    const interval = getTwelveInterval(tf.key);
+    const intervalMs = getTwelveIntervalMs(interval);
+
+    const tickTs = toTimestampMs(timestamp || Date.now());
+    if (!Number.isFinite(tickTs)) return;
+    const tickBucket = Math.floor(tickTs / intervalMs) * intervalMs;
+
+    const priceData = chart.valueSeries.data;
+    const volumeData = chart.volumeSeries?.data;
+    const navigatorData = chart.sbSeries?.data;
+    if (!priceData || priceData.length === 0) return;
+
+    const priceLastIndex = priceData.length - 1;
+    const priceLast = priceData.getIndex(priceLastIndex);
+    if (!priceLast) return;
+
+    const lastTs = Number(priceLast.Date);
+    if (!Number.isFinite(lastTs)) return;
+    const lastBucket = Math.floor(lastTs / intervalMs) * intervalMs;
+    if (tickBucket < lastBucket) return;
+
+    if (tickBucket > lastBucket) {
+      const open = Number(priceLast.Close);
+      const safeOpen = Number.isFinite(open) ? open : price;
+      const nextPoint = {
+        Date: tickBucket,
+        Open: safeOpen,
+        High: Math.max(safeOpen, price),
+        Low: Math.min(safeOpen, price),
+        Close: price,
+        Volume: 0,
+      };
+
+      priceData.push(nextPoint);
+      if (volumeData) volumeData.push(nextPoint);
+      if (navigatorData) navigatorData.push({ Date: tickBucket, Close: price });
+      return;
+    }
+
+    const nextPoint = {
+      ...priceLast,
+      Close: price,
+      High: Math.max(Number(priceLast.High) || price, price),
+      Low: Math.min(Number(priceLast.Low) || price, price),
+    };
+    priceData.setIndex(priceLastIndex, nextPoint);
+
+    if (volumeData && volumeData.length > 0) {
+      const volumeLastIndex = volumeData.length - 1;
+      const volumeLast = volumeData.getIndex(volumeLastIndex);
+      if (volumeLast) {
+        volumeData.setIndex(volumeLastIndex, {
+          ...volumeLast,
+          Date: nextPoint.Date,
+          Open: nextPoint.Open,
+          High: nextPoint.High,
+          Low: nextPoint.Low,
+          Close: nextPoint.Close,
+        });
+      }
+    }
+
+    if (navigatorData && navigatorData.length > 0) {
+      const navigatorLastIndex = navigatorData.length - 1;
+      const navigatorLast = navigatorData.getIndex(navigatorLastIndex);
+      if (navigatorLast) {
+        navigatorData.setIndex(navigatorLastIndex, {
+          ...navigatorLast,
+          Date: nextPoint.Date,
+          Close: nextPoint.Close,
+        });
+      }
+    }
+  }, [timeframe]);
+
   useEffect(() => {
     let cancelled = false;
     const chart = chartRef.current;
@@ -833,100 +964,109 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     const loadData = async () => {
       try {
         const selectedTimeframe = getTimeframe(timeframe);
+        const twelveInterval = getTwelveInterval(selectedTimeframe.key);
+        const isIntraday = selectedTimeframe.unit === 'minute' || selectedTimeframe.unit === 'hour';
         const rangePreset = getRangePreset(rangeKey);
-        const start = getRangeStartIso(rangePreset);
-        const limit = estimateLimit(rangePreset, timeframe);
+        const outputsize = estimateLimit(rangePreset, timeframe);
+        const normalizedTicker = String(ticker || '').trim().toUpperCase().replace(/^\$/, '');
 
         const response = await fetch(
-          `/api/bars?symbol=${encodeURIComponent(ticker)}&timeframe=${selectedTimeframe.alpaca}&limit=${limit}${
-            start ? `&start=${encodeURIComponent(start)}` : ''
-          }`
+          `/api/lse/timeseries?symbol=${encodeURIComponent(normalizedTicker)}&interval=${encodeURIComponent(twelveInterval)}&outputsize=${outputsize}&prepost=${isIntraday ? 'true' : 'false'}`,
+          { cache: 'no-store' }
         );
         const json = await response.json();
         if (!response.ok) {
-          throw new Error(json?.error || 'Failed to load bars');
+          throw new Error(json?.error || json?.details?.message || 'Failed to load bars');
         }
 
-        const bars = Array.isArray(json) ? json : json.bars || [];
-        const data = bars.map((b) => ({
-          Date: (Number.isFinite(b.time) ? b.time * 1000 : new Date(b.Timestamp).getTime()),
-          Open: b.open ?? b.OpenPrice,
-          High: b.high ?? b.HighPrice,
-          Low: b.low ?? b.LowPrice,
-          Close: b.close ?? b.ClosePrice,
-          Volume: b.volume ?? b.Volume,
-        }));
+        const bars = Array.isArray(json?.values) ? json.values : [];
+        const data = bars
+          .map((bar) => ({
+            Date: toTimestampMs(bar?.datetime),
+            Open: Number(bar?.open),
+            High: Number(bar?.high),
+            Low: Number(bar?.low),
+            Close: Number(bar?.close),
+            Volume: Number(bar?.volume) || 0,
+          }))
+          .filter(
+            (bar) =>
+              Number.isFinite(bar.Date) &&
+              Number.isFinite(bar.Open) &&
+              Number.isFinite(bar.High) &&
+              Number.isFinite(bar.Low) &&
+              Number.isFinite(bar.Close)
+          )
+          .sort((a, b) => a.Date - b.Date);
 
         if (cancelled) return;
+        if (data.length === 0) {
+          throw new Error('No chart bars returned');
+        }
         const activeSeries = chartRef.current?.valueSeries;
         activeSeries?.data.setAll(data);
         chart.volumeSeries.data.setAll(data);
-        chart.sbSeries.data.setAll(data);
+        chart.sbSeries.data.setAll(data.map((row) => ({ Date: row.Date, Close: row.Close })));
       } catch (err) {
-        if (!cancelled) {
-          // Silent fail for chart refresh
-        }
+        if (!cancelled) console.warn('[AdvancedChartsPage] Twelve Data history failed:', err?.message || err);
       }
     };
 
     loadData();
-    const refreshMs = (() => {
-      const tf = getTimeframe(timeframe);
-      if (tf.unit === 'minute') return 15000;
-      if (tf.unit === 'hour') return 30000;
-      return 60000;
-    })();
-
-    const interval = setInterval(loadData, refreshMs);
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, [ticker, timeframe, rangeKey]);
 
   // Twelve Data WebSocket for live price updates
-  const tdWsRef = useRef(null);
   const [isLive, setIsLive] = useState(false);
   useEffect(() => {
-    const tdKey = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
     const tf = getTimeframe(timeframe);
-    if (!tdKey || (tf.unit !== 'minute' && tf.unit !== 'hour')) { setIsLive(false); return; }
-    let cancelled = false;
-    const ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes/price?apikey=${encodeURIComponent(tdKey)}`);
-    tdWsRef.current = ws;
-    ws.onopen = () => { ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: ticker } })); setIsLive(true); };
-    ws.onmessage = (e) => {
-      try {
-        const m = JSON.parse(e.data);
-        if (m.event !== 'price') return;
-        const p = parseFloat(m.price);
-        if (!Number.isFinite(p)) return;
-        lastPriceRef.current = p;
-        // Update last candle in amCharts
-        const chart = chartRef.current;
-        if (!chart?.valueSeries) return;
-        const data = chart.valueSeries.data;
-        if (!data || data.length === 0) return;
-        const last = data.getIndex(data.length - 1);
-        if (!last) return;
-        data.setIndex(data.length - 1, {
-          ...last,
-          Close: p,
-          High: Math.max(last.High, p),
-          Low: Math.min(last.Low, p),
-        });
-      } catch {}
-    };
-    ws.onclose = () => { if (!cancelled) setIsLive(false); };
-    ws.onerror = () => { if (!cancelled) setIsLive(false); };
+    const isIntraday = tf.unit === 'minute' || tf.unit === 'hour';
+    if (!isIntraday || !ticker) {
+      setIsLive(false);
+      return undefined;
+    }
+
+    const normalizedTicker = String(ticker || '').trim().toUpperCase().replace(/^\$/, '');
+    const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
+      setIsLive(Boolean(status?.connected));
+    });
+
+    const unsubscribeQuotes = subscribeTwelveDataQuotes([normalizedTicker], (update) => {
+      const livePrice = Number(update?.price);
+      if (!Number.isFinite(livePrice)) return;
+      lastPriceRef.current = livePrice;
+      setQuote((previous) => {
+        const prevClose = Number(previous?.prevClose);
+        const fallbackPrevClose = Number.isFinite(prevClose) ? prevClose : livePrice;
+        const feedChange = Number(update?.change);
+        const change = Number.isFinite(feedChange) ? feedChange : livePrice - fallbackPrevClose;
+        const feedPct = Number(update?.percentChange);
+        const pct = Number.isFinite(feedPct)
+          ? feedPct
+          : fallbackPrevClose > 0
+            ? (change / fallbackPrevClose) * 100
+            : 0;
+        return {
+          ...(previous || {}),
+          symbol: normalizedTicker,
+          last: livePrice,
+          change,
+          change_percent: pct,
+          prevClose: fallbackPrevClose,
+        };
+      });
+      setQuoteStatus({ state: 'success', message: '' });
+      applyLiveTickToChart(livePrice, update?.timestamp);
+    });
+
     return () => {
-      cancelled = true;
-      try { ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: ticker } })); } catch {}
-      try { ws.close(); } catch {}
-      tdWsRef.current = null;
+      unsubscribeQuotes?.();
+      unsubscribeStatus?.();
       setIsLive(false);
     };
-  }, [ticker, timeframe]);
+  }, [ticker, timeframe, applyLiveTickToChart]);
 
   const buyingPower =
     account?.buying_power ?? account?.buyingPower ?? account?.cash ?? null;
@@ -1083,61 +1223,32 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       <div
         className={`relative flex flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
           isTradePanelOpen
-            ? 'w-[300px] border-l border-white/10 opacity-100'
+            ? 'w-[380px] border-l border-white/10 opacity-100'
             : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
         }`}
       >
-        <div className="border-b border-white/10 px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => {
-                  clearOrderError();
-                  setOrderSide('buy');
-                }}
-                className={`transition ${
-                  orderSide === 'buy'
-                    ? 'text-emerald-400'
-                    : 'text-white/40 hover:text-white/70'
-                }`}
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  clearOrderError();
-                  setOrderSide('sell');
-                }}
-                className={`transition ${
-                  orderSide === 'sell'
-                    ? 'text-red-400'
-                    : 'text-white/40 hover:text-white/70'
-                }`}
-              >
-                Sell
-              </button>
-            </div>
+        <div className="border-b border-white/10 bg-[#060d18] px-4 pt-3">
+          <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-center text-[13px] font-semibold tracking-wide text-white/35">
+            <button type="button" className="h-10 text-left uppercase">
+              Level II
+            </button>
+            <button type="button" className="h-10 text-left uppercase">
+              T&S
+            </button>
+            <button
+              type="button"
+              className="h-10 border-b-2 border-blue-500 text-left uppercase text-blue-400"
+            >
+              Order
+            </button>
             <button
               type="button"
               onClick={() => setIsTradePanelOpen(false)}
               aria-label="Collapse trade panel"
-              className="text-white/40 hover:text-white/70 transition"
+              className="ml-2 inline-flex h-8 w-8 items-center justify-center text-white/45 transition hover:text-white/80"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronsRight className="h-4 w-4" strokeWidth={1.8} />
             </button>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-white">{ticker}</span>
-              <span className={`text-xl ${priceTextClass}`}>
-                {marketPrice > 0 ? `$${formatPrice(marketPrice)}` : '--'}
-              </span>
-            </div>
-            <div className="mt-1 text-xs text-white/40">
-              Bid {formatPrice(bidPrice)} · Ask {formatPrice(askPrice)}
-            </div>
           </div>
         </div>
 
@@ -1149,169 +1260,152 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 : 'max-h-0 opacity-0 pointer-events-none'
             }`}
           >
-            <div className="space-y-2">
-              <label className="text-sm text-white/60">Order Type</label>
-              <select
-                value={orderType}
-                onChange={(e) => {
-                  clearOrderError();
-                  setOrderType(e.target.value);
-                }}
-                className={selectBaseClass}
-              >
-                {ORDER_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-[#0a0f1a]">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {orderType === 'limit' && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Limit Price</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={limitPrice}
-                  onChange={(e) => {
-                    clearOrderError();
-                    setLimitPrice(e.target.value);
-                  }}
-                  className={inputBaseClass}
-                />
-              </div>
-            )}
-
-            {orderType === 'stop' && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Stop Price</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={stopPrice}
-                  onChange={(e) => {
-                    clearOrderError();
-                    setStopPrice(e.target.value);
-                  }}
-                  className={inputBaseClass}
-                />
-              </div>
-            )}
-
-            {orderType === 'stop_limit' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/60">Stop Price</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={stopPrice}
-                    onChange={(e) => {
-                      clearOrderError();
-                      setStopPrice(e.target.value);
-                    }}
-                    className={inputBaseClass}
-                  />
+            <AlpacaOrderTicket
+              side={orderSide}
+              onSideChange={(nextSide) => {
+                clearOrderError();
+                setOrderSide(nextSide);
+              }}
+              symbol={ticker}
+              onSymbolSubmit={(nextTicker) => {
+                clearOrderError();
+                setTicker(nextTicker);
+                setSearchQuery(nextTicker);
+                setIsSearchOpen(false);
+              }}
+              marketPrice={marketPrice || 0}
+              quantity={orderQty}
+              onQuantityChange={(value) => {
+                clearOrderError();
+                setOrderQty(value);
+              }}
+              orderType={orderType}
+              onOrderTypeChange={(value) => {
+                clearOrderError();
+                setOrderType(value);
+              }}
+              orderTypeOptions={ORDER_TYPE_OPTIONS}
+              sizeMode={sizeMode}
+              onSizeModeChange={(nextMode) => {
+                clearOrderError();
+                setSizeMode(nextMode);
+              }}
+              dollarAmount={dollarAmount}
+              onDollarAmountChange={(value) => {
+                clearOrderError();
+                setDollarAmount(value);
+              }}
+              timeInForce={timeInForce}
+              onTimeInForceChange={(nextValue) => {
+                clearOrderError();
+                setTimeInForce(nextValue);
+              }}
+              timeInForceOptions={TIME_IN_FORCE_OPTIONS}
+              estimatedCost={estimatedTotal}
+              buyingPowerDisplay={buyingPowerDisplay}
+              onReview={handleReview}
+              reviewDisabled={!canReview}
+              reviewLabel="Review Order"
+              className="rounded-3xl border border-blue-500/25 bg-[#07162f]/95"
+              extraFields={
+                <div className="space-y-3">
+                  {orderType === 'limit' && (
+                    <div>
+                      <label className="mb-1.5 block text-[16px] font-semibold text-slate-200">
+                        Limit Price
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={limitPrice}
+                        onChange={(e) => {
+                          clearOrderError();
+                          setLimitPrice(e.target.value);
+                        }}
+                        className="h-[54px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[16px] font-semibold text-white outline-none focus:border-blue-500/60"
+                      />
+                    </div>
+                  )}
+                  {orderType === 'stop' && (
+                    <div>
+                      <label className="mb-1.5 block text-[16px] font-semibold text-slate-200">
+                        Stop Price
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={stopPrice}
+                        onChange={(e) => {
+                          clearOrderError();
+                          setStopPrice(e.target.value);
+                        }}
+                        className="h-[54px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[16px] font-semibold text-white outline-none focus:border-blue-500/60"
+                      />
+                    </div>
+                  )}
+                  {orderType === 'stop_limit' && (
+                    <>
+                      <div>
+                        <label className="mb-1.5 block text-[16px] font-semibold text-slate-200">
+                          Stop Price
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={stopPrice}
+                          onChange={(e) => {
+                            clearOrderError();
+                            setStopPrice(e.target.value);
+                          }}
+                          className="h-[54px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[16px] font-semibold text-white outline-none focus:border-blue-500/60"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[16px] font-semibold text-slate-200">
+                          Limit Price
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={limitPrice}
+                          onChange={(e) => {
+                            clearOrderError();
+                            setLimitPrice(e.target.value);
+                          }}
+                          className="h-[54px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[16px] font-semibold text-white outline-none focus:border-blue-500/60"
+                        />
+                      </div>
+                    </>
+                  )}
+                  {orderType === 'trailing_stop' && (
+                    <div>
+                      <label className="mb-1.5 block text-[16px] font-semibold text-slate-200">
+                        Trail Amount ($)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={trailAmount}
+                        onChange={(e) => {
+                          clearOrderError();
+                          setTrailAmount(e.target.value);
+                        }}
+                        className="h-[54px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[16px] font-semibold text-white outline-none focus:border-blue-500/60"
+                      />
+                    </div>
+                  )}
+                  {orderSide === 'sell' && sizeMode === 'shares' && (
+                    <div className="text-xs text-white/45">{availableSharesDisplay} shares available</div>
+                  )}
+                  {orderError && <div className="text-xs text-red-300">{orderError}</div>}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/60">Limit Price</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={limitPrice}
-                    onChange={(e) => {
-                      clearOrderError();
-                      setLimitPrice(e.target.value);
-                    }}
-                    className={inputBaseClass}
-                  />
-                </div>
-              </div>
-            )}
-
-            {orderType === 'trailing_stop' && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Trail Amount ($)</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={trailAmount}
-                  onChange={(e) => {
-                    clearOrderError();
-                    setTrailAmount(e.target.value);
-                  }}
-                  className={inputBaseClass}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Shares</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={orderQty}
-                  onChange={(e) => {
-                    clearOrderError();
-                    setOrderQty(e.target.value);
-                  }}
-                  className={`${inputBaseClass} w-24`}
-                />
-              </div>
-              {orderSide === 'sell' && (
-                <div className="text-xs text-white/40">
-                  {availableSharesDisplay} shares available
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-white/10 pt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Market Price</span>
-                <span className="text-sm text-white">
-                  {marketPrice > 0 ? formatUsd(marketPrice) : '--'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Estimated Cost</span>
-                <span className="text-sm text-white">
-                  {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Buying Power</span>
-                <span className="text-sm text-white/40">{buyingPowerDisplay}</span>
-              </div>
-              <div className="border-t border-white/10 pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-white">Estimated Total</span>
-                  <span className="text-lg font-semibold text-white">
-                    {estimatedTotal > 0 ? formatUsd(estimatedTotal) : '--'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {orderError && <div className="text-xs text-red-300">{orderError}</div>}
-
-            <button
-              type="button"
-              onClick={handleReview}
-              disabled={!canReview}
-              className={`h-10 w-full rounded-lg text-sm font-medium text-white ${actionButtonClass} ${
-                !canReview ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              Review Order
-            </button>
+              }
+            />
           </div>
 
           <div
@@ -1337,8 +1431,12 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 <span className="text-white">{orderTypeLabel}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-white/60">Shares</span>
-                <span className="text-white">{orderQtyNumber}</span>
+                <span className="text-white/60">{orderAmountLabel}</span>
+                <span className="text-white">{orderAmountValue}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Time in Force</span>
+                <span className="text-white">{timeInForceLabel}</span>
               </div>
               {orderType === 'limit' && (
                 <div className="flex items-center justify-between">
@@ -1426,12 +1524,16 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 <span className="text-white">{orderSide === 'buy' ? 'Buy' : 'Sell'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-white/60">Shares</span>
-                <span className="text-white">{orderQtyNumber}</span>
+                <span className="text-white/60">{orderAmountLabel}</span>
+                <span className="text-white">{orderAmountValue}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/60">Order Type</span>
                 <span className="text-white">{orderTypeLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Time in Force</span>
+                <span className="text-white">{timeInForceLabel}</span>
               </div>
               {orderStatus.data?.filled_avg_price && (
                 <div className="flex items-center justify-between">

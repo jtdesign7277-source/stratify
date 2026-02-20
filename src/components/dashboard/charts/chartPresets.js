@@ -54,6 +54,12 @@ export const CHART_PRESETS = [
     description: 'Styled-mode candles + volume with custom crosshair labels.',
     dataUrl: 'https://demo-live-data.highcharts.com/aapl-ohlcv.json',
   },
+  {
+    id: 'async-minute-history',
+    name: 'Async minute history loader',
+    description: 'High-volume historical candles with async range loading.',
+    dataUrl: 'https://demo-live-data.highcharts.com/aapl-historical.json',
+  },
 ];
 
 const baseDarkTheme = {
@@ -620,6 +626,56 @@ const buildDarkIntradayOval = (data) => {
           dataGrouping: {
             units: [['day', [1]]],
           },
+        },
+        {
+          text: 'W',
+          title: '1 Week',
+          type: 'week',
+          count: 1,
+          dataGrouping: {
+            units: [['week', [1]]],
+          },
+        },
+        {
+          text: 'M',
+          title: '1 Month',
+          type: 'month',
+          count: 1,
+          dataGrouping: {
+            units: [['month', [1]]],
+          },
+        },
+        {
+          text: '3M',
+          title: '3 Months',
+          type: 'month',
+          count: 3,
+          dataGrouping: {
+            units: [['month', [1, 3]]],
+          },
+        },
+        {
+          text: '6M',
+          title: '6 Months',
+          type: 'month',
+          count: 6,
+          dataGrouping: {
+            units: [['month', [1, 3, 6]]],
+          },
+        },
+        {
+          text: '1Y',
+          title: '1 Year',
+          type: 'year',
+          count: 1,
+          dataGrouping: {
+            units: [['month', [1, 3, 6]], ['year', [1]]],
+          },
+        },
+        {
+          text: 'All',
+          title: 'All',
+          type: 'all',
         },
       ],
       selected: 1,
@@ -1489,6 +1545,106 @@ Volume<span style="color:${colorTemplate}";>{points.1.y}</span>`,
   };
 };
 
+const buildAsyncMinuteHistory = (data) => {
+  const dataURL = 'https://demo-live-data.highcharts.com/aapl-historical.json';
+  const seed = Array.isArray(data) ? [...data] : [];
+  if (seed.length > 0) {
+    seed.push(['2011-10-14 18:00', null, null, null, null]);
+  }
+
+  const afterSetExtremes = async function afterSetExtremes(event) {
+    const { chart } = event.target;
+    chart.showLoading('Loading data from server...');
+    try {
+      const response = await fetch(`${dataURL}?start=${Math.round(event.min)}&end=${Math.round(event.max)}`);
+      const payload = await response.json();
+      if (!Array.isArray(payload)) return;
+      chart.series[0].setData(payload, true, false, false);
+    } catch (error) {
+      console.error('[chartPresets] async-minute-history load failed', error?.message || error);
+    } finally {
+      chart.hideLoading();
+    }
+  };
+
+  return {
+    chart: {
+      type: 'candlestick',
+      zooming: {
+        type: 'x',
+      },
+      backgroundColor: '#060d18',
+    },
+    title: {
+      text: 'AAPL history by the minute from 1998 to 2011',
+      align: 'left',
+      style: { color: '#f8fafc' },
+    },
+    subtitle: {
+      text: 'Displaying 1.7 million data points in Highcharts Stock by async server loading',
+      align: 'left',
+      style: { color: '#94a3b8' },
+    },
+    navigator: {
+      adaptToUpdatedData: false,
+      series: {
+        data: seed,
+      },
+    },
+    scrollbar: {
+      liveRedraw: false,
+    },
+    rangeSelector: {
+      buttons: [
+        { type: 'minute', count: 1, text: '1m' },
+        { type: 'minute', count: 5, text: '5m' },
+        { type: 'minute', count: 15, text: '15m' },
+        { type: 'minute', count: 30, text: '30m' },
+        { type: 'hour', count: 1, text: '1h' },
+        { type: 'hour', count: 4, text: '4h' },
+        { type: 'day', count: 1, text: '1d' },
+        { type: 'week', count: 1, text: '1w' },
+        { type: 'month', count: 1, text: '1mo' },
+        { type: 'month', count: 3, text: '3mo' },
+        { type: 'month', count: 6, text: '6mo' },
+        { type: 'year', count: 1, text: '1y' },
+        { type: 'all', text: 'All' },
+      ],
+      inputEnabled: false,
+      selected: 12,
+    },
+    xAxis: {
+      events: {
+        afterSetExtremes,
+      },
+      minRange: 3600 * 1000,
+      lineColor: '#1f2937',
+      labels: { style: { color: '#94a3b8' } },
+    },
+    yAxis: {
+      floor: 0,
+      gridLineColor: '#1a2332',
+      labels: { style: { color: '#94a3b8' } },
+    },
+    series: [
+      {
+        data: seed,
+        dataGrouping: {
+          enabled: false,
+        },
+        type: 'candlestick',
+        color: '#ef4444',
+        upColor: '#22c55e',
+        lineColor: '#ef4444',
+        upLineColor: '#22c55e',
+      },
+    ],
+    credits: {
+      enabled: false,
+    },
+  };
+};
+
 export const buildChartOptions = ({ presetId, data }) => {
   if (presetId === 'order-book-live') {
     return buildOrderBookLive();
@@ -1513,6 +1669,9 @@ export const buildChartOptions = ({ presetId, data }) => {
   }
   if (presetId === 'styled-crosshair-candles') {
     return buildStyledCrosshairCandles(data);
+  }
+  if (presetId === 'async-minute-history') {
+    return buildAsyncMinuteHistory(data);
   }
   return buildCandlestickDemo(data);
 };

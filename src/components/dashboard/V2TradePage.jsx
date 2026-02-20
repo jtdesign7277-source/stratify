@@ -30,6 +30,7 @@ const PRESET_INTERVAL_MAP = {
   'volume-proportional-width': '1day',
   'candlestick-volume-ikh': '1day',
   'styled-crosshair-candles': '1day',
+  'async-minute-history': '1min',
 };
 const OHLC_ONLY_PRESETS = new Set([
   'aapl-basic-exact',
@@ -48,6 +49,13 @@ const INTERVAL_MS = {
   '1week': 604_800_000,
   '1month': 2_592_000_000,
 };
+const CANDLE_PALETTES = [
+  { id: 'classic', label: 'Classic (Green/Red)', up: '#22c55e', down: '#ef4444' },
+  { id: 'cyan-magenta', label: 'Cyan/Magenta', up: '#06b6d4', down: '#ec4899' },
+  { id: 'blue-orange', label: 'Blue/Orange', up: '#3b82f6', down: '#f97316' },
+  { id: 'lime-rose', label: 'Lime/Rose', up: '#84cc16', down: '#f43f5e' },
+  { id: 'gold-purple', label: 'Gold/Purple', up: '#eab308', down: '#a855f7' },
+];
 
 const initModule = (moduleFactory) => {
   try {
@@ -92,6 +100,58 @@ const toTimestampMs = (value) => {
   let ts = Date.parse(normalized);
   if (!Number.isFinite(ts)) ts = Date.parse(`${normalized}Z`);
   return ts;
+};
+
+const applyCandlePalette = (options, palette) => {
+  if (!options || !palette) return options;
+  const next = { ...options };
+  next.plotOptions = { ...(next.plotOptions || {}) };
+  next.plotOptions.candlestick = {
+    ...(next.plotOptions.candlestick || {}),
+    color: palette.down,
+    upColor: palette.up,
+    lineColor: palette.down,
+    upLineColor: palette.up,
+  };
+  next.plotOptions.hollowcandlestick = {
+    ...(next.plotOptions.hollowcandlestick || {}),
+    color: palette.down,
+    upColor: palette.up,
+    lineColor: palette.down,
+    upLineColor: palette.up,
+  };
+  next.plotOptions.ohlc = {
+    ...(next.plotOptions.ohlc || {}),
+    color: palette.down,
+    upColor: palette.up,
+  };
+  if (next.chart?.styledMode) {
+    next.chart = { ...next.chart, styledMode: false };
+  }
+
+  if (Array.isArray(next.series)) {
+    next.series = next.series.map((series) => {
+      const type = String(series?.type || '').toLowerCase();
+      if (type === 'candlestick' || type === 'hollowcandlestick') {
+        return {
+          ...series,
+          color: palette.down,
+          upColor: palette.up,
+          lineColor: palette.down,
+          upLineColor: palette.up,
+        };
+      }
+      if (type === 'ohlc') {
+        return {
+          ...series,
+          color: palette.down,
+          upColor: palette.up,
+        };
+      }
+      return series;
+    });
+  }
+  return next;
 };
 
 const normalizeWatchlistItem = (item) => {
@@ -310,10 +370,15 @@ export default function V2TradePage() {
   const [equityQuotes, setEquityQuotes] = useState({});
   const [equityLoading, setEquityLoading] = useState(true);
   const [wsConnected, setWsConnected] = useState(false);
+  const [candlePaletteId, setCandlePaletteId] = useState(CANDLE_PALETTES[0].id);
 
   const activePreset = useMemo(
     () => LIVE_CHART_PRESETS.find((preset) => preset.id === activePresetId) || LIVE_CHART_PRESETS[0] || CHART_PRESETS[0],
     [activePresetId],
+  );
+  const activeCandlePalette = useMemo(
+    () => CANDLE_PALETTES.find((palette) => palette.id === candlePaletteId) || CANDLE_PALETTES[0],
+    [candlePaletteId],
   );
 
   const activeSymbols = useMemo(
@@ -544,42 +609,46 @@ export default function V2TradePage() {
 
       let data = null;
       let usingFallback = false;
+      const isDemoPrimaryPreset = activePreset.id === 'async-minute-history';
 
-      try {
-        const interval = getPresetInterval(activePreset.id);
-        const outputsize = interval === '1min' || interval === '5min' ? 700 : 500;
-        const response = await fetch(
-          `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&prepost=true`,
-          { cache: 'no-store' }
-        );
+      if (!isDemoPrimaryPreset) {
+        try {
+          const interval = getPresetInterval(activePreset.id);
+          const outputsize = interval === '1min' || interval === '5min' ? 700 : 500;
+          const isIntradayInterval = ['1min', '5min', '15min', '30min', '1h', '4h'].includes(interval);
+          const response = await fetch(
+            `/api/lse/timeseries?symbol=${encodeURIComponent(selectedTicker)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&prepost=${isIntradayInterval ? 'true' : 'false'}`,
+            { cache: 'no-store' }
+          );
 
-        if (!response.ok) {
-          throw new Error(`timeseries failed (${response.status})`);
+          if (!response.ok) {
+            throw new Error(`timeseries failed (${response.status})`);
+          }
+
+          const payload = await response.json();
+          const values = Array.isArray(payload?.values) ? payload.values : [];
+          const normalized = values
+            .map((row) => {
+              const ts = toTimestampMs(row?.datetime);
+              const open = toNumber(row?.open);
+              const high = toNumber(row?.high);
+              const low = toNumber(row?.low);
+              const close = toNumber(row?.close);
+              const volume = Number.isFinite(toNumber(row?.volume)) ? Number(row.volume) : 0;
+              if (!Number.isFinite(ts) || !Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) return null;
+              return [ts, open, high, low, close, volume];
+            })
+            .filter(Boolean)
+            .sort((a, b) => a[0] - b[0]);
+
+          if (normalized.length > 0) {
+            data = OHLC_ONLY_PRESETS.has(activePreset.id)
+              ? normalized.map((row) => row.slice(0, 5))
+              : normalized;
+          }
+        } catch (twelveDataError) {
+          console.warn('[V.2_Trade] Twelve Data chart history failed:', twelveDataError);
         }
-
-        const payload = await response.json();
-        const values = Array.isArray(payload?.values) ? payload.values : [];
-        const normalized = values
-          .map((row) => {
-            const ts = toTimestampMs(row?.datetime);
-            const open = toNumber(row?.open);
-            const high = toNumber(row?.high);
-            const low = toNumber(row?.low);
-            const close = toNumber(row?.close);
-            const volume = Number.isFinite(toNumber(row?.volume)) ? Number(row.volume) : 0;
-            if (!Number.isFinite(ts) || !Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) return null;
-            return [ts, open, high, low, close, volume];
-          })
-          .filter(Boolean)
-          .sort((a, b) => a[0] - b[0]);
-
-        if (normalized.length > 0) {
-          data = OHLC_ONLY_PRESETS.has(activePreset.id)
-            ? normalized.map((row) => row.slice(0, 5))
-            : normalized;
-        }
-      } catch (twelveDataError) {
-        console.warn('[V.2_Trade] Twelve Data chart history failed:', twelveDataError);
       }
 
       if (!data && activePreset.dataUrl) {
@@ -589,7 +658,7 @@ export default function V2TradePage() {
             throw new Error(`fetch failed (${response.status})`);
           }
           data = await response.json();
-          usingFallback = true;
+          usingFallback = !isDemoPrimaryPreset;
         } catch (fetchError) {
           console.warn('[V.2_Trade] Preset fetch failed, using local fallback data:', fetchError);
           data = getFallbackDataForPreset(activePreset.id);
@@ -603,16 +672,17 @@ export default function V2TradePage() {
         presetId: activePreset.id,
         data,
       });
+      const optionsWithPalette = applyCandlePalette(options, activeCandlePalette);
 
       if (selectedTicker) {
         const selectedTitle = `${selectedTicker} • ${activePreset.name}`;
-        options.title = {
-          ...(options.title || {}),
+        optionsWithPalette.title = {
+          ...(optionsWithPalette.title || {}),
           text: selectedTitle,
         };
 
-        if (Array.isArray(options.series) && options.series.length > 0) {
-          options.series = options.series.map((series, index) => (
+        if (Array.isArray(optionsWithPalette.series) && optionsWithPalette.series.length > 0) {
+          optionsWithPalette.series = optionsWithPalette.series.map((series, index) => (
             index === 0
               ? {
                   ...series,
@@ -625,8 +695,8 @@ export default function V2TradePage() {
 
       chartRef.current =
         activePreset.engine === 'chart'
-          ? Highcharts.chart(containerRef.current, options)
-          : Highcharts.stockChart(containerRef.current, options);
+          ? Highcharts.chart(containerRef.current, optionsWithPalette)
+          : Highcharts.stockChart(containerRef.current, optionsWithPalette);
 
       if (usingFallback) {
         setError('Using fallback chart dataset. Live Twelve Data history unavailable for this preset.');
@@ -637,7 +707,7 @@ export default function V2TradePage() {
     } finally {
       setLoading(false);
     }
-  }, [activePreset, selectedTicker]);
+  }, [activePreset, selectedTicker, activeCandlePalette]);
 
   useEffect(() => {
     loadChart();
@@ -745,7 +815,13 @@ export default function V2TradePage() {
   const scrollStyle = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
   return (
-    <div className="h-full w-full bg-transparent p-4">
+    <div
+      className="h-full w-full bg-transparent p-4"
+      style={{
+        '--v2-candle-up': activeCandlePalette.up,
+        '--v2-candle-down': activeCandlePalette.down,
+      }}
+    >
       <div className="flex h-full w-full gap-4 rounded-xl border border-white/10 bg-black/30 p-3">
         <div
           className="flex flex-col border-r border-[#1f1f1f] flex-shrink-0 transition-all duration-300 ease-out rounded-lg bg-[#0a1628]/60"
@@ -1051,6 +1127,20 @@ export default function V2TradePage() {
                 </button>
               );
             })}
+            <div className="ml-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+              <span className="text-[11px] uppercase tracking-wider text-gray-400">Candles</span>
+              <select
+                value={candlePaletteId}
+                onChange={(event) => setCandlePaletteId(event.target.value)}
+                className="bg-transparent text-[12px] text-white outline-none"
+              >
+                {CANDLE_PALETTES.map((palette) => (
+                  <option key={palette.id} value={palette.id} className="bg-[#0b1323] text-white">
+                    {palette.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {error ? (
@@ -1120,20 +1210,20 @@ export default function V2TradePage() {
           stroke: #181816;
         }
         #v2-trade-container .highcharts-candlestick-series .highcharts-point-up {
-          fill: #51af7b;
-          stroke: #51af7b;
+          fill: var(--v2-candle-up);
+          stroke: var(--v2-candle-up);
         }
         #v2-trade-container .highcharts-candlestick-series .highcharts-point-down {
-          fill: #ff6e6e;
-          stroke: #ff6e6e;
+          fill: var(--v2-candle-down);
+          stroke: var(--v2-candle-down);
         }
         #v2-trade-container .highcharts-series.highcharts-column-series .highcharts-point-up {
-          fill: #51af7b;
-          stroke: #51af7b;
+          fill: var(--v2-candle-up);
+          stroke: var(--v2-candle-up);
         }
         #v2-trade-container .highcharts-series.highcharts-column-series .highcharts-point-down {
-          fill: #ff6e6e;
-          stroke: #ff6e6e;
+          fill: var(--v2-candle-down);
+          stroke: var(--v2-candle-down);
         }
         #v2-trade-container .highcharts-crosshair-custom {
           stroke: #4f86ff !important;
