@@ -214,6 +214,7 @@ export default function HighchartsStockChart({
   const chartRef = useRef(null);
   const wsRef = useRef(null);
   const containerRef = useRef(null);
+  const dragStateRef = useRef(null);
 
   const [symbol, setSymbol] = useState(propSymbol);
   const [loading, setLoading] = useState(true);
@@ -295,10 +296,10 @@ export default function HighchartsStockChart({
         height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
-        panning: { enabled: true, type: 'xy' },
+        panning: { enabled: false, type: 'xy' },
         panKey: null,
         zooming: {
-          type: '',
+          type: 'xy',
           mouseWheel: { enabled: true, sensitivity: 1.2 },
           pinchType: 'xy',
         },
@@ -317,6 +318,7 @@ export default function HighchartsStockChart({
         minPadding: 0,
         maxPadding: 0.06,
         overscroll: rightOffsetMs,
+        minRange: Math.max(getIntervalMs(interval) * 10, 60_000),
       },
       yAxis: [
         {
@@ -357,7 +359,7 @@ export default function HighchartsStockChart({
       },
       series,
     };
-  }, [symbol, chartType, activeInd, theme, rightOffsetMs]);
+  }, [symbol, chartType, activeInd, theme, rightOffsetMs, interval]);
 
   // ─── Load ───
   const loadData = useCallback(async () => {
@@ -385,7 +387,8 @@ export default function HighchartsStockChart({
     }
   }, [symbol, interval]);
 
-  const applyRangePreset = useCallback((rangeValue) => {
+  const applyRangePreset = useCallback((rangeValue, options = {}) => {
+    const { persist = true } = options;
     const xAxis = chartRef.current?.chart?.xAxis?.[0];
     if (!xAxis) return;
     const dataMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : null;
@@ -405,7 +408,7 @@ export default function HighchartsStockChart({
 
     if (rangeValue === 'ALL') {
       xAxis.setExtremes(dataMin, end, true, false, { trigger: 'range-preset' });
-      setActiveRange('ALL');
+      if (persist) setActiveRange('ALL');
       return;
     }
 
@@ -413,8 +416,19 @@ export default function HighchartsStockChart({
     if (!Number.isFinite(windowMs)) return;
     const start = Math.max(dataMin, now - windowMs);
     xAxis.setExtremes(start, end, true, false, { trigger: 'range-preset' });
-    setActiveRange(rangeValue);
+    if (persist) setActiveRange(rangeValue);
   }, [rightOffsetMs]);
+
+  const fitChartViewport = useCallback((rangeValue = activeRange) => {
+    const chart = chartRef.current?.chart;
+    if (!chart) return;
+    const yAxis = chart.yAxis?.[0];
+    if (yAxis) {
+      yAxis.setExtremes(null, null, false, false, { trigger: 'fit-y' });
+    }
+    applyRangePreset(rangeValue, { persist: false });
+    chart.redraw(false);
+  }, [activeRange, applyRangePreset]);
 
   const chartOptions = useMemo(
     () => buildOpts(seriesSeed.ohlc, seriesSeed.volume),
@@ -429,8 +443,8 @@ export default function HighchartsStockChart({
     if (!xAxis) return;
 
     chart.reflow();
-    requestAnimationFrame(() => applyRangePreset(activeRange));
-  }, [seriesSeed.ohlc, symbol, interval, applyRangePreset, activeRange]);
+    requestAnimationFrame(() => fitChartViewport(activeRange));
+  }, [seriesSeed.ohlc, symbol, interval, fitChartViewport, activeRange]);
 
   // ─── WebSocket ───
   useEffect(() => {
@@ -540,15 +554,24 @@ export default function HighchartsStockChart({
   };
 
   useEffect(() => {
-    const fn = () => { setIsFs(!!document.fullscreenElement); setTimeout(() => chartRef.current?.chart?.reflow(), 100); };
+    const fn = () => {
+      setIsFs(!!document.fullscreenElement);
+      setTimeout(() => {
+        chartRef.current?.chart?.reflow();
+        fitChartViewport(activeRange);
+      }, 120);
+    };
     document.addEventListener('fullscreenchange', fn);
     return () => document.removeEventListener('fullscreenchange', fn);
-  }, []);
+  }, [fitChartViewport, activeRange]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const reflow = () => chartRef.current?.chart?.reflow();
-    const timer = setTimeout(reflow, 80);
+    const reflow = () => {
+      chartRef.current?.chart?.reflow();
+      fitChartViewport(activeRange);
+    };
+    const timer = setTimeout(reflow, 100);
     let observer;
     if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
       observer = new ResizeObserver(() => reflow());
@@ -560,7 +583,121 @@ export default function HighchartsStockChart({
       observer?.disconnect();
       window.removeEventListener('resize', reflow);
     };
-  }, [chartSize, isFs]);
+  }, [chartSize, isFs, fitChartViewport, activeRange]);
+
+  useEffect(() => {
+    const chart = chartRef.current?.chart;
+    const container = chart?.container;
+    if (!chart || !container) return undefined;
+
+    const onMouseDown = (event) => {
+      if (event.button !== 0) return;
+      const xAxis = chart.xAxis?.[0];
+      const yAxis = chart.yAxis?.[0];
+      if (!xAxis || !yAxis) return;
+      if (!Number.isFinite(xAxis.min) || !Number.isFinite(xAxis.max)) return;
+      if (!Number.isFinite(yAxis.min) || !Number.isFinite(yAxis.max)) return;
+
+      const rect = container.getBoundingClientRect();
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      const insidePlot =
+        px >= chart.plotLeft &&
+        px <= chart.plotLeft + chart.plotWidth &&
+        py >= chart.plotTop &&
+        py <= chart.plotTop + chart.plotHeight;
+      if (!insidePlot) return;
+
+      dragStateRef.current = {
+        startX: event.clientX,
+        startY: event.clientY,
+        xMin: xAxis.min,
+        xMax: xAxis.max,
+        yMin: yAxis.min,
+        yMax: yAxis.max,
+        dataMin: Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : xAxis.min,
+        dataMax: Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : xAxis.max,
+        yDataMin: Number.isFinite(yAxis.dataMin) ? yAxis.dataMin : yAxis.min,
+        yDataMax: Number.isFinite(yAxis.dataMax) ? yAxis.dataMax : yAxis.max,
+      };
+      event.preventDefault();
+    };
+
+    const onMouseMove = (event) => {
+      const drag = dragStateRef.current;
+      if (!drag) return;
+      const xAxis = chart.xAxis?.[0];
+      const yAxis = chart.yAxis?.[0];
+      if (!xAxis || !yAxis) return;
+
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+
+      const xRange = drag.xMax - drag.xMin;
+      const yRange = drag.yMax - drag.yMin;
+      if (!Number.isFinite(xRange) || xRange <= 0 || !Number.isFinite(yRange) || yRange <= 0) return;
+
+      const xPerPx = xRange / Math.max(chart.plotWidth, 1);
+      const yPerPx = yRange / Math.max(chart.plotHeight, 1);
+
+      let nextXMin = drag.xMin - dx * xPerPx;
+      let nextXMax = drag.xMax - dx * xPerPx;
+      const rightLimit = drag.dataMax + rightOffsetMs;
+      const leftLimit = drag.dataMin;
+
+      if (nextXMin < leftLimit) {
+        const shift = leftLimit - nextXMin;
+        nextXMin += shift;
+        nextXMax += shift;
+      }
+      if (nextXMax > rightLimit) {
+        const shift = nextXMax - rightLimit;
+        nextXMin -= shift;
+        nextXMax -= shift;
+      }
+
+      let nextYMin = drag.yMin + dy * yPerPx;
+      let nextYMax = drag.yMax + dy * yPerPx;
+      const yPadding = yRange * 0.8;
+      const yMinLimit = drag.yDataMin - yPadding;
+      const yMaxLimit = drag.yDataMax + yPadding;
+
+      if (nextYMin < yMinLimit) {
+        const shift = yMinLimit - nextYMin;
+        nextYMin += shift;
+        nextYMax += shift;
+      }
+      if (nextYMax > yMaxLimit) {
+        const shift = nextYMax - yMaxLimit;
+        nextYMin -= shift;
+        nextYMax -= shift;
+      }
+
+      xAxis.setExtremes(nextXMin, nextXMax, false, false, { trigger: 'manual-drag-pan' });
+      yAxis.setExtremes(nextYMin, nextYMax, false, false, { trigger: 'manual-drag-pan' });
+      chart.redraw(false);
+      event.preventDefault();
+    };
+
+    const stopDragging = () => {
+      if (!dragStateRef.current) return;
+      dragStateRef.current = null;
+      chart.redraw();
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', stopDragging);
+    window.addEventListener('mouseleave', stopDragging);
+
+    return () => {
+      container.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', stopDragging);
+      window.removeEventListener('mouseleave', stopDragging);
+      dragStateRef.current = null;
+    };
+  }, [rightOffsetMs]);
 
   const handleZoom = useCallback((direction) => {
     const chart = chartRef.current?.chart;
@@ -657,7 +794,7 @@ export default function HighchartsStockChart({
           {showSize && (
             <div style={{ ...DD, minWidth: '100px', right: 0, left: 'auto' }}>
               {SIZE_PRESETS.map((s) => (
-                <button key={s.value} onClick={() => { setChartSize(s.value); setShowSize(false); setTimeout(() => chartRef.current?.chart?.reflow(), 50); }} style={DI(chartSize === s.value)}>{s.label} <span style={{ color: '#4a5568', fontSize: '9px', marginLeft: 'auto' }}>{s.height}</span></button>
+                <button key={s.value} onClick={() => { setChartSize(s.value); setShowSize(false); setTimeout(() => { chartRef.current?.chart?.reflow(); fitChartViewport(activeRange); }, 80); }} style={DI(chartSize === s.value)}>{s.label} <span style={{ color: '#4a5568', fontSize: '9px', marginLeft: 'auto' }}>{s.height}</span></button>
               ))}
             </div>
           )}
