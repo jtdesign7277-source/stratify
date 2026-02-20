@@ -296,36 +296,9 @@ export default function HighchartsStockChart({
         height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
-        panning: { enabled: true, type: 'x' },
+        panning: { enabled: true, type: 'xy' },
         panKey: undefined,
-        zooming: { type: undefined, mouseWheel: { enabled: true, sensitivity: 1.1 }, pinchType: 'x' },
-        events: {
-          render() {
-            const chart = this;
-            const xAxis = chart.xAxis?.[0];
-            const yAxis = chart.yAxis?.[0];
-            const priceSeries = chart.get('price');
-            if (!xAxis || !yAxis || !priceSeries?.points?.length) return;
-            const xMin = xAxis.min;
-            const xMax = xAxis.max;
-            let visMin = Infinity;
-            let visMax = -Infinity;
-            for (const p of priceSeries.points) {
-              if (p.x >= xMin && p.x <= xMax) {
-                if (p.low < visMin) visMin = p.low;
-                if (p.high > visMax) visMax = p.high;
-              }
-            }
-            if (visMin < Infinity && visMax > -Infinity) {
-              const pad = (visMax - visMin) * 0.06 || visMax * 0.02;
-              const newMin = visMin - pad;
-              const newMax = visMax + pad;
-              if (Math.abs((yAxis.min || 0) - newMin) > pad * 0.1 || Math.abs((yAxis.max || 0) - newMax) > pad * 0.1) {
-                yAxis.setExtremes(newMin, newMax, false, false, { trigger: 'autofit' });
-              }
-            }
-          },
-        },
+        zooming: { type: undefined, mouseWheel: { enabled: true, sensitivity: 1.1 }, pinchType: 'xy' },
       },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
@@ -342,6 +315,29 @@ export default function HighchartsStockChart({
         maxPadding: 0.06,
         overscroll: rightOffsetMs,
         minRange: Math.max(getIntervalMs(interval) * 10, 60_000),
+        events: {
+          afterSetExtremes(e) {
+            if (e.trigger === 'autofit-y') return;
+            const chart = this.chart;
+            const yAxis = chart.yAxis?.[0];
+            const priceSeries = chart.get('price');
+            if (!yAxis || !priceSeries?.points?.length) return;
+            const xMin = this.min;
+            const xMax = this.max;
+            let visMin = Infinity;
+            let visMax = -Infinity;
+            for (const p of priceSeries.points) {
+              if (p.x >= xMin && p.x <= xMax) {
+                if (p.low < visMin) visMin = p.low;
+                if (p.high > visMax) visMax = p.high;
+              }
+            }
+            if (visMin < Infinity && visMax > -Infinity) {
+              const pad = (visMax - visMin) * 0.08 || visMax * 0.02;
+              yAxis.setExtremes(visMin - pad, visMax + pad, true, false, { trigger: 'autofit-y' });
+            }
+          },
+        },
       },
       yAxis: [
         {
