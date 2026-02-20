@@ -884,6 +884,50 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     };
   }, [ticker, timeframe, rangeKey]);
 
+  // Twelve Data WebSocket for live price updates
+  const tdWsRef = useRef(null);
+  const [isLive, setIsLive] = useState(false);
+  useEffect(() => {
+    const tdKey = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
+    const tf = getTimeframe(timeframe);
+    if (!tdKey || (tf.unit !== 'minute' && tf.unit !== 'hour')) { setIsLive(false); return; }
+    let cancelled = false;
+    const ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes/price?apikey=${encodeURIComponent(tdKey)}`);
+    tdWsRef.current = ws;
+    ws.onopen = () => { ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: ticker } })); setIsLive(true); };
+    ws.onmessage = (e) => {
+      try {
+        const m = JSON.parse(e.data);
+        if (m.event !== 'price') return;
+        const p = parseFloat(m.price);
+        if (!Number.isFinite(p)) return;
+        lastPriceRef.current = p;
+        // Update last candle in amCharts
+        const chart = chartRef.current;
+        if (!chart?.valueSeries) return;
+        const data = chart.valueSeries.data;
+        if (!data || data.length === 0) return;
+        const last = data.getIndex(data.length - 1);
+        if (!last) return;
+        data.setIndex(data.length - 1, {
+          ...last,
+          Close: p,
+          High: Math.max(last.High, p),
+          Low: Math.min(last.Low, p),
+        });
+      } catch {}
+    };
+    ws.onclose = () => { if (!cancelled) setIsLive(false); };
+    ws.onerror = () => { if (!cancelled) setIsLive(false); };
+    return () => {
+      cancelled = true;
+      try { ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: ticker } })); } catch {}
+      try { ws.close(); } catch {}
+      tdWsRef.current = null;
+      setIsLive(false);
+    };
+  }, [ticker, timeframe]);
+
   const buyingPower =
     account?.buying_power ?? account?.buyingPower ?? account?.cash ?? null;
   const buyingPowerDisplay =
@@ -959,8 +1003,9 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                   : `Bid ${formatPrice(quote?.bid)} | Ask ${formatPrice(quote?.ask)}`}
               </div>
             </div>
-            <div className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-emerald-200">
-              Alpaca Live
+            <div className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.2em] flex items-center gap-1 ${isLive ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200' : 'border-white/20 bg-white/5 text-white/40'}`}>
+              {isLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+              {isLive ? 'Live' : 'Delayed'}
             </div>
             {!isTradePanelOpen && (
               <button

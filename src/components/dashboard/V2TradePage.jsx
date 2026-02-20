@@ -18,6 +18,7 @@ const DRAWING_TOOLS = [
 
 const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
 const TD_REST = 'https://api.twelvedata.com';
+const TD_WS = 'wss://ws.twelvedata.com/v1/quotes/price';
 
 const INTERVALS = [
   { label: '1m', value: '1min' },
@@ -132,6 +133,43 @@ export default function V2TradePage() {
 
   useEffect(function() { loadChart(); }, [loadChart]);
   useEffect(function() { return function() { if (chartObjRef.current) { chartObjRef.current.destroy(); chartObjRef.current = null; } }; }, []);
+
+  // Twelve Data WebSocket for live price updates
+  var wsRef = useRef(null);
+  var [isLive, setIsLive] = useState(false);
+  useEffect(function() {
+    var liveIntervals = ['1min', '5min', '15min', '1h'];
+    if (!liveIntervals.includes(interval) || !TD_API_KEY) { setIsLive(false); return; }
+    var cancelled = false;
+    var ws = new WebSocket(TD_WS + '?apikey=' + encodeURIComponent(TD_API_KEY));
+    wsRef.current = ws;
+    ws.onopen = function() { ws.send(JSON.stringify({ action: 'subscribe', params: { symbols: symbol } })); setIsLive(true); };
+    ws.onmessage = function(e) {
+      try {
+        var m = JSON.parse(e.data);
+        if (m.event !== 'price') return;
+        var p = parseFloat(m.price);
+        var chart = chartObjRef.current;
+        if (!chart) return;
+        var ps = chart.get('price');
+        if (!ps || !ps.points || !ps.points.length) return;
+        var lp = ps.points[ps.points.length - 1];
+        if (!lp) return;
+        var o = lp.open, h = Math.max(lp.high, p), l = Math.min(lp.low, p);
+        lp.update({ open: o, high: h, low: l, close: p }, true, false);
+        setHover(function(prev) { return { o: o, h: h, l: l, c: p, v: prev.v }; });
+      } catch(err) {}
+    };
+    ws.onclose = function() { if (!cancelled) setIsLive(false); };
+    ws.onerror = function() { if (!cancelled) setIsLive(false); };
+    return function() {
+      cancelled = true;
+      try { ws.send(JSON.stringify({ action: 'unsubscribe', params: { symbols: symbol } })); } catch(err) {}
+      try { ws.close(); } catch(err) {}
+      wsRef.current = null;
+      setIsLive(false);
+    };
+  }, [symbol, interval]);
 
   useEffect(function() {
     var container = containerRef.current;
@@ -326,6 +364,7 @@ export default function V2TradePage() {
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-4 text-base font-mono">
           <span className="text-white font-bold text-xl">{symbol}</span>
+          {isLive && <span className="flex items-center gap-1 text-xs text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />LIVE</span>}
           <span className="text-white/40">O <span className="text-white/70">{fmt(hover.o)}</span></span>
           <span className="text-white/40">H <span className="text-emerald-400/80">{fmt(hover.h)}</span></span>
           <span className="text-white/40">L <span className="text-red-400/80">{fmt(hover.l)}</span></span>
