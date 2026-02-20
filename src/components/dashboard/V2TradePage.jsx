@@ -59,7 +59,7 @@ const toMs = (v) => {
 };
 
 async function fetchData(symbol, interval, outputsize) {
-  const url = TD_REST + '/time_series?symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(interval) + '&outputsize=' + outputsize + '&apikey=' + encodeURIComponent(TD_API_KEY) + '&format=JSON&order=ASC';
+  const url = TD_REST + '/time_series?symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(interval) + '&outputsize=' + outputsize + '&apikey=' + encodeURIComponent(TD_API_KEY) + '&format=JSON&order=ASC&prepost=true';
   const res = await fetch(url, { cache: 'no-store' });
   const data = await res.json();
   if (!res.ok || (data && data.status === 'error')) return { ohlc: [], volume: [] };
@@ -365,6 +365,7 @@ export default function V2TradePage() {
         <div className="flex items-center gap-4 text-base font-mono">
           <span className="text-white font-bold text-xl">{symbol}</span>
           {isLive && <span className="flex items-center gap-1 text-xs text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />LIVE</span>}
+          {(function() { var now = new Date(); var parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit', weekday: 'short' }).formatToParts(now); var wd = (parts.find(function(p){return p.type==='weekday'})||{}).value||''; var hr = Number((parts.find(function(p){return p.type==='hour'})||{}).value||0); var mn = Number((parts.find(function(p){return p.type==='minute'})||{}).value||0); var mins = hr*60+mn; var isWeekend = wd==='Sat'||wd==='Sun'; if(isWeekend) return <span className="text-[10px] text-white/30 uppercase tracking-widest">Closed</span>; if(mins>=240&&mins<570) return <span className="text-[10px] text-amber-400/80 uppercase tracking-widest">Pre-Market</span>; if(mins>=570&&mins<960) return <span className="text-[10px] text-emerald-400/80 uppercase tracking-widest">Market Open</span>; if(mins>=960&&mins<1200) return <span className="text-[10px] text-blue-400/80 uppercase tracking-widest">After Hours</span>; return <span className="text-[10px] text-white/30 uppercase tracking-widest">Closed</span>; })()}
           <span className="text-white/40">O <span className="text-white/70">{fmt(hover.o)}</span></span>
           <span className="text-white/40">H <span className="text-emerald-400/80">{fmt(hover.h)}</span></span>
           <span className="text-white/40">L <span className="text-red-400/80">{fmt(hover.l)}</span></span>

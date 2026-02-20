@@ -126,7 +126,7 @@ const DRAWING_TOOLS = [
 ];
 
 async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500, apiKey = '') {
-  const directUrl = `${TD_REST_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}&apikey=${encodeURIComponent(apiKey)}&format=JSON&order=ASC`;
+  const directUrl = `${TD_REST_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}&apikey=${encodeURIComponent(apiKey)}&format=JSON&order=ASC&prepost=true`;
   const fallbackUrl = `/api/lse/timeseries?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}`;
   const res = await fetch(apiKey ? directUrl : fallbackUrl, { cache: 'no-store' });
   const data = await res.json();

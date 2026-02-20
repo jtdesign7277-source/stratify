@@ -55,7 +55,7 @@ const toMs = (v) => {
 };
 
 async function fetchData(symbol, interval, outputsize = 500) {
-  const url = `${TD_REST}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&apikey=${encodeURIComponent(TD_API_KEY)}&format=JSON&order=ASC`;
+  const url = `${TD_REST}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&apikey=${encodeURIComponent(TD_API_KEY)}&format=JSON&order=ASC&prepost=true`;
   const res = await fetch(url, { cache: 'no-store' });
   const data = await res.json();
   if (!res.ok || data?.status === 'error') return { ohlc: [], volume: [] };
