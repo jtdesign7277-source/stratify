@@ -49,16 +49,32 @@ const DEFAULT_WATCHLIST = [
 ];
 
 // ─── Interval Mapping ───
-const INTERVALS = [
+const BOTTOM_INTERVALS_PRIMARY = [
   { label: '1m', value: '1min' },
   { label: '5m', value: '5min' },
-  { label: '15m', value: '15min' },
   { label: '30m', value: '30min' },
-  { label: '1H', value: '1h' },
-  { label: '4H', value: '4h' },
-  { label: '1D', value: '1day' },
-  { label: '1W', value: '1week' },
-  { label: '1M', value: '1month' },
+  { label: '1h', value: '1h' },
+  { label: 'D', value: '1day' },
+  { label: 'W', value: '1week' },
+  { label: 'M', value: '1month' },
+];
+
+const BOTTOM_INTERVALS_MORE = [
+  { label: '15m', value: '15min' },
+  { label: '4h', value: '4h' },
+];
+
+const RANGE_PRESETS_PRIMARY = [
+  { label: '1D', value: '1D' },
+  { label: '5D', value: '5D' },
+  { label: '1M', value: '1M' },
+];
+
+const RANGE_PRESETS_MORE = [
+  { label: '3M', value: '3M' },
+  { label: '6M', value: '6M' },
+  { label: '1Y', value: '1Y' },
+  { label: 'ALL', value: 'ALL' },
 ];
 
 const RIGHT_OFFSET_BARS = 20;
@@ -109,7 +125,10 @@ const INDICATOR_OPTIONS = [
   { label: 'EMA 26', id: 'ema26', type: 'ema', params: { period: 26 }, color: '#f472b6' },
   { label: 'Bollinger Bands', id: 'bb', type: 'bb', params: { period: 20, standardDeviation: 2 }, color: '#6ee7b7' },
   { label: 'VWAP', id: 'vwap', type: 'vwap', params: {}, color: '#fbbf24' },
+  { label: 'MACD', id: 'macd', type: 'macd', params: { shortPeriod: 12, longPeriod: 26, signalPeriod: 9 }, color: '#10b981' },
 ];
+
+const TOP_INDICATOR_CHIPS = ['sma20', 'sma50', 'bb', 'vwap', 'macd'];
 
 // ─── Drawing Tools ───
 const DRAWING_TOOLS = [
@@ -215,7 +234,10 @@ export default function HighchartsStockChart({
   const [showDraw, setShowDraw] = useState(false);
   const [showColor, setShowColor] = useState(false);
   const [showSize, setShowSize] = useState(false);
+  const [showRangeMore, setShowRangeMore] = useState(false);
+  const [showIntervalMore, setShowIntervalMore] = useState(false);
   const [symSearch, setSymSearch] = useState('');
+  const [activeRange, setActiveRange] = useState('1M');
 
   // OHLCV strip
   const [hover, setHover] = useState({ o: null, h: null, l: null, c: null, v: null, chg: null, pct: null });
@@ -225,7 +247,17 @@ export default function HighchartsStockChart({
 
   // Close dropdowns
   useEffect(() => {
-    const fn = (e) => { if (!e.target.closest('[data-dd]')) { setShowSym(false); setShowInd(false); setShowDraw(false); setShowColor(false); setShowSize(false); } };
+    const fn = (e) => {
+      if (!e.target.closest('[data-dd]')) {
+        setShowSym(false);
+        setShowInd(false);
+        setShowDraw(false);
+        setShowColor(false);
+        setShowSize(false);
+        setShowRangeMore(false);
+        setShowIntervalMore(false);
+      }
+    };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, []);
@@ -353,6 +385,37 @@ export default function HighchartsStockChart({
     }
   }, [symbol, interval]);
 
+  const applyRangePreset = useCallback((rangeValue) => {
+    const xAxis = chartRef.current?.chart?.xAxis?.[0];
+    if (!xAxis) return;
+    const dataMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : null;
+    const dataMax = Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : null;
+    if (!Number.isFinite(dataMin) || !Number.isFinite(dataMax)) return;
+
+    const end = dataMax + rightOffsetMs;
+    const now = dataMax;
+    const rangeMsMap = {
+      '1D': 86_400_000,
+      '5D': 5 * 86_400_000,
+      '1M': 30 * 86_400_000,
+      '3M': 90 * 86_400_000,
+      '6M': 180 * 86_400_000,
+      '1Y': 365 * 86_400_000,
+    };
+
+    if (rangeValue === 'ALL') {
+      xAxis.setExtremes(dataMin, end, true, false, { trigger: 'range-preset' });
+      setActiveRange('ALL');
+      return;
+    }
+
+    const windowMs = rangeMsMap[rangeValue];
+    if (!Number.isFinite(windowMs)) return;
+    const start = Math.max(dataMin, now - windowMs);
+    xAxis.setExtremes(start, end, true, false, { trigger: 'range-preset' });
+    setActiveRange(rangeValue);
+  }, [rightOffsetMs]);
+
   const chartOptions = useMemo(
     () => buildOpts(seriesSeed.ohlc, seriesSeed.volume),
     [buildOpts, seriesSeed.ohlc, seriesSeed.volume]
@@ -365,16 +428,9 @@ export default function HighchartsStockChart({
     const xAxis = chart?.xAxis?.[0];
     if (!xAxis) return;
 
-    // Default to a recent working window so users immediately see candles.
-    const tail = Math.max(80, Math.min(200, seriesSeed.ohlc.length));
-    const start = seriesSeed.ohlc[Math.max(0, seriesSeed.ohlc.length - tail)]?.[0];
-    const lastTs = seriesSeed.ohlc[seriesSeed.ohlc.length - 1]?.[0];
-    const end = Number.isFinite(lastTs) ? lastTs + rightOffsetMs : lastTs;
-    if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
-      xAxis.setExtremes(start, end, true, false, { trigger: 'initial-focus' });
-    }
     chart.reflow();
-  }, [seriesSeed.ohlc, symbol, interval, rightOffsetMs]);
+    requestAnimationFrame(() => applyRangePreset(activeRange));
+  }, [seriesSeed.ohlc, symbol, interval, applyRangePreset, activeRange]);
 
   // ─── WebSocket ───
   useEffect(() => {
@@ -548,7 +604,7 @@ export default function HighchartsStockChart({
   }, [rightOffsetMs]);
 
   const h = isFs ? '100vh' : (SIZE_PRESETS.find((s) => s.value === chartSize)?.height || '100%');
-  const maxChartHeight = isFs ? '100vh' : 'calc(100vh - 260px)';
+  const maxChartHeight = isFs ? '100vh' : 'calc(100vh - 330px)';
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
 
   // ─── Styles ───
@@ -615,10 +671,17 @@ export default function HighchartsStockChart({
 
       {/* ═══ TOOLBAR ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '3px 10px', backgroundColor: '#000', borderBottom: '1px solid #0a0a0a', flexShrink: 0, flexWrap: 'wrap' }}>
-        {INTERVALS.map((i) => <button key={i.value} onClick={() => setIv(i.value)} className={`${P} ${interval === i.value ? PN : PF}`}>{i.label}</button>)}
-        <div style={{ width: '1px', height: '12px', backgroundColor: '#1a2332', margin: '0 2px' }} />
+        {TOP_INDICATOR_CHIPS.map((chipId) => {
+          const chip = INDICATOR_OPTIONS.find((opt) => opt.id === chipId);
+          if (!chip) return null;
+          const active = activeInd.includes(chipId);
+          return (
+            <button key={chipId} onClick={() => toggleInd(chipId)} className={`${P} ${active ? PN : PF}`}>{chip.label}</button>
+          );
+        })}
+        <div style={{ width: '1px', height: '12px', backgroundColor: '#1a2332', margin: '0 4px' }} />
         {CHART_TYPES.map((ct) => <button key={ct.value} onClick={() => setChartType(ct.value)} className={`${P} ${chartType === ct.value ? PN : PF}`}>{ct.label}</button>)}
-        <div style={{ width: '1px', height: '12px', backgroundColor: '#1a2332', margin: '0 2px' }} />
+        <div style={{ width: '1px', height: '12px', backgroundColor: '#1a2332', margin: '0 4px' }} />
 
         {/* Indicators */}
         <div style={{ position: 'relative' }} data-dd>
@@ -698,6 +761,71 @@ export default function HighchartsStockChart({
         <HighchartsReact ref={chartRef} highcharts={Highcharts} constructorType="stockChart" options={chartOptions} containerProps={{ style: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 } }} />
 
         <div style={{ position: 'absolute', bottom: '36px', right: '10px', fontSize: '8px', color: '#151a24', letterSpacing: '0.04em', fontWeight: '500', pointerEvents: 'none', zIndex: 10 }}>MARKET DATA POWERED BY TWELVE DATA</div>
+      </div>
+
+      {/* ═══ BOTTOM RANGE / INTERVAL BAR ═══ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 10px', backgroundColor: '#000', borderTop: '1px solid #0f1722', flexShrink: 0, fontFamily: "'SF Mono', monospace" }}>
+        <span style={{ color: '#4a5568', fontSize: '11px' }}>Range:</span>
+        {RANGE_PRESETS_PRIMARY.map((item) => (
+          <button
+            key={item.value}
+            onClick={() => applyRangePreset(item.value)}
+            className={`${P} ${activeRange === item.value ? PN : PF}`}
+          >
+            {item.label}
+          </button>
+        ))}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowRangeMore(!showRangeMore)} className={`${P} ${RANGE_PRESETS_MORE.some((o) => o.value === activeRange) ? PN : PF}`}>▼</button>
+          {showRangeMore && (
+            <div style={{ ...DD, minWidth: '90px' }}>
+              {RANGE_PRESETS_MORE.map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => {
+                    applyRangePreset(item.value);
+                    setShowRangeMore(false);
+                  }}
+                  style={DI(activeRange === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ width: '1px', height: '14px', backgroundColor: '#1a2332', margin: '0 4px' }} />
+
+        <span style={{ color: '#4a5568', fontSize: '11px' }}>Interval:</span>
+        {BOTTOM_INTERVALS_PRIMARY.map((item) => (
+          <button
+            key={item.value}
+            onClick={() => setIv(item.value)}
+            className={`${P} ${interval === item.value ? PN : PF}`}
+          >
+            {item.label}
+          </button>
+        ))}
+        <div style={{ position: 'relative' }} data-dd>
+          <button onClick={() => setShowIntervalMore(!showIntervalMore)} className={`${P} ${BOTTOM_INTERVALS_MORE.some((o) => o.value === interval) ? PN : PF}`}>▼</button>
+          {showIntervalMore && (
+            <div style={{ ...DD, minWidth: '90px' }}>
+              {BOTTOM_INTERVALS_MORE.map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => {
+                    setIv(item.value);
+                    setShowIntervalMore(false);
+                  }}
+                  style={DI(interval === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <style>{`
