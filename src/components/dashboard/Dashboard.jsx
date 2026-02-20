@@ -30,6 +30,7 @@ import BacktestWizard from './BacktestWizard';
 import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
+import V2TradePage from './V2TradePage';
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
@@ -1756,6 +1757,7 @@ export default function Dashboard({
               addTrade={addTrade}
             />
           )}
+          {activeTab === 'v2-trade' && <V2TradePage />}
           {activeTab === 'trade' && (
             <ProGate
               featureName="Paper Trading"
