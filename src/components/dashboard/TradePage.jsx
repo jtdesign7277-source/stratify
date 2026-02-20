@@ -4,9 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import SocialSentiment from './SocialSentiment';
-import AlpacaLightweightChart from './AlpacaLightweightChart';
-import TwelveDataLightweightChart from './TwelveDataLightweightChart';
-import TransparentChart from './TransparentChart';
+import LiveChart from './LiveChart';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
@@ -237,6 +235,19 @@ const CHART_INTERVAL_TO_ALPACA = {
 };
 
 const resolveAlpacaInterval = (value) => CHART_INTERVAL_TO_ALPACA[value] || '1Day';
+const CHART_INTERVAL_TO_LIVE = {
+  '1m': '1min',
+  '5m': '5min',
+  '15m': '15min',
+  '1H': '1h',
+  '1D': '1day',
+  '1': '1min',
+  '5': '5min',
+  '15': '15min',
+  '60': '1h',
+  'D': '1day',
+};
+const resolveLiveInterval = (value) => CHART_INTERVAL_TO_LIVE[value] || '1day';
 const ALPACA_TO_TWELVE_TIMEFRAME = {
   '1Min': '1Min',
   '5Min': '5Min',
@@ -329,62 +340,6 @@ const getCryptoDisplaySymbol = (symbol) => {
   return normalized;
 };
 
-
-// TradingView Advanced Chart Widget (replaces basic iframe embed)
-const TradingViewWidget = ({ symbol, interval }) => {
-  const containerRef = React.useRef(null);
-  React.useEffect(() => {
-    if (!containerRef.current) return;
-    containerRef.current.innerHTML = '';
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: symbol,
-      interval: interval,
-      timezone: 'America/New_York',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      backgroundColor: 'rgba(0, 0, 0, 1)',
-      gridColor: 'rgba(30, 30, 30, 0.3)',
-      hide_top_toolbar: false,
-      hide_legend: false,
-      allow_symbol_change: false,
-      save_image: true,
-      calendar: false,
-      hide_volume: false,
-      support_host: 'https://www.tradingview.com',
-      withdateranges: true,
-      details: true,
-      hotlist: false,
-      show_popup_button: false,
-      studies: ['STD;MACD'],
-    });
-    containerRef.current.appendChild(script);
-  }, [symbol, interval]);
-  return <div ref={containerRef} className="tradingview-widget-container" style={{ height: '100%', width: '100%' }} />;
-};
-
-const getTradingViewSymbol = (symbol, market) => {
-  if (!symbol) return symbol;
-  if (symbol.includes(':')) {
-    if (market === 'crypto') {
-      const normalized = symbol.split(':')[1] || symbol;
-      const base = getCryptoDisplaySymbol(normalized);
-      return base ? `COINBASE:${base}USD` : symbol;
-    }
-    return symbol;
-  }
-  if (market === 'crypto') {
-    if (CRYPTO_TV_MAP[symbol]) return CRYPTO_TV_MAP[symbol];
-    const base = getCryptoDisplaySymbol(symbol);
-    return base ? `COINBASE:${base}USD` : symbol;
-  }
-  return symbol;
-};
 
 const normalizeCryptoQuoteSymbol = (symbol) => {
   if (!symbol) return symbol;
@@ -781,14 +736,10 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
       || 'S&P 500 ETF';
   }, [activeMarket, cryptoStocks, equityStocks, selectedTicker]);
   const selectedSymbol = selectedTicker;
-  const selectedInterval = useMemo(() => resolveAlpacaInterval(chartInterval), [chartInterval]);
+  const liveChartInterval = useMemo(() => resolveLiveInterval(chartInterval), [chartInterval]);
   const isSelectedLse = activeMarket === 'equity' && isLseEquitySymbol(selectedSymbol);
   const lseMarketOpen = useMemo(() => isLseMarketOpen(), [marketSession]);
   const lseChartSymbol = useMemo(() => toLseQuoteSymbol(selectedSymbol), [selectedSymbol]);
-  const lseChartTimeframe = useMemo(
-    () => ALPACA_TO_TWELVE_TIMEFRAME[selectedInterval] || '1Day',
-    [selectedInterval]
-  );
   const sharesQtyNumber = useMemo(() => {
     const parsed = parseFloat(orderQty);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -2007,8 +1958,9 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         </div>
         <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
           <div className="flex-1 min-h-0 min-w-0 relative">
-            <TransparentChart
+            <LiveChart
               symbol={isSelectedLse ? lseChartSymbol : selectedSymbol}
+              interval={liveChartInterval}
               onSymbolChange={(sym) => {
                 if (activeMarket === 'crypto') setSelectedCrypto(sym);
                 else setSelectedEquity(sym);
