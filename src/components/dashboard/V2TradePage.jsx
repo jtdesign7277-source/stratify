@@ -30,6 +30,32 @@ initModule(HollowCandlestickModule);
 initModule(IndicatorsModule);
 initModule(IchimokuModule);
 
+const generateFallbackData = (points = 320) => {
+  const data = [];
+  const day = 24 * 60 * 60 * 1000;
+  let close = 182;
+
+  for (let i = points; i > 0; i -= 1) {
+    const ts = Date.now() - i * day;
+    const open = close + (Math.random() - 0.5) * 2.2;
+    const high = Math.max(open, close) + Math.random() * 2.6;
+    const low = Math.min(open, close) - Math.random() * 2.6;
+    close = low + Math.random() * (high - low);
+    const volume = Math.round(250000 + Math.random() * 1600000);
+    data.push([ts, Number(open.toFixed(2)), Number(high.toFixed(2)), Number(low.toFixed(2)), Number(close.toFixed(2)), volume]);
+  }
+
+  return data;
+};
+
+const getFallbackDataForPreset = (presetId) => {
+  const full = generateFallbackData();
+  if (presetId === 'aapl-basic-exact' || presetId === 'candlestick-basic' || presetId === 'technical-annotations') {
+    return full.map((row) => row.slice(0, 5));
+  }
+  return full;
+};
+
 if (!Highcharts.__stratifyVolumeWidthPluginInstalled) {
   Highcharts.addEvent(
     Highcharts.seriesTypes.column,
@@ -85,11 +111,29 @@ export default function V2TradePage() {
       setError('');
 
       try {
+        if (chartRef.current) {
+          chartRef.current.destroy();
+          chartRef.current = null;
+        }
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+
         let data = null;
+        let usingFallback = false;
 
         if (activePreset.dataUrl) {
-          const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
-          data = await response.json();
+          try {
+            const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
+            if (!response.ok) {
+              throw new Error(`fetch failed (${response.status})`);
+            }
+            data = await response.json();
+          } catch (fetchError) {
+            console.warn('[V.2_Trade] Preset fetch failed, using fallback data:', fetchError);
+            data = getFallbackDataForPreset(activePreset.id);
+            usingFallback = true;
+          }
         }
 
         if (!mounted || !containerRef.current) return;
@@ -107,6 +151,10 @@ export default function V2TradePage() {
           activePreset.engine === 'chart'
             ? Highcharts.chart(containerRef.current, options)
             : Highcharts.stockChart(containerRef.current, options);
+
+        if (usingFallback && mounted) {
+          setError('Live demo feed unavailable. Showing local fallback dataset.');
+        }
       } catch (loadError) {
         console.error('[V.2_Trade] Failed to load chart:', loadError);
         if (mounted) setError('Failed to load chart data.');
