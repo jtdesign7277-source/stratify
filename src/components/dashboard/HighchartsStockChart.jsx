@@ -296,8 +296,8 @@ export default function HighchartsStockChart({
         height: '100%',
         animation: false,
         spacing: [0, 0, 0, 0],
-        panning: { enabled: false },
-        zooming: { type: undefined, mouseWheel: { enabled: false } },
+        panning: { enabled: true, type: 'x' },
+        zooming: { type: 'x', mouseWheel: { enabled: true, sensitivity: 1.1 }, pinchType: 'x' },
       },
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
@@ -313,7 +313,7 @@ export default function HighchartsStockChart({
         minPadding: 0,
         maxPadding: 0.06,
         overscroll: rightOffsetMs,
-        minRange: Math.max(getIntervalMs(interval) * 10, 60_000),
+        minRange: Math.max(getIntervalMs(interval) * 2, 60_000),
       },
       yAxis: [
         {
