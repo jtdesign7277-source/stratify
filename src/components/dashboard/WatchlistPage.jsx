@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
+import LiveChart from './LiveChart';
 // import HighchartsStockChart from './HighchartsStockChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 
@@ -1240,6 +1241,7 @@ const WatchlistPage = ({
 
             <div className="flex min-h-0 flex-1">
               <div className="min-h-0 flex-1">
+                <LiveChart symbol={selectedTicker} />
               </div>
 
               {!isOrderPanelClosed ? (
