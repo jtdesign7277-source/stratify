@@ -6,6 +6,7 @@ import BreakingNewsBanner from './BreakingNewsBanner';
 import SocialSentiment from './SocialSentiment';
 import AlpacaLightweightChart from './AlpacaLightweightChart';
 import TwelveDataLightweightChart from './TwelveDataLightweightChart';
+import TransparentChart from './TransparentChart';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
@@ -2006,57 +2007,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         </div>
         <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
           <div className="flex-1 min-h-[360px] relative">
-            <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border border-gray-800 bg-[#060d18]/90 p-1 backdrop-blur">
-              {CHART_INTERVALS.map((interval) => {
-                const isActive = chartInterval === interval;
-                return (
-                  <button
-                    key={interval}
-                    type="button"
-                    onClick={() => setChartInterval(interval)}
-                    className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors ${
-                      isActive
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                        : 'text-gray-400 border border-transparent hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {interval}
-                  </button>
-                );
-              })}
-            </div>
-            {isSelectedLse && (
-              <>
-                <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-lg border border-blue-500/35 bg-[#060d18]/80 px-3 py-2 backdrop-blur">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base leading-none">🇬🇧</span>
-                    <div className="leading-none">
-                      <div className="text-[10px] font-bold tracking-[0.2em] text-blue-300">LONDON STOCK EXCHANGE</div>
-                      <div className="mt-1 text-[9px] font-medium tracking-[0.15em] text-blue-300/75">AN LSEG BUSINESS</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="pointer-events-none absolute bottom-4 right-4 z-[8] text-right leading-none opacity-[0.14]">
-                  <div className="text-[18px] font-black tracking-[0.12em] text-blue-300">LONDON</div>
-                  <div className="text-[18px] font-black tracking-[0.12em] text-blue-300">STOCK</div>
-                  <div className="text-[18px] font-black tracking-[0.12em] text-blue-300">EXCHANGE</div>
-                </div>
-              </>
-            )}
-            {isSelectedLse ? (
-              <TwelveDataLightweightChart
-                symbol={lseChartSymbol}
-                timeframe={lseChartTimeframe}
-                height="100%"
-              />
-            ) : (
-              <AlpacaLightweightChart
-                symbol={selectedSymbol}
-                interval={selectedInterval}
-                livePrice={selectedQuote?.price}
-                liveTimestamp={selectedQuote?.timestamp}
-              />
-            )}
+            <TransparentChart
+              symbol={isSelectedLse ? lseChartSymbol : selectedSymbol}
+              onSymbolChange={(sym) => {
+                if (activeMarket === 'crypto') setSelectedCrypto(sym);
+                else setSelectedEquity(sym);
+              }}
+            />
           </div>
 
           <div
