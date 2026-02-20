@@ -61,6 +61,21 @@ const INTERVALS = [
   { label: '1M', value: '1month' },
 ];
 
+const RIGHT_OFFSET_BARS = 20;
+const INTERVAL_TO_MS = {
+  '1min': 60_000,
+  '5min': 300_000,
+  '15min': 900_000,
+  '30min': 1_800_000,
+  '1h': 3_600_000,
+  '4h': 14_400_000,
+  '1day': 86_400_000,
+  '1week': 604_800_000,
+  '1month': 2_592_000_000,
+};
+
+const getIntervalMs = (value) => INTERVAL_TO_MS[String(value || '').trim()] || INTERVAL_TO_MS['1day'];
+
 const CHART_TYPES = [
   { label: 'Candles', value: 'candlestick' },
   { label: 'OHLC', value: 'ohlc' },
@@ -192,6 +207,7 @@ export default function HighchartsStockChart({
   const [isFs, setIsFs] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [seriesSeed, setSeriesSeed] = useState({ ohlc: [], volume: [] });
+  const rightOffsetMs = useMemo(() => getIntervalMs(interval) * RIGHT_OFFSET_BARS, [interval]);
 
   // Dropdowns
   const [showSym, setShowSym] = useState(false);
@@ -254,7 +270,15 @@ export default function HighchartsStockChart({
       navigator: { enabled: true, height: 28, outlineColor: '#1a2332', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f2937', borderColor: '#4a5568' } },
       scrollbar: { enabled: true, barBackgroundColor: '#1f2937', barBorderColor: '#1f2937', barBorderRadius: 4, buttonArrowColor: '#4a5568', buttonBackgroundColor: '#111827', buttonBorderColor: '#111827', rifleColor: '#4a5568', trackBackgroundColor: '#111827', trackBorderColor: '#111827', trackBorderRadius: 4, height: 6 },
       rangeSelector: { enabled: false },
-      xAxis: { gridLineWidth: 0, lineColor: '#1a2332', tickColor: '#1a2332', labels: { style: { color: '#4a5568', fontSize: '10px' } }, crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1 } },
+      xAxis: {
+        gridLineWidth: 0,
+        lineColor: '#1a2332',
+        tickColor: '#1a2332',
+        labels: { style: { color: '#4a5568', fontSize: '10px' } },
+        crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1 },
+        minPadding: 0,
+        maxPadding: 0.06,
+      },
       yAxis: [
         { labels: { align: 'right', x: -8, style: { color: '#8892a0', fontSize: '10px' }, formatter() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1, label: { enabled: true, backgroundColor: '#1f2937', style: { color: '#e5e7eb', fontSize: '10px' }, padding: 4, format: '${value:.2f}' } }, resize: { enabled: true } },
         { labels: { enabled: false }, top: '77%', height: '23%', offset: 0, gridLineWidth: 0, lineWidth: 0 },
@@ -317,12 +341,13 @@ export default function HighchartsStockChart({
     // Default to a recent working window so users immediately see candles.
     const tail = Math.max(80, Math.min(200, seriesSeed.ohlc.length));
     const start = seriesSeed.ohlc[Math.max(0, seriesSeed.ohlc.length - tail)]?.[0];
-    const end = seriesSeed.ohlc[seriesSeed.ohlc.length - 1]?.[0];
+    const lastTs = seriesSeed.ohlc[seriesSeed.ohlc.length - 1]?.[0];
+    const end = Number.isFinite(lastTs) ? lastTs + rightOffsetMs : lastTs;
     if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
       xAxis.setExtremes(start, end, true, false, { trigger: 'initial-focus' });
     }
     chart.reflow();
-  }, [seriesSeed.ohlc, symbol, interval]);
+  }, [seriesSeed.ohlc, symbol, interval, rightOffsetMs]);
 
   // ─── WebSocket ───
   useEffect(() => {
@@ -488,26 +513,33 @@ export default function HighchartsStockChart({
     const center = xAxis.min + currentRange / 2;
     const dataMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : xAxis.min;
     const dataMax = Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : xAxis.max;
+    const paddedDataMax = dataMax + rightOffsetMs;
 
     let nextMin = center - nextRange / 2;
     let nextMax = center + nextRange / 2;
     if (nextMin < dataMin) {
       nextMin = dataMin;
-      nextMax = Math.min(dataMax, dataMin + nextRange);
+      nextMax = Math.min(paddedDataMax, dataMin + nextRange);
     }
-    if (nextMax > dataMax) {
-      nextMax = dataMax;
-      nextMin = Math.max(dataMin, dataMax - nextRange);
+    if (nextMax > paddedDataMax) {
+      nextMax = paddedDataMax;
+      nextMin = Math.max(dataMin, paddedDataMax - nextRange);
     }
 
     xAxis.setExtremes(nextMin, nextMax, true, false, { trigger: 'zoom-button' });
-  }, []);
+  }, [rightOffsetMs]);
 
   const handleResetZoom = useCallback(() => {
     const xAxis = chartRef.current?.chart?.xAxis?.[0];
     if (!xAxis) return;
+    const dataMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : null;
+    const dataMax = Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : null;
+    if (Number.isFinite(dataMin) && Number.isFinite(dataMax)) {
+      xAxis.setExtremes(dataMin, dataMax + rightOffsetMs, true, false, { trigger: 'reset-zoom' });
+      return;
+    }
     xAxis.setExtremes(null, null, true, false, { trigger: 'reset-zoom' });
-  }, []);
+  }, [rightOffsetMs]);
 
   const h = isFs ? '100vh' : (SIZE_PRESETS.find((s) => s.value === chartSize)?.height || '100%');
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
