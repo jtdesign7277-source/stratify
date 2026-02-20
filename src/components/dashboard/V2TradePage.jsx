@@ -104,9 +104,6 @@ export default function V2TradePage() {
     if (chartObjRef.current) { chartObjRef.current.destroy(); chartObjRef.current = null; }
     if (!containerRef.current) { setLoading(false); return; }
     const up = theme.up, down = theme.down;
-    const cVol = volume.map(function(v) {
-      return { x: v.x, y: v.y, color: v._c >= v._o ? up + '44' : down + '44', borderColor: v._c >= v._o ? up + '77' : down + '77' };
-    });
     var chart = Highcharts.stockChart(containerRef.current, {
       chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
       credits: { enabled: false }, title: { text: '' },
@@ -117,8 +114,7 @@ export default function V2TradePage() {
       rangeSelector: { enabled: false },
       xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#ffffffcc', fontSize: '11px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
       yAxis: [
-        { labels: { align: 'right', x: -8, style: { color: '#ffffffcc', fontSize: '11px', cursor: 'ns-resize' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 } },
-        { labels: { enabled: false }, top: '77%', height: '23%', gridLineWidth: 0, lineWidth: 0 }
+        { labels: { align: 'right', x: -8, style: { color: '#ffffffcc', fontSize: '11px', cursor: 'ns-resize' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '100%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 } }
       ],
       tooltip: { enabled: false },
       plotOptions: {
@@ -127,8 +123,7 @@ export default function V2TradePage() {
         series: { animation: false, states: { hover: { enabled: false }, inactive: { opacity: 1 } } }
       },
       series: [
-        { type: 'candlestick', id: 'price', name: symbol, data: ohlc, yAxis: 0, zIndex: 5 },
-        { type: 'column', id: 'volume', name: 'Volume', data: cVol, yAxis: 1, zIndex: 1, colorByPoint: true, borderWidth: 0 }
+        { type: 'candlestick', id: 'price', name: symbol, data: ohlc, yAxis: 0, zIndex: 5 }
       ]
     });
     chartObjRef.current = chart;
