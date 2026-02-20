@@ -145,7 +145,6 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
           labels: { align: 'right', x: -8, style: { color: '#8892a0bb', fontSize: '10px' }, formatter() { return '$' + this.value.toFixed(2); } },
           height: '75%', gridLineWidth: 0, lineWidth: 0,
           crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 },
-          scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#22c55e', buttonBackgroundColor: '#14532d', buttonBorderColor: '#22c55e', rifleColor: '#22c55e', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4 },
         },
         { labels: { enabled: false }, top: '77%', height: '23%', gridLineWidth: 0, lineWidth: 0 },
       ],
