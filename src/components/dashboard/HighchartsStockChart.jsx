@@ -270,14 +270,13 @@ export default function HighchartsStockChart({
       credits: { enabled: false }, title: { text: '' },
       stockTools: { gui: { enabled: false } },
       navigator: { enabled: true, height: 28, outlineColor: '#1a2332', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f2937', borderColor: '#4a5568' } },
-      scrollbar: { enabled: true, barBackgroundColor: '#1f2937', barBorderColor: '#1f2937', barBorderRadius: 4, buttonArrowColor: '#9ca3af', buttonBackgroundColor: '#111827', buttonBorderColor: '#111827', rifleColor: '#9ca3af', trackBackgroundColor: '#0b1220', trackBorderColor: '#1f2937', trackBorderRadius: 4, height: 14, margin: 6, liveRedraw: false },
+      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#e2e8f0', buttonBackgroundColor: '#1f2937', buttonBorderColor: '#475569', rifleColor: '#e2e8f0', trackBackgroundColor: '#0b1220', trackBorderColor: '#334155', trackBorderRadius: 4, height: 14, margin: 6, liveRedraw: false },
       rangeSelector: { enabled: false },
       xAxis: {
         gridLineWidth: 0,
         lineColor: '#1a2332',
         tickColor: '#1a2332',
         labels: { style: { color: '#4a5568', fontSize: '10px' } },
-        crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1 },
         minPadding: 0,
         maxPadding: 0.06,
         overscroll: rightOffsetMs,
@@ -293,15 +292,14 @@ export default function HighchartsStockChart({
           scrollbar: {
             enabled: true,
             opposite: true,
-            barBackgroundColor: '#1f2937',
-            barBorderColor: '#1f2937',
-            buttonBackgroundColor: '#111827',
-            buttonBorderColor: '#111827',
-            trackBackgroundColor: '#111827',
-            trackBorderColor: '#111827',
-            rifleColor: '#4a5568',
+            barBackgroundColor: '#475569',
+            barBorderColor: '#475569',
+            buttonBackgroundColor: '#1f2937',
+            buttonBorderColor: '#475569',
+            trackBackgroundColor: '#0b1220',
+            trackBorderColor: '#334155',
+            rifleColor: '#e2e8f0',
           },
-          crosshair: { color: '#4a5568', dashStyle: 'Dash', width: 1, label: { enabled: true, backgroundColor: '#1f2937', style: { color: '#e5e7eb', fontSize: '10px' }, padding: 4, format: '${value:.2f}' } },
           resize: { enabled: true },
         },
         { labels: { enabled: false }, top: '77%', height: '23%', offset: 0, gridLineWidth: 0, lineWidth: 0 },
@@ -456,27 +454,6 @@ export default function HighchartsStockChart({
       setIsLive(false);
     };
   }, [symbol, interval]);
-
-  // ─── Hover tracking ───
-  useEffect(() => {
-    const id = setInterval(() => {
-      const chart = chartRef.current?.chart;
-      if (!chart?.container) return;
-      clearInterval(id);
-      chart.container.addEventListener('mousemove', (e) => {
-        const ps = chart.get('price');
-        const vs = chart.get('volume');
-        if (!ps) return;
-        const ev = chart.pointer.normalize(e);
-        const pt = ps.searchPoint(ev, true);
-        if (pt) {
-          const vp = vs?.points?.find((p) => p.x === pt.x);
-          setHover({ o: pt.open ?? pt.y, h: pt.high ?? pt.y, l: pt.low ?? pt.y, c: pt.close ?? pt.y, v: vp?.y ?? 0, chg: (pt.close ?? pt.y) - (pt.open ?? pt.y), pct: pt.open ? (((pt.close - pt.open) / pt.open) * 100) : 0 });
-        }
-      });
-    }, 200);
-    return () => clearInterval(id);
-  }, [symbol, interval, chartType]);
 
   // ─── Handlers ───
   const pickSymbol = (s) => { setSymbol(s); setShowSym(false); setSymSearch(''); onSymbolChange?.(s); };
