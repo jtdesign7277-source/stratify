@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import SocialSentiment from './SocialSentiment';
-import LiveChart from './LiveChart';
+// import LiveChart from './LiveChart';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
@@ -1958,14 +1958,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         </div>
         <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
           <div className="flex-1 min-h-0 min-w-0 relative">
-            <LiveChart
-              symbol={isSelectedLse ? lseChartSymbol : selectedSymbol}
-              interval={liveChartInterval}
-              onSymbolChange={(sym) => {
-                if (activeMarket === 'crypto') setSelectedCrypto(sym);
-                else setSelectedEquity(sym);
-              }}
-            />
           </div>
 
           <div
