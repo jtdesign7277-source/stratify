@@ -1,7 +1,33 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Clock, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, RefreshCw, AlertTriangle, Minus, ChevronDown } from 'lucide-react';
 
-const US_EXCHANGES = new Set(['NASDAQ', 'NYSE', 'AMEX', 'XNAS', 'XNYS', 'XASE']);
+const ECON_CALENDAR_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+
+const IMPACT_CONFIG = {
+  High: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'HIGH', dot: 'bg-red-400' },
+  Medium: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', label: 'MED', dot: 'bg-amber-400' },
+  Low: { color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30', label: 'LOW', dot: 'bg-gray-500' },
+  Holiday: { color: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-500/30', label: 'HOLIDAY', dot: 'bg-blue-400' },
+};
+
+const COUNTRY_FLAGS = {
+  USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵', AUD: '🇦🇺', CAD: '🇨🇦', NZD: '🇳🇿', CHF: '🇨🇭', CNY: '🇨🇳',
+};
+
+const formatTime = (dateStr) => {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch { return '—'; }
+};
+
+const getDateKey = (dateStr) => {
+  try {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch { return ''; }
+};
 
 const formatDateHeader = (dateStr, todayStr) => {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -12,32 +38,13 @@ const formatDateHeader = (dateStr, todayStr) => {
   return { label: `${day}, ${month} ${d}`, isToday };
 };
 
-const getDateRange = () => {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - 3);
-  const end = new Date(now);
-  end.setDate(now.getDate() + 4);
-  const fmt = (d) => d.toISOString().split('T')[0];
-  return { start_date: fmt(start), end_date: fmt(end) };
-};
-
-const SurpriseBadge = ({ surprise_prc }) => {
-  const val = parseFloat(surprise_prc);
-  if (!Number.isFinite(val)) return null;
-  const beat = val >= 0;
-  return (
-    <span className={`text-[11px] font-semibold ${beat ? 'text-emerald-400' : 'text-red-400'}`}>
-      {beat ? 'BEAT' : 'MISS'} {beat ? '+' : ''}{val.toFixed(1)}%
-    </span>
-  );
-};
-
 const EconomicsCalendarPage = () => {
-  const [data, setData] = useState(null);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [filter, setFilter] = useState('USD'); // 'ALL', 'USD', 'High'
+  const [showFilter, setShowFilter] = useState(false);
   const todayRef = useRef(null);
 
   const todayStr = useMemo(() => {
@@ -49,13 +56,11 @@ const EconomicsCalendarPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const { start_date, end_date } = getDateRange();
-      const url = `https://api.twelvedata.com/earnings_calendar?apikey=${import.meta.env.VITE_TWELVE_DATA_API_KEY}&start_date=${start_date}&end_date=${end_date}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const res = await fetch(ECON_CALENDAR_URL);
+      if (!res.ok) throw new Error(`Failed to load calendar (${res.status})`);
       const json = await res.json();
-      if (json.status === 'error') throw new Error(json.message || 'API error');
-      setData(json);
+      if (!Array.isArray(json)) throw new Error('Invalid data format');
+      setEvents(json);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err.message);
@@ -72,32 +77,46 @@ const EconomicsCalendarPage = () => {
 
   useEffect(() => {
     if (!loading && todayRef.current) {
-      setTimeout(() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+      setTimeout(() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }
-  }, [loading, data]);
+  }, [loading, events]);
 
-  // Parse and filter data
-  const groupedDates = useMemo(() => {
-    if (!data || typeof data !== 'object') return [];
-    // The API returns an object with date keys, or an "earnings" object
-    const earnings = data.earnings || data;
-    const dates = Object.keys(earnings)
-      .filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k))
-      .sort();
+  const filteredGrouped = useMemo(() => {
+    let filtered = events;
+    if (filter === 'USD') filtered = events.filter((e) => e.country === 'USD');
+    else if (filter === 'High') filtered = events.filter((e) => e.impact === 'High');
+    else if (filter === 'Major') filtered = events.filter((e) => ['USD', 'EUR', 'GBP', 'JPY'].includes(e.country));
 
-    return dates.map((date) => {
-      const events = (earnings[date] || []).filter((e) => {
-        const ex = (e.exchange || '').toUpperCase();
-        const mic = (e.mic_code || '').toUpperCase();
-        return US_EXCHANGES.has(ex) || US_EXCHANGES.has(mic);
-      });
-      return { date, events };
-    }).filter((g) => g.events.length > 0);
-  }, [data]);
+    const groups = {};
+    filtered.forEach((e) => {
+      const dk = getDateKey(e.date);
+      if (!dk) return;
+      if (!groups[dk]) groups[dk] = [];
+      groups[dk].push(e);
+    });
+
+    return Object.keys(groups).sort().map((date) => ({
+      date,
+      events: groups[date].sort((a, b) => new Date(a.date) - new Date(b.date)),
+    }));
+  }, [events, filter]);
+
+  const stats = useMemo(() => {
+    const usd = events.filter((e) => e.country === 'USD');
+    const high = events.filter((e) => e.impact === 'High');
+    const todayEvents = events.filter((e) => getDateKey(e.date) === todayStr && e.country === 'USD');
+    return { total: events.length, usd: usd.length, high: high.length, today: todayEvents.length };
+  }, [events, todayStr]);
+
+  const FILTERS = [
+    { key: 'USD', label: '🇺🇸 USD Only' },
+    { key: 'Major', label: 'Major Currencies' },
+    { key: 'High', label: '🔴 High Impact' },
+    { key: 'ALL', label: 'All Events' },
+  ];
 
   return (
     <div className="h-full w-full bg-transparent text-white overflow-hidden relative flex flex-col">
-      {/* Grid bg */}
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
@@ -107,39 +126,60 @@ const EconomicsCalendarPage = () => {
       />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-6 pt-5 pb-3">
-        <div className="flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
-          <h1 className="text-lg font-semibold">Earnings Calendar</h1>
-          <span className="text-[11px] text-gray-500">US Exchanges</span>
+      <div className="relative z-10 px-6 pt-5 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
+            <h1 className="text-lg font-semibold">Economic Calendar</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-[11px] text-gray-500">
+                Updated {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            <button onClick={fetchData} disabled={loading} className="text-gray-400 hover:text-white transition">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {lastUpdated && (
-            <span className="text-[11px] text-gray-500">
-              Updated {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="text-gray-400 hover:text-white transition"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-          </button>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 mb-3 text-[11px]">
+          <span className="text-gray-500">{stats.today} USD events today</span>
+          <span className="text-gray-600">•</span>
+          <span className="text-gray-500">{stats.high} high impact this week</span>
+          <span className="text-gray-600">•</span>
+          <span className="text-gray-500">{stats.total} total events</span>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                filter === f.key
+                  ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
+                  : 'text-gray-400 hover:text-white border border-transparent'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Content */}
       <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-6" style={{ scrollbarWidth: 'thin' }}>
-        {loading && !data && (
+        {loading && events.length === 0 && (
           <div className="space-y-4 mt-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse">
                 <div className="h-4 w-40 bg-gray-800 rounded mb-3" />
                 <div className="space-y-2">
-                  {[1, 2, 3].map((j) => (
-                    <div key={j} className="h-10 bg-gray-800/50 rounded" />
-                  ))}
+                  {[1, 2, 3].map((j) => <div key={j} className="h-10 bg-gray-800/50 rounded" />)}
                 </div>
               </div>
             ))}
@@ -149,84 +189,80 @@ const EconomicsCalendarPage = () => {
         {error && (
           <div className="mt-8 text-center">
             <p className="text-red-400 text-sm mb-3">{error}</p>
-            <button onClick={fetchData} className="text-blue-400 hover:text-blue-300 text-sm">
-              Retry
-            </button>
+            <button onClick={fetchData} className="text-blue-400 hover:text-blue-300 text-sm">Retry</button>
           </div>
         )}
 
-        {!loading && !error && groupedDates.length === 0 && (
-          <div className="mt-8 text-center text-gray-500 text-sm">No earnings events found for this period.</div>
+        {!loading && !error && filteredGrouped.length === 0 && (
+          <div className="mt-8 text-center text-gray-500 text-sm">No events found for this filter.</div>
         )}
 
-        {groupedDates.map(({ date, events }) => {
+        {filteredGrouped.map(({ date, events: dayEvents }) => {
           const { label, isToday } = formatDateHeader(date, todayStr);
           return (
             <div
               key={date}
               ref={isToday ? todayRef : undefined}
-              className={`mb-5 rounded-xl border ${
+              className={`mb-4 rounded-xl overflow-hidden ${
                 isToday
-                  ? 'bg-blue-500/10 border-l-2 border-blue-400'
-                  : 'border-[#1f1f1f]'
-              } overflow-hidden`}
+                  ? 'bg-blue-500/[0.07] border border-blue-400/30 ring-1 ring-blue-500/20'
+                  : 'border border-[#1f1f1f]'
+              }`}
             >
               {/* Date header */}
-              <div className={`px-4 py-2.5 flex items-center gap-3 ${isToday ? 'bg-blue-500/5' : 'bg-[#0b0b0b]'}`}>
+              <div className={`px-4 py-2.5 flex items-center gap-3 ${isToday ? 'bg-blue-500/10' : 'bg-[#0a0a0a]'}`}>
                 <span className="text-sm font-semibold text-white">{label}</span>
                 {isToday && (
                   <span className="text-[10px] font-bold tracking-wider text-blue-300 uppercase">Today</span>
                 )}
-                <span className="text-[11px] text-gray-500 ml-auto">{events.length} earnings</span>
+                <span className="text-[11px] text-gray-500 ml-auto">{dayEvents.length} events</span>
               </div>
 
               {/* Table header */}
-              <div className="grid grid-cols-[80px_100px_1fr_90px_90px_120px] gap-2 px-4 py-1.5 text-[10px] uppercase tracking-wider text-gray-500 border-b border-[#1f1f1f]">
+              <div className="grid grid-cols-[70px_60px_50px_1fr_90px_90px_90px] gap-2 px-4 py-1.5 text-[10px] uppercase tracking-wider text-gray-500 border-b border-[#1f1f1f]">
                 <span>Time</span>
-                <span>Symbol</span>
-                <span>Company</span>
-                <span className="text-right">EPS Est.</span>
-                <span className="text-right">EPS Act.</span>
-                <span className="text-right">Surprise</span>
+                <span>Impact</span>
+                <span></span>
+                <span>Event</span>
+                <span className="text-right">Forecast</span>
+                <span className="text-right">Previous</span>
+                <span className="text-right">Actual</span>
               </div>
 
               {/* Rows */}
-              {events.map((e, i) => {
-                const timeLabel = e.time === 'before_open' ? 'Pre-Market'
-                  : e.time === 'after_close' ? 'After Hours'
-                  : e.time || '—';
-                const hasActual = e.eps_actual !== null && e.eps_actual !== undefined && e.eps_actual !== '';
+              {dayEvents.map((e, i) => {
+                const impact = IMPACT_CONFIG[e.impact] || IMPACT_CONFIG.Low;
+                const flag = COUNTRY_FLAGS[e.country] || '';
+                const hasActual = e.actual !== undefined && e.actual !== null && e.actual !== '';
+                const isPast = new Date(e.date) < new Date();
+                
                 return (
                   <div
-                    key={`${e.symbol}-${i}`}
-                    className="grid grid-cols-[80px_100px_1fr_90px_90px_120px] gap-2 px-4 py-2 border-b border-[#1f1f1f]/50 hover:bg-white/[0.02] transition"
+                    key={`${e.title}-${i}`}
+                    className={`grid grid-cols-[70px_60px_50px_1fr_90px_90px_90px] gap-2 px-4 py-2.5 border-b border-[#1f1f1f]/40 hover:bg-white/[0.02] transition ${
+                      isToday && !isPast ? 'bg-blue-500/[0.03]' : ''
+                    }`}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                      <Clock className="w-3 h-3" strokeWidth={1.5} />
-                      <span>{timeLabel}</span>
+                    <div className="flex items-center text-[11px] text-gray-400">
+                      <span>{formatTime(e.date)}</span>
                     </div>
-                    <span className="text-sm font-bold text-white">{e.symbol}</span>
-                    <span className="text-sm text-gray-400 truncate">{e.name || '—'}</span>
-                    <span className="text-sm text-gray-300 text-right">
-                      {e.eps_estimate != null ? `$${Number(e.eps_estimate).toFixed(2)}` : '—'}
-                    </span>
-                    <span className={`text-sm text-right font-medium ${hasActual ? 'text-white' : 'text-gray-500'}`}>
-                      {hasActual ? `$${Number(e.eps_actual).toFixed(2)}` : '—'}
-                    </span>
-                    <div className="text-right">
-                      {hasActual ? (
-                        <div className="flex items-center justify-end gap-1">
-                          {parseFloat(e.surprise_prc) >= 0 ? (
-                            <TrendingUp className="w-3 h-3 text-emerald-400" strokeWidth={1.5} />
-                          ) : (
-                            <TrendingDown className="w-3 h-3 text-red-400" strokeWidth={1.5} />
-                          )}
-                          <SurpriseBadge surprise_prc={e.surprise_prc} />
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-gray-500">Pending</span>
-                      )}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${impact.dot}`} />
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider ${impact.color}`}>
+                        {impact.label}
+                      </span>
                     </div>
+                    <span className="text-sm">{flag}</span>
+                    <span className={`text-sm truncate ${e.impact === 'High' ? 'text-white font-medium' : 'text-gray-300'}`}>
+                      {e.title}
+                    </span>
+                    <span className="text-sm text-gray-400 text-right">{e.forecast || '—'}</span>
+                    <span className="text-sm text-gray-500 text-right">{e.previous || '—'}</span>
+                    <span className={`text-sm text-right font-medium ${
+                      hasActual ? 'text-white' : 'text-gray-600'
+                    }`}>
+                      {hasActual ? e.actual : isPast ? '—' : 'Pending'}
+                    </span>
                   </div>
                 );
               })}
