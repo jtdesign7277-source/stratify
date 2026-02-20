@@ -37,7 +37,7 @@ const spaceBackgroundStyles = `
     transform-origin: right center;
     filter: drop-shadow(0 0 6px rgba(186, 222, 255, 0.55));
     opacity: 0;
-    animation: spaceMeteor var(--meteor-duration, 18s) cubic-bezier(0.17, 0.67, 0.32, 0.99) infinite;
+    animation: spaceMeteor var(--meteor-duration, 18s) linear infinite;
   }
 
   .space-bg-meteor::before {
@@ -74,36 +74,37 @@ const spaceBackgroundStyles = `
   @keyframes spaceMeteor {
     0%, 88% {
       opacity: 0;
-      transform: translate3d(0, 0, 0) rotate(var(--meteor-angle, 30deg)) scaleX(0.35);
+      transform: translate3d(0, 0, 0) rotate(var(--meteor-angle, 30deg)) scaleX(1);
       -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
       mask-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
     }
     89% {
-      opacity: 0.9;
+      opacity: 1;
+      transform: translate3d(calc(var(--meteor-x, 520px) * 0.1), calc(var(--meteor-y, 270px) * 0.1), 0)
+        rotate(var(--meteor-angle, 30deg)) scaleX(1);
       -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
       mask-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
     }
-    90% {
+    93% {
       opacity: 1;
-      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
-      mask-image: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
+      transform: translate3d(calc(var(--meteor-x, 520px) * 0.5), calc(var(--meteor-y, 270px) * 0.5), 0)
+        rotate(var(--meteor-angle, 30deg)) scaleX(1);
+      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,1) 70%, rgba(0,0,0,1) 100%);
+      mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,1) 70%, rgba(0,0,0,1) 100%);
     }
-    95% {
+    96% {
       opacity: 1;
-      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,1) 70%, rgba(0,0,0,1) 100%);
-      mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,1) 70%, rgba(0,0,0,1) 100%);
-    }
-    98% {
-      opacity: 0.9;
-      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,1) 100%);
-      mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,1) 100%);
+      transform: translate3d(calc(var(--meteor-x, 520px) * 0.8), calc(var(--meteor-y, 270px) * 0.8), 0)
+        rotate(var(--meteor-angle, 30deg)) scaleX(1);
+      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 85%, rgba(0,0,0,1) 100%);
+      mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 85%, rgba(0,0,0,1) 100%);
     }
     100% {
       opacity: 0;
       transform: translate3d(var(--meteor-x, 520px), var(--meteor-y, 270px), 0)
         rotate(var(--meteor-angle, 30deg)) scaleX(1);
-      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.2) 90%, rgba(0,0,0,0.5) 100%);
-      mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.2) 90%, rgba(0,0,0,0.5) 100%);
+      -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 85%, rgba(0,0,0,0) 100%);
+      mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 85%, rgba(0,0,0,0) 100%);
     }
   }
 
