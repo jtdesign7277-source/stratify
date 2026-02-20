@@ -120,14 +120,7 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
       credits: { enabled: false },
       title: { text: '' },
       stockTools: { gui: { enabled: false } },
-      navigator: {
-        enabled: true, height: 24,
-        outlineColor: '#1a233266',
-        maskFill: 'rgba(59,130,246,0.06)',
-        series: { color: '#3b82f6', lineWidth: 1 },
-        xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } },
-        handles: { backgroundColor: '#1f293788', borderColor: '#4a556888' },
-      },
+      navigator: { enabled: false },
       scrollbar: { enabled: false },
       rangeSelector: { enabled: false },
       xAxis: {
@@ -355,7 +348,7 @@ export default function TransparentChart({ symbol = 'AAPL', onSymbolChange }) {
       </div>
 
       {/* Bottom interval bar */}
-      <div className="flex items-center justify-center gap-1 py-2 bg-transparent">
+      <div className="flex-shrink-0 flex items-center justify-center gap-1 py-2 bg-transparent">
         {INTERVALS.map((iv, i) => (
           <button
             key={iv.label}

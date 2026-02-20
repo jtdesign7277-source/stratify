@@ -2005,8 +2005,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             )}
           </div>
         </div>
-        <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
-          <div className="flex-1 min-h-0 relative overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
+          <div className="flex-1 min-h-0 min-w-0 relative">
             <TransparentChart
               symbol={isSelectedLse ? lseChartSymbol : selectedSymbol}
               onSymbolChange={(sym) => {
