@@ -85,8 +85,12 @@ export default function V2TradePage() {
       setError('');
 
       try {
-        const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
-        const data = await response.json();
+        let data = null;
+
+        if (activePreset.dataUrl) {
+          const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
+          data = await response.json();
+        }
 
         if (!mounted || !containerRef.current) return;
 
@@ -99,7 +103,10 @@ export default function V2TradePage() {
           chartRef.current.destroy();
         }
 
-        chartRef.current = Highcharts.stockChart(containerRef.current, options);
+        chartRef.current =
+          activePreset.engine === 'chart'
+            ? Highcharts.chart(containerRef.current, options)
+            : Highcharts.stockChart(containerRef.current, options);
       } catch (loadError) {
         console.error('[V.2_Trade] Failed to load chart:', loadError);
         if (mounted) setError('Failed to load chart data.');
@@ -154,7 +161,18 @@ export default function V2TradePage() {
         <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#060d18]/70 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white">{activePreset.name}</h2>
-            {loading ? <span className="text-xs text-cyan-300">Loading...</span> : null}
+            <div className="flex items-center gap-2">
+              {activePreset.id === 'order-book-live' ? (
+                <button
+                  id="animation-toggle"
+                  type="button"
+                  className="rounded border border-cyan-500/50 bg-cyan-500/10 px-2 py-1 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20"
+                >
+                  Start animation
+                </button>
+              ) : null}
+              {loading ? <span className="text-xs text-cyan-300">Loading...</span> : null}
+            </div>
           </div>
 
           {error ? (
