@@ -179,6 +179,23 @@ const resolveApiKey = () =>
   import.meta.env.VITE_TWELVEDATA_API_KEY ||
   '';
 
+const CHART_STATE_KEY = 'stratify-livechart-state';
+
+const saveChartState = (symbol, state) => {
+  try {
+    const all = JSON.parse(sessionStorage.getItem(CHART_STATE_KEY) || '{}');
+    all[normalizeSymbol(symbol)] = { ...state, savedAt: Date.now() };
+    sessionStorage.setItem(CHART_STATE_KEY, JSON.stringify(all));
+  } catch { /* ignore */ }
+};
+
+const loadChartState = (symbol) => {
+  try {
+    const all = JSON.parse(sessionStorage.getItem(CHART_STATE_KEY) || '{}');
+    return all[normalizeSymbol(symbol)] || null;
+  } catch { return null; }
+};
+
 const isMatchingSymbol = (messageSymbol, currentSymbol) => {
   const message = normalizeSymbol(messageSymbol);
   const current = normalizeSymbol(currentSymbol);
@@ -195,16 +212,29 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
   const latestBarRef = useRef(null);
   const wsRef = useRef(null);
   const resizeObserverRef = useRef(null);
-  const activeIntervalRef = useRef(normalizeInterval(interval));
+  const savedVisibleRangeRef = useRef(null);
   const requestIdRef = useRef(0);
+  const isFirstLoadRef = useRef(true);
+
+  // Restore interval from session state if available
+  const initialState = loadChartState(symbol);
+  const activeIntervalRef = useRef(initialState?.interval || normalizeInterval(interval));
 
   const [chartReady, setChartReady] = useState(false);
   const [symbolInput, setSymbolInput] = useState(normalizeSymbol(symbol));
   const [internalSymbol, setInternalSymbol] = useState(normalizeSymbol(symbol) || 'AAPL');
-  const [activeInterval, setActiveInterval] = useState(() => normalizeInterval(interval));
+  const [activeInterval, setActiveInterval] = useState(() => initialState?.interval || normalizeInterval(interval));
   const [latestBar, setLatestBar] = useState(null);
   const [hoverBar, setHoverBar] = useState(null);
   const [status, setStatus] = useState({ loading: true, error: '' });
+
+  // Load saved visible range for restoration after data load
+  useEffect(() => {
+    const saved = loadChartState(symbol);
+    if (saved?.visibleRange) {
+      savedVisibleRangeRef.current = saved.visibleRange;
+    }
+  }, []);
 
   const apiKey = useMemo(resolveApiKey, []);
   const activeSymbol = useMemo(() => normalizeSymbol(symbol || internalSymbol), [symbol, internalSymbol]);
@@ -231,7 +261,9 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
         secondsVisible: false,
       });
     }
-  }, [activeInterval]);
+    // Persist interval to session storage
+    saveChartState(activeSymbol, { interval: activeInterval });
+  }, [activeInterval, activeSymbol]);
 
   const applyLiveTick = useCallback((price, timestampSeconds) => {
     if (!Number.isFinite(price) || !candleSeriesRef.current || !volumeSeriesRef.current) return;
@@ -456,7 +488,21 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
 
         latestBarRef.current = bars.length > 0 ? { ...bars[bars.length - 1] } : null;
         setLatestBar(latestBarRef.current);
-        chartRef.current?.timeScale().fitContent();
+        
+        // Restore saved visible range on first load, otherwise fit content
+        const savedRange = savedVisibleRangeRef.current;
+        if (isFirstLoadRef.current && savedRange && savedRange.from && savedRange.to) {
+          try {
+            chartRef.current?.timeScale().setVisibleRange(savedRange);
+          } catch {
+            chartRef.current?.timeScale().fitContent();
+          }
+          savedVisibleRangeRef.current = null;
+          isFirstLoadRef.current = false;
+        } else {
+          chartRef.current?.timeScale().fitContent();
+          isFirstLoadRef.current = false;
+        }
         setStatus({ loading: false, error: '' });
         return true;
       } catch (error) {
@@ -525,14 +571,25 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
     };
   }, [activeInterval, activeSymbol, apiKey, applyLiveTick, chartReady]);
 
+  // Save chart state (visible range + interval) on unmount
   useEffect(() => {
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
+      // Persist visible range before unmount
+      try {
+        const range = chartRef.current?.timeScale().getVisibleRange();
+        if (range) {
+          saveChartState(activeSymbol, {
+            interval: activeIntervalRef.current,
+            visibleRange: range,
+          });
+        }
+      } catch { /* ignore */ }
     };
-  }, []);
+  }, [activeSymbol]);
 
   const submitSymbol = useCallback(() => {
     const next = normalizeSymbol(symbolInput);
