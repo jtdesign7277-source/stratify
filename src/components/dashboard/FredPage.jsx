@@ -435,7 +435,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
     colorTheme: 'dark',
     isTransparent: true,
     width: '100%',
-    height: 900,
+    height: '100%',
     locale: 'en',
     importanceFilter: '-1,0,1',
     countryFilter: 'us',
@@ -444,7 +444,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
   return (
     <div
       className={`rounded-2xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md flex flex-col ${
-        collapsed ? 'h-[64px] p-3' : 'flex-1 p-4'
+        collapsed ? 'h-[64px] p-3' : 'h-full p-4'
       }`}
     >
       <div className={`flex items-center justify-between gap-2 ${collapsed ? 'mb-0' : 'mb-3'}`}>
@@ -466,10 +466,7 @@ const EconCalendar = ({ collapsed, onToggle }) => {
       </div>
       {!collapsed && (
         <div className="chart-container flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm overflow-hidden">
-          <div className="relative h-full overflow-y-auto">
-            <div className="sticky top-0 z-10 h-8 bg-[rgba(8,20,38,0.3)] backdrop-blur-sm" />
-            <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
-          </div>
+          <TradingViewWidget scriptSrc={ECON_CALENDAR_SRC} config={config} />
         </div>
       )}
     </div>
