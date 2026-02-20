@@ -66,7 +66,7 @@ const RANGE_PRESETS_MORE = [
   { label: 'ALL', value: 'ALL' },
 ];
 
-const RIGHT_OFFSET_BARS = 20;
+const RIGHT_OFFSET_BARS = 30;
 const INTERVAL_TO_MS = {
   '1min': 60_000,
   '5min': 300_000,
@@ -89,9 +89,6 @@ const CHART_TYPES = [
 ];
 
 const SIZE_PRESETS = [
-  { label: 'S', value: 'small', height: '380px' },
-  { label: 'M', value: 'medium', height: '480px' },
-  { label: 'L', value: 'large', height: '560px' },
   { label: 'Fill', value: 'fill', height: '100%' },
 ];
 
@@ -200,7 +197,7 @@ export default function HighchartsStockChart({
   const [chartType, setChartType] = useState('candlestick');
   const [activeInd, setActiveInd] = useState([]);
   const [theme, setTheme] = useState(CANDLE_THEMES[0]);
-  const [chartSize, setChartSize] = useState(defaultSize);
+  const [chartSize] = useState('fill');
   const [isFs, setIsFs] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [seriesSeed, setSeriesSeed] = useState({ ohlc: [], volume: [] });
@@ -210,7 +207,6 @@ export default function HighchartsStockChart({
   const [showInd, setShowInd] = useState(false);
   const [showDraw, setShowDraw] = useState(false);
   const [showColor, setShowColor] = useState(false);
-  const [showSize, setShowSize] = useState(false);
   const [showRangeMore, setShowRangeMore] = useState(false);
   const [showIntervalMore, setShowIntervalMore] = useState(false);
   const [symSearch, setSymSearch] = useState('');
@@ -224,7 +220,7 @@ export default function HighchartsStockChart({
     const fn = (e) => {
       if (!e.target.closest('[data-dd]')) {
         setShowSym(false); setShowInd(false); setShowDraw(false);
-        setShowColor(false); setShowSize(false); setShowRangeMore(false); setShowIntervalMore(false);
+        setShowColor(false); setShowRangeMore(false); setShowIntervalMore(false);
       }
     };
     document.addEventListener('mousedown', fn);
@@ -640,11 +636,11 @@ export default function HighchartsStockChart({
   const maxChartHeight = isFs ? '100vh' : undefined;
   const filteredWl = watchlist.filter((s) => s.toLowerCase().includes(symSearch.toLowerCase()));
 
-  const P = 'px-2 py-0.5 text-[10px] font-medium rounded cursor-pointer transition-all duration-100 select-none whitespace-nowrap';
+  const P = 'px-4 py-1 text-[20px] font-medium rounded cursor-pointer transition-all duration-100 select-none whitespace-nowrap';
   const PN = 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
   const PF = 'text-[#555] hover:text-[#888] hover:bg-white/[0.03] border border-transparent';
   const DD = { position: 'absolute', top: '100%', left: 0, marginTop: '4px', backgroundColor: '#0d1117', border: '1px solid #1f2937', borderRadius: '6px', padding: '4px', zIndex: 200, minWidth: '170px', boxShadow: '0 12px 40px rgba(0,0,0,0.7)', maxHeight: '320px', overflowY: 'auto' };
-  const DI = (a) => ({ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '5px 10px', backgroundColor: a ? 'rgba(59,130,246,0.1)' : 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: a ? '#60a5fa' : '#8892a0', fontSize: '11px', textAlign: 'left' });
+  const DI = (a) => ({ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', backgroundColor: a ? 'rgba(59,130,246,0.1)' : 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: a ? '#60a5fa' : '#8892a0', fontSize: '20px', textAlign: 'left' });
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', width: '100%', height: h, maxHeight: maxChartHeight, backgroundColor: '#000', position: 'relative', overflow: 'hidden', borderRadius: isFs ? '0' : '6px', border: isFs ? 'none' : '1px solid #111827' }}>
@@ -652,8 +648,8 @@ export default function HighchartsStockChart({
       {/* ── Top bar: symbol, price, controls ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 10px', backgroundColor: '#000', borderBottom: '1px solid #111827', flexShrink: 0 }}>
         <div style={{ position: 'relative' }} data-dd>
-          <button onClick={() => setShowSym(!showSym)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 8px', backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '5px', cursor: 'pointer', color: '#e5e7eb', fontSize: '13px', fontWeight: '700' }}>
-            <span style={{ color: '#4a5568', fontSize: '11px' }}>$</span>{symbol}<span style={{ color: '#4a5568', fontSize: '8px', marginLeft: '2px' }}>▼</span>
+          <button onClick={() => setShowSym(!showSym)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '5px', cursor: 'pointer', color: '#e5e7eb', fontSize: '26px', fontWeight: '700' }}>
+            <span style={{ color: '#4a5568', fontSize: '22px' }}>$</span>{symbol}<span style={{ color: '#4a5568', fontSize: '16px', marginLeft: '2px' }}>▼</span>
           </button>
           {showSym && (
             <div style={{ ...DD, minWidth: '200px' }}>
@@ -675,28 +671,17 @@ export default function HighchartsStockChart({
           )}
         </div>
 
-        <span style={{ color: '#e5e7eb', fontSize: '15px', fontWeight: '700', fontFamily: "'SF Mono', monospace" }}>{fmtPrice(hover.c)}</span>
-        {hover.chg != null && <span style={{ color: hover.chg >= 0 ? '#22c55e' : '#ef4444', fontSize: '11px', fontWeight: '600', fontFamily: "'SF Mono', monospace" }}>{hover.chg >= 0 ? '+' : ''}{hover.chg?.toFixed(2)} ({hover.pct?.toFixed(2)}%)</span>}
-        {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '9px', color: '#22c55e', fontWeight: '600' }}><span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />LIVE</div>}
+        <span style={{ color: '#e5e7eb', fontSize: '30px', fontWeight: '700', fontFamily: "'SF Mono', monospace" }}>{fmtPrice(hover.c)}</span>
+        {hover.chg != null && <span style={{ color: hover.chg >= 0 ? '#22c55e' : '#ef4444', fontSize: '22px', fontWeight: '600', fontFamily: "'SF Mono', monospace" }}>{hover.chg >= 0 ? '+' : ''}{hover.chg?.toFixed(2)} ({hover.pct?.toFixed(2)}%)</span>}
+        {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '18px', color: '#22c55e', fontWeight: '600' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />LIVE</div>}
 
         <div style={{ flex: 1 }} />
 
-        <div style={{ position: 'relative' }} data-dd>
-          <button onClick={() => setShowSize(!showSize)} className={`${P} ${PF}`}>Size: {SIZE_PRESETS.find((s) => s.value === chartSize)?.label}</button>
-          {showSize && (
-            <div style={{ ...DD, minWidth: '100px', right: 0, left: 'auto' }}>
-              {SIZE_PRESETS.map((s) => (
-                <button key={s.value} onClick={() => { setChartSize(s.value); setShowSize(false); setTimeout(() => { chartRef.current?.chart?.reflow(); fitChartViewport(activeRange); }, 80); }} style={DI(chartSize === s.value)}>
-                  {s.label} <span style={{ color: '#4a5568', fontSize: '9px', marginLeft: 'auto' }}>{s.height}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <span style={{ color: '#6b7280', fontSize: '20px', fontWeight: '600' }}>Size: Fill</span>
 
         <button onClick={toggleFs} className={`${P} ${PF}`} title="Fullscreen">{isFs ? '⊡' : '⛶'}</button>
-        <button onClick={() => handleZoom('in')} className={`${P} ${PF}`} title="Zoom in">＋</button>
-        <button onClick={() => handleZoom('out')} className={`${P} ${PF}`} title="Zoom out">－</button>
+        <button onClick={() => handleZoom('in')} className={`${P} border border-emerald-500/50 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10`} title="Zoom in" style={{ fontSize: '40px', lineHeight: 1, fontWeight: 700 }}>＋</button>
+        <button onClick={() => handleZoom('out')} className={`${P} border border-red-500/50 text-red-400 hover:text-red-300 hover:bg-red-500/10`} title="Zoom out" style={{ fontSize: '40px', lineHeight: 1, fontWeight: 700 }}>－</button>
         <button onClick={handleResetZoom} className={`${P} ${PF}`} title="Reset zoom">Reset</button>
       </div>
 
@@ -768,7 +753,7 @@ export default function HighchartsStockChart({
       </div>
 
       {/* ── OHLCV hover bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '2px 12px', backgroundColor: '#000', flexShrink: 0, fontFamily: "'SF Mono', monospace", fontSize: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', padding: '6px 14px', backgroundColor: '#000', flexShrink: 0, fontFamily: "'SF Mono', monospace", fontSize: '20px' }}>
         <span style={{ color: '#444' }}>O <span style={{ color: hover.c >= hover.o ? theme.up : theme.down }}>{fmtPrice(hover.o)}</span></span>
         <span style={{ color: '#444' }}>H <span style={{ color: theme.up }}>{fmtPrice(hover.h)}</span></span>
         <span style={{ color: '#444' }}>L <span style={{ color: theme.down }}>{fmtPrice(hover.l)}</span></span>
@@ -803,8 +788,8 @@ export default function HighchartsStockChart({
       </div>
 
       {/* ── Bottom bar: range + interval ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 10px', backgroundColor: '#000', borderTop: '1px solid #0f1722', flexShrink: 0, fontFamily: "'SF Mono', monospace" }}>
-        <span style={{ color: '#4a5568', fontSize: '11px' }}>Range:</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', backgroundColor: '#000', borderTop: '1px solid #0f1722', flexShrink: 0, fontFamily: "'SF Mono', monospace" }}>
+        <span style={{ color: '#4a5568', fontSize: '22px' }}>Range:</span>
         {RANGE_PRESETS_PRIMARY.map((item) => (
           <button key={item.value} onClick={() => applyRangePreset(item.value)} className={`${P} ${activeRange === item.value ? PN : PF}`}>{item.label}</button>
         ))}
@@ -819,7 +804,7 @@ export default function HighchartsStockChart({
           )}
         </div>
         <div style={{ width: '1px', height: '14px', backgroundColor: '#1a2332', margin: '0 4px' }} />
-        <span style={{ color: '#4a5568', fontSize: '11px' }}>Interval:</span>
+        <span style={{ color: '#4a5568', fontSize: '22px' }}>Interval:</span>
         {BOTTOM_INTERVALS_PRIMARY.map((item) => (
           <button key={item.value} onClick={() => setIv(item.value)} className={`${P} ${interval === item.value ? PN : PF}`}>{item.label}</button>
         ))}
