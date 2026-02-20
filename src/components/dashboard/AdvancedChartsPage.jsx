@@ -202,6 +202,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const [timeframe, setTimeframe] = useState('1m');
   const [rangeKey, setRangeKey] = useState('5D');
   const [quote, setQuote] = useState(null);
+  const [chartPrice, setChartPrice] = useState(null);
   const [quoteStatus, setQuoteStatus] = useState({ state: 'idle', message: '' });
   const [account, setAccount] = useState(null);
   const [accountStatus, setAccountStatus] = useState({ state: 'idle', message: '' });
@@ -245,6 +246,12 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   }, [activeTicker]);
 
   useEffect(() => {
+    setQuote(null);
+    setChartPrice(null);
+    setQuoteStatus({ state: 'loading', message: '' });
+  }, [ticker]);
+
+  useEffect(() => {
     const tf = getTimeframe(timeframe);
     if (tf.unit === 'minute' || tf.unit === 'hour') {
       setRangeKey((prev) => (prev === '1D' || prev === '5D' ? prev : '5D'));
@@ -262,13 +269,33 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     const loadQuote = async () => {
       try {
         setQuoteStatus({ state: 'loading', message: '' });
-        const response = await fetch(`/api/quote?symbol=${encodeURIComponent(ticker)}`);
+        const normalizedTicker = String(ticker || '').trim().toUpperCase().replace(/^\$/, '');
+        const response = await fetch(
+          `/api/lse/quotes?symbols=${encodeURIComponent(normalizedTicker)}`,
+          { cache: 'no-store' }
+        );
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data?.error || 'Failed to fetch quote');
         }
+        const rows = Array.isArray(data?.data) ? data.data : [];
+        const row =
+          rows.find((item) => String(item?.symbol || '').toUpperCase() === normalizedTicker) ||
+          rows[0] ||
+          null;
+        const price = Number(row?.price ?? row?.last ?? row?.close);
+        const change = Number(row?.change);
+        const percentChange = Number(row?.percentChange ?? row?.percent_change);
         if (!cancelled) {
-          setQuote(data);
+          setQuote((previous) => ({
+            ...(previous || {}),
+            symbol: normalizedTicker,
+            last: Number.isFinite(price) ? price : previous?.last ?? null,
+            change: Number.isFinite(change) ? change : previous?.change ?? null,
+            change_percent: Number.isFinite(percentChange)
+              ? percentChange
+              : previous?.change_percent ?? null,
+          }));
           setQuoteStatus({ state: 'success', message: '' });
         }
       } catch (err) {
@@ -279,11 +306,9 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     };
 
     loadQuote();
-    const interval = setInterval(loadQuote, 5000);
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, [ticker, isTradePanelOpen]);
 
@@ -406,8 +431,13 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   }, [trailAmount]);
 
   const marketPrice = useMemo(() => {
-    return quote?.last ?? quote?.ask ?? quote?.bid ?? 0;
-  }, [quote]);
+    const candidates = [chartPrice, quote?.last, quote?.price, quote?.ask, quote?.bid];
+    for (const candidate of candidates) {
+      const parsed = Number(candidate);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return 0;
+  }, [chartPrice, quote]);
 
   const bidPrice = quote?.bid ?? null;
   const askPrice = quote?.ask ?? null;
@@ -1003,6 +1033,19 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
         if (data.length === 0) {
           throw new Error('No chart bars returned');
         }
+        const latestBar = data[data.length - 1];
+        const previousBar = data.length > 1 ? data[data.length - 2] : latestBar;
+        const latestClose = Number(latestBar?.Close);
+        const previousClose = Number(previousBar?.Close);
+        if (Number.isFinite(latestClose) && latestClose > 0) {
+          setChartPrice(latestClose);
+          setQuote((previous) => ({
+            ...(previous || {}),
+            symbol: normalizedTicker,
+            last: latestClose,
+            prevClose: Number.isFinite(previousClose) ? previousClose : previous?.prevClose ?? latestClose,
+          }));
+        }
         const activeSeries = chartRef.current?.valueSeries;
         activeSeries?.data.setAll(data);
         chart.volumeSeries.data.setAll(data);
@@ -1034,9 +1077,17 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     });
 
     const unsubscribeQuotes = subscribeTwelveDataQuotes([normalizedTicker], (update) => {
+      const updateSymbol = String(update?.symbol || '')
+        .trim()
+        .toUpperCase()
+        .replace(/^\$/, '')
+        .split(':')[0]
+        .split('.')[0];
+      if (updateSymbol && updateSymbol !== normalizedTicker) return;
       const livePrice = Number(update?.price);
       if (!Number.isFinite(livePrice)) return;
       lastPriceRef.current = livePrice;
+      setChartPrice(livePrice);
       setQuote((previous) => {
         const prevClose = Number(previous?.prevClose);
         const fallbackPrevClose = Number.isFinite(prevClose) ? prevClose : livePrice;
