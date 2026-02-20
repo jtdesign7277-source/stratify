@@ -1,387 +1,254 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Highcharts from 'highcharts/highstock';
-import DataModule from 'highcharts/modules/data';
-import ExportingModule from 'highcharts/modules/exporting';
-import ExportDataModule from 'highcharts/modules/export-data';
-import AccessibilityModule from 'highcharts/modules/accessibility';
-import AnnotationsAdvancedModule from 'highcharts/modules/annotations-advanced';
-import StockToolsModule from 'highcharts/modules/stock-tools';
-import HollowCandlestickModule from 'highcharts/modules/hollowcandlestick';
-import IndicatorsModule from 'highcharts/indicators/indicators';
-import IchimokuModule from 'highcharts/indicators/ichimoku-kinko-hyo';
-import { CHART_PRESETS, buildChartOptions } from './charts/chartPresets';
 
-const initModule = (moduleFactory) => {
-  try {
-    const fn = moduleFactory?.default || moduleFactory;
-    if (typeof fn === 'function') fn(Highcharts);
-  } catch (error) {
-    console.warn('[V.2_Trade] Highcharts module init failed:', error);
-  }
+const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
+const TD_REST = 'https://api.twelvedata.com';
+
+const INTERVALS = [
+  { label: '5m', value: '5min' },
+  { label: '15m', value: '15min' },
+  { label: '1h', value: '1h' },
+  { label: '1D', value: '1day' },
+];
+
+const CANDLE_THEMES = [
+  { label: 'Classic', up: '#22c55e', down: '#ef4444' },
+  { label: 'Cyan / Magenta', up: '#06b6d4', down: '#ec4899' },
+  { label: 'Blue / Orange', up: '#3b82f6', down: '#f97316' },
+  { label: 'White / Red', up: '#e5e7eb', down: '#ef4444' },
+  { label: 'Lime / Pink', up: '#84cc16', down: '#f43f5e' },
+  { label: 'Gold / Purple', up: '#eab308', down: '#a855f7' },
+];
+
+const INTERVAL_MS = { '5min': 300000, '15min': 900000, '1h': 3600000, '1day': 86400000 };
+
+const toMs = (v) => {
+  if (v == null) return null;
+  if (typeof v === 'number') return v > 1e10 ? v : v * 1000;
+  const s = String(v).trim();
+  if (!s) return null;
+  const n = s.includes('T') ? s : s.replace(' ', 'T');
+  let ts = Date.parse(n);
+  if (!Number.isFinite(ts)) ts = Date.parse(n + 'Z');
+  return Number.isFinite(ts) ? ts : null;
 };
 
-initModule(DataModule);
-initModule(ExportingModule);
-initModule(ExportDataModule);
-initModule(AccessibilityModule);
-initModule(AnnotationsAdvancedModule);
-initModule(StockToolsModule);
-initModule(HollowCandlestickModule);
-initModule(IndicatorsModule);
-initModule(IchimokuModule);
-
-if (typeof window !== 'undefined' && !window.Highcharts) {
-  window.Highcharts = Highcharts;
-}
-
-const generateFallbackData = (points = 320) => {
-  const data = [];
-  const day = 24 * 60 * 60 * 1000;
-  let close = 182;
-
-  for (let i = points; i > 0; i -= 1) {
-    const ts = Date.now() - i * day;
-    const open = close + (Math.random() - 0.5) * 2.2;
-    const high = Math.max(open, close) + Math.random() * 2.6;
-    const low = Math.min(open, close) - Math.random() * 2.6;
-    close = low + Math.random() * (high - low);
-    const volume = Math.round(250000 + Math.random() * 1600000);
-    data.push([ts, Number(open.toFixed(2)), Number(high.toFixed(2)), Number(low.toFixed(2)), Number(close.toFixed(2)), volume]);
-  }
-
-  return data;
-};
-
-const getFallbackDataForPreset = (presetId) => {
-  const full = generateFallbackData();
-  if (presetId === 'aapl-basic-exact' || presetId === 'candlestick-basic' || presetId === 'technical-annotations') {
-    return full.map((row) => row.slice(0, 5));
-  }
-  return full;
-};
-
-if (!Highcharts.__stratifyVolumeWidthPluginInstalled) {
-  Highcharts.addEvent(
-    Highcharts.seriesTypes.column,
-    'afterColumnTranslate',
-    function applyVolumeWidthVariation() {
-      const series = this;
-
-      if (!series.options.baseVolume || !series.is('column') || !series.points) return;
-
-      const volumeSeries = series.chart.get(series.options.baseVolume);
-      const processedYData = volumeSeries?.getColumn('y', true);
-      if (!volumeSeries || !processedYData) return;
-
-      const maxVolume = volumeSeries.dataMax;
-      const metrics = series.getColumnMetrics();
-      const baseWidth = metrics?.width || 0;
-      if (!maxVolume || !baseWidth) return;
-
-      series.points.forEach((point, i) => {
-        const volume = Number(processedYData[i] ?? 0);
-        if (!Number.isFinite(volume) || !point.shapeArgs) return;
-
-        const scale = Math.max(0.08, volume / maxVolume);
-        const width = baseWidth * scale;
-
-        point.shapeArgs.x = point.shapeArgs.x - (width / 2) + (point.shapeArgs.width / 2);
-        point.shapeArgs.width = width;
-      });
-    },
-  );
-
-  Highcharts.__stratifyVolumeWidthPluginInstalled = true;
+async function fetchData(symbol, interval, outputsize) {
+  const url = TD_REST + '/time_series?symbol=' + encodeURIComponent(symbol) + '&interval=' + encodeURIComponent(interval) + '&outputsize=' + outputsize + '&apikey=' + encodeURIComponent(TD_API_KEY) + '&format=JSON&order=ASC';
+  const res = await fetch(url, { cache: 'no-store' });
+  const data = await res.json();
+  if (!res.ok || (data && data.status === 'error')) return { ohlc: [], volume: [] };
+  const ohlc = [], volume = [];
+  (data.values || []).forEach(function(bar) {
+    const ts = toMs(bar.datetime || bar.timestamp);
+    const o = parseFloat(bar.open), h = parseFloat(bar.high), l = parseFloat(bar.low), c = parseFloat(bar.close);
+    const v = parseInt(bar.volume, 10) || 0;
+    if (!Number.isFinite(ts) || !Number.isFinite(o) || !Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) return;
+    ohlc.push([ts, o, h, l, c]);
+    volume.push({ x: ts, y: v, _o: o, _c: c });
+  });
+  ohlc.sort(function(a, b) { return a[0] - b[0]; });
+  volume.sort(function(a, b) { return a.x - b.x; });
+  return { ohlc: ohlc, volume: volume };
 }
 
 export default function V2TradePage() {
   const containerRef = useRef(null);
-  const chartRef = useRef(null);
-
-  const [activePresetId, setActivePresetId] = useState(CHART_PRESETS[0].id);
+  const chartObjRef = useRef(null);
+  const dragRef = useRef(null);
+  const [symbol, setSymbol] = useState('AAPL');
+  const [interval, setInterval_] = useState('1day');
+  const [theme, setTheme] = useState(CANDLE_THEMES[0]);
+  const [showColors, setShowColors] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [hover, setHover] = useState({ o: null, h: null, l: null, c: null, v: null });
+  const rightPad = useMemo(function() { return (INTERVAL_MS[interval] || 86400000) * 15; }, [interval]);
 
-  const activePreset = useMemo(
-    () => CHART_PRESETS.find((preset) => preset.id === activePresetId) || CHART_PRESETS[0],
-    [activePresetId],
-  );
+  const loadChart = useCallback(async function() {
+    setLoading(true);
+    const result = await fetchData(symbol, interval, 500);
+    const ohlc = result.ohlc;
+    const volume = result.volume;
+    if (ohlc.length) {
+      const last = ohlc[ohlc.length - 1];
+      setHover({ o: last[1], h: last[2], l: last[3], c: last[4], v: volume[volume.length - 1] ? volume[volume.length - 1].y : 0 });
+    }
+    if (chartObjRef.current) { chartObjRef.current.destroy(); chartObjRef.current = null; }
+    if (!containerRef.current) { setLoading(false); return; }
+    const up = theme.up, down = theme.down;
+    const cVol = volume.map(function(v) {
+      return { x: v.x, y: v.y, color: v._c >= v._o ? up + '44' : down + '44', borderColor: v._c >= v._o ? up + '77' : down + '77' };
+    });
+    var chart = Highcharts.stockChart(containerRef.current, {
+      chart: { backgroundColor: 'transparent', style: { fontFamily: "'SF Pro Display', -apple-system, sans-serif" }, animation: false, spacing: [8, 8, 0, 8], panning: { enabled: false }, zooming: { type: undefined, mouseWheel: { enabled: false }, pinchType: 'x' } },
+      credits: { enabled: false }, title: { text: '' }, stockTools: { gui: { enabled: false } },
+      navigator: { enabled: true, height: 28, outlineColor: '#1a233244', maskFill: 'rgba(59,130,246,0.06)', series: { color: '#3b82f6', lineWidth: 1 }, xAxis: { gridLineWidth: 0, labels: { style: { color: '#4a5568', fontSize: '9px' } } }, handles: { backgroundColor: '#1f293788', borderColor: '#4a556888' } },
+      scrollbar: { enabled: true, barBackgroundColor: '#475569', barBorderColor: '#475569', barBorderRadius: 4, buttonArrowColor: '#e2e8f0', buttonBackgroundColor: '#1f2937', buttonBorderColor: '#475569', rifleColor: '#e2e8f0', trackBackgroundColor: 'transparent', trackBorderColor: '#334155', trackBorderRadius: 4, height: 14, margin: 6 },
+      rangeSelector: { enabled: false },
+      xAxis: { gridLineWidth: 0, lineColor: '#1a233244', tickColor: '#1a233244', crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 }, labels: { style: { color: '#4a5568', fontSize: '10px' } }, overscroll: rightPad, minRange: Math.max((INTERVAL_MS[interval] || 86400000) * 2, 60000) },
+      yAxis: [
+        { labels: { align: 'right', x: -8, style: { color: '#8892a0bb', fontSize: '10px' }, formatter: function() { return '$' + this.value.toFixed(2); } }, height: '75%', gridLineWidth: 0, lineWidth: 0, crosshair: { color: '#ffffff22', dashStyle: 'Dash', width: 1 } },
+        { labels: { enabled: false }, top: '77%', height: '23%', gridLineWidth: 0, lineWidth: 0 }
+      ],
+      tooltip: { enabled: false },
+      plotOptions: {
+        candlestick: { color: down, upColor: up, lineColor: down, upLineColor: up, lineWidth: 1, pointPadding: 0.15, groupPadding: 0.1 },
+        column: { borderRadius: 0, borderWidth: 0 },
+        series: { animation: false, states: { hover: { enabled: false }, inactive: { opacity: 1 } } }
+      },
+      series: [
+        { type: 'candlestick', id: 'price', name: symbol, data: ohlc, yAxis: 0, zIndex: 5 },
+        { type: 'column', id: 'volume', name: 'Volume', data: cVol, yAxis: 1, zIndex: 1, colorByPoint: true, borderWidth: 0 }
+      ]
+    });
+    chartObjRef.current = chart;
+    setLoading(false);
+  }, [symbol, interval, theme, rightPad]);
 
-  useEffect(() => {
-    let mounted = true;
+  useEffect(function() { loadChart(); }, [loadChart]);
+  useEffect(function() { return function() { if (chartObjRef.current) { chartObjRef.current.destroy(); chartObjRef.current = null; } }; }, []);
 
-    const loadChart = async () => {
-      setLoading(true);
-      setError('');
-
-      try {
-        if (chartRef.current) {
-          chartRef.current.destroy();
-          chartRef.current = null;
-        }
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '';
-        }
-
-        let data = null;
-        let usingFallback = false;
-
-        if (activePreset.dataUrl) {
-          try {
-            const response = await fetch(activePreset.dataUrl, { cache: 'no-store' });
-            if (!response.ok) {
-              throw new Error(`fetch failed (${response.status})`);
-            }
-            data = await response.json();
-          } catch (fetchError) {
-            console.warn('[V.2_Trade] Preset fetch failed, using fallback data:', fetchError);
-            data = getFallbackDataForPreset(activePreset.id);
-            usingFallback = true;
-          }
-        }
-
-        if (!mounted || !containerRef.current) return;
-
-        const options = buildChartOptions({
-          presetId: activePreset.id,
-          data,
-        });
-
-        if (chartRef.current) {
-          chartRef.current.destroy();
-        }
-
-        chartRef.current =
-          activePreset.engine === 'chart'
-            ? Highcharts.chart(containerRef.current, options)
-            : Highcharts.stockChart(containerRef.current, options);
-
-        if (usingFallback && mounted) {
-          setError('Live demo feed unavailable. Showing local fallback dataset.');
-        }
-      } catch (loadError) {
-        console.error('[V.2_Trade] Failed to load chart:', loadError);
-        if (mounted) setError('Failed to load chart data.');
-      } finally {
-        if (mounted) setLoading(false);
+  useEffect(function() {
+    var container = containerRef.current;
+    if (!container) return;
+    var getChart = function() { return chartObjRef.current; };
+    var onDown = function(e) {
+      if (e.button !== 0) return;
+      var chart = getChart(); if (!chart) return;
+      var xAxis = chart.xAxis && chart.xAxis[0], yAxis = chart.yAxis && chart.yAxis[0];
+      if (!xAxis || !yAxis) return;
+      var rect = container.getBoundingClientRect();
+      var px = e.clientX - rect.left, py = e.clientY - rect.top;
+      if (px < chart.plotLeft || px > chart.plotLeft + chart.plotWidth || py < chart.plotTop || py > chart.plotTop + chart.plotHeight) return;
+      dragRef.current = { sx: e.clientX, sy: e.clientY, xMin: xAxis.min, xMax: xAxis.max, yMin: yAxis.min, yMax: yAxis.max, dMin: xAxis.dataMin, dMax: xAxis.dataMax };
+      container.style.cursor = 'grabbing'; e.preventDefault();
+    };
+    var onMove = function(e) {
+      var d = dragRef.current; if (!d) return;
+      var chart = getChart(); if (!chart) return;
+      var xAxis = chart.xAxis && chart.xAxis[0], yAxis = chart.yAxis && chart.yAxis[0];
+      if (!xAxis || !yAxis) return;
+      var xRange = d.xMax - d.xMin, yRange = d.yMax - d.yMin;
+      if (xRange <= 0 || yRange <= 0) return;
+      var dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+      var xPx = xRange / Math.max(chart.plotWidth, 1), yPx = yRange / Math.max(chart.plotHeight, 1);
+      var nxMin = d.xMin - dx * xPx, nxMax = d.xMax - dx * xPx;
+      var right = d.dMax + rightPad;
+      if (nxMin < d.dMin) { nxMax += d.dMin - nxMin; nxMin = d.dMin; }
+      if (nxMax > right) { nxMin -= nxMax - right; nxMax = right; }
+      var nyMin = d.yMin + dy * yPx, nyMax = d.yMax + dy * yPx;
+      xAxis.setExtremes(nxMin, nxMax, false, false);
+      yAxis.setExtremes(nyMin, nyMax, false, false);
+      chart.redraw(false); e.preventDefault();
+    };
+    var onUp = function() { if (!dragRef.current) return; dragRef.current = null; container.style.cursor = 'crosshair'; };
+    var onWheel = function(e) {
+      var chart = getChart(); if (!chart) return;
+      var rect = container.getBoundingClientRect();
+      var px = e.clientX - rect.left, py = e.clientY - rect.top;
+      if (px < chart.plotLeft || px > chart.plotLeft + chart.plotWidth || py < chart.plotTop || py > chart.plotTop + chart.plotHeight) return;
+      e.preventDefault();
+      var xAxis = chart.xAxis && chart.xAxis[0];
+      if (!xAxis || !Number.isFinite(xAxis.min) || !Number.isFinite(xAxis.max)) return;
+      var factor = e.deltaY > 0 ? 1.15 : 0.87;
+      var xRange = xAxis.max - xAxis.min;
+      var ratio = (px - chart.plotLeft) / Math.max(chart.plotWidth, 1);
+      var center = xAxis.min + xRange * ratio;
+      var newRange = xRange * factor;
+      var minR = (INTERVAL_MS[interval] || 86400000) * 2;
+      var nMin = center - newRange * ratio, nMax = center + newRange * (1 - ratio);
+      if (nMax - nMin < minR) { nMin = center - minR * ratio; nMax = center + minR * (1 - ratio); }
+      var dMin = Number.isFinite(xAxis.dataMin) ? xAxis.dataMin : nMin;
+      var dMax = (Number.isFinite(xAxis.dataMax) ? xAxis.dataMax : nMax) + rightPad;
+      if (nMin < dMin) nMin = dMin;
+      if (nMax > dMax) nMax = dMax;
+      xAxis.setExtremes(nMin, nMax, false, false);
+      var ps = chart.get('price'), yAxis = chart.yAxis && chart.yAxis[0];
+      if (ps && ps.points && ps.points.length && yAxis) {
+        var lo = Infinity, hi = -Infinity;
+        for (var i = 0; i < ps.points.length; i++) { var p = ps.points[i]; if (p.x >= nMin && p.x <= nMax) { if (p.low < lo) lo = p.low; if (p.high > hi) hi = p.high; } }
+        if (lo < Infinity) { var pad = (hi - lo) * 0.08 || hi * 0.02; yAxis.setExtremes(lo - pad, hi + pad, false, false); }
       }
+      chart.redraw(false);
     };
-
-    loadChart();
-
-    return () => {
-      mounted = false;
+    container.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return function() {
+      container.removeEventListener('mousedown', onDown);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      container.removeEventListener('wheel', onWheel);
+      dragRef.current = null;
     };
-  }, [activePreset]);
+  }, [rightPad, interval]);
 
-  useEffect(() => {
-    return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
-      }
-    };
+  useEffect(function() {
+    var fn = function(e) { if (!e.target.closest('[data-dd]')) { setShowColors(false); setShowSearch(false); } };
+    document.addEventListener('mousedown', fn);
+    return function() { document.removeEventListener('mousedown', fn); };
   }, []);
 
+  var handleSearchSubmit = function(sym) { setSearch(''); setShowSearch(false); setSymbol(sym.toUpperCase()); };
+  var fmt = function(v) { return v == null ? '—' : '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var fmtV = function(v) { if (!v) return '—'; if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'; if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K'; return v; };
+
   return (
-    <div className="h-full w-full bg-transparent p-4">
-      <div className="flex h-full w-full gap-4 rounded-xl border border-white/10 bg-black/30 p-3">
-        <div className="w-[280px] shrink-0 rounded-lg border border-white/10 bg-[#0a1628]/70 p-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Chart Folder</div>
-          <div className="space-y-2">
-            {CHART_PRESETS.map((preset) => {
-              const active = preset.id === activePresetId;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => setActivePresetId(preset.id)}
-                  className={`w-full rounded-lg border px-3 py-2 text-left transition ${
-                    active
-                      ? 'border-cyan-400/70 bg-cyan-500/15 text-cyan-200'
-                      : 'border-white/10 bg-black/20 text-gray-300 hover:border-cyan-500/40 hover:text-white'
-                  }`}
-                >
-                  <div className="text-sm font-semibold">{preset.name}</div>
-                  <div className="mt-0.5 text-xs text-gray-400">{preset.description}</div>
-                </button>
-              );
-            })}
-          </div>
+    <div className="h-full w-full bg-transparent flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-3 text-[11px] font-mono">
+          <span className="text-white font-bold text-sm">{symbol}</span>
+          <span className="text-white/40">O <span className="text-white/70">{fmt(hover.o)}</span></span>
+          <span className="text-white/40">H <span className="text-emerald-400/80">{fmt(hover.h)}</span></span>
+          <span className="text-white/40">L <span className="text-red-400/80">{fmt(hover.l)}</span></span>
+          <span className="text-white/40">C <span className="text-white/70">{fmt(hover.c)}</span></span>
+          <span className="text-white/40">V <span className="text-white/50">{fmtV(hover.v)}</span></span>
+          {loading && <span className="text-cyan-300 animate-pulse">Loading…</span>}
         </div>
-
-        <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#060d18]/70 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">{activePreset.name}</h2>
-            <div className="flex items-center gap-2">
-              {activePreset.id === 'order-book-live' ? (
-                <button
-                  id="animation-toggle"
-                  type="button"
-                  className="rounded border border-cyan-500/50 bg-cyan-500/10 px-2 py-1 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20"
-                >
-                  Start animation
-                </button>
-              ) : null}
-              {loading ? <span className="text-xs text-cyan-300">Loading...</span> : null}
-            </div>
+        <div className="flex items-center gap-1">
+          <div className="relative" data-dd>
+            <button onClick={function() { setShowSearch(!showSearch); }} className="px-2 py-1 rounded text-[11px] text-gray-400 hover:text-white hover:bg-white/5 transition-colors">🔍</button>
+            {showSearch && (
+              <div className="absolute right-0 top-full mt-1 bg-black/90 border border-white/10 rounded-lg p-2 backdrop-blur-xl w-56 z-50">
+                <input autoFocus value={search} onChange={function(e) { setSearch(e.target.value.toUpperCase()); }} onKeyDown={function(e) { if (e.key === 'Enter' && search.trim()) handleSearchSubmit(search.trim()); }} placeholder="Symbol (e.g. TSLA)" className="w-full bg-transparent text-white text-sm outline-none placeholder-gray-500 px-2 py-1.5 border border-white/10 rounded" />
+                <div className="text-[10px] text-gray-500 mt-1 px-2">Press Enter to search</div>
+              </div>
+            )}
           </div>
-
-          {error ? (
-            <div className="mb-2 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
-          ) : null}
-
-          {activePreset.id === 'stock-tools-popup-events' ? (
-            <>
-              <div className="highcharts-popup-indicators hidden">
-                <div className="popup-title">Indicators</div>
-                <label className="popup-row">
-                  <span>Type</span>
-                  <select defaultValue="sma">
-                    <option value="sma">SMA</option>
-                    <option value="ema">EMA</option>
-                    <option value="rsi">RSI</option>
-                    <option value="macd">MACD</option>
-                  </select>
-                </label>
-                <label className="popup-row">
-                  <span>Period</span>
-                  <input type="number" min="1" defaultValue="14" />
-                </label>
-                <div className="popup-actions">
-                  <button type="button">Add indicator</button>
-                  <button type="button" className="highcharts-close-popup">Close</button>
-                </div>
+          <div className="relative" data-dd>
+            <button onClick={function() { setShowColors(!showColors); }} className="px-2 py-1 rounded text-[11px] text-gray-400 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: theme.up }} />
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: theme.down }} />
+            </button>
+            {showColors && (
+              <div className="absolute right-0 top-full mt-1 bg-black/90 border border-white/10 rounded-lg p-2 backdrop-blur-xl w-44 z-50">
+                {CANDLE_THEMES.map(function(t, i) {
+                  return (
+                    <button key={i} onClick={function() { setTheme(t); setShowColors(false); }} className={'w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors ' + (theme.label === t.label ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5')}>
+                      <span className="w-3 h-3 rounded-sm" style={{ background: t.up }} />
+                      <span className="w-3 h-3 rounded-sm" style={{ background: t.down }} />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="highcharts-popup-annotations hidden">
-                <div className="popup-title">Annotation</div>
-                <label className="popup-row">
-                  <span>Stroke width</span>
-                  <input type="number" name="stroke-width" min="1" max="8" defaultValue="2" />
-                </label>
-                <label className="popup-row">
-                  <span>Stroke color</span>
-                  <input type="color" name="stroke" defaultValue="#3b82f6" />
-                </label>
-                <div className="popup-actions">
-                  <button type="button">Update annotation</button>
-                  <button type="button" className="highcharts-close-popup">Close</button>
-                </div>
-              </div>
-            </>
-          ) : null}
-
-          <div ref={containerRef} id="v2-trade-container" className="h-[calc(100%-36px)] min-h-[500px] w-full" />
+            )}
+          </div>
         </div>
       </div>
-      <style>{`
-        #v2-trade-container .highcharts-background {
-          fill: transparent;
-        }
-        #v2-trade-container .highcharts-title,
-        #v2-trade-container .highcharts-axis-title,
-        #v2-trade-container .highcharts-axis-labels text,
-        #v2-trade-container .highcharts-range-selector text {
-          fill: #9d9da2 !important;
-          color: #9d9da2 !important;
-        }
-        #v2-trade-container .highcharts-grid-line {
-          stroke: #181816;
-        }
-        #v2-trade-container .highcharts-candlestick-series .highcharts-point-up {
-          fill: #51af7b;
-          stroke: #51af7b;
-        }
-        #v2-trade-container .highcharts-candlestick-series .highcharts-point-down {
-          fill: #ff6e6e;
-          stroke: #ff6e6e;
-        }
-        #v2-trade-container .highcharts-series.highcharts-column-series .highcharts-point-up {
-          fill: #51af7b;
-          stroke: #51af7b;
-        }
-        #v2-trade-container .highcharts-series.highcharts-column-series .highcharts-point-down {
-          fill: #ff6e6e;
-          stroke: #ff6e6e;
-        }
-        #v2-trade-container .highcharts-crosshair-custom {
-          stroke: #4f86ff !important;
-          stroke-width: 1px !important;
-          stroke-dasharray: 3 3;
-        }
-        #v2-trade-container .highcharts-crosshair-custom-label text {
-          fill: #d4d4d8 !important;
-        }
-        #v2-trade-container .highcharts-crosshair-custom-label rect {
-          fill: rgba(0, 0, 0, 0.7);
-          stroke: #34343a;
-          stroke-width: 1px;
-        }
-        .highcharts-popup-indicators,
-        .highcharts-popup-annotations {
-          position: absolute;
-          top: 56px;
-          right: 18px;
-          z-index: 40;
-          width: 220px;
-          border-radius: 8px;
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          background: rgba(6, 13, 24, 0.96);
-          padding: 10px;
-          color: #e2e8f0;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-        }
-        .highcharts-popup-indicators.hidden,
-        .highcharts-popup-annotations.hidden {
-          display: none;
-        }
-        .popup-title {
-          margin-bottom: 8px;
-          font-size: 12px;
-          font-weight: 600;
-          color: #bae6fd;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-        .popup-row {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 4px;
-          margin-bottom: 8px;
-        }
-        .popup-row span {
-          font-size: 11px;
-          color: #94a3b8;
-        }
-        .popup-row input,
-        .popup-row select {
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          border-radius: 6px;
-          background: #0a1628;
-          color: #e2e8f0;
-          font-size: 12px;
-          padding: 6px 8px;
-        }
-        .popup-actions {
-          display: flex;
-          gap: 8px;
-        }
-        .popup-actions button {
-          border: 1px solid rgba(56, 189, 248, 0.45);
-          border-radius: 6px;
-          background: rgba(56, 189, 248, 0.12);
-          color: #e0f2fe;
-          font-size: 11px;
-          font-weight: 600;
-          padding: 6px 8px;
-          cursor: pointer;
-        }
-        .popup-actions .highcharts-close-popup {
-          border-color: rgba(239, 68, 68, 0.45);
-          background: rgba(239, 68, 68, 0.12);
-          color: #fecaca;
-        }
-      `}</style>
+      <div ref={containerRef} className="flex-1 min-h-0 w-full" style={{ cursor: 'crosshair' }} />
+      <div className="flex-shrink-0 flex items-center justify-center gap-1 py-2">
+        {INTERVALS.map(function(iv) {
+          return (
+            <button key={iv.label} onClick={function() { setInterval_(iv.value); }} className={'px-3 py-1 text-[11px] font-semibold rounded-md transition-colors ' + (interval === iv.value ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'text-gray-500 border border-transparent hover:text-white hover:bg-white/5')}>
+              {iv.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
