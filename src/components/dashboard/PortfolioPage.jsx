@@ -225,14 +225,6 @@ const PortfolioPage = ({
       <div className="px-6 pt-6 pb-8 space-y-6">
         {/* Connected Accounts — compact row */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-1.5">
-            <div className="w-5 h-5 bg-yellow-500 rounded flex items-center justify-center">
-              <BrokerIcon broker="alpaca" className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-medium text-white">Alpaca</span>
-            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-            <span className="text-xs text-white/50 font-mono">{formatCurrency(equity)}</span>
-          </div>
           {connectedBrokers.map((broker) => (
             <div key={broker.id} className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-1.5 group">
               <div className="w-5 h-5 rounded flex items-center justify-center overflow-hidden">
