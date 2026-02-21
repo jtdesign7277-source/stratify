@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   display_name TEXT,
   avatar_url TEXT,
   bio TEXT,
+  initialized BOOLEAN DEFAULT FALSE,
+  trade_history JSONB DEFAULT '[]'::jsonb,
+  portfolio_state JSONB DEFAULT '{}'::jsonb,
+  portfolio_value NUMERIC DEFAULT 0,
+  user_state JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
