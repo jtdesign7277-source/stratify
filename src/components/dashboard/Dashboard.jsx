@@ -832,7 +832,7 @@ export default function Dashboard({
 
     const endpoints = [
       `${API_URL}/api/public/quote/${encodeURIComponent(normalized)}`,
-      `/api/quote?symbol=${encodeURIComponent(normalized)}`,
+      `/api/quote-twelve?symbol=${encodeURIComponent(normalized)}`,
     ];
 
     for (const endpoint of endpoints) {
