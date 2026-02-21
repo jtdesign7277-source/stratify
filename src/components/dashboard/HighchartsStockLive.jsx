@@ -9,13 +9,17 @@ import FullScreen from 'highcharts/modules/full-screen';
 import Heikinashi from 'highcharts/modules/heikinashi';
 import HollowCandlestick from 'highcharts/modules/hollowcandlestick';
 
-// Init modules once
-StockTools(Highcharts);
-AnnotationsAdvanced(Highcharts);
-PriceIndicator(Highcharts);
-FullScreen(Highcharts);
-Heikinashi(Highcharts);
-HollowCandlestick(Highcharts);
+// Init modules once (wrapped to prevent crash on load)
+try {
+  StockTools(Highcharts);
+  AnnotationsAdvanced(Highcharts);
+  PriceIndicator(Highcharts);
+  FullScreen(Highcharts);
+  Heikinashi(Highcharts);
+  HollowCandlestick(Highcharts);
+} catch (e) {
+  console.warn('[HighchartsStockLive] Module init error:', e);
+}
 
 const TWELVE_DATA_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY;
 const WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';

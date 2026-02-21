@@ -36,7 +36,7 @@ import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
-import TradePage from './TradePage';
+const TradePage = lazy(() => import('./TradePage'));
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplateFlow from './StrategyTemplateFlow';
@@ -1771,14 +1771,16 @@ export default function Dashboard({
               featureName="Paper Trading"
               description="Practice trading with virtual capital and real market data."
             >
-              <TradePage
-                watchlist={watchlist}
-                onAddToWatchlist={addToWatchlist}
-                onRemoveFromWatchlist={removeFromWatchlist}
-                onReorderWatchlist={reorderWatchlist}
-                onPinToTop={pinToTop}
-                addTrade={addTrade}
-              />
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trade page...</div>}>
+                <TradePage
+                  watchlist={watchlist}
+                  onAddToWatchlist={addToWatchlist}
+                  onRemoveFromWatchlist={removeFromWatchlist}
+                  onReorderWatchlist={reorderWatchlist}
+                  onPinToTop={pinToTop}
+                  addTrade={addTrade}
+                />
+              </Suspense>
             </ProGate>
           )}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
