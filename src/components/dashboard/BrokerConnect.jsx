@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
 const BROKERS = [
@@ -147,6 +147,57 @@ const BrokerConnect = ({ onConnected }) => {
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [existingConnections, setExistingConnections] = useState([]);
+
+  // Fetch existing broker connections on mount
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        const { data, error } = await supabase
+          .from('broker_connections')
+          .select('*')
+          .eq('user_id', session.user.id);
+
+        if (!error && data) {
+          setExistingConnections(data);
+        }
+      } catch (err) {
+        console.error('[BrokerConnect] Failed to fetch connections:', err);
+      }
+    };
+    fetchConnections();
+  }, []);
+
+  const handleDisconnect = async (broker) => {
+    if (!confirm(`Disconnect ${broker}? You'll need to reconnect to trade.`)) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch('/api/broker-disconnect', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ broker }),
+      });
+
+      if (response.ok) {
+        setExistingConnections(prev => prev.filter(c => c.broker !== broker));
+        alert('Broker disconnected successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
 
   const broker = selectedBroker ? BROKERS.find(b => b.id === selectedBroker) : null;
   const isLive = !isPaper;
@@ -226,6 +277,36 @@ const BrokerConnect = ({ onConnected }) => {
         <h2 className="text-sm font-semibold text-white">Brokers</h2>
         <p className="text-[10px] text-white/30 mt-0.5">Select a broker to connect</p>
       </div>
+      
+      {/* Existing Connections */}
+      {existingConnections.length > 0 && (
+        <div className="px-4 py-3 border-b border-white/[0.06] bg-[#111111]">
+          <h3 className="text-xs font-medium text-white/70 mb-2">Connected</h3>
+          {existingConnections.map((conn) => (
+            <div key={conn.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 mb-2">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <div className="text-xs font-medium text-white capitalize">{conn.broker}</div>
+                  <div className="text-[10px] text-white/40">{conn.is_paper ? 'Paper' : 'Live'}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDisconnect(conn.broker)}
+                className="text-white/40 hover:text-red-400 transition-colors p-1"
+                title="Disconnect"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      
       <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
         {BROKERS.map((b) => {
           const isComingSoon = b.status === 'coming_soon';
