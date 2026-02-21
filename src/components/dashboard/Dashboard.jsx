@@ -447,6 +447,7 @@ const hasBrokerAccountData = (data) => {
 export default function Dashboard({
   setCurrentPage,
   alpacaData,
+  refreshAlpacaData,
   isLiveScoresOpen = false,
   onToggleLiveScores = () => {},
   liveScoresUnread = false,
@@ -1946,7 +1947,7 @@ export default function Dashboard({
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'calendar' && <EconomicsCalendarPage />}
-          {activeTab === 'crypto' && <CryptoPage />}
+          {activeTab === 'crypto' && <CryptoPage onOrderPlaced={refreshAlpacaData} />}
           {activeTab === 'options' && <OptionsPage />}
           {activeTab === 'terminal' && (
             <TerminalStrategyWorkspace

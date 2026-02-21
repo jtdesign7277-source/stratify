@@ -1138,6 +1138,7 @@ function StratifyAppContent() {
           positions: derivedPositions,
           account,
         }}
+        refreshAlpacaData={alpaca.refresh}
       />
     );
 
