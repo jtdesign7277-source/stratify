@@ -5,7 +5,6 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import BreakingNewsBanner from './BreakingNewsBanner';
 import SocialSentiment from './SocialSentiment';
 // import LiveChart from './LiveChart';
-import HighchartsStockLive from './HighchartsStockLive';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useBreakingNews from '../../hooks/useBreakingNews';
 import useAlpacaStream from '../../hooks/useAlpacaStream';
@@ -1795,10 +1794,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
         </div>
         <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
           <div className="flex-1 min-h-0 min-w-0 relative">
-            <HighchartsStockLive
-              symbol={selectedDisplaySymbol}
-              interval={liveChartInterval}
-            />
           </div>
 
           <div

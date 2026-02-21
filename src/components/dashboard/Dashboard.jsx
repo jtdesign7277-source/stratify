@@ -30,7 +30,7 @@ import BacktestWizard from './BacktestWizard';
 import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
-import V2TradePage from './V2TradePage';
+const V2TradePage = lazy(() => import('./V2TradePage'));
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
@@ -1759,12 +1759,14 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'v2-trade' && (
-            <V2TradePage
-              watchlist={watchlist}
-              onAddToWatchlist={addToWatchlist}
-              onRemoveFromWatchlist={removeFromWatchlist}
-              onReorderWatchlist={reorderWatchlist}
-            />
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading chart...</div>}>
+              <V2TradePage
+                watchlist={watchlist}
+                onAddToWatchlist={addToWatchlist}
+                onRemoveFromWatchlist={removeFromWatchlist}
+                onReorderWatchlist={reorderWatchlist}
+              />
+            </Suspense>
           )}
           {activeTab === 'trade' && (
             <ProGate
