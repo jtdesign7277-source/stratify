@@ -1,7 +1,23 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function getUserFromToken(req) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return null;
+  const token = auth.slice(7);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+  return user;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -11,14 +27,37 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.ALPACA_API_KEY || process.env.APCA_API_KEY_ID;
-  const apiSecret = process.env.ALPACA_API_SECRET || process.env.APCA_API_SECRET_KEY;
-
-  if (!apiKey || !apiSecret) {
-    return res.status(500).json({ error: 'Alpaca API keys not configured' });
+  // Get user from auth token
+  const user = await getUserFromToken(req);
+  if (!user) {
+    return res.status(401).json({ 
+      error: 'No broker connected. Please connect your Alpaca account in Portfolio.' 
+    });
   }
 
-  const baseUrl = process.env.ALPACA_BASE_URL || 'https://paper-api.alpaca.markets';
+  // Fetch user's broker connection
+  const { data: conn, error: connError } = await supabase
+    .from('broker_connections')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('broker', 'alpaca')
+    .maybeSingle();
+
+  if (connError) {
+    return res.status(500).json({ error: connError.message });
+  }
+
+  if (!conn) {
+    return res.status(401).json({ 
+      error: 'No Alpaca broker connected. Please connect your Alpaca account in Portfolio.' 
+    });
+  }
+
+  const apiKey = conn.api_key;
+  const apiSecret = conn.api_secret;
+  const baseUrl = conn.is_paper !== false 
+    ? 'https://paper-api.alpaca.markets' 
+    : 'https://api.alpaca.markets';
 
   try {
     if (req.method === 'GET') {
@@ -104,14 +143,32 @@ export default async function handler(req, res) {
       order.trail_price = String(trail_price);
     }
 
-    const response = await fetch(`${baseUrl}/v2/orders`, {
+    // Detect crypto symbols (contain / or common crypto pairs)
+    const isCrypto = order.symbol.includes('/') || 
+                     /^(BTC|ETH|SOL|XRP|DOGE|LINK|ADA|AVAX|DOT|MATIC|UNI|ATOM|LTC|BCH|XLM|ALGO|VET|FIL|AAVE|SAND|MANA|CRO|SHIB)(USD|USDT|EUR|GBP)$/.test(order.symbol);
+
+    let apiEndpoint = `${baseUrl}/v2/orders`;
+    let orderPayload = order;
+
+    if (isCrypto) {
+      // Use Alpaca crypto endpoint (v1beta3)
+      apiEndpoint = `${baseUrl}/v1beta3/crypto/us/orders`;
+      // Crypto orders require symbol without slash for Alpaca
+      orderPayload = {
+        ...order,
+        symbol: order.symbol.replace('/', ''),
+      };
+      console.log('[Orders API] Detected crypto symbol, using v1beta3 endpoint');
+    }
+
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'APCA-API-KEY-ID': apiKey,
         'APCA-API-SECRET-KEY': apiSecret,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(order),
+      body: JSON.stringify(orderPayload),
     });
 
     const payload = await response.json();
