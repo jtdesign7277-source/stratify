@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   FolderInput,
@@ -58,6 +58,37 @@ const QUICK_SCANS = [
       'Deliver live crypto pulse on $BTC and $ETH with key levels, catalysts, liquidity zones, and bullish vs bearish trigger points for traders.',
   },
 ];
+
+const PREFETCH_SCANS = QUICK_SCANS.slice(0, 3); // Market Movers, Earnings Intel, $SPY Analysis
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const FEED_TIMESTAMP_KEY = 'stratify-war-room-feed-ts';
+
+const getFeedTimestamp = () => {
+  try { return Number(localStorage.getItem(FEED_TIMESTAMP_KEY)) || 0; } catch { return 0; }
+};
+const setFeedTimestamp = () => {
+  try { localStorage.setItem(FEED_TIMESTAMP_KEY, String(Date.now())); } catch {}
+};
+const isFeedFresh = () => Date.now() - getFeedTimestamp() < CACHE_TTL_MS;
+
+const fetchSingleScan = async (query, title) => {
+  const response = await fetch('/api/warroom', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return null;
+  return normalizeIntelItem({
+    id: `warroom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    query,
+    content: String(payload?.content || ''),
+    sources: payload?.sources || [],
+    sourceLabel: 'Claude Intel',
+    createdAt: new Date().toISOString(),
+  });
+};
 
 const INLINE_TOKEN_REGEX = /(\$[A-Z]{1,5}\b|[+-]\$?\d[\d,]*(?:\.\d+)?%?|\$?\d[\d,]*(?:\.\d+)?%?)/g;
 
@@ -228,10 +259,46 @@ export default function WarRoom({ onClose }) {
     setToast(String(message || '').trim());
   };
 
+  const [prefetching, setPrefetching] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsGlitching(false), 200);
     return () => clearTimeout(timer);
   }, []);
+
+  // Auto-prefetch top scans when feed is empty or stale
+  useEffect(() => {
+    const cachedFeed = getWarRoomFeed();
+    if (cachedFeed.length > 0 && isFeedFresh()) return; // fresh cache, skip
+
+    let cancelled = false;
+    setPrefetching(true);
+
+    const prefetch = async () => {
+      const results = await Promise.allSettled(
+        PREFETCH_SCANS.map((scan) => fetchSingleScan(scan.query, scan.label))
+      );
+      if (cancelled) return;
+
+      const newCards = results
+        .filter((r) => r.status === 'fulfilled' && r.value?.content)
+        .map((r) => r.value);
+
+      if (newCards.length > 0) {
+        setIntelFeed((prev) => {
+          // Merge new cards at front, dedup by title
+          const existingTitles = new Set(prev.map((c) => c.title));
+          const unique = newCards.filter((c) => !existingTitles.has(c.title));
+          return [...unique, ...prev].slice(0, 50);
+        });
+        setFeedTimestamp();
+      }
+      setPrefetching(false);
+    };
+
+    prefetch();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setWarRoomFeed(intelFeed);
@@ -472,6 +539,7 @@ export default function WarRoom({ onClose }) {
       });
 
       setIntelFeed((prev) => [intelCard, ...prev].slice(0, 50));
+      setFeedTimestamp();
       setQuery('');
       setActiveView('live');
     } catch (scanError) {
@@ -786,10 +854,10 @@ export default function WarRoom({ onClose }) {
                 <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
               ) : null}
 
-              {isLoading ? (
+              {(isLoading || prefetching) ? (
                 <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
                   <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
-                  <span className="text-amber-300 text-sm animate-pulse">Scanning...</span>
+                  <span className="text-amber-300 text-sm animate-pulse">{prefetching && !isLoading ? 'Loading latest intel...' : 'Scanning...'}</span>
                   <span className="inline-flex items-center gap-1 text-amber-500/80 text-xs">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80 animate-pulse [animation-delay:180ms]" />
@@ -798,7 +866,7 @@ export default function WarRoom({ onClose }) {
                 </div>
               ) : null}
 
-              {intelFeed.length === 0 && !isLoading ? (
+              {intelFeed.length === 0 && !isLoading && !prefetching ? (
                 <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
                   <Sparkles className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
                   <h3 className="text-white font-semibold">No intel scans yet</h3>
