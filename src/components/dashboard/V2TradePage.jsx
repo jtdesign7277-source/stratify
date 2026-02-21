@@ -12,7 +12,7 @@ import HollowCandlestickModule from 'highcharts/modules/hollowcandlestick';
 import IndicatorsModule from 'highcharts/indicators/indicators';
 import IchimokuModule from 'highcharts/indicators/ichimoku-kinko-hyo';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
-import { STOCK_DATABASE, DEFAULT_EQUITY_WATCHLIST } from './TradePage';
+import { STOCK_DATABASE, DEFAULT_EQUITY_WATCHLIST } from '../../data/stockDatabase';
 import { CHART_PRESETS, buildChartOptions } from './charts/chartPresets';
 
 const V2_WATCHLIST_KEY = 'stratify-v2-trade-watchlist';
