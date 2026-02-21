@@ -395,6 +395,7 @@ function OrderEntry({
   clickedPrice,
   onPriceConsumed,
   onSymbolChange,
+  buyingPowerDisplay,
 }) {
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
@@ -587,7 +588,7 @@ function OrderEntry({
           { value: 'ioc', label: 'IOC' },
         ]}
         estimatedCost={estimatedTotal}
-        buyingPowerDisplay={buyingPowerFormatted}
+        buyingPowerDisplay={buyingPowerDisplay}
         onReview={handleSubmit}
         reviewDisabled={submitting || !hasValidOrderSize}
         reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
@@ -993,6 +994,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
                     onOrderPlaced={handleOrderPlaced}
                     clickedPrice={clickedPrice}
                     onPriceConsumed={() => setClickedPrice(null)}
+                    buyingPowerDisplay={buyingPowerFormatted}
                     onSymbolChange={(symbolInput) => {
                       const normalized = String(symbolInput || '').toUpperCase();
                       const nextCoin = CRYPTO_COINS.find((coin) =>
