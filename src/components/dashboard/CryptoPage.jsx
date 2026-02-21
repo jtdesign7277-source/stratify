@@ -132,8 +132,8 @@ async function loadUserPreference(userId) {
 const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
   .trim()
   .toUpperCase()
-  .replace(/\//g, '-')
-  .replace(/_/g, '-');
+  .replace(/_/g, '/')  // Convert underscores to forward slash
+  .replace(/-/g, '/'); // Convert hyphens to forward slash (normalize to BTC/USD format)
 
 function useAlpacaOrderbook(alpacaSymbol) {
   const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
@@ -153,7 +153,7 @@ function useAlpacaOrderbook(alpacaSymbol) {
     const fetchInitialPrice = async () => {
       try {
         console.log('[CryptoPrice] Fetching initial price for:', normalizedSymbol);
-        const response = await fetch(`/api/crypto/latest-price?symbol=${normalizedSymbol}`);
+        const response = await fetch(`/api/crypto/latest-price?symbol=${encodeURIComponent(normalizedSymbol)}`);
         
         if (response.ok) {
           const data = await response.json();

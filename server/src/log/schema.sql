@@ -23,6 +23,19 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- ============================================================
+-- USER PREFERENCES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
+  crypto_default_coin TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_preferences_user_id ON public.user_preferences(user_id);
+
+-- ============================================================
 -- WATCHLISTS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.watchlists (
@@ -205,6 +218,7 @@ CREATE INDEX idx_account_snapshots_user_date ON public.account_snapshots(user_id
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.watchlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.watchlist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.broker_connections ENABLE ROW LEVEL SECURITY;
@@ -219,6 +233,12 @@ ALTER TABLE public.account_snapshots ENABLE ROW LEVEL SECURITY;
 CREATE POLICY profiles_select ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY profiles_update ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY profiles_insert ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- User Preferences: users can CRUD their own preferences
+CREATE POLICY user_preferences_select ON public.user_preferences FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY user_preferences_insert ON public.user_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY user_preferences_update ON public.user_preferences FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY user_preferences_delete ON public.user_preferences FOR DELETE USING (auth.uid() = user_id);
 
 -- Broker Connections: users can CRUD their own broker connections
 CREATE POLICY broker_connections_select ON public.broker_connections FOR SELECT USING (auth.uid() = user_id);
