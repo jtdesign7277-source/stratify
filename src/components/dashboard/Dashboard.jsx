@@ -44,7 +44,6 @@ import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
 import CryptoPage from './CryptoPage';
-import OptionsPage from './OptionsPage';
 // Sophia strategy state managed here
 import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
@@ -1948,7 +1947,6 @@ export default function Dashboard({
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'calendar' && <EconomicsCalendarPage />}
           {activeTab === 'crypto' && <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />}
-          {activeTab === 'options' && <OptionsPage />}
           {activeTab === 'terminal' && (
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}

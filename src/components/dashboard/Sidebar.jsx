@@ -70,7 +70,6 @@ const Sidebar = ({
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
-    { id: 'options', label: 'Options Flow', icon: Zap, isNew: true, labelClass: 'font-semibold text-orange-400', iconClass: 'text-orange-400' },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
