@@ -502,9 +502,18 @@ function OrderEntry({
     };
 
     try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch('/api/crypto/order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(order),
       });
       const result = await response.json();
@@ -519,11 +528,17 @@ function OrderEntry({
 
       if (result.success) {
         handleOrderPlaced();
+      } else if (result.error?.includes('No Alpaca broker connected')) {
+        // Show specific error for missing broker connection
+        alert('Please connect your Alpaca paper account in the Portfolio page before trading.');
+        setLastResult('error');
+        setTimeout(() => setLastResult(null), 3000);
       }
     } catch (err) {
       if (userId) {
         await saveOrder(userId, { ...order, status: 'error' });
       }
+      console.error('Order submission error:', err);
       setLastResult('error');
       setTimeout(() => setLastResult(null), 3000);
     }

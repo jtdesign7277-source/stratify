@@ -55,7 +55,24 @@ CREATE INDEX idx_watchlist_items_watchlist_id ON public.watchlist_items(watchlis
 CREATE INDEX idx_watchlist_items_symbol ON public.watchlist_items(symbol);
 
 -- ============================================================
--- CONNECTED BROKERS
+-- BROKER CONNECTIONS (User-specific broker API keys)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.broker_connections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  broker TEXT NOT NULL, -- 'alpaca', 'webull', etc.
+  api_key TEXT NOT NULL,
+  api_secret TEXT NOT NULL,
+  is_paper BOOLEAN DEFAULT FALSE,
+  connected_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, broker)
+);
+
+CREATE INDEX idx_broker_connections_user_id ON public.broker_connections(user_id);
+
+-- ============================================================
+-- CONNECTED BROKERS (Legacy/OAuth-based connections)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.connected_brokers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -190,6 +207,7 @@ CREATE INDEX idx_account_snapshots_user_date ON public.account_snapshots(user_id
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.watchlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.watchlist_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.broker_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.connected_brokers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
@@ -201,6 +219,12 @@ ALTER TABLE public.account_snapshots ENABLE ROW LEVEL SECURITY;
 CREATE POLICY profiles_select ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY profiles_update ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY profiles_insert ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Broker Connections: users can CRUD their own broker connections
+CREATE POLICY broker_connections_select ON public.broker_connections FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY broker_connections_insert ON public.broker_connections FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY broker_connections_update ON public.broker_connections FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY broker_connections_delete ON public.broker_connections FOR DELETE USING (auth.uid() = user_id);
 
 -- Watchlists: users can CRUD their own watchlists
 CREATE POLICY watchlists_select ON public.watchlists FOR SELECT USING (auth.uid() = user_id);
