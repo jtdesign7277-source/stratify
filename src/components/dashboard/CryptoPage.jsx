@@ -152,19 +152,31 @@ function useAlpacaOrderbook(alpacaSymbol) {
     
     const fetchInitialPrice = async () => {
       try {
+        console.log('[CryptoPrice] Fetching initial price for:', normalizedSymbol);
         const response = await fetch(`/api/crypto/latest-price?symbol=${normalizedSymbol}`);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('[CryptoPrice] Received price data:', data);
+          
           if (data?.price) {
             const price = Number(data.price);
-            if (Number.isFinite(price)) {
+            if (Number.isFinite(price) && price > 0) {
+              console.log('[CryptoPrice] Setting lastPrice to:', price);
               setLastPrice(price);
               lastPriceRef.current = price;
+            } else {
+              console.warn('[CryptoPrice] Invalid price value:', price);
             }
+          } else {
+            console.warn('[CryptoPrice] No price in response:', data);
           }
+        } else {
+          const errorText = await response.text();
+          console.error('[CryptoPrice] API error:', response.status, errorText);
         }
       } catch (err) {
-        console.warn('Failed to fetch initial crypto price:', err);
+        console.error('[CryptoPrice] Failed to fetch initial crypto price:', err);
       }
     };
 
@@ -443,10 +455,11 @@ function OrderEntry({
   }, [clickedPrice, onPriceConsumed]);
 
   const referencePrice = useMemo(() => {
-    if (orderType === 'market') {
-      return Number(lastPrice) || 0;
-    }
-    return parseFloat(limitPrice) || Number(lastPrice) || 0;
+    const price = orderType === 'market' 
+      ? Number(lastPrice) || 0
+      : parseFloat(limitPrice) || Number(lastPrice) || 0;
+    console.log('[OrderEntry] referencePrice:', price, '(lastPrice:', lastPrice, 'orderType:', orderType, ')');
+    return price;
   }, [orderType, limitPrice, lastPrice]);
 
   const resolvedQuantity = useMemo(() => {

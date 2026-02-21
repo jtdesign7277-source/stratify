@@ -83,8 +83,19 @@ export default function AlpacaOrderTicket({
     onQuantityChange?.(value);
   };
 
-  const marketPriceText = useMemo(() => formatMoney(marketPrice), [marketPrice]);
-  const estimatedCostText = useMemo(() => formatMoney(estimatedCost), [estimatedCost]);
+  const marketPriceText = useMemo(() => {
+    if (marketPrice === null || marketPrice === undefined) return 'Loading...';
+    if (marketPrice === 0) return '$ -';
+    return formatMoney(marketPrice);
+  }, [marketPrice]);
+  const estimatedCostText = useMemo(() => {
+    if ((marketPrice === null || marketPrice === undefined || marketPrice === 0) && !activeAmount) {
+      return 'Enter quantity';
+    }
+    if (!activeAmount || parseFloat(activeAmount) === 0) return '$ 0.00';
+    if (estimatedCost === null || estimatedCost === undefined) return 'Calculating...';
+    return formatMoney(estimatedCost);
+  }, [estimatedCost, marketPrice, activeAmount]);
   const buyingPowerText = useMemo(() => normalizeDisplayMoney(buyingPowerDisplay), [buyingPowerDisplay]);
 
   const isTradeDensity = density === 'trade';
