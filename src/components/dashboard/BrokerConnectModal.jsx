@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { validateKalshiCredentials, setKalshiCredentials } from '../../lib/kalshi';
 
 // Broker logos as simple icons
@@ -162,19 +162,61 @@ const brokers = [
 ];
 
 export default function BrokerConnectModal({ isOpen, onClose, onConnect, connectedBrokers = [] }) {
-  const [selectedBroker, setSelectedBroker] = useState(null);
-  const [apiKey, setApiKey] = useState('');
-  const [secretKey, setSecretKey] = useState('');
+  // Restore saved form state from sessionStorage
+  const [selectedBroker, setSelectedBroker] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('broker-connect-form');
+      return saved ? JSON.parse(saved).broker : null;
+    } catch {
+      return null;
+    }
+  });
+  const [apiKey, setApiKey] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('broker-connect-form');
+      return saved ? JSON.parse(saved).apiKey : '';
+    } catch {
+      return '';
+    }
+  });
+  const [secretKey, setSecretKey] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('broker-connect-form');
+      return saved ? JSON.parse(saved).secretKey : '';
+    } catch {
+      return '';
+    }
+  });
   const [connecting, setConnecting] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [connectError, setConnectError] = useState('');
+
+  // Auto-save form state on change (persists across tab switches)
+  useEffect(() => {
+    if (selectedBroker || apiKey || secretKey) {
+      sessionStorage.setItem('broker-connect-form', JSON.stringify({
+        broker: selectedBroker,
+        apiKey,
+        secretKey,
+      }));
+    }
+  }, [selectedBroker, apiKey, secretKey]);
+
+  // Clear saved form on close
+  useEffect(() => {
+    if (!isOpen) {
+      // Clear on close only if not in the middle of connecting
+      if (!connecting) {
+        sessionStorage.removeItem('broker-connect-form');
+      }
+    }
+  }, [isOpen, connecting]);
 
   if (!isOpen) return null;
 
   const filteredBrokers = filter === 'all' 
     ? brokers 
     : brokers.filter(b => b.category === filter);
-
-  const [connectError, setConnectError] = useState('');
 
   const handleConnect = async () => {
     if (!apiKey || !secretKey) return;
@@ -218,6 +260,8 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
         });
       }
       
+      // Clear saved form on success
+      sessionStorage.removeItem('broker-connect-form');
       setConnecting(false);
       setSelectedBroker(null);
       setApiKey('');
