@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
-import {
-  subscribeAlpacaStatus,
-  subscribeCrypto,
-  subscribeCryptoOrderbooks,
-} from '../../services/alpacaStream';
+import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -153,7 +149,7 @@ function useAlpacaOrderbook(alpacaSymbol) {
     const fetchInitialPrice = async () => {
       try {
         console.log('[CryptoPrice] Fetching initial price for:', normalizedSymbol);
-        const response = await fetch(`/api/crypto/latest-price?symbol=${encodeURIComponent(normalizedSymbol)}`);
+        const response = await fetch(`/api/crypto/twelve-data-price?symbol=${encodeURIComponent(normalizedSymbol)}`);
         
         if (response.ok) {
           const data = await response.json();
@@ -208,45 +204,38 @@ function useAlpacaOrderbook(alpacaSymbol) {
 
     if (!normalizedSymbol) return undefined;
 
-    const unsubscribeStatus = subscribeAlpacaStatus((status) => {
-      setConnected(Boolean(status?.cryptoConnected));
-    });
+    console.log('[TwelveData] Subscribing to:', normalizedSymbol);
 
-    const unsubscribeQuotes = subscribeCrypto([normalizedSymbol], ({ quote }) => {
-      if (!quote || typeof quote !== 'object') return;
+    // Check connection status periodically
+    const statusInterval = setInterval(() => {
+      const status = getTwelveDataConnectionStatus();
+      setConnected(status.connected);
+      if (status.connected) {
+        markStreamHeartbeat();
+      }
+    }, 2000);
+
+    // Subscribe to Twelve Data price updates
+    const unsubscribe = subscribeCryptoPrices(normalizedSymbol, (data) => {
+      console.log('[TwelveData] Price update:', data);
       markStreamHeartbeat();
 
-      const nextPrice = Number(quote.lastTrade ?? quote.price ?? quote.ask ?? quote.bid);
-      if (Number.isFinite(nextPrice)) {
+      const nextPrice = data.price;
+      if (Number.isFinite(nextPrice) && nextPrice > 0) {
         if (lastPriceRef.current !== null) {
           setPriceDirection(nextPrice > lastPriceRef.current ? 'up' : nextPrice < lastPriceRef.current ? 'down' : null);
         }
         lastPriceRef.current = nextPrice;
         setLastPrice(nextPrice);
-      }
 
-      const tradeSize = Number(quote.size);
-      const tradeTime = quote.timestamp || new Date().toISOString();
-      if (Number.isFinite(nextPrice) && Number.isFinite(tradeSize) && tradeSize > 0) {
-        const ask = Number(quote.ask);
-        const tradeIsBuy = Number.isFinite(ask) ? nextPrice >= ask : true;
-
+        // Add to trades list (simulated)
         setTrades((prev) => [{
           price: nextPrice,
-          size: tradeSize,
-          timestamp: tradeTime,
-          taker: tradeIsBuy ? 'B' : 'S',
+          size: 0, // Twelve Data doesn't provide volume per tick
+          timestamp: data.timestamp || new Date().toISOString(),
+          taker: 'B', // Unknown without orderbook
         }, ...prev].slice(0, 100));
       }
-    });
-
-    const unsubscribeOrderbooks = subscribeCryptoOrderbooks([normalizedSymbol], ({ orderbook: nextOrderbook }) => {
-      if (!nextOrderbook || typeof nextOrderbook !== 'object') return;
-      markStreamHeartbeat();
-      setOrderbook({
-        bids: Array.isArray(nextOrderbook.bids) ? nextOrderbook.bids : [],
-        asks: Array.isArray(nextOrderbook.asks) ? nextOrderbook.asks : [],
-      });
     });
 
     return () => {
@@ -254,9 +243,8 @@ function useAlpacaOrderbook(alpacaSymbol) {
         clearTimeout(heartbeatTimerRef.current);
         heartbeatTimerRef.current = null;
       }
-      unsubscribeOrderbooks?.();
-      unsubscribeQuotes?.();
-      unsubscribeStatus?.();
+      clearInterval(statusInterval);
+      unsubscribe?.();
     };
   }, [normalizedSymbol]);
 
