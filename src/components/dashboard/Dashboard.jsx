@@ -1913,7 +1913,33 @@ export default function Dashboard({
               alpacaData={alpacaData}
               connectedBrokers={connectedBrokers}
               onBrokerConnect={(broker) => setConnectedBrokers(prev => [...prev, broker])}
-              onBrokerDisconnect={(brokerId) => setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId))}
+              onBrokerDisconnect={async (brokerId) => {
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const headers = { 'Content-Type': 'application/json' };
+                  if (session?.access_token) {
+                    headers['Authorization'] = `Bearer ${session.access_token}`;
+                  }
+                  
+                  const response = await fetch('/api/broker-disconnect', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ broker: brokerId }),
+                  });
+                  
+                  if (response.ok) {
+                    setConnectedBrokers(prev => prev.filter(b => b.id !== brokerId));
+                    console.log('[Dashboard] Broker disconnected:', brokerId);
+                  } else {
+                    const error = await response.json();
+                    console.error('[Dashboard] Failed to disconnect broker:', error);
+                    alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
+                  }
+                } catch (err) {
+                  console.error('[Dashboard] Disconnect error:', err);
+                  alert(`Error: ${err.message}`);
+                }
+              }}
               tradeHistory={trades}
             />
           )}

@@ -185,10 +185,10 @@ const PortfolioPage = ({
               <span className="text-xs text-white/50 font-mono">{formatCurrency(broker.value || 0)}</span>
               <button
                 onClick={() => handleDisconnectBroker(broker.id)}
-                className="text-white/0 group-hover:text-white/40 hover:!text-red-400 transition-colors"
-                title="Disconnect"
+                className="text-white/40 hover:text-red-400 transition-colors ml-1"
+                title="Disconnect broker"
               >
-                <Unlink className="w-3 h-3" strokeWidth={1.5} />
+                <Unlink className="w-4 h-4" strokeWidth={1.5} />
               </button>
             </div>
           ))}
