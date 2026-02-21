@@ -28,12 +28,17 @@ export default async function handler(req, res) {
   }
 
   // Get user from auth token
+  console.log('[Orders] Auth header:', req.headers.authorization ? 'present' : 'missing');
   const user = await getUserFromToken(req);
+  
   if (!user) {
+    console.log('[Orders] No user found from token');
     return res.status(401).json({ 
-      error: 'No broker connected. Please connect your Alpaca account in Portfolio.' 
+      error: 'Authentication failed. Please refresh the page and try again.' 
     });
   }
+
+  console.log('[Orders] User authenticated:', user.id);
 
   // Fetch user's broker connection
   const { data: conn, error: connError } = await supabase
@@ -43,15 +48,21 @@ export default async function handler(req, res) {
     .eq('broker', 'alpaca')
     .maybeSingle();
 
+  console.log('[Orders] Broker query result:', { found: !!conn, error: connError });
+
   if (connError) {
+    console.error('[Orders] Database error:', connError);
     return res.status(500).json({ error: connError.message });
   }
 
   if (!conn) {
+    console.log('[Orders] No broker connection found for user:', user.id);
     return res.status(401).json({ 
       error: 'No Alpaca broker connected. Please connect your Alpaca account in Portfolio.' 
     });
   }
+
+  console.log('[Orders] Using broker connection:', { is_paper: conn.is_paper });
 
   const apiKey = conn.api_key;
   const apiSecret = conn.api_secret;

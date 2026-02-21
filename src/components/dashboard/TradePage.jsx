@@ -1257,11 +1257,19 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
 
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log('[TradePage] Session status:', session ? 'present' : 'missing');
+      
       const headers = {
         'Content-Type': 'application/json',
       };
+      
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
+        console.log('[TradePage] Auth header added');
+      } else {
+        console.error('[TradePage] No session/access_token found!');
+        throw new Error('Not authenticated. Please refresh the page and log in again.');
       }
 
       const response = await fetch('/api/orders', {
