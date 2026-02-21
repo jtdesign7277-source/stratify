@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Wallet,
   DollarSign,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 import BrokerConnect from './BrokerConnect';
+import { supabase } from '../../lib/supabaseClient';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -76,12 +77,42 @@ const normalizePercent = (value, fallback) => {
 const PortfolioPage = ({
   themeClasses: _themeClasses,
   alpacaData,
-  connectedBrokers = [],
+  connectedBrokers: _connectedBrokers = [],
   onBrokerConnect = () => {},
   onBrokerDisconnect = () => {},
   tradeHistory = [],
 }) => {
   const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [dbConnections, setDbConnections] = useState([]);
+
+  // Fetch actual broker connections from database
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        const { data, error } = await supabase
+          .from('broker_connections')
+          .select('*')
+          .eq('user_id', session.user.id);
+
+        if (!error && data) {
+          setDbConnections(data.map(conn => ({
+            id: conn.broker,
+            name: conn.broker.charAt(0).toUpperCase() + conn.broker.slice(1),
+            is_paper: conn.is_paper,
+          })));
+        }
+      } catch (err) {
+        console.error('[PortfolioPage] Failed to fetch connections:', err);
+      }
+    };
+    fetchConnections();
+  }, []);
+
+  // Use database connections if available, otherwise fall back to prop
+  const connectedBrokers = dbConnections.length > 0 ? dbConnections : _connectedBrokers;
 
   const account = alpacaData?.account || {};
   const rawPositions = Array.isArray(alpacaData?.positions) ? alpacaData.positions : [];
@@ -138,8 +169,35 @@ const PortfolioPage = ({
     setShowBrokerModal(false);
   };
 
-  const handleDisconnectBroker = (brokerId) => {
-    onBrokerDisconnect(brokerId);
+  const handleDisconnectBroker = async (brokerId) => {
+    if (!confirm(`Disconnect ${brokerId}? You'll need to reconnect to place trades.`)) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch('/api/broker-disconnect', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ broker: brokerId }),
+      });
+
+      if (response.ok) {
+        setDbConnections(prev => prev.filter(c => c.id !== brokerId));
+        onBrokerDisconnect(brokerId);
+        console.log('[PortfolioPage] Broker disconnected:', brokerId);
+      } else {
+        const error = await response.json();
+        console.error('[PortfolioPage] Failed to disconnect:', error);
+        alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('[PortfolioPage] Disconnect error:', err);
+      alert(`Error: ${err.message}`);
+    }
   };
 
   const totalMarketValue = useMemo(() => positions.reduce((sum, p) => sum + p.marketValue, 0), [positions]);
