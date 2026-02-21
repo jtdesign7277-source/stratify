@@ -407,7 +407,6 @@ function OrderEntry({
   const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  const [buyingPowerDisplay, setBuyingPowerDisplay] = useState('$ -');
 
   useEffect(() => {
     if (clickedPrice !== null && clickedPrice !== undefined) {
@@ -518,7 +517,9 @@ function OrderEntry({
       setLastResult(result.success ? 'filled' : 'rejected');
       setTimeout(() => setLastResult(null), 3000);
 
-      if (result.success && onOrderPlaced) onOrderPlaced();
+      if (result.success) {
+        handleOrderPlaced();
+      }
     } catch (err) {
       if (userId) {
         await saveOrder(userId, { ...order, status: 'error' });
@@ -571,7 +572,7 @@ function OrderEntry({
           { value: 'ioc', label: 'IOC' },
         ]}
         estimatedCost={estimatedTotal}
-        buyingPowerDisplay={buyingPowerDisplay}
+        buyingPowerDisplay={buyingPowerFormatted}
         onReview={handleSubmit}
         reviewDisabled={submitting || !hasValidOrderSize}
         reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
@@ -759,7 +760,7 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN CRYPTO PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CryptoPage() {
+export default function CryptoPage({ alpacaData, onOrderPlaced }) {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
   const [rightTab, setRightTab] = useState('order'); // 'l2' | 'trades' | 'order'
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
@@ -768,6 +769,15 @@ export default function CryptoPage() {
   const [orderHistory, setOrderHistory] = useState([]);
   const { orderbook, connected, hasRecentMessage, trades, lastPrice, priceDirection } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
   const streamLive = connected || hasRecentMessage;
+
+  // Extract buying power from Alpaca account data
+  const buyingPower = alpacaData?.account?.buying_power || 0;
+  const buyingPowerFormatted = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(buyingPower) || 0);
 
   // Get current user from Supabase auth
   useEffect(() => {
@@ -807,6 +817,10 @@ export default function CryptoPage() {
       fetchOrderHistory(userId).then(({ data: orders }) => {
         if (orders) setOrderHistory(orders);
       });
+    }
+    // Trigger Alpaca data refresh to update buying power
+    if (onOrderPlaced) {
+      onOrderPlaced();
     }
   };
 

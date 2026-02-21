@@ -1947,7 +1947,7 @@ export default function Dashboard({
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'calendar' && <EconomicsCalendarPage />}
-          {activeTab === 'crypto' && <CryptoPage onOrderPlaced={refreshAlpacaData} />}
+          {activeTab === 'crypto' && <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />}
           {activeTab === 'options' && <OptionsPage />}
           {activeTab === 'terminal' && (
             <TerminalStrategyWorkspace
