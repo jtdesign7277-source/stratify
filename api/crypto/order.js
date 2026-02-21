@@ -84,7 +84,9 @@ export default async function handler(req, res) {
       orderParams.stop_price = stopPrice;
     }
 
+    console.log('Submitting order:', orderParams);
     const order = await alpaca.createOrder(orderParams);
+    console.log('Order submitted successfully:', order.id, order.status);
 
     return res.status(200).json({
       success: true,
@@ -94,9 +96,25 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Order error:', error);
+    
+    // Extract detailed error from Alpaca API response
+    let errorMessage = error.message;
+    if (error.response?.body) {
+      try {
+        const body = typeof error.response.body === 'string' 
+          ? JSON.parse(error.response.body) 
+          : error.response.body;
+        errorMessage = body.message || body.error || errorMessage;
+      } catch (e) {
+        // Keep original error message
+      }
+    }
+    
+    console.error('Detailed error message:', errorMessage);
+    
     return res.status(400).json({
       success: false,
-      error: error.message,
+      error: errorMessage,
     });
   }
 }

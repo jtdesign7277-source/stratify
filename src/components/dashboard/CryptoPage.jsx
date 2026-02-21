@@ -549,15 +549,26 @@ function OrderEntry({
         await saveOrder(userId, { ...order, status: result.success ? 'filled' : 'failed' });
       }
 
-      setLastResult(result.success ? 'filled' : 'rejected');
-      setTimeout(() => setLastResult(null), 3000);
-
       if (result.success) {
+        setLastResult('filled');
+        setTimeout(() => setLastResult(null), 3000);
         handleOrderPlaced();
-      } else if (result.error?.includes('No Alpaca broker connected')) {
-        // Show specific error for missing broker connection
-        alert('Please connect your Alpaca paper account in the Portfolio page before trading.');
-        setLastResult('error');
+      } else {
+        // Show detailed error message
+        const errorMsg = result.error || 'Order rejected';
+        console.error('Order rejected:', errorMsg);
+        
+        if (errorMsg.includes('No Alpaca broker connected') || errorMsg.includes('not_connected')) {
+          alert('❌ No broker connected\n\nPlease connect your Alpaca paper account in the Portfolio page before trading.');
+        } else if (errorMsg.includes('insufficient')) {
+          alert(`❌ Order rejected\n\nInsufficient buying power. Check your account balance.`);
+        } else if (errorMsg.includes('forbidden') || errorMsg.includes('not authorized')) {
+          alert(`❌ Order rejected\n\nYour Alpaca API keys may not have trading permissions. Check your Alpaca dashboard.`);
+        } else {
+          alert(`❌ Order rejected\n\n${errorMsg}`);
+        }
+        
+        setLastResult('rejected');
         setTimeout(() => setLastResult(null), 3000);
       }
     } catch (err) {
