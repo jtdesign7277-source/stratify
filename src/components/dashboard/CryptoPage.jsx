@@ -146,6 +146,31 @@ function useAlpacaOrderbook(alpacaSymbol) {
   const heartbeatTimerRef = useRef(null);
   const normalizedSymbol = useMemo(() => normalizeCryptoSymbol(alpacaSymbol), [alpacaSymbol]);
 
+  // Fetch initial price via REST API for instant display (before WebSocket connects)
+  useEffect(() => {
+    if (!normalizedSymbol) return;
+    
+    const fetchInitialPrice = async () => {
+      try {
+        const response = await fetch(`/api/crypto/latest-price?symbol=${normalizedSymbol}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.price) {
+            const price = Number(data.price);
+            if (Number.isFinite(price)) {
+              setLastPrice(price);
+              lastPriceRef.current = price;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch initial crypto price:', err);
+      }
+    };
+
+    fetchInitialPrice();
+  }, [normalizedSymbol]);
+
   const markStreamHeartbeat = () => {
     setHasRecentMessage(true);
     if (heartbeatTimerRef.current) {
