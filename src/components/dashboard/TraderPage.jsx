@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsLeft, ChevronsRight, Plus, Search, X } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, Trash2 } from 'lucide-react';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
@@ -10,10 +10,7 @@ const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search'
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
-const WATCHLIST_VALUE_DISPLAY_STORAGE_KEY = 'stratify-trader-value-display';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
-const VALUE_DISPLAY_MODE_PERCENT = 'percent';
-const VALUE_DISPLAY_MODE_DOLLAR = 'dollar';
 const MAX_SYMBOL_SEARCH_RESULTS = 8;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
 const MARKET_SYMBOLS = [
@@ -51,6 +48,14 @@ const normalizeSymbol = (value) =>
     .replace(/\s+/g, '')
     .split(':')
     .pop();
+
+const MARKET_NAME_BY_SYMBOL = MARKET_SYMBOLS.reduce((accumulator, entry) => {
+  const normalized = normalizeSymbol(entry?.symbol);
+  if (normalized) {
+    accumulator[normalized] = String(entry?.name || '').trim() || normalized;
+  }
+  return accumulator;
+}, {});
 
 const normalizeExchangeLabel = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
@@ -203,13 +208,6 @@ const formatSignedPercent = (value) => {
   return percent >= 0 ? `+${formatted}` : formatted;
 };
 
-const formatSignedCurrency = (value) => {
-  const amount = toNumber(value);
-  if (amount === null) return '--';
-  const sign = amount >= 0 ? '+' : '-';
-  return `${sign}${formatCurrency(Math.abs(amount), 2)}`;
-};
-
 const loadInitialWatchlist = () => {
   if (typeof window === 'undefined') return [...DEFAULT_WATCHLIST];
   try {
@@ -229,26 +227,6 @@ const loadInitialWatchlistCollapsed = () => {
     return localStorage.getItem(WATCHLIST_COLLAPSED_STORAGE_KEY) === 'true';
   } catch {
     return false;
-  }
-};
-
-const loadInitialWatchlistValueDisplayBySymbol = () => {
-  if (typeof window === 'undefined') return {};
-
-  try {
-    const saved = JSON.parse(localStorage.getItem(WATCHLIST_VALUE_DISPLAY_STORAGE_KEY) || '{}');
-    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
-
-    return Object.entries(saved).reduce((accumulator, [symbol, mode]) => {
-      const normalizedSymbol = normalizeSymbol(symbol);
-      if (!normalizedSymbol) return accumulator;
-      if (mode !== VALUE_DISPLAY_MODE_PERCENT && mode !== VALUE_DISPLAY_MODE_DOLLAR) return accumulator;
-
-      accumulator[normalizedSymbol] = mode;
-      return accumulator;
-    }, {});
-  } catch {
-    return {};
   }
 };
 
@@ -275,9 +253,16 @@ export default function TraderPage() {
   });
   const [chartReady, setChartReady] = useState(false);
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
-  const [watchlistValueDisplayBySymbol, setWatchlistValueDisplayBySymbol] = useState(() =>
-    loadInitialWatchlistValueDisplayBySymbol()
+  const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
+    initialWatchlist.reduce((accumulator, symbol) => {
+      const normalized = normalizeSymbol(symbol);
+      const fallbackName = MARKET_NAME_BY_SYMBOL[normalized];
+      if (fallbackName) accumulator[normalized] = fallbackName;
+      return accumulator;
+    }, {})
   );
+  const [draggingSymbol, setDraggingSymbol] = useState('');
+  const [dragOverSymbol, setDragOverSymbol] = useState('');
 
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
@@ -298,6 +283,7 @@ export default function TraderPage() {
   const restFallbackActiveRef = useRef(false);
   const searchContainerRef = useRef(null);
   const searchRequestRef = useRef(0);
+  const suppressSelectionRef = useRef(false);
 
   useEffect(() => {
     selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
@@ -312,11 +298,6 @@ export default function TraderPage() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(WATCHLIST_COLLAPSED_STORAGE_KEY, isWatchlistCollapsed ? 'true' : 'false');
   }, [isWatchlistCollapsed]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(WATCHLIST_VALUE_DISPLAY_STORAGE_KEY, JSON.stringify(watchlistValueDisplayBySymbol));
-  }, [watchlistValueDisplayBySymbol]);
 
   useEffect(() => {
     const normalized = watchlist.map(normalizeSymbol).filter(Boolean);
@@ -476,6 +457,7 @@ export default function TraderPage() {
             changePercent,
             isMarketOpen: parseMarketOpen(payload?.is_market_open),
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
+            name: String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim() || undefined,
             source: 'rest',
           };
         } catch {
@@ -496,6 +478,18 @@ export default function TraderPage() {
         };
       });
       return next;
+    });
+    setWatchlistNamesBySymbol((previous) => {
+      let hasUpdate = false;
+      const next = { ...previous };
+      validUpdates.forEach((quote) => {
+        const normalized = normalizeSymbol(quote?.symbol);
+        const name = String(quote?.name || '').trim();
+        if (!normalized || !name || next[normalized] === name) return;
+        next[normalized] = name;
+        hasUpdate = true;
+      });
+      return hasUpdate ? next : previous;
     });
 
     if (validUpdates.some((quote) => quote.isMarketOpen === true) && restFallbackActiveRef.current) {
@@ -850,6 +844,7 @@ export default function TraderPage() {
             changePercent,
             isMarketOpen: true,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
+            name: String(payload?.name || payload?.instrument_name || payload?.display_name || previousQuote?.name || '').trim() || undefined,
             source: 'stream',
           },
         };
@@ -1013,9 +1008,20 @@ export default function TraderPage() {
     stopRestFallbackPolling,
   ]);
 
-  const addSymbolToWatchlist = useCallback((symbolValue) => {
+  const addSymbolToWatchlist = useCallback((symbolValue, companyName = '') => {
     const normalized = normalizeSymbol(symbolValue);
     if (!normalized) return;
+
+    const normalizedName = String(companyName || '').trim() || MARKET_NAME_BY_SYMBOL[normalized] || '';
+    if (normalizedName) {
+      setWatchlistNamesBySymbol((previous) => {
+        if (previous[normalized] === normalizedName) return previous;
+        return {
+          ...previous,
+          [normalized]: normalizedName,
+        };
+      });
+    }
 
     setWatchlist((previous) => {
       if (previous.includes(normalized)) return previous;
@@ -1030,9 +1036,9 @@ export default function TraderPage() {
 
   const addSymbol = (event) => {
     event.preventDefault();
-    const topResultSymbol = searchResults[0]?.symbol;
-    if (topResultSymbol) {
-      addSymbolToWatchlist(topResultSymbol);
+    const topResult = searchResults[0];
+    if (topResult?.symbol) {
+      addSymbolToWatchlist(topResult.symbol, topResult.name);
       return;
     }
     addSymbolToWatchlist(symbolInput);
@@ -1041,6 +1047,12 @@ export default function TraderPage() {
   const removeSymbol = (symbolToRemove) => {
     const normalized = normalizeSymbol(symbolToRemove);
     setWatchlist((previous) => previous.filter((symbol) => symbol !== normalized));
+    setWatchlistNamesBySymbol((previous) => {
+      if (!previous[normalized]) return previous;
+      const next = { ...previous };
+      delete next[normalized];
+      return next;
+    });
     setQuotesBySymbol((previous) => {
       if (!previous[normalized]) return previous;
       const next = { ...previous };
@@ -1049,22 +1061,78 @@ export default function TraderPage() {
     });
   };
 
-  const toggleWatchlistValueDisplay = useCallback((symbolValue) => {
-    const normalized = normalizeSymbol(symbolValue);
+  const moveWatchlistSymbol = useCallback((sourceSymbol, targetSymbol) => {
+    const normalizedSource = normalizeSymbol(sourceSymbol);
+    const normalizedTarget = normalizeSymbol(targetSymbol);
+    if (!normalizedSource || !normalizedTarget || normalizedSource === normalizedTarget) return;
+
+    setWatchlist((previous) => {
+      const fromIndex = previous.findIndex((symbol) => normalizeSymbol(symbol) === normalizedSource);
+      const toIndex = previous.findIndex((symbol) => normalizeSymbol(symbol) === normalizedTarget);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return previous;
+
+      const next = [...previous];
+      const [moved] = next.splice(fromIndex, 1);
+      if (!moved) return previous;
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const handleWatchlistDragStart = useCallback((event, symbol) => {
+    const normalized = normalizeSymbol(symbol);
     if (!normalized) return;
 
-    setWatchlistValueDisplayBySymbol((previous) => {
-      const currentMode = previous[normalized] === VALUE_DISPLAY_MODE_DOLLAR
-        ? VALUE_DISPLAY_MODE_DOLLAR
-        : VALUE_DISPLAY_MODE_PERCENT;
+    suppressSelectionRef.current = true;
+    setDraggingSymbol(normalized);
+    setDragOverSymbol(normalized);
 
-      return {
-        ...previous,
-        [normalized]: currentMode === VALUE_DISPLAY_MODE_PERCENT
-          ? VALUE_DISPLAY_MODE_DOLLAR
-          : VALUE_DISPLAY_MODE_PERCENT,
-      };
-    });
+    try {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', normalized);
+    } catch {}
+  }, []);
+
+  const handleWatchlistDragOver = useCallback((event, symbol) => {
+    const normalized = normalizeSymbol(symbol);
+    if (!draggingSymbol || !normalized || draggingSymbol === normalized) return;
+
+    event.preventDefault();
+    setDragOverSymbol(normalized);
+  }, [draggingSymbol]);
+
+  const handleWatchlistDrop = useCallback((event, symbol) => {
+    event.preventDefault();
+    const normalizedTarget = normalizeSymbol(symbol);
+    const fallbackSource = (() => {
+      try {
+        return normalizeSymbol(event.dataTransfer.getData('text/plain'));
+      } catch {
+        return '';
+      }
+    })();
+    const normalizedSource = normalizeSymbol(draggingSymbol || fallbackSource);
+
+    if (normalizedSource && normalizedTarget && normalizedSource !== normalizedTarget) {
+      moveWatchlistSymbol(normalizedSource, normalizedTarget);
+    }
+
+    setDraggingSymbol('');
+    setDragOverSymbol('');
+  }, [draggingSymbol, moveWatchlistSymbol]);
+
+  const handleWatchlistDragEnd = useCallback(() => {
+    setDraggingSymbol('');
+    setDragOverSymbol('');
+
+    setTimeout(() => {
+      suppressSelectionRef.current = false;
+    }, 0);
+  }, []);
+
+  const handleWatchlistCardSelect = useCallback((symbol) => {
+    if (suppressSelectionRef.current) return;
+    setSelectedSymbol(symbol);
   }, []);
 
   const streamLabel = streamStatus.connected
@@ -1132,7 +1200,7 @@ export default function TraderPage() {
                           <button
                             key={`${result.symbol}-${result.exchange}`}
                             type="button"
-                            onClick={() => addSymbolToWatchlist(result.symbol)}
+                            onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
                             className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
                           >
                             <span className="truncate text-sm text-white">
@@ -1158,78 +1226,86 @@ export default function TraderPage() {
                   )}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
                   {watchlist.length === 0 ? (
-                    <div className="px-4 py-5 text-sm text-[#6b7280]">Watchlist is empty. Search to add symbols.</div>
+                    <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] px-4 py-5 text-sm text-[#6b7280]">
+                      Watchlist is empty. Search to add symbols.
+                    </div>
                   ) : (
                     watchlist.map((symbol) => {
                       const quote = quotesBySymbol[symbol];
-                      const changeValue = toNumber(quote?.change);
                       const changePercent = toNumber(quote?.changePercent);
-                      const trendValue = changePercent ?? changeValue;
-                      const valueDisplayMode = watchlistValueDisplayBySymbol[symbol] === VALUE_DISPLAY_MODE_DOLLAR
-                        ? VALUE_DISPLAY_MODE_DOLLAR
-                        : VALUE_DISPLAY_MODE_PERCENT;
-                      const changeDisplay = valueDisplayMode === VALUE_DISPLAY_MODE_DOLLAR
-                        ? formatSignedCurrency(changeValue)
-                        : formatSignedPercent(changePercent);
-                      const changeClass = !Number.isFinite(trendValue)
+                      const companyName = String(
+                        quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
+                      ).trim();
+                      const changeClass = !Number.isFinite(changePercent)
                         ? 'text-[#6b7280]'
-                        : trendValue >= 0
+                        : changePercent >= 0
                           ? 'text-emerald-400'
                           : 'text-red-400';
+                      const rowActive = symbol === selectedSymbol;
+                      const rowDragging = draggingSymbol === symbol;
+                      const rowDropTarget = dragOverSymbol === symbol && draggingSymbol && draggingSymbol !== symbol;
 
                       return (
                         <div
                           key={symbol}
-                          className={`flex items-stretch border-b border-[#1f1f1f] ${
-                            symbol === selectedSymbol ? 'bg-emerald-500/6' : ''
+                          role="button"
+                          tabIndex={0}
+                          draggable
+                          onDragStart={(event) => handleWatchlistDragStart(event, symbol)}
+                          onDragOver={(event) => handleWatchlistDragOver(event, symbol)}
+                          onDrop={(event) => handleWatchlistDrop(event, symbol)}
+                          onDragEnd={handleWatchlistDragEnd}
+                          onClick={() => handleWatchlistCardSelect(symbol)}
+                          onKeyDown={(event) => {
+                            if (event.target !== event.currentTarget) return;
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleWatchlistCardSelect(symbol);
+                            }
+                          }}
+                          className={`group mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60 ${
+                            rowActive ? 'bg-white/[0.03] ring-1 ring-emerald-500/45' : 'hover:bg-white/[0.02]'
+                          } ${
+                            rowDragging ? 'cursor-grabbing opacity-70' : 'cursor-grab'
+                          } ${
+                            rowDropTarget ? 'ring-1 ring-cyan-400/55' : ''
                           }`}
                         >
                           <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setSelectedSymbol(symbol)}
-                            onKeyDown={(event) => {
-                              if (event.target !== event.currentTarget) return;
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                setSelectedSymbol(symbol);
-                              }
-                            }}
-                            className={`flex min-w-0 flex-1 px-4 py-3 text-left transition-colors ${
-                              symbol === selectedSymbol ? 'border-l-2 border-emerald-500 pl-[14px]' : 'border-l-2 border-transparent'
-                            } hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60`}
+                            className="flex min-w-0 flex-1 items-center gap-3"
                           >
+                            <span className="inline-flex h-9 w-6 shrink-0 items-center justify-center text-[#6b7280]">
+                              <GripVertical className="h-4 w-4" strokeWidth={1.8} />
+                            </span>
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-bold text-white">{symbol}</div>
-                              <div className="mt-0.5 truncate text-lg font-semibold leading-6 tabular-nums text-white">
-                                {formatPrice(quote?.price)}
-                                {quote?.isMarketOpen === false && (
-                                  <span className="ml-1 align-middle text-[11px] font-medium text-[#6b7280]">(Closed)</span>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  toggleWatchlistValueDisplay(symbol);
-                                }}
-                                className={`mt-0.5 inline-flex min-h-[20px] min-w-[92px] items-center text-xs font-medium leading-5 tabular-nums transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60 ${changeClass}`}
-                                aria-label={`Toggle ${symbol} change display`}
-                              >
-                                {changeDisplay}
-                              </button>
+                              <div className="truncate text-lg font-bold leading-tight text-white">${symbol}</div>
+                              <div className="mt-1 truncate text-xs text-[#7c8087]">{companyName}</div>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeSymbol(symbol)}
-                            className="border-l border-[#1f1f1f] px-3 text-[#6b7280] transition-colors hover:text-red-400"
-                            aria-label={`Remove ${symbol}`}
-                          >
-                            <X className="h-4 w-4" strokeWidth={1.5} />
-                          </button>
+
+                          <div className="flex items-start gap-2">
+                            <div className="text-right">
+                              <div className="text-lg font-bold leading-tight tabular-nums text-white">
+                                {formatPrice(quote?.price)}
+                              </div>
+                              <div className={`mt-1 text-xs font-medium tabular-nums ${changeClass}`}>
+                                {formatSignedPercent(changePercent)}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeSymbol(symbol);
+                              }}
+                              className="pointer-events-none ml-1 mt-0.5 inline-flex h-8 w-8 items-center justify-center text-[#6b7280] opacity-0 transition-opacity duration-200 hover:text-red-400 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500/60 group-hover:pointer-events-auto group-hover:opacity-100"
+                              aria-label={`Remove ${symbol}`}
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                            </button>
+                          </div>
                         </div>
                       );
                     })
