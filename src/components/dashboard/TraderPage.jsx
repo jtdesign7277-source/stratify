@@ -4,6 +4,7 @@ import { Plus, Search, X } from 'lucide-react';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
+const TWELVE_DATA_QUOTE_URL = 'https://api.twelvedata.com/quote';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
@@ -12,6 +13,8 @@ const CHART_INTERVAL = '5min';
 const CHART_INTERVAL_SECONDS = 300;
 const RECONNECT_MIN_MS = 1200;
 const RECONNECT_MAX_MS = 15000;
+const NO_STREAM_DATA_TIMEOUT_MS = 5000;
+const CLOSED_MARKET_POLL_INTERVAL_MS = 30000;
 
 const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
@@ -32,6 +35,17 @@ const toNumber = (value) => {
   if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseMarketOpen = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value !== 'string') return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'open') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'closed') return false;
+  return null;
 };
 
 const toUnixSeconds = (value) => {
@@ -143,6 +157,10 @@ export default function TraderPage() {
   const subscribedSymbolsRef = useRef(new Set());
   const watchlistRef = useRef(new Set(initialWatchlist));
   const selectedSymbolRef = useRef(normalizeSymbol(selectedSymbol));
+  const noStreamDataTimerRef = useRef(null);
+  const restPollTimerRef = useRef(null);
+  const wsHasReceivedPriceRef = useRef(false);
+  const restFallbackActiveRef = useRef(false);
 
   useEffect(() => {
     selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
@@ -174,6 +192,106 @@ export default function TraderPage() {
   }, [watchlist, symbolInput]);
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
+
+  const clearNoStreamDataTimer = useCallback(() => {
+    if (!noStreamDataTimerRef.current) return;
+    clearTimeout(noStreamDataTimerRef.current);
+    noStreamDataTimerRef.current = null;
+  }, []);
+
+  const stopRestFallbackPolling = useCallback(() => {
+    restFallbackActiveRef.current = false;
+    if (!restPollTimerRef.current) return;
+    clearInterval(restPollTimerRef.current);
+    restPollTimerRef.current = null;
+  }, []);
+
+  const fetchQuoteSnapshot = useCallback(async () => {
+    if (!apiKey) return;
+
+    const symbols = [...watchlistRef.current].map(normalizeSymbol).filter(Boolean);
+    if (symbols.length === 0) return;
+
+    const updates = await Promise.all(
+      symbols.map(async (symbol) => {
+        try {
+          const params = new URLSearchParams({
+            symbol,
+            apikey: apiKey,
+          });
+
+          const response = await fetch(`${TWELVE_DATA_QUOTE_URL}?${params.toString()}`, {
+            cache: 'no-store',
+          });
+          const payload = await response.json().catch(() => ({}));
+
+          if (!response.ok || payload?.status === 'error') return null;
+          if (payload?.code && String(payload.code) !== '200') return null;
+
+          const price = toNumber(payload?.close ?? payload?.last ?? payload?.price);
+          if (!Number.isFinite(price)) return null;
+
+          const previousClose = toNumber(payload?.previous_close);
+          const rawChange = toNumber(payload?.change);
+          const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
+          const change = Number.isFinite(rawChange)
+            ? rawChange
+            : Number.isFinite(previousClose)
+              ? price - previousClose
+              : null;
+          const changePercent = Number.isFinite(rawPercent)
+            ? rawPercent
+            : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
+              ? (change / previousClose) * 100
+              : null;
+
+          return {
+            symbol,
+            price,
+            change,
+            changePercent,
+            isMarketOpen: parseMarketOpen(payload?.is_market_open),
+            timestamp: payload?.timestamp || payload?.datetime || Date.now(),
+            source: 'rest',
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const validUpdates = updates.filter(Boolean);
+    if (validUpdates.length === 0) return;
+
+    setQuotesBySymbol((previous) => {
+      const next = { ...previous };
+      validUpdates.forEach((quote) => {
+        next[quote.symbol] = {
+          ...previous[quote.symbol],
+          ...quote,
+        };
+      });
+      return next;
+    });
+
+    if (validUpdates.some((quote) => quote.isMarketOpen === true) && restFallbackActiveRef.current) {
+      stopRestFallbackPolling();
+      setStreamStatus((previous) => ({
+        ...previous,
+        error: '',
+      }));
+    }
+  }, [apiKey, stopRestFallbackPolling]);
+
+  const startRestFallbackPolling = useCallback(() => {
+    if (restFallbackActiveRef.current) return;
+    restFallbackActiveRef.current = true;
+
+    void fetchQuoteSnapshot();
+    restPollTimerRef.current = setInterval(() => {
+      void fetchQuoteSnapshot();
+    }, CLOSED_MARKET_POLL_INTERVAL_MS);
+  }, [fetchQuoteSnapshot]);
 
   const applyPriceToChart = useCallback((symbol, price, timestamp) => {
     if (!Number.isFinite(price)) return;
@@ -442,7 +560,14 @@ export default function TraderPage() {
   }, [watchlist]);
 
   useEffect(() => {
+    if (!restFallbackActiveRef.current) return;
+    void fetchQuoteSnapshot();
+  }, [watchlist, fetchQuoteSnapshot]);
+
+  useEffect(() => {
     if (!apiKey) {
+      clearNoStreamDataTimer();
+      stopRestFallbackPolling();
       setStreamStatus({
         connected: false,
         connecting: false,
@@ -466,6 +591,12 @@ export default function TraderPage() {
 
       const price = toNumber(payload?.price ?? payload?.close ?? payload?.last);
       if (!Number.isFinite(price)) return;
+
+      wsHasReceivedPriceRef.current = true;
+      clearNoStreamDataTimer();
+      if (restFallbackActiveRef.current) {
+        stopRestFallbackPolling();
+      }
 
       const rawChange = toNumber(payload?.change);
       const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
@@ -493,7 +624,9 @@ export default function TraderPage() {
             price,
             change,
             changePercent,
+            isMarketOpen: true,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
+            source: 'stream',
           },
         };
       });
@@ -566,6 +699,8 @@ export default function TraderPage() {
 
         reconnectAttemptsRef.current = 0;
         subscribedSymbolsRef.current.clear();
+        wsHasReceivedPriceRef.current = false;
+        clearNoStreamDataTimer();
 
         setStreamStatus({
           connected: true,
@@ -584,6 +719,13 @@ export default function TraderPage() {
           );
           symbols.forEach((symbol) => subscribedSymbolsRef.current.add(symbol));
         }
+
+        noStreamDataTimerRef.current = setTimeout(() => {
+          if (closedByUserRef.current) return;
+          if (wsRef.current !== ws) return;
+          if (wsHasReceivedPriceRef.current) return;
+          startRestFallbackPolling();
+        }, NO_STREAM_DATA_TIMEOUT_MS);
       };
 
       ws.onmessage = (event) => {
@@ -606,6 +748,7 @@ export default function TraderPage() {
       };
 
       ws.onclose = () => {
+        clearNoStreamDataTimer();
         if (wsRef.current === ws) wsRef.current = null;
 
         setStreamStatus((previous) => ({
@@ -625,6 +768,8 @@ export default function TraderPage() {
     return () => {
       closedByUserRef.current = true;
       clearReconnectTimer();
+      clearNoStreamDataTimer();
+      stopRestFallbackPolling();
       subscribedSymbolsRef.current.clear();
       reconnectAttemptsRef.current = 0;
 
@@ -636,7 +781,13 @@ export default function TraderPage() {
         } catch {}
       }
     };
-  }, [apiKey, applyPriceToChart]);
+  }, [
+    apiKey,
+    applyPriceToChart,
+    clearNoStreamDataTimer,
+    startRestFallbackPolling,
+    stopRestFallbackPolling,
+  ]);
 
   const addSymbol = (event) => {
     event.preventDefault();
@@ -737,7 +888,10 @@ export default function TraderPage() {
                       >
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-white">{symbol}</div>
-                          <div className="text-xs text-[#9ca3af]">{formatPrice(quote?.price)}</div>
+                          <div className="text-xs text-[#9ca3af]">
+                            {formatPrice(quote?.price)}
+                            {quote?.isMarketOpen === false ? ' (Closed)' : ''}
+                          </div>
                         </div>
                         <div className={`pl-3 text-xs font-medium tabular-nums ${changeClass}`}>
                           {formatPercent(changePercent)}
