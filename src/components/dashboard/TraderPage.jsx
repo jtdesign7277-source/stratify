@@ -12,10 +12,13 @@ const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search'
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
 const ACTIVE_MARKET_STORAGE_KEY = 'stratify-trader-active-market';
+const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 8;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
 const DEFAULT_ACTIVE_MARKET = 'us';
+const DEFAULT_CHART_TIMEFRAME = '5M';
+const MAX_CHART_OUTPUTSIZE = '5000';
 const MARKET_FILTERS = [
   { id: 'us', label: '🇺🇸 US', exchanges: ['NASDAQ', 'NYSE'] },
   { id: 'london', label: '🇬🇧 London', exchanges: ['LSE'] },
@@ -40,9 +43,25 @@ const MARKET_SYMBOLS = [
   { symbol: 'BHP.AX', name: 'BHP Group Limited', exchange: 'ASX' },
   { symbol: 'CBA.AX', name: 'Commonwealth Bank of Australia', exchange: 'ASX' },
 ];
-
-const CHART_INTERVAL = '5min';
-const CHART_INTERVAL_SECONDS = 300;
+const CHART_TIMEFRAME_OPTIONS = [
+  { id: '1M', label: '1M', interval: '1min', outputsize: '320' },
+  { id: '5M', label: '5M', interval: '5min', outputsize: '320' },
+  { id: '15M', label: '15M', interval: '15min', outputsize: '320' },
+  { id: '1H', label: '1H', interval: '1h', outputsize: '320' },
+  { id: '1D', label: '1D', interval: '1day', outputsize: '320' },
+  { id: '1Mo', label: '1Mo', interval: '1month', outputsize: '320' },
+  { id: 'ALL', label: 'ALL', interval: '1week', outputsize: MAX_CHART_OUTPUTSIZE },
+];
+const CHART_TIMEFRAME_BY_ID = CHART_TIMEFRAME_OPTIONS.reduce((accumulator, option) => {
+  accumulator[option.id] = option;
+  return accumulator;
+}, {});
+const CHART_INTERVAL_SECONDS_BY_TIMEFRAME = {
+  '1M': 60,
+  '5M': 300,
+  '15M': 900,
+  '1H': 3600,
+};
 const RECONNECT_MIN_MS = 1200;
 const RECONNECT_MAX_MS = 15000;
 const NO_STREAM_DATA_TIMEOUT_MS = 5000;
@@ -222,6 +241,37 @@ const formatSignedPercent = (value) => {
   return percent >= 0 ? `+${formatted}` : formatted;
 };
 
+const getBucketTimeForTimeframe = (timeSeconds, timeframeId) => {
+  if (!Number.isFinite(timeSeconds)) return Math.floor(Date.now() / 1000);
+
+  if (timeframeId === '1Mo') {
+    const date = new Date(timeSeconds * 1000);
+    date.setUTCDate(1);
+    date.setUTCHours(0, 0, 0, 0);
+    return Math.floor(date.getTime() / 1000);
+  }
+
+  if (timeframeId === 'ALL') {
+    const date = new Date(timeSeconds * 1000);
+    const day = date.getUTCDay();
+    const daysSinceMonday = (day + 6) % 7;
+    date.setUTCDate(date.getUTCDate() - daysSinceMonday);
+    date.setUTCHours(0, 0, 0, 0);
+    return Math.floor(date.getTime() / 1000);
+  }
+
+  if (timeframeId === '1D') {
+    const date = new Date(timeSeconds * 1000);
+    date.setUTCHours(0, 0, 0, 0);
+    return Math.floor(date.getTime() / 1000);
+  }
+
+  const bucketSeconds =
+    CHART_INTERVAL_SECONDS_BY_TIMEFRAME[timeframeId] ||
+    CHART_INTERVAL_SECONDS_BY_TIMEFRAME[DEFAULT_CHART_TIMEFRAME];
+  return Math.floor(timeSeconds / bucketSeconds) * bucketSeconds;
+};
+
 const loadInitialWatchlist = () => {
   if (typeof window === 'undefined') return [...DEFAULT_WATCHLIST];
   try {
@@ -253,6 +303,15 @@ const loadInitialActiveMarket = () => {
   return DEFAULT_ACTIVE_MARKET;
 };
 
+const loadInitialChartTimeframe = () => {
+  if (typeof window === 'undefined') return DEFAULT_CHART_TIMEFRAME;
+  try {
+    const saved = String(localStorage.getItem(CHART_TIMEFRAME_STORAGE_KEY) || '').trim();
+    if (saved && CHART_TIMEFRAME_BY_ID[saved]) return saved;
+  } catch {}
+  return DEFAULT_CHART_TIMEFRAME;
+};
+
 export default function TraderPage() {
   const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
@@ -275,6 +334,7 @@ export default function TraderPage() {
     error: '',
   });
   const [chartReady, setChartReady] = useState(false);
+  const [chartTimeframe, setChartTimeframe] = useState(() => loadInitialChartTimeframe());
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
@@ -305,14 +365,20 @@ export default function TraderPage() {
   const restFallbackActiveRef = useRef(false);
   const searchContainerRef = useRef(null);
   const searchRequestRef = useRef(0);
+  const chartTimeframeRef = useRef(chartTimeframe);
   const activeMarketExchanges = useMemo(() => {
     const market = MARKET_FILTER_BY_ID[activeMarket] || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET];
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
   }, [activeMarket]);
+  const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
 
   useEffect(() => {
     selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
   }, [selectedSymbol]);
+
+  useEffect(() => {
+    chartTimeframeRef.current = chartTimeframe;
+  }, [chartTimeframe]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -328,6 +394,11 @@ export default function TraderPage() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(ACTIVE_MARKET_STORAGE_KEY, activeMarket);
   }, [activeMarket]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CHART_TIMEFRAME_STORAGE_KEY, chartTimeframe);
+  }, [chartTimeframe]);
 
   useEffect(() => {
     const normalized = watchlist.map(normalizeSymbol).filter(Boolean);
@@ -627,7 +698,7 @@ export default function TraderPage() {
     if (!candleSeriesRef.current) return;
 
     const timeSeconds = toUnixSeconds(timestamp) || Math.floor(Date.now() / 1000);
-    const bucketTime = Math.floor(timeSeconds / CHART_INTERVAL_SECONDS) * CHART_INTERVAL_SECONDS;
+    const bucketTime = getBucketTimeForTimeframe(timeSeconds, chartTimeframeRef.current);
     const previous = lastBarRef.current;
 
     if (!previous || !Number.isFinite(previous.time)) {
@@ -751,10 +822,11 @@ export default function TraderPage() {
     };
   }, []);
 
-  const loadCandles = useCallback(async (symbol) => {
+  const loadCandles = useCallback(async (symbol, timeframeId = chartTimeframeRef.current) => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
 
     const normalized = normalizeSymbol(symbol);
+    const timeframeConfig = CHART_TIMEFRAME_BY_ID[timeframeId] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
     if (!normalized) {
       candleSeriesRef.current.setData([]);
       volumeSeriesRef.current.setData([]);
@@ -776,8 +848,8 @@ export default function TraderPage() {
     try {
       const params = new URLSearchParams({
         symbol: normalized,
-        interval: CHART_INTERVAL,
-        outputsize: '320',
+        interval: timeframeConfig.interval,
+        outputsize: timeframeConfig.outputsize,
         format: 'JSON',
         apikey: apiKey,
       });
@@ -851,8 +923,8 @@ export default function TraderPage() {
 
   useEffect(() => {
     if (!chartReady) return;
-    loadCandles(selectedSymbol);
-  }, [chartReady, selectedSymbol, loadCandles]);
+    loadCandles(selectedSymbol, chartTimeframe);
+  }, [chartReady, chartTimeframe, selectedSymbol, loadCandles]);
 
   useEffect(() => {
     const symbols = watchlist.map(normalizeSymbol).filter(Boolean);
@@ -1401,7 +1473,7 @@ export default function TraderPage() {
           <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
             <div>
               <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
-              <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {CHART_INTERVAL}</p>
+              <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
             </div>
             <div className="text-right">
               <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
@@ -1418,6 +1490,29 @@ export default function TraderPage() {
               >
                 {formatSignedPercent(selectedQuote?.changePercent)}
               </div>
+            </div>
+          </div>
+
+          <div className="border-b border-[#1f1f1f] px-4 py-2">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
+                const isActive = chartTimeframe === timeframe.id;
+                return (
+                  <button
+                    key={timeframe.id}
+                    type="button"
+                    onClick={() => setChartTimeframe(timeframe.id)}
+                    className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
+                      isActive
+                        ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
+                        : 'border-[#1f1f1f] text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                    aria-pressed={isActive}
+                  >
+                    {timeframe.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
