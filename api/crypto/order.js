@@ -55,7 +55,8 @@ export default async function handler(req, res) {
   });
 
   try {
-    const { symbol, side, orderType, quantity, notionalAmount, limitPrice, stopPrice, timeInForce } = req.body;
+    const { symbol, side, orderType, quantity, notionalAmount, limitPrice, stopPrice, trailAmount, timeInForce } = req.body;
+    const normalizedOrderType = String(orderType || 'market').toLowerCase();
     const normalizedTimeInForce = String(timeInForce || 'gtc').toLowerCase() === 'day'
       ? 'gtc'
       : String(timeInForce || 'gtc').toLowerCase();
@@ -63,7 +64,7 @@ export default async function handler(req, res) {
     const orderParams = {
       symbol: symbol.replace('/', ''), // BTC/USD → BTCUSD
       side,
-      type: orderType === 'stop_limit' ? 'stop_limit' : orderType,
+      type: normalizedOrderType,
       time_in_force: normalizedTimeInForce,
     };
 
@@ -71,17 +72,20 @@ export default async function handler(req, res) {
     const parsedNotional = Number(notionalAmount);
     if (Number.isFinite(parsedQuantity) && parsedQuantity > 0) {
       orderParams.qty = parsedQuantity;
-    } else if (orderType === 'market' && Number.isFinite(parsedNotional) && parsedNotional > 0) {
+    } else if (normalizedOrderType === 'market' && Number.isFinite(parsedNotional) && parsedNotional > 0) {
       orderParams.notional = parsedNotional;
     } else {
       throw new Error('Order quantity is required');
     }
 
-    if (orderType === 'limit' || orderType === 'stop_limit') {
+    if (normalizedOrderType === 'limit' || normalizedOrderType === 'stop_limit') {
       orderParams.limit_price = limitPrice;
     }
-    if (orderType === 'stop_limit') {
+    if (normalizedOrderType === 'stop' || normalizedOrderType === 'stop_limit') {
       orderParams.stop_price = stopPrice;
+    }
+    if (normalizedOrderType === 'trailing_stop') {
+      orderParams.trail_price = trailAmount;
     }
 
     console.log('Submitting order:', orderParams);

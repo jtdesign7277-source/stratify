@@ -65,6 +65,14 @@ const CRYPTO_COINS = [
   { symbol: 'DOT', name: 'Polkadot', tvSymbol: 'COINBASE:DOTUSD', alpacaSymbol: 'DOT/USD', color: '#E6007A' },
 ];
 
+const CRYPTO_ORDER_TYPE_OPTIONS = [
+  { value: 'market', label: 'Market' },
+  { value: 'limit', label: 'Limit' },
+  { value: 'stop', label: 'Stop' },
+  { value: 'stop_limit', label: 'Stop Limit' },
+  { value: 'trailing_stop', label: 'Trailing Stop' },
+];
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE HOOKS — User data persistence
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -252,18 +260,22 @@ function OrderEntry({
   const [dollarAmount, setDollarAmount] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
+  const [trailAmount, setTrailAmount] = useState('');
   const [timeInForce, setTimeInForce] = useState('day');
   const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
 
   const referencePrice = useMemo(() => {
-    const price = orderType === 'market' 
-      ? Number(lastPrice) || 0
-      : parseFloat(limitPrice) || Number(lastPrice) || 0;
+    const price =
+      orderType === 'market' || orderType === 'trailing_stop'
+        ? Number(lastPrice) || 0
+        : orderType === 'stop'
+          ? parseFloat(stopPrice) || Number(lastPrice) || 0
+          : parseFloat(limitPrice) || Number(lastPrice) || 0;
     console.log('[OrderEntry] referencePrice:', price, '(lastPrice:', lastPrice, 'orderType:', orderType, ')');
     return price;
-  }, [orderType, limitPrice, lastPrice]);
+  }, [orderType, limitPrice, stopPrice, lastPrice]);
 
   const resolvedQuantity = useMemo(() => {
     if (sizeMode === 'shares') {
@@ -287,6 +299,12 @@ function OrderEntry({
   }, [sizeMode, notionalNumber, resolvedQuantity, referencePrice]);
 
   const hasValidOrderSize = sizeMode === 'dollars' ? notionalNumber > 0 : resolvedQuantity > 0;
+  const limitPriceNumber = Number(limitPrice);
+  const stopPriceNumber = Number(stopPrice);
+  const trailAmountNumber = Number(trailAmount);
+  const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
+  const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
+  const requiresTrail = orderType === 'trailing_stop';
 
   useEffect(() => {
     let cancelled = false;
@@ -320,8 +338,9 @@ function OrderEntry({
 
   const handleSubmit = () => {
     if (!hasValidOrderSize) return;
-    if ((orderType === 'limit' || orderType === 'stop_limit') && (!limitPrice || parseFloat(limitPrice) <= 0)) return;
-    if (orderType === 'stop_limit' && (!stopPrice || parseFloat(stopPrice) <= 0)) return;
+    if (requiresLimit && (!Number.isFinite(limitPriceNumber) || limitPriceNumber <= 0)) return;
+    if (requiresStop && (!Number.isFinite(stopPriceNumber) || stopPriceNumber <= 0)) return;
+    if (requiresTrail && (!Number.isFinite(trailAmountNumber) || trailAmountNumber <= 0)) return;
     setConfirmModal(true);
   };
 
@@ -338,8 +357,9 @@ function OrderEntry({
       orderType,
       quantity: resolvedQuantity,
       notionalAmount: sizeMode === 'dollars' ? notionalNumber : null,
-      limitPrice: orderType !== 'market' ? parseFloat(limitPrice) : null,
-      stopPrice: orderType === 'stop_limit' ? parseFloat(stopPrice) : null,
+      limitPrice: requiresLimit ? limitPriceNumber : null,
+      stopPrice: requiresStop ? stopPriceNumber : null,
+      trailAmount: requiresTrail ? trailAmountNumber : null,
       timeInForce: normalizedTimeInForce,
     };
 
@@ -423,11 +443,7 @@ function OrderEntry({
         onQuantityChange={setQuantity}
         orderType={orderType}
         onOrderTypeChange={setOrderType}
-        orderTypeOptions={[
-          { value: 'market', label: 'Market' },
-          { value: 'limit', label: 'Limit' },
-          { value: 'stop_limit', label: 'Stop Limit' },
-        ]}
+        orderTypeOptions={CRYPTO_ORDER_TYPE_OPTIONS}
         sizeMode={sizeMode}
         onSizeModeChange={setSizeMode}
         dollarAmount={dollarAmount}
@@ -463,7 +479,7 @@ function OrderEntry({
                 />
               </div>
             )}
-            {orderType === 'stop_limit' && (
+            {(orderType === 'stop' || orderType === 'stop_limit') && (
               <div className="space-y-1">
                 <label className="block text-[12px] font-semibold text-slate-300">Stop Price</label>
                 <input
@@ -472,6 +488,20 @@ function OrderEntry({
                   min="0"
                   value={stopPrice}
                   onChange={(event) => setStopPrice(event.target.value)}
+                  placeholder="0.00"
+                  className={fieldClassName}
+                />
+              </div>
+            )}
+            {orderType === 'trailing_stop' && (
+              <div className="space-y-1">
+                <label className="block text-[12px] font-semibold text-slate-300">Trail Amount ($)</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={trailAmount}
+                  onChange={(event) => setTrailAmount(event.target.value)}
                   placeholder="0.00"
                   className={fieldClassName}
                 />
@@ -512,7 +542,17 @@ function OrderEntry({
             <div className="text-center">
               <div className="text-sm font-bold mb-1" style={{ color: '#e2e8f0' }}>Confirm Order</div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedCoin.symbol} @ {orderType === 'market' ? 'MARKET' : `$${limitPrice}`}
+                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedCoin.symbol} @ {
+                  orderType === 'market'
+                    ? 'MARKET'
+                    : orderType === 'limit'
+                      ? `$${limitPrice}`
+                      : orderType === 'stop'
+                        ? `STOP $${stopPrice}`
+                        : orderType === 'stop_limit'
+                          ? `STOP $${stopPrice} / LIMIT $${limitPrice}`
+                          : `TRAIL $${trailAmount}`
+                }
               </div>
               {sizeMode === 'dollars' && (
                 <div className="text-[10px] mt-1" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
@@ -665,9 +705,6 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
               {streamLive ? 'Live' : 'Offline'}
             </span>
           </div>
-          <span className="text-[10px] font-mono" style={{ color: 'rgba(148, 163, 184, 0.25)' }}>
-            Alpaca L2 WebSocket
-          </span>
         </div>
       </div>
 

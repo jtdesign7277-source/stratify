@@ -103,14 +103,14 @@ export default function AlpacaOrderTicket({
   const isCryptoDensity = density === 'crypto';
   const isCompactCryptoSticky = isCryptoDensity && stickyReviewFooter;
 
-  const panelPaddingClass = isTradeDensity ? 'p-2.5' : isCompactCryptoSticky ? 'p-1' : isCryptoDensity ? 'p-2' : 'p-3';
+  const panelPaddingClass = isTradeDensity ? 'p-2.5' : isCompactCryptoSticky ? 'p-2' : isCryptoDensity ? 'p-2' : 'p-3';
   const tabTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[14px]';
   const tabPaddingClass = isCompactCryptoSticky ? 'h-8 py-0' : 'h-8 py-0.5';
   const contentTopClass = isCompactCryptoSticky ? 'mt-1' : 'mt-2';
-  const verticalGapClass = isCompactCryptoSticky ? 'space-y-1' : 'space-y-2';
-  const controlHeightClass = isTradeDensity ? 'h-[36px]' : isCompactCryptoSticky ? 'h-[32px]' : isCryptoDensity ? 'h-[36px]' : 'h-[38px]';
-  const controlTextClass = isCompactCryptoSticky ? 'text-[12px]' : 'text-[13px]';
-  const labelTextClass = isCompactCryptoSticky ? 'text-[11px]' : 'text-[12px]';
+  const verticalGapClass = isCompactCryptoSticky ? 'space-y-1' : isCryptoDensity ? 'space-y-1.5' : 'space-y-2';
+  const controlHeightClass = isTradeDensity ? 'h-[36px]' : isCompactCryptoSticky ? 'h-[36px]' : isCryptoDensity ? 'h-[36px]' : 'h-[38px]';
+  const controlTextClass = isCompactCryptoSticky ? 'text-[13px]' : 'text-[13px]';
+  const labelTextClass = isCompactCryptoSticky ? 'text-[12px]' : 'text-[12px]';
   const valueTextClass = isCompactCryptoSticky ? 'text-[12px]' : 'text-[13px]';
   const searchIconClass = isCompactCryptoSticky ? 'h-3.5 w-3.5' : 'h-4 w-4';
   const searchIconLeftClass = isCompactCryptoSticky ? 'left-2.5' : 'left-3';
@@ -118,7 +118,7 @@ export default function AlpacaOrderTicket({
   const labelSpacingClass = isCompactCryptoSticky ? 'mb-0.5' : 'mb-1';
   const sizeModeGapClass = isCompactCryptoSticky ? 'gap-2' : 'gap-4';
   const reviewButtonClass = isCompactCryptoSticky
-    ? 'py-2 text-[12px] leading-none'
+    ? 'py-2.5 text-[12px] leading-none'
     : isTradeDensity
       ? 'h-[36px] text-[13px]'
       : isCryptoDensity
@@ -126,11 +126,11 @@ export default function AlpacaOrderTicket({
         : 'h-[38px] text-[13px]';
   const radioSizeClass = isCompactCryptoSticky ? 'h-3 w-3' : 'h-3.5 w-3.5';
   const reviewFooterClass = isCompactCryptoSticky
-    ? 'mt-1 shrink-0 border-t border-white/10 pt-1'
+    ? 'mt-0.5 shrink-0 border-t border-white/10 pt-0.5'
     : 'mt-2 shrink-0 border-t border-white/10 pt-2';
   const reviewButtonStateClass = reviewDisabled
-    ? 'cursor-not-allowed border-amber-500/20 bg-amber-500/20 text-amber-100/50'
-    : 'border-emerald-500/40 bg-emerald-600 text-white hover:bg-emerald-500';
+    ? 'cursor-not-allowed border-emerald-500/25 bg-transparent text-emerald-400/45'
+    : 'border-emerald-500/40 bg-transparent text-emerald-400 hover:bg-emerald-500/10';
   const reviewButtonText = typeof reviewLabel === 'string' && reviewLabel.trim() ? reviewLabel : 'Review Order';
   const rootLayoutClass = stickyReviewFooter ? 'flex min-h-0 flex-col overflow-hidden' : '';
   const contentLayoutClass = stickyReviewFooter
