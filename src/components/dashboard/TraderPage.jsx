@@ -1602,6 +1602,36 @@ export default function TraderPage() {
               </div>
             </>
           )}
+          {isWatchlistCollapsed && (
+            <div className="flex-1 overflow-y-auto px-1 py-2 space-y-1">
+              {watchlist.map((symbol) => {
+                const quote = quotesBySymbol[symbol] || {};
+                const changePercent = toNumber(quote?.changePercent) ?? 0;
+                const isPositive = changePercent >= 0;
+                const isSelected = selectedSymbol === symbol;
+
+                return (
+                  <button
+                    key={symbol}
+                    onClick={() => setSelectedSymbol(symbol)}
+                    className={`w-full py-2 px-1 rounded transition-colors ${
+                      isSelected ? 'bg-emerald-500/10 border border-emerald-500/30' : 'hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="text-white font-semibold text-xs">{symbol}</div>
+                    <div
+                      className={`text-[10px] font-mono font-semibold mt-0.5 ${
+                        isPositive ? 'text-emerald-400' : 'text-red-400'
+                      }`}
+                    >
+                      {isPositive ? '+' : ''}
+                      {changePercent.toFixed(1)}%
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </aside>
 
         <section className="flex min-h-0 flex-col">
