@@ -1,6 +1,6 @@
 # CLAUDE.md - Stratify Project Context
 
-*Last updated: 2026-02-18*
+*Last updated: 2026-02-22*
 
 ## Project Overview
 
@@ -19,17 +19,25 @@
 
 | Layer | Tech | Location |
 |-------|------|----------|
-| Frontend | React + Vite + Tailwind | `/src/` |
-| Backend | Node.js + Express | `/server/` ⚠️ **Railway deploys this** |
-| Broker API | Alpaca | Keys in Railway dashboard |
-| Python Backend | FastAPI | `/backend/` (not used in prod) |
+| Frontend | React + Vite + TailwindCSS | `/src/` |
+| Serverless API | Vercel Functions (Node.js) | `/api/` ⚠️ **Vercel deploys this** |
+| Database / Auth | Supabase | Keys in Vercel dashboard |
+| Broker API | Alpaca | WebSocket singleton in `src/services/alpacaStream.js` |
+| Market Data | Twelve Data Pro | Charts, fundamentals, WebSocket |
+| AI Assistant | Anthropic Claude (Sophia) | `api/sophia-*.js` |
+| Payments | Stripe | `api/create-checkout-session.js`, `api/stripe-webhook.js` |
+| Email | Resend | `api/contact.js` |
+| Hosting | Vercel | Frontend + serverless functions |
+
+> `/server/` (Node.js/Express) and `/backend/` (Python/FastAPI) are **legacy** — not deployed in production.
 
 ---
 
 ## Key URLs
 
 - **Local dev:** http://localhost:5173
-- **Railway backend:** https://stratify-backend-production-3ebd.up.railway.app
+- **Production:** Vercel (auto-deploy from `main` branch)
+- **Legacy Railway backend:** https://stratify-backend-production-3ebd.up.railway.app *(not primary)*
 - **GitHub:** github.com/jtdesign7277-source/stratify
 
 ---
@@ -37,19 +45,143 @@
 ## Project Structure
 
 ```
-~/Desktop/Stratify/
-├── src/                    # React frontend
+~/Desktop/stratify/
+├── src/                          # React frontend
 │   ├── components/
-│   │   └── dashboard/      # Dashboard components
-│   ├── config.js           # API URL config
-│   └── App.jsx             # Main app + landing page
-├── server/                 # Node.js backend (RAILWAY DEPLOYS THIS)
-│   └── src/index.js        # Express server + Alpaca endpoints
-├── backend/                # Python/FastAPI (NOT in production)
-├── .env.development        # Local API URL
-├── .env.production         # Production API URL
-└── CLAUDE.md               # This file
+│   │   ├── dashboard/            # All dashboard page components
+│   │   ├── xray/                 # X-Ray fundamentals feature
+│   │   │   ├── XRayPage.jsx
+│   │   │   ├── hooks/
+│   │   │   │   ├── useTwelveData.js      # Fetches via /api/xray/*
+│   │   │   │   └── useTwelveDataWS.js    # X-Ray WebSocket (VITE_TWELVE_DATA_WS_KEY)
+│   │   │   └── charts/           # Recharts-based fundamentals charts
+│   │   ├── auth/                 # Auth pages
+│   │   └── shared/               # Shared UI components
+│   ├── services/
+│   │   ├── alpacaStream.js       # ⚠️ SINGLETON Alpaca WebSocket manager
+│   │   └── twelveDataStream.js   # Twelve Data stream helpers
+│   ├── lib/
+│   │   ├── twelvedata.js         # Shared formatting/utility functions (no API calls)
+│   │   └── supabaseClient.js     # Supabase browser client
+│   ├── hooks/
+│   │   └── useAlpacaStream.js    # Hook into alpacaStream.js singleton
+│   └── App.jsx                   # Main router + landing page
+├── api/                          # Vercel serverless functions
+│   ├── xray/                     # X-Ray fundamentals endpoints
+│   │   ├── profile.js
+│   │   ├── quote.js
+│   │   ├── statistics.js
+│   │   ├── income-statement.js
+│   │   ├── balance-sheet.js
+│   │   └── cash-flow.js
+│   ├── lib/
+│   │   ├── twelvedata.js         # Shared Twelve Data fetch helper (server-side)
+│   │   └── indicators.js         # Technical indicators helper
+│   ├── lse/                      # London Stock Exchange endpoints
+│   ├── crypto/                   # Crypto price endpoints
+│   ├── watchlist/                # Watchlist quote endpoints
+│   ├── cron/                     # Vercel cron jobs (premarket + close summaries)
+│   ├── sophia-chat.js            # Sophia AI chat
+│   ├── sophia-copilot.js         # Sophia copilot
+│   ├── sophia-insight.js         # Sophia market insight
+│   └── ...                       # Other endpoints
+├── vercel.json                   # Vercel config (rewrites + cron schedule)
+├── vite.config.js
+├── tailwind.config.js
+└── CLAUDE.md                     # This file
 ```
+
+---
+
+## Environment Variables
+
+### Frontend (`VITE_` prefix — exposed to browser via Vite)
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `VITE_TWELVEDATA_API_KEY` | Twelve Data — frontend charts (LiveChart WebSocket) |
+| `VITE_TWELVE_DATA_WS_KEY` | Twelve Data — X-Ray WebSocket (`useTwelveDataWS.js`) |
+| `VITE_API_URL` | Legacy Railway backend URL |
+| `VITE_STRIPE_PRO_PRICE_ID` | Stripe Pro subscription price ID |
+| `VITE_APP_URL` | Public app URL |
+
+### Serverless (set in Vercel dashboard — no `VITE_` prefix)
+
+| Variable | Purpose |
+|----------|---------|
+| `TWELVE_DATA_API_KEY` | Twelve Data — serverless API calls (primary) |
+| `TWELVEDATA_API_KEY` | Twelve Data — alternate name (fallback in `api/lib/twelvedata.js`) |
+| `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | Alpaca broker |
+| `ANTHROPIC_API_KEY` | Sophia AI (Claude) |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin (service role) |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe payments |
+| `FRED_API_KEY` | FRED economic data |
+| `XAI_API_KEY` / `GROK_API_KEY` | Grok AI (xAI) |
+| `HEYGEN_API_KEY` / `LIVEAVATAR_API_KEY` | HeyGen AI avatar |
+| `RESEND_API_KEY` | Transactional email |
+| `CRON_SECRET` | Vercel cron job auth header |
+| `DISCORD_WEBHOOK_*` | Multiple Discord channel webhooks |
+
+> **Twelve Data key resolution in `api/lib/twelvedata.js` and `api/lib/indicators.js`:**
+> Checks `TWELVEDATA_API_KEY` → `TWELVE_DATA_API_KEY` → `VITE_TWELVE_DATA_API_KEY` → `VITE_TWELVEDATA_API_KEY`
+
+> **LiveChart (`src/components/dashboard/LiveChart.jsx`) `resolveApiKey()`:**
+> Checks `VITE_TWELVE_DATA_API_KEY` → `VITE_TWELVE_DATA_APIKEY` → `VITE_TWELVEDATA_API_KEY`
+
+---
+
+## Design System
+
+- **Background:** `#060d18` (primary dark)
+- **Accent:** `blue-500` / `#3b82f6`
+- **Positive / Buy:** `emerald-400` / `#34d399`
+- **Negative / Sell:** `red-400` / `#f87171`
+- **Borders:** `white/10` or `#1f1f1f`
+- **Text muted:** `gray-400` / `text-white/40`
+- **Font:** monospace for prices and metrics
+
+All new pages must match the existing dark theme — do not introduce light backgrounds or off-palette colors.
+
+---
+
+## Critical Rules (Non-Negotiable)
+
+### 1. Never Poll for Market Data
+- Use WebSocket only — never `setInterval` + fetch for live prices.
+- Alpaca prices → `src/services/alpacaStream.js` singleton → `useAlpacaStream` hook.
+- Twelve Data prices → `src/services/twelveDataStream.js` or `useTwelveDataWS.js`.
+
+### 2. Always Add Error Boundary to New Pages
+- Every new top-level page component must be wrapped in an `<ErrorBoundary>`.
+- Gray screen crashes from import errors have occurred before — Error Boundaries prevent them surfacing to users.
+- See `85b52d6` for precedent.
+
+### 3. Test Imports Before Pushing
+- Circular imports cause immediate gray screen crashes in production.
+- Before pushing any new file, confirm its imports resolve without circular dependencies.
+- Use `src/data/stockDatabase.js` for shared stock data (extracted in `49afbf8` to break circular import).
+
+### 4. Always Push to `main`
+- Vercel auto-deploys from `main`. All work goes to `main` — there are no staging branches.
+
+---
+
+## Sophia AI — Prompt Caching (Cost Critical)
+
+- Sophia uses Anthropic prompt caching on the system prompt.
+- System prompt must use `cache_control: { type: 'ephemeral' }` — this is CRITICAL for cost control.
+- Verify caching is active: response `usage.cache_read_input_tokens` must be `> 0` on consecutive requests.
+- If `cache_read_input_tokens` is `0` on consecutive requests, caching is broken — fix immediately.
+- **Never remove or restructure the system prompt block in `api/sophia-*.js` without verifying caching still works.**
+
+---
+
+## Naming Lock (Hard Rule)
+
+- The AI assistant is named `Sophia`.
+- `Atlas` naming is **deprecated** — must not appear in new UI, API routes, prompts, or docs.
 
 ---
 
@@ -58,113 +190,62 @@
 | Component | File | Purpose |
 |-----------|------|---------|
 | Dashboard | `Dashboard.jsx` | Main layout, state management |
-| Sidebar | `Sidebar.jsx` | VS Code-style nav (collapse/expand on hover) |
+| Sidebar | `Sidebar.jsx` | VS Code-style nav (hover to expand) |
+| TradePage | `TradePage.jsx` | Live chart + order ticket |
+| LiveChart | `LiveChart.jsx` | TradingView Lightweight Charts + Twelve Data WebSocket |
 | TopMetricsBar | `TopMetricsBar.jsx` | P&L stats, search bar, theme toggle |
 | DataTable | `DataTable.jsx` | Positions/orders/trades/balances |
-| RightPanel | `RightPanel.jsx` | Portfolio chart, news |
-| Watchlist | `Watchlist.jsx` | Tracked stocks with live quotes |
-| SearchBar | `SearchBar.jsx` | Stock search (exact matches first) |
+| Watchlist | `Watchlist.jsx` | Tracked stocks with live Alpaca quotes |
+| SearchBar | `SearchBar.jsx` | Stock search (exact symbol matches first) |
 | StatusBar | `StatusBar.jsx` | Connection status |
+| XRayPage | `xray/XRayPage.jsx` | Fundamentals — income, balance, cash flow, key stats |
 
 ---
 
-## API Endpoints (Railway)
+## Vercel Cron Jobs
 
-```
-GET /api/health              # Health check
-GET /api/public/search?q=    # Stock search (ranked by relevance)
-GET /api/public/quote/:symbol # Real-time quote
-GET /api/public/quotes?symbols= # Multiple quotes
-```
+Defined in `vercel.json`:
 
----
+| Path | Schedule | Purpose |
+|------|----------|---------|
+| `/api/cron/market-summary?period=premarket` | `25 13 * * 1-5` (9:25 AM ET) | Pre-market summary |
+| `/api/cron/market-summary?period=close` | `5 20 * * 1-5` (4:05 PM ET) | Market close summary |
 
-## Environment Variables
-
-**Frontend (.env.development / .env.production):**
-- `VITE_API_URL` — Backend API URL
-
-**Backend (Railway dashboard):**
-- `ALPACA_API_KEY`
-- `ALPACA_SECRET_KEY`
-- `PORT`
+Cron requests are authenticated via the `CRON_SECRET` env var.
 
 ---
 
-## Cost & Caching Rules
+## Critical Incident Runbook: Alpaca `connection limit exceeded`
 
-- Sophia (AI chat) uses Anthropic prompt caching on the system prompt. This is CRITICAL for cost control.
-- The system prompt includes all strategy templates and must use `cache_control: { type: 'ephemeral' }`.
-- NEVER remove or break prompt caching. Verify it works by checking response usage stats for `cache_read_input_tokens > 0`.
-- Any developer touching the Claude API integration MUST confirm caching is active after their changes.
-- If `cache_read_input_tokens` is `0` on consecutive requests, caching is broken — fix immediately.
-
----
-
-## Naming Lock (Hard Rule)
-
-- The assistant is named `Sophia`.
-- `Atlas` naming is deprecated and must not appear in new UI, API routes, prompts, or docs.
-
----
-
-## Critical Incident Runbook: Markets `connection limit exceeded`
-
-**Date fixed:** 2026-02-18  
-**Commit:** `e36240e`
+**Date fixed:** 2026-02-18 | **Commit:** `e36240e`
 
 ### Symptoms
-- Markets page banner shows: `connection limit exceeded`
-- ETFs/Stocks or Crypto cards stay at `Connecting...` / `Waiting for stream...`
-- Data may work on one page but fail on another
+- Markets page banner: `connection limit exceeded`
+- ETFs/Stocks or Crypto cards stuck at `Connecting...` / `Waiting for stream...`
+- Data works on one page but fails on another
 
 ### Root Cause
-- Duplicate Alpaca WebSocket connects were created during concurrent mount/reconnect calls.
-- Race condition in `src/services/alpacaStream.js` allowed overlapping `connectStockWs()` / `connectCryptoWs()` attempts before socket state settled.
+Duplicate Alpaca WebSocket connects during concurrent mount/reconnect calls. Race condition in `src/services/alpacaStream.js` allowed overlapping `connectStockWs()` / `connectCryptoWs()` before socket state settled.
 
-### Permanent Fix Applied
-- Added connect locks:
-  - `stockConnectPromise`
-  - `cryptoConnectPromise`
-- These guarantee one in-flight connect per stream and prevent duplicate sockets.
+### Permanent Fix
+Added connect locks: `stockConnectPromise` and `cryptoConnectPromise` — guarantee one in-flight connect per stream.
 
 ### Non-Negotiable Rules
-- Use only the shared singleton stream manager in `src/services/alpacaStream.js`.
-- Do **not** open direct Alpaca sockets in UI components.
-- Keep at most:
-  - 1 stock socket (`/v2/sip`)
-  - 1 crypto socket (`/v1beta3/crypto/us`)
+- Use only the shared singleton in `src/services/alpacaStream.js`.
+- **Do not** open direct Alpaca `new WebSocket(...)` in UI components.
+- Keep at most: 1 stock socket (`/v2/sip`), 1 crypto socket (`/v1beta3/crypto/us`).
 
-### If This Happens Again
-1. Confirm no direct Alpaca `new WebSocket(...)` exists outside `src/services/alpacaStream.js`.
-2. Verify connect locks still exist and are used in both `connectStockWs` and `connectCryptoWs`.
+### If It Happens Again
+1. Confirm no direct `new WebSocket(...)` exists outside `src/services/alpacaStream.js`.
+2. Verify connect locks still exist in both `connectStockWs` and `connectCryptoWs`.
 3. Confirm all pages subscribe through `useAlpacaStream` / shared manager.
-4. Re-test Markets + Trade + Watchlist together to confirm no connection limit banner.
-
----
-
-## Recent Changes (2025-07-14)
-
-1. ✅ Search ranking — exact symbol matches first
-2. ✅ Sidebar — VS Code style (hover to expand)
-3. ✅ Watchlist — in sidebar, resizable height
-4. ✅ GitHub → Railway auto-deploy connected
-5. ✅ Removed Portfolio nav + Account N/A text
+4. Re-test Markets + Trade + Watchlist together.
 
 ---
 
 ## TODO
 
-- [ ] AI Builder section (core feature)
+- [ ] AI Strategy Builder (core feature)
 - [ ] Strategy backtesting engine
-- [ ] Strategy deployment/execution
-- [ ] User authentication
-- [ ] Production launch (~1 month)
-
----
-
-## Notes
-
-- **Railway deploys `/server` (Node.js)**, not `/backend` (Python)
-- Alpaca API keys are in Railway dashboard, not in code
-- Frontend uses `VITE_API_URL` from env files
+- [ ] Strategy deployment / execution
+- [ ] Production launch
