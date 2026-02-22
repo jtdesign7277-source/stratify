@@ -1222,7 +1222,7 @@ function StratifyAppContent() {
 
   if (loading || (isAuthenticated && subscriptionLoading)) {
     return (
-      <div className="relative min-h-screen">
+      <div className="relative min-h-screen bg-[#0b0b0b]">
         <SpaceBackground variant={backgroundVariant} />
         <div className="relative z-10 min-h-screen bg-transparent text-white flex items-center justify-center">
           <div className="flex items-center gap-3 rounded-2xl border border-[#1e1e2d] bg-[#0b0b12]/90 px-6 py-4 text-sm text-gray-300">
