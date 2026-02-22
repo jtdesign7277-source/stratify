@@ -566,8 +566,7 @@ function OrderEntry({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setConfirmModal(false)}
-                className="py-2.5 rounded-lg text-xs font-semibold transition-colors"
-                style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'rgba(148, 163, 184, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
+                className="py-2.5 rounded-lg text-xs font-semibold transition-colors border border-white/10 bg-white/5 text-slate-400 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
               >
                 Cancel
               </button>
