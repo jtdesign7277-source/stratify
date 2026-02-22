@@ -36,7 +36,6 @@ import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
-const TradePage = lazy(() => import('./TradePage'));
 const TraderPage = lazy(() => import('./TraderPage'));
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
@@ -727,7 +726,7 @@ export default function Dashboard({
 
   useEffect(() => {
     if (activeTab === 'predictions') {
-      setActiveTab('trade');
+      setActiveTab('trader');
     }
   }, [activeTab]);
   const [grokMessageCount, setGrokMessageCount] = useState(0);
@@ -1763,23 +1762,6 @@ export default function Dashboard({
               onReorderWatchlist={reorderWatchlist}
               addTrade={addTrade}
             />
-          )}
-          {activeTab === 'trade' && (
-            <ProGate
-              featureName="Paper Trading"
-              description="Practice trading with virtual capital and real market data."
-            >
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trade page...</div>}>
-                <TradePage
-                  watchlist={watchlist}
-                  onAddToWatchlist={addToWatchlist}
-                  onRemoveFromWatchlist={removeFromWatchlist}
-                  onReorderWatchlist={reorderWatchlist}
-                  onPinToTop={pinToTop}
-                  addTrade={addTrade}
-                />
-              </Suspense>
-            </ProGate>
           )}
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
