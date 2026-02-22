@@ -261,6 +261,7 @@ function OrderEntry({
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
   const [trailAmount, setTrailAmount] = useState('');
+  const [trailType, setTrailType] = useState('dollars');
   const [timeInForce, setTimeInForce] = useState('day');
   const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
@@ -359,7 +360,11 @@ function OrderEntry({
       notionalAmount: sizeMode === 'dollars' ? notionalNumber : null,
       limitPrice: requiresLimit ? limitPriceNumber : null,
       stopPrice: requiresStop ? stopPriceNumber : null,
-      trailAmount: requiresTrail ? trailAmountNumber : null,
+      ...(requiresTrail
+        ? (trailType === 'percent'
+          ? { trail_percent: trailAmountNumber }
+          : { trail_amount: trailAmountNumber })
+        : {}),
       timeInForce: normalizedTimeInForce,
     };
 
@@ -495,7 +500,29 @@ function OrderEntry({
             )}
             {orderType === 'trailing_stop' && (
               <div className="space-y-1">
-                <label className="block text-[12px] font-semibold text-slate-300">Trail Amount ($)</label>
+                <div className="grid grid-cols-2 border-b border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setTrailType('dollars')}
+                    className={`py-1 text-[12px] font-semibold transition-colors ${
+                      trailType === 'dollars' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
+                    }`}
+                  >
+                    $
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrailType('percent')}
+                    className={`py-1 text-[12px] font-semibold transition-colors ${
+                      trailType === 'percent' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
+                    }`}
+                  >
+                    %
+                  </button>
+                </div>
+                <label className="block text-[12px] font-semibold text-slate-300">
+                  {trailType === 'percent' ? 'Trail Amount (%)' : 'Trail Amount ($)'}
+                </label>
                 <input
                   type="number"
                   step="any"
@@ -551,7 +578,9 @@ function OrderEntry({
                         ? `STOP $${stopPrice}`
                         : orderType === 'stop_limit'
                           ? `STOP $${stopPrice} / LIMIT $${limitPrice}`
-                          : `TRAIL $${trailAmount}`
+                          : trailType === 'percent'
+                            ? `TRAIL ${trailAmount}%`
+                            : `TRAIL $${trailAmount}`
                 }
               </div>
               {sizeMode === 'dollars' && (
