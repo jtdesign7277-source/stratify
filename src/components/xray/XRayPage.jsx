@@ -65,6 +65,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   const [activeTab, setActiveTab] = useState('income');
   const [period, setPeriod] = useState('annual');
   const [suggestions, setSuggestions] = useState([]);
+  const [isSymbolInputFocused, setIsSymbolInputFocused] = useState(false);
+  const [hasTypedSymbolQuery, setHasTypedSymbolQuery] = useState(false);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [chartEngineReady, setChartEngineReady] = useState(false);
   const [chartEngineError, setChartEngineError] = useState('');
 
@@ -138,6 +141,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
     const normalized = normalizeSymbol(initialSymbol) || 'TSLA';
     setSymbolInput(normalized);
     setSymbol(normalized);
+    setSuggestions([]);
+    setHasTypedSymbolQuery(false);
+    setIsSuggestionsOpen(false);
   }, [initialSymbol]);
 
   useEffect(() => {
@@ -148,7 +154,13 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   useEffect(() => {
     const query = normalizeSymbol(symbolInput);
-    if (!query || query.length < 1) {
+    if (
+      !isSuggestionsOpen ||
+      !isSymbolInputFocused ||
+      !hasTypedSymbolQuery ||
+      !query ||
+      query.length < 1
+    ) {
       setSuggestions([]);
       return undefined;
     }
@@ -168,7 +180,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
     }, 180);
 
     return () => clearTimeout(timer);
-  }, [symbolInput]);
+  }, [hasTypedSymbolQuery, isSuggestionsOpen, isSymbolInputFocused, symbolInput]);
 
   const liveQuote = prices?.[symbol] || null;
 
@@ -194,12 +206,32 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
     }
   };
 
+  const handleSymbolInputChange = (event) => {
+    const nextValue = event.target.value.toUpperCase();
+    const query = normalizeSymbol(nextValue);
+    setSymbolInput(nextValue);
+    setHasTypedSymbolQuery(true);
+    setIsSuggestionsOpen(Boolean(query) && query.length > 0);
+  };
+
+  const handleSymbolInputFocus = () => {
+    setIsSymbolInputFocused(true);
+    const query = normalizeSymbol(symbolInput);
+    setIsSuggestionsOpen(hasTypedSymbolQuery && Boolean(query) && query.length > 0);
+  };
+
+  const handleSymbolInputBlur = () => {
+    setIsSymbolInputFocused(false);
+    setIsSuggestionsOpen(false);
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
     const next = normalizeSymbol(symbolInput);
     if (!next) return;
     setSymbol(next);
     setSuggestions([]);
+    setIsSuggestionsOpen(false);
     if (typeof onSymbolChange === 'function') {
       onSymbolChange(next);
     }
@@ -211,6 +243,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
     setSymbolInput(next);
     setSymbol(next);
     setSuggestions([]);
+    setIsSuggestionsOpen(false);
     if (typeof onSymbolChange === 'function') {
       onSymbolChange(next);
     }
@@ -263,7 +296,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                     <Search size={14} strokeWidth={1.5} className="text-[#6b7280]" />
                     <input
                       value={symbolInput}
-                      onChange={(event) => setSymbolInput(event.target.value.toUpperCase())}
+                      onChange={handleSymbolInputChange}
+                      onFocus={handleSymbolInputFocus}
+                      onBlur={handleSymbolInputBlur}
                       className="w-36 bg-transparent font-mono text-sm text-[#e5e7eb] outline-none placeholder:text-[#6b7280]"
                       placeholder="Symbol"
                       maxLength={12}
@@ -276,12 +311,13 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                     </button>
                   </div>
 
-                  {suggestions.length > 0 ? (
+                  {isSuggestionsOpen && isSymbolInputFocused && suggestions.length > 0 ? (
                     <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-[#0a1628] p-1 shadow-2xl">
                       {suggestions.map((item) => (
                         <button
                           key={item.symbol}
                           type="button"
+                          onMouseDown={(event) => event.preventDefault()}
                           onClick={() => handleSelectSuggestion(item)}
                           className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/5"
                         >
