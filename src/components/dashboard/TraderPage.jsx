@@ -21,10 +21,10 @@ const DEFAULT_ACTIVE_MARKET = 'us';
 const DEFAULT_CHART_TIMEFRAME = '5M';
 const MAX_CHART_OUTPUTSIZE = '5000';
 const MARKET_FILTERS = [
-  { id: 'us', label: '🇺🇸 US', exchanges: ['NASDAQ', 'NYSE'] },
-  { id: 'london', label: '🇬🇧 London', exchanges: ['LSE'] },
-  { id: 'tokyo', label: '🇯🇵 Tokyo', exchanges: ['TSE'] },
-  { id: 'sydney', label: '🇦🇺 Sydney', exchanges: ['ASX'] },
+  { id: 'us', label: '🇺🇸 NYSE', exchanges: ['NASDAQ', 'NYSE'] },
+  { id: 'london', label: '🇬🇧 LSE', exchanges: ['LSE'] },
+  { id: 'tokyo', label: '🇯🇵 TSE', exchanges: ['TSE'] },
+  { id: 'sydney', label: '🇦🇺 ASX', exchanges: ['ASX'] },
 ];
 const MARKET_FILTER_BY_ID = MARKET_FILTERS.reduce((accumulator, market) => {
   accumulator[market.id] = market;
@@ -1499,22 +1499,26 @@ export default function TraderPage({ onPinToTop }) {
           {!isWatchlistCollapsed && (
             <>
               <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
-                <div className="mb-3 grid grid-cols-4 gap-2">
-                  {MARKET_FILTERS.map((market) => {
+                <div className="mb-3 flex items-center justify-center gap-2">
+                  {MARKET_FILTERS.map((market, index) => {
                     const isActive = activeMarket === market.id;
                     return (
-                      <button
-                        key={market.id}
-                        type="button"
-                        onClick={() => setActiveMarket(market.id)}
-                        className={`h-8 border px-2 text-[11px] font-medium text-[#d1d5db] transition-colors ${
-                          isActive
-                            ? 'border-emerald-400 bg-emerald-500/10 text-emerald-300'
-                            : 'border-[#1f1f1f] bg-[#0b0b0b] hover:bg-white/5'
-                        }`}
-                      >
-                        {market.label}
-                      </button>
+                      <div key={market.id} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveMarket(market.id)}
+                          className={`text-[11px] font-medium transition-colors ${
+                            isActive
+                              ? 'text-emerald-300'
+                              : 'text-[#d1d5db] hover:text-white'
+                          }`}
+                        >
+                          {market.label}
+                        </button>
+                        {index < MARKET_FILTERS.length - 1 && (
+                          <span className="text-[#1f1f1f]">|</span>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
