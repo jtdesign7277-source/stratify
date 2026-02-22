@@ -116,7 +116,7 @@ const Sidebar = ({
                 ? 'text-white bg-blue-500/10 border border-blue-400/30 trade-tab-active-glow'
                 : isWarRoom
                   ? 'text-red-300 bg-red-500/10 border border-red-400/20 shadow-[0_0_12px_rgba(248,113,113,0.25)]'
-                  : 'bg-gradient-to-r from-emerald-500/30 via-emerald-400/20 to-emerald-500/10 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] border border-emerald-400/20';
+                  : 'bg-emerald-500/5 border border-emerald-500/20 text-white';
             const activeIconClass = isLegend
               ? 'text-amber-400'
               : isTradeActive

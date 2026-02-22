@@ -1539,7 +1539,7 @@ export default function TraderPage() {
                                         event.dataTransfer.effectAllowed = 'copy';
                                       }}
                                       className={`group relative flex items-center justify-between cursor-pointer transition-all transition-transform duration-150 border-b border-[#1f1f1f]/30 ${
-                                        isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
+                                        isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/5'
                                       } px-4 py-3 ${
                                         snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
                                       }`}
