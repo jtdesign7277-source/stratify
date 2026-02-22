@@ -13,6 +13,7 @@ const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
 const ACTIVE_MARKET_STORAGE_KEY = 'stratify-trader-active-market';
 const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
+const CHART_VIEWPORT_STORAGE_KEY = 'stratify-trader-chart-viewport';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 8;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
@@ -133,6 +134,24 @@ const getDraggedTickerCenterY = (draggableId) => {
   const rect = draggingElement.getBoundingClientRect();
   if (!Number.isFinite(rect.top) || !Number.isFinite(rect.height)) return null;
   return rect.top + rect.height / 2;
+};
+
+const saveChartViewport = (symbol, timeframeId, visibleRange) => {
+  try {
+    const key = `${symbol}-${timeframeId}`;
+    const stored = JSON.parse(localStorage.getItem(CHART_VIEWPORT_STORAGE_KEY) || '{}');
+    stored[key] = visibleRange;
+    localStorage.setItem(CHART_VIEWPORT_STORAGE_KEY, JSON.stringify(stored));
+  } catch {}
+};
+
+const loadChartViewport = (symbol, timeframeId) => {
+  try {
+    const key = `${symbol}-${timeframeId}`;
+    const stored = JSON.parse(localStorage.getItem(CHART_VIEWPORT_STORAGE_KEY) || '{}');
+    return stored[key] || null;
+  } catch {}
+  return null;
 };
 
 const normalizeSymbol = (value) =>
@@ -878,8 +897,22 @@ export default function TraderPage({ onPinToTop }) {
     volumeSeriesRef.current = volumeSeries;
     setChartReady(true);
 
+    const timeScale = chart.timeScale();
+    const handleVisibleRangeChange = () => {
+      const visibleRange = timeScale.getVisibleRange();
+      const symbol = selectedSymbolRef.current;
+      if (visibleRange && symbol) {
+        saveChartViewport(symbol, chartTimeframeRef.current, {
+          from: visibleRange.from,
+          to: visibleRange.to,
+        });
+      }
+    };
+    timeScale.subscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+
     return () => {
       setChartReady(false);
+      timeScale.unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -975,6 +1008,19 @@ export default function TraderPage({ onPinToTop }) {
           color: bar.close >= bar.open ? VOLUME_UP : VOLUME_DOWN,
         }))
       );
+
+      // Restore saved viewport if available
+      setTimeout(() => {
+        const savedViewport = loadChartViewport(normalized, timeframeId);
+        if (savedViewport && chartRef.current) {
+          try {
+            chartRef.current.timeScale().setVisibleRange({
+              from: savedViewport.from,
+              to: savedViewport.to,
+            });
+          } catch {}
+        }
+      }, 100);
 
       chartRef.current?.timeScale().fitContent();
       lastBarRef.current = deduped[deduped.length - 1];

@@ -299,7 +299,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
             <button
               type="button"
               onClick={onDashboard || onEnter}
-              className="border border-emerald-400/60 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+              className="text-emerald-400 hover:text-emerald-300 text-sm font-semibold transition-colors"
             >
               Dashboard
             </button>
