@@ -252,27 +252,21 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   const apiError = quoteError || statsError || '';
   const apiLoading = quoteLoading || statsLoading;
 
-  if (!chartEngineReady) {
+  if (!chartEngineReady && !chartEngineError) {
     return (
       <div className="h-screen overflow-hidden bg-[#060d18] text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
-          {chartEngineError ? (
-            <div className="w-full max-w-xl rounded-2xl border border-amber-500/30 bg-[#0a1628] p-5">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300">Chart Engine</p>
-              <p className="mt-2 text-sm text-[#e5e7eb]">{chartEngineError}</p>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1628] px-5 py-4 text-sm text-[#cbd5e1]">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300/80 border-t-transparent" />
-              Loading X-Ray chart engine...
-            </div>
-          )}
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1628] px-5 py-4 text-sm text-[#cbd5e1]">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300/80 border-t-transparent" />
+            Loading X-Ray chart engine...
+          </div>
         </div>
       </div>
     );
   }
 
-  return (
+  try {
+    return (
       <div className="h-screen overflow-hidden bg-[#060d18] text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-4 py-4 md:px-6 md:py-5">
           <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-4">
@@ -430,4 +424,26 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
         </div>
       </div>
     );
+  } catch (error) {
+    console.error('[xray/page] Render error:', error);
+    return (
+      <div className="h-screen overflow-hidden bg-[#060d18] text-white">
+        <div className="mx-auto flex h-full w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
+          <div className="w-full max-w-xl rounded-2xl border border-red-500/30 bg-[#0a1628] p-5">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-red-300">X-Ray Error</p>
+            <p className="mt-2 text-sm text-[#e5e7eb]">
+              {getErrorMessage(error, 'Unable to render this X-Ray page right now.')}
+            </p>
+            <button
+              type="button"
+              onClick={handleGoBack}
+              className="mt-4 inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#e5e7eb] transition hover:border-white/25"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
