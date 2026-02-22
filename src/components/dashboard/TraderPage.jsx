@@ -395,6 +395,80 @@ export default function TraderPage() {
   }, [apiKey, symbolInput, watchlist]);
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
+  const selectedQuoteIsPlaceholder = selectedQuote?.isPlaceholder === true;
+
+  const fetchImmediateClosePlaceholder = useCallback(async (symbol) => {
+    if (!apiKey) return;
+
+    const normalized = normalizeSymbol(symbol);
+    if (!normalized) return;
+
+    try {
+      const params = new URLSearchParams({
+        symbol: normalized,
+        apikey: apiKey,
+      });
+
+      const response = await fetch(`${TWELVE_DATA_QUOTE_URL}?${params.toString()}`, {
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || payload?.status === 'error') return;
+      if (payload?.code && String(payload.code) !== '200') return;
+
+      const price = toNumber(payload?.close ?? payload?.previous_close);
+      if (!Number.isFinite(price)) return;
+
+      const previousClose = toNumber(payload?.previous_close);
+      const rawChange = toNumber(payload?.change);
+      const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
+      const change = Number.isFinite(rawChange)
+        ? rawChange
+        : Number.isFinite(previousClose)
+          ? price - previousClose
+          : null;
+      const changePercent = Number.isFinite(rawPercent)
+        ? rawPercent
+        : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
+          ? (change / previousClose) * 100
+          : null;
+      const name = String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim();
+
+      setQuotesBySymbol((previous) => {
+        const current = previous[normalized];
+        const currentPrice = toNumber(current?.price);
+        const hasRealPrice = Number.isFinite(currentPrice) && current?.isPlaceholder !== true;
+        if (hasRealPrice) return previous;
+
+        return {
+          ...previous,
+          [normalized]: {
+            ...current,
+            symbol: normalized,
+            price,
+            change,
+            changePercent,
+            isMarketOpen: parseMarketOpen(payload?.is_market_open),
+            timestamp: payload?.timestamp || payload?.datetime || Date.now(),
+            name: name || current?.name,
+            source: 'placeholder',
+            isPlaceholder: true,
+          },
+        };
+      });
+
+      if (name) {
+        setWatchlistNamesBySymbol((previous) => {
+          if (previous[normalized] === name) return previous;
+          return {
+            ...previous,
+            [normalized]: name,
+          };
+        });
+      }
+    } catch {}
+  }, [apiKey]);
 
   const clearNoStreamDataTimer = useCallback(() => {
     if (!noStreamDataTimerRef.current) return;
@@ -457,6 +531,7 @@ export default function TraderPage() {
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim() || undefined,
             source: 'rest',
+            isPlaceholder: false,
           };
         } catch {
           return null;
@@ -844,6 +919,7 @@ export default function TraderPage() {
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || previousQuote?.name || '').trim() || undefined,
             source: 'stream',
+            isPlaceholder: false,
           },
         };
       });
@@ -1009,6 +1085,7 @@ export default function TraderPage() {
   const addSymbolToWatchlist = useCallback((symbolValue, companyName = '') => {
     const normalized = normalizeSymbol(symbolValue);
     if (!normalized) return;
+    const isExistingSymbol = watchlistRef.current.has(normalized);
 
     const normalizedName = String(companyName || '').trim() || MARKET_NAME_BY_SYMBOL[normalized] || '';
     if (normalizedName) {
@@ -1030,7 +1107,11 @@ export default function TraderPage() {
     setSearchResults([]);
     setIsSearchLoading(false);
     setIsSearchDropdownOpen(false);
-  }, []);
+
+    if (!isExistingSymbol) {
+      void fetchImmediateClosePlaceholder(normalized);
+    }
+  }, [fetchImmediateClosePlaceholder]);
 
   const addSymbol = (event) => {
     event.preventDefault();
@@ -1161,11 +1242,12 @@ export default function TraderPage() {
                           ) : (
                             watchlist.map((symbol, index) => {
                               const quote = quotesBySymbol[symbol] || {};
-                              const price = toNumber(quote?.price) ?? 0;
+                              const price = toNumber(quote?.price);
                               const change = toNumber(quote?.change) ?? 0;
                               const changePercent = toNumber(quote?.changePercent) ?? 0;
                               const isPositive = changePercent !== 0 ? changePercent >= 0 : change >= 0;
                               const isSelected = selectedSymbol === symbol;
+                              const isPlaceholder = quote?.isPlaceholder === true;
                               const companyName = String(
                                 quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
                               ).trim();
@@ -1201,10 +1283,10 @@ export default function TraderPage() {
                                       </div>
 
                                       <div className="ml-auto pr-3 text-right flex-shrink-0">
-                                        <div className="text-white font-semibold text-base font-mono">
-                                          {price > 0 ? formatPrice(price) : '...'}
+                                        <div className={`font-semibold text-base font-mono ${isPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                                          {Number.isFinite(price) ? formatPrice(price) : '...'}
                                         </div>
-                                        {price > 0 && (
+                                        {Number.isFinite(price) && !isPlaceholder && (
                                           <div className="flex flex-col items-end gap-1">
                                             <span
                                               className={`px-2 py-0.5 rounded text-xs font-semibold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
@@ -1238,7 +1320,9 @@ export default function TraderPage() {
               <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {CHART_INTERVAL}</p>
             </div>
             <div className="text-right">
-              <div className="text-lg font-semibold tabular-nums text-white">{formatPrice(selectedQuote?.price)}</div>
+              <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                {formatPrice(selectedQuote?.price)}
+              </div>
               <div
                 className={`text-xs font-medium tabular-nums ${
                   Number.isFinite(Number(selectedQuote?.changePercent))
