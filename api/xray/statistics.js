@@ -41,9 +41,9 @@ export default async function handler(req, res) {
 
     const statistics = td?.statistics || {};
     const valuations = statistics?.valuations_metrics || {};
-    const fiscalYear = statistics?.financial_highlights?.fiscal_year || {};
-    const profitability = statistics?.financial_highlights?.profitability || {};
-    const balanceSheet = statistics?.financial_highlights?.balance_sheet || {};
+    const financials = statistics?.financials || {};
+    const incomeStatement = financials?.income_statement || {};
+    const balanceSheet = financials?.balance_sheet || {};
     const stockPriceSummary = statistics?.stock_price_summary || {};
     const stockStatistics = statistics?.stock_statistics || {};
 
@@ -58,21 +58,21 @@ export default async function handler(req, res) {
       price_to_book: toFloat(valuations?.price_to_book_mrq),
       ev_to_ebitda: toFloat(valuations?.enterprise_to_ebitda),
       ev_to_revenue: toFloat(valuations?.enterprise_to_revenue),
-      profit_margin: toFloat(profitability?.profit_margin),
-      operating_margin: toFloat(profitability?.operating_margin),
-      return_on_equity: toFloat(profitability?.return_on_equity),
-      return_on_assets: toFloat(profitability?.return_on_assets),
-      revenue_growth: toFloat(fiscalYear?.revenue_growth),
-      earnings_growth: toFloat(fiscalYear?.earnings_growth),
-      current_ratio: toFloat(balanceSheet?.current_ratio),
-      debt_to_equity: toFloat(balanceSheet?.total_debt_to_equity),
+      profit_margin: toFloat(financials?.profit_margin),
+      operating_margin: toFloat(financials?.operating_margin),
+      return_on_equity: toFloat(financials?.return_on_equity_ttm),
+      return_on_assets: toFloat(financials?.return_on_assets_ttm),
+      revenue_growth: toFloat(incomeStatement?.quarterly_revenue_growth),
+      earnings_growth: toFloat(incomeStatement?.quarterly_earnings_growth_yoy),
+      current_ratio: toFloat(balanceSheet?.current_ratio_mrq),
+      debt_to_equity: toFloat(balanceSheet?.total_debt_to_equity_mrq),
       dividend_yield: toFloat(stockStatistics?.dividend_yield_5_year_avg),
       payout_ratio: toFloat(stockStatistics?.payout_ratio),
       beta: toFloat(stockPriceSummary?.beta),
-      fifty_two_week_high: toFloat(stockPriceSummary?.['52_week_high']),
-      fifty_two_week_low: toFloat(stockPriceSummary?.['52_week_low']),
-      fifty_day_ma: toFloat(stockPriceSummary?.['50_day_ma']),
-      two_hundred_day_ma: toFloat(stockPriceSummary?.['200_day_ma']),
+      fifty_two_week_high: toFloat(stockPriceSummary?.fifty_two_week_high),
+      fifty_two_week_low: toFloat(stockPriceSummary?.fifty_two_week_low),
+      fifty_day_ma: toFloat(stockPriceSummary?.day_50_ma),
+      two_hundred_day_ma: toFloat(stockPriceSummary?.day_200_ma),
       shares_outstanding: toInt(stockStatistics?.shares_outstanding),
       float_shares: toInt(stockStatistics?.float_shares),
       raw_json: td,
