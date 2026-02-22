@@ -552,8 +552,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
     if (!selected) return null;
     return activeWatchlist.some((stock) => stock.symbol === selected) ? selected : null;
   }, [activeMarket, activeWatchlist, selectedCrypto, selectedEquity]);
-  const activeQuotes = activeMarket === 'crypto' ? cryptoQuotes : equityQuotes;
-  const selectedQuote = selectedTicker ? activeQuotes[selectedTicker] : null;
+  const quotesBySymbol = activeMarket === 'crypto' ? cryptoQuotes : equityQuotes;
+  const selectedQuote = selectedTicker ? quotesBySymbol[selectedTicker] : null;
   const activeLoading = activeMarket === 'crypto' ? cryptoLoading : equityLoading;
   const selectedDisplaySymbol = activeMarket === 'crypto' ? getCryptoDisplaySymbol(selectedTicker) : selectedTicker;
   const selectedWatchlistDisplaySymbol = selectedWatchlistTicker
@@ -1398,26 +1398,43 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             onDragLeave={() => setDragOverTabs(false)}
             onDrop={handleTabDrop}
           >
-            {pinnedTabs.map((symbol) => (
-              <button
-                key={symbol}
-                onClick={() => {
-                  if (activeMarket === 'crypto') setSelectedCrypto(symbol);
-                  else setSelectedEquity(symbol);
-                }}
-                className={`group flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
-                  selectedTicker === symbol
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : 'bg-gray-800 text-gray-400 border border-[#2a2a2a] hover:border-gray-600 hover:text-white'
-                }`}
-              >
-                <span>{symbol}</span>
-                <X 
-                  className="w-3 h-3 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); removePinnedTab(symbol); }}
-                />
-              </button>
-            ))}
+            {pinnedTabs.map((symbol) => {
+              const quote = quotesBySymbol[symbol] || {};
+              const price = quote.price || 0;
+              const change = quote.change || 0;
+              const changePercent = quote.changePercent || 0;
+              const isPositive = changePercent !== 0 ? changePercent >= 0 : change >= 0;
+              const displaySymbol = activeMarket === 'crypto' ? getCryptoDisplaySymbol(symbol) : symbol;
+
+              return (
+                <button
+                  key={symbol}
+                  onClick={() => {
+                    if (activeMarket === 'crypto') setSelectedCrypto(symbol);
+                    else setSelectedEquity(symbol);
+                  }}
+                  className={`group flex items-center gap-1.5 px-2 py-1 rounded transition-all ${
+                    selectedTicker === symbol
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      : 'bg-gray-800 text-gray-400 border border-[#2a2a2a] hover:border-gray-600 hover:text-white'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">{displaySymbol}</span>
+                  <span className="text-sm font-mono">
+                    {price > 0 ? `$${formatPrice(price)}` : '...'}
+                  </span>
+                  {price > 0 && (
+                    <span className={`text-xs font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {`${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`}
+                    </span>
+                  )}
+                  <X
+                    className="w-3 h-3 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); removePinnedTab(symbol); }}
+                  />
+                </button>
+              );
+            })}
             {pinnedTabs.length < 5 && (
               <div className={`px-2 py-1 rounded border border-dashed text-xs transition-colors ${
                 dragOverTabs 
@@ -1608,7 +1625,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                 className="flex-1 overflow-auto scrollbar-hide" 
                 style={scrollStyle}
               >
-                {activeLoading && Object.keys(activeQuotes).length === 0 && (
+                {activeLoading && Object.keys(quotesBySymbol).length === 0 && (
                   <div className="flex items-center justify-center py-8">
                     <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                     <span className="ml-3 text-gray-400 text-sm">Loading prices...</span>
@@ -1622,7 +1639,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                 )}
 
                 {activeWatchlist.map((stock, index) => {
-                  const quote = activeQuotes[stock.symbol] || {};
+                  const quote = quotesBySymbol[stock.symbol] || {};
                   const price = quote.price || 0;
                   const change = quote.change || 0;
                   const changePercent = quote.changePercent || 0;
