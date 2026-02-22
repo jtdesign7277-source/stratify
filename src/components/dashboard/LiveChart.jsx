@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createChart,
   CandlestickSeries,
@@ -7,8 +7,8 @@ import {
   CrosshairMode,
 } from 'lightweight-charts';
 
-const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
-const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
+const CHART_CANDLES_URL = '/api/chart/candles';
+const WS_CONFIG_URL = '/api/lse/ws-config';
 
 const GRID_COLOR = '#1a2332';
 const TEXT_COLOR = '#8892a0';
@@ -173,12 +173,6 @@ const normalizeBars = (rawValues) => {
   return deduped;
 };
 
-const resolveApiKey = () =>
-  import.meta.env.VITE_TWELVE_DATA_API_KEY ||
-  import.meta.env.VITE_TWELVE_DATA_APIKEY ||
-  import.meta.env.VITE_TWELVEDATA_API_KEY ||
-  '';
-
 const CHART_STATE_KEY = 'stratify-livechart-state';
 
 const saveChartState = (symbol, state) => {
@@ -236,7 +230,6 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
     }
   }, []);
 
-  const apiKey = useMemo(resolveApiKey, []);
   const activeSymbol = useMemo(() => normalizeSymbol(symbol || internalSymbol), [symbol, internalSymbol]);
   const displayedBar = hoverBar || latestBar;
 
@@ -442,28 +435,16 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       setStatus({ loading: true, error: '' });
       setHoverBar(null);
 
-      if (!apiKey) {
-        latestBarRef.current = null;
-        setLatestBar(null);
-        candleSeriesRef.current?.setData([]);
-        volumeSeriesRef.current?.setData([]);
-        setStatus({ loading: false, error: 'Missing Twelve Data API key.' });
-        return false;
-      }
-
       try {
-        const url = new URL(TWELVE_DATA_REST_URL);
+        const url = new URL(CHART_CANDLES_URL, window.location.origin);
         url.searchParams.set('symbol', activeSymbol);
         url.searchParams.set('interval', activeInterval);
         url.searchParams.set('outputsize', '500');
-        url.searchParams.set('apikey', apiKey);
-        url.searchParams.set('format', 'JSON');
-        url.searchParams.set('order', 'ASC');
 
         const response = await fetch(url.toString(), { cache: 'no-store' });
         const payload = await response.json();
-        if (!response.ok || payload?.status === 'error') {
-          throw new Error(payload?.message || payload?.error || 'Failed to load historical candles');
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to load historical candles');
         }
 
         const bars = normalizeBars(payload?.values);
@@ -516,8 +497,19 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       }
     };
 
-    const startWebSocket = () => {
-      const socketUrl = `${TWELVE_DATA_WS_URL}?apikey=${encodeURIComponent(apiKey)}`;
+    const startWebSocket = async () => {
+      if (cancelled) return;
+      let socketUrl;
+      try {
+        const wsConfigRes = await fetch(WS_CONFIG_URL, { cache: 'no-store' });
+        const wsConfig = await wsConfigRes.json();
+        socketUrl = wsConfig?.websocketUrl;
+        if (!socketUrl) throw new Error('No WebSocket URL');
+      } catch {
+        if (!cancelled) setStatus({ loading: false, error: 'Failed to connect live feed' });
+        return;
+      }
+      if (cancelled) return;
       ws = new WebSocket(socketUrl);
       wsRef.current = ws;
 
