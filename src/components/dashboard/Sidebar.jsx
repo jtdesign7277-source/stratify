@@ -70,6 +70,7 @@ const Sidebar = ({
     { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
+    { id: 'trade', label: 'Community', icon: SlidersHorizontal },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },

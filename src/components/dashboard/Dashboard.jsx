@@ -1768,6 +1768,11 @@ export default function Dashboard({
               <TraderPage />
             </Suspense>
           )}
+          {activeTab === 'trade' && (
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+              Community page coming soon
+            </div>
+          )}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
           {activeTab === 'market' && <MarketMoversPage />}
           {activeTab === 'ai-chat' && (
