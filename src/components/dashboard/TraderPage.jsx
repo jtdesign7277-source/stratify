@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { Plus, Search, X } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, Plus, Search, X } from 'lucide-react';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
@@ -8,6 +8,7 @@ const TWELVE_DATA_QUOTE_URL = 'https://api.twelvedata.com/quote';
 const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
+const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 8;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
@@ -212,6 +213,15 @@ const loadInitialWatchlist = () => {
   }
 };
 
+const loadInitialWatchlistCollapsed = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(WATCHLIST_COLLAPSED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
 export default function TraderPage() {
   const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
@@ -234,6 +244,7 @@ export default function TraderPage() {
     error: '',
   });
   const [chartReady, setChartReady] = useState(false);
+  const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
 
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
@@ -263,6 +274,11 @@ export default function TraderPage() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
   }, [watchlist]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(WATCHLIST_COLLAPSED_STORAGE_KEY, isWatchlistCollapsed ? 'true' : 'false');
+  }, [isWatchlistCollapsed]);
 
   useEffect(() => {
     const normalized = watchlist.map(normalizeSymbol).filter(Boolean);
@@ -1005,118 +1021,144 @@ export default function TraderPage() {
 
   return (
     <div className="h-full w-full bg-[#0b0b0b] text-[#e5e7eb]">
-      <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-5">
-        <aside className="flex min-h-0 flex-col border-b border-[#1f1f1f] lg:col-span-2 lg:border-b-0 lg:border-r">
-          <div className="border-b border-[#1f1f1f] px-4 py-3">
-            <h2 className="text-sm font-medium text-white">Watchlist</h2>
-            <p className="mt-1 text-xs text-[#7c8087]">Search, add, and stream symbols in real time.</p>
-          </div>
-
-          <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
-            <div ref={searchContainerRef} className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
-              <input
-                value={symbolInput}
-                onChange={(event) => setSymbolInput(event.target.value)}
-                onFocus={() => {
-                  if (symbolInput.trim()) setIsSearchDropdownOpen(true);
-                }}
-                placeholder="Search symbols across markets..."
-                autoComplete="off"
-                className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
-              />
-              {isSearchDropdownOpen && symbolInput.trim() && (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
-                  {searchResults.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-[#7c8087]">
-                      {isSearchLoading ? 'Searching symbols...' : 'No matching symbols.'}
-                    </div>
-                  ) : (
-                    searchResults.map((result) => (
-                      <button
-                        key={`${result.symbol}-${result.exchange}`}
-                        type="button"
-                        onClick={() => addSymbolToWatchlist(result.symbol)}
-                        className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
-                      >
-                        <span className="truncate text-sm text-white">
-                          <span className="font-medium">{result.symbol}</span>
-                          <span className="ml-1 text-[#7c8087]">· {result.exchange}</span>
-                        </span>
-                        <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
-                      </button>
-                    ))
-                  )}
+      <div
+        className={`grid h-full min-h-0 grid-cols-1 transition-[grid-template-columns] duration-200 ease-in-out ${
+          isWatchlistCollapsed ? 'lg:grid-cols-[60px_minmax(0,1fr)]' : 'lg:grid-cols-[40%_minmax(0,1fr)]'
+        }`}
+      >
+        <aside className="flex min-h-0 flex-col overflow-hidden border-b border-[#1f1f1f] lg:border-b-0 lg:border-r">
+          <div className={`border-b border-[#1f1f1f] py-3 ${isWatchlistCollapsed ? 'px-2' : 'px-4'}`}>
+            <div className={`flex items-center ${isWatchlistCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+              {!isWatchlistCollapsed && (
+                <div className="min-w-0">
+                  <h2 className="text-sm font-medium text-white">Watchlist</h2>
+                  <p className="mt-1 text-xs text-[#7c8087]">Search, add, and stream symbols in real time.</p>
                 </div>
               )}
-            </div>
-          </form>
-
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
-              <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
-              {streamStatus.error ? (
-                <span className="text-red-400">{streamStatus.error}</span>
-              ) : (
-                <span className="text-emerald-400">{watchlist.length} symbols</span>
-              )}
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {watchlist.length === 0 ? (
-                <div className="px-4 py-5 text-sm text-[#6b7280]">Watchlist is empty. Search to add symbols.</div>
-              ) : (
-                watchlist.map((symbol) => {
-                  const quote = quotesBySymbol[symbol];
-                  const changePercent = toNumber(quote?.changePercent);
-                  const changeClass = !Number.isFinite(changePercent)
-                    ? 'text-[#6b7280]'
-                    : changePercent >= 0
-                      ? 'text-emerald-400'
-                      : 'text-red-400';
-
-                  return (
-                    <div
-                      key={symbol}
-                      className={`flex items-stretch border-b border-[#1f1f1f] ${
-                        symbol === selectedSymbol ? 'bg-emerald-500/6' : ''
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSymbol(symbol)}
-                        className={`flex min-w-0 flex-1 items-center justify-between px-4 py-3 text-left transition-colors ${
-                          symbol === selectedSymbol ? 'border-l-2 border-emerald-500 pl-[14px]' : 'border-l-2 border-transparent'
-                        } hover:bg-white/[0.02]`}
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-white">{symbol}</div>
-                          <div className="text-xs text-[#9ca3af]">
-                            {formatPrice(quote?.price)}
-                            {quote?.isMarketOpen === false ? ' (Closed)' : ''}
-                          </div>
-                        </div>
-                        <div className={`pl-3 text-xs font-medium tabular-nums ${changeClass}`}>
-                          {formatPercent(changePercent)}
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeSymbol(symbol)}
-                        className="border-l border-[#1f1f1f] px-3 text-[#6b7280] transition-colors hover:text-red-400"
-                        aria-label={`Remove ${symbol}`}
-                      >
-                        <X className="h-4 w-4" strokeWidth={1.5} />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
+              <button
+                type="button"
+                onClick={() => setIsWatchlistCollapsed((previous) => !previous)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-[#1f1f1f] bg-[#0f1012] text-[#9ca3af] transition-colors hover:border-[#374151] hover:text-white"
+                aria-label={isWatchlistCollapsed ? 'Expand watchlist' : 'Collapse watchlist'}
+              >
+                {isWatchlistCollapsed ? (
+                  <ChevronsRight className="h-4 w-4" strokeWidth={1.8} />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" strokeWidth={1.8} />
+                )}
+              </button>
             </div>
           </div>
+
+          {!isWatchlistCollapsed && (
+            <>
+              <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
+                <div ref={searchContainerRef} className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
+                  <input
+                    value={symbolInput}
+                    onChange={(event) => setSymbolInput(event.target.value)}
+                    onFocus={() => {
+                      if (symbolInput.trim()) setIsSearchDropdownOpen(true);
+                    }}
+                    placeholder="Search symbols across markets..."
+                    autoComplete="off"
+                    className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
+                  />
+                  {isSearchDropdownOpen && symbolInput.trim() && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
+                      {searchResults.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-[#7c8087]">
+                          {isSearchLoading ? 'Searching symbols...' : 'No matching symbols.'}
+                        </div>
+                      ) : (
+                        searchResults.map((result) => (
+                          <button
+                            key={`${result.symbol}-${result.exchange}`}
+                            type="button"
+                            onClick={() => addSymbolToWatchlist(result.symbol)}
+                            className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
+                          >
+                            <span className="truncate text-sm text-white">
+                              <span className="font-medium">{result.symbol}</span>
+                              <span className="ml-1 text-[#7c8087]">· {result.exchange}</span>
+                            </span>
+                            <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </form>
+
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-2 text-xs">
+                  <span className="text-[#9ca3af]">Stream: {streamLabel}</span>
+                  {streamStatus.error ? (
+                    <span className="text-red-400">{streamStatus.error}</span>
+                  ) : (
+                    <span className="text-emerald-400">{watchlist.length} symbols</span>
+                  )}
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  {watchlist.length === 0 ? (
+                    <div className="px-4 py-5 text-sm text-[#6b7280]">Watchlist is empty. Search to add symbols.</div>
+                  ) : (
+                    watchlist.map((symbol) => {
+                      const quote = quotesBySymbol[symbol];
+                      const changePercent = toNumber(quote?.changePercent);
+                      const changeClass = !Number.isFinite(changePercent)
+                        ? 'text-[#6b7280]'
+                        : changePercent >= 0
+                          ? 'text-emerald-400'
+                          : 'text-red-400';
+
+                      return (
+                        <div
+                          key={symbol}
+                          className={`flex items-stretch border-b border-[#1f1f1f] ${
+                            symbol === selectedSymbol ? 'bg-emerald-500/6' : ''
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSymbol(symbol)}
+                            className={`flex min-w-0 flex-1 items-center justify-between px-4 py-3 text-left transition-colors ${
+                              symbol === selectedSymbol ? 'border-l-2 border-emerald-500 pl-[14px]' : 'border-l-2 border-transparent'
+                            } hover:bg-white/[0.02]`}
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium text-white">{symbol}</div>
+                              <div className="text-xs text-[#9ca3af]">
+                                {formatPrice(quote?.price)}
+                                {quote?.isMarketOpen === false ? ' (Closed)' : ''}
+                              </div>
+                            </div>
+                            <div className={`pl-3 text-xs font-medium tabular-nums ${changeClass}`}>
+                              {formatPercent(changePercent)}
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeSymbol(symbol)}
+                            className="border-l border-[#1f1f1f] px-3 text-[#6b7280] transition-colors hover:text-red-400"
+                            aria-label={`Remove ${symbol}`}
+                          >
+                            <X className="h-4 w-4" strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </aside>
 
-        <section className="flex min-h-0 flex-col lg:col-span-3">
+        <section className="flex min-h-0 flex-col">
           <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
             <div>
               <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
