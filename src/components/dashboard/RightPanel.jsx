@@ -67,6 +67,18 @@ const INDICATOR_LABELS = INDICATOR_OPTIONS.reduce((acc, option) => {
   return acc;
 }, {});
 
+const PANEL_STATE_STORAGE_KEY = 'stratify-sophia-panel-state';
+const PANEL_STATE_CYCLE = { closed: 'small', small: 'large', large: 'closed' };
+const SMALL_PANEL_WIDTH = 320;
+const MIN_LARGE_PANEL_WIDTH = 430;
+const normalizePanelState = (value) => {
+  if (['closed', 'small', 'large'].includes(value)) return value;
+  if (value === 'collapsed') return 'closed';
+  if (value === 'half') return 'small';
+  if (value === 'full') return 'large';
+  return 'large';
+};
+
 const getTemplateIndicatorDefaults = (templateId) => {
   const key = String(templateId || '').trim().toLowerCase();
   return [...new Set(STRATEGY_INDICATOR_MAP[key] || [])];
@@ -259,7 +271,14 @@ const ChatMessage = ({ message, isUser, isLoading }) => {
 
 // Main Component
 export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar }) {
-  const [expanded, setExpanded] = useState(true);
+  const [panelState, setPanelState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PANEL_STATE_STORAGE_KEY);
+      return normalizePanelState(saved);
+    } catch {
+      return 'large';
+    }
+  });
   const [activeTab, setActiveTab] = useState('quick'); // quick | chat | results
   
   // Quick Build State
@@ -325,6 +344,14 @@ export default function RightPanel({ width, onStrategyGenerated, onSaveToSidebar
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PANEL_STATE_STORAGE_KEY, panelState);
+    } catch {}
+  }, [panelState]);
+
+  const cyclePanel = () => setPanelState((prev) => PANEL_STATE_CYCLE[prev] || 'closed');
 
   // Handle ticker select (toggle)
   const handleTickerSelect = (ticker) => {
@@ -635,10 +662,14 @@ if __name__ == "__main__":
     }
   };
 
+  const panelWidth = panelState === 'small'
+    ? SMALL_PANEL_WIDTH
+    : Math.max(Number(width) || MIN_LARGE_PANEL_WIDTH, MIN_LARGE_PANEL_WIDTH);
+
   // Collapsed
-  if (!expanded) {
+  if (panelState === 'closed') {
     return (
-      <div onClick={() => setExpanded(true)}
+      <div onClick={cyclePanel}
         className="w-12 flex flex-col items-center py-4 gap-3 bg-[#0b0b0b] border-l border-white/10 cursor-pointer hover:bg-[#0f1624] transition-colors">
         <BrainIcon className="w-6 h-6 text-emerald-400" />
         <span className="text-[10px] text-white/50 tracking-widest" style={{ writingMode: 'vertical-rl' }}>SOPHIA AI</span>
@@ -647,7 +678,7 @@ if __name__ == "__main__":
   }
 
   return (
-    <div className="flex flex-col bg-[#0b0b0b] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width }}>
+    <div className="flex flex-col bg-[#0b0b0b] border-l border-white/10 h-full shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={{ width: panelWidth }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-2">
@@ -658,7 +689,11 @@ if __name__ == "__main__":
           <button onClick={handleReset} className="p-1.5 hover:bg-white/10 rounded transition-colors" title="Start Fresh">
             <RefreshIcon className="w-4 h-4 text-gray-300 hover:text-emerald-300" />
           </button>
-          <button onClick={() => setExpanded(false)} className="p-1.5 hover:bg-white/10 rounded transition-colors">
+          <button
+            onClick={cyclePanel}
+            className="p-1.5 hover:bg-white/10 rounded transition-colors"
+            title={panelState === 'small' ? 'Expand Sophia panel' : 'Close Sophia panel'}
+          >
             <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
             </svg>

@@ -48,7 +48,16 @@ const STRATEGY_PRESETS = [
   },
 ];
 
-const PANEL_WIDTHS = { full: 430, half: 280, collapsed: 40 };
+const PANEL_STATE_STORAGE_KEY = 'stratify-sophia-panel-state';
+const PANEL_WIDTHS = { large: 430, small: 320, closed: 40 };
+const PANEL_STATE_CYCLE = { closed: 'small', small: 'large', large: 'closed' };
+const normalizePanelState = (value) => {
+  if (['closed', 'small', 'large'].includes(value)) return value;
+  if (value === 'collapsed') return 'closed';
+  if (value === 'half') return 'small';
+  if (value === 'full') return 'large';
+  return 'large';
+};
 const TRUMP_ALERT_POLL_MS = 60000;
 const TRUMP_LAST_SEEN_KEY = 'stratify-trump-last-seen';
 const ALERT_SEVERITY_TEXT = { '🔴': 'text-red-400', '🟠': 'text-orange-400', '🟡': 'text-yellow-400', '🔵': 'text-blue-400' };
@@ -150,10 +159,10 @@ const SophiaPanel = ({
   });
   const [panelState, setPanelState] = useState(() => {
     try {
-      const saved = localStorage.getItem('stratify-sophia-panel-state');
-      return saved && ['full', 'half', 'collapsed'].includes(saved) ? saved : 'full';
+      const saved = localStorage.getItem(PANEL_STATE_STORAGE_KEY);
+      return normalizePanelState(saved);
     } catch {
-      return 'full';
+      return 'large';
     }
   });
 
@@ -170,12 +179,12 @@ const SophiaPanel = ({
 
   useEffect(() => {
     try {
-      localStorage.setItem('stratify-sophia-panel-state', panelState);
+      localStorage.setItem(PANEL_STATE_STORAGE_KEY, panelState);
     } catch {}
   }, [panelState]);
 
   useEffect(() => {
-    onCollapsedChange && onCollapsedChange(panelState === 'collapsed', panelState);
+    onCollapsedChange && onCollapsedChange(panelState === 'closed', panelState);
   }, [panelState, onCollapsedChange]);
 
   useEffect(() => { fetchTrumpAlerts(); const id = setInterval(fetchTrumpAlerts, TRUMP_ALERT_POLL_MS); return () => clearInterval(id); }, [fetchTrumpAlerts]);
@@ -211,9 +220,7 @@ const SophiaPanel = ({
     }
   }, [input]);
 
-  const cyclePanel = () =>
-    setPanelState((prev) => (prev === 'full' ? 'half' : prev === 'half' ? 'collapsed' : 'full'));
-  const expandPanel = () => setPanelState('full');
+  const cyclePanel = () => setPanelState((prev) => PANEL_STATE_CYCLE[prev] || 'closed');
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -350,14 +357,14 @@ const SophiaPanel = ({
     });
   };
 
-  if (panelState === 'collapsed') {
+  if (panelState === 'closed') {
     return (
       <div
-        style={{ width: PANEL_WIDTHS.collapsed }}
+        style={{ width: PANEL_WIDTHS.closed }}
         className="h-full bg-[#0b0b0b] border-l border-[#1f1f1f] flex flex-col items-center py-2"
       >
         <button
-          onClick={expandPanel}
+          onClick={cyclePanel}
           className="p-1 text-emerald-400 hover:text-emerald-300 transition-colors"
           title="Expand Sophia"
         >
@@ -444,7 +451,7 @@ const SophiaPanel = ({
         </div>
       )}
 
-      {activeTab === 'sophia' && panelState === 'full' && (
+      {activeTab === 'sophia' && panelState === 'large' && (
         <div className="px-3 py-2 border-b border-[#1f1f1f] flex gap-2">
           <button
             onClick={() => setShowBuilder(true)}
