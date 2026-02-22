@@ -1753,16 +1753,6 @@ export default function Dashboard({
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-hidden relative`}
         >
           {/* Tab-based Views */}
-          {activeTab === 'watchlist' && (
-            <WatchlistPage
-              themeClasses={themeClasses}
-              watchlist={watchlist}
-              onAddToWatchlist={addToWatchlist}
-              onRemoveFromWatchlist={removeFromWatchlist}
-              onReorderWatchlist={reorderWatchlist}
-              addTrade={addTrade}
-            />
-          )}
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
               <TraderPage />
