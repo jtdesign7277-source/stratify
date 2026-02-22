@@ -12,14 +12,20 @@ const TickerPill = ({ symbol, onRemove }) => {
     
     const fetchPrice = async () => {
       try {
-        // Use the Vercel API with Alpaca data
-        const response = await fetch(`/api/stocks?symbols=${symbol}`);
+        const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
+        const response = await fetch(
+          `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`
+        );
         const data = await response.json();
-        if (isMounted && Array.isArray(data) && data.length > 0) {
-          const stock = data[0];
-          setPrice(stock.price);
-          setChange(stock.change);
-          setChangePercent(stock.changePercent);
+
+        if (isMounted) {
+          const parsedPrice = Number(data?.close ?? data?.last);
+          const parsedChange = Number(data?.change);
+          const parsedChangePercent = Number(data?.percent_change);
+
+          setPrice(Number.isFinite(parsedPrice) ? parsedPrice : null);
+          setChange(Number.isFinite(parsedChange) ? parsedChange : null);
+          setChangePercent(Number.isFinite(parsedChangePercent) ? parsedChangePercent : null);
           setLoading(false);
         }
       } catch (err) {
