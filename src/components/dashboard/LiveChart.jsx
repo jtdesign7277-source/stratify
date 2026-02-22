@@ -595,60 +595,67 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div className="absolute left-3 top-2 z-20 flex flex-wrap items-center gap-2 text-[11px] font-mono">
-        <span className="text-white/75">{activeSymbol || '--'}</span>
-        <span className="text-white/45">O <span className="text-white/70">{formatPrice(displayedBar?.open)}</span></span>
-        <span className="text-white/45">H <span className="text-emerald-400/80">{formatPrice(displayedBar?.high)}</span></span>
-        <span className="text-white/45">L <span className="text-red-400/80">{formatPrice(displayedBar?.low)}</span></span>
-        <span className="text-white/45">C <span className="text-white/70">{formatPrice(displayedBar?.close)}</span></span>
-        <span className="text-white/45">V <span className="text-white/60">{formatVolume(displayedBar?.volume)}</span></span>
-        <span className="text-white/30">{formatOverlayTime(displayedBar?.time, activeInterval)}</span>
+      {/* Top bar: symbol, interval buttons, OHLCV data */}
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between border-b border-[#1a2332] bg-black/20 px-3 py-1.5 backdrop-blur-sm">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono min-w-0">
+          <span className="text-white/75 font-semibold shrink-0">{activeSymbol || '--'}</span>
+
+          {/* Interval buttons */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {INTERVAL_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setActiveInterval(option.value)}
+                className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                  activeInterval === option.value
+                    ? 'bg-emerald-500/15 text-emerald-300'
+                    : 'text-gray-500 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {/* OHLCV overlay */}
+          <span className="text-white/45 shrink-0">O <span className="text-white/70">{formatPrice(displayedBar?.open)}</span></span>
+          <span className="text-white/45 shrink-0">H <span className="text-emerald-400/80">{formatPrice(displayedBar?.high)}</span></span>
+          <span className="text-white/45 shrink-0">L <span className="text-red-400/80">{formatPrice(displayedBar?.low)}</span></span>
+          <span className="text-white/45 shrink-0">C <span className="text-white/70">{formatPrice(displayedBar?.close)}</span></span>
+          <span className="text-white/45 shrink-0">V <span className="text-white/60">{formatVolume(displayedBar?.volume)}</span></span>
+          <span className="text-white/30 shrink-0">{formatOverlayTime(displayedBar?.time, activeInterval)}</span>
+        </div>
+
+        {/* Symbol search */}
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          <input
+            type="text"
+            value={symbolInput}
+            onChange={(event) => setSymbolInput(normalizeSymbol(event.target.value))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') submitSymbol();
+            }}
+            placeholder="Symbol"
+            className="h-6 w-24 rounded border border-[#1a2332] bg-black/30 px-2 text-[11px] text-white outline-none placeholder:text-gray-500 focus:border-emerald-500/70"
+          />
+          <button
+            type="button"
+            onClick={submitSymbol}
+            className="h-6 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 text-[11px] font-semibold text-emerald-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+          >
+            Go
+          </button>
+        </div>
       </div>
 
-      <div className="absolute right-3 top-2 z-20 flex items-center gap-2">
-        <input
-          type="text"
-          value={symbolInput}
-          onChange={(event) => setSymbolInput(normalizeSymbol(event.target.value))}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') submitSymbol();
-          }}
-          placeholder="Symbol"
-          className="h-8 w-36 rounded-md border border-[#1a2332] bg-black/30 px-2 text-xs text-white outline-none placeholder:text-gray-500 focus:border-emerald-500/70"
-        />
-        <button
-          type="button"
-          onClick={submitSymbol}
-          className="h-8 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 text-xs font-semibold text-emerald-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
-        >
-          Go
-        </button>
-      </div>
+      <div ref={containerRef} className="h-full w-full pt-8" />
 
-      <div ref={containerRef} className="h-full w-full" />
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-9 z-10 flex justify-center">
+      <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
         {status.loading && <div className="rounded bg-black/55 px-2 py-1 text-[11px] text-gray-300">Loading candles...</div>}
         {!status.loading && status.error && (
           <div className="rounded bg-red-900/35 px-2 py-1 text-[11px] text-red-200">{status.error}</div>
         )}
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-1 border-t border-[#1a2332] bg-black/20 px-2 py-2 backdrop-blur-sm">
-        {INTERVAL_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => setActiveInterval(option.value)}
-            className={`rounded-md px-3 py-1 text-[11px] font-semibold transition-colors ${
-              activeInterval === option.value
-                ? 'border border-emerald-500/55 bg-emerald-500/15 text-emerald-300'
-                : 'border border-transparent text-gray-500 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
       </div>
     </div>
   );
