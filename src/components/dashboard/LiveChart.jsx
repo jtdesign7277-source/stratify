@@ -561,7 +561,7 @@ export default function LiveChart({ symbol = 'AAPL', interval = '1day', onSymbol
       cancelled = true;
       closeSocket();
     };
-  }, [activeInterval, activeSymbol, apiKey, applyLiveTick, chartReady]);
+  }, [activeInterval, activeSymbol, applyLiveTick, chartReady]);
 
   // Save chart state (visible range + interval) on unmount
   useEffect(() => {
