@@ -270,7 +270,11 @@ const WatchlistPage = ({
   addTrade,
 }) => {
   const [watchlistPanelState, setWatchlistPanelState] = useState(() => loadPanelState(WATCHLIST_PANEL_KEY, 'small'));
-  const [orderPanelState, setOrderPanelState] = useState(() => loadPanelState(ORDER_PANEL_KEY, 'closed'));
+  const [orderPanelState, setOrderPanelState] = useState(() => {
+    const saved = loadPanelState(ORDER_PANEL_KEY, 'closed');
+    // Normalize legacy 'open' (large) to 'small' — large mode removed
+    return saved === 'closed' ? 'closed' : 'small';
+  });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -985,13 +989,7 @@ const WatchlistPage = ({
     setWatchlistPanelState((previous) => getNextPanelState(previous));
   };
 
-  const toggleOrderPanelSize = () => {
-    setOrderPanelState((previous) => (previous === 'open' ? 'small' : 'open'));
-  };
-
-  const openOrderPanel = () => {
-    setOrderPanelState((previous) => (previous === 'closed' ? 'open' : previous));
-  };
+  const openOrderPanel = () => setOrderPanelState('small');
 
   const closeOrderPanel = () => {
     setOrderPanelState('closed');
@@ -1198,17 +1196,6 @@ const WatchlistPage = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {!isOrderPanelClosed ? (
-                  <button
-                    type="button"
-                    onClick={toggleOrderPanelSize}
-                    className="inline-flex items-center gap-1 rounded-md border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20"
-                    title="Resize order panel"
-                  >
-                    {orderPanelState === 'open' ? 'Ticket: Large' : 'Ticket: Small'}
-                  </button>
-                ) : null}
-
                 {isOrderPanelClosed ? (
                   <button
                     type="button"
@@ -1240,7 +1227,7 @@ const WatchlistPage = ({
               {!isOrderPanelClosed ? (
                 <div
                   className="flex min-h-0 flex-col border-l border-white/10 bg-[#0a0f1a] transition-all duration-300"
-                  style={{ width: ORDER_PANEL_WIDTHS[orderPanelState] }}
+                  style={{ width: ORDER_PANEL_WIDTHS.small }}
                 >
                   <div className="border-b border-white/10 px-3 py-2.5">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">Order Entry</span>
