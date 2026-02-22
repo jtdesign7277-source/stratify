@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 
@@ -1160,6 +1160,19 @@ export default function TraderPage() {
     addSymbolToWatchlist(symbolInput);
   };
 
+  const removeSymbolFromWatchlist = useCallback((symbolToRemove) => {
+    const normalized = normalizeSymbol(symbolToRemove);
+    if (!normalized) return;
+
+    setWatchlist((previous) => previous.filter((symbol) => symbol !== normalized));
+    setWatchlistNamesBySymbol((previous) => {
+      if (!previous[normalized]) return previous;
+      const next = { ...previous };
+      delete next[normalized];
+      return next;
+    });
+  }, []);
+
   const handleDragEnd = useCallback((result) => {
     if (!result.destination) return;
 
@@ -1319,7 +1332,7 @@ export default function TraderPage() {
                                         event.dataTransfer.setData('text/plain', symbol);
                                         event.dataTransfer.effectAllowed = 'copy';
                                       }}
-                                      className={`relative flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                                      className={`group relative flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
                                         isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                                       } px-4 py-3 ${
                                         snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
@@ -1352,6 +1365,21 @@ export default function TraderPage() {
                                           </div>
                                         )}
                                       </div>
+
+                                      <button
+                                        type="button"
+                                        aria-label={`Remove ${symbol} from watchlist`}
+                                        className="pointer-events-none ml-1 inline-flex h-8 w-8 items-center justify-center text-gray-400 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 hover:text-red-400"
+                                        onPointerDown={(event) => {
+                                          event.stopPropagation();
+                                        }}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          removeSymbolFromWatchlist(symbol);
+                                        }}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
                                     </div>
                                   )}
                                 </Draggable>
