@@ -33,6 +33,8 @@ const ORDER_PANEL_WIDTHS = {
   closed: 0,
 };
 
+const WATCHLIST_TICKER_TEXT_CLASS = 'text-xs';
+
 const ORDER_TYPE_OPTIONS = [
   { value: 'market', label: 'Market' },
   { value: 'limit', label: 'Limit' },
@@ -1143,13 +1145,13 @@ const WatchlistPage = ({
                       <GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
                     </span>
                     <div className="min-w-0 flex-1 pr-1">
-                      <div className="text-[13px] font-semibold text-white">${item.symbol}</div>
+                      <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>${item.symbol}</div>
                       <div className="truncate text-[11px] text-gray-500">{item.name || labelMap[item.symbol] || item.symbol}</div>
                     </div>
 
                     <div className="flex items-center gap-1">
                       <div className="min-w-[76px] text-right">
-                        <div className="text-[13px] font-mono text-white">{formatPrice(quote?.price)}</div>
+                        <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-mono text-white`}>{formatPrice(quote?.price)}</div>
                         <div className={`text-[11px] font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
                           {formatPercent(quote?.percentChange)}
                         </div>
@@ -1236,8 +1238,8 @@ const WatchlistPage = ({
                     <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">Order Entry</span>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'none' }}>
-                    <div className={`space-y-4 overflow-hidden transition-all duration-300 ${orderStep === 'entry' ? 'max-h-[1400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                  <div className="flex-1 overflow-hidden px-2 py-2">
+                    <div className={`space-y-2 overflow-hidden transition-all duration-300 ${orderStep === 'entry' ? 'max-h-[1400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                       <AlpacaOrderTicket
                         side={orderSide}
                         onSideChange={(nextSide) => {
@@ -1280,7 +1282,7 @@ const WatchlistPage = ({
                           <div className="space-y-2">
                             {(orderType === 'limit' || orderType === 'stop_limit') && (
                               <div className="space-y-1">
-                                <label className="block text-sm font-semibold text-slate-300">Limit Price</label>
+                                <label className="block text-[12px] font-semibold text-slate-300">Limit Price</label>
                                 <input
                                   type="number"
                                   min="0"
@@ -1290,13 +1292,13 @@ const WatchlistPage = ({
                                     clearOrderError();
                                     setLimitPrice(event.target.value);
                                   }}
-                                  className="h-[46px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60"
+                                  className="h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
                                 />
                               </div>
                             )}
                             {(orderType === 'stop' || orderType === 'stop_limit') && (
                               <div className="space-y-1">
-                                <label className="block text-sm font-semibold text-slate-300">Stop Price</label>
+                                <label className="block text-[12px] font-semibold text-slate-300">Stop Price</label>
                                 <input
                                   type="number"
                                   min="0"
@@ -1306,13 +1308,13 @@ const WatchlistPage = ({
                                     clearOrderError();
                                     setStopPrice(event.target.value);
                                   }}
-                                  className="h-[46px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60"
+                                  className="h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
                                 />
                               </div>
                             )}
                             {orderType === 'trailing_stop' && (
                               <div className="space-y-1">
-                                <label className="block text-sm font-semibold text-slate-300">Trail Amount ($)</label>
+                                <label className="block text-[12px] font-semibold text-slate-300">Trail Amount ($)</label>
                                 <input
                                   type="number"
                                   min="0"
@@ -1322,18 +1324,18 @@ const WatchlistPage = ({
                                     clearOrderError();
                                     setTrailAmount(event.target.value);
                                   }}
-                                  className="h-[46px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60"
+                                  className="h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60"
                                 />
                               </div>
                             )}
                             {orderSide === 'sell' && orderSizeMode === 'shares' && (
-                              <div className="text-xs font-semibold text-slate-400">{availableSharesDisplay} shares available</div>
+                              <div className="text-[11px] font-semibold text-slate-400">{availableSharesDisplay} shares available</div>
                             )}
                           </div>
                         }
                       />
 
-                      {orderError ? <div className="text-xs text-red-300">{orderError}</div> : null}
+                      {orderError ? <div className="text-[11px] text-red-300">{orderError}</div> : null}
                     </div>
 
                     <div className={`space-y-4 overflow-hidden transition-all duration-300 ${orderStep === 'review' ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>

@@ -103,6 +103,8 @@ const formatSignedPercent = (value) => {
     return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
 };
 
+const WATCHLIST_TICKER_TEXT_CLASS = 'text-sm';
+
 export default function Watchlist({ stocks = [], onRemove, onViewChart, themeClasses, compact = false }) {
     const [quotes, setQuotes] = useState({});
     const [stockLoading, setStockLoading] = useState(false);
@@ -283,7 +285,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                                           >
                                           <div className="flex items-start justify-between mb-2">
                                                         <div>
-                                                                        <span className="font-bold text-white">{stock.symbol}</span>span>
+                                                                        <span className={`${WATCHLIST_TICKER_TEXT_CLASS} font-bold text-white`}>{stock.symbol}</span>span>
                                                                         <p className="text-xs text-zinc-500 truncate max-w-[140px]">{companyName}</p>p>
                                                         </div>div>
                                                         <div className="text-right flex flex-col items-end">
@@ -291,7 +293,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                                                               <div className="w-4 h-4 border-2 border-zinc-700 border-t-blue-400 rounded-full animate-spin" />
                                                             ) : (
                                                               <>
-                                                                                  <p className="font-semibold text-white">
+                                                                                  <p className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>
                                                                                                         ${isCrypto ? formatCryptoPrice(price) : formatStockPrice(price)}
                                                                                     </p>p>
                                                                 {changePercentDisplay !== null && (

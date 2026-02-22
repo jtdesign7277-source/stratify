@@ -132,12 +132,9 @@ const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
   .replace(/-/g, '/'); // Convert hyphens to forward slash (normalize to BTC/USD format)
 
 function useAlpacaOrderbook(alpacaSymbol) {
-  const [orderbook, setOrderbook] = useState({ bids: [], asks: [] });
   const [connected, setConnected] = useState(false);
   const [hasRecentMessage, setHasRecentMessage] = useState(false);
-  const [trades, setTrades] = useState([]);
   const [lastPrice, setLastPrice] = useState(null);
-  const [priceDirection, setPriceDirection] = useState(null);
   const lastPriceRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
   const normalizedSymbol = useMemo(() => normalizeCryptoSymbol(alpacaSymbol), [alpacaSymbol]);
@@ -191,11 +188,8 @@ function useAlpacaOrderbook(alpacaSymbol) {
   };
 
   useEffect(() => {
-    setOrderbook({ bids: [], asks: [] });
     setHasRecentMessage(false);
-    setTrades([]);
     setLastPrice(null);
-    setPriceDirection(null);
     lastPriceRef.current = null;
     if (heartbeatTimerRef.current) {
       clearTimeout(heartbeatTimerRef.current);
@@ -222,19 +216,8 @@ function useAlpacaOrderbook(alpacaSymbol) {
 
       const nextPrice = data.price;
       if (Number.isFinite(nextPrice) && nextPrice > 0) {
-        if (lastPriceRef.current !== null) {
-          setPriceDirection(nextPrice > lastPriceRef.current ? 'up' : nextPrice < lastPriceRef.current ? 'down' : null);
-        }
         lastPriceRef.current = nextPrice;
         setLastPrice(nextPrice);
-
-        // Add to trades list (simulated)
-        setTrades((prev) => [{
-          price: nextPrice,
-          size: 0, // Twelve Data doesn't provide volume per tick
-          timestamp: data.timestamp || new Date().toISOString(),
-          taker: 'B', // Unknown without orderbook
-        }, ...prev].slice(0, 100));
       }
     });
 
@@ -248,165 +231,7 @@ function useAlpacaOrderbook(alpacaSymbol) {
     };
   }, [normalizedSymbol]);
 
-  return { orderbook, connected, hasRecentMessage, trades, lastPrice, priceDirection };
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// THINKORSWIM-STYLE LEVEL 2 ORDER BOOK
-// ═══════════════════════════════════════════════════════════════════════════════
-function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceClick }) {
-  const maxBidSize = useMemo(() => Math.max(...orderbook.bids.map((b) => b.size), 0.001), [orderbook.bids]);
-  const maxAskSize = useMemo(() => Math.max(...orderbook.asks.map((a) => a.size), 0.001), [orderbook.asks]);
-
-  const formatPrice = (price) => {
-    if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (price >= 1) return price.toFixed(4);
-    return price.toFixed(6);
-  };
-
-  const formatSize = (size) => {
-    if (size >= 100) return size.toFixed(2);
-    if (size >= 1) return size.toFixed(4);
-    return size.toFixed(6);
-  };
-
-  const spread = orderbook.asks[0] && orderbook.bids[0]
-    ? (orderbook.asks[0].price - orderbook.bids[0].price)
-    : 0;
-
-  const spreadPct = orderbook.asks[0] && orderbook.bids[0]
-    ? ((spread / orderbook.bids[0].price) * 100)
-    : 0;
-
-  return (
-    <div className="flex flex-col h-full min-h-0 select-none">
-      {/* Header — ToS style */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08]"
-        style={{ background: 'rgba(6, 13, 24, 0.8)' }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold tracking-wider uppercase" style={{ color: '#60a5fa' }}>
-            Level II
-          </span>
-          <span className="text-[10px] px-2 py-0.5 rounded font-semibold"
-            style={{ background: 'rgba(59, 130, 246, 0.12)', color: 'rgba(96, 165, 250, 0.8)' }}
-          >
-            DOM
-          </span>
-        </div>
-        <span className="text-xs font-mono font-bold" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-          ${coinSymbol}/USD
-        </span>
-      </div>
-
-      {/* Column Headers — ToS style wider */}
-      <div className="grid px-4 py-2 text-[10px] font-bold tracking-widest uppercase border-b border-white/[0.06]"
-        style={{ color: 'rgba(148, 163, 184, 0.4)', gridTemplateColumns: '1fr 100px 100px' }}
-      >
-        <span>Bid Size</span>
-        <span className="text-center">Price</span>
-        <span className="text-right">Ask Size</span>
-      </div>
-
-      {/* Asks — reversed (lowest at bottom near spread) */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-end" style={{ scrollbarWidth: 'none' }}>
-        {[...orderbook.asks].reverse().map((ask, i) => {
-          const barWidth = (ask.size / maxAskSize) * 100;
-          return (
-            <div
-              key={`ask-${i}`}
-              className="relative grid px-4 py-[5px] text-[13px] font-mono cursor-pointer hover:bg-white/[0.04] transition-colors"
-              style={{ gridTemplateColumns: '1fr 100px 100px' }}
-              onClick={() => onPriceClick(ask.price)}
-            >
-              {/* Ask bar from right */}
-              <div className="absolute top-0 bottom-0 right-0 pointer-events-none"
-                style={{
-                  width: `${barWidth * 0.45}%`,
-                  background: 'linear-gradient(to left, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.03))',
-                }}
-              />
-              <span className="relative z-10" style={{ color: 'rgba(148, 163, 184, 0.15)' }}></span>
-              <span className="relative z-10 text-center font-semibold" style={{ color: '#ef4444' }}>
-                {formatPrice(ask.price)}
-              </span>
-              <span className="relative z-10 text-right font-semibold" style={{ color: 'rgba(239, 68, 68, 0.7)' }}>
-                {formatSize(ask.size)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Spread / Last Price Bar (ToS center strip) ──────────── */}
-      <div className="flex items-center justify-between px-4 py-3 border-y border-white/[0.08]"
-        style={{ background: 'rgba(6, 13, 24, 0.9)' }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold tracking-wider uppercase"
-            style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-          >
-            Last
-          </span>
-          <span className="text-lg font-mono font-black"
-            style={{
-              color: priceDirection === 'up' ? '#22c55e' : priceDirection === 'down' ? '#ef4444' : '#e2e8f0',
-              textShadow: priceDirection === 'up'
-                ? '0 0 12px rgba(34, 197, 94, 0.3)'
-                : priceDirection === 'down'
-                  ? '0 0 12px rgba(239, 68, 68, 0.3)'
-                  : 'none',
-            }}
-          >
-            {lastPrice ? formatPrice(lastPrice) : '—'}
-          </span>
-          {priceDirection && (
-            <span style={{ color: priceDirection === 'up' ? '#22c55e' : '#ef4444', fontSize: '14px' }}>
-              {priceDirection === 'up' ? '▲' : '▼'}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono" style={{ color: 'rgba(148, 163, 184, 0.4)' }}>
-            Spread
-          </span>
-          <span className="text-xs font-mono font-bold" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
-            ${spread.toFixed(2)} ({spreadPct.toFixed(3)}%)
-          </span>
-        </div>
-      </div>
-
-      {/* Bids */}
-      <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-        {orderbook.bids.map((bid, i) => {
-          const barWidth = (bid.size / maxBidSize) * 100;
-          return (
-            <div
-              key={`bid-${i}`}
-              className="relative grid px-4 py-[5px] text-[13px] font-mono cursor-pointer hover:bg-white/[0.04] transition-colors"
-              style={{ gridTemplateColumns: '1fr 100px 100px' }}
-              onClick={() => onPriceClick(bid.price)}
-            >
-              {/* Bid bar from left */}
-              <div className="absolute top-0 bottom-0 left-0 pointer-events-none"
-                style={{
-                  width: `${barWidth * 0.45}%`,
-                  background: 'linear-gradient(to right, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.03))',
-                }}
-              />
-              <span className="relative z-10 font-semibold" style={{ color: 'rgba(34, 197, 94, 0.7)' }}>
-                {formatSize(bid.size)}
-              </span>
-              <span className="relative z-10 text-center font-semibold" style={{ color: '#22c55e' }}>
-                {formatPrice(bid.price)}
-              </span>
-              <span className="relative z-10 text-right" style={{ color: 'rgba(148, 163, 184, 0.15)' }}></span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return { connected, hasRecentMessage, lastPrice };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -417,8 +242,6 @@ function OrderEntry({
   lastPrice,
   userId,
   onOrderPlaced,
-  clickedPrice,
-  onPriceConsumed,
   onSymbolChange,
   buyingPowerDisplay,
 }) {
@@ -433,14 +256,6 @@ function OrderEntry({
   const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-
-  useEffect(() => {
-    if (clickedPrice !== null && clickedPrice !== undefined) {
-      setLimitPrice(String(clickedPrice));
-      setOrderType('limit');
-      onPriceConsumed?.();
-    }
-  }, [clickedPrice, onPriceConsumed]);
 
   const referencePrice = useMemo(() => {
     const price = orderType === 'market' 
@@ -585,7 +400,7 @@ function OrderEntry({
   };
 
   const fieldClassName =
-    'h-[48px] w-full rounded-xl border border-[#1f2a3a] bg-[#050b16] px-4 text-[15px] font-semibold text-white outline-none focus:border-blue-500/60';
+    'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
 
   const handleSymbolSubmit = (input) => {
     const normalized = String(input || '')
@@ -597,7 +412,7 @@ function OrderEntry({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden p-2">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
       <AlpacaOrderTicket
         side={side}
         onSideChange={setSide}
@@ -631,12 +446,12 @@ function OrderEntry({
         reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
         density="crypto"
         stickyReviewFooter
-        className="flex-1 min-h-0 p-4"
+        className="flex-1 min-h-0"
         extraFields={
-          <div className="space-y-2">
+          <div className="space-y-1">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-slate-300">Limit Price</label>
+                <label className="block text-[12px] font-semibold text-slate-300">Limit Price</label>
                 <input
                   type="number"
                   step="any"
@@ -650,7 +465,7 @@ function OrderEntry({
             )}
             {orderType === 'stop_limit' && (
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-slate-300">Stop Price</label>
+                <label className="block text-[12px] font-semibold text-slate-300">Stop Price</label>
                 <input
                   type="number"
                   step="any"
@@ -663,7 +478,7 @@ function OrderEntry({
               </div>
             )}
             {sizeMode === 'dollars' && (
-              <div className="text-sm font-semibold text-slate-300">
+              <div className="text-[12px] font-semibold text-slate-300">
                 Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedCoin.symbol}
               </div>
             )}
@@ -736,58 +551,6 @@ function OrderEntry({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RECENT TRADES TAPE
-// ═══════════════════════════════════════════════════════════════════════════════
-function TradesTape({ trades }) {
-  const formatTime = (ts) => new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  const formatPrice = (p) => p >= 1000 ? p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p >= 1 ? p.toFixed(4) : p.toFixed(6);
-
-  return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08]"
-        style={{ background: 'rgba(6, 13, 24, 0.8)' }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold tracking-wider uppercase" style={{ color: '#60a5fa' }}>
-            Time &amp; Sales
-          </span>
-        </div>
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-        </span>
-      </div>
-
-      <div className="grid grid-cols-3 px-4 py-1.5 text-[10px] font-bold tracking-widest uppercase border-b border-white/[0.06]"
-        style={{ color: 'rgba(148, 163, 184, 0.4)' }}
-      >
-        <span>Price</span>
-        <span className="text-right">Size</span>
-        <span className="text-right">Time</span>
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-        {trades.map((trade, i) => (
-          <div key={i} className="grid grid-cols-3 px-4 py-[4px] text-[13px] font-mono hover:bg-white/[0.03] transition-colors"
-            style={{ animation: i === 0 ? 'tradeFlash 0.6s ease-out' : 'none' }}
-          >
-            <span className="font-semibold" style={{ color: trade.taker === 'B' ? '#22c55e' : '#ef4444' }}>
-              {formatPrice(trade.price)}
-            </span>
-            <span className="text-right" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
-              {trade.size?.toFixed(4)}
-            </span>
-            <span className="text-right" style={{ color: 'rgba(148, 163, 184, 0.3)' }}>
-              {formatTime(trade.timestamp)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // COIN SELECTOR BAR
 // ═══════════════════════════════════════════════════════════════════════════════
 function CoinSelector({ coins, selected, onSelect }) {
@@ -817,12 +580,10 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function CryptoPage({ alpacaData, onOrderPlaced }) {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
-  const [rightTab, setRightTab] = useState('order'); // 'l2' | 'trades' | 'order'
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
-  const [clickedPrice, setClickedPrice] = useState(null);
   const [userId, setUserId] = useState(null);
   const [orderHistory, setOrderHistory] = useState([]);
-  const { orderbook, connected, hasRecentMessage, trades, lastPrice, priceDirection } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
+  const { connected, hasRecentMessage, lastPrice } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
   const streamLive = connected || hasRecentMessage;
 
   // Extract buying power from Alpaca account data
@@ -858,12 +619,6 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
   const handleCoinSelect = (coin) => {
     setSelectedCoin(coin);
     if (userId) saveUserPreference(userId, coin.symbol);
-  };
-
-  // Handle price click from L2 → auto-fill order entry
-  const handlePriceClick = (price) => {
-    setClickedPrice(price);
-    setRightTab('order');
   };
 
   // Refresh order history after placing
@@ -947,9 +702,9 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
           />
         </div>
 
-        {/* ── RIGHT: L2 / Trades / Order Entry (tabbed) ───────────── */}
+        {/* ── RIGHT: Order Entry ───────────────────────────────────── */}
         <div
-          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[306px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
+          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
           style={glassStyle}
         >
           {isRightPanelCollapsed ? (
@@ -980,29 +735,16 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
             </div>
           ) : (
             <>
-              {/* Tab Bar */}
-              <div className="flex border-b border-white/[0.06] shrink-0">
-                {[
-                  { id: 'l2', label: 'Level II' },
-                  { id: 'trades', label: 'T&S' },
-                  { id: 'order', label: 'Order' },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setRightTab(tab.id)}
-                    className="flex-1 py-2.5 text-[10px] font-bold tracking-wider uppercase transition-all duration-200"
-                    style={{
-                      color: rightTab === tab.id ? '#60a5fa' : 'rgba(148, 163, 184, 0.35)',
-                      borderBottom: rightTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
-                      background: rightTab === tab.id ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between border-b border-white/[0.06] px-2.5 py-1.5 shrink-0">
+                <span
+                  className="text-[10px] font-bold tracking-[0.16em] uppercase"
+                  style={{ color: 'rgba(96, 165, 250, 0.85)' }}
+                >
+                  Order Entry
+                </span>
                 <button
                   onClick={() => setIsRightPanelCollapsed(true)}
-                  className="w-9 flex items-center justify-center transition-colors hover:bg-white/[0.03]"
+                  className="h-7 w-7 flex items-center justify-center rounded transition-colors hover:bg-white/[0.03]"
                   style={{ color: 'rgba(148, 163, 184, 0.55)' }}
                   title="Collapse order entry panel"
                   aria-label="Collapse order entry panel"
@@ -1011,41 +753,24 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
                 </button>
               </div>
 
-              {/* Tab Content */}
               <div className="flex-1 min-h-0 overflow-hidden">
-                {rightTab === 'l2' && (
-                  <Level2Book
-                    orderbook={orderbook}
-                    coinSymbol={selectedCoin.symbol}
-                    lastPrice={lastPrice}
-                    priceDirection={priceDirection}
-                    onPriceClick={handlePriceClick}
-                  />
-                )}
-                {rightTab === 'trades' && (
-                  <TradesTape trades={trades} />
-                )}
-                {rightTab === 'order' && (
-                  <OrderEntry
-                    selectedCoin={selectedCoin}
-                    lastPrice={lastPrice}
-                    userId={userId}
-                    onOrderPlaced={handleOrderPlaced}
-                    clickedPrice={clickedPrice}
-                    onPriceConsumed={() => setClickedPrice(null)}
-                    buyingPowerDisplay={buyingPowerFormatted}
-                    onSymbolChange={(symbolInput) => {
-                      const normalized = String(symbolInput || '').toUpperCase();
-                      const nextCoin = CRYPTO_COINS.find((coin) =>
-                        coin.symbol === normalized ||
-                        `${coin.symbol}USD` === normalized
-                      );
-                      if (nextCoin) {
-                        handleCoinSelect(nextCoin);
-                      }
-                    }}
-                  />
-                )}
+                <OrderEntry
+                  selectedCoin={selectedCoin}
+                  lastPrice={lastPrice}
+                  userId={userId}
+                  onOrderPlaced={handleOrderPlaced}
+                  buyingPowerDisplay={buyingPowerFormatted}
+                  onSymbolChange={(symbolInput) => {
+                    const normalized = String(symbolInput || '').toUpperCase();
+                    const nextCoin = CRYPTO_COINS.find((coin) =>
+                      coin.symbol === normalized ||
+                      `${coin.symbol}USD` === normalized
+                    );
+                    if (nextCoin) {
+                      handleCoinSelect(nextCoin);
+                    }
+                  }}
+                />
               </div>
             </>
           )}
