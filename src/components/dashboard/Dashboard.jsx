@@ -1755,7 +1755,7 @@ export default function Dashboard({
           {/* Tab-based Views */}
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
-              <TraderPage />
+              <TraderPage onPinToTop={pinToTop} />
             </Suspense>
           )}
           {activeTab === 'trade' && (

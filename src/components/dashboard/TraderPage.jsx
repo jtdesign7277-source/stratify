@@ -375,7 +375,7 @@ const loadInitialChartTimeframe = () => {
   return DEFAULT_CHART_TIMEFRAME;
 };
 
-export default function TraderPage() {
+export default function TraderPage({ onPinToTop }) {
   const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
 
@@ -1380,7 +1380,25 @@ export default function TraderPage() {
 
   const handleDragEnd = useCallback((result) => {
     resetDragPreview();
-    if (!result.destination) return;
+    // Check if dragged to pinned pills zone at top
+    if (!result.destination) {
+      const draggedSymbol = result.draggableId;
+      const draggedElement = document.querySelector(`[data-rbd-draggable-id="${draggedSymbol}"]`);
+      if (draggedElement) {
+        const rect = draggedElement.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        const pillZone = getPinnedPillsDropZoneBounds();
+
+        if (pillZone && centerY >= pillZone.top && centerY <= pillZone.bottom) {
+          // Dropped in pill zone - pin it
+          if (typeof onPinToTop === 'function') {
+            onPinToTop(draggedSymbol);
+          }
+          return;
+        }
+      }
+      return;
+    }
 
     const sourceIndex = result.source.index;
     const destIndex = result.destination.index;
@@ -1393,7 +1411,7 @@ export default function TraderPage() {
       reordered.splice(destIndex, 0, removed);
       return reordered;
     });
-  }, [resetDragPreview]);
+  }, [onPinToTop, resetDragPreview]);
 
   const streamLabel = streamStatus.connected
     ? 'Connected'
