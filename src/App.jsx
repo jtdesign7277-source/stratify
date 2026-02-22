@@ -5,13 +5,14 @@ import LandingPage from './components/dashboard/LandingPage';
 import WhitePaperPage from './components/WhitePaperPage';
 import SpaceBackground from './components/SpaceBackground';
 import SignUpPage from './components/auth/SignUpPage';
+import XRayPage from './components/xray/XRayPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData } from './store/StratifyProvider';
 import { useAlpacaData } from './hooks/useAlpacaData';
 import useSubscription from './hooks/useSubscription';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
-import BlueSkyFeed from "./components/dashboard/BlueSkyFeed";
+import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -974,17 +975,31 @@ function StratifyAppContent() {
   const { user, isAuthenticated, loading } = useAuth();
   const { isProUser, loading: subscriptionLoading } = useSubscription();
 
+  const getXraySymbolFromPath = (path) => {
+    const match = String(path || '').match(/^\/xray\/([^/?#]+)/i);
+    if (!match?.[1]) return null;
+    const symbol = String(match[1]).trim().toUpperCase();
+    return symbol || null;
+  };
+
   const resolveInitialPage = () => {
     if (typeof window === 'undefined') return 'landing';
 
     const path = window.location.pathname.toLowerCase();
     if (path === '/whitepaper') return 'whitepaper';
     if (path === '/auth') return 'auth';
+    if (path.startsWith('/xray/')) return 'xray';
 
     return 'landing';
   };
 
+  const resolveInitialXraySymbol = () => {
+    if (typeof window === 'undefined') return 'TSLA';
+    return getXraySymbolFromPath(window.location.pathname) || 'TSLA';
+  };
+
   const [currentPage, setCurrentPage] = useState(resolveInitialPage);
+  const [xraySymbol, setXraySymbol] = useState(resolveInitialXraySymbol);
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1020,12 +1035,22 @@ function StratifyAppContent() {
         realized_pl: 0,
       };
 
-  const navigateToPage = (page) => {
+  const navigateToPage = (page, options = {}) => {
     setCurrentPage(page);
 
     if (typeof window === 'undefined') return;
 
-    const nextPath = page === 'whitepaper' ? '/whitepaper' : page === 'auth' ? '/auth' : '/';
+    let nextPath = '/';
+
+    if (page === 'whitepaper') {
+      nextPath = '/whitepaper';
+    } else if (page === 'auth') {
+      nextPath = '/auth';
+    } else if (page === 'xray') {
+      const nextSymbol = String(options?.symbol || xraySymbol || 'TSLA').trim().toUpperCase();
+      setXraySymbol(nextSymbol || 'TSLA');
+      nextPath = `/xray/${encodeURIComponent(nextSymbol || 'TSLA')}`;
+    }
 
     if (window.location.pathname !== nextPath) {
       window.history.pushState({ page }, '', nextPath);
@@ -1125,6 +1150,12 @@ function StratifyAppContent() {
           ) : null}
         </div>
       </div>
+    ) : currentPage === 'xray' ? (
+      <XRayPage
+        initialSymbol={xraySymbol}
+        onSymbolChange={(nextSymbol) => navigateToPage('xray', { symbol: nextSymbol })}
+        onBack={() => navigateToPage('dashboard')}
+      />
     ) : (
       <Dashboard
         setCurrentPage={navigateToPage}
@@ -1145,6 +1176,7 @@ function StratifyAppContent() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
+      const xrayPathSymbol = getXraySymbolFromPath(window.location.pathname);
 
       if (path === '/whitepaper') {
         setCurrentPage('whitepaper');
@@ -1153,6 +1185,12 @@ function StratifyAppContent() {
 
       if (path === '/auth') {
         setCurrentPage('auth');
+        return;
+      }
+
+      if (xrayPathSymbol) {
+        setCurrentPage('xray');
+        setXraySymbol(xrayPathSymbol);
         return;
       }
 
@@ -1165,7 +1203,7 @@ function StratifyAppContent() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      if (currentPage === 'dashboard') {
+      if (currentPage === 'dashboard' || currentPage === 'xray') {
         openAuth();
       }
     }

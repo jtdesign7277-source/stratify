@@ -213,6 +213,17 @@ const requestTwelveData = async (path, params = {}) => {
   return payload;
 };
 
+export const fetchTwelveData = async (endpoint, params = {}) => {
+  const cleanEndpoint = String(endpoint || '').replace(/^\/+/, '');
+  if (!cleanEndpoint) {
+    const error = new Error('Missing Twelve Data endpoint');
+    error.status = 400;
+    throw error;
+  }
+
+  return requestTwelveData(`/${cleanEndpoint}`, params);
+};
+
 export const getTwelveDataWebSocketUrl = () => {
   const apiKey = assertApiKey();
   return `wss://ws.twelvedata.com/v1/quotes/price?apikey=${encodeURIComponent(apiKey)}`;
