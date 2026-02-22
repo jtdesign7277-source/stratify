@@ -33,6 +33,7 @@ import WatchlistPage from './WatchlistPage';
 import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
+import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 const TradePage = lazy(() => import('./TradePage'));
@@ -1775,6 +1776,7 @@ export default function Dashboard({
             </ProGate>
           )}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
+          {activeTab === 'market' && <MarketMoversPage />}
           {activeTab === 'ai-chat' && (
             <ProGate
               featureName="AI Chat"

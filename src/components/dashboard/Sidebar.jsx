@@ -65,6 +65,7 @@ const Sidebar = ({
   const navItems = [
     { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
     { id: 'watchlist', label: 'Trade', icon: Layout },
+    { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
@@ -73,7 +74,7 @@ const Sidebar = ({
     // { id: 'advanced', label: 'Advanced Trading', icon: BarChart3 },
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'trends', label: 'Trends', icon: TrendingUp, isNew: true },
+    { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
