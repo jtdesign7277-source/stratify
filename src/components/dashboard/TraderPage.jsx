@@ -1499,15 +1499,15 @@ export default function TraderPage({ onPinToTop }) {
           {!isWatchlistCollapsed && (
             <>
               <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
-                <div className="mb-3 flex items-center justify-center gap-2">
+                <div className="mb-3 flex items-center justify-between">
                   {MARKET_FILTERS.map((market, index) => {
                     const isActive = activeMarket === market.id;
                     return (
-                      <div key={market.id} className="flex items-center gap-2">
+                      <div key={market.id} className="flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => setActiveMarket(market.id)}
-                          className={`text-[11px] font-medium transition-colors ${
+                          className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
                             isActive
                               ? 'text-emerald-300'
                               : 'text-[#d1d5db] hover:text-white'
