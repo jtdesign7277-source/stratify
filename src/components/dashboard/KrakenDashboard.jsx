@@ -18,6 +18,7 @@ import NewsletterPage from './NewsletterPage';
 import MarketIntelPage from './MarketIntelPage';
 import SettingsPage from './SettingsPage';
 import ChallengeLeaderboard from './ChallengeLeaderboard';
+import TraderPage from './TraderPage';
 import { StrategyDetailModal, STRATEGIES } from '../strategies/FeaturedStrategies';
 
 // ============================================
@@ -1010,8 +1011,12 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     // Clear overlay sections when switching main tabs
-    if (tab === 'legend') {
+    if (tab === 'legend' || tab === 'trader') {
       setActiveSection(null);
+      return;
+    }
+    if (tab === 'watchlist') {
+      setActiveSection('watchlist');
     }
   };
   const [isDragging, setIsDragging] = useState(false);
@@ -1398,7 +1403,11 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
           <div style={{position:'absolute',top:0,left:0,zIndex:9999,background:'red',color:'white',padding:'4px 8px',fontSize:12}}>
             activeTab: {activeTab} | activeSection: {String(activeSection)}
           </div>
-          {activeTab === 'legend' ? (
+          {activeTab === 'trader' ? (
+            <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
+              <TraderPage />
+            </div>
+          ) : activeTab === 'legend' ? (
             <div className={`flex-1 overflow-hidden ${themeClasses.bg}`}>
               <ChallengeLeaderboard isPaid={true} />
             </div>

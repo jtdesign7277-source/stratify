@@ -37,6 +37,7 @@ import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 const TradePage = lazy(() => import('./TradePage'));
+const TraderPage = lazy(() => import('./TraderPage'));
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplateFlow from './StrategyTemplateFlow';
@@ -1779,6 +1780,11 @@ export default function Dashboard({
                 />
               </Suspense>
             </ProGate>
+          )}
+          {activeTab === 'trader' && (
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
+              <TraderPage />
+            </Suspense>
           )}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
           {activeTab === 'market' && <MarketMoversPage />}
