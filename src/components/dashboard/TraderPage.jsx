@@ -1023,7 +1023,7 @@ export default function TraderPage() {
     <div className="h-full w-full bg-[#0b0b0b] text-[#e5e7eb]">
       <div
         className={`grid h-full min-h-0 grid-cols-1 transition-[grid-template-columns] duration-200 ease-in-out ${
-          isWatchlistCollapsed ? 'lg:grid-cols-[60px_minmax(0,1fr)]' : 'lg:grid-cols-[40%_minmax(0,1fr)]'
+          isWatchlistCollapsed ? 'lg:grid-cols-[60px_1fr]' : 'lg:grid-cols-[300px_1fr]'
         }`}
       >
         <aside className="flex min-h-0 flex-col overflow-hidden border-b border-[#1f1f1f] lg:border-b-0 lg:border-r">
