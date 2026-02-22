@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
 import { ChevronsLeft, ChevronsRight, Plus, Search, X } from 'lucide-react';
+import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
@@ -9,7 +10,10 @@ const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search'
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
+const WATCHLIST_VALUE_DISPLAY_STORAGE_KEY = 'stratify-trader-value-display';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
+const VALUE_DISPLAY_MODE_PERCENT = 'percent';
+const VALUE_DISPLAY_MODE_DOLLAR = 'dollar';
 const MAX_SYMBOL_SEARCH_RESULTS = 8;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
 const MARKET_SYMBOLS = [
@@ -186,18 +190,24 @@ const toCandleBar = (item, previousClose = null) => {
 };
 
 const formatPrice = (value) => {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return '--';
-  if (Math.abs(amount) >= 1) {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
+  const amount = toNumber(value);
+  if (amount === null) return '--';
+  if (Math.abs(amount) >= 1) return formatCurrency(amount, 2);
+  return formatCurrency(amount, 4);
 };
 
-const formatPercent = (value) => {
-  const percent = Number(value);
-  if (!Number.isFinite(percent)) return '--';
-  return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
+const formatSignedPercent = (value) => {
+  const percent = toNumber(value);
+  if (percent === null) return '--';
+  const formatted = formatPercent(percent, 2);
+  return percent >= 0 ? `+${formatted}` : formatted;
+};
+
+const formatSignedCurrency = (value) => {
+  const amount = toNumber(value);
+  if (amount === null) return '--';
+  const sign = amount >= 0 ? '+' : '-';
+  return `${sign}${formatCurrency(Math.abs(amount), 2)}`;
 };
 
 const loadInitialWatchlist = () => {
@@ -219,6 +229,26 @@ const loadInitialWatchlistCollapsed = () => {
     return localStorage.getItem(WATCHLIST_COLLAPSED_STORAGE_KEY) === 'true';
   } catch {
     return false;
+  }
+};
+
+const loadInitialWatchlistValueDisplayBySymbol = () => {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(WATCHLIST_VALUE_DISPLAY_STORAGE_KEY) || '{}');
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+
+    return Object.entries(saved).reduce((accumulator, [symbol, mode]) => {
+      const normalizedSymbol = normalizeSymbol(symbol);
+      if (!normalizedSymbol) return accumulator;
+      if (mode !== VALUE_DISPLAY_MODE_PERCENT && mode !== VALUE_DISPLAY_MODE_DOLLAR) return accumulator;
+
+      accumulator[normalizedSymbol] = mode;
+      return accumulator;
+    }, {});
+  } catch {
+    return {};
   }
 };
 
@@ -245,6 +275,9 @@ export default function TraderPage() {
   });
   const [chartReady, setChartReady] = useState(false);
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
+  const [watchlistValueDisplayBySymbol, setWatchlistValueDisplayBySymbol] = useState(() =>
+    loadInitialWatchlistValueDisplayBySymbol()
+  );
 
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
@@ -279,6 +312,11 @@ export default function TraderPage() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(WATCHLIST_COLLAPSED_STORAGE_KEY, isWatchlistCollapsed ? 'true' : 'false');
   }, [isWatchlistCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(WATCHLIST_VALUE_DISPLAY_STORAGE_KEY, JSON.stringify(watchlistValueDisplayBySymbol));
+  }, [watchlistValueDisplayBySymbol]);
 
   useEffect(() => {
     const normalized = watchlist.map(normalizeSymbol).filter(Boolean);
@@ -1011,6 +1049,24 @@ export default function TraderPage() {
     });
   };
 
+  const toggleWatchlistValueDisplay = useCallback((symbolValue) => {
+    const normalized = normalizeSymbol(symbolValue);
+    if (!normalized) return;
+
+    setWatchlistValueDisplayBySymbol((previous) => {
+      const currentMode = previous[normalized] === VALUE_DISPLAY_MODE_DOLLAR
+        ? VALUE_DISPLAY_MODE_DOLLAR
+        : VALUE_DISPLAY_MODE_PERCENT;
+
+      return {
+        ...previous,
+        [normalized]: currentMode === VALUE_DISPLAY_MODE_PERCENT
+          ? VALUE_DISPLAY_MODE_DOLLAR
+          : VALUE_DISPLAY_MODE_PERCENT,
+      };
+    });
+  }, []);
+
   const streamLabel = streamStatus.connected
     ? 'Connected'
     : streamStatus.connecting
@@ -1108,10 +1164,18 @@ export default function TraderPage() {
                   ) : (
                     watchlist.map((symbol) => {
                       const quote = quotesBySymbol[symbol];
+                      const changeValue = toNumber(quote?.change);
                       const changePercent = toNumber(quote?.changePercent);
-                      const changeClass = !Number.isFinite(changePercent)
+                      const trendValue = changePercent ?? changeValue;
+                      const valueDisplayMode = watchlistValueDisplayBySymbol[symbol] === VALUE_DISPLAY_MODE_DOLLAR
+                        ? VALUE_DISPLAY_MODE_DOLLAR
+                        : VALUE_DISPLAY_MODE_PERCENT;
+                      const changeDisplay = valueDisplayMode === VALUE_DISPLAY_MODE_DOLLAR
+                        ? formatSignedCurrency(changeValue)
+                        : formatSignedPercent(changePercent);
+                      const changeClass = !Number.isFinite(trendValue)
                         ? 'text-[#6b7280]'
-                        : changePercent >= 0
+                        : trendValue >= 0
                           ? 'text-emerald-400'
                           : 'text-red-400';
 
@@ -1122,24 +1186,42 @@ export default function TraderPage() {
                             symbol === selectedSymbol ? 'bg-emerald-500/6' : ''
                           }`}
                         >
-                          <button
-                            type="button"
+                          <div
+                            role="button"
+                            tabIndex={0}
                             onClick={() => setSelectedSymbol(symbol)}
-                            className={`flex min-w-0 flex-1 items-center justify-between px-4 py-3 text-left transition-colors ${
+                            onKeyDown={(event) => {
+                              if (event.target !== event.currentTarget) return;
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setSelectedSymbol(symbol);
+                              }
+                            }}
+                            className={`flex min-w-0 flex-1 px-4 py-3 text-left transition-colors ${
                               symbol === selectedSymbol ? 'border-l-2 border-emerald-500 pl-[14px]' : 'border-l-2 border-transparent'
-                            } hover:bg-white/[0.02]`}
+                            } hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60`}
                           >
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-medium text-white">{symbol}</div>
-                              <div className="text-xs text-[#9ca3af]">
+                              <div className="truncate text-sm font-bold text-white">{symbol}</div>
+                              <div className="mt-0.5 truncate text-lg font-semibold leading-6 tabular-nums text-white">
                                 {formatPrice(quote?.price)}
-                                {quote?.isMarketOpen === false ? ' (Closed)' : ''}
+                                {quote?.isMarketOpen === false && (
+                                  <span className="ml-1 align-middle text-[11px] font-medium text-[#6b7280]">(Closed)</span>
+                                )}
                               </div>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleWatchlistValueDisplay(symbol);
+                                }}
+                                className={`mt-0.5 inline-flex min-h-[20px] min-w-[92px] items-center text-xs font-medium leading-5 tabular-nums transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60 ${changeClass}`}
+                                aria-label={`Toggle ${symbol} change display`}
+                              >
+                                {changeDisplay}
+                              </button>
                             </div>
-                            <div className={`pl-3 text-xs font-medium tabular-nums ${changeClass}`}>
-                              {formatPercent(changePercent)}
-                            </div>
-                          </button>
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeSymbol(symbol)}
@@ -1175,7 +1257,7 @@ export default function TraderPage() {
                     : 'text-[#6b7280]'
                 }`}
               >
-                {formatPercent(selectedQuote?.changePercent)}
+                {formatSignedPercent(selectedQuote?.changePercent)}
               </div>
             </div>
           </div>
