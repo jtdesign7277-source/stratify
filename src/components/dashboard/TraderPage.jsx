@@ -71,6 +71,69 @@ const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
 const VOLUME_UP = 'rgba(52, 211, 153, 0.3)';
 const VOLUME_DOWN = 'rgba(239, 68, 68, 0.3)';
+const DRAG_PREVIEW_SCALE_BY_DISTANCE = [
+  { distance: 200, scale: 1 },
+  { distance: 100, scale: 0.75 },
+  { distance: 50, scale: 0.5 },
+  { distance: 0, scale: 0.4 },
+];
+
+const interpolate = (value, inputStart, inputEnd, outputStart, outputEnd) => {
+  if (inputStart === inputEnd) return outputEnd;
+  const progress = (value - inputStart) / (inputEnd - inputStart);
+  return outputStart + progress * (outputEnd - outputStart);
+};
+
+const getDragPreviewScaleByDistance = (distance) => {
+  const safeDistance = Number.isFinite(distance) ? Math.max(0, distance) : DRAG_PREVIEW_SCALE_BY_DISTANCE[0].distance;
+  const [far, mid, near, dropZone] = DRAG_PREVIEW_SCALE_BY_DISTANCE;
+
+  if (safeDistance >= far.distance) return far.scale;
+  if (safeDistance >= mid.distance) {
+    return interpolate(safeDistance, far.distance, mid.distance, far.scale, mid.scale);
+  }
+  if (safeDistance >= near.distance) {
+    return interpolate(safeDistance, mid.distance, near.distance, mid.scale, near.scale);
+  }
+  return interpolate(safeDistance, near.distance, dropZone.distance, near.scale, dropZone.scale);
+};
+
+const getPinnedPillsDropZoneBounds = () => {
+  if (typeof document === 'undefined') return null;
+  const pillSlots = Array.from(document.querySelectorAll('[data-pill-slot]'));
+  if (pillSlots.length === 0) return null;
+
+  return pillSlots.reduce((bounds, slot) => {
+    const rect = slot.getBoundingClientRect();
+    if (!bounds) {
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+      };
+    }
+
+    return {
+      top: Math.min(bounds.top, rect.top),
+      bottom: Math.max(bounds.bottom, rect.bottom),
+    };
+  }, null);
+};
+
+const getDraggedTickerCenterY = (draggableId) => {
+  if (typeof document === 'undefined' || !draggableId) return null;
+
+  const draggableElements = Array.from(document.querySelectorAll('[data-rfd-draggable-id]')).filter(
+    (element) => element.getAttribute('data-rfd-draggable-id') === draggableId
+  );
+  if (draggableElements.length === 0) return null;
+
+  const draggingElement =
+    draggableElements.find((element) => element.style?.position === 'fixed') ||
+    draggableElements[draggableElements.length - 1];
+  const rect = draggingElement.getBoundingClientRect();
+  if (!Number.isFinite(rect.top) || !Number.isFinite(rect.height)) return null;
+  return rect.top + rect.height / 2;
+};
 
 const normalizeSymbol = (value) =>
   String(value || '')
@@ -337,6 +400,8 @@ export default function TraderPage() {
   const [chartTimeframe, setChartTimeframe] = useState(() => loadInitialChartTimeframe());
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
+  const [activeDragTicker, setActiveDragTicker] = useState('');
+  const [dragPreviewScale, setDragPreviewScale] = useState(1);
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
     initialWatchlist.reduce((accumulator, symbol) => {
       const normalized = normalizeSymbol(symbol);
@@ -366,6 +431,7 @@ export default function TraderPage() {
   const searchContainerRef = useRef(null);
   const searchRequestRef = useRef(0);
   const chartTimeframeRef = useRef(chartTimeframe);
+  const dragPositionYRef = useRef(null);
   const activeMarketExchanges = useMemo(() => {
     const market = MARKET_FILTER_BY_ID[activeMarket] || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET];
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
@@ -1209,7 +1275,7 @@ export default function TraderPage() {
 
     setWatchlist((previous) => {
       if (previous.includes(normalized)) return previous;
-      return [...previous, normalized];
+      return [normalized, ...previous];
     });
     setSelectedSymbol(normalized);
     setSymbolInput('');
@@ -1245,7 +1311,75 @@ export default function TraderPage() {
     });
   }, []);
 
+  const resetDragPreview = useCallback(() => {
+    dragPositionYRef.current = null;
+    setActiveDragTicker('');
+    setDragPreviewScale(1);
+  }, []);
+
+  const updateDragPreviewScale = useCallback((draggableId) => {
+    const dragCenterY = getDraggedTickerCenterY(draggableId);
+    if (!Number.isFinite(dragCenterY)) return;
+
+    dragPositionYRef.current = dragCenterY;
+
+    const dropZoneBounds = getPinnedPillsDropZoneBounds();
+    if (!dropZoneBounds) {
+      setDragPreviewScale((previous) => (previous === 1 ? previous : 1));
+      return;
+    }
+
+    const distanceToDropZone =
+      dragCenterY > dropZoneBounds.bottom
+        ? dragCenterY - dropZoneBounds.bottom
+        : dragCenterY < dropZoneBounds.top
+          ? dropZoneBounds.top - dragCenterY
+          : 0;
+
+    const nextScale = getDragPreviewScaleByDistance(distanceToDropZone);
+    setDragPreviewScale((previous) => (Math.abs(previous - nextScale) < 0.01 ? previous : nextScale));
+  }, []);
+
+  const handleDragStart = useCallback((start) => {
+    const draggableId = String(start?.draggableId || '').trim();
+    if (!draggableId) return;
+
+    setActiveDragTicker(draggableId);
+    setDragPreviewScale(1);
+    dragPositionYRef.current = null;
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        updateDragPreviewScale(draggableId);
+      });
+      return;
+    }
+
+    updateDragPreviewScale(draggableId);
+  }, [updateDragPreviewScale]);
+
+  const handleDragUpdate = useCallback((update) => {
+    const draggableId = String(update?.draggableId || '').trim();
+    if (!draggableId) return;
+
+    setActiveDragTicker((previous) => (previous === draggableId ? previous : draggableId));
+    updateDragPreviewScale(draggableId);
+  }, [updateDragPreviewScale]);
+
+  const getDragPreviewStyle = useCallback((providedStyle, isDragging, symbol) => {
+    if (!isDragging || symbol !== activeDragTicker) return providedStyle;
+
+    const baseStyle = providedStyle || {};
+    const baseTransform = baseStyle.transform || '';
+    return {
+      ...baseStyle,
+      transform: `${baseTransform} scale(${dragPreviewScale})`.trim(),
+      transformOrigin: 'center center',
+    };
+  }, [activeDragTicker, dragPreviewScale]);
+
   const handleDragEnd = useCallback((result) => {
+    resetDragPreview();
     if (!result.destination) return;
 
     const sourceIndex = result.source.index;
@@ -1259,7 +1393,7 @@ export default function TraderPage() {
       reordered.splice(destIndex, 0, removed);
       return reordered;
     });
-  }, []);
+  }, [resetDragPreview]);
 
   const streamLabel = streamStatus.connected
     ? 'Connected'
@@ -1372,7 +1506,7 @@ export default function TraderPage() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
-                  <DragDropContext onDragEnd={handleDragEnd}>
+                  <DragDropContext onDragStart={handleDragStart} onDragUpdate={handleDragUpdate} onDragEnd={handleDragEnd}>
                     <Droppable droppableId="watchlist">
                       {(provided) => (
                         <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-full">
@@ -1404,11 +1538,12 @@ export default function TraderPage() {
                                         event.dataTransfer.setData('text/plain', symbol);
                                         event.dataTransfer.effectAllowed = 'copy';
                                       }}
-                                      className={`group relative flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                                      className={`group relative flex items-center justify-between cursor-pointer transition-all transition-transform duration-150 border-b border-[#1f1f1f]/30 ${
                                         isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
                                       } px-4 py-3 ${
                                         snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
                                       }`}
+                                      style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
                                       onClick={() => setSelectedSymbol(symbol)}
                                     >
                                       <div
