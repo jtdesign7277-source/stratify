@@ -1224,11 +1224,14 @@ const WatchlistPage = ({
                 <LiveChart symbol={selectedTicker} />
               </div>
 
-              {!isOrderPanelClosed ? (
-                <div
-                  className="flex min-h-0 flex-col border-l border-white/10 bg-[#0a0f1a] transition-all duration-300"
-                  style={{ width: ORDER_PANEL_WIDTHS.small }}
-                >
+              <div
+                className={`flex min-h-0 flex-col bg-[#0a0f1a] transition-all duration-300 overflow-hidden ${
+                  isOrderPanelClosed
+                    ? 'border-l border-transparent opacity-0 pointer-events-none'
+                    : 'border-l border-white/10 opacity-100'
+                }`}
+                style={{ width: isOrderPanelClosed ? 0 : ORDER_PANEL_WIDTHS.small }}
+              >
                   <div className="border-b border-white/10 px-3 py-2.5">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">Order Entry</span>
                   </div>
@@ -1467,8 +1470,7 @@ const WatchlistPage = ({
                       </button>
                     </div>
                   </div>
-                </div>
-              ) : null}
+              </div>
             </div>
           </div>
         ) : (
