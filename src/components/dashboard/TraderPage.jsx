@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
-import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
@@ -261,8 +262,6 @@ export default function TraderPage() {
       return accumulator;
     }, {})
   );
-  const [draggingSymbol, setDraggingSymbol] = useState('');
-  const [dragOverSymbol, setDragOverSymbol] = useState('');
 
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
@@ -283,7 +282,6 @@ export default function TraderPage() {
   const restFallbackActiveRef = useRef(false);
   const searchContainerRef = useRef(null);
   const searchRequestRef = useRef(0);
-  const suppressSelectionRef = useRef(false);
 
   useEffect(() => {
     selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
@@ -1044,95 +1042,20 @@ export default function TraderPage() {
     addSymbolToWatchlist(symbolInput);
   };
 
-  const removeSymbol = (symbolToRemove) => {
-    const normalized = normalizeSymbol(symbolToRemove);
-    setWatchlist((previous) => previous.filter((symbol) => symbol !== normalized));
-    setWatchlistNamesBySymbol((previous) => {
-      if (!previous[normalized]) return previous;
-      const next = { ...previous };
-      delete next[normalized];
-      return next;
-    });
-    setQuotesBySymbol((previous) => {
-      if (!previous[normalized]) return previous;
-      const next = { ...previous };
-      delete next[normalized];
-      return next;
-    });
-  };
+  const handleDragEnd = useCallback((result) => {
+    if (!result.destination) return;
 
-  const moveWatchlistSymbol = useCallback((sourceSymbol, targetSymbol) => {
-    const normalizedSource = normalizeSymbol(sourceSymbol);
-    const normalizedTarget = normalizeSymbol(targetSymbol);
-    if (!normalizedSource || !normalizedTarget || normalizedSource === normalizedTarget) return;
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+    if (sourceIndex === destIndex) return;
 
     setWatchlist((previous) => {
-      const fromIndex = previous.findIndex((symbol) => normalizeSymbol(symbol) === normalizedSource);
-      const toIndex = previous.findIndex((symbol) => normalizeSymbol(symbol) === normalizedTarget);
-      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return previous;
-
-      const next = [...previous];
-      const [moved] = next.splice(fromIndex, 1);
-      if (!moved) return previous;
-      next.splice(toIndex, 0, moved);
-      return next;
+      const reordered = Array.from(previous);
+      const [removed] = reordered.splice(sourceIndex, 1);
+      if (!removed) return previous;
+      reordered.splice(destIndex, 0, removed);
+      return reordered;
     });
-  }, []);
-
-  const handleWatchlistDragStart = useCallback((event, symbol) => {
-    const normalized = normalizeSymbol(symbol);
-    if (!normalized) return;
-
-    suppressSelectionRef.current = true;
-    setDraggingSymbol(normalized);
-    setDragOverSymbol(normalized);
-
-    try {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', normalized);
-    } catch {}
-  }, []);
-
-  const handleWatchlistDragOver = useCallback((event, symbol) => {
-    const normalized = normalizeSymbol(symbol);
-    if (!draggingSymbol || !normalized || draggingSymbol === normalized) return;
-
-    event.preventDefault();
-    setDragOverSymbol(normalized);
-  }, [draggingSymbol]);
-
-  const handleWatchlistDrop = useCallback((event, symbol) => {
-    event.preventDefault();
-    const normalizedTarget = normalizeSymbol(symbol);
-    const fallbackSource = (() => {
-      try {
-        return normalizeSymbol(event.dataTransfer.getData('text/plain'));
-      } catch {
-        return '';
-      }
-    })();
-    const normalizedSource = normalizeSymbol(draggingSymbol || fallbackSource);
-
-    if (normalizedSource && normalizedTarget && normalizedSource !== normalizedTarget) {
-      moveWatchlistSymbol(normalizedSource, normalizedTarget);
-    }
-
-    setDraggingSymbol('');
-    setDragOverSymbol('');
-  }, [draggingSymbol, moveWatchlistSymbol]);
-
-  const handleWatchlistDragEnd = useCallback(() => {
-    setDraggingSymbol('');
-    setDragOverSymbol('');
-
-    setTimeout(() => {
-      suppressSelectionRef.current = false;
-    }, 0);
-  }, []);
-
-  const handleWatchlistCardSelect = useCallback((symbol) => {
-    if (suppressSelectionRef.current) return;
-    setSelectedSymbol(symbol);
   }, []);
 
   const streamLabel = streamStatus.connected
@@ -1226,90 +1149,82 @@ export default function TraderPage() {
                   )}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-                  {watchlist.length === 0 ? (
-                    <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] px-4 py-5 text-sm text-[#6b7280]">
-                      Watchlist is empty. Search to add symbols.
-                    </div>
-                  ) : (
-                    watchlist.map((symbol) => {
-                      const quote = quotesBySymbol[symbol];
-                      const changePercent = toNumber(quote?.changePercent);
-                      const companyName = String(
-                        quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
-                      ).trim();
-                      const changeClass = !Number.isFinite(changePercent)
-                        ? 'text-[#6b7280]'
-                        : changePercent >= 0
-                          ? 'text-emerald-400'
-                          : 'text-red-400';
-                      const rowActive = symbol === selectedSymbol;
-                      const rowDragging = draggingSymbol === symbol;
-                      const rowDropTarget = dragOverSymbol === symbol && draggingSymbol && draggingSymbol !== symbol;
-
-                      return (
-                        <div
-                          key={symbol}
-                          role="button"
-                          tabIndex={0}
-                          draggable
-                          onDragStart={(event) => handleWatchlistDragStart(event, symbol)}
-                          onDragOver={(event) => handleWatchlistDragOver(event, symbol)}
-                          onDrop={(event) => handleWatchlistDrop(event, symbol)}
-                          onDragEnd={handleWatchlistDragEnd}
-                          onClick={() => handleWatchlistCardSelect(symbol)}
-                          onKeyDown={(event) => {
-                            if (event.target !== event.currentTarget) return;
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              handleWatchlistCardSelect(symbol);
-                            }
-                          }}
-                          className={`group mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/60 ${
-                            rowActive ? 'bg-white/[0.03] ring-1 ring-emerald-500/45' : 'hover:bg-white/[0.02]'
-                          } ${
-                            rowDragging ? 'cursor-grabbing opacity-70' : 'cursor-grab'
-                          } ${
-                            rowDropTarget ? 'ring-1 ring-cyan-400/55' : ''
-                          }`}
-                        >
-                          <div
-                            className="flex min-w-0 flex-1 items-center gap-3"
-                          >
-                            <span className="inline-flex h-9 w-6 shrink-0 items-center justify-center text-[#6b7280]">
-                              <GripVertical className="h-4 w-4" strokeWidth={1.8} />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-lg font-bold leading-tight text-white">${symbol}</div>
-                              <div className="mt-1 truncate text-xs text-[#7c8087]">{companyName}</div>
+                <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="watchlist">
+                      {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-full">
+                          {watchlist.length === 0 ? (
+                            <div className="px-4 py-6 text-center text-white/50 text-sm">
+                              Watchlist is empty. Search to add symbols.
                             </div>
-                          </div>
+                          ) : (
+                            watchlist.map((symbol, index) => {
+                              const quote = quotesBySymbol[symbol] || {};
+                              const price = toNumber(quote?.price) ?? 0;
+                              const change = toNumber(quote?.change) ?? 0;
+                              const changePercent = toNumber(quote?.changePercent) ?? 0;
+                              const isPositive = changePercent !== 0 ? changePercent >= 0 : change >= 0;
+                              const isSelected = selectedSymbol === symbol;
+                              const companyName = String(
+                                quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
+                              ).trim();
 
-                          <div className="flex items-start gap-2">
-                            <div className="text-right">
-                              <div className="text-lg font-bold leading-tight tabular-nums text-white">
-                                {formatPrice(quote?.price)}
-                              </div>
-                              <div className={`mt-1 text-xs font-medium tabular-nums ${changeClass}`}>
-                                {formatSignedPercent(changePercent)}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                removeSymbol(symbol);
-                              }}
-                              className="pointer-events-none ml-1 mt-0.5 inline-flex h-8 w-8 items-center justify-center text-[#6b7280] opacity-0 transition-opacity duration-200 hover:text-red-400 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500/60 group-hover:pointer-events-auto group-hover:opacity-100"
-                              aria-label={`Remove ${symbol}`}
-                            >
-                              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-                            </button>
-                          </div>
+                              return (
+                                <Draggable key={symbol} draggableId={symbol} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      draggable="true"
+                                      onDragStart={(event) => {
+                                        event.dataTransfer.setData('text/plain', symbol);
+                                        event.dataTransfer.effectAllowed = 'copy';
+                                      }}
+                                      className={`relative flex items-center justify-between cursor-pointer transition-all border-b border-[#1f1f1f]/30 ${
+                                        isSelected ? 'bg-emerald-500/10 border-l-2 border-l-emerald-400' : 'hover:bg-white/5'
+                                      } px-4 py-3 ${
+                                        snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
+                                      }`}
+                                      onClick={() => setSelectedSymbol(symbol)}
+                                    >
+                                      <div
+                                        {...provided.dragHandleProps}
+                                        className="mr-2 text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing"
+                                      >
+                                        <GripVertical className="w-4 h-4" />
+                                      </div>
+
+                                      <div className="flex-1 min-w-0 pr-4">
+                                        <div className="text-white font-bold text-base">${symbol}</div>
+                                        <div className="text-white/50 text-sm truncate">{companyName}</div>
+                                      </div>
+
+                                      <div className="ml-auto pr-3 text-right flex-shrink-0">
+                                        <div className="text-white font-semibold text-base font-mono">
+                                          {price > 0 ? formatPrice(price) : '...'}
+                                        </div>
+                                        {price > 0 && (
+                                          <div className="flex flex-col items-end gap-1">
+                                            <span
+                                              className={`px-2 py-0.5 rounded text-xs font-semibold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
+                                            >
+                                              {`${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              );
+                            })
+                          )}
+                          {provided.placeholder}
                         </div>
-                      );
-                    })
-                  )}
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 </div>
               </div>
             </>
