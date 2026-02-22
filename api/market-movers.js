@@ -1,78 +1,60 @@
-// Market Movers API endpoint - Finnhub integration
-// Fetches top gainers, losers, and most active stocks
+// Market Movers API endpoint - Twelve Data integration
+// Fetches top gainers, losers, and most active stocks using Twelve Data Pro plan
 
-// Use Finnhub free API - no key required for basic endpoints
-// Backup: use popular tickers from Twelve Data
+const TWELVE_DATA_KEY = process.env.VITE_TWELVE_DATA_API_KEY || process.env.TWELVE_DATA_API_KEY || 'b15d4a864f04401085fae2baa50de1b5';
 
-const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || 'b15d4a864f04401085fae2baa50de1b5';
-
-// Fallback: Popular US stocks for demo
-const POPULAR_TICKERS = [
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BRK.B', 
-  'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH', 'HD', 'DIS', 'BAC',
-  'COST', 'ADBE', 'CRM', 'NFLX', 'PEP', 'KO', 'TMO', 'CSCO', 'INTC',
-  'AMD', 'AVGO', 'TXN', 'QCOM', 'NKE', 'ORCL', 'ABT', 'MRK'
-];
-
-async function fetchBatchQuotes(symbols) {
+async function fetchMarketMovers(type) {
   try {
-    const batchSize = 8; // Twelve Data free tier batch limit
-    const results = [];
+    // Map frontend type to Twelve Data direction parameter
+    const directionMap = {
+      'gainers': 'gainers',
+      'losers': 'losers',
+      'volume': 'actives'
+    };
     
-    for (let i = 0; i < symbols.length; i += batchSize) {
-      const batch = symbols.slice(i, i + batchSize);
-      const symbolString = batch.join(',');
-      
-      const response = await fetch(
-        `https://api.twelvedata.com/quote?symbol=${symbolString}&apikey=${TWELVE_DATA_KEY}`,
-        { headers: { 'Accept': 'application/json' } }
-      );
-      
-      if (!response.ok) continue;
-      
-      const data = await response.json();
-      
-      // Handle both single and batch responses
-      if (Array.isArray(data)) {
-        results.push(...data.filter(d => d && d.symbol));
-      } else if (data.symbol) {
-        results.push(data);
-      }
-      
-      // Rate limit: 8 calls/min on free tier
-      if (i + batchSize < symbols.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+    const direction = directionMap[type] || 'gainers';
+    
+    const url = `https://api.twelvedata.com/market_movers/stocks?direction=${direction}&outputsize=30&apikey=${TWELVE_DATA_KEY}`;
+    
+    console.log(`[MarketMovers] Fetching ${type} from Twelve Data...`);
+    
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[MarketMovers] API error:`, errorText);
+      throw new Error(`API returned ${response.status}`);
     }
     
-    return results;
+    const data = await response.json();
+    
+    if (data.status === 'error') {
+      throw new Error(data.message || 'API error');
+    }
+    
+    if (!data.values || !Array.isArray(data.values)) {
+      console.warn('[MarketMovers] No values in response:', data);
+      return [];
+    }
+    
+    // Format for frontend
+    return data.values.map(stock => ({
+      symbol: stock.symbol || '',
+      name: stock.name || stock.symbol || '',
+      price: parseFloat(stock.last) || parseFloat(stock.price) || 0,
+      change: parseFloat(stock.change) || 0,
+      percent_change: parseFloat(stock.percent_change) || 0,
+      volume: parseInt(stock.volume) || 0,
+      high: parseFloat(stock.high) || 0,
+      low: parseFloat(stock.low) || 0,
+    }));
+    
   } catch (err) {
-    console.error('[MarketMovers] Batch fetch error:', err);
-    return [];
+    console.error('[MarketMovers] Fetch error:', err);
+    throw err;
   }
-}
-
-function calculatePercentChange(quote) {
-  const close = parseFloat(quote.close);
-  const prevClose = parseFloat(quote.previous_close);
-  if (!close || !prevClose || prevClose === 0) return 0;
-  return ((close - prevClose) / prevClose) * 100;
-}
-
-function formatQuoteForDisplay(quote) {
-  const percentChange = calculatePercentChange(quote);
-  const change = parseFloat(quote.close) - parseFloat(quote.previous_close || 0);
-  
-  return {
-    symbol: quote.symbol,
-    name: quote.name || quote.symbol,
-    price: parseFloat(quote.close),
-    change: change,
-    percent_change: percentChange,
-    volume: parseInt(quote.volume) || 0,
-    high: parseFloat(quote.high) || 0,
-    low: parseFloat(quote.low) || 0,
-  };
 }
 
 export default async function handler(req, res) {
@@ -89,46 +71,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log(`[MarketMovers] Fetching ${type} using Twelve Data batch quotes...`);
+    const movers = await fetchMarketMovers(type);
     
-    // Fetch quotes for popular tickers
-    const quotes = await fetchBatchQuotes(POPULAR_TICKERS);
-    
-    if (quotes.length === 0) {
-      return res.status(500).json({ 
-        error: 'No data available',
-        values: []
-      });
-    }
-    
-    // Format quotes
-    const formatted = quotes
-      .map(formatQuoteForDisplay)
-      .filter(q => q.price > 0 && q.percent_change !== 0);
-    
-    // Sort based on type
-    let sorted;
-    if (type === 'gainers') {
-      sorted = formatted
-        .filter(q => q.percent_change > 0)
-        .sort((a, b) => b.percent_change - a.percent_change);
-    } else if (type === 'losers') {
-      sorted = formatted
-        .filter(q => q.percent_change < 0)
-        .sort((a, b) => a.percent_change - b.percent_change);
-    } else { // volume
-      sorted = formatted
-        .sort((a, b) => b.volume - a.volume);
-    }
-    
-    const topResults = sorted.slice(0, 30);
-    
-    console.log(`[MarketMovers] Returning ${topResults.length} ${type}`);
+    console.log(`[MarketMovers] Returning ${movers.length} ${type}`);
 
     return res.status(200).json({
       type,
-      count: topResults.length,
-      values: topResults,
+      count: movers.length,
+      values: movers,
       timestamp: new Date().toISOString(),
     });
 
