@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Button Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0b0b0b;
+            color: white;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+        }
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-bottom: 1px solid #1f1f1f;
+        }
+        .trade-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: transparent;
+            border: 1px solid rgba(16, 185, 129, 0.7);
+            color: rgb(110, 231, 183);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .trade-btn:hover {
+            color: rgb(167, 243, 208);
+            border-color: rgb(110, 231, 183);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.22);
+        }
+        .container {
+            display: flex;
+            height: calc(100vh - 100px);
+            gap: 0;
+        }
+        .chart-area {
+            flex: 1;
+            background: #050505;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .trade-panel {
+            background: #0a0f1a;
+            transition: all 0.3s;
+            overflow: hidden;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .trade-panel.open {
+            width: 344px;
+            opacity: 1;
+        }
+        .trade-panel.closed {
+            width: 0;
+            opacity: 0;
+            pointer-events: none;
+            border-left-color: transparent;
+        }
+        .panel-header {
+            padding: 0.625rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        .panel-header span {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgb(156, 163, 175);
+        }
+        .panel-content {
+            padding: 1rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <h2>$TSLA</h2>
+        <span style="color: #6b7280;">Tesla, Inc.</span>
+        <span style="color: #10b981;">$411.82</span>
+        <button id="tradeBtn" class="trade-btn">
+            <span>Trade</span>
+        </button>
+    </div>
+    
+    <div class="container">
+        <div class="chart-area">
+            <p style="color: #6b7280;">Chart goes here</p>
+        </div>
+        <div id="tradePanel" class="trade-panel closed">
+            <div class="panel-header">
+                <span>Trade Entry</span>
+            </div>
+            <div class="panel-content">
+                <p>Order ticket form goes here...</p>
+                <p style="margin-top: 1rem; color: #6b7280;">
+                    Buy/Sell buttons, quantity input, order type selector, etc.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tradeBtn = document.getElementById('tradeBtn');
+        const tradePanel = document.getElementById('tradePanel');
+        let isOpen = false;
+
+        tradeBtn.addEventListener('click', () => {
+            isOpen = !isOpen;
+            if (isOpen) {
+                tradePanel.classList.remove('closed');
+                tradePanel.classList.add('open');
+                console.log('✅ Panel opened');
+            } else {
+                tradePanel.classList.remove('open');
+                tradePanel.classList.add('closed');
+                console.log('❌ Panel closed');
+            }
+        });
+    </script>
+</body>
+</html>

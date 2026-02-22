@@ -1803,7 +1803,7 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
               onClick={() => setIsTradePanelOpen(!isTradePanelOpen)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold bg-transparent border border-emerald-400/70 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.22)] transition-colors"
             >
-              <span>Trade</span>
+              <span>🎯 Trade</span>
             </button>
           </div>
         </div>
