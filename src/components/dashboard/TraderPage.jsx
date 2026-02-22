@@ -1009,20 +1009,18 @@ export default function TraderPage({ onPinToTop }) {
         }))
       );
 
-      // Restore saved viewport if available
-      setTimeout(() => {
-        const savedViewport = loadChartViewport(normalized, timeframeId);
-        if (savedViewport && chartRef.current) {
-          try {
-            chartRef.current.timeScale().setVisibleRange({
-              from: savedViewport.from,
-              to: savedViewport.to,
-            });
-          } catch {}
-        }
-      }, 100);
-
-      chartRef.current?.timeScale().fitContent();
+      // Restore saved viewport if available, otherwise fit content
+      const savedViewport = loadChartViewport(normalized, timeframeId);
+      if (savedViewport && chartRef.current) {
+        try {
+          chartRef.current.timeScale().setVisibleRange({
+            from: savedViewport.from,
+            to: savedViewport.to,
+          });
+        } catch {}
+      } else {
+        chartRef.current?.timeScale().fitContent();
+      }
       lastBarRef.current = deduped[deduped.length - 1];
       setChartStatus({ loading: false, error: '' });
     } catch (error) {
