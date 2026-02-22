@@ -13,6 +13,7 @@ import useSubscription from './hooks/useSubscription';
 // XPill removed - was blocking Grok panel clicks
 import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
+import AppErrorBoundary from './components/shared/AppErrorBoundary';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -1254,8 +1255,10 @@ function StratifyAppContent() {
 
 export default function StratifyApp() {
   return (
-    <AuthProvider>
-      <StratifyAppContent />
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <StratifyAppContent />
+      </AuthProvider>
+    </AppErrorBoundary>
   );
 }

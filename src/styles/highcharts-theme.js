@@ -4,8 +4,19 @@
  */
 let applied = false;
 
-export function applyStratifyTheme(Highcharts) {
-  if (!Highcharts || applied) return;
+const resolveHighchartsInstance = (candidate) => {
+  if (candidate && typeof candidate.setOptions === 'function') return candidate;
+  if (typeof window !== 'undefined' && window.Highcharts && typeof window.Highcharts.setOptions === 'function') {
+    return window.Highcharts;
+  }
+  return null;
+};
+
+export function applyStratifyTheme(candidate) {
+  if (applied) return true;
+
+  const Highcharts = resolveHighchartsInstance(candidate);
+  if (!Highcharts) return false;
 
   Highcharts.setOptions({
     chart: {
@@ -76,4 +87,5 @@ export function applyStratifyTheme(Highcharts) {
   });
 
   applied = true;
+  return true;
 }
