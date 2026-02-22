@@ -279,7 +279,7 @@ function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceC
     : 0;
 
   return (
-    <div className="flex flex-col h-full select-none">
+    <div className="flex flex-col h-full min-h-0 select-none">
       {/* Header — ToS style */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08]"
         style={{ background: 'rgba(6, 13, 24, 0.8)' }}
@@ -309,8 +309,8 @@ function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceC
       </div>
 
       {/* Asks — reversed (lowest at bottom near spread) */}
-      <div className="flex-1 overflow-hidden flex flex-col justify-end">
-        {[...orderbook.asks].reverse().slice(0, 12).map((ask, i) => {
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-end" style={{ scrollbarWidth: 'none' }}>
+        {[...orderbook.asks].reverse().map((ask, i) => {
           const barWidth = (ask.size / maxAskSize) * 100;
           return (
             <div
@@ -377,8 +377,8 @@ function Level2Book({ orderbook, coinSymbol, lastPrice, priceDirection, onPriceC
       </div>
 
       {/* Bids */}
-      <div className="flex-1 overflow-hidden">
-        {orderbook.bids.slice(0, 12).map((bid, i) => {
+      <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+        {orderbook.bids.map((bid, i) => {
           const barWidth = (bid.size / maxBidSize) * 100;
           return (
             <div
@@ -597,7 +597,7 @@ function OrderEntry({
   };
 
   return (
-    <div className="relative flex h-full flex-col overflow-y-auto p-3" style={{ scrollbarWidth: 'none' }}>
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden p-2">
       <AlpacaOrderTicket
         side={side}
         onSideChange={setSide}
@@ -630,6 +630,8 @@ function OrderEntry({
         reviewDisabled={submitting || !hasValidOrderSize}
         reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
         density="crypto"
+        stickyReviewFooter
+        className="flex-1 min-h-0 p-4"
         extraFields={
           <div className="space-y-2">
             {(orderType === 'limit' || orderType === 'stop_limit') && (
@@ -741,7 +743,7 @@ function TradesTape({ trades }) {
   const formatPrice = (p) => p >= 1000 ? p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p >= 1 ? p.toFixed(4) : p.toFixed(6);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.08]"
         style={{ background: 'rgba(6, 13, 24, 0.8)' }}
       >
@@ -764,7 +766,7 @@ function TradesTape({ trades }) {
         <span className="text-right">Time</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
         {trades.map((trade, i) => (
           <div key={i} className="grid grid-cols-3 px-4 py-[4px] text-[13px] font-mono hover:bg-white/[0.03] transition-colors"
             style={{ animation: i === 0 ? 'tradeFlash 0.6s ease-out' : 'none' }}
@@ -947,7 +949,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
 
         {/* ── RIGHT: L2 / Trades / Order Entry (tabbed) ───────────── */}
         <div
-          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[306px]'} shrink-0 flex flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
+          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[306px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
           style={glassStyle}
         >
           {isRightPanelCollapsed ? (
@@ -1010,7 +1012,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
               </div>
 
               {/* Tab Content */}
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-hidden">
                 {rightTab === 'l2' && (
                   <Level2Book
                     orderbook={orderbook}

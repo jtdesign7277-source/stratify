@@ -56,6 +56,7 @@ export default function AlpacaOrderTicket({
   onReview,
   reviewDisabled,
   reviewLabel = 'Review Order',
+  stickyReviewFooter = false,
   extraFields = null,
   density = 'default',
   className = '',
@@ -113,10 +114,17 @@ export default function AlpacaOrderTicket({
   const searchIconClass = isTradeDensity ? 'h-5 w-5' : 'h-6 w-6';
   const reviewButtonClass = isTradeDensity ? 'h-[48px] text-[16px]' : 'h-[52px] text-[17px]';
   const radioSizeClass = isTradeDensity ? 'h-4 w-4' : 'h-5 w-5';
+  const reviewButtonStateClass = reviewDisabled
+    ? 'cursor-not-allowed border-amber-500/20 bg-amber-500/20 text-amber-100/50'
+    : 'border-emerald-500/40 bg-emerald-600 text-white hover:bg-emerald-500';
+  const rootLayoutClass = stickyReviewFooter ? 'flex min-h-0 flex-col overflow-hidden' : '';
+  const contentLayoutClass = stickyReviewFooter
+    ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0 overflow-y-auto pr-1`
+    : `${contentTopClass} ${verticalGapClass}`;
 
   return (
     <div
-      className={`rounded-2xl border border-white/10 bg-[#0a1628]/95 ${panelPaddingClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
+      className={`rounded-2xl border border-white/10 bg-[#0a1628]/95 ${panelPaddingClass} ${rootLayoutClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
     >
       <div className="grid grid-cols-2 border-b border-white/10">
         <button
@@ -139,7 +147,7 @@ export default function AlpacaOrderTicket({
         </button>
       </div>
 
-      <div className={`${contentTopClass} ${verticalGapClass}`}>
+      <div className={contentLayoutClass} style={stickyReviewFooter ? { scrollbarWidth: 'none' } : undefined}>
         <div className="relative">
           <Search
             className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 ${searchIconClass}`}
@@ -259,19 +267,30 @@ export default function AlpacaOrderTicket({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onReview}
-          disabled={reviewDisabled}
-          className={`${reviewButtonClass} w-full rounded-xl border font-semibold transition ${
-            reviewDisabled
-              ? 'cursor-not-allowed border-amber-500/20 bg-amber-500/20 text-amber-100/50'
-              : 'border-emerald-500/40 bg-emerald-600 text-white hover:bg-emerald-500'
-          }`}
-        >
-          {reviewLabel}
-        </button>
+        {!stickyReviewFooter && (
+          <button
+            type="button"
+            onClick={onReview}
+            disabled={reviewDisabled}
+            className={`${reviewButtonClass} w-full rounded-xl border font-semibold transition ${reviewButtonStateClass}`}
+          >
+            {reviewLabel}
+          </button>
+        )}
       </div>
+
+      {stickyReviewFooter && (
+        <div className="mt-3 shrink-0 border-t border-white/10 pt-3">
+          <button
+            type="button"
+            onClick={onReview}
+            disabled={reviewDisabled}
+            className={`${reviewButtonClass} w-full rounded-xl border font-semibold transition ${reviewButtonStateClass}`}
+          >
+            {reviewLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
