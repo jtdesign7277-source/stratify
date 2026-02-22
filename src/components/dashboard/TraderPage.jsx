@@ -5,9 +5,26 @@ import { Plus, Search, X } from 'lucide-react';
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
 const TWELVE_DATA_QUOTE_URL = 'https://api.twelvedata.com/quote';
+const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
+const MAX_SYMBOL_SEARCH_RESULTS = 8;
+const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
+const MARKET_SYMBOLS = [
+  { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
+  { symbol: 'TSLA', name: 'Tesla, Inc.', exchange: 'NASDAQ' },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ' },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ' },
+  { symbol: 'JPM', name: 'JPMorgan Chase & Co.', exchange: 'NYSE' },
+  { symbol: 'V', name: 'Visa Inc.', exchange: 'NYSE' },
+  { symbol: 'BP.L', name: 'BP p.l.c.', exchange: 'LSE' },
+  { symbol: 'VOD.LON', name: 'Vodafone Group Plc', exchange: 'LSE' },
+  { symbol: '7203.T', name: 'Toyota Motor Corporation', exchange: 'TSE' },
+  { symbol: '6758.T', name: 'Sony Group Corporation', exchange: 'TSE' },
+  { symbol: 'BHP.AX', name: 'BHP Group Limited', exchange: 'ASX' },
+  { symbol: 'CBA.AX', name: 'Commonwealth Bank of Australia', exchange: 'ASX' },
+];
 
 const CHART_INTERVAL = '5min';
 const CHART_INTERVAL_SECONDS = 300;
@@ -27,8 +44,79 @@ const normalizeSymbol = (value) =>
     .toUpperCase()
     .replace(/^\$/, '')
     .replace(/\s+/g, '')
-    .split(':')[0]
-    .split('.')[0];
+    .split(':')
+    .pop();
+
+const normalizeExchangeLabel = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return 'Market';
+  if (normalized === 'XNAS' || normalized.includes('NASDAQ')) return 'NASDAQ';
+  if (normalized === 'XNYS' || normalized.includes('NYSE') || normalized.includes('NEW YORK')) return 'NYSE';
+  if (normalized === 'XLON' || normalized === 'LON' || normalized.includes('LONDON') || normalized.includes('LSE')) return 'LSE';
+  if (normalized === 'XTKS' || normalized === 'TYO' || normalized.includes('TOKYO') || normalized.includes('TSE')) return 'TSE';
+  if (normalized === 'XASX' || normalized.includes('SYDNEY') || normalized.includes('ASX')) return 'ASX';
+  return normalized;
+};
+
+const toSearchKey = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const scoreSearchEntry = (entry, query) => {
+  const normalizedQuery = String(query || '').trim().toUpperCase();
+  const queryKey = toSearchKey(normalizedQuery);
+  const symbol = String(entry?.symbol || '').toUpperCase();
+  const symbolKey = toSearchKey(symbol);
+  const name = String(entry?.name || '').toUpperCase();
+
+  if (!normalizedQuery) return 99;
+  if (symbol === normalizedQuery || symbolKey === queryKey) return 0;
+  if (symbol.startsWith(normalizedQuery) || symbolKey.startsWith(queryKey)) return 1;
+  if (symbol.includes(normalizedQuery) || symbolKey.includes(queryKey)) return 2;
+  if (name.startsWith(normalizedQuery)) return 3;
+  if (name.includes(normalizedQuery)) return 4;
+  return 99;
+};
+
+const buildSearchResults = (entries, query, watchlistSet = new Set()) => {
+  const normalizedQuery = String(query || '').trim();
+  if (!normalizedQuery) return [];
+
+  const deduped = [];
+  const seenSymbols = new Set();
+
+  entries.forEach((entry) => {
+    const symbol = normalizeSymbol(entry?.symbol);
+    if (!symbol || seenSymbols.has(symbol) || watchlistSet.has(symbol)) return;
+
+    const normalizedEntry = {
+      symbol,
+      exchange: normalizeExchangeLabel(entry?.exchange),
+      name: String(entry?.name || '').trim(),
+    };
+
+    const score = scoreSearchEntry(normalizedEntry, normalizedQuery);
+    if (score === 99) return;
+
+    seenSymbols.add(symbol);
+    deduped.push({
+      ...normalizedEntry,
+      score,
+    });
+  });
+
+  deduped.sort((a, b) => {
+    if (a.score !== b.score) return a.score - b.score;
+
+    const marketA = MARKET_PRIORITY.indexOf(a.exchange);
+    const marketB = MARKET_PRIORITY.indexOf(b.exchange);
+    const priorityA = marketA === -1 ? MARKET_PRIORITY.length : marketA;
+    const priorityB = marketB === -1 ? MARKET_PRIORITY.length : marketB;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+
+    return a.symbol.localeCompare(b.symbol);
+  });
+
+  return deduped.slice(0, MAX_SYMBOL_SEARCH_RESULTS).map(({ score, ...entry }) => entry);
+};
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
@@ -131,6 +219,9 @@ export default function TraderPage() {
   const [watchlist, setWatchlist] = useState(initialWatchlist);
   const [selectedSymbol, setSelectedSymbol] = useState(initialWatchlist[0] || DEFAULT_WATCHLIST[0]);
   const [symbolInput, setSymbolInput] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [quotesBySymbol, setQuotesBySymbol] = useState({});
   const [streamStatus, setStreamStatus] = useState({
     connected: false,
@@ -161,6 +252,8 @@ export default function TraderPage() {
   const restPollTimerRef = useRef(null);
   const wsHasReceivedPriceRef = useRef(false);
   const restFallbackActiveRef = useRef(false);
+  const searchContainerRef = useRef(null);
+  const searchRequestRef = useRef(0);
 
   useEffect(() => {
     selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
@@ -185,11 +278,88 @@ export default function TraderPage() {
     }
   }, [watchlist, selectedSymbol]);
 
-  const filteredWatchlist = useMemo(() => {
-    const query = normalizeSymbol(symbolInput);
-    if (!query) return watchlist;
-    return watchlist.filter((symbol) => symbol.includes(query));
-  }, [watchlist, symbolInput]);
+  useEffect(() => {
+    if (!isSearchDropdownOpen || typeof window === 'undefined') return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!searchContainerRef.current?.contains(event.target)) {
+        setIsSearchDropdownOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [isSearchDropdownOpen]);
+
+  useEffect(() => {
+    const query = symbolInput.trim();
+    if (!query) {
+      searchRequestRef.current += 1;
+      setSearchResults([]);
+      setIsSearchLoading(false);
+      setIsSearchDropdownOpen(false);
+      return undefined;
+    }
+
+    const watchlistSet = new Set(watchlist.map(normalizeSymbol).filter(Boolean));
+    const fallbackMatches = buildSearchResults(MARKET_SYMBOLS, query, watchlistSet);
+    setSearchResults(fallbackMatches);
+    setIsSearchDropdownOpen(true);
+
+    if (!apiKey) {
+      setIsSearchLoading(false);
+      return undefined;
+    }
+
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    const controller = new AbortController();
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearchLoading(true);
+
+        const params = new URLSearchParams({
+          symbol: query,
+          outputsize: String(MAX_SYMBOL_SEARCH_RESULTS),
+          apikey: apiKey,
+        });
+
+        const response = await fetch(`${TWELVE_DATA_SYMBOL_SEARCH_URL}?${params.toString()}`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (controller.signal.aborted || searchRequestRef.current !== requestId) return;
+        if (!response.ok || payload?.status === 'error') return;
+
+        const apiMatches = Array.isArray(payload?.data)
+          ? payload.data.map((item) => ({
+              symbol: item?.symbol,
+              exchange: item?.exchange || item?.mic_code || item?.exchange_timezone,
+              name: item?.instrument_name || item?.name || item?.description,
+            }))
+          : [];
+
+        const mergedResults = buildSearchResults([...apiMatches, ...MARKET_SYMBOLS], query, watchlistSet);
+        setSearchResults(mergedResults);
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          setSearchResults(fallbackMatches);
+        }
+      } finally {
+        if (!controller.signal.aborted && searchRequestRef.current === requestId) {
+          setIsSearchLoading(false);
+        }
+      }
+    }, 180);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [apiKey, symbolInput, watchlist]);
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
 
@@ -789,9 +959,8 @@ export default function TraderPage() {
     stopRestFallbackPolling,
   ]);
 
-  const addSymbol = (event) => {
-    event.preventDefault();
-    const normalized = normalizeSymbol(symbolInput);
+  const addSymbolToWatchlist = useCallback((symbolValue) => {
+    const normalized = normalizeSymbol(symbolValue);
     if (!normalized) return;
 
     setWatchlist((previous) => {
@@ -800,6 +969,19 @@ export default function TraderPage() {
     });
     setSelectedSymbol(normalized);
     setSymbolInput('');
+    setSearchResults([]);
+    setIsSearchLoading(false);
+    setIsSearchDropdownOpen(false);
+  }, []);
+
+  const addSymbol = (event) => {
+    event.preventDefault();
+    const topResultSymbol = searchResults[0]?.symbol;
+    if (topResultSymbol) {
+      addSymbolToWatchlist(topResultSymbol);
+      return;
+    }
+    addSymbolToWatchlist(symbolInput);
   };
 
   const removeSymbol = (symbolToRemove) => {
@@ -831,22 +1013,43 @@ export default function TraderPage() {
           </div>
 
           <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
-            <div className="relative">
+            <div ref={searchContainerRef} className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
               <input
                 value={symbolInput}
                 onChange={(event) => setSymbolInput(event.target.value)}
-                placeholder="Search or add ticker (AAPL)"
+                onFocus={() => {
+                  if (symbolInput.trim()) setIsSearchDropdownOpen(true);
+                }}
+                placeholder="Search symbols across markets..."
+                autoComplete="off"
                 className="h-10 w-full border border-[#1f1f1f] bg-[#0b0b0b] pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-emerald-500/70"
               />
+              {isSearchDropdownOpen && symbolInput.trim() && (
+                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
+                  {searchResults.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-[#7c8087]">
+                      {isSearchLoading ? 'Searching symbols...' : 'No matching symbols.'}
+                    </div>
+                  ) : (
+                    searchResults.map((result) => (
+                      <button
+                        key={`${result.symbol}-${result.exchange}`}
+                        type="button"
+                        onClick={() => addSymbolToWatchlist(result.symbol)}
+                        className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
+                      >
+                        <span className="truncate text-sm text-white">
+                          <span className="font-medium">{result.symbol}</span>
+                          <span className="ml-1 text-[#7c8087]">· {result.exchange}</span>
+                        </span>
+                        <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-            <button
-              type="submit"
-              className="mt-2 inline-flex h-9 items-center gap-2 border border-[#1f1f1f] px-3 text-sm text-[#d1d5db] transition-colors hover:border-emerald-500/60 hover:text-emerald-300"
-            >
-              <Plus className="h-4 w-4" strokeWidth={1.5} />
-              Add ticker
-            </button>
           </form>
 
           <div className="flex min-h-0 flex-1 flex-col">
@@ -860,10 +1063,10 @@ export default function TraderPage() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {filteredWatchlist.length === 0 ? (
-                <div className="px-4 py-5 text-sm text-[#6b7280]">No symbols match your search.</div>
+              {watchlist.length === 0 ? (
+                <div className="px-4 py-5 text-sm text-[#6b7280]">Watchlist is empty. Search to add symbols.</div>
               ) : (
-                filteredWatchlist.map((symbol) => {
+                watchlist.map((symbol) => {
                   const quote = quotesBySymbol[symbol];
                   const changePercent = toNumber(quote?.changePercent);
                   const changeClass = !Number.isFinite(changePercent)
