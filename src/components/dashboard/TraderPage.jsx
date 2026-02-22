@@ -122,8 +122,8 @@ const getPinnedPillsDropZoneBounds = () => {
 const getDraggedTickerCenterY = (draggableId) => {
   if (typeof document === 'undefined' || !draggableId) return null;
 
-  const draggableElements = Array.from(document.querySelectorAll('[data-rfd-draggable-id]')).filter(
-    (element) => element.getAttribute('data-rfd-draggable-id') === draggableId
+  const draggableElements = Array.from(document.querySelectorAll('[data-rbd-draggable-id]')).filter(
+    (element) => element.getAttribute('data-rbd-draggable-id') === draggableId
   );
   if (draggableElements.length === 0) return null;
 
