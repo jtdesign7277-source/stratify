@@ -6,6 +6,7 @@ import {
   Bitcoin,
   Globe, 
   LineChart, 
+  Microscope,
   BarChart3,
   Wallet, 
   History, 
@@ -76,6 +77,7 @@ const Sidebar = ({
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
+    { id: 'xray', label: 'X-Ray', icon: Microscope },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
   ];

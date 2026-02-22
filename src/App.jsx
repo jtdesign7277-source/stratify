@@ -976,19 +976,25 @@ function StratifyAppContent() {
   const { isProUser, loading: subscriptionLoading } = useSubscription();
 
   const getXraySymbolFromPath = (path) => {
-    const match = String(path || '').match(/^\/xray\/([^/?#]+)/i);
+    const match = String(path || '').match(/^\/xray\/([^/?#]+)\/?$/i);
     if (!match?.[1]) return null;
-    const symbol = String(match[1]).trim().toUpperCase();
-    return symbol || null;
+    try {
+      const decoded = decodeURIComponent(String(match[1]));
+      const symbol = decoded.trim().toUpperCase();
+      return symbol || null;
+    } catch {
+      return null;
+    }
   };
 
   const resolveInitialPage = () => {
     if (typeof window === 'undefined') return 'landing';
 
-    const path = window.location.pathname.toLowerCase();
-    if (path === '/whitepaper') return 'whitepaper';
-    if (path === '/auth') return 'auth';
-    if (path.startsWith('/xray/')) return 'xray';
+    const path = window.location.pathname;
+    const normalizedPath = path.toLowerCase();
+    if (normalizedPath === '/whitepaper') return 'whitepaper';
+    if (normalizedPath === '/auth') return 'auth';
+    if (getXraySymbolFromPath(path)) return 'xray';
 
     return 'landing';
   };

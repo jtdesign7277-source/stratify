@@ -1733,6 +1733,11 @@ export default function Dashboard({
           onToggle={(val) => setSidebarExpanded(val)}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          onNavigate={(tabId) => {
+            if (tabId === 'xray') {
+              setCurrentPage('xray', { symbol: 'TSLA' });
+            }
+          }}
           savedStrategies={savedStrategies}
           deployedStrategies={deployedStrategies}
           activeStrategyCount={activeStrategiesCount}

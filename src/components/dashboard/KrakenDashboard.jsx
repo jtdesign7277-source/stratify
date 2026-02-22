@@ -1263,6 +1263,11 @@ export default function KrakenDashboard({ setCurrentPage, alpacaData }) {
         onSectionChange={setActiveSection} 
         activeTab={activeTab} 
         onTabChange={handleTabChange} 
+        onNavigate={(tabId) => {
+          if (tabId === 'xray' && typeof setCurrentPage === 'function') {
+            setCurrentPage('xray', { symbol: 'TSLA' });
+          }
+        }}
         theme={theme} 
         themeClasses={themeClasses}
         watchlist={watchlist}
