@@ -1798,16 +1798,13 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             }`}>
               {activeMarket === 'crypto' ? 'Crypto' : isSelectedLse ? 'LSE' : 'Equity'}
             </span>
-            {!isTradePanelOpen && (
-              <button
-                type="button"
-                onClick={() => setIsTradePanelOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold bg-transparent border border-emerald-400/70 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.22)] transition-colors"
-              >
-                <span>Trade</span>
-                <ChevronsLeft className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsTradePanelOpen(!isTradePanelOpen)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold bg-transparent border border-emerald-400/70 text-emerald-300 hover:text-emerald-200 hover:border-emerald-300 hover:shadow-[0_0_14px_rgba(16,185,129,0.22)] transition-colors"
+            >
+              <span>Trade</span>
+            </button>
           </div>
         </div>
         <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
@@ -1830,17 +1827,8 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
             }`}
           >
             <div className="border-b border-white/10 px-3 py-2.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-center">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-400">Trade Entry</span>
-                <button
-                  type="button"
-                  onClick={() => setIsTradePanelOpen(false)}
-                  aria-label="Collapse trade panel"
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-[11px] font-medium text-emerald-300 transition-all hover:border-emerald-400 hover:text-emerald-200 hover:bg-emerald-500/12 hover:shadow-[0_0_12px_rgba(16,185,129,0.35)]"
-                >
-                  <span>Collapse</span>
-                  <ChevronsRight className="h-3.5 w-3.5 drop-shadow-[0_0_8px_rgba(16,185,129,0.35)]" />
-                </button>
               </div>
             </div>
 
@@ -2123,18 +2111,6 @@ const TradePage = ({ watchlist = [], onAddToWatchlist, onRemoveFromWatchlist, on
                     <ChevronsLeft className="relative w-4 h-4 text-blue-300/80 group-hover:text-blue-200 transition-colors" />
                   </div>
                 </button>
-                {!isTradePanelOpen && (
-                  <button
-                    type="button"
-                    className="flex flex-col items-center justify-center w-11 h-11 bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg cursor-pointer hover:border-emerald-500/40 transition-all group"
-                    onClick={() => setIsTradePanelOpen(true)}
-                    title="Open Trade Panel"
-                  >
-                    <div className="relative">
-                      <ChevronsLeft className="relative w-4 h-4 text-emerald-300/80 group-hover:text-emerald-300 transition-colors" />
-                    </div>
-                  </button>
-                )}
               </div>
             ) : (
               <div className="h-[360px] xl:h-full min-h-0">
