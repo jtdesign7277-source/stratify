@@ -493,7 +493,7 @@ export default function StatusBar({
           )}
         </AnimatePresence>
         <span className={`text-xs ${themeClasses.textMuted}`}>Build 1.0.0</span>
-        <span className={`text-xs ${themeClasses.textMuted}`}>MARKET DATA POWERED BY <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">ALPACA</a></span>
+        <span className={`text-xs ${themeClasses.textMuted}`}>MARKET DATA POWERED BY <a href="https://twelvedata.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">TWELVE DATA</a></span>
       </div>
     </div>
   );
