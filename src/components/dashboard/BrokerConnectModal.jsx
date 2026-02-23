@@ -217,16 +217,11 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
     }
   }, [selectedBroker, apiKey, secretKey]);
 
-  // Clear saved form on close
+  // DON'T auto-clear on modal close - only clear on explicit actions
+  // This allows users to close modal, switch tabs to copy keys, and come back
   useEffect(() => {
     console.log('[BrokerConnectModal] isOpen changed:', isOpen);
-    if (!isOpen) {
-      // Clear on close only if not in the middle of connecting
-      if (!connecting) {
-        console.log('[BrokerConnectModal] Clearing sessionStorage on close');
-        sessionStorage.removeItem('broker-connect-form');
-      }
-    }
+    // Removed auto-clear logic - state now persists across modal close/open
   }, [isOpen, connecting]);
 
   // Log when modal renders
@@ -249,6 +244,25 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
   const handleSelectBroker = (broker) => {
     console.log('[BrokerConnectModal] Broker selected:', broker.id, broker.name);
     setSelectedBroker(broker);
+  };
+
+  const handleBackToBrokers = () => {
+    console.log('[BrokerConnectModal] Back to brokers - clearing form');
+    sessionStorage.removeItem('broker-connect-form');
+    setSelectedBroker(null);
+    setApiKey('');
+    setSecretKey('');
+  };
+
+  const handleClose = () => {
+    // Only clear if no broker selected (user is just browsing)
+    if (!selectedBroker && !apiKey && !secretKey) {
+      console.log('[BrokerConnectModal] Closing with no form data - clearing sessionStorage');
+      sessionStorage.removeItem('broker-connect-form');
+    } else {
+      console.log('[BrokerConnectModal] Closing with form data - keeping sessionStorage');
+    }
+    onClose();
   };
 
   const handleConnect = async () => {
@@ -316,7 +330,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
       <div className="relative w-full max-w-2xl mx-4 animate-fadeIn">
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute -top-10 right-0 text-gray-400 hover:text-white transition-colors z-10"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -388,7 +402,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
               {/* Connect Form */}
               <div className="p-6 border-b border-[#5f6368]">
                 <button 
-                  onClick={() => setSelectedBroker(null)}
+                  onClick={handleBackToBrokers}
                   className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
