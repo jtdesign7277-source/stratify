@@ -50,6 +50,7 @@ import TickerPill from './TickerPill';
 import MiniGamePill from '../shared/MiniGamePill';
 import FredPage from './FredPage';
 import EconomicsCalendarPage from './EconomicsCalendarPage';
+import XRayPage from '../xray/XRayPage';
 import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
@@ -457,6 +458,7 @@ export default function Dashboard({
   const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState(() => sanitizeActiveTab(savedState?.activeTab));
+  const [xraySymbol, setXraySymbol] = useState('TSLA');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
@@ -1735,7 +1737,8 @@ export default function Dashboard({
           setActiveTab={setActiveTab}
           onNavigate={(tabId) => {
             if (tabId === 'xray') {
-              setCurrentPage('xray', { symbol: 'TSLA' });
+              setActiveTab('xray');
+              return;
             }
           }}
           savedStrategies={savedStrategies}
@@ -1962,6 +1965,13 @@ export default function Dashboard({
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'calendar' && <EconomicsCalendarPage />}
+          {activeTab === 'xray' && (
+            <XRayPage
+              initialSymbol={xraySymbol}
+              onSymbolChange={setXraySymbol}
+              onBack={() => setActiveTab('watchlist')}
+            />
+          )}
           {activeTab === 'crypto' && <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />}
           {activeTab === 'terminal' && (
             <TerminalStrategyWorkspace

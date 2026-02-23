@@ -5,7 +5,6 @@ import LandingPage from './components/dashboard/LandingPage';
 import WhitePaperPage from './components/WhitePaperPage';
 import SpaceBackground from './components/SpaceBackground';
 import SignUpPage from './components/auth/SignUpPage';
-import XRayPage from './components/xray/XRayPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData } from './store/StratifyProvider';
 import { useAlpacaData } from './hooks/useAlpacaData';
@@ -976,17 +975,7 @@ function StratifyAppContent() {
   const { user, isAuthenticated, loading } = useAuth();
   const { isProUser, loading: subscriptionLoading } = useSubscription();
 
-  const getXraySymbolFromPath = (path) => {
-    const match = String(path || '').match(/^\/xray\/([^/?#]+)\/?$/i);
-    if (!match?.[1]) return null;
-    try {
-      const decoded = decodeURIComponent(String(match[1]));
-      const symbol = decoded.trim().toUpperCase();
-      return symbol || null;
-    } catch {
-      return null;
-    }
-  };
+  const isLegacyXrayPath = (path) => /^\/xray\/[^/?#]+\/?$/i.test(String(path || ''));
 
   const resolveInitialPage = () => {
     if (typeof window === 'undefined') return 'landing';
@@ -995,18 +984,12 @@ function StratifyAppContent() {
     const normalizedPath = path.toLowerCase();
     if (normalizedPath === '/whitepaper') return 'whitepaper';
     if (normalizedPath === '/auth') return 'auth';
-    if (getXraySymbolFromPath(path)) return 'xray';
+    if (isLegacyXrayPath(path)) return 'dashboard';
 
     return 'landing';
   };
 
-  const resolveInitialXraySymbol = () => {
-    if (typeof window === 'undefined') return 'TSLA';
-    return getXraySymbolFromPath(window.location.pathname) || 'TSLA';
-  };
-
   const [currentPage, setCurrentPage] = useState(resolveInitialPage);
-  const [xraySymbol, setXraySymbol] = useState(resolveInitialXraySymbol);
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1042,25 +1025,22 @@ function StratifyAppContent() {
         realized_pl: 0,
       };
 
-  const navigateToPage = (page, options = {}) => {
-    setCurrentPage(page);
+  const navigateToPage = (page) => {
+    const nextPage = page === 'xray' ? 'dashboard' : page;
+    setCurrentPage(nextPage);
 
     if (typeof window === 'undefined') return;
 
     let nextPath = '/';
 
-    if (page === 'whitepaper') {
+    if (nextPage === 'whitepaper') {
       nextPath = '/whitepaper';
-    } else if (page === 'auth') {
+    } else if (nextPage === 'auth') {
       nextPath = '/auth';
-    } else if (page === 'xray') {
-      const nextSymbol = String(options?.symbol || xraySymbol || 'TSLA').trim().toUpperCase();
-      setXraySymbol(nextSymbol || 'TSLA');
-      nextPath = `/xray/${encodeURIComponent(nextSymbol || 'TSLA')}`;
     }
 
     if (window.location.pathname !== nextPath) {
-      window.history.pushState({ page }, '', nextPath);
+      window.history.pushState({ page: nextPage }, '', nextPath);
     }
   };
 
@@ -1157,12 +1137,6 @@ function StratifyAppContent() {
           ) : null}
         </div>
       </div>
-    ) : currentPage === 'xray' ? (
-      <XRayPage
-        initialSymbol={xraySymbol}
-        onSymbolChange={(nextSymbol) => navigateToPage('xray', { symbol: nextSymbol })}
-        onBack={() => navigateToPage('dashboard')}
-      />
     ) : (
       <Dashboard
         setCurrentPage={navigateToPage}
@@ -1183,7 +1157,6 @@ function StratifyAppContent() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
-      const xrayPathSymbol = getXraySymbolFromPath(window.location.pathname);
 
       if (path === '/whitepaper') {
         setCurrentPage('whitepaper');
@@ -1195,9 +1168,8 @@ function StratifyAppContent() {
         return;
       }
 
-      if (xrayPathSymbol) {
-        setCurrentPage('xray');
-        setXraySymbol(xrayPathSymbol);
+      if (isLegacyXrayPath(window.location.pathname)) {
+        setCurrentPage('dashboard');
         return;
       }
 
@@ -1210,7 +1182,7 @@ function StratifyAppContent() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      if (currentPage === 'dashboard' || currentPage === 'xray') {
+      if (currentPage === 'dashboard') {
         openAuth();
       }
     }
