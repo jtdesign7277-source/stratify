@@ -87,12 +87,21 @@ export function useTwelveDataWS() {
               const price = Number.parseFloat(data.price);
               if (!symbol || !Number.isFinite(price)) return;
 
+              const change = Number.parseFloat(data.change);
+              const changePercent = Number.parseFloat(data.percent_change ?? data.change_percent);
+              const previousClose = Number.parseFloat(
+                data.previous_close ?? data.prev_close ?? data.previousClose
+              );
+
               setPrices((previous) => ({
                 ...previous,
                 [symbol]: {
                   price,
                   timestamp: data.timestamp,
                   day_volume: Number.parseInt(data.day_volume, 10) || 0,
+                  change: Number.isFinite(change) ? change : null,
+                  change_percent: Number.isFinite(changePercent) ? changePercent : null,
+                  previous_close: Number.isFinite(previousClose) ? previousClose : null,
                   bid: Number.parseFloat(data.bid) || null,
                   ask: Number.parseFloat(data.ask) || null,
                   exchange: data.exchange || null,

@@ -1,14 +1,56 @@
 import { fetchTwelveData } from '../lib/twelvedata.js';
 import { supabase } from '../lib/supabase.js';
 
-const toInt = (value) => {
-  const parsed = Number.parseInt(value, 10);
+const parseNumeric = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const suffixMatch = raw.match(/^(-?\d+(?:\.\d+)?)([kKmMbBtT])$/);
+  if (suffixMatch) {
+    const base = Number.parseFloat(suffixMatch[1]);
+    if (!Number.isFinite(base)) return null;
+    const multiplier = {
+      k: 1e3,
+      m: 1e6,
+      b: 1e9,
+      t: 1e12,
+    }[suffixMatch[2].toLowerCase()] || 1;
+    return base * multiplier;
+  }
+
+  const cleaned = raw.replace(/[$,%\s,]/g, '');
+  const parsed = Number.parseFloat(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const toInt = (value) => {
+  const parsed = parseNumeric(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(parsed);
+};
+
 const toFloat = (value) => {
-  const parsed = Number.parseFloat(value);
+  const parsed = parseNumeric(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const firstFiniteFloat = (...candidates) => {
+  for (const candidate of candidates) {
+    const parsed = toFloat(candidate);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
+const firstFiniteInt = (...candidates) => {
+  for (const candidate of candidates) {
+    const parsed = toInt(candidate);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
 };
 
 export default async function handler(req, res) {
@@ -25,17 +67,44 @@ export default async function handler(req, res) {
 
   try {
     const quote = await fetchTwelveData('quote', { symbol: sym });
+    const quoteData =
+      quote && typeof quote === 'object' && quote.quote && typeof quote.quote === 'object'
+        ? quote.quote
+        : quote;
 
     const row = {
       symbol: sym,
-      price: toFloat(quote?.close),
-      change: toFloat(quote?.change),
-      change_percent: toFloat(quote?.percent_change),
-      volume: toInt(quote?.volume),
-      open: toFloat(quote?.open),
-      high: toFloat(quote?.high),
-      low: toFloat(quote?.low),
-      previous_close: toFloat(quote?.previous_close),
+      price: firstFiniteFloat(
+        quoteData?.price,
+        quoteData?.close,
+        quoteData?.last,
+        quoteData?.last_price,
+        quoteData?.c
+      ),
+      change: firstFiniteFloat(
+        quoteData?.change,
+        quoteData?.price_change,
+        quoteData?.change_value
+      ),
+      change_percent: firstFiniteFloat(
+        quoteData?.percent_change,
+        quoteData?.change_percent,
+        quoteData?.percentChange
+      ),
+      volume: firstFiniteInt(
+        quoteData?.volume,
+        quoteData?.day_volume,
+        quoteData?.avg_volume,
+        quoteData?.average_volume
+      ),
+      open: firstFiniteFloat(quoteData?.open, quoteData?.o),
+      high: firstFiniteFloat(quoteData?.high, quoteData?.h),
+      low: firstFiniteFloat(quoteData?.low, quoteData?.l),
+      previous_close: firstFiniteFloat(
+        quoteData?.previous_close,
+        quoteData?.prev_close,
+        quoteData?.previousClose
+      ),
       updated_at: new Date().toISOString(),
     };
 

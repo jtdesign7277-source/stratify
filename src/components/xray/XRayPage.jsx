@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Highcharts from 'highcharts';
-import { Activity, ArrowLeft, Search } from 'lucide-react';
+import { Activity, Search } from 'lucide-react';
 import IncomeTab from './IncomeTab';
 import BalanceTab from './BalanceTab';
 import CashFlowTab from './CashFlowTab';
@@ -14,6 +14,7 @@ import {
   formatCurrency,
   formatSignedPercent,
   normalizeSymbol,
+  toNumber,
 } from '../../lib/twelvedata';
 
 const TABS = [
@@ -68,6 +69,21 @@ const formatLiveTimestamp = (value) => {
   const ts = toDisplayTimestamp(value);
   if (!Number.isFinite(ts)) return null;
   return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+};
+
+const firstFiniteNumber = (...values) => {
+  for (const value of values) {
+    const parsed = toNumber(value);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+};
+
+const getAtPath = (obj, path) => {
+  if (!obj || typeof obj !== 'object' || !path) return undefined;
+  return String(path)
+    .split('.')
+    .reduce((cursor, segment) => (cursor && typeof cursor === 'object' ? cursor[segment] : undefined), obj);
 };
 
 const hasHighchartsCdnScript = () => {
@@ -221,13 +237,74 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   const liveQuote = prices?.[symbol] || null;
   const liveQuoteTime = formatLiveTimestamp(liveQuote?.timestamp);
+  const rawStats = stats?.raw_json || null;
+  const statsPayload =
+    rawStats && rawStats.statistics && typeof rawStats.statistics === 'object'
+      ? rawStats.statistics
+      : rawStats;
 
   const livePrice = useMemo(() => {
     if (liveQuote?.price !== null && liveQuote?.price !== undefined && Number.isFinite(liveQuote.price)) {
       return liveQuote.price;
     }
-    return quote?.price ?? null;
+    return toNumber(quote?.price);
   }, [liveQuote?.price, quote?.price]);
+
+  const displayChangePercent = useMemo(() => {
+    const livePercent = firstFiniteNumber(liveQuote?.change_percent, liveQuote?.percent_change);
+    if (livePercent !== null) return livePercent;
+
+    const quotePercent = firstFiniteNumber(quote?.change_percent, quote?.percent_change);
+    if (quotePercent !== null) return quotePercent;
+
+    const previousClose = firstFiniteNumber(quote?.previous_close, liveQuote?.previous_close);
+    if (livePrice !== null && previousClose !== null && previousClose !== 0) {
+      return Number((((livePrice - previousClose) / previousClose) * 100).toFixed(2));
+    }
+
+    return null;
+  }, [
+    livePrice,
+    liveQuote?.change_percent,
+    liveQuote?.percent_change,
+    liveQuote?.previous_close,
+    quote?.change_percent,
+    quote?.percent_change,
+    quote?.previous_close,
+  ]);
+
+  const marketCapValue = useMemo(() => firstFiniteNumber(
+    stats?.market_cap,
+    getAtPath(statsPayload, 'valuations_metrics.market_capitalization'),
+    getAtPath(statsPayload, 'valuations_metrics.market_cap'),
+    getAtPath(statsPayload, 'market_capitalization'),
+    getAtPath(statsPayload, 'market_cap')
+  ), [stats?.market_cap, statsPayload]);
+
+  const peRatioValue = useMemo(() => firstFiniteNumber(
+    stats?.pe_ratio,
+    getAtPath(statsPayload, 'valuations_metrics.trailing_pe'),
+    getAtPath(statsPayload, 'valuations_metrics.pe_ratio'),
+    getAtPath(statsPayload, 'pe_ratio')
+  ), [stats?.pe_ratio, statsPayload]);
+
+  const fiftyTwoWeekHigh = useMemo(() => firstFiniteNumber(
+    stats?.fifty_two_week_high,
+    getAtPath(statsPayload, 'stock_price_summary.fifty_two_week_high'),
+    getAtPath(statsPayload, 'stock_price_summary.week_52_high'),
+    getAtPath(statsPayload, 'stock_price_summary.52_week_high'),
+    getAtPath(statsPayload, 'fifty_two_week_high'),
+    getAtPath(statsPayload, '52_week_high')
+  ), [stats?.fifty_two_week_high, statsPayload]);
+
+  const fiftyTwoWeekLow = useMemo(() => firstFiniteNumber(
+    stats?.fifty_two_week_low,
+    getAtPath(statsPayload, 'stock_price_summary.fifty_two_week_low'),
+    getAtPath(statsPayload, 'stock_price_summary.week_52_low'),
+    getAtPath(statsPayload, 'stock_price_summary.52_week_low'),
+    getAtPath(statsPayload, 'fifty_two_week_low'),
+    getAtPath(statsPayload, '52_week_low')
+  ), [stats?.fifty_two_week_low, statsPayload]);
 
   const livePriceSubvalue = useMemo(() => {
     if (quoteError) return quoteError;
@@ -318,14 +395,6 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
           <div className={`rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm ${isCompactHeader ? 'p-2.5' : 'p-3'}`}>
             <div className={`flex flex-col ${isCompactHeader ? 'gap-2' : 'gap-3'} lg:flex-row lg:items-center lg:justify-between`}>
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleGoBack}
-                  className={`inline-flex items-center gap-1 rounded-lg border border-white/10 ${isCompactHeader ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs'} text-[#9ca3af] transition hover:border-white/20 hover:text-[#e5e7eb]`}
-                >
-                  <ArrowLeft size={14} strokeWidth={1.5} />
-                  Back
-                </button>
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.14em] text-[#6b7280]">X-Ray Fundamentals</p>
                   <h1 className={`${isCompactHeader ? 'mt-0.5 text-base' : 'mt-1 text-lg'} font-semibold text-[#e5e7eb]`}>{symbol}</h1>
@@ -423,25 +492,25 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
               />
               <StatCard
                 label="Change"
-                value={quote?.change_percent !== null && quote?.change_percent !== undefined ? formatSignedPercent(quote.change_percent) : '--'}
-                tone={getToneFromChange(quote?.change_percent)}
+                value={displayChangePercent !== null ? formatSignedPercent(displayChangePercent) : '--'}
+                tone={getToneFromChange(displayChangePercent)}
                 compact={isCompactHeader}
               />
               <StatCard
                 label="Market Cap"
-                value={stats?.market_cap ? formatCompactNumber(stats.market_cap) : '--'}
+                value={marketCapValue !== null ? formatCompactNumber(marketCapValue) : '--'}
                 compact={isCompactHeader}
               />
               <StatCard
                 label="P/E"
-                value={stats?.pe_ratio !== null && stats?.pe_ratio !== undefined ? Number(stats.pe_ratio).toFixed(2) : '--'}
+                value={peRatioValue !== null ? Number(peRatioValue).toFixed(2) : '--'}
                 compact={isCompactHeader}
               />
               <StatCard
                 label="52W Range"
                 value={
-                  stats?.fifty_two_week_low !== null && stats?.fifty_two_week_high !== null
-                    ? `${formatCurrency(stats.fifty_two_week_low)} - ${formatCurrency(stats.fifty_two_week_high)}`
+                  fiftyTwoWeekLow !== null && fiftyTwoWeekHigh !== null
+                    ? `${formatCurrency(fiftyTwoWeekLow)} - ${formatCurrency(fiftyTwoWeekHigh)}`
                     : '--'
                 }
                 compact={isCompactHeader}
