@@ -37,6 +37,25 @@ import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 const TraderPage = lazy(() => import('./TraderPage'));
+const communityPageModules = import.meta.glob('./CommunityPage.jsx');
+const MissingCommunityPage = () => (
+  <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+    Community page is unavailable. Add src/components/dashboard/CommunityPage.jsx.
+  </div>
+);
+const CommunityPage = lazy(async () => {
+  const importer = communityPageModules['./CommunityPage.jsx'];
+  if (!importer) return { default: MissingCommunityPage };
+
+  try {
+    const module = await importer();
+    if (module?.default) return { default: module.default };
+  } catch (error) {
+    console.error('[Dashboard] Failed to load CommunityPage:', error);
+  }
+
+  return { default: MissingCommunityPage };
+});
 import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplateFlow from './StrategyTemplateFlow';
@@ -54,6 +73,7 @@ import XRayPage from '../xray/XRayPage';
 import EarningsAlert from './EarningsAlert';
 import { useTradeHistory as useTradeHistoryStore } from '../../store/StratifyProvider';
 import UpgradePrompt from '../UpgradePrompt';
+import AppErrorBoundary from '../shared/AppErrorBoundary';
 import { getMarketStatus, getNextMarketOpen, isMarketOpen } from '../../lib/marketHours';
 
 const loadDashboardState = () => {
@@ -1762,9 +1782,11 @@ export default function Dashboard({
             </Suspense>
           )}
           {activeTab === 'trade' && (
-            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
-              Community page coming soon
-            </div>
+            <AppErrorBoundary>
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading community page...</div>}>
+                <CommunityPage />
+              </Suspense>
+            </AppErrorBoundary>
           )}
           {activeTab === 'global-markets' && <GlobalMarketsPage />}
           {activeTab === 'market' && <MarketMoversPage />}
