@@ -779,6 +779,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 
       if (!error) {
         setReplyContent('');
+        setShowReplies(true);
         loadReplies();
       }
     } catch (err) {
