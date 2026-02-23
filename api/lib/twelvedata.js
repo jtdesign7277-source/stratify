@@ -512,9 +512,9 @@ const GLOBAL_MARKETS = {
     label: 'Sydney Stock Exchange',
     currency: 'AUD',
     country: 'Australia',
-    defaultSymbols: ['BHP.AX', 'CBA.AX', 'WBC.AX', 'NAB.AX', 'ANZ.AX', 'CSL.AX'],
+    defaultSymbols: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
     exchangeHints: ['ASX', 'XASX', 'SYDNEY', 'AUSTRALIA'],
-    candidateFormats: (base) => [`${base}.AX`, `${base}:ASX`, `${base}:XASX`, `${base}.AU`, base],
+    candidateFormats: (base) => [base, `${base}:ASX`, `${base}:XASX`, `${base}.AX`, `${base}.AU`],
     stockListParams: [
       { exchange: 'ASX' },
       { exchange: 'XASX' },

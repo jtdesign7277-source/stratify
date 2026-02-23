@@ -30,7 +30,7 @@ const MARKETS = [
   },
   {
     id: 'sydney',
-    title: 'Sydney Stock Exchange',
+    title: 'Australian Stock Exchange',
     shortTitle: '🇦🇺 ASX',
     currency: 'AUD',
     accent: 'text-violet-400',
