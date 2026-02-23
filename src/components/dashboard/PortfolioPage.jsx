@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Unlink,
@@ -10,6 +10,7 @@ import BrokerConnect from './BrokerConnect';
 import { supabase } from '../../lib/supabaseClient';
 import useTradingMode from '../../hooks/useTradingMode';
 import usePortfolio from '../../hooks/usePortfolio';
+import { clearAlpacaCache } from '../../services/alpacaService';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -123,6 +124,7 @@ const PortfolioPage = ({
     }
   });
   const [dbConnections, setDbConnections] = useState([]);
+  const [hasBrokerConnection, setHasBrokerConnection] = useState(null);
   const [showLiveConfirmModal, setShowLiveConfirmModal] = useState(false);
   const [modeError, setModeError] = useState('');
 
@@ -135,47 +137,63 @@ const PortfolioPage = ({
     }
   }, [showBrokerModal]);
 
-  // Fetch actual broker connections from database
-  useEffect(() => {
-    const fetchConnections = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
-
-        const { data, error } = await supabase
-          .from('broker_connections')
-          .select('*')
-          .eq('user_id', session.user.id);
-
-        if (!error && data) {
-          setDbConnections(data.map(conn => ({
-            id: conn.broker,
-            name: conn.broker.charAt(0).toUpperCase() + conn.broker.slice(1),
-            is_paper: conn.is_paper,
-            paperConnected: Boolean(
-              conn.paper_api_key
-              || conn.paper_api_keys?.api_key
-              || (conn.is_paper !== false && conn.api_key)
-            ),
-            liveConnected: Boolean(
-              conn.live_api_key
-              || conn.live_api_keys?.api_key
-              || (conn.is_paper === false && conn.api_key)
-            ),
-          })));
-        }
-      } catch (err) {
-        console.error('[PortfolioPage] Failed to fetch connections:', err);
+  const checkBrokerConnection = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setDbConnections([]);
+        setHasBrokerConnection(false);
+        return;
       }
-    };
-    fetchConnections();
+
+      const { data, error } = await supabase
+        .from('broker_connections')
+        .select('*')
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('[PortfolioPage] Failed to fetch connections:', error);
+        setDbConnections([]);
+        setHasBrokerConnection(false);
+        return;
+      }
+
+      const mappedConnections = (data || []).map((conn) => ({
+        id: conn.broker,
+        name: conn.broker.charAt(0).toUpperCase() + conn.broker.slice(1),
+        is_paper: conn.is_paper,
+        paperConnected: Boolean(
+          conn.paper_api_key
+          || conn.paper_api_keys?.api_key
+          || (conn.is_paper !== false && conn.api_key)
+        ),
+        liveConnected: Boolean(
+          conn.live_api_key
+          || conn.live_api_keys?.api_key
+          || (conn.is_paper === false && conn.api_key)
+        ),
+      }));
+
+      setDbConnections(mappedConnections);
+      setHasBrokerConnection(mappedConnections.length > 0);
+    } catch (err) {
+      console.error('[PortfolioPage] Failed to fetch connections:', err);
+      setDbConnections([]);
+      setHasBrokerConnection(false);
+    }
   }, []);
 
-  // Use database connections if available, otherwise fall back to prop
-  const connectedBrokers = dbConnections.length > 0 ? dbConnections : _connectedBrokers;
+  // Fetch actual broker connections from database on mount
+  useEffect(() => {
+    checkBrokerConnection();
+  }, [checkBrokerConnection]);
+
+  // Keep prop fallback while broker connection check is still loading.
+  const connectedBrokers = hasBrokerConnection === null ? _connectedBrokers : dbConnections;
   const account = portfolio?.account || {};
   const rawPositions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
   const tradeHistory = Array.isArray(portfolio?.tradeHistory) ? portfolio.tradeHistory : [];
+  const isBrokerDisconnected = hasBrokerConnection === false;
 
   const hasLiveAlpacaConnection = connectedBrokers.some((broker) => (
     String(broker.id || '').toLowerCase() === 'alpaca'
@@ -201,6 +219,11 @@ const PortfolioPage = ({
   const dailyPnLPercent = toNumber(account.last_equity) > 0
     ? (dailyPnL / toNumber(account.last_equity)) * 100
     : 0;
+  const displayedEquity = isBrokerDisconnected ? 0 : equity;
+  const displayedCash = isBrokerDisconnected ? 0 : cash;
+  const displayedBuyingPower = isBrokerDisconnected ? 0 : buyingPower;
+  const displayedDailyPnL = isBrokerDisconnected ? 0 : dailyPnL;
+  const displayedDailyPnLPercent = isBrokerDisconnected ? 0 : dailyPnLPercent;
 
   const positions = useMemo(() => rawPositions
     .map((pos) => {
@@ -253,6 +276,12 @@ const PortfolioPage = ({
     await portfolio.refresh({ forceFresh: true });
   };
 
+  const handleClearCache = async () => {
+    clearAlpacaCache();
+    await portfolio.refresh({ forceFresh: true });
+    await checkBrokerConnection();
+  };
+
   const requestModeSwitch = async (targetMode) => {
     const normalizedTarget = String(targetMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
     if ((normalizedTarget === 'live' && isLive) || (normalizedTarget === 'paper' && isPaper)) return;
@@ -269,8 +298,10 @@ const PortfolioPage = ({
     await handleModeSwitch('paper');
   };
 
-  const handleBrokerConnect = (broker) => {
+  const handleBrokerConnect = async (broker) => {
     onBrokerConnect(broker);
+    await checkBrokerConnection();
+    await portfolio.refresh({ forceFresh: true });
     clearBrokerModalPersistence();
     setShowBrokerModal(false);
   };
@@ -297,8 +328,9 @@ const PortfolioPage = ({
       });
 
       if (response.ok) {
-        setDbConnections(prev => prev.filter(c => c.id !== brokerId));
         onBrokerDisconnect(brokerId);
+        await checkBrokerConnection();
+        await portfolio.refresh({ forceFresh: true });
         console.log('[PortfolioPage] Broker disconnected:', brokerId);
       } else {
         const error = await response.json();
@@ -311,7 +343,7 @@ const PortfolioPage = ({
     }
   };
 
-  const noLiveBrokerConnected = isLive && !hasLiveAlpacaConnection && rawPositions.length === 0 && equity <= 0;
+  const noLiveBrokerConnected = hasBrokerConnection === true && isLive && !hasLiveAlpacaConnection && rawPositions.length === 0 && equity <= 0;
 
   const totalMarketValue = useMemo(() => positions.reduce((sum, p) => sum + p.marketValue, 0), [positions]);
   const totalUnrealizedPL = useMemo(() => positions.reduce((sum, p) => sum + p.unrealizedPL, 0), [positions]);
@@ -321,7 +353,7 @@ const PortfolioPage = ({
   const totalDailyChangePct = totalMarketValue > 0 ? (totalDailyChange / (totalMarketValue - totalDailyChange)) * 100 : 0;
   const totalPLIsPositive = totalUnrealizedPL >= 0;
 
-  const dailyIsPositive = dailyPnL >= 0;
+  const dailyIsPositive = displayedDailyPnL >= 0;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent text-white overflow-auto">
@@ -364,6 +396,13 @@ const PortfolioPage = ({
             >
               Live 💰
             </button>
+            <button
+              onClick={handleClearCache}
+              type="button"
+              className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+            >
+              Clear Cache &amp; Refresh
+            </button>
             <div className="text-xs text-white/60">
               {switchingMode ? 'Switching mode and reloading data...' : (portfolio.loading ? 'Loading account...' : 'Mode is synced to Supabase')}
             </div>
@@ -376,7 +415,61 @@ const PortfolioPage = ({
           ) : null}
         </div>
 
-        {noLiveBrokerConnected ? (
+        {isBrokerDisconnected ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" strokeWidth={1.6} />
+                <div>
+                  <div className="text-sm font-semibold text-amber-100">No broker connected</div>
+                  <p className="text-xs text-amber-100/80 mt-1">
+                    Connect a broker to view your portfolio and trade
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Net Liquidation</div>
+                  <div className="text-2xl font-semibold font-mono">{formatCurrency(displayedEquity)}</div>
+                </div>
+                <div className="w-px h-8 bg-white/10"></div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Buying Power</div>
+                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(displayedBuyingPower)}</div>
+                </div>
+                <div className="w-px h-8 bg-white/10"></div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Cash</div>
+                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(displayedCash)}</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Daily P&amp;L</div>
+                <div className={`text-2xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatSignedCurrency(displayedDailyPnL)}
+                </div>
+                <div className={`text-xs font-mono ${dailyIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                  {formatSigned(displayedDailyPnLPercent, '%')}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#1f1f1f] bg-[#111111] p-6 text-center">
+              <p className="text-sm text-white/60 mb-4">Connect a broker to view your portfolio and trade</p>
+              <button
+                type="button"
+                onClick={() => setShowBrokerModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/25 transition-colors"
+              >
+                <Plus className="w-4 h-4" strokeWidth={1.6} />
+                Connect Broker
+              </button>
+            </div>
+          </div>
+        ) : noLiveBrokerConnected ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
               <div className="flex items-start gap-3">
@@ -434,26 +527,26 @@ const PortfolioPage = ({
               <div className="flex items-center gap-6">
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Net Liquidation</div>
-                  <div className="text-2xl font-semibold font-mono">{formatCurrency(equity)}</div>
+                  <div className="text-2xl font-semibold font-mono">{formatCurrency(displayedEquity)}</div>
                 </div>
                 <div className="w-px h-8 bg-white/10"></div>
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Buying Power</div>
-                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(buyingPower)}</div>
+                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(displayedBuyingPower)}</div>
                 </div>
                 <div className="w-px h-8 bg-white/10"></div>
                 <div>
                   <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Cash</div>
-                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(cash)}</div>
+                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(displayedCash)}</div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Daily P&L</div>
                 <div className={`text-2xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatSignedCurrency(dailyPnL)}
+                  {formatSignedCurrency(displayedDailyPnL)}
                 </div>
                 <div className={`text-xs font-mono ${dailyIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                  {formatSigned(dailyPnLPercent, '%')}
+                  {formatSigned(displayedDailyPnLPercent, '%')}
                 </div>
               </div>
             </div>
