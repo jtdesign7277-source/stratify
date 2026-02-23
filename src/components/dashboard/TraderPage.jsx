@@ -806,12 +806,12 @@ function TraderOrderEntry({
     } catch (error) {
       console.error('Order submission error:', error);
       const errorMsg = error?.message || 'Order rejected';
-      if (errorMsg.includes('No Alpaca') || errorMsg.includes('not_connected')) {
-        alert(`Order rejected\n\n${isLiveMode ? 'No live broker connected. Add live keys in Portfolio.' : 'No broker connected.'}`);
+      if (errorMsg.includes('not_connected') || errorMsg.toLowerCase().includes('no broker')) {
+        alert(`Order rejected\n\n${isLiveMode ? 'No live broker connected. Connect a live broker in Portfolio.' : 'No paper broker connected. Connect a broker in Portfolio.'}`);
       } else if (errorMsg.toLowerCase().includes('insufficient')) {
         alert('Order rejected\n\nInsufficient buying power. Check your account balance.');
       } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
-        alert('Order rejected\n\nYour API keys may not have trading permissions. Check your broker dashboard.');
+        alert('Order rejected\n\nYour broker credentials may not have trading permissions. Check your broker dashboard.');
       } else {
         alert(`Order rejected\n\n${errorMsg}`);
       }

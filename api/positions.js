@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     }
     return res.status(401).json({
       error: 'not_connected',
-      message: 'No Alpaca live broker connected',
+      message: 'No live broker connected',
       mode,
     });
   }

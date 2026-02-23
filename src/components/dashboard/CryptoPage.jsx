@@ -3,6 +3,7 @@ import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
 import useTradingMode from '../../hooks/useTradingMode';
+import { fetchAccount, placeOrder } from '../../services/alpacaService';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -55,15 +56,15 @@ function TradingViewWidget({ scriptSrc, config, containerId, style, className })
 // CRYPTO COINS CONFIG
 // ═══════════════════════════════════════════════════════════════════════════════
 const CRYPTO_COINS = [
-  { symbol: 'BTC', name: 'Bitcoin', tvSymbol: 'COINBASE:BTCUSD', alpacaSymbol: 'BTC/USD', color: '#F7931A' },
-  { symbol: 'ETH', name: 'Ethereum', tvSymbol: 'COINBASE:ETHUSD', alpacaSymbol: 'ETH/USD', color: '#627EEA' },
-  { symbol: 'SOL', name: 'Solana', tvSymbol: 'COINBASE:SOLUSD', alpacaSymbol: 'SOL/USD', color: '#9945FF' },
-  { symbol: 'XRP', name: 'XRP', tvSymbol: 'BINANCE:XRPUSDT', alpacaSymbol: 'XRP/USD', color: '#00AAE4' },
-  { symbol: 'DOGE', name: 'Dogecoin', tvSymbol: 'COINBASE:DOGEUSD', alpacaSymbol: 'DOGE/USD', color: '#C3A634' },
-  { symbol: 'LINK', name: 'Chainlink', tvSymbol: 'COINBASE:LINKUSD', alpacaSymbol: 'LINK/USD', color: '#2A5ADA' },
-  { symbol: 'ADA', name: 'Cardano', tvSymbol: 'COINBASE:ADAUSD', alpacaSymbol: 'ADA/USD', color: '#0033AD' },
-  { symbol: 'AVAX', name: 'Avalanche', tvSymbol: 'COINBASE:AVAXUSD', alpacaSymbol: 'AVAX/USD', color: '#E84142' },
-  { symbol: 'DOT', name: 'Polkadot', tvSymbol: 'COINBASE:DOTUSD', alpacaSymbol: 'DOT/USD', color: '#E6007A' },
+  { symbol: 'BTC', name: 'Bitcoin', tvSymbol: 'COINBASE:BTCUSD', tradeSymbol: 'BTC/USD', color: '#F7931A' },
+  { symbol: 'ETH', name: 'Ethereum', tvSymbol: 'COINBASE:ETHUSD', tradeSymbol: 'ETH/USD', color: '#627EEA' },
+  { symbol: 'SOL', name: 'Solana', tvSymbol: 'COINBASE:SOLUSD', tradeSymbol: 'SOL/USD', color: '#9945FF' },
+  { symbol: 'XRP', name: 'XRP', tvSymbol: 'BINANCE:XRPUSDT', tradeSymbol: 'XRP/USD', color: '#00AAE4' },
+  { symbol: 'DOGE', name: 'Dogecoin', tvSymbol: 'COINBASE:DOGEUSD', tradeSymbol: 'DOGE/USD', color: '#C3A634' },
+  { symbol: 'LINK', name: 'Chainlink', tvSymbol: 'COINBASE:LINKUSD', tradeSymbol: 'LINK/USD', color: '#2A5ADA' },
+  { symbol: 'ADA', name: 'Cardano', tvSymbol: 'COINBASE:ADAUSD', tradeSymbol: 'ADA/USD', color: '#0033AD' },
+  { symbol: 'AVAX', name: 'Avalanche', tvSymbol: 'COINBASE:AVAXUSD', tradeSymbol: 'AVAX/USD', color: '#E84142' },
+  { symbol: 'DOT', name: 'Polkadot', tvSymbol: 'COINBASE:DOTUSD', tradeSymbol: 'DOT/USD', color: '#E6007A' },
 ];
 
 const CRYPTO_ORDER_TYPE_OPTIONS = [
@@ -140,13 +141,13 @@ const normalizeCryptoSymbol = (symbol = '') => String(symbol || '')
   .replace(/_/g, '/')  // Convert underscores to forward slash
   .replace(/-/g, '/'); // Convert hyphens to forward slash (normalize to BTC/USD format)
 
-function useAlpacaOrderbook(alpacaSymbol) {
+function useCryptoOrderbook(tradeSymbol) {
   const [connected, setConnected] = useState(false);
   const [hasRecentMessage, setHasRecentMessage] = useState(false);
   const [lastPrice, setLastPrice] = useState(null);
   const lastPriceRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
-  const normalizedSymbol = useMemo(() => normalizeCryptoSymbol(alpacaSymbol), [alpacaSymbol]);
+  const normalizedSymbol = useMemo(() => normalizeCryptoSymbol(tradeSymbol), [tradeSymbol]);
 
   // Fetch initial price via REST API for instant display (before WebSocket connects)
   useEffect(() => {
@@ -368,72 +369,106 @@ function OrderEntry({
       : String(timeInForce || 'gtc').toLowerCase();
 
     const order = {
-      symbol: selectedCoin.alpacaSymbol,
+      symbol: selectedCoin.tradeSymbol,
       side,
-      orderType,
-      mode: normalizedTradingMode,
-      quantity: resolvedQuantity,
-      notionalAmount: sizeMode === 'dollars' ? notionalNumber : null,
-      limitPrice: requiresLimit ? limitPriceNumber : null,
-      stopPrice: requiresStop ? stopPriceNumber : null,
+      type: orderType,
+      time_in_force: normalizedTimeInForce,
+      qty: resolvedQuantity,
+      notional: sizeMode === 'dollars' ? notionalNumber : null,
+      limit_price: requiresLimit ? limitPriceNumber : null,
+      stop_price: requiresStop ? stopPriceNumber : null,
       ...(requiresTrail
         ? (trailType === 'percent'
           ? { trail_percent: trailAmountNumber }
-          : { trail_amount: trailAmountNumber })
-        : {}),
-      timeInForce: normalizedTimeInForce,
+          : { trail_price: trailAmountNumber })
+        : {})
     };
 
     try {
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers = {
-        'Content-Type': 'application/json',
-        'x-trading-mode': normalizedTradingMode,
-      };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
+      if (!Number.isFinite(order.qty) || order.qty <= 0) {
+        delete order.qty;
+      }
+      if (!Number.isFinite(order.notional) || order.notional <= 0) {
+        delete order.notional;
+      }
+      if (!Number.isFinite(order.limit_price) || order.limit_price <= 0) {
+        delete order.limit_price;
+      }
+      if (!Number.isFinite(order.stop_price) || order.stop_price <= 0) {
+        delete order.stop_price;
+      }
+      if (!Number.isFinite(order.trail_price) || order.trail_price <= 0) {
+        delete order.trail_price;
+      }
+      if (!Number.isFinite(order.trail_percent) || order.trail_percent <= 0) {
+        delete order.trail_percent;
       }
 
-      const response = await fetch('/api/crypto/order', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(order),
+      const result = await placeOrder(order, {
+        mode: normalizedTradingMode,
       });
-      const result = await response.json();
 
       // Save to Supabase
       if (userId) {
-        await saveOrder(userId, { ...order, status: result.success ? 'filled' : 'failed' });
+        await saveOrder(userId, {
+          symbol: order.symbol,
+          side: order.side,
+          orderType: order.type,
+          quantity: order.qty || resolvedQuantity,
+          limitPrice: order.limit_price || null,
+          stopPrice: order.stop_price || null,
+          timeInForce: order.time_in_force,
+          status: 'filled',
+        });
       }
 
-      if (result.success) {
-        setLastResult('filled');
-        setTimeout(() => setLastResult(null), 3000);
-        handleOrderPlaced();
-      } else {
-        // Show detailed error message
-        const errorMsg = result.error || 'Order rejected';
-        console.error('Order rejected:', errorMsg);
-        
-        if (errorMsg.includes('No Alpaca broker connected') || errorMsg.includes('not_connected')) {
-          alert(`❌ No broker connected\n\nPlease connect your Alpaca ${isLiveMode ? 'live' : 'paper'} account in the Portfolio page before trading.`);
-        } else if (errorMsg.includes('insufficient')) {
-          alert(`❌ Order rejected\n\nInsufficient buying power. Check your account balance.`);
-        } else if (errorMsg.includes('forbidden') || errorMsg.includes('not authorized')) {
-          alert(`❌ Order rejected\n\nYour Alpaca API keys may not have trading permissions. Check your Alpaca dashboard.`);
-        } else {
-          alert(`❌ Order rejected\n\n${errorMsg}`);
+      setLastResult('filled');
+      setTimeout(() => setLastResult(null), 3000);
+      onOrderPlaced?.(result);
+      handleOrderPlaced();
+
+      try {
+        const refreshedAccount = await fetchAccount({
+          mode: normalizedTradingMode,
+          forceFresh: true,
+        });
+        const buyingPower = refreshedAccount?.buying_power ?? refreshedAccount?.cash ?? refreshedAccount?.buyingPower;
+        const parsed = Number(buyingPower);
+        if (Number.isFinite(parsed)) {
+          setAccountBuyingPowerDisplay(new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(parsed));
         }
-        
-        setLastResult('rejected');
-        setTimeout(() => setLastResult(null), 3000);
+      } catch {
+        // Ignore post-order balance refresh failures.
       }
     } catch (err) {
       if (userId) {
-        await saveOrder(userId, { ...order, status: 'error' });
+        await saveOrder(userId, {
+          symbol: order.symbol,
+          side: order.side,
+          orderType: order.type,
+          quantity: order.qty || resolvedQuantity,
+          limitPrice: order.limit_price || null,
+          stopPrice: order.stop_price || null,
+          timeInForce: order.time_in_force,
+          status: 'error',
+        });
       }
       console.error('Order submission error:', err);
+      const errorMsg = err?.message || 'Order rejected';
+      if (errorMsg.includes('not_connected') || errorMsg.toLowerCase().includes('no broker')) {
+        alert(`❌ No broker connected\n\nPlease connect your ${isLiveMode ? 'live' : 'paper'} broker account in Portfolio before trading.`);
+      } else if (errorMsg.toLowerCase().includes('insufficient')) {
+        alert('❌ Order rejected\n\nInsufficient buying power. Check your account balance.');
+      } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
+        alert('❌ Order rejected\n\nYour broker credentials may not have trading permissions.');
+      } else {
+        alert(`❌ Order rejected\n\n${errorMsg}`);
+      }
       setLastResult('error');
       setTimeout(() => setLastResult(null), 3000);
     }
@@ -671,16 +706,16 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN CRYPTO PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function CryptoPage({ alpacaData, onOrderPlaced }) {
+export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [userId, setUserId] = useState(null);
   const [orderHistory, setOrderHistory] = useState([]);
-  const { connected, hasRecentMessage, lastPrice } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
+  const { connected, hasRecentMessage, lastPrice } = useCryptoOrderbook(selectedCoin.tradeSymbol);
   const streamLive = connected || hasRecentMessage;
 
-  // Extract buying power from Alpaca account data
-  const buyingPower = alpacaData?.account?.buying_power || 0;
+  // Extract buying power from connected broker account data
+  const buyingPower = brokerData?.account?.buying_power || 0;
   const buyingPowerFormatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -721,7 +756,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
         if (orders) setOrderHistory(orders);
       });
     }
-    // Trigger Alpaca data refresh to update buying power
+    // Trigger parent data refresh to update buying power
     if (onOrderPlaced) {
       onOrderPlaced();
     }

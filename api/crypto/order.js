@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   if (!user) {
     return res.status(401).json({ 
       success: false, 
-      error: 'No broker connected. Please connect your Alpaca paper account in Portfolio.' 
+      error: 'No broker connected. Please connect a broker account in Portfolio.' 
     });
   }
 
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
   if (!conn) {
     return res.status(401).json({ 
       success: false, 
-      error: 'No Alpaca broker connected. Please connect your Alpaca paper account in Portfolio.' 
+      error: 'No broker connected. Please connect a broker account in Portfolio.' 
     });
   }
 

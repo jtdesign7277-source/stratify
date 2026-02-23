@@ -560,7 +560,7 @@ export default async function handler(req, res) {
     const credentials = resolveAlpacaCredentialsForMode(conn, mode);
     if (!credentials.apiKey || !credentials.apiSecret) {
       return res.status(401).json({
-        error: 'No Alpaca live broker connected. Connect live keys in Portfolio before placing live trades.',
+        error: 'No live broker connected. Connect a live broker in Portfolio before placing live trades.',
         mode,
       });
     }
