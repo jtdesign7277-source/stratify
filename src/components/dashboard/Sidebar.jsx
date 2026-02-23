@@ -66,10 +66,10 @@ const Sidebar = ({
   const navItems = [
     { id: 'war-room', label: 'War Room', icon: Crosshair, isNew: true, labelClass: 'font-semibold text-red-500', iconClass: 'text-red-500' },
     { id: 'trader', label: 'Trader', icon: TrendingUp },
-    { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
     { id: 'xray', label: 'X-Ray', icon: Microscope },
+    { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
