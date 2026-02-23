@@ -1044,6 +1044,18 @@ const CommunityPage = () => {
     getUser();
   }, []);
 
+  // Update posts when currentUser loads (for reaction button interactivity)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    setPosts((prevPosts) =>
+      prevPosts.map((post) => ({
+        ...post,
+        reaction_summary: buildReactionSummary(post.community_reactions || [], currentUser.id),
+      }))
+    );
+  }, [currentUser?.id]);
+
   useEffect(() => {
     const verifyReactionsTable = async () => {
       const { error } = await supabase
