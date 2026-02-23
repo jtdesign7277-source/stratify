@@ -18,6 +18,11 @@ import {
   persistPendingCheckoutSession,
   readPendingCheckoutSession,
 } from './lib/checkoutSession';
+import {
+  PRO_MONTHLY_PRICE_LABEL,
+  PRO_MONTHLY_PRICE_LABEL_LONG,
+  PRO_STRIPE_PRICE_ID,
+} from './lib/billing';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -973,8 +978,7 @@ export class TeslaEMAStrategy extends Strategy {
   );
 };
 
-const PRO_CHECKOUT_PRICE_ID =
-  import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+const PRO_CHECKOUT_PRICE_ID = PRO_STRIPE_PRICE_ID;
 const AUTH_GATE_TIMEOUT_MS = 5000;
 
 function StratifyAppContent() {
@@ -1295,7 +1299,7 @@ function StratifyAppContent() {
           <h1 className="text-2xl font-semibold">Complete Your Stratify Subscription</h1>
           <p className="mt-3 text-sm text-white/70">
             Access to War Room, Terminal, Trade, Portfolio, and all dashboard tools requires an active
-            subscription at $9.99/month.
+            subscription at {PRO_MONTHLY_PRICE_LABEL_LONG}.
           </p>
           <button
             type="button"
@@ -1303,7 +1307,7 @@ function StratifyAppContent() {
             disabled={isCheckoutRedirecting}
             className="mt-6 inline-flex items-center justify-center rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isCheckoutRedirecting ? 'Redirecting to Stripe...' : 'Continue to Stripe Checkout ($9.99/mo)'}
+            {isCheckoutRedirecting ? 'Redirecting to Stripe...' : `Continue to Stripe Checkout (${PRO_MONTHLY_PRICE_LABEL})`}
           </button>
           {checkoutError ? (
             <p className="mt-3 text-xs text-red-300">{checkoutError}</p>

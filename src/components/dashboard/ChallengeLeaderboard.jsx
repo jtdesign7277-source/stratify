@@ -36,7 +36,7 @@ Gold trophy button in top bar:
 When isPaid={false}:
 - Blurred preview of leaderboard behind overlay
 - Show top 3 winners with returns (social proof / FOMO)
-- CTA: "Upgrade to Legend — $9.99/mo"
+- CTA: "Upgrade to Legend — $19.99/mo"
 - Subtext: "Cancel anytime · First week free"
 - Block all challenge functionality
 
@@ -544,7 +544,7 @@ export default function ChallengeLeaderboard({ isPaid = true }) {
           </div>
           <button style={{padding:"12px 32px",borderRadius:10,background:"linear-gradient(135deg, #fbbf24, #f59e0b)",border:"none",color:"#0a0e18",fontSize:fs(16),fontWeight:700,cursor:"pointer",fontFamily:MONO,transition:"transform 0.15s"}}
             onMouseEnter={e=>e.currentTarget.style.transform="scale(1.03)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
-            Upgrade to Legend — $9.99/mo
+            Upgrade to Legend — $19.99/mo
           </button>
           <div style={{fontSize:fs(12),color:"#475569",marginTop:10}}>Cancel anytime · First week free</div>
         </div>

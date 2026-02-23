@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import useSubscription from '../../hooks/useSubscription';
 import { supabase } from '../../lib/supabaseClient';
 import { persistPendingCheckoutSession } from '../../lib/checkoutSession';
+import { PRO_STRIPE_PRICE_ID } from '../../lib/billing';
 
 const UPGRADE_URL = null; // Handled by click handler
 
@@ -129,7 +130,7 @@ export default function MoreInfoPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId: 'price_1T0jBTRdPxQfs9UeRln3Uj68',
+          priceId: PRO_STRIPE_PRICE_ID,
           userId: currentUser.id,
           userEmail: currentUser.email,
         }),

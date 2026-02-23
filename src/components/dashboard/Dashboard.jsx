@@ -35,6 +35,7 @@ import GlobalMarketsPage from './GlobalMarketsPage';
 import PortfolioPage from './PortfolioPage';
 import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
+import { PRO_STRIPE_PRICE_ID } from '../../lib/billing';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
 const tradePageModules = import.meta.glob('./TradePage.jsx');
@@ -151,7 +152,7 @@ const getInitialSidebarExpanded = (savedState) => {
 };
 
 const FREE_STRATEGY_LIMIT = 3;
-const PRO_PRICE_ID = 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+const PRO_PRICE_ID = PRO_STRIPE_PRICE_ID;
 const PAPER_TRADING_BALANCE = 100000;
 const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';

@@ -572,7 +572,7 @@ const LandingPage = ({ onEnter }) => {
                 <div className="relative z-10">
                   <div className="text-base text-purple-400 mb-2">Pro</div>
                   <div className="text-5xl font-bold mb-1">
-                    $9.99<span className="text-lg text-gray-400">/month</span>
+                    $19.99<span className="text-lg text-gray-400">/month</span>
                   </div>
                   <div className="text-gray-400 text-sm mb-8 leading-relaxed">
                     Unlock advanced automation and<br />

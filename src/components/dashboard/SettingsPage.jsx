@@ -43,7 +43,7 @@ const MOCK_ACTIVITY = [
 // ============== PLAN CONFIG ==============
 const PLANS = {
   free: { name: 'Free', price: 0, color: 'gray', features: ['$100K Paper Money', '3 Active Strategies', '10 Backtests/mo', '50 AI Queries'] },
-  pro: { name: 'Pro', price: 9.99, color: 'cyan', badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', features: ['Unlimited Strategies', '500 Backtests/mo', '1000 AI Queries', 'Arbitrage Scanner'] },
+  pro: { name: 'Pro', price: 19.99, color: 'cyan', badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', features: ['Unlimited Strategies', '500 Backtests/mo', '1000 AI Queries', 'Arbitrage Scanner'] },
 };
 
 // ============== SUB-COMPONENTS ==============

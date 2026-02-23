@@ -69,7 +69,7 @@ Stratify is an AI-powered stock trading strategy platform at stratify.associates
 - **Quick Presets**: Growth Investing, Momentum Trading, Day Trading, RSI Bounce, MACD Crossover, Bollinger Squeeze
 
 ### Payments & Email
-- **Stripe**: Stratify Pro @ $9.99/month (live)
+- **Stripe**: Stratify Pro @ $19.99/month (live)
   - Webhook: Vercel serverless function handles payment events
 - **Email**: jeff@stratify-associates.com
   - Contact form: Resend API

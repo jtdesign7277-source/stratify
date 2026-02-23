@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
 import { persistPendingCheckoutSession } from '../lib/checkoutSession';
+import { PRO_MONTHLY_PRICE_LABEL } from '../lib/billing';
 
 export default function UpgradePrompt({
   featureName = 'Premium Feature',
@@ -102,7 +103,7 @@ export default function UpgradePrompt({
             disabled={loading}
             className="inline-flex items-center justify-center rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Redirecting...' : 'Upgrade to Pro - $9.99/mo'}
+            {loading ? 'Redirecting...' : `Upgrade to Pro - ${PRO_MONTHLY_PRICE_LABEL}`}
           </button>
           <div className="text-xs text-white/50">Cancel anytime</div>
         </div>

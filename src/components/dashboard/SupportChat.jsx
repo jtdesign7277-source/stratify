@@ -36,7 +36,7 @@ export default function SupportChat({ compact = false }) {
     setIsLoading(true);
 
     try {
-      const contextualMessage = 'You are Stratify Support. Use ONLY this information to answer: Stratify is an AI trading platform at https://stratify.associates. Contact email: jeff@stratify-associates.com. Twitter: @stratify_hq. Pricing: Free plan and Pro at $9.99/month. Features: Paper Trading, AI Strategy Builder, Backtesting, Analytics, Advanced Charts, Trend Scanner, Portfolio Management. Strategy templates: Momentum, RSI, Mean Reversion, Breakout, MACD, Scalping. For billing issues direct to contact form or jeff@stratify-associates.com.\n\nUser question: ' + text;
+      const contextualMessage = 'You are Stratify Support. Use ONLY this information to answer: Stratify is an AI trading platform at https://stratify.associates. Contact email: jeff@stratify-associates.com. Twitter: @stratify_hq. Pricing: Free plan and Pro at $19.99/month. Features: Paper Trading, AI Strategy Builder, Backtesting, Analytics, Advanced Charts, Trend Scanner, Portfolio Management. Strategy templates: Momentum, RSI, Mean Reversion, Breakout, MACD, Scalping. For billing issues direct to contact form or jeff@stratify-associates.com.\n\nUser question: ' + text;
       const response = await fetch(`${API_BASE}/api/v1/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

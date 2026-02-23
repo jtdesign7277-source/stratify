@@ -15,6 +15,10 @@ import {
   Shield,
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
+import {
+  INSTITUTIONAL_MONTHLY_PRICE_LABEL,
+  PRO_MONTHLY_PRICE_LABEL,
+} from '../../lib/billing';
 
 const PROBLEM_CARDS = [
   { title: 'Charts & Technicals', cost: '$60/mo' },
@@ -95,7 +99,7 @@ const PRICING_PLANS = [
   {
     id: 'pro',
     name: 'PRO',
-    price: '$29/mo',
+    price: PRO_MONTHLY_PRICE_LABEL,
     subtitle: 'For active independent traders',
     features: [
       'Live data',
@@ -126,7 +130,7 @@ const PRICING_PLANS = [
   {
     id: 'institutional',
     name: 'INSTITUTIONAL',
-    price: '$299/mo',
+    price: INSTITUTIONAL_MONTHLY_PRICE_LABEL,
     subtitle: 'For teams and firms',
     features: ['Team accounts', 'White-label options', 'Dedicated support', 'Unlimited everything'],
     borderClass: 'border-purple-500/50',
@@ -335,7 +339,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
                 onClick={handleGetStarted}
                 className="border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
               >
-                Get Started — $9.99/mo
+                {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
               </button>
               <a
@@ -409,7 +413,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
           <div className="max-w-6xl mx-auto text-center">
             <h2 className="text-white text-3xl font-bold">One Platform. One Key.</h2>
             <div className="mt-10 max-w-md mx-auto rounded-2xl border border-amber-500/50 shadow-[0_0_36px_rgba(245,158,11,0.14)] bg-black/35 p-8">
-              <p className="text-white text-xl font-semibold">Stratify - $29/mo</p>
+              <p className="text-white text-xl font-semibold">{`Stratify - ${PRO_MONTHLY_PRICE_LABEL}`}</p>
             </div>
             <p className="mt-4 text-amber-400">Up to 87% savings with everything connected.</p>
 
@@ -581,7 +585,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
               onClick={handleGetStarted}
               className="mt-8 border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-8 py-3 rounded-xl transition-colors"
             >
-              Get Started — $9.99/mo
+              {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
             </button>
             <p className="mt-5 text-sm text-gray-500">
               <a href="https://stratify.associates" className="text-amber-400 hover:text-amber-300 transition-colors">

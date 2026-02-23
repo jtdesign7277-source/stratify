@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import {
+  INSTITUTIONAL_MONTHLY_PRICE_LABEL,
+  PRO_MONTHLY_PRICE_LABEL,
+} from '../lib/billing';
 
 const TOC_ITEMS = [
   { id: 'problem', label: 'The Problem' },
@@ -367,7 +371,7 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
                       </tr>
                       <tr>
                         <td className="px-4 py-3 text-white">Pro</td>
-                        <td className="px-4 py-3 text-gray-300">$29/mo</td>
+                        <td className="px-4 py-3 text-gray-300">{PRO_MONTHLY_PRICE_LABEL}</td>
                         <td className="px-4 py-3 text-gray-400">Live data, Sophia AI, alerts, 1 broker, 50 scans/day</td>
                       </tr>
                       <tr>
@@ -377,7 +381,7 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
                       </tr>
                       <tr>
                         <td className="px-4 py-3 text-white">Institutional</td>
-                        <td className="px-4 py-3 text-gray-300">$299/mo</td>
+                        <td className="px-4 py-3 text-gray-300">{INSTITUTIONAL_MONTHLY_PRICE_LABEL}</td>
                         <td className="px-4 py-3 text-gray-400">Team controls, dedicated support, unlimited everything</td>
                       </tr>
                     </tbody>
@@ -442,7 +446,7 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
                   onClick={handleGetStarted}
                   className="inline-flex items-center gap-2 bg-amber-500 text-black font-bold px-6 py-3 rounded-xl hover:bg-amber-600 transition-colors no-print"
                 >
-                  Get Started — $9.99/mo
+                  {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
                 </button>
                 <div className="mt-6">
                   <a
