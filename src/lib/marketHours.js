@@ -211,6 +211,23 @@ export const getMarketStatus = (date = new Date()) => {
   return 'After Hours';
 };
 
+export const getExtendedHoursStatus = (date = new Date()) => {
+  const { hour, minute, weekday } = toDateParts(date);
+  const minutes = hour * 60 + minute;
+
+  if (weekday === 0 || weekday === 6) return null;
+
+  if (minutes >= 4 * 60 && minutes < OPEN_MINUTES) {
+    return 'pre-market';
+  }
+
+  if (minutes >= CLOSE_MINUTES && minutes < 20 * 60) {
+    return 'post-market';
+  }
+
+  return null;
+};
+
 export const isMarketOpen = (date = new Date()) => getMarketStatus(date) === 'Open';
 
 export const getNextMarketOpen = (date = new Date()) => {
@@ -248,4 +265,5 @@ export default {
   isMarketOpen,
   getNextMarketOpen,
   getMarketStatus,
+  getExtendedHoursStatus,
 };

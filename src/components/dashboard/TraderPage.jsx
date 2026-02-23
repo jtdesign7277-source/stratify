@@ -3,6 +3,7 @@ import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'ligh
 import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
+import { getExtendedHoursStatus } from '../../lib/marketHours';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
@@ -1616,7 +1617,21 @@ export default function TraderPage({ onPinToTop }) {
                                       </div>
 
                                       <div className="flex-1 min-w-0 pr-4">
-                                        <div className="text-white font-bold text-base">${symbol}</div>
+                                        <div className="flex items-center">
+                                          <div className="text-white font-bold text-base">${symbol}</div>
+                                          {(() => {
+                                            const extendedStatus = getExtendedHoursStatus();
+                                            if (!extendedStatus) return null;
+                                            return (
+                                              <span
+                                                className="ml-1.5 text-[10px]"
+                                                title={extendedStatus === 'pre-market' ? 'Pre-Market' : 'Post-Market'}
+                                              >
+                                                {extendedStatus === 'pre-market' ? '☀️' : '🌙'}
+                                              </span>
+                                            );
+                                          })()}
+                                        </div>
                                         <div className="text-white/50 text-sm truncate">{companyName}</div>
                                       </div>
 
