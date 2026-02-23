@@ -166,24 +166,33 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
   const [selectedBroker, setSelectedBroker] = useState(() => {
     try {
       const saved = sessionStorage.getItem('broker-connect-form');
-      return saved ? JSON.parse(saved).broker : null;
-    } catch {
+      const parsed = saved ? JSON.parse(saved) : null;
+      console.log('[BrokerConnectModal] Restoring selectedBroker from sessionStorage:', parsed?.broker);
+      return parsed?.broker || null;
+    } catch (err) {
+      console.error('[BrokerConnectModal] Failed to restore selectedBroker:', err);
       return null;
     }
   });
   const [apiKey, setApiKey] = useState(() => {
     try {
       const saved = sessionStorage.getItem('broker-connect-form');
-      return saved ? JSON.parse(saved).apiKey : '';
-    } catch {
+      const parsed = saved ? JSON.parse(saved) : null;
+      console.log('[BrokerConnectModal] Restoring apiKey:', parsed?.apiKey ? '***' : 'empty');
+      return parsed?.apiKey || '';
+    } catch (err) {
+      console.error('[BrokerConnectModal] Failed to restore apiKey:', err);
       return '';
     }
   });
   const [secretKey, setSecretKey] = useState(() => {
     try {
       const saved = sessionStorage.getItem('broker-connect-form');
-      return saved ? JSON.parse(saved).secretKey : '';
-    } catch {
+      const parsed = saved ? JSON.parse(saved) : null;
+      console.log('[BrokerConnectModal] Restoring secretKey:', parsed?.secretKey ? '***' : 'empty');
+      return parsed?.secretKey || '';
+    } catch (err) {
+      console.error('[BrokerConnectModal] Failed to restore secretKey:', err);
       return '';
     }
   });
@@ -194,29 +203,53 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
   // Auto-save form state on change (persists across tab switches)
   useEffect(() => {
     if (selectedBroker || apiKey || secretKey) {
-      sessionStorage.setItem('broker-connect-form', JSON.stringify({
+      const formData = {
         broker: selectedBroker,
         apiKey,
         secretKey,
-      }));
+      };
+      console.log('[BrokerConnectModal] Saving to sessionStorage:', {
+        brokerId: selectedBroker?.id,
+        hasApiKey: !!apiKey,
+        hasSecretKey: !!secretKey,
+      });
+      sessionStorage.setItem('broker-connect-form', JSON.stringify(formData));
     }
   }, [selectedBroker, apiKey, secretKey]);
 
   // Clear saved form on close
   useEffect(() => {
+    console.log('[BrokerConnectModal] isOpen changed:', isOpen);
     if (!isOpen) {
       // Clear on close only if not in the middle of connecting
       if (!connecting) {
+        console.log('[BrokerConnectModal] Clearing sessionStorage on close');
         sessionStorage.removeItem('broker-connect-form');
       }
     }
   }, [isOpen, connecting]);
+
+  // Log when modal renders
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[BrokerConnectModal] Modal open, current state:', {
+        selectedBrokerId: selectedBroker?.id,
+        hasApiKey: !!apiKey,
+        hasSecretKey: !!secretKey,
+      });
+    }
+  }, [isOpen, selectedBroker, apiKey, secretKey]);
 
   if (!isOpen) return null;
 
   const filteredBrokers = filter === 'all' 
     ? brokers 
     : brokers.filter(b => b.category === filter);
+
+  const handleSelectBroker = (broker) => {
+    console.log('[BrokerConnectModal] Broker selected:', broker.id, broker.name);
+    setSelectedBroker(broker);
+  };
 
   const handleConnect = async () => {
     if (!apiKey || !secretKey) return;
@@ -325,7 +358,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                   return (
                     <button
                       key={broker.id}
-                      onClick={() => !connected && setSelectedBroker(broker)}
+                      onClick={() => !connected && handleSelectBroker(broker)}
                       disabled={connected}
                       className={`relative p-4 rounded-xl border transition-all text-center group ${
                         connected 
