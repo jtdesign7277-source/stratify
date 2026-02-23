@@ -275,6 +275,23 @@ const createSlipCaption = ({ trade, emojis = [], note = '' }) => {
   return lines.join('\n');
 };
 
+const normalizePnlShareSnapshot = (post) => {
+  const pnl = Number(post?.metadata?.pnl);
+  if (!Number.isFinite(pnl)) return null;
+
+  const percentRaw = Number(post?.metadata?.percent);
+  const ticker = String(post?.metadata?.ticker || '').trim().toUpperCase();
+
+  return {
+    id: String(post?.id || '').trim() || `${ticker || 'TRADE'}-${post?.created_at || Date.now()}`,
+    ticker: ticker || 'TRADE',
+    pnl,
+    percent: Number.isFinite(percentRaw) ? percentRaw : null,
+    author: post?.author_name || post?.profiles?.display_name || 'Trader',
+    createdAt: post?.created_at || null,
+  };
+};
+
 // ─── Share to X ───────────────────────────────────────────
 const shareToX = (post) => {
   let text = post.content;
@@ -440,7 +457,7 @@ const PnLCard = ({ metadata }) => {
 
 const SLIP_EMOJIS = ['🚀', '💰', '👍', '👎', '🦍', '🔥', '📈', '📉'];
 
-const BetSlipModal = ({
+const BetSlipPanel = ({
   open,
   onClose,
   closedTrades = [],
@@ -509,210 +526,255 @@ const BetSlipModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] bg-black/75 backdrop-blur-sm p-4 sm:p-6 flex items-center justify-center">
-      <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl border border-[#21314f] bg-[#070b12] shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
-        <div className="px-5 py-4 border-b border-[#1b2a45] flex items-center justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
-            <h3 className="text-lg font-semibold text-white">Bet Slip</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg border border-[#1b2a45] text-gray-400 hover:text-white hover:border-[#2e4a73] transition-colors"
-            title="Close"
-          >
-            <X size={16} />
-          </button>
+    <div className="w-full rounded-2xl border border-[#21314f] bg-[#070b12] shadow-[0_22px_50px_rgba(0,0,0,0.45)] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#1b2a45] flex items-center justify-between">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
+          <h3 className="text-base font-semibold text-white">Bet Slip</h3>
         </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg border border-[#1b2a45] text-gray-400 hover:text-white hover:border-[#2e4a73] transition-colors"
+          title="Hide panel"
+        >
+          <X size={14} />
+        </button>
+      </div>
 
-        <div className="p-5 space-y-4">
-          {closedTrades.length === 0 ? (
-            <div className="rounded-xl border border-[#1a2233] bg-[#0b1019] p-5 text-sm text-gray-400">
-              No completed trades found yet. Close a trade first, then you can share a generated slip.
+      <div className="p-4 space-y-3">
+        {closedTrades.length === 0 ? (
+          <div className="rounded-xl border border-[#1a2233] bg-[#0b1019] p-4 text-sm text-gray-400">
+            No completed trades found yet. Close a trade first, then you can share a generated slip.
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="text-xs uppercase tracking-[0.14em] text-gray-500">Previous Trade</label>
+              <select
+                value={selectedTradeId}
+                onChange={(e) => setSelectedTradeId(e.target.value)}
+                className="mt-1.5 w-full bg-[#0b1019] border border-[#1e2e4b] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/40"
+              >
+                {closedTrades.map((trade) => (
+                  <option key={trade.id} value={trade.id}>
+                    {trade.symbol} {formatSignedPercent(trade.percent)}
+                  </option>
+                ))}
+              </select>
             </div>
-          ) : (
-            <>
-              <div>
-                <label className="text-xs uppercase tracking-[0.14em] text-gray-500">Previous Trade</label>
-                <select
-                  value={selectedTradeId}
-                  onChange={(e) => setSelectedTradeId(e.target.value)}
-                  className="mt-2 w-full bg-[#0b1019] border border-[#1e2e4b] rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-cyan-400/40"
-                >
-                  {closedTrades.map((trade) => (
-                    <option key={trade.id} value={trade.id}>
-                      {trade.symbol} {formatSignedPercent(trade.percent)}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {selectedTrade && (
-                <div className="rounded-2xl border border-[#203255] bg-gradient-to-br from-[#091321] via-[#0b1828] to-[#11161d]">
-                  <div className="px-4 py-3 border-b border-[#203255]/70 flex items-center justify-between">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Stratify Ticket</div>
-                    <div className={`text-sm font-semibold font-mono ${selectedTrade.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-                      {formatSignedPercent(selectedTrade.percent)}
+            {selectedTrade && (
+              <div className="rounded-2xl border border-[#203255] bg-gradient-to-br from-[#091321] via-[#0b1828] to-[#11161d]">
+                <div className="px-3 py-2.5 border-b border-[#203255]/70 flex items-center justify-between">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Stratify Ticket</div>
+                  <div className={`text-xs font-semibold font-mono ${selectedTrade.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                    {formatSignedPercent(selectedTrade.percent)}
+                  </div>
+                </div>
+                <div className="p-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Ticker</div>
+                    <div className="text-xl font-semibold text-white">${selectedTrade.symbol}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Total P&L</div>
+                    <div className={`text-lg font-semibold font-mono ${selectedTrade.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {formatSignedCurrency(selectedTrade.pnl)}
                     </div>
                   </div>
-                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Ticker</div>
-                      <div className="text-2xl font-semibold text-white">${selectedTrade.symbol}</div>
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Entry</div>
+                    <div className="text-xs text-white font-mono">{formatCurrency(selectedTrade.entryPrice)}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Exit</div>
+                    <div className="text-xs text-white font-mono">{formatCurrency(selectedTrade.exitPrice)}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1 flex items-center gap-1">
+                      <CalendarDays size={11} />
+                      Bought
                     </div>
-                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Total P&L</div>
-                      <div className={`text-2xl font-semibold font-mono ${selectedTrade.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-                        {formatSignedCurrency(selectedTrade.pnl)}
-                      </div>
+                    <div className="text-xs text-white">{formatDateTime(selectedTrade.openedAt)}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1 flex items-center gap-1">
+                      <Clock3 size={11} />
+                      Sold
                     </div>
-                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Entry → Exit</div>
-                      <div className="text-sm text-white font-mono">
-                        {formatCurrency(selectedTrade.entryPrice)} → {formatCurrency(selectedTrade.exitPrice)}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Size</div>
-                      <div className="text-sm text-white font-mono">
-                        {selectedTrade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1 flex items-center gap-1">
-                        <CalendarDays size={12} />
-                        Bought
-                      </div>
-                      <div className="text-sm text-white">{formatDateTime(selectedTrade.openedAt)}</div>
-                    </div>
-                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1 flex items-center gap-1">
-                        <Clock3 size={12} />
-                        Sold
-                      </div>
-                      <div className="text-sm text-white">{formatDateTime(selectedTrade.closedAt)}</div>
+                    <div className="text-xs text-white">{formatDateTime(selectedTrade.closedAt)}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 border border-white/10 p-2.5 col-span-2">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Size</div>
+                    <div className="text-xs text-white font-mono">
+                      {selectedTrade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares
                     </div>
                   </div>
                 </div>
-              )}
-
-              <div>
-                <div className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-2">Customize</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {SLIP_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => toggleEmoji(emoji)}
-                      className={`h-9 w-9 rounded-lg border text-lg transition-colors ${
-                        selectedEmojis.includes(emoji)
-                          ? 'border-cyan-400/70 bg-cyan-400/15'
-                          : 'border-[#1e2b44] bg-[#0b1019] hover:border-[#33507a]'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
               </div>
+            )}
 
-              <div>
-                <label className="text-xs uppercase tracking-[0.14em] text-gray-500">Caption (optional)</label>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Add context before sharing..."
-                  rows={2}
-                  className="mt-2 w-full bg-[#0b1019] border border-[#1e2e4b] rounded-xl px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-cyan-400/40 resize-none"
-                />
+            <div>
+              <div className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-1.5">Customize</div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {SLIP_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => toggleEmoji(emoji)}
+                    className={`h-8 w-8 rounded-lg border text-base transition-colors ${
+                      selectedEmojis.includes(emoji)
+                        ? 'border-cyan-400/70 bg-cyan-400/15'
+                        : 'border-[#1e2b44] bg-[#0b1019] hover:border-[#33507a]'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div className="rounded-xl border border-[#1f2a3f] bg-[#0b1019] p-3">
-                <div className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-2">Generated Post</div>
-                <pre className="text-xs text-gray-200 whitespace-pre-wrap break-words font-sans leading-relaxed">
-                  {shareText}
-                </pre>
-              </div>
-            </>
-          )}
-        </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.14em] text-gray-500">Caption (optional)</label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add context before sharing..."
+                rows={2}
+                className="mt-1.5 w-full bg-[#0b1019] border border-[#1e2e4b] rounded-xl px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-cyan-400/40 resize-none"
+              />
+            </div>
 
-        <div className="px-5 py-4 border-t border-[#1b2a45] bg-[#060a11] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={copyShareText}
-              disabled={!hasTradeSelection}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
-            >
-              <Copy size={12} />
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-            <button
-              type="button"
-              onClick={() => shareToExternal('x')}
-              disabled={!hasTradeSelection}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
-            >
-              <ExternalLink size={12} />
-              X
-            </button>
-            <button
-              type="button"
-              onClick={() => shareToExternal('instagram')}
-              disabled={!hasTradeSelection}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
-            >
-              <ExternalLink size={12} />
-              Instagram
-            </button>
-            <button
-              type="button"
-              onClick={() => shareToExternal('facebook')}
-              disabled={!hasTradeSelection}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
-            >
-              <ExternalLink size={12} />
-              Facebook
-            </button>
-          </div>
+            <div className="rounded-xl border border-[#1f2a3f] bg-[#0b1019] p-3">
+              <div className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-1.5">Generated Post</div>
+              <pre className="text-[11px] text-gray-200 whitespace-pre-wrap break-words font-sans leading-relaxed">
+                {shareText}
+              </pre>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="px-4 py-3 border-t border-[#1b2a45] bg-[#060a11] flex flex-col gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
-            onClick={() => {
-              if (!selectedTrade || !onSubmit) return;
-              onSubmit({
-                trade: selectedTrade,
-                caption: shareText,
-                emojis: selectedEmojis,
-                note: note.trim(),
-              });
-            }}
-            disabled={!hasTradeSelection || posting}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+            onClick={copyShareText}
+            disabled={!hasTradeSelection}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-[11px] hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
           >
-            {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={2} />}
-            Post to Community
+            <Copy size={11} />
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button
+            type="button"
+            onClick={() => shareToExternal('x')}
+            disabled={!hasTradeSelection}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-[11px] hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+          >
+            <ExternalLink size={11} />
+            X
+          </button>
+          <button
+            type="button"
+            onClick={() => shareToExternal('instagram')}
+            disabled={!hasTradeSelection}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-[11px] hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+          >
+            <ExternalLink size={11} />
+            Instagram
+          </button>
+          <button
+            type="button"
+            onClick={() => shareToExternal('facebook')}
+            disabled={!hasTradeSelection}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-[11px] hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+          >
+            <ExternalLink size={11} />
+            Facebook
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (!selectedTrade || !onSubmit) return;
+            onSubmit({
+              trade: selectedTrade,
+              caption: shareText,
+              emojis: selectedEmojis,
+              note: note.trim(),
+            });
+          }}
+          disabled={!hasTradeSelection || posting}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+        >
+          {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={2} />}
+          Post to Community
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const TrendingPnlPanel = ({ wins = [], losses = [], loading = false }) => {
+  const renderRow = (item, label) => (
+    <div key={`${label}-${item.id}`} className="rounded-xl border border-white/10 bg-black/20 px-2.5 py-2">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold text-white">${item.ticker}</div>
+        <div className={`text-xs font-semibold font-mono ${item.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+          {formatSignedCurrency(item.pnl)}
+        </div>
+      </div>
+      <div className="mt-1 flex items-center justify-between text-[11px] text-gray-400">
+        <span>{item.author}</span>
+        <span>{Number.isFinite(item.percent) ? formatSignedPercent(item.percent) : '—'}</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full rounded-2xl border border-[#1f1f1f] bg-[#111111] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#1f1f1f]">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Trending</div>
+        <h3 className="text-base font-semibold text-white">Wildest Wins & Losses</h3>
+      </div>
+      <div className="p-4 space-y-3">
+        {loading ? (
+          <div className="text-xs text-gray-500">Loading trend tape...</div>
+        ) : (
+          <>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.14em] text-emerald-300/90 mb-2">Top Wins</div>
+              <div className="space-y-2">
+                {wins.length > 0 ? wins.map((item) => renderRow(item, 'win')) : (
+                  <div className="text-xs text-gray-500">No winning slips posted yet.</div>
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.14em] text-red-300/90 mb-2">Top Losses</div>
+              <div className="space-y-2">
+                {losses.length > 0 ? losses.map((item) => renderRow(item, 'loss')) : (
+                  <div className="text-xs text-gray-500">No losing slips posted yet.</div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
 // ─── Compose Box ──────────────────────────────────────────
-const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
+const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false }) => {
   const [content, setContent] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [postType, setPostType] = useState('post');
   const [posting, setPosting] = useState(false);
-  const [showBetSlip, setShowBetSlip] = useState(false);
   const fileRef = useRef(null);
   const textRef = useRef(null);
-  const closedTrades = useMemo(
-    () => buildClosedTradesForSlip(tradeHistory).slice(0, 120),
-    [tradeHistory],
-  );
 
   const createPost = useCallback(
     async ({ contentText, metadata = {}, postKind = 'post', imageUrl = null }) => {
@@ -785,7 +847,6 @@ const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
         : 'post';
       let imageUrl = null;
 
-      // Upload image if present
       if (imageFile) {
         const ext = imageFile.name.split('.').pop();
         const fileName = `${currentUser.id}/${Date.now()}.${ext}`;
@@ -816,38 +877,6 @@ const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
     }
   };
 
-  const handlePostBetSlip = async ({ trade, caption, emojis, note }) => {
-    if (!trade || !caption) return;
-    setPosting(true);
-
-    try {
-      await createPost({
-        contentText: caption,
-        postKind: 'pnl_share',
-        metadata: {
-          ticker: trade.symbol,
-          pnl: Number(trade.pnl.toFixed(2)),
-          percent: Number(trade.percent.toFixed(2)),
-          shares: Number(trade.shares.toFixed(4)),
-          entry_price: Number(trade.entryPrice.toFixed(4)),
-          exit_price: Number(trade.exitPrice.toFixed(4)),
-          opened_at: new Date(trade.openedAt).toISOString(),
-          closed_at: new Date(trade.closedAt).toISOString(),
-          emoji: Array.isArray(emojis) ? emojis : [],
-          note: note || '',
-        },
-      });
-
-      setShowBetSlip(false);
-      resetComposer();
-    } catch (err) {
-      console.error('P&L share failed:', err);
-      alert('Failed to share P&L. Try again.');
-    } finally {
-      setPosting(false);
-    }
-  };
-
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       handleSubmit();
@@ -869,7 +898,6 @@ const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
             rows={2}
           />
 
-          {/* Image Preview */}
           {imagePreview && (
             <div className="relative mt-2 inline-block">
               <img
@@ -886,7 +914,6 @@ const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
             </div>
           )}
 
-          {/* Action Bar */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#1a1a1a]">
             <div className="flex items-center gap-1">
               <input
@@ -905,9 +932,9 @@ const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
               </button>
 
               <button
-                onClick={() => setShowBetSlip(true)}
+                onClick={() => onOpenBetSlip?.()}
                 className={`p-2 rounded-lg hover:bg-white/5 transition-colors ${
-                  showBetSlip ? 'text-emerald-400' : 'text-gray-500 hover:text-emerald-400'
+                  betSlipOpen ? 'text-emerald-400' : 'text-gray-500 hover:text-emerald-400'
                 }`}
                 title="Share P&L"
               >
@@ -952,13 +979,6 @@ const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
           </div>
         </div>
       </div>
-      <BetSlipModal
-        open={showBetSlip}
-        onClose={() => setShowBetSlip(false)}
-        closedTrades={closedTrades}
-        posting={posting}
-        onSubmit={handlePostBetSlip}
-      />
     </div>
   );
 };
@@ -1535,9 +1555,34 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [pnlPanelOpen, setPnlPanelOpen] = useState(false);
+  const [pnlPosting, setPnlPosting] = useState(false);
+  const [trendingRows, setTrendingRows] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
   const PAGE_SIZE = 20;
 
-  // Get current user
+  const closedTrades = useMemo(
+    () => buildClosedTradesForSlip(tradeHistory).slice(0, 120),
+    [tradeHistory],
+  );
+
+  const prependPost = useCallback((newPost) => {
+    setPosts((prev) => {
+      if (prev.some((post) => post.id === newPost.id)) return prev;
+      return [newPost, ...prev];
+    });
+  }, []);
+
+  const upsertTrendingRow = useCallback((post) => {
+    if (!post || post.post_type !== 'pnl_share') return;
+    setTrendingRows((prev) => [post, ...prev.filter((item) => item.id !== post.id)].slice(0, 160));
+  }, []);
+
+  const removeTrendingRow = useCallback((postId) => {
+    if (!postId) return;
+    setTrendingRows((prev) => prev.filter((item) => item.id !== postId));
+  }, []);
+
   useEffect(() => {
     const getUser = async () => {
       try {
@@ -1545,10 +1590,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           data: { user },
         } = await supabase.auth.getUser();
 
-        console.log('[CommunityPage] Current user:', user?.id);
-
         if (user) {
-          // Fetch profile data
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
@@ -1569,7 +1611,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     getUser();
   }, []);
 
-  // Update posts when currentUser loads (for reaction button interactivity)
   useEffect(() => {
     if (!currentUser?.id) return;
 
@@ -1593,23 +1634,43 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         if (error.code === '42P01') {
           console.warn('[CommunityPage] Missing table. Run migration: supabase/migrations/003_community_reactions.sql');
         }
-        return;
       }
-
-      console.log('[CommunityPage] community_reactions table check passed');
     };
 
     verifyReactionsTable();
   }, []);
 
-  // Fetch posts
+  const fetchTrendingPnl = useCallback(async () => {
+    setTrendingLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('community_posts')
+        .select('id, author_name, created_at, metadata, post_type, parent_id, parent_post_id')
+        .eq('post_type', 'pnl_share')
+        .is('parent_id', null)
+        .is('parent_post_id', null)
+        .order('created_at', { ascending: false })
+        .limit(160);
+
+      if (error) throw error;
+      setTrendingRows(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.warn('[CommunityPage] Failed to load trending pnl posts:', error);
+      setTrendingRows([]);
+    } finally {
+      setTrendingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTrendingPnl();
+  }, [fetchTrendingPnl]);
+
   const fetchPosts = useCallback(
     async (pageNum = 0, append = false) => {
-      console.log('[CommunityPage] fetchPosts called:', { pageNum, append, filter });
       setLoading(!append);
 
       try {
-        // First, check if table exists by doing a simple query.
         const { error: testError } = await supabase
           .from('community_posts')
           .select('id')
@@ -1640,12 +1701,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           return query;
         };
 
-        // Join reactions in the feed query, with a fallback for pre-migration environments.
         let { data: postsData, error: postsError } = await runPostsQuery(true);
         if (postsError && postsError.message?.includes('community_reactions')) {
-          console.warn(
-            '[CommunityPage] community_reactions join failed, falling back without reaction join. Check migration 003_community_reactions.sql.'
-          );
           const fallback = await runPostsQuery(false);
           postsData = fallback.data;
           postsError = fallback.error;
@@ -1657,7 +1714,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           return;
         }
 
-        // Manually fetch profile data for each post
         const userIds = [...new Set(postsData.map((p) => p.user_id).filter(Boolean))];
         let profilesData = [];
         if (userIds.length > 0) {
@@ -1669,33 +1725,22 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         }
 
         const profilesMap = {};
-        profilesData.forEach((p) => {
-          profilesMap[p.id] = p;
+        profilesData.forEach((profile) => {
+          profilesMap[profile.id] = profile;
         });
 
-        // Attach profiles + reaction summaries
         const data = (postsData || []).map((post) => ({
           ...post,
           profiles: profilesMap[post.user_id] || null,
           reaction_summary: buildReactionSummary(post.community_reactions || [], currentUser?.id),
         }));
-        console.log('[CommunityPage] Posts fetched with reactions:', {
-          count: data.length,
-          reactions: data.map((post) => ({
-            postId: post.id,
-            raw: Array.isArray(post.community_reactions) ? post.community_reactions.length : 0,
-            summary: Array.isArray(post.reaction_summary) ? post.reaction_summary.length : 0,
-          })),
-        });
 
-        if (data) {
-          if (append) {
-            setPosts((prev) => [...prev, ...data]);
-          } else {
-            setPosts(data);
-          }
-          setHasMore(data.length === PAGE_SIZE);
+        if (append) {
+          setPosts((prev) => [...prev, ...data]);
+        } else {
+          setPosts(data);
         }
+        setHasMore(data.length === PAGE_SIZE);
       } catch (err) {
         console.error('[CommunityPage] fetchPosts exception:', err);
       } finally {
@@ -1706,12 +1751,10 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   );
 
   useEffect(() => {
-    console.log('[CommunityPage] Mount/filter change effect triggered:', { filter });
     setPage(0);
     fetchPosts(0);
   }, [filter, fetchPosts]);
 
-  // Supabase Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('community-feed')
@@ -1721,7 +1764,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           event: 'INSERT',
           schema: 'public',
           table: 'community_posts',
-          filter: 'parent_id=is.null', // only top-level posts
+          filter: 'parent_id=is.null',
         },
         async (payload) => {
           const { data: insertedPost } = await supabase
@@ -1730,28 +1773,26 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             .eq('id', payload.new.id)
             .maybeSingle();
 
-          if (insertedPost) {
-            let profile = null;
-            if (insertedPost.user_id) {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('id, display_name, avatar_url, email')
-                .eq('id', insertedPost.user_id)
-                .maybeSingle();
-              profile = profileData;
-            }
+          if (!insertedPost) return;
 
-            const hydratedPost = {
-              ...insertedPost,
-              profiles: profile,
-              reaction_summary: buildReactionSummary(insertedPost.community_reactions || [], currentUser?.id),
-            };
-
-            setPosts((prev) => {
-              if (prev.some((p) => p.id === hydratedPost.id)) return prev;
-              return [hydratedPost, ...prev];
-            });
+          let profile = null;
+          if (insertedPost.user_id) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('id, display_name, avatar_url, email')
+              .eq('id', insertedPost.user_id)
+              .maybeSingle();
+            profile = profileData;
           }
+
+          const hydratedPost = {
+            ...insertedPost,
+            profiles: profile,
+            reaction_summary: buildReactionSummary(insertedPost.community_reactions || [], currentUser?.id),
+          };
+
+          prependPost(hydratedPost);
+          upsertTrendingRow(insertedPost);
         }
       )
       .on(
@@ -1762,7 +1803,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           table: 'community_posts',
         },
         (payload) => {
-          setPosts((prev) => prev.filter((p) => p.id !== payload.old.id));
+          setPosts((prev) => prev.filter((post) => post.id !== payload.old.id));
+          removeTrendingRow(payload.old.id);
         }
       )
       .subscribe();
@@ -1770,14 +1812,102 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, prependPost, removeTrendingRow, upsertTrendingRow]);
+
+  const handleSharePnl = useCallback(async ({ trade, caption, emojis, note }) => {
+    if (!currentUser?.id || !trade || !caption) return;
+    setPnlPosting(true);
+
+    try {
+      const metadata = {
+        ticker: trade.symbol,
+        pnl: Number(trade.pnl.toFixed(2)),
+        percent: Number(trade.percent.toFixed(2)),
+        shares: Number(trade.shares.toFixed(4)),
+        entry_price: Number(trade.entryPrice.toFixed(4)),
+        exit_price: Number(trade.exitPrice.toFixed(4)),
+        opened_at: new Date(trade.openedAt).toISOString(),
+        closed_at: new Date(trade.closedAt).toISOString(),
+        emoji: Array.isArray(emojis) ? emojis : [],
+        note: note || '',
+      };
+
+      const { data: newPost, error } = await supabase
+        .from('community_posts')
+        .insert({
+          user_id: currentUser.id,
+          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+          content: caption,
+          ticker_mentions: extractTickers(caption),
+          post_type: 'pnl_share',
+          metadata,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      const postWithProfile = {
+        ...newPost,
+        community_reactions: [],
+        reaction_summary: [],
+        profiles: {
+          id: currentUser.id,
+          display_name: currentUser.display_name,
+          avatar_url: currentUser.avatar_url,
+          email: currentUser.email,
+        },
+      };
+
+      prependPost(postWithProfile);
+      upsertTrendingRow(newPost);
+    } catch (error) {
+      console.error('[CommunityPage] P&L share failed:', error);
+      alert('Failed to share P&L. Try again.');
+    } finally {
+      setPnlPosting(false);
+    }
+  }, [currentUser, prependPost, upsertTrendingRow]);
+
+  const trendingSnapshots = useMemo(() => {
+    const source = trendingRows.length > 0
+      ? trendingRows
+      : posts.filter((post) => post.post_type === 'pnl_share');
+
+    const byId = new Map();
+    source.forEach((post) => {
+      const snapshot = normalizePnlShareSnapshot(post);
+      if (snapshot && !byId.has(snapshot.id)) {
+        byId.set(snapshot.id, snapshot);
+      }
+    });
+
+    return Array.from(byId.values());
+  }, [trendingRows, posts]);
+
+  const topWins = useMemo(
+    () => trendingSnapshots
+      .filter((item) => item.pnl > 0)
+      .sort((a, b) => b.pnl - a.pnl)
+      .slice(0, 5),
+    [trendingSnapshots],
+  );
+
+  const topLosses = useMemo(
+    () => trendingSnapshots
+      .filter((item) => item.pnl < 0)
+      .sort((a, b) => a.pnl - b.pnl)
+      .slice(0, 5),
+    [trendingSnapshots],
+  );
 
   const handleDelete = async (postId) => {
     const confirmed = window.confirm('Delete this post?');
     if (!confirmed) return;
 
     await supabase.from('community_posts').delete().eq('id', postId);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setPosts((prev) => prev.filter((post) => post.id !== postId));
+    removeTrendingRow(postId);
   };
 
   const loadMore = () => {
@@ -1788,7 +1918,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
   return (
     <div className="h-full flex flex-col bg-[#0b0b0b]">
-      {/* Header */}
       <div className="flex-shrink-0 px-6 pt-5 pb-3">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1805,58 +1934,87 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         <FilterTabs active={filter} onChange={setFilter} />
       </div>
 
-      {/* Feed */}
       <div className="flex-1 overflow-y-auto px-6 pb-6">
-        <div className="max-w-2xl mx-auto">
-          {/* Compose */}
-          {currentUser && (
-            <ComposeBox
-              currentUser={currentUser}
-              tradeHistory={tradeHistory}
-              onPost={(newPost) => {
-                // Add the new post to the top of the feed immediately
-                setPosts((prev) => {
-                  // Avoid duplicates
-                  if (prev.some((p) => p.id === newPost.id)) return prev;
-                  return [newPost, ...prev];
-                });
-              }}
-            />
-          )}
+        <div className="max-w-[1280px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+          <div className="min-w-0">
+            {currentUser && (
+              <ComposeBox
+                currentUser={currentUser}
+                betSlipOpen={pnlPanelOpen}
+                onOpenBetSlip={() => setPnlPanelOpen(true)}
+                onPost={prependPost}
+              />
+            )}
 
-          {/* Posts */}
-          {loading && posts.length === 0 ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={24} className="animate-spin text-gray-600" />
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="text-gray-600 text-sm">No posts yet. Be the first to share!</div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  currentUser={currentUser}
-                  onDelete={handleDelete}
-                />
-              ))}
+            {loading && posts.length === 0 ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={24} className="animate-spin text-gray-600" />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="text-gray-600 text-sm">No posts yet. Be the first to share!</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {posts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    currentUser={currentUser}
+                    onDelete={handleDelete}
+                  />
+                ))}
 
-              {/* Load More */}
-              {hasMore && (
-                <div className="text-center py-4">
+                {hasMore && (
+                  <div className="text-center py-4">
+                    <button
+                      onClick={loadMore}
+                      className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+                    >
+                      Load more
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <aside className="space-y-4 xl:sticky xl:top-4">
+            {pnlPanelOpen ? (
+              <BetSlipPanel
+                open={pnlPanelOpen}
+                onClose={() => setPnlPanelOpen(false)}
+                closedTrades={closedTrades}
+                posting={pnlPosting}
+                onSubmit={handleSharePnl}
+              />
+            ) : (
+              <div className="w-full rounded-2xl border border-[#1f1f1f] bg-[#111111] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#1f1f1f]">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
+                  <h3 className="text-base font-semibold text-white">Open Bet Slip</h3>
+                </div>
+                <div className="p-4">
+                  <p className="text-xs text-gray-500 mb-3">
+                    Build a polymarket-style ticket from your completed trades and post it directly in chat.
+                  </p>
                   <button
-                    onClick={loadMore}
-                    className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+                    onClick={() => setPnlPanelOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 transition-colors"
                   >
-                    Load more
+                    <TrendingUp size={14} strokeWidth={2} />
+                    Share P&L
                   </button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+
+            <TrendingPnlPanel
+              wins={topWins}
+              losses={topLosses}
+              loading={trendingLoading}
+            />
+          </aside>
         </div>
       </div>
     </div>
