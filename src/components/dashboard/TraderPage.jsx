@@ -1498,7 +1498,6 @@ export default function TraderPage({
       if (!response.ok) return;
 
       const rows = Array.isArray(payload?.data) ? payload.data : [];
-      const inPreMarketSession = getExtendedHoursStatus() === 'pre-market';
       const updates = rows
         .map((row) => {
           const symbol = normalizeSymbol(row?.symbol);
@@ -1535,9 +1534,7 @@ export default function TraderPage({
             ? rowPreMarketChange
             : Number.isFinite(preMarketMetrics.preMarketChange)
               ? preMarketMetrics.preMarketChange
-              : inPreMarketSession && Number.isFinite(previousClose)
-                ? price - previousClose
-                : null;
+              : null;
           const derivedPreMarketChangePercent = Number.isFinite(rowPreMarketChangePercent)
             ? rowPreMarketChangePercent
             : Number.isFinite(preMarketMetrics.preMarketChangePercent)
@@ -1549,9 +1546,7 @@ export default function TraderPage({
             ? rowPreMarketPrice
             : Number.isFinite(preMarketMetrics.preMarketPrice)
               ? preMarketMetrics.preMarketPrice
-              : inPreMarketSession
-                ? price
-                : null;
+              : null;
 
           return {
             symbol,
@@ -2006,19 +2001,28 @@ export default function TraderPage({
             : cachedPreviousClose;
         const preMarketMetrics = extractPremarketQuoteMetrics(payload, price, previousClose);
 
+        const previousDayChange = toNumber(previousQuote?.change);
+        const previousDayChangePercent = toNumber(previousQuote?.changePercent);
+        const derivedDayChange = Number.isFinite(previousClose)
+          ? price - previousClose
+          : Number.isFinite(previousPrice)
+            ? price - previousPrice
+            : null;
+        const derivedDayChangePercent = Number.isFinite(derivedDayChange) && Number.isFinite(previousClose) && previousClose !== 0
+          ? (derivedDayChange / previousClose) * 100
+          : null;
+
         const change = Number.isFinite(rawChange)
           ? rawChange
-          : Number.isFinite(previousClose)
-            ? price - previousClose
-            : Number.isFinite(previousPrice)
-              ? price - previousPrice
-              : null;
+          : Number.isFinite(previousDayChange)
+            ? previousDayChange
+            : derivedDayChange;
 
         const changePercent = Number.isFinite(rawPercent)
           ? rawPercent
-          : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
-            ? (change / previousClose) * 100
-            : null;
+          : Number.isFinite(previousDayChangePercent)
+            ? previousDayChangePercent
+            : derivedDayChangePercent;
         const derivedPreMarketChange = Number.isFinite(preMarketMetrics.preMarketChange)
           ? preMarketMetrics.preMarketChange
           : inPreMarketSession && Number.isFinite(previousClose)
@@ -2544,15 +2548,23 @@ export default function TraderPage({
                               const liveChangePercent = Number.isFinite(liveChange) && Number.isFinite(previousClose) && previousClose !== 0
                                 ? (liveChange / previousClose) * 100
                                 : dayChangePercent;
-                              const secondaryLabel = extendedHoursStatus === 'pre-market'
+                              const quoteMarketOpen = parseMarketOpen(quote?.isMarketOpen ?? quote?.is_market_open);
+                              const secondarySession = quoteMarketOpen === true
+                                ? 'live'
+                                : extendedHoursStatus === 'pre-market'
+                                  ? 'pre-market'
+                                  : extendedHoursStatus === 'post-market'
+                                    ? 'post-market'
+                                    : 'live';
+                              const secondaryLabel = secondarySession === 'pre-market'
                                 ? 'Pre'
-                                : extendedHoursStatus === 'post-market'
+                                : secondarySession === 'post-market'
                                   ? 'Post'
                                   : 'Live';
-                              const secondaryDollarChange = extendedHoursStatus === 'pre-market'
+                              const secondaryDollarChange = secondarySession === 'pre-market'
                                 ? (Number.isFinite(preMarketChange) ? preMarketChange : liveChange)
                                 : liveChange;
-                              const secondaryPercentChange = extendedHoursStatus === 'pre-market'
+                              const secondaryPercentChange = secondarySession === 'pre-market'
                                 ? (Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : liveChangePercent)
                                 : liveChangePercent;
                               const secondaryReferenceChange = Number.isFinite(secondaryPercentChange)
@@ -2565,7 +2577,7 @@ export default function TraderPage({
                               const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
                               const isPriceLoading = valueLoading.price === true;
                               const isDayLoading = valueLoading.day === true;
-                              const isSecondaryLoading = extendedHoursStatus === 'pre-market'
+                              const isSecondaryLoading = secondarySession === 'pre-market'
                                 ? valueLoading.preMarket === true
                                 : valueLoading.day === true;
                               const companyName = String(
@@ -2654,9 +2666,9 @@ export default function TraderPage({
                                                 toggleWatchlistChangeDisplayMode(symbol, 'preMarket');
                                               }}
                                               title={
-                                                extendedHoursStatus === 'pre-market'
+                                                secondarySession === 'pre-market'
                                                   ? 'Premarket change (% / $)'
-                                                  : extendedHoursStatus === 'post-market'
+                                                  : secondarySession === 'post-market'
                                                     ? 'Post-market change (% / $)'
                                                     : 'Live change (% / $)'
                                               }
