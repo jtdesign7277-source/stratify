@@ -340,6 +340,11 @@ const BrokerConnect = ({ onConnected }) => {
       setSuccess(true);
       setTesting(false);
       if (onConnected) onConnected(data);
+
+      // Auto-reload after showing success message
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (err) {
       setError(err.message);
       setTesting(false);
