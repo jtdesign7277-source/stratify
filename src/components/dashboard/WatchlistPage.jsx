@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
-import LiveChart from './LiveChart';
+import LightweightChart from './LightweightChart';
 // import HighchartsStockChart from './HighchartsStockChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import useTradingMode from '../../hooks/useTradingMode';
@@ -58,6 +58,19 @@ const ORDER_TYPE_LABELS = {
   stop_limit: 'Stop Limit',
   trailing_stop: 'Trailing Stop',
 };
+
+const CHART_TIMEFRAME_OPTIONS = [
+  { id: '1m', label: '1m' },
+  { id: '5m', label: '5m' },
+  { id: '15m', label: '15m' },
+  { id: '1h', label: '1h' },
+  { id: '4h', label: '4h' },
+  { id: '1D', label: '1D' },
+  { id: '1W', label: '1W' },
+  { id: '1M', label: '1M' },
+  { id: '1Y', label: '1Y' },
+  { id: 'ALL', label: 'ALL' },
+];
 
 const DEFAULT_WATCHLIST = [
   { symbol: 'AAPL', name: 'Apple Inc.' },
@@ -351,14 +364,18 @@ const WatchlistPage = ({
   const [orderStep, setOrderStep] = useState('entry');
   const [orderError, setOrderError] = useState('');
   const [orderStatus, setOrderStatus] = useState({ state: 'idle', message: '', data: null, timestamp: null });
+  const [chartTimeframe, setChartTimeframe] = useState('1D');
 
   const [account, setAccount] = useState(null);
   const [accountStatus, setAccountStatus] = useState({ state: 'idle', message: '' });
   const [tradePositions, setTradePositions] = useState([]);
   const [positionsStatus, setPositionsStatus] = useState({ state: 'idle', message: '' });
+  const [initialChartCandles, setInitialChartCandles] = useState([]);
 
   const refreshInFlightRef = useRef(false);
   const searchDebounceRef = useRef(null);
+  const lightweightChartRef = useRef(null);
+  const seededTickerRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -643,6 +660,57 @@ const WatchlistPage = ({
   const selectedQuote = selectedTicker ? quotesBySymbol[selectedTicker] : null;
   const selectedWatchlistEntry = visibleWatchlist.find((item) => item.symbol === selectedTicker) || null;
   const selectedName = selectedWatchlistEntry?.name || selectedTicker;
+
+  useEffect(() => {
+    if (!selectedTicker) {
+      seededTickerRef.current = null;
+      setInitialChartCandles([]);
+      return;
+    }
+
+    if (seededTickerRef.current === selectedTicker) return;
+    seededTickerRef.current = selectedTicker;
+
+    const price = toNumber(selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.close);
+    if (!Number.isFinite(price)) {
+      setInitialChartCandles([]);
+      return;
+    }
+
+    const openValue = toNumber(selectedQuote?.open);
+    const highValue = toNumber(selectedQuote?.high);
+    const lowValue = toNumber(selectedQuote?.low);
+    const volumeValue = toNumber(selectedQuote?.volume) ?? 0;
+    const open = Number.isFinite(openValue) ? openValue : price;
+    const high = Number.isFinite(highValue) ? highValue : Math.max(open, price);
+    const low = Number.isFinite(lowValue) ? lowValue : Math.min(open, price);
+
+    setInitialChartCandles([
+      {
+        time: selectedQuote?.timestamp || Date.now(),
+        open,
+        high,
+        low,
+        close: price,
+        volume: volumeValue,
+      },
+    ]);
+  }, [selectedTicker, selectedQuote]);
+
+  useEffect(() => {
+    if (!selectedTicker) return;
+
+    const price = toNumber(selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.close);
+    if (!Number.isFinite(price)) return;
+
+    lightweightChartRef.current?.updateFromTick?.({
+      symbol: selectedTicker,
+      price,
+      timestamp: selectedQuote?.timestamp || Date.now(),
+      volume: toNumber(selectedQuote?.volume),
+    });
+  }, [selectedTicker, selectedQuote]);
+
   const marketPrice = useMemo(() => {
     return selectedQuote?.price ?? selectedQuote?.last ?? selectedQuote?.ask ?? selectedQuote?.bid ?? 0;
   }, [selectedQuote]);
@@ -1348,9 +1416,37 @@ const WatchlistPage = ({
               </div>
             </div>
 
+            <div className="border-b border-[#1f1f1f] px-4 py-2">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                {CHART_TIMEFRAME_OPTIONS.map((option) => {
+                  const active = chartTimeframe === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setChartTimeframe(option.id)}
+                      className={`h-7 shrink-0 rounded-md border px-2.5 text-[11px] font-semibold transition-colors ${
+                        active
+                          ? 'border-emerald-400 bg-emerald-500/10 text-emerald-300'
+                          : 'border-[#2a2a2a] bg-[#111111] text-gray-400 hover:border-[#3a3a3a] hover:text-white'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex min-h-0 flex-1">
               <div className="min-h-0 flex-1">
-                <LiveChart symbol={selectedTicker} />
+                <LightweightChart
+                  ref={lightweightChartRef}
+                  symbol={selectedTicker}
+                  timeframe={chartTimeframe}
+                  initialData={initialChartCandles}
+                />
               </div>
 
               <div
