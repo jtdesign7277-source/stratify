@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { X } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
 import useDashboardStateSync from '../../hooks/useDashboardStateSync';
@@ -680,6 +681,52 @@ export default function Dashboard({
     () => calculateTotalDailyPnL(topBarStrategies),
     [topBarStrategies],
   );
+
+  // Sync broker connections from database on mount (fixes top-right badge vs Portfolio page mismatch)
+  useEffect(() => {
+    const syncBrokerConnections = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          // User not logged in, keep localStorage fallback
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('broker_connections')
+          .select('*')
+          .eq('user_id', session.user.id);
+
+        if (error) {
+          console.error('[Dashboard] Failed to fetch broker connections:', error);
+          return;
+        }
+
+        // Map database connections to the same format PortfolioPage uses
+        const mappedConnections = (data || []).map((conn) => ({
+          id: conn.broker,
+          name: conn.broker.charAt(0).toUpperCase() + conn.broker.slice(1),
+          is_paper: conn.is_paper,
+          paperConnected: Boolean(
+            conn.paper_api_key
+            || conn.paper_api_keys?.api_key
+            || (conn.is_paper !== false && conn.api_key)
+          ),
+          liveConnected: Boolean(
+            conn.live_api_key
+            || conn.live_api_keys?.api_key
+            || (conn.is_paper === false && conn.api_key)
+          ),
+        }));
+
+        setConnectedBrokers(mappedConnections);
+      } catch (err) {
+        console.error('[Dashboard] Failed to sync broker connections:', err);
+      }
+    };
+
+    syncBrokerConnections();
+  }, [user]); // Re-sync when user changes
 
   const hydrateDashboardState = useCallback((state) => {
     if (!state || typeof state !== 'object') return;
