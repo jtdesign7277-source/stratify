@@ -123,6 +123,11 @@ const toFiniteNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const toMaybeFiniteNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const formatCurrency = (value) => `$${Math.abs(toFiniteNumber(value)).toLocaleString('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -276,19 +281,33 @@ const createSlipCaption = ({ trade, emojis = [], note = '' }) => {
 };
 
 const normalizePnlShareSnapshot = (post) => {
-  const pnl = Number(post?.metadata?.pnl);
-  if (!Number.isFinite(pnl)) return null;
+  const pnl = toMaybeFiniteNumber(post?.metadata?.pnl);
+  if (pnl === null) return null;
 
-  const percentRaw = Number(post?.metadata?.percent);
+  const percentRaw = toMaybeFiniteNumber(post?.metadata?.percent);
   const ticker = String(post?.metadata?.ticker || '').trim().toUpperCase();
+  const author = (
+    post?.profiles?.display_name
+    || post?.author_name
+    || post?.metadata?.display_name
+    || post?.metadata?.author_name
+    || post?.metadata?.username
+    || 'Trader'
+  );
 
   return {
     id: String(post?.id || '').trim() || `${ticker || 'TRADE'}-${post?.created_at || Date.now()}`,
     ticker: ticker || 'TRADE',
     pnl,
-    percent: Number.isFinite(percentRaw) ? percentRaw : null,
-    author: post?.author_name || post?.profiles?.display_name || 'Trader',
+    percent: percentRaw,
+    author,
     createdAt: post?.created_at || null,
+    entryPrice: toMaybeFiniteNumber(post?.metadata?.entry_price ?? post?.metadata?.entryPrice),
+    exitPrice: toMaybeFiniteNumber(post?.metadata?.exit_price ?? post?.metadata?.exitPrice),
+    shares: toMaybeFiniteNumber(post?.metadata?.shares ?? post?.metadata?.qty ?? post?.metadata?.quantity),
+    openedAt: post?.metadata?.opened_at ?? post?.metadata?.openedAt ?? null,
+    closedAt: post?.metadata?.closed_at ?? post?.metadata?.closedAt ?? post?.created_at ?? null,
+    note: String(post?.metadata?.note || '').trim(),
   };
 };
 
@@ -716,9 +735,181 @@ const BetSlipPanel = ({
   );
 };
 
-const TrendingPnlPanel = ({ wins = [], losses = [], loading = false }) => {
+const pnlShowcaseStyles = `
+  @keyframes pnlSlipRiseIn {
+    0% { opacity: 0; transform: translateY(34px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes pnlStarDrift {
+    0% { transform: translate3d(0, 0, 0) scale(1.1); }
+    100% { transform: translate3d(-180px, -220px, 0) scale(1.1); }
+  }
+
+  @keyframes pnlFireballBurst {
+    0% { opacity: 0; transform: scale(0.35) translateY(35px); }
+    40% { opacity: 0.95; }
+    100% { opacity: 0; transform: scale(1.9) translateY(-45px); }
+  }
+
+  @keyframes pnlIcePulse {
+    0% { opacity: 0; transform: scale(0.5); }
+    45% { opacity: 0.85; }
+    100% { opacity: 0; transform: scale(1.8); }
+  }
+
+  .pnl-showcase-stars {
+    position: absolute;
+    inset: -20%;
+    background-image:
+      radial-gradient(1px 1px at 16px 22px, rgba(255,255,255,0.88), transparent),
+      radial-gradient(1px 1px at 74px 114px, rgba(196,181,253,0.75), transparent),
+      radial-gradient(1px 1px at 132px 46px, rgba(186,230,253,0.82), transparent),
+      radial-gradient(1px 1px at 204px 180px, rgba(255,255,255,0.65), transparent);
+    background-size: 240px 240px;
+    animation: pnlStarDrift 30s linear infinite;
+    opacity: 0.45;
+  }
+
+  .pnl-showcase-stars.pnl-showcase-stars--slow {
+    opacity: 0.26;
+    animation-duration: 55s;
+    transform: scale(1.35);
+  }
+
+  .pnl-showcase-slip {
+    animation: pnlSlipRiseIn 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+`;
+
+const PnlShowcaseOverlay = ({ trade, onClose }) => {
+  useEffect(() => {
+    if (!trade) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [trade, onClose]);
+
+  const isWin = Number(trade?.pnl) >= 0;
+
+  return (
+    <AnimatePresence>
+      {trade ? (
+        <motion.div
+          key={trade.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[140] overflow-hidden"
+        >
+          <style>{pnlShowcaseStyles}</style>
+          <button
+            type="button"
+            aria-label="Close showcase"
+            className="absolute inset-0 bg-[#02050c]/90"
+            onClick={onClose}
+          />
+          <div className="pnl-showcase-stars" />
+          <div className="pnl-showcase-stars pnl-showcase-stars--slow" />
+
+          <div className="pointer-events-none absolute inset-0">
+            {[...Array(6)].map((_, index) => (
+              <span
+                key={`fx-${index}`}
+                className={`absolute rounded-full blur-2xl ${isWin ? 'bg-emerald-500/55' : 'bg-cyan-300/45'}`}
+                style={{
+                  width: `${120 + (index * 16)}px`,
+                  height: `${120 + (index * 16)}px`,
+                  left: `${12 + (index * 13)}%`,
+                  top: `${14 + ((index * 11) % 58)}%`,
+                  animation: `${isWin ? 'pnlFireballBurst' : 'pnlIcePulse'} ${2.4 + (index * 0.18)}s ease-out ${index * 0.12}s infinite`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.97 }}
+              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+              className={`pnl-showcase-slip relative w-full max-w-2xl rounded-2xl border backdrop-blur-sm shadow-[0_26px_120px_rgba(0,0,0,0.72)] ${
+                isWin
+                  ? 'border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-[#061115]/92 to-[#04090d]/94'
+                  : 'border-cyan-300/45 bg-gradient-to-br from-cyan-300/14 via-[#05111c]/92 to-[#04090d]/94'
+              }`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.22em] text-gray-300/80">Underground Bet Slip</div>
+                  <h3 className="mt-1 text-2xl font-semibold text-white">${trade.ticker}</h3>
+                  <p className="mt-1 text-xs text-gray-300/75">Shared by {trade.author}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border border-white/20 bg-black/25 px-2 py-1 text-xs text-gray-200 hover:border-white/40"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-sm">
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">P&L</div>
+                  <div className={`text-2xl font-semibold font-mono ${isWin ? 'text-emerald-300' : 'text-cyan-200'}`}>
+                    {formatSignedCurrency(trade.pnl)}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Return</div>
+                  <div className={`text-2xl font-semibold font-mono ${isWin ? 'text-emerald-300' : 'text-cyan-200'}`}>
+                    {Number.isFinite(trade.percent) ? formatSignedPercent(trade.percent) : '—'}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Entry</div>
+                  <div className="text-white font-mono">{Number.isFinite(trade.entryPrice) ? formatCurrency(trade.entryPrice) : '—'}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Exit</div>
+                  <div className="text-white font-mono">{Number.isFinite(trade.exitPrice) ? formatCurrency(trade.exitPrice) : '—'}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Opened</div>
+                  <div className="text-white">{formatDateTime(trade.openedAt || trade.createdAt)}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Closed</div>
+                  <div className="text-white">{formatDateTime(trade.closedAt || trade.createdAt)}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3 sm:col-span-2">
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Position Size</div>
+                  <div className="text-white font-mono">
+                    {Number.isFinite(trade.shares) ? `${trade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares` : '—'}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+};
+
+const TrendingPnlPanel = ({ wins = [], losses = [], loading = false, onSelectTrade }) => {
   const renderRow = (item, label) => (
-    <div key={`${label}-${item.id}`} className="rounded-xl border border-white/10 bg-black/20 px-2.5 py-2">
+    <button
+      key={`${label}-${item.id}`}
+      type="button"
+      onClick={() => onSelectTrade?.(item)}
+      className="w-full text-left rounded-xl border border-white/10 bg-black/20 px-2.5 py-2 hover:border-cyan-300/50 hover:bg-black/35 transition-colors"
+    >
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-white">${item.ticker}</div>
         <div className={`text-xs font-semibold font-mono ${item.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
@@ -726,17 +917,17 @@ const TrendingPnlPanel = ({ wins = [], losses = [], loading = false }) => {
         </div>
       </div>
       <div className="mt-1 flex items-center justify-between text-[11px] text-gray-400">
-        <span>{item.author}</span>
+        <span className="truncate pr-2">{item.author}</span>
         <span>{Number.isFinite(item.percent) ? formatSignedPercent(item.percent) : '—'}</span>
       </div>
-    </div>
+    </button>
   );
 
   return (
     <div className="w-full rounded-2xl border border-gray-800/60 bg-black/30 backdrop-blur-sm overflow-hidden xl:max-h-[46vh] flex flex-col">
       <div className="px-4 py-3 border-b border-gray-800/70">
         <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Trending</div>
-        <h3 className="text-base font-semibold text-white">Wildest Wins & Losses</h3>
+        <h3 className="text-base font-semibold text-white">Wins & Losses</h3>
       </div>
       <div className="p-4 space-y-3 overflow-y-auto">
         {loading ? (
@@ -1559,6 +1750,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [pnlPosting, setPnlPosting] = useState(false);
   const [trendingRows, setTrendingRows] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
+  const [showcaseTrade, setShowcaseTrade] = useState(null);
   const PAGE_SIZE = 20;
 
   const closedTrades = useMemo(
@@ -1645,7 +1837,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     try {
       const { data, error } = await supabase
         .from('community_posts')
-        .select('id, author_name, created_at, metadata, post_type, parent_id, parent_post_id')
+        .select('id, user_id, author_name, created_at, metadata, post_type, parent_id, parent_post_id, profiles:user_id(display_name, email)')
         .eq('post_type', 'pnl_share')
         .is('parent_id', null)
         .is('parent_post_id', null)
@@ -1908,6 +2100,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     await supabase.from('community_posts').delete().eq('id', postId);
     setPosts((prev) => prev.filter((post) => post.id !== postId));
     removeTrendingRow(postId);
+    if (showcaseTrade?.id === postId) setShowcaseTrade(null);
   };
 
   const loadMore = () => {
@@ -1969,7 +2162,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               )}
             </div>
 
-            <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-7.5rem)] xl:overflow-y-auto pr-1">
+            <aside className="space-y-4 xl:sticky xl:top-0 xl:max-h-[calc(100vh-7.5rem)] xl:overflow-y-auto pr-1">
               {pnlPanelOpen ? (
                 <BetSlipPanel
                   open={pnlPanelOpen}
@@ -2003,11 +2196,16 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                 wins={topWins}
                 losses={topLosses}
                 loading={trendingLoading}
+                onSelectTrade={setShowcaseTrade}
               />
             </aside>
           </div>
         </div>
       </div>
+      <PnlShowcaseOverlay
+        trade={showcaseTrade}
+        onClose={() => setShowcaseTrade(null)}
+      />
     </div>
   );
 };
