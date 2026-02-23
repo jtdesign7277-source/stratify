@@ -983,7 +983,7 @@ const AUTH_GATE_TIMEOUT_MS = 5000;
 const SUBSCRIPTION_RESTORE_TIMEOUT_MS = 12000;
 
 function StratifyAppContent() {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, signOut } = useAuth();
   const {
     isProUser,
     loading: subscriptionLoading,
@@ -1070,6 +1070,35 @@ function StratifyAppContent() {
   const openAuth = () => {
     navigateToPage('auth');
   };
+
+  const exitToLanding = useCallback(() => {
+    setCheckoutError('');
+    setIsCheckoutRedirecting(false);
+    setIsCheckoutVerifying(false);
+    setIsSubscriptionRestoring(false);
+    if (user?.id) {
+      attemptedSubscriptionRestoreRef.current.delete(user.id);
+    }
+    navigateToPage('landing');
+  }, [navigateToPage, user?.id]);
+
+  const signOutAndExit = useCallback(async () => {
+    setCheckoutError('');
+    setIsCheckoutRedirecting(false);
+    setIsCheckoutVerifying(false);
+    setIsSubscriptionRestoring(false);
+    clearPendingCheckoutSession();
+    handledCheckoutSessionsRef.current.clear();
+    attemptedSubscriptionRestoreRef.current.clear();
+
+    try {
+      await signOut?.();
+    } catch (error) {
+      console.error('[Auth] Sign out failed while exiting subscription gate:', error);
+    }
+
+    navigateToPage('landing');
+  }, [navigateToPage, signOut]);
 
   const isCheckingSession = loading || (isAuthenticated && subscriptionLoading);
 
@@ -1162,27 +1191,35 @@ function StratifyAppContent() {
     const checkoutSessionId = checkoutSessionIdFromQuery || pendingCheckoutSessionId;
     const checkoutResult = String(url.searchParams.get('checkout') || '').toLowerCase();
 
+    const hasCheckoutQuery =
+      Boolean(checkoutSessionIdFromQuery) || checkoutResult === 'success' || checkoutResult === 'cancelled';
+    const hasPendingOnlySession = !hasCheckoutQuery && Boolean(pendingCheckoutSessionId);
     const shouldProcessCheckout =
-      Boolean(checkoutSessionId) || checkoutResult === 'success' || checkoutResult === 'cancelled';
+      hasCheckoutQuery || (hasPendingOnlySession && currentPage === 'dashboard');
     if (!shouldProcessCheckout) return;
 
-    const sessionKey = checkoutSessionId || `checkout-${checkoutResult}`;
+    const sessionKey = `${checkoutSessionId || `checkout-${checkoutResult}`}:${hasCheckoutQuery ? 'query' : 'pending'}`;
     if (handledCheckoutSessionsRef.current.has(sessionKey)) return;
     handledCheckoutSessionsRef.current.add(sessionKey);
 
     let cancelled = false;
 
     const clearCheckoutParams = () => {
+      if (!hasCheckoutQuery) {
+        return;
+      }
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.delete('session_id');
       nextUrl.searchParams.delete('checkout');
       const search = nextUrl.searchParams.toString();
-      const finalPath = `/dashboard${search ? `?${search}` : ''}${nextUrl.hash}`;
-      window.history.replaceState({ page: 'dashboard' }, '', finalPath || '/dashboard');
+      const finalPath = `${nextUrl.pathname}${search ? `?${search}` : ''}${nextUrl.hash}`;
+      window.history.replaceState({ page: currentPage }, '', finalPath || nextUrl.pathname || '/');
     };
 
     const confirmCheckout = async () => {
-      setCurrentPage('dashboard');
+      if (hasCheckoutQuery) {
+        setCurrentPage('dashboard');
+      }
       setCheckoutError('');
       setIsCheckoutVerifying(true);
 
@@ -1193,7 +1230,7 @@ function StratifyAppContent() {
         }
 
         let confirmed = false;
-        let shouldClearPendingSession = false;
+        let shouldClearPendingSession = Boolean(checkoutSessionId) || hasPendingOnlySession;
 
         if (checkoutSessionId) {
           for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -1210,12 +1247,10 @@ function StratifyAppContent() {
 
             if (response.ok) {
               confirmed = true;
-              shouldClearPendingSession = true;
               break;
             }
 
             if (response.status === 400 || response.status === 403 || response.status === 404) {
-              shouldClearPendingSession = true;
               break;
             }
 
@@ -1224,7 +1259,9 @@ function StratifyAppContent() {
               console.error(message);
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 900));
+            if (attempt < 2) {
+              await new Promise((resolve) => setTimeout(resolve, 900));
+            }
           }
         }
 
@@ -1256,7 +1293,7 @@ function StratifyAppContent() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, user?.id, refetchSubscription, isProUser]);
+  }, [currentPage, isAuthenticated, user?.id, refetchSubscription, isProUser]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || subscriptionLoading || isProUser || typeof window === 'undefined') {
@@ -1379,6 +1416,22 @@ function StratifyAppContent() {
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
             Verifying subscription...
           </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={exitToLanding}
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-xs font-medium text-white/80 transition hover:border-white/35 hover:text-white"
+            >
+              Back to Landing
+            </button>
+            <button
+              type="button"
+              onClick={signOutAndExit}
+              className="inline-flex items-center justify-center rounded-lg border border-red-400/35 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     ) : !isProUser ? (
@@ -1397,6 +1450,22 @@ function StratifyAppContent() {
           >
             {isCheckoutRedirecting ? 'Redirecting to Stripe...' : `Continue to Stripe Checkout (${PRO_MONTHLY_PRICE_LABEL})`}
           </button>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={exitToLanding}
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-xs font-medium text-white/80 transition hover:border-white/35 hover:text-white"
+            >
+              Back to Landing
+            </button>
+            <button
+              type="button"
+              onClick={signOutAndExit}
+              className="inline-flex items-center justify-center rounded-lg border border-red-400/35 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
+            >
+              Sign Out
+            </button>
+          </div>
           {checkoutError ? (
             <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
           ) : null}
