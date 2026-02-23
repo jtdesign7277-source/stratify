@@ -1498,28 +1498,25 @@ export default function TraderPage({ onPinToTop }) {
           {!isWatchlistCollapsed && (
             <>
               <form onSubmit={addSymbol} className="border-b border-[#1f1f1f] px-4 py-3">
-                <div className="mb-3 flex items-center justify-between">
-                  {MARKET_FILTERS.map((market, index) => {
-                    const isActive = activeMarket === market.id;
-                    return (
-                      <div key={market.id} className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setActiveMarket(market.id)}
-                          className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
-                            isActive
-                              ? 'text-emerald-300'
-                              : 'text-[#d1d5db] hover:text-white'
-                          }`}
-                        >
-                          {market.label}
-                        </button>
-                        {index < MARKET_FILTERS.length - 1 && (
-                          <span className="text-[#1f1f1f]">|</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="mb-3 flex items-center justify-center gap-1">
+                  {MARKET_FILTERS.map((market, index) => (
+                    <div key={market.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setActiveMarket(market.id)}
+                        className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
+                          activeMarket === market.id
+                            ? 'text-emerald-300'
+                            : 'text-[#d1d5db] hover:text-white'
+                        }`}
+                      >
+                        {market.label}
+                      </button>
+                      {index < MARKET_FILTERS.length - 1 && (
+                        <span className="text-white/50 px-2">|</span>
+                      )}
+                    </div>
+                  ))}
                 </div>
                 <div ref={searchContainerRef} className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" strokeWidth={1.5} />
