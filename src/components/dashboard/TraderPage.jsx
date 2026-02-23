@@ -10,7 +10,6 @@ import { fetchAccount, placeOrder } from '../../services/alpacaService';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
-const TWELVE_DATA_QUOTE_URL = 'https://api.twelvedata.com/quote';
 const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
@@ -1102,6 +1101,10 @@ export default function TraderPage({
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
   }, [activeMarket]);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
+  const watchlistSymbolSetKey = useMemo(
+    () => [...new Set(watchlist.map(normalizeSymbol).filter(Boolean))].sort().join(','),
+    [watchlist]
+  );
 
   const syncWatchlistValueLoadingState = useCallback((symbols) => {
     const normalizedSymbols = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))];
@@ -1414,6 +1417,9 @@ export default function TraderPage({
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
   const selectedQuoteIsPlaceholder = selectedQuote?.isPlaceholder === true;
+  const selectedValueLoading = selectedSymbol ? quoteValueLoadingBySymbol[selectedSymbol] : null;
+  const selectedPriceLoading = selectedValueLoading?.price === true;
+  const selectedDayLoading = selectedValueLoading?.day === true;
   const selectedMarketPrice = useMemo(() => {
     const price = toNumber(
       selectedQuote?.price
@@ -1467,34 +1473,45 @@ export default function TraderPage({
     restPollTimerRef.current = null;
   }, []);
 
-  const fetchQuoteSnapshot = useCallback(async () => {
-    if (!apiKey) return;
-
-    const symbols = [...watchlistRef.current].map(normalizeSymbol).filter(Boolean);
+  const fetchQuoteSnapshot = useCallback(async (symbolsOverride = null) => {
+    const symbols = (
+      Array.isArray(symbolsOverride) && symbolsOverride.length > 0
+        ? symbolsOverride
+        : [...watchlistRef.current]
+    )
+      .map(normalizeSymbol)
+      .filter(Boolean);
     if (symbols.length === 0) return;
 
-    const updates = await Promise.all(
-      symbols.map(async (symbol) => {
-        try {
-          const params = new URLSearchParams({
-            symbol,
-            apikey: apiKey,
-          });
+    try {
+      const response = await fetch('/api/watchlist/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols }),
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return;
 
-          const response = await fetch(`${TWELVE_DATA_QUOTE_URL}?${params.toString()}`, {
-            cache: 'no-store',
-          });
-          const payload = await response.json().catch(() => ({}));
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const updates = rows
+        .map((row) => {
+          const symbol = normalizeSymbol(row?.symbol);
+          if (!symbol) return null;
 
-          if (!response.ok || payload?.status === 'error') return null;
-          if (payload?.code && String(payload.code) !== '200') return null;
-
-          const price = toNumber(payload?.close ?? payload?.last ?? payload?.price);
+          const price = toNumber(row?.price ?? row?.last ?? row?.close);
           if (!Number.isFinite(price)) return null;
 
-          const previousClose = toNumber(payload?.previous_close);
-          const rawChange = toNumber(payload?.change);
-          const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
+          const raw = row?.raw || row;
+          const previousClose = resolvePreviousCloseFromQuote({
+            previousClose: row?.previousClose ?? raw?.previous_close ?? raw?.previousClose,
+            previous_close: raw?.previous_close,
+            price,
+            change: row?.change,
+            changePercent: row?.percentChange,
+          });
+          const rawChange = toNumber(row?.change);
+          const rawPercent = toNumber(row?.percentChange ?? raw?.percent_change ?? raw?.percentChange);
           const change = Number.isFinite(rawChange)
             ? rawChange
             : Number.isFinite(previousClose)
@@ -1505,62 +1522,96 @@ export default function TraderPage({
             : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
               ? (change / previousClose) * 100
               : null;
-          const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
+          const preMarketMetrics = extractPremarketQuoteMetrics(raw, price);
 
           return {
             symbol,
             price,
             change,
             changePercent,
-            preMarketPrice: preMarketMetrics.preMarketPrice,
-            preMarketChange: preMarketMetrics.preMarketChange,
-            preMarketChangePercent: preMarketMetrics.preMarketChangePercent,
-            isMarketOpen: parseMarketOpen(payload?.is_market_open),
-            timestamp: payload?.timestamp || payload?.datetime || Date.now(),
-            name: String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim() || undefined,
+            preMarketPrice: Number.isFinite(toNumber(row?.preMarketPrice))
+              ? toNumber(row?.preMarketPrice)
+              : preMarketMetrics.preMarketPrice,
+            preMarketChange: Number.isFinite(toNumber(row?.preMarketChange))
+              ? toNumber(row?.preMarketChange)
+              : preMarketMetrics.preMarketChange,
+            preMarketChangePercent: Number.isFinite(toNumber(row?.preMarketChangePercent))
+              ? toNumber(row?.preMarketChangePercent)
+              : preMarketMetrics.preMarketChangePercent,
+            previousClose: Number.isFinite(previousClose) ? previousClose : null,
+            isMarketOpen: parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
+            timestamp: row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
+            name: String(row?.name || raw?.name || raw?.instrument_name || raw?.display_name || '').trim() || undefined,
+            exchange: String(row?.exchange || raw?.exchange || '').trim() || undefined,
             source: 'rest',
             isPlaceholder: false,
           };
-        } catch {
-          return null;
-        }
-      })
-    );
+        })
+        .filter(Boolean);
 
-    const validUpdates = updates.filter(Boolean);
-    if (validUpdates.length === 0) return;
+      if (updates.length === 0) return;
 
-    setQuotesBySymbol((previous) => {
-      const next = { ...previous };
-      validUpdates.forEach((quote) => {
-        next[quote.symbol] = {
-          ...previous[quote.symbol],
-          ...quote,
-        };
+      setQuotesBySymbol((previous) => {
+        const next = { ...previous };
+        updates.forEach((quote) => {
+          next[quote.symbol] = {
+            ...previous[quote.symbol],
+            ...quote,
+          };
+        });
+        return next;
       });
-      return next;
-    });
-    setWatchlistNamesBySymbol((previous) => {
-      let hasUpdate = false;
-      const next = { ...previous };
-      validUpdates.forEach((quote) => {
-        const normalized = normalizeSymbol(quote?.symbol);
-        const name = String(quote?.name || '').trim();
-        if (!normalized || !name || next[normalized] === name) return;
-        next[normalized] = name;
-        hasUpdate = true;
-      });
-      return hasUpdate ? next : previous;
-    });
 
-    if (validUpdates.some((quote) => quote.isMarketOpen === true) && restFallbackActiveRef.current) {
-      stopRestFallbackPolling();
-      setStreamStatus((previous) => ({
-        ...previous,
-        error: '',
-      }));
-    }
-  }, [apiKey, stopRestFallbackPolling]);
+      setQuoteValueLoadingBySymbol((previous) => {
+        let hasChanges = false;
+        const next = { ...previous };
+
+        updates.forEach((quote) => {
+          const symbol = normalizeSymbol(quote?.symbol);
+          if (!symbol) return;
+
+          const current = next[symbol] || createQuoteValueLoadingState();
+          if (!current.price && !current.day && !current.preMarket) {
+            if (!next[symbol]) next[symbol] = current;
+            return;
+          }
+
+          next[symbol] = {
+            ...current,
+            price: false,
+            day: false,
+            preMarket: false,
+          };
+          hasChanges = true;
+        });
+
+        return hasChanges ? next : previous;
+      });
+
+      cachePreviousCloseQuotes(updates);
+
+      setWatchlistNamesBySymbol((previous) => {
+        let hasUpdate = false;
+        const next = { ...previous };
+        updates.forEach((quote) => {
+          const normalized = normalizeSymbol(quote?.symbol);
+          const name = String(quote?.name || '').trim();
+          if (!normalized || !name || next[normalized] === name) return;
+          next[normalized] = name;
+          hasUpdate = true;
+        });
+        return hasUpdate ? next : previous;
+      });
+
+      if (updates.some((quote) => quote.isMarketOpen === true) && restFallbackActiveRef.current) {
+        stopRestFallbackPolling();
+        setStreamStatus((previous) => ({
+          ...previous,
+          error: '',
+        }));
+      }
+    } catch {}
+  }, [cachePreviousCloseQuotes, stopRestFallbackPolling]);
 
   const startRestFallbackPolling = useCallback(() => {
     if (restFallbackActiveRef.current) return;
@@ -1865,9 +1916,9 @@ export default function TraderPage({
   }, [watchlist]);
 
   useEffect(() => {
-    if (!restFallbackActiveRef.current) return;
+    if (!watchlistSymbolSetKey) return;
     void fetchQuoteSnapshot();
-  }, [watchlist, fetchQuoteSnapshot]);
+  }, [watchlistSymbolSetKey, fetchQuoteSnapshot]);
 
   useEffect(() => {
     if (!apiKey) {
@@ -1906,6 +1957,7 @@ export default function TraderPage({
       const rawChange = toNumber(payload?.change);
       const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
       const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
+      const previousClose = resolvePreviousCloseFromQuote(payload);
 
       setQuotesBySymbol((previous) => {
         const previousQuote = previous[symbol] || {};
@@ -1940,6 +1992,9 @@ export default function TraderPage({
             preMarketChangePercent: Number.isFinite(preMarketMetrics.preMarketChangePercent)
               ? preMarketMetrics.preMarketChangePercent
               : toNumber(previousQuote?.preMarketChangePercent),
+            previousClose: Number.isFinite(previousClose)
+              ? previousClose
+              : toNumber(previousQuote?.previousClose),
             isMarketOpen: true,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || previousQuote?.name || '').trim() || undefined,
@@ -1948,6 +2003,28 @@ export default function TraderPage({
           },
         };
       });
+
+      markQuoteValuesLoaded([
+        {
+          symbol,
+          price: true,
+          day: true,
+          preMarket: Number.isFinite(preMarketMetrics.preMarketChange)
+            || Number.isFinite(preMarketMetrics.preMarketChangePercent),
+        },
+      ]);
+
+      if (Number.isFinite(previousClose)) {
+        cachePreviousCloseQuotes([
+          {
+            symbol,
+            previousClose,
+            name: payload?.name || payload?.instrument_name || payload?.display_name || symbol,
+            exchange: payload?.exchange,
+            timestamp: payload?.timestamp || payload?.datetime || Date.now(),
+          },
+        ]);
+      }
 
       applyPriceToChart(symbol, price, payload?.timestamp || payload?.datetime);
     };
@@ -2102,7 +2179,9 @@ export default function TraderPage({
   }, [
     apiKey,
     applyPriceToChart,
+    cachePreviousCloseQuotes,
     clearNoStreamDataTimer,
+    markQuoteValuesLoaded,
     startRestFallbackPolling,
     stopRestFallbackPolling,
   ]);
@@ -2133,10 +2212,12 @@ export default function TraderPage({
     setIsSearchLoading(false);
     setIsSearchDropdownOpen(false);
 
+    applyCachedClosePlaceholder(normalized, normalizedName);
     if (!isExistingSymbol) {
-      void fetchImmediateClosePlaceholder(normalized);
+      markQuoteValuesPending(normalized);
     }
-  }, [fetchImmediateClosePlaceholder]);
+    void fetchQuoteSnapshot([normalized]);
+  }, [applyCachedClosePlaceholder, fetchQuoteSnapshot, markQuoteValuesPending]);
 
   const addSymbol = (event) => {
     event.preventDefault();
@@ -2405,6 +2486,10 @@ export default function TraderPage({
                               const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.preMarket || 'percent';
                               const isSelected = selectedSymbol === symbol;
                               const isPlaceholder = quote?.isPlaceholder === true;
+                              const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
+                              const isPriceLoading = valueLoading.price === true;
+                              const isDayLoading = valueLoading.day === true;
+                              const isPreMarketLoading = valueLoading.preMarket === true;
                               const companyName = String(
                                 quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
                               ).trim();
@@ -2455,10 +2540,15 @@ export default function TraderPage({
                                       </div>
 
                                       <div className="ml-auto pr-3 text-right flex-shrink-0">
-                                        <div className={`font-semibold text-base font-mono ${isPlaceholder ? 'text-white/80' : 'text-white'}`}>
-                                          {Number.isFinite(price) ? formatPrice(price) : '...'}
+                                        <div className="flex items-center justify-end gap-1">
+                                          <div className={`font-semibold text-base font-mono ${isPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                                            {Number.isFinite(price) ? formatPrice(price) : '--'}
+                                          </div>
+                                          {isPriceLoading && (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
+                                          )}
                                         </div>
-                                        {Number.isFinite(price) && !isPlaceholder && (
+                                        {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
                                             <button
                                               type="button"
@@ -2471,11 +2561,14 @@ export default function TraderPage({
                                                 getWatchlistChangeToneClass(dayReferenceChange)
                                               }`}
                                             >
-                                              {`Day ${formatWatchlistChangeValue({
+                                              <span>{`Day ${formatWatchlistChangeValue({
                                                 mode: dayDisplayMode,
                                                 percentValue: dayChangePercent,
                                                 dollarValue: dayChange,
-                                              })}`}
+                                              })}`}</span>
+                                              {isDayLoading && (
+                                                <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
+                                              )}
                                             </button>
                                             <button
                                               type="button"
@@ -2488,11 +2581,14 @@ export default function TraderPage({
                                                 getWatchlistChangeToneClass(preMarketReferenceChange)
                                               }`}
                                             >
-                                              {`Pre ${formatWatchlistChangeValue({
+                                              <span>{`Pre ${formatWatchlistChangeValue({
                                                 mode: preMarketDisplayMode,
                                                 percentValue: preMarketChangePercent,
                                                 dollarValue: preMarketChange,
-                                              })}`}
+                                              })}`}</span>
+                                              {isPreMarketLoading && (
+                                                <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating premarket change" />
+                                              )}
                                             </button>
                                           </div>
                                         )}
@@ -2532,6 +2628,8 @@ export default function TraderPage({
               {watchlist.map((symbol) => {
                 const quote = quotesBySymbol[symbol] || {};
                 const changePercent = toNumber(quote?.changePercent) ?? 0;
+                const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
+                const isDayLoading = valueLoading.day === true;
                 const isPositive = changePercent >= 0;
                 const isSelected = selectedSymbol === symbol;
 
@@ -2544,13 +2642,18 @@ export default function TraderPage({
                     }`}
                   >
                     <div className="text-white font-semibold text-[13px]">{symbol}</div>
-                    <div
-                      className={`text-[10px] font-mono font-semibold mt-0.5 ${
-                        isPositive ? 'text-emerald-400' : 'text-red-400'
-                      }`}
-                    >
-                      {isPositive ? '+' : ''}
-                      {changePercent.toFixed(1)}%
+                    <div className="mt-0.5 flex items-center justify-center gap-1">
+                      <div
+                        className={`text-[10px] font-mono font-semibold ${
+                          isPositive ? 'text-emerald-400' : 'text-red-400'
+                        }`}
+                      >
+                        {isPositive ? '+' : ''}
+                        {changePercent.toFixed(1)}%
+                      </div>
+                      {isDayLoading && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
+                      )}
                     </div>
                   </button>
                 );
@@ -2567,11 +2670,16 @@ export default function TraderPage({
                 <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
               </div>
               <div className="text-right">
-                <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
-                  {formatPrice(selectedQuote?.price)}
+                <div className="flex items-center justify-end gap-1">
+                  <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                    {formatPrice(selectedQuote?.price)}
+                  </div>
+                  {selectedPriceLoading && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating price" />
+                  )}
                 </div>
                 <div
-                  className={`text-xs font-medium tabular-nums ${
+                  className={`flex items-center justify-end gap-1 text-xs font-medium tabular-nums ${
                     Number.isFinite(Number(selectedQuote?.changePercent))
                       ? Number(selectedQuote?.changePercent) >= 0
                         ? 'text-emerald-400'
@@ -2579,7 +2687,10 @@ export default function TraderPage({
                       : 'text-[#6b7280]'
                   }`}
                 >
-                  {formatSignedPercent(selectedQuote?.changePercent)}
+                  <span>{formatSignedPercent(selectedQuote?.changePercent)}</span>
+                  {selectedDayLoading && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
+                  )}
                 </div>
               </div>
             </div>
