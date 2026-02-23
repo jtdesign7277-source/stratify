@@ -291,10 +291,51 @@ const BrokerBadge = ({ broker }) => {
   );
 };
 
+const DND_DEBUG_FLAG = '__STRATIFY_DEBUG_DND';
+
+const logDndDebug = (...args) => {
+  if (typeof window === 'undefined') return;
+  if (!window[DND_DEBUG_FLAG]) return;
+  console.log(...args);
+};
+
+const resolveDropEffect = (dataTransfer) => {
+  const effectAllowed = String(dataTransfer?.effectAllowed || '').trim().toLowerCase();
+  if (!effectAllowed || effectAllowed === 'all' || effectAllowed === 'uninitialized') return 'copy';
+  if (effectAllowed.includes('copy')) return 'copy';
+  if (effectAllowed.includes('move')) return 'move';
+  if (effectAllowed.includes('link')) return 'link';
+  return 'none';
+};
+
+const readDroppedTickerSymbol = (event) => {
+  const raw = event?.dataTransfer?.getData('text/stratify-ticker')
+    || event?.dataTransfer?.getData('text/plain')
+    || '';
+  const symbol = String(raw).trim().toUpperCase();
+  if (!symbol || symbol.startsWith('{')) return '';
+  return symbol;
+};
+
 const parseDropPayload = (event) => {
-  const jsonData = event.dataTransfer.getData('text/stratify-game')
-    || event.dataTransfer.getData('application/json')
-    || event.dataTransfer.getData('text/plain');
+  const transfer = event?.dataTransfer;
+  if (!transfer) return null;
+
+  const types = Array.from(transfer.types || []);
+  if (types.includes('text/stratify-ticker')) {
+    return null;
+  }
+  if (
+    types.includes('text/plain')
+    && !types.includes('text/stratify-game')
+    && !types.includes('application/json')
+  ) {
+    return null;
+  }
+
+  const jsonData = transfer.getData('text/stratify-game')
+    || transfer.getData('application/json')
+    || transfer.getData('text/plain');
   if (jsonData) {
     const trimmed = jsonData.trim();
     if (trimmed.startsWith('{')) {
@@ -303,6 +344,9 @@ const parseDropPayload = (event) => {
       } catch {
         // fall through to global payload
       }
+    } else {
+      // Plain text ticker payload; never treat as game payload.
+      return null;
     }
   }
   if (typeof window !== 'undefined' && window.__stratifyDragPayload) {
@@ -583,7 +627,7 @@ export default function TopMetricsBar({
   }, [clockNow]);
 
   return (
-    <div className={`${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
+    <div className={`relative z-20 ${themeClasses.surfaceElevated} border-b ${themeClasses.border}`}>
       <div className="h-8 px-4 border-b border-[#1f1f1f] flex items-center justify-between bg-[#0a0f1a]/85">
         <div className="text-[10px] uppercase tracking-[0.18em] text-white/45 font-semibold">
           Global Desk Clock
@@ -623,11 +667,11 @@ export default function TopMetricsBar({
         </div>
 
         {/* Mini Pills Bar - 5 slots for minimized widgets */}
-        <div className="flex items-center gap-2 mx-6 flex-1 justify-center">
+        <div className="relative z-20 flex items-center gap-2 mx-6 flex-1 justify-center">
           {[1, 2, 3, 4, 5].map((slot) => (
             <div
               key={slot}
-              className={`h-8 rounded-full transition-all ${
+              className={`relative z-10 pointer-events-auto h-8 rounded-full transition-all ${
                 miniPills[slot]
                   ? ''
                   : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
@@ -635,7 +679,9 @@ export default function TopMetricsBar({
               data-pill-slot={slot}
               onDragOver={(e) => {
                 e.preventDefault();
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                if (e.dataTransfer) {
+                  e.dataTransfer.dropEffect = resolveDropEffect(e.dataTransfer);
+                }
                 e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
               }}
               onDragLeave={(e) => {
@@ -647,13 +693,21 @@ export default function TopMetricsBar({
                 const payload = parseDropPayload(e);
                 if (payload?.type === 'game' && onGameDrop) {
                   onGameDrop(payload.data, slot);
+                  logDndDebug('[TopMetricsBar] game drop', { slot, gameId: payload?.data?.id || null });
                   clearGlobalDragPayload();
                   return;
                 }
-                const symbol = e.dataTransfer.getData('text/plain');
+                const symbol = readDroppedTickerSymbol(e);
                 if (symbol && onTickerDrop) {
                   onTickerDrop(symbol, slot);
+                  logDndDebug('[TopMetricsBar] ticker drop', { slot, symbol });
+                  clearGlobalDragPayload();
+                  return;
                 }
+                logDndDebug('[TopMetricsBar] drop ignored', {
+                  slot,
+                  types: Array.from(e?.dataTransfer?.types || []),
+                });
               }}
             >
               {miniPills[slot] || (

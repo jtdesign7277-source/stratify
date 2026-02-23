@@ -145,6 +145,14 @@ const normalizeSymbol = (value) =>
     .split(':')[0]
     .split('.')[0];
 
+const DND_DEBUG_FLAG = '__STRATIFY_DEBUG_DND';
+
+const logDndDebug = (...args) => {
+  if (typeof window === 'undefined') return;
+  if (!window[DND_DEBUG_FLAG]) return;
+  console.log(...args);
+};
+
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string' && value.trim() === '') return null;
@@ -963,8 +971,14 @@ const WatchlistPage = ({
     setDragOverSymbol(normalized);
 
     try {
-      event.dataTransfer.effectAllowed = 'move';
+      // Reordering uses move semantics, while top-pill pinning is a copy.
+      event.dataTransfer.effectAllowed = 'copyMove';
+      event.dataTransfer.setData('text/stratify-ticker', normalized);
       event.dataTransfer.setData('text/plain', normalized);
+      logDndDebug('[WatchlistPage] dragstart', {
+        symbol: normalized,
+        effectAllowed: event.dataTransfer.effectAllowed,
+      });
     } catch {}
   }, []);
 
@@ -1143,7 +1157,7 @@ const WatchlistPage = ({
                   <button
                     key={item.symbol}
                     type="button"
-                    draggable
+                    draggable={true}
                     onDragStart={(event) => handleRowDragStart(event, item.symbol)}
                     onDragOver={(event) => handleRowDragOver(event, item.symbol)}
                     onDrop={(event) => handleRowDrop(event, item.symbol)}
