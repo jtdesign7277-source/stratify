@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { normalizeSymbol as normalizeTicker } from '../../../lib/twelvedata';
 
 const WS_CONFIG_URL = '/api/lse/ws-config';
 const RECONNECT_DELAY_MS = 3000;
-const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
+const normalizeSymbol = (value) => normalizeTicker(value);
 
 export function useTwelveDataWS() {
   const [prices, setPrices] = useState({});

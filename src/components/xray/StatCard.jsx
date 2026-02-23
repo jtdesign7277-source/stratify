@@ -19,7 +19,7 @@ export default function StatCard({
   const formattedValue =
     value === null || value === undefined
       ? '--'
-      : compact
+      : compact && typeof value === 'number'
         ? formatCompactNumber(value)
         : value;
 

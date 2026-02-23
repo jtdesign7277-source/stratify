@@ -92,9 +92,7 @@ export default async function handler(req, res) {
 
     const cacheHasCoreMetrics = Boolean(
       hasValue(cached?.market_cap)
-      || hasValue(cached?.pe_ratio)
-      || hasValue(cached?.fifty_two_week_high)
-      || hasValue(cached?.fifty_two_week_low)
+      || (hasValue(cached?.fifty_two_week_high) && hasValue(cached?.fifty_two_week_low))
     );
 
     if (!cacheError && cached && cacheHasCoreMetrics) {

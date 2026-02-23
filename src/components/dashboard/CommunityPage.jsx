@@ -736,166 +736,156 @@ const BetSlipPanel = ({
 };
 
 const pnlShowcaseStyles = `
-  @keyframes pnlSlipRiseIn {
-    0% { opacity: 0; transform: translateY(34px) scale(0.95); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+  @keyframes pnlWidgetIn {
+    0% { opacity: 0; transform: translate3d(22px, 24px, 0) scale(0.96); }
+    100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
 
-  @keyframes pnlStarDrift {
-    0% { transform: translate3d(0, 0, 0) scale(1.1); }
-    100% { transform: translate3d(-180px, -220px, 0) scale(1.1); }
+  @keyframes pnlWidgetGlow {
+    0%, 100% { opacity: 0.38; transform: scale(1); }
+    50% { opacity: 0.68; transform: scale(1.08); }
   }
 
-  @keyframes pnlFireballBurst {
-    0% { opacity: 0; transform: scale(0.35) translateY(35px); }
-    40% { opacity: 0.95; }
-    100% { opacity: 0; transform: scale(1.9) translateY(-45px); }
+  .pnl-widget-enter {
+    animation: pnlWidgetIn 0.34s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  @keyframes pnlIcePulse {
-    0% { opacity: 0; transform: scale(0.5); }
-    45% { opacity: 0.85; }
-    100% { opacity: 0; transform: scale(1.8); }
-  }
-
-  .pnl-showcase-stars {
+  .pnl-widget-grid {
     position: absolute;
-    inset: -20%;
+    inset: 0;
+    opacity: 0.2;
     background-image:
-      radial-gradient(1px 1px at 16px 22px, rgba(255,255,255,0.88), transparent),
-      radial-gradient(1px 1px at 74px 114px, rgba(196,181,253,0.75), transparent),
-      radial-gradient(1px 1px at 132px 46px, rgba(186,230,253,0.82), transparent),
-      radial-gradient(1px 1px at 204px 180px, rgba(255,255,255,0.65), transparent);
-    background-size: 240px 240px;
-    animation: pnlStarDrift 30s linear infinite;
-    opacity: 0.45;
+      linear-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+    background-size: 14px 14px;
   }
 
-  .pnl-showcase-stars.pnl-showcase-stars--slow {
-    opacity: 0.26;
-    animation-duration: 55s;
-    transform: scale(1.35);
-  }
-
-  .pnl-showcase-slip {
-    animation: pnlSlipRiseIn 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+  .pnl-widget-glow {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 9999px;
+    filter: blur(30px);
+    animation: pnlWidgetGlow 2.8s ease-in-out infinite;
   }
 `;
 
 const PnlShowcaseOverlay = ({ trade, onClose }) => {
+  const hideTimerRef = useRef(null);
+
   useEffect(() => {
     if (!trade) return undefined;
     const onKeyDown = (event) => {
       if (event.key === 'Escape') onClose?.();
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
   }, [trade, onClose]);
 
   const isWin = Number(trade?.pnl) >= 0;
+
+  const handleWidgetMouseEnter = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const handleWidgetMouseLeave = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      onClose?.();
+    }, 180);
+  };
 
   return (
     <AnimatePresence>
       {trade ? (
         <motion.div
           key={trade.id}
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 0, y: 16, x: 16 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[140] overflow-hidden"
+          exit={{ opacity: 0, y: 12, x: 12 }}
+          className="fixed z-[140] right-3 bottom-4 sm:right-5 sm:bottom-5 w-[min(350px,calc(100vw-1rem))] pointer-events-none"
         >
           <style>{pnlShowcaseStyles}</style>
-          <button
-            type="button"
-            aria-label="Close showcase"
-            className="absolute inset-0 bg-[#02050c]/90"
-            onClick={onClose}
-          />
-          <div className="pnl-showcase-stars" />
-          <div className="pnl-showcase-stars pnl-showcase-stars--slow" />
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            onMouseEnter={handleWidgetMouseEnter}
+            onMouseLeave={handleWidgetMouseLeave}
+            className={`pnl-widget-enter pointer-events-auto relative overflow-hidden rounded-xl border shadow-[0_18px_50px_rgba(0,0,0,0.45)] ${
+              isWin
+                ? 'border-emerald-400/45 bg-gradient-to-br from-[#071711] via-[#040e0d] to-[#03070b]'
+                : 'border-cyan-300/45 bg-gradient-to-br from-[#07111a] via-[#040a12] to-[#03060b]'
+            }`}
+          >
+            <div className="pnl-widget-grid" />
+            <div className={`pnl-widget-glow -right-12 -top-10 ${isWin ? 'bg-emerald-400/35' : 'bg-cyan-300/35'}`} />
 
-          <div className="pointer-events-none absolute inset-0">
-            {[...Array(6)].map((_, index) => (
-              <span
-                key={`fx-${index}`}
-                className={`absolute rounded-full blur-2xl ${isWin ? 'bg-emerald-500/55' : 'bg-cyan-300/45'}`}
-                style={{
-                  width: `${120 + (index * 16)}px`,
-                  height: `${120 + (index * 16)}px`,
-                  left: `${12 + (index * 13)}%`,
-                  top: `${14 + ((index * 11) % 58)}%`,
-                  animation: `${isWin ? 'pnlFireballBurst' : 'pnlIcePulse'} ${2.4 + (index * 0.18)}s ease-out ${index * 0.12}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 24, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 24, scale: 0.97 }}
-              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-              className={`pnl-showcase-slip relative w-full max-w-2xl rounded-2xl border backdrop-blur-sm shadow-[0_26px_120px_rgba(0,0,0,0.72)] ${
-                isWin
-                  ? 'border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-[#061115]/92 to-[#04090d]/94'
-                  : 'border-cyan-300/45 bg-gradient-to-br from-cyan-300/14 via-[#05111c]/92 to-[#04090d]/94'
-              }`}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-gray-300/80">Underground Bet Slip</div>
-                  <h3 className="mt-1 text-2xl font-semibold text-white">${trade.ticker}</h3>
-                  <p className="mt-1 text-xs text-gray-300/75">Shared by {trade.author}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg border border-white/20 bg-black/25 px-2 py-1 text-xs text-gray-200 hover:border-white/40"
-                >
-                  Close
-                </button>
+            <div className="relative px-3.5 py-3 border-b border-white/10 flex items-start justify-between gap-2">
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-gray-400">Stratify Bet Slip</div>
+                <h3 className="mt-1 text-lg font-semibold font-mono text-white leading-none">${trade.ticker}</h3>
+                <p className="mt-1 text-[10px] font-mono text-gray-400/90">Shared by {trade.author}</p>
               </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md border border-white/20 bg-black/25 px-1.5 py-0.5 text-[10px] font-mono text-gray-200 hover:border-white/40"
+              >
+                CLOSE
+              </button>
+            </div>
 
-              <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-sm">
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">P&L</div>
-                  <div className={`text-2xl font-semibold font-mono ${isWin ? 'text-emerald-300' : 'text-cyan-200'}`}>
-                    {formatSignedCurrency(trade.pnl)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Return</div>
-                  <div className={`text-2xl font-semibold font-mono ${isWin ? 'text-emerald-300' : 'text-cyan-200'}`}>
-                    {Number.isFinite(trade.percent) ? formatSignedPercent(trade.percent) : '—'}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Entry</div>
-                  <div className="text-white font-mono">{Number.isFinite(trade.entryPrice) ? formatCurrency(trade.entryPrice) : '—'}</div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Exit</div>
-                  <div className="text-white font-mono">{Number.isFinite(trade.exitPrice) ? formatCurrency(trade.exitPrice) : '—'}</div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Opened</div>
-                  <div className="text-white">{formatDateTime(trade.openedAt || trade.createdAt)}</div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Closed</div>
-                  <div className="text-white">{formatDateTime(trade.closedAt || trade.createdAt)}</div>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 p-3 sm:col-span-2">
-                  <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400 mb-1">Position Size</div>
-                  <div className="text-white font-mono">
-                    {Number.isFinite(trade.shares) ? `${trade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares` : '—'}
-                  </div>
+            <div className="relative p-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">P&L</div>
+                <div className={`mt-0.5 text-sm font-semibold font-mono ${isWin ? 'text-emerald-300' : 'text-cyan-200'}`}>
+                  {formatSignedCurrency(trade.pnl)}
                 </div>
               </div>
-            </motion.div>
-          </div>
+              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">Return</div>
+                <div className={`mt-0.5 text-sm font-semibold font-mono ${isWin ? 'text-emerald-300' : 'text-cyan-200'}`}>
+                  {Number.isFinite(trade.percent) ? formatSignedPercent(trade.percent) : '--'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">Entry</div>
+                <div className="mt-0.5 text-xs font-mono text-white">{Number.isFinite(trade.entryPrice) ? formatCurrency(trade.entryPrice) : '--'}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">Exit</div>
+                <div className="mt-0.5 text-xs font-mono text-white">{Number.isFinite(trade.exitPrice) ? formatCurrency(trade.exitPrice) : '--'}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">Opened</div>
+                <div className="mt-0.5 text-[10px] font-mono text-white/90">{formatDateTime(trade.openedAt || trade.createdAt)}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">Closed</div>
+                <div className="mt-0.5 text-[10px] font-mono text-white/90">{formatDateTime(trade.closedAt || trade.createdAt)}</div>
+              </div>
+              <div className="col-span-2 rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-400">Size</div>
+                <div className="mt-0.5 text-xs font-mono text-white">
+                  {Number.isFinite(trade.shares) ? `${trade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} SHARES` : '--'}
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -924,12 +914,12 @@ const TrendingPnlPanel = ({ wins = [], losses = [], loading = false, onSelectTra
   );
 
   return (
-    <div className="w-full rounded-2xl border border-gray-800/60 bg-black/30 backdrop-blur-sm overflow-hidden xl:max-h-[46vh] flex flex-col">
-      <div className="px-4 py-3 border-b border-gray-800/70">
+    <div className="w-full rounded-lg border border-gray-800/70 bg-black/25 backdrop-blur-sm overflow-hidden xl:max-h-[46vh] flex flex-col">
+      <div className="px-3 py-2 border-b border-gray-800/70">
         <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Trending</div>
-        <h3 className="text-base font-semibold text-white">Wins & Losses</h3>
+        <h3 className="text-sm font-semibold text-white">Wins & Losses</h3>
       </div>
-      <div className="p-4 space-y-3 overflow-y-auto">
+      <div className="p-3 space-y-2.5 overflow-y-auto">
         {loading ? (
           <div className="text-xs text-gray-500">Loading trend tape...</div>
         ) : (
@@ -1075,8 +1065,8 @@ const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false })
   };
 
   return (
-    <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4 mb-4">
-      <div className="flex gap-3">
+    <div className="bg-[#101114] border border-[#202225] rounded-lg px-3 py-2.5 mb-3">
+      <div className="flex gap-2.5">
         <UserAvatar user={currentUser} size={40} />
         <div className="flex-1 min-w-0">
           <textarea
@@ -1085,8 +1075,8 @@ const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false })
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Share a trade, strategy, or insight..."
-            className="w-full bg-transparent text-gray-100 placeholder-gray-600 text-sm resize-none outline-none min-h-[60px] max-h-[200px]"
-            rows={2}
+            className="w-full bg-transparent text-gray-200 placeholder-gray-600 text-xs resize-none outline-none min-h-[42px] max-h-[120px] leading-5"
+            rows={1}
           />
 
           {imagePreview && (
@@ -1105,7 +1095,7 @@ const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false })
             </div>
           )}
 
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#1a1a1a]">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1a1a1a]">
             <div className="flex items-center gap-1">
               <input
                 type="file"
@@ -1116,44 +1106,44 @@ const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false })
               />
               <button
                 onClick={() => fileRef.current?.click()}
-                className="p-2 rounded-lg hover:bg-white/5 text-gray-500 hover:text-cyan-400 transition-colors"
+                className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-cyan-400 transition-colors"
                 title="Add image"
               >
-                <Camera size={18} strokeWidth={1.5} />
+                <Camera size={16} strokeWidth={1.5} />
               </button>
 
               <button
                 onClick={() => onOpenBetSlip?.()}
-                className={`p-2 rounded-lg hover:bg-white/5 transition-colors ${
+                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors ${
                   betSlipOpen ? 'text-emerald-400' : 'text-gray-500 hover:text-emerald-400'
                 }`}
                 title="Share P&L"
               >
-                <TrendingUp size={18} strokeWidth={1.5} />
+                <TrendingUp size={16} strokeWidth={1.5} />
               </button>
 
               <button
                 onClick={() => setPostType(postType === 'strategy_share' ? 'post' : 'strategy_share')}
-                className={`p-2 rounded-lg hover:bg-white/5 transition-colors ${
+                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors ${
                   postType === 'strategy_share' ? 'text-cyan-400' : 'text-gray-500 hover:text-cyan-400'
                 }`}
                 title="Share Strategy"
               >
-                <Zap size={18} strokeWidth={1.5} />
+                <Zap size={16} strokeWidth={1.5} />
               </button>
 
               <button
                 onClick={() => setPostType(postType === 'trade_share' ? 'post' : 'trade_share')}
-                className={`p-2 rounded-lg hover:bg-white/5 transition-colors ${
+                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors ${
                   postType === 'trade_share' ? 'text-blue-400' : 'text-gray-500 hover:text-blue-400'
                 }`}
                 title="Share Trade"
               >
-                <BarChart3 size={18} strokeWidth={1.5} />
+                <BarChart3 size={16} strokeWidth={1.5} />
               </button>
 
               {postType !== 'post' && (
-                <span className="text-xs text-gray-600 ml-2">
+                <span className="text-[11px] text-gray-600 ml-1.5">
                   Posting as <span className="text-gray-400">{POST_TYPE_CONFIG[postType]?.label}</span>
                 </span>
               )}
@@ -1162,9 +1152,9 @@ const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false })
             <button
               onClick={handleSubmit}
               disabled={posting || (!content.trim() && !imageFile)}
-              className="flex items-center gap-2 px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-semibold text-sm rounded-full transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-semibold text-xs rounded-md transition-colors"
             >
-              {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={2} />}
+              {posting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} strokeWidth={2} />}
               Post
             </button>
           </div>
@@ -1523,8 +1513,8 @@ const PostCard = ({ post, currentUser, onDelete }) => {
   const repliesCount = replies.length > 0 ? replies.length : (post.replies_count ?? post.comments_count ?? 0);
 
   return (
-    <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4 hover:border-[#2a2a2a] transition-colors">
-      <div className="flex gap-3">
+    <div className="bg-[#101114] border border-[#202225] rounded-lg p-3 hover:border-[#2a2a2a] transition-colors">
+      <div className="flex gap-2.5">
         <UserAvatar user={user} size={40} />
 
         <div className="flex-1 min-w-0">
@@ -1725,7 +1715,7 @@ const FilterTabs = ({ active, onChange }) => {
         <button
           key={tab.key}
           onClick={() => onChange(tab.key)}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+          className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
             active === tab.key
               ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
               : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
@@ -2172,18 +2162,18 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   onSubmit={handleSharePnl}
                 />
               ) : (
-                <div className="w-full rounded-2xl border border-gray-800/60 bg-black/30 backdrop-blur-sm overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-800/70">
+                <div className="w-full rounded-lg border border-gray-800/70 bg-black/25 backdrop-blur-sm overflow-hidden">
+                  <div className="px-3 py-2 border-b border-gray-800/70">
                     <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
-                    <h3 className="text-base font-semibold text-white">Open Bet Slip</h3>
+                    <h3 className="text-sm font-semibold text-white">Share Your P&L</h3>
                   </div>
-                  <div className="p-4">
+                  <div className="p-3">
                     <p className="text-xs text-gray-500 mb-3">
                       Build a polymarket-style ticket from your completed trades and post it directly in chat.
                     </p>
                     <button
                       onClick={() => setPnlPanelOpen(true)}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-cyan-500 text-black text-xs font-semibold hover:bg-cyan-400 transition-colors"
                     >
                       <TrendingUp size={14} strokeWidth={2} />
                       Share P&L
