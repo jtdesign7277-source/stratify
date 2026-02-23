@@ -100,6 +100,7 @@ const PRICING_PLANS = [
     id: 'pro',
     name: 'PRO',
     price: PRO_MONTHLY_PRICE_LABEL,
+    yearlyPrice: '$191.90/year (20% off)',
     subtitle: 'For active independent traders',
     features: [
       'Live data',
@@ -510,6 +511,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
                   </div>
 
                   <p className="mt-4 text-3xl font-bold text-white">{plan.price}</p>
+                  {plan.yearlyPrice ? <p className="mt-1 text-sm text-gray-500">{plan.yearlyPrice}</p> : null}
                   <p className="mt-2 text-gray-400 text-sm">{plan.subtitle}</p>
 
                   <div className="mt-5 space-y-2 flex-1">
