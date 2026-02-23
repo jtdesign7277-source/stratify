@@ -308,13 +308,30 @@ const resolveDropEffect = (dataTransfer) => {
   return 'none';
 };
 
+const TICKER_SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
+
+const normalizeDroppedTickerSymbol = (rawValue) => {
+  const symbol = String(rawValue || '').trim().toUpperCase();
+  if (!symbol || symbol.startsWith('{')) return '';
+  if (!TICKER_SYMBOL_PATTERN.test(symbol)) return '';
+  return symbol;
+};
+
+const hasTickerTransferData = (dataTransfer) => {
+  const types = Array.from(dataTransfer?.types || []);
+  return types.includes('text/stratify-ticker') || types.includes('text/plain');
+};
+
+const hasGameTransferData = (dataTransfer) => {
+  const types = Array.from(dataTransfer?.types || []);
+  return types.includes('text/stratify-game') || types.includes('application/json');
+};
+
 const readDroppedTickerSymbol = (event) => {
   const raw = event?.dataTransfer?.getData('text/stratify-ticker')
     || event?.dataTransfer?.getData('text/plain')
     || '';
-  const symbol = String(raw).trim().toUpperCase();
-  if (!symbol || symbol.startsWith('{')) return '';
-  return symbol;
+  return normalizeDroppedTickerSymbol(raw);
 };
 
 const parseDropPayload = (event) => {
@@ -587,6 +604,8 @@ export default function TopMetricsBar({
   };
 
   const [clockNow, setClockNow] = useState(() => Date.now());
+  const [activeDropSlot, setActiveDropSlot] = useState(null);
+  const [hasDropCandidate, setHasDropCandidate] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -595,6 +614,30 @@ export default function TopMetricsBar({
 
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const handleDragStart = (event) => {
+      const transfer = event?.dataTransfer;
+      if (hasTickerTransferData(transfer) || (hasGameTransferData(transfer) && onGameDrop)) {
+        setHasDropCandidate(true);
+      }
+    };
+
+    const clearDragState = () => {
+      setActiveDropSlot(null);
+      setHasDropCandidate(false);
+    };
+
+    window.addEventListener('dragstart', handleDragStart);
+    window.addEventListener('dragend', clearDragState);
+    window.addEventListener('drop', clearDragState);
+
+    return () => {
+      window.removeEventListener('dragstart', handleDragStart);
+      window.removeEventListener('dragend', clearDragState);
+      window.removeEventListener('drop', clearDragState);
+    };
+  }, [onGameDrop]);
 
   const worldClockData = useMemo(() => {
     const nowDate = new Date(clockNow);
@@ -675,21 +718,47 @@ export default function TopMetricsBar({
                 miniPills[slot]
                   ? ''
                   : 'min-w-[80px] border border-dashed border-white/10 bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5'
+              } ${
+                hasDropCandidate && !miniPills[slot] ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : ''
+              } ${
+                activeDropSlot === slot ? 'ring-2 ring-emerald-500/60 border-emerald-400/60 bg-emerald-500/10' : ''
               }`}
               data-pill-slot={slot}
-              onDragOver={(e) => {
+              onDragEnter={(e) => {
+                const hasTickerData = hasTickerTransferData(e.dataTransfer);
+                const hasGameData = hasGameTransferData(e.dataTransfer);
+                if (!hasTickerData && !(hasGameData && onGameDrop)) return;
+
                 e.preventDefault();
                 if (e.dataTransfer) {
-                  e.dataTransfer.dropEffect = resolveDropEffect(e.dataTransfer);
+                  e.dataTransfer.dropEffect = hasTickerData ? resolveDropEffect(e.dataTransfer) : 'move';
                 }
-                e.currentTarget.classList.add('ring-2', 'ring-emerald-500/50');
+                setHasDropCandidate(true);
+                setActiveDropSlot(slot);
+              }}
+              onDragOver={(e) => {
+                const hasTickerData = hasTickerTransferData(e.dataTransfer);
+                const hasGameData = hasGameTransferData(e.dataTransfer);
+                if (!hasTickerData && !(hasGameData && onGameDrop)) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer) {
+                  e.dataTransfer.dropEffect = hasTickerData ? resolveDropEffect(e.dataTransfer) : 'move';
+                }
+                setHasDropCandidate(true);
+                setActiveDropSlot(slot);
               }}
               onDragLeave={(e) => {
-                e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+                if (activeDropSlot === slot) {
+                  setActiveDropSlot(null);
+                }
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                e.currentTarget.classList.remove('ring-2', 'ring-emerald-500/50');
+                e.stopPropagation();
+                setActiveDropSlot(null);
+                setHasDropCandidate(false);
                 const payload = parseDropPayload(e);
                 if (payload?.type === 'game' && onGameDrop) {
                   onGameDrop(payload.data, slot);
@@ -708,6 +777,7 @@ export default function TopMetricsBar({
                   slot,
                   types: Array.from(e?.dataTransfer?.types || []),
                 });
+                clearGlobalDragPayload();
               }}
             >
               {miniPills[slot] || (

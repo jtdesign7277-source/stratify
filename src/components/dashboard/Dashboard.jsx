@@ -564,7 +564,10 @@ export default function Dashboard({
   
   // Handle dropping a ticker onto a pill slot
   const handleTickerDrop = (symbol, slotIndex) => {
+    const normalizedSymbol = String(symbol || '').trim().toUpperCase();
     if (slotIndex < 1) return;
+    if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(normalizedSymbol)) return;
+
     const tickerIndex = slotIndex - 1; // Map to miniTickers array (slots 1-5 → indices 0-4)
     setPinnedGames(prev => {
       const next = [...prev];
@@ -574,13 +577,16 @@ export default function Dashboard({
     setMiniTickers(prev => {
       const newTickers = [...prev];
       // Remove if already exists elsewhere
-      const existingIndex = newTickers.indexOf(symbol);
+      const existingIndex = newTickers.indexOf(normalizedSymbol);
       if (existingIndex !== -1) newTickers.splice(existingIndex, 1);
       // Add to new slot (max 5 tickers now)
       while (newTickers.length < tickerIndex) newTickers.push(null);
-      newTickers[tickerIndex] = symbol;
+      newTickers[tickerIndex] = normalizedSymbol;
       return newTickers.slice(0, 5);
     });
+
+    // Ensure pinning to the mini pill also adds the ticker to watchlist.
+    addToWatchlist(normalizedSymbol);
   };
 
   const handleGameDrop = (game, slotIndex) => {

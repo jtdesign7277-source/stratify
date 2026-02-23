@@ -145,12 +145,24 @@ const normalizeSymbol = (value) =>
     .split(':')[0]
     .split('.')[0];
 
+const TICKER_DRAG_MIME_TYPE = 'text/stratify-ticker';
+
 const DND_DEBUG_FLAG = '__STRATIFY_DEBUG_DND';
 
 const logDndDebug = (...args) => {
   if (typeof window === 'undefined') return;
   if (!window[DND_DEBUG_FLAG]) return;
   console.log(...args);
+};
+
+const setTickerDragData = (event, symbol, effectAllowed = 'copy') => {
+  const normalized = normalizeSymbol(symbol);
+  if (!normalized || !event?.dataTransfer) return '';
+
+  event.dataTransfer.effectAllowed = effectAllowed;
+  event.dataTransfer.setData(TICKER_DRAG_MIME_TYPE, normalized);
+  event.dataTransfer.setData('text/plain', normalized);
+  return normalized;
 };
 
 const toNumber = (value) => {
@@ -1002,18 +1014,26 @@ const WatchlistPage = ({
   }, [normalizedWatchlist, onReorderWatchlist]);
 
   const handleRowDragStart = useCallback((event, symbol) => {
-    const normalized = normalizeSymbol(symbol);
+    const normalized = setTickerDragData(event, symbol, 'copyMove');
     if (!normalized) return;
 
     setDraggingSymbol(normalized);
     setDragOverSymbol(normalized);
 
     try {
-      // Reordering uses move semantics, while top-pill pinning is a copy.
-      event.dataTransfer.effectAllowed = 'copyMove';
-      event.dataTransfer.setData('text/stratify-ticker', normalized);
-      event.dataTransfer.setData('text/plain', normalized);
       logDndDebug('[WatchlistPage] dragstart', {
+        symbol: normalized,
+        effectAllowed: event.dataTransfer.effectAllowed,
+      });
+    } catch {}
+  }, []);
+
+  const handleSearchResultDragStart = useCallback((event, result) => {
+    const normalized = setTickerDragData(event, result?.symbol, 'copy');
+    if (!normalized) return;
+
+    try {
+      logDndDebug('[WatchlistPage] search dragstart', {
         symbol: normalized,
         effectAllowed: event.dataTransfer.effectAllowed,
       });
@@ -1135,6 +1155,8 @@ const WatchlistPage = ({
                       <button
                         key={result.symbol}
                         type="button"
+                        draggable
+                        onDragStart={(event) => handleSearchResultDragStart(event, result)}
                         onClick={() => addSymbolToWatchlist(result.symbol, result.name, result.exchange)}
                         className="flex w-full items-center justify-between rounded px-2 py-2 text-left hover:bg-blue-500/10"
                       >

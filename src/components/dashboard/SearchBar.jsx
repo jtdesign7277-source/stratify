@@ -50,6 +50,9 @@ const TrendingIcon = () => (
   </svg>
 );
 
+const TICKER_DRAG_MIME_TYPE = 'text/stratify-ticker';
+const TICKER_SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
+
 export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -199,6 +202,15 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
     }
   };
 
+  const handleResultDragStart = (event, stock) => {
+    const symbol = String(stock?.symbol || '').trim().toUpperCase();
+    if (!symbol || !event?.dataTransfer || !TICKER_SYMBOL_PATTERN.test(symbol)) return;
+
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData(TICKER_DRAG_MIME_TYPE, symbol);
+    event.dataTransfer.setData('text/plain', symbol);
+  };
+
   const getSectorColor = (sector) => {
     const colors = {
       Technology: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -296,6 +308,8 @@ export default function SearchBar({ onSelectStock, onAddToWatchlist }) {
             {results.map((stock, index) => (
               <div
                 key={stock.symbol}
+                draggable
+                onDragStart={(event) => handleResultDragStart(event, stock)}
                 onClick={() => handleSelect(stock)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`

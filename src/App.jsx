@@ -970,10 +970,11 @@ export class TeslaEMAStrategy extends Strategy {
 
 const PRO_CHECKOUT_PRICE_ID =
   import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1T0jBTRdPxQfs9UeRln3Uj68';
+const AUTH_GATE_TIMEOUT_MS = 5000;
 
 function StratifyAppContent() {
   const { user, isAuthenticated, loading } = useAuth();
-  const { isProUser, loading: subscriptionLoading } = useSubscription();
+  const { isProUser, loading: subscriptionLoading } = useSubscription(user);
 
   const isLegacyXrayPath = (path) => /^\/xray\/[^/?#]+\/?$/i.test(String(path || ''));
 
@@ -996,6 +997,7 @@ function StratifyAppContent() {
   const [hasLiveScoresUnread, setHasLiveScoresUnread] = useState(false);
   const [isCheckoutRedirecting, setIsCheckoutRedirecting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [authGateTimedOut, setAuthGateTimedOut] = useState(false);
 
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
@@ -1047,6 +1049,41 @@ function StratifyAppContent() {
   const openAuth = () => {
     navigateToPage('auth');
   };
+
+  const isCheckingSession = loading || (isAuthenticated && subscriptionLoading);
+
+  useEffect(() => {
+    if (!isCheckingSession) {
+      if (authGateTimedOut) {
+        setAuthGateTimedOut(false);
+      }
+      return;
+    }
+
+    if (authGateTimedOut) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      console.error(`[AuthGate] Session check timed out after ${AUTH_GATE_TIMEOUT_MS}ms.`);
+      setAuthGateTimedOut(true);
+    }, AUTH_GATE_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authGateTimedOut, isCheckingSession]);
+
+  useEffect(() => {
+    if (!authGateTimedOut) {
+      return;
+    }
+
+    console.error('[AuthGate] Redirecting to /auth after session check timeout.');
+    setCurrentPage('auth');
+
+    if (window.location.pathname !== '/auth') {
+      window.history.pushState({ page: 'auth' }, '', '/auth');
+    }
+  }, [authGateTimedOut]);
 
   const startCheckout = useCallback(async () => {
     if (!user?.id || !user?.email) {
@@ -1192,7 +1229,16 @@ function StratifyAppContent() {
     isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth';
   const backgroundVariant = isInternalAppPage ? 'app' : 'marketing';
 
-  if (loading || (isAuthenticated && subscriptionLoading)) {
+  if (authGateTimedOut) {
+    return (
+      <SignUpPage
+        onSuccess={() => navigateToPage('dashboard')}
+        onBackToLanding={() => navigateToPage('landing')}
+      />
+    );
+  }
+
+  if (isCheckingSession) {
     return (
       <div className="relative min-h-screen bg-[#0b0b0b]">
         <SpaceBackground variant={backgroundVariant} />

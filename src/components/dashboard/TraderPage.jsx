@@ -18,6 +18,8 @@ const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
 const ACTIVE_MARKET_STORAGE_KEY = 'stratify-trader-active-market';
 const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
 const CHART_VIEWPORT_STORAGE_KEY = 'stratify-trader-chart-viewport';
+const PREVIOUS_CLOSE_CACHE_STORAGE_KEY = 'stratify-trader-prev-close-cache-v1';
+const PREVIOUS_CLOSE_CACHE_TTL_MS = 1000 * 60 * 60 * 48;
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
 const MAX_SYMBOL_SEARCH_RESULTS = 8;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
@@ -349,6 +351,142 @@ const toUnixSeconds = (value) => {
   if (!Number.isFinite(parsed)) parsed = Date.parse(`${normalized}Z`);
   if (!Number.isFinite(parsed)) return null;
   return Math.floor(parsed / 1000);
+};
+
+const createQuoteValueLoadingState = () => ({
+  price: true,
+  day: true,
+  preMarket: true,
+});
+
+const resolvePreviousCloseFromQuote = (quote = {}) => {
+  const explicit = toNumber(
+    quote?.previousClose
+    ?? quote?.previous_close
+    ?? quote?.prevClose
+    ?? quote?.prev_close
+  );
+  if (Number.isFinite(explicit)) return explicit;
+
+  const price = toNumber(quote?.price ?? quote?.close ?? quote?.last);
+  const change = toNumber(quote?.change);
+  if (Number.isFinite(price) && Number.isFinite(change)) {
+    return price - change;
+  }
+
+  const percent = toNumber(
+    quote?.changePercent
+    ?? quote?.percentChange
+    ?? quote?.percent_change
+  );
+  if (
+    Number.isFinite(price)
+    && Number.isFinite(percent)
+    && percent !== -100
+  ) {
+    return price / (1 + (percent / 100));
+  }
+
+  return null;
+};
+
+const prunePreviousCloseCache = (cache = {}) => {
+  const now = Date.now();
+  const next = {};
+
+  Object.entries(cache || {}).forEach(([rawSymbol, rawEntry]) => {
+    const symbol = normalizeSymbol(rawSymbol);
+    if (!symbol || !rawEntry || typeof rawEntry !== 'object') return;
+
+    const previousClose = resolvePreviousCloseFromQuote(rawEntry);
+    if (!Number.isFinite(previousClose)) return;
+
+    const updatedAtSeconds = toUnixSeconds(rawEntry?.updatedAt ?? rawEntry?.timestamp);
+    const updatedAt = Number.isFinite(updatedAtSeconds) ? updatedAtSeconds * 1000 : now;
+    if (now - updatedAt > PREVIOUS_CLOSE_CACHE_TTL_MS) return;
+
+    next[symbol] = {
+      previousClose,
+      name: String(rawEntry?.name || '').trim() || '',
+      exchange: String(rawEntry?.exchange || '').trim() || '',
+      updatedAt,
+      timestamp: rawEntry?.timestamp || new Date(updatedAt).toISOString(),
+    };
+  });
+
+  return next;
+};
+
+const loadPreviousCloseCache = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PREVIOUS_CLOSE_CACHE_STORAGE_KEY) || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return prunePreviousCloseCache(parsed);
+  } catch {
+    return {};
+  }
+};
+
+const persistPreviousCloseCache = (cache = {}) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PREVIOUS_CLOSE_CACHE_STORAGE_KEY, JSON.stringify(prunePreviousCloseCache(cache)));
+  } catch {}
+};
+
+const buildPlaceholderQuoteFromCache = (symbol, cacheEntry, fallbackName = '') => {
+  const normalized = normalizeSymbol(symbol);
+  if (!normalized || !cacheEntry) return null;
+
+  const previousClose = resolvePreviousCloseFromQuote(cacheEntry);
+  if (!Number.isFinite(previousClose)) return null;
+
+  const name = String(cacheEntry?.name || fallbackName || MARKET_NAME_BY_SYMBOL[normalized] || normalized).trim();
+  const timestamp = cacheEntry?.timestamp || new Date(cacheEntry?.updatedAt || Date.now()).toISOString();
+
+  return {
+    symbol: normalized,
+    name: name || normalized,
+    exchange: String(cacheEntry?.exchange || '').trim() || undefined,
+    price: previousClose,
+    change: 0,
+    changePercent: 0,
+    preMarketPrice: null,
+    preMarketChange: null,
+    preMarketChangePercent: null,
+    previousClose,
+    timestamp,
+    source: 'cache',
+    isPlaceholder: true,
+  };
+};
+
+const buildInitialQuotesFromCache = (watchlist = [], cache = {}) => {
+  const next = {};
+
+  (Array.isArray(watchlist) ? watchlist : []).forEach((rawSymbol) => {
+    const symbol = normalizeSymbol(rawSymbol);
+    if (!symbol || next[symbol]) return;
+
+    const placeholder = buildPlaceholderQuoteFromCache(symbol, cache[symbol]);
+    if (!placeholder) return;
+    next[symbol] = placeholder;
+  });
+
+  return next;
+};
+
+const buildInitialValueLoadingBySymbol = (watchlist = []) => {
+  const next = {};
+
+  (Array.isArray(watchlist) ? watchlist : []).forEach((rawSymbol) => {
+    const symbol = normalizeSymbol(rawSymbol);
+    if (!symbol || next[symbol]) return;
+    next[symbol] = createQuoteValueLoadingState();
+  });
+
+  return next;
 };
 
 const toCandleBar = (item, previousClose = null) => {
@@ -896,6 +1034,7 @@ export default function TraderPage({
 
   const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
+  const initialPreviousCloseCache = useMemo(() => loadPreviousCloseCache(), []);
 
   const [watchlist, setWatchlist] = useState(initialWatchlist);
   const [selectedSymbol, setSelectedSymbol] = useState(initialWatchlist[0] || DEFAULT_WATCHLIST[0]);
@@ -903,7 +1042,12 @@ export default function TraderPage({
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
-  const [quotesBySymbol, setQuotesBySymbol] = useState({});
+  const [quotesBySymbol, setQuotesBySymbol] = useState(() =>
+    buildInitialQuotesFromCache(initialWatchlist, initialPreviousCloseCache)
+  );
+  const [quoteValueLoadingBySymbol, setQuoteValueLoadingBySymbol] = useState(() =>
+    buildInitialValueLoadingBySymbol(initialWatchlist)
+  );
   const [streamStatus, setStreamStatus] = useState({
     connected: false,
     connecting: false,
@@ -944,6 +1088,7 @@ export default function TraderPage({
   const subscribedSymbolsRef = useRef(new Set());
   const watchlistRef = useRef(new Set(initialWatchlist));
   const selectedSymbolRef = useRef(normalizeSymbol(selectedSymbol));
+  const previousCloseCacheRef = useRef(initialPreviousCloseCache);
   const noStreamDataTimerRef = useRef(null);
   const restPollTimerRef = useRef(null);
   const wsHasReceivedPriceRef = useRef(false);
@@ -957,6 +1102,164 @@ export default function TraderPage({
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
   }, [activeMarket]);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
+
+  const syncWatchlistValueLoadingState = useCallback((symbols) => {
+    const normalizedSymbols = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))];
+
+    setQuoteValueLoadingBySymbol((previous) => {
+      let hasChanges = Object.keys(previous).length !== normalizedSymbols.length;
+      const next = {};
+
+      normalizedSymbols.forEach((symbol) => {
+        if (previous[symbol]) {
+          next[symbol] = previous[symbol];
+          return;
+        }
+
+        next[symbol] = createQuoteValueLoadingState();
+        hasChanges = true;
+      });
+
+      return hasChanges ? next : previous;
+    });
+  }, []);
+
+  const markQuoteValuesLoaded = useCallback((updates = []) => {
+    if (!Array.isArray(updates) || updates.length === 0) return;
+
+    setQuoteValueLoadingBySymbol((previous) => {
+      let hasChanges = false;
+      const next = { ...previous };
+
+      updates.forEach((item) => {
+        const symbol = normalizeSymbol(item?.symbol);
+        if (!symbol) return;
+
+        const loadPrice = item?.price === true;
+        const loadDay = item?.day === true;
+        const loadPreMarket = item?.preMarket === true;
+        if (!loadPrice && !loadDay && !loadPreMarket) return;
+
+        const current = next[symbol] || createQuoteValueLoadingState();
+        const updated = { ...current };
+
+        if (loadPrice && updated.price !== false) updated.price = false;
+        if (loadDay && updated.day !== false) updated.day = false;
+        if (loadPreMarket && updated.preMarket !== false) updated.preMarket = false;
+
+        if (
+          updated.price !== current.price
+          || updated.day !== current.day
+          || updated.preMarket !== current.preMarket
+        ) {
+          next[symbol] = updated;
+          hasChanges = true;
+        } else if (!next[symbol]) {
+          next[symbol] = current;
+        }
+      });
+
+      return hasChanges ? next : previous;
+    });
+  }, []);
+
+  const markQuoteValuesPending = useCallback((symbol) => {
+    const normalized = normalizeSymbol(symbol);
+    if (!normalized) return;
+
+    setQuoteValueLoadingBySymbol((previous) => {
+      const current = previous[normalized];
+      if (current && current.price && current.day && current.preMarket) return previous;
+      return {
+        ...previous,
+        [normalized]: createQuoteValueLoadingState(),
+      };
+    });
+  }, []);
+
+  const cachePreviousCloseQuotes = useCallback((quotes = []) => {
+    if (!Array.isArray(quotes) || quotes.length === 0) return;
+
+    const now = Date.now();
+    const currentCache = previousCloseCacheRef.current || {};
+    const nextCache = { ...currentCache };
+    let hasChanges = false;
+
+    quotes.forEach((quote) => {
+      const symbol = normalizeSymbol(quote?.symbol);
+      if (!symbol) return;
+
+      const previousClose = resolvePreviousCloseFromQuote(quote);
+      if (!Number.isFinite(previousClose)) return;
+
+      const existing = currentCache[symbol];
+      const name = String(quote?.name || existing?.name || MARKET_NAME_BY_SYMBOL[symbol] || symbol).trim();
+      const exchange = String(quote?.exchange || existing?.exchange || '').trim();
+      const timestamp = quote?.timestamp || existing?.timestamp || new Date(now).toISOString();
+
+      if (
+        existing
+        && toNumber(existing?.previousClose) === previousClose
+        && String(existing?.name || '') === name
+        && String(existing?.exchange || '') === exchange
+      ) {
+        return;
+      }
+
+      nextCache[symbol] = {
+        previousClose,
+        name,
+        exchange,
+        timestamp,
+        updatedAt: now,
+      };
+      hasChanges = true;
+    });
+
+    if (!hasChanges) return;
+
+    const pruned = prunePreviousCloseCache(nextCache);
+    previousCloseCacheRef.current = pruned;
+    persistPreviousCloseCache(pruned);
+  }, []);
+
+  const hydrateQuotesFromCache = useCallback((symbols = []) => {
+    const normalizedSymbols = [...new Set((Array.isArray(symbols) ? symbols : []).map(normalizeSymbol).filter(Boolean))];
+    if (normalizedSymbols.length === 0) return;
+
+    setQuotesBySymbol((previous) => {
+      let hasChanges = false;
+      const next = { ...previous };
+
+      normalizedSymbols.forEach((symbol) => {
+        const current = previous[symbol];
+        const currentPrice = toNumber(current?.price);
+        const hasLivePrice = Number.isFinite(currentPrice) && current?.isPlaceholder !== true;
+        if (hasLivePrice) return;
+
+        const placeholder = buildPlaceholderQuoteFromCache(
+          symbol,
+          previousCloseCacheRef.current?.[symbol],
+          current?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
+        );
+        if (!placeholder) return;
+
+        const samePrice = toNumber(current?.price) === placeholder.price;
+        const sameName = String(current?.name || '') === String(placeholder?.name || '');
+        if (samePrice && sameName && current?.isPlaceholder === true) return;
+
+        next[symbol] = {
+          ...current,
+          ...placeholder,
+          source: 'cache',
+          isPlaceholder: true,
+        };
+        hasChanges = true;
+      });
+
+      return hasChanges ? next : previous;
+    });
+  }, [watchlistNamesBySymbol]);
 
   const toggleWatchlistChangeDisplayMode = useCallback((symbol, metric) => {
     const normalized = normalizeSymbol(symbol);
@@ -1008,6 +1311,8 @@ export default function TraderPage({
   useEffect(() => {
     const normalized = watchlist.map(normalizeSymbol).filter(Boolean);
     watchlistRef.current = new Set(normalized);
+    syncWatchlistValueLoadingState(normalized);
+    hydrateQuotesFromCache(normalized);
 
     if (normalized.length === 0) {
       setSelectedSymbol('');
@@ -1017,7 +1322,7 @@ export default function TraderPage({
     if (!normalized.includes(normalizeSymbol(selectedSymbol))) {
       setSelectedSymbol(normalized[0]);
     }
-  }, [watchlist, selectedSymbol]);
+  }, [watchlist, selectedSymbol, hydrateQuotesFromCache, syncWatchlistValueLoadingState]);
 
   useEffect(() => {
     if (!isSearchDropdownOpen || typeof window === 'undefined') return undefined;
@@ -1120,82 +1425,34 @@ export default function TraderPage({
     return Number.isFinite(price) ? price : 0;
   }, [selectedQuote]);
 
-  const fetchImmediateClosePlaceholder = useCallback(async (symbol) => {
-    if (!apiKey) return;
-
+  const applyCachedClosePlaceholder = useCallback((symbol, fallbackName = '') => {
     const normalized = normalizeSymbol(symbol);
     if (!normalized) return;
 
-    try {
-      const params = new URLSearchParams({
-        symbol: normalized,
-        apikey: apiKey,
-      });
+    const placeholder = buildPlaceholderQuoteFromCache(
+      normalized,
+      previousCloseCacheRef.current?.[normalized],
+      fallbackName || watchlistNamesBySymbol[normalized] || MARKET_NAME_BY_SYMBOL[normalized] || normalized
+    );
+    if (!placeholder) return;
 
-      const response = await fetch(`${TWELVE_DATA_QUOTE_URL}?${params.toString()}`, {
-        cache: 'no-store',
-      });
-      const payload = await response.json().catch(() => ({}));
+    setQuotesBySymbol((previous) => {
+      const current = previous[normalized];
+      const currentPrice = toNumber(current?.price);
+      const hasRealPrice = Number.isFinite(currentPrice) && current?.isPlaceholder !== true;
+      if (hasRealPrice) return previous;
 
-      if (!response.ok || payload?.status === 'error') return;
-      if (payload?.code && String(payload.code) !== '200') return;
-
-      const price = toNumber(payload?.close ?? payload?.previous_close);
-      if (!Number.isFinite(price)) return;
-
-      const previousClose = toNumber(payload?.previous_close);
-      const rawChange = toNumber(payload?.change);
-      const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
-      const change = Number.isFinite(rawChange)
-        ? rawChange
-        : Number.isFinite(previousClose)
-          ? price - previousClose
-          : null;
-      const changePercent = Number.isFinite(rawPercent)
-        ? rawPercent
-        : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
-          ? (change / previousClose) * 100
-          : null;
-      const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
-      const name = String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim();
-
-      setQuotesBySymbol((previous) => {
-        const current = previous[normalized];
-        const currentPrice = toNumber(current?.price);
-        const hasRealPrice = Number.isFinite(currentPrice) && current?.isPlaceholder !== true;
-        if (hasRealPrice) return previous;
-
-        return {
-          ...previous,
-          [normalized]: {
-            ...current,
-            symbol: normalized,
-            price,
-            change,
-            changePercent,
-            preMarketPrice: preMarketMetrics.preMarketPrice,
-            preMarketChange: preMarketMetrics.preMarketChange,
-            preMarketChangePercent: preMarketMetrics.preMarketChangePercent,
-            isMarketOpen: parseMarketOpen(payload?.is_market_open),
-            timestamp: payload?.timestamp || payload?.datetime || Date.now(),
-            name: name || current?.name,
-            source: 'placeholder',
-            isPlaceholder: true,
-          },
-        };
-      });
-
-      if (name) {
-        setWatchlistNamesBySymbol((previous) => {
-          if (previous[normalized] === name) return previous;
-          return {
-            ...previous,
-            [normalized]: name,
-          };
-        });
-      }
-    } catch {}
-  }, [apiKey]);
+      return {
+        ...previous,
+        [normalized]: {
+          ...current,
+          ...placeholder,
+          source: 'cache',
+          isPlaceholder: true,
+        },
+      };
+    });
+  }, [watchlistNamesBySymbol]);
 
   const clearNoStreamDataTimer = useCallback(() => {
     if (!noStreamDataTimerRef.current) return;

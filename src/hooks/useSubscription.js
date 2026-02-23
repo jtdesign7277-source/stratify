@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { withTimeout } from '../lib/withTimeout';
 
-export default function useSubscription() {
+const SUBSCRIPTION_CHECK_TIMEOUT_MS = 5000;
+
+const withSubscriptionTimeout = (promise, operationName) =>
+  withTimeout(
+    promise,
+    SUBSCRIPTION_CHECK_TIMEOUT_MS,
+    `[Subscription] ${operationName} timed out after ${SUBSCRIPTION_CHECK_TIMEOUT_MS}ms`
+  );
+
+export default function useSubscription(userOverride) {
   const [user, setUser] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,30 +27,57 @@ export default function useSubscription() {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('profiles')
-      .select('subscription_status')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error: fetchError } = await withSubscriptionTimeout(
+        supabase
+          .from('profiles')
+          .select('subscription_status')
+          .eq('id', userId)
+          .single(),
+        'Subscription status lookup'
+      );
 
-    if (fetchError) {
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      setSubscriptionStatus(data?.subscription_status ?? 'free');
+    } catch (fetchError) {
+      console.error('[Subscription] Failed to fetch subscription status:', fetchError);
       setError(fetchError);
       setSubscriptionStatus(null);
-    } else {
-      setSubscriptionStatus(data?.subscription_status ?? 'free');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   const loadUser = useCallback(async () => {
-    const { data, error: userError } = await supabase.auth.getUser();
-    if (userError) {
-      setError(userError);
+    if (typeof userOverride !== 'undefined') {
+      const nextUser = userOverride ?? null;
+      setUser(nextUser);
+      return nextUser;
     }
-    setUser(data?.user ?? null);
-    return data?.user ?? null;
-  }, []);
+
+    try {
+      const { data, error: userError } = await withSubscriptionTimeout(
+        supabase.auth.getUser(),
+        'Current user lookup'
+      );
+
+      if (userError) {
+        throw userError;
+      }
+
+      const nextUser = data?.user ?? null;
+      setUser(nextUser);
+      return nextUser;
+    } catch (userError) {
+      console.error('[Subscription] Failed to load user during subscription check:', userError);
+      setError(userError);
+      setUser(null);
+      return null;
+    }
+  }, [userOverride]);
 
   const refetch = useCallback(async () => {
     if (!user?.id) {
@@ -54,6 +91,8 @@ export default function useSubscription() {
     let isMounted = true;
 
     const init = async () => {
+      setLoading(true);
+      setError(null);
       const currentUser = await loadUser();
       if (isMounted) {
         await fetchSubscription(currentUser?.id);
@@ -61,6 +100,12 @@ export default function useSubscription() {
     };
 
     init();
+
+    if (typeof userOverride !== 'undefined') {
+      return () => {
+        isMounted = false;
+      };
+    }
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
@@ -73,7 +118,7 @@ export default function useSubscription() {
       isMounted = false;
       authListener?.subscription?.unsubscribe();
     };
-  }, [fetchSubscription, loadUser]);
+  }, [fetchSubscription, loadUser, userOverride]);
 
   const isProUser = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
 
