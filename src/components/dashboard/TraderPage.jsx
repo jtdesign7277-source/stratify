@@ -1618,7 +1618,7 @@ export default function TraderPage({ onPinToTop }) {
 
                                       <div className="flex-1 min-w-0 pr-4">
                                         <div className="flex items-center">
-                                          <div className="text-white font-bold text-base">${symbol}</div>
+                                          <div className="text-white font-bold text-[13px]">${symbol}</div>
                                           {(() => {
                                             const extendedStatus = getExtendedHoursStatus();
                                             if (!extendedStatus) return null;
@@ -1695,7 +1695,7 @@ export default function TraderPage({ onPinToTop }) {
                       isSelected ? 'bg-emerald-500/10 border border-emerald-500/30' : 'hover:bg-white/5'
                     }`}
                   >
-                    <div className="text-white font-semibold text-xs">{symbol}</div>
+                    <div className="text-white font-semibold text-[13px]">{symbol}</div>
                     <div
                       className={`text-[10px] font-mono font-semibold mt-0.5 ${
                         isPositive ? 'text-emerald-400' : 'text-red-400'
