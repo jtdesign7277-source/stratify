@@ -266,39 +266,39 @@ export default function WarRoom({ onClose }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-prefetch top scans when feed is empty or stale
-  useEffect(() => {
-    const cachedFeed = getWarRoomFeed();
-    if (cachedFeed.length > 0 && isFeedFresh()) return; // fresh cache, skip
+  // Auto-prefetch disabled - loads on demand only for instant War Room open
+  // useEffect(() => {
+  //   const cachedFeed = getWarRoomFeed();
+  //   if (cachedFeed.length > 0 && isFeedFresh()) return; // fresh cache, skip
 
-    let cancelled = false;
-    setPrefetching(true);
+  //   let cancelled = false;
+  //   setPrefetching(true);
 
-    const prefetch = async () => {
-      const results = await Promise.allSettled(
-        PREFETCH_SCANS.map((scan) => fetchSingleScan(scan.query, scan.label))
-      );
-      if (cancelled) return;
+  //   const prefetch = async () => {
+  //     const results = await Promise.allSettled(
+  //       PREFETCH_SCANS.map((scan) => fetchSingleScan(scan.query, scan.label))
+  //     );
+  //     if (cancelled) return;
 
-      const newCards = results
-        .filter((r) => r.status === 'fulfilled' && r.value?.content)
-        .map((r) => r.value);
+  //     const newCards = results
+  //       .filter((r) => r.status === 'fulfilled' && r.value?.content)
+  //       .map((r) => r.value);
 
-      if (newCards.length > 0) {
-        setIntelFeed((prev) => {
-          // Merge new cards at front, dedup by title
-          const existingTitles = new Set(prev.map((c) => c.title));
-          const unique = newCards.filter((c) => !existingTitles.has(c.title));
-          return [...unique, ...prev].slice(0, 50);
-        });
-        setFeedTimestamp();
-      }
-      setPrefetching(false);
-    };
+  //     if (newCards.length > 0) {
+  //       setIntelFeed((prev) => {
+  //         // Merge new cards at front, dedup by title
+  //         const existingTitles = new Set(prev.map((c) => c.title));
+  //         const unique = newCards.filter((c) => !existingTitles.has(c.title));
+  //         return [...unique, ...prev].slice(0, 50);
+  //       });
+  //       setFeedTimestamp();
+  //     }
+  //     setPrefetching(false);
+  //   };
 
-    prefetch();
-    return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  //   prefetch();
+  //   return () => { cancelled = true; };
+  // }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setWarRoomFeed(intelFeed);
