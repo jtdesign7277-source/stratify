@@ -82,8 +82,23 @@ const PortfolioPage = ({
   onBrokerDisconnect = () => {},
   tradeHistory = [],
 }) => {
-  const [showBrokerModal, setShowBrokerModal] = useState(false);
+  const [showBrokerModal, setShowBrokerModal] = useState(() => {
+    try {
+      return sessionStorage.getItem('broker-modal-open') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [dbConnections, setDbConnections] = useState([]);
+
+  // Persist modal state to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('broker-modal-open', showBrokerModal.toString());
+    } catch (err) {
+      console.error('[PortfolioPage] Failed to persist modal state:', err);
+    }
+  }, [showBrokerModal]);
 
   // Fetch actual broker connections from database
   useEffect(() => {
