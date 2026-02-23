@@ -232,6 +232,24 @@ const formatPercent = (value) => {
   return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
 };
 
+const formatSignedDollarChange = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '--';
+  if (amount >= 0) return `+${formatUsd(amount)}`;
+  return formatUsd(amount);
+};
+
+const formatWatchlistChangeValue = ({ mode, percentValue, dollarValue }) => {
+  if (mode === 'dollar') return formatSignedDollarChange(dollarValue);
+  return formatPercent(percentValue);
+};
+
+const getWatchlistChangeToneClass = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 'text-gray-500';
+  return numeric >= 0 ? 'text-emerald-400' : 'text-red-400';
+};
+
 const formatTime = (value) => {
   if (!value) return '--';
   const date = new Date(value);
@@ -300,6 +318,7 @@ const WatchlistPage = ({
 
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [quotesBySymbol, setQuotesBySymbol] = useState({});
+  const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -361,6 +380,25 @@ const WatchlistPage = ({
   const visibleWatchlist = useMemo(() => normalizedWatchlist.slice(0, MAX_SYMBOLS), [normalizedWatchlist]);
 
   const activeSymbols = useMemo(() => visibleWatchlist.map((item) => item.symbol), [visibleWatchlist]);
+
+  const toggleWatchlistChangeDisplayMode = useCallback((symbol, metric) => {
+    const normalized = normalizeSymbol(symbol);
+    if (!normalized) return;
+    if (metric !== 'day' && metric !== 'preMarket') return;
+
+    setWatchlistChangeDisplayModeBySymbol((previous) => {
+      const currentMode = previous?.[normalized]?.[metric] === 'dollar' ? 'dollar' : 'percent';
+      const nextMode = currentMode === 'percent' ? 'dollar' : 'percent';
+
+      return {
+        ...previous,
+        [normalized]: {
+          ...previous[normalized],
+          [metric]: nextMode,
+        },
+      };
+    });
+  }, []);
 
   const labelMap = useMemo(() => {
     const map = {};
@@ -1147,8 +1185,18 @@ const WatchlistPage = ({
 
               {visibleWatchlist.map((item) => {
                 const quote = quotesBySymbol[item.symbol] || {};
-                const pct = Number(quote?.percentChange);
-                const positive = Number.isFinite(pct) ? pct >= 0 : true;
+                const dayChange = toNumber(quote?.change);
+                const dayChangePercent = toNumber(quote?.percentChange);
+                const dayReferenceChange = Number.isFinite(dayChangePercent) ? dayChangePercent : dayChange;
+                const preMarketChange = toNumber(quote?.preMarketChange ?? quote?.pre_market_change);
+                const preMarketChangePercent = toNumber(
+                  quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
+                );
+                const preMarketReferenceChange = Number.isFinite(preMarketChangePercent)
+                  ? preMarketChangePercent
+                  : preMarketChange;
+                const dayDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.day || 'percent';
+                const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.preMarket || 'percent';
                 const rowActive = selectedTicker === item.symbol;
                 const rowDragging = draggingSymbol === item.symbol;
                 const rowDropTarget = dragOverSymbol === item.symbol && draggingSymbol && draggingSymbol !== item.symbol;
@@ -1180,11 +1228,38 @@ const WatchlistPage = ({
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <div className="min-w-[76px] text-right">
+                      <div className="min-w-[108px] text-right">
                         <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-mono text-white`}>{formatPrice(quote?.price)}</div>
-                        <div className={`text-[11px] font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {formatPercent(quote?.percentChange)}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleWatchlistChangeDisplayMode(item.symbol, 'day');
+                          }}
+                          title="Previous day change (% / $)"
+                          className={`block w-full text-right text-[11px] font-medium transition-opacity hover:opacity-80 ${getWatchlistChangeToneClass(dayReferenceChange)}`}
+                        >
+                          {`Day ${formatWatchlistChangeValue({
+                            mode: dayDisplayMode,
+                            percentValue: dayChangePercent,
+                            dollarValue: dayChange,
+                          })}`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleWatchlistChangeDisplayMode(item.symbol, 'preMarket');
+                          }}
+                          title="Premarket change (% / $)"
+                          className={`block w-full text-right text-[11px] font-medium transition-opacity hover:opacity-80 ${getWatchlistChangeToneClass(preMarketReferenceChange)}`}
+                        >
+                          {`Pre ${formatWatchlistChangeValue({
+                            mode: preMarketDisplayMode,
+                            percentValue: preMarketChangePercent,
+                            dollarValue: preMarketChange,
+                          })}`}
+                        </button>
                       </div>
 
                       <button

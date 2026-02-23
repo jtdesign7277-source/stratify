@@ -877,7 +877,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-nowrap items-center gap-4 mt-3 pt-2">
+          <div className="flex flex-wrap items-center gap-4 mt-3 pt-2">
             <button
               onClick={toggleLike}
               className={`inline-flex items-center gap-1.5 text-xs transition-colors ${
@@ -905,14 +905,14 @@ const PostCard = ({ post, currentUser, onDelete }) => {
               <Share2 size={15} strokeWidth={1.5} />
               <span>Share</span>
             </button>
-          </div>
 
-          {/* Reaction chips below action buttons */}
-          <ReactionBar
-            postId={post.id}
-            currentUser={currentUser}
-            initialReactions={initialReactions}
-          />
+            <ReactionBar
+              postId={post.id}
+              currentUser={currentUser}
+              initialReactions={initialReactions}
+              inActionRow
+            />
+          </div>
 
           {/* Replies Section */}
           {showReplies && (

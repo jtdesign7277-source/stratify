@@ -801,6 +801,67 @@ const parseBatchQuotePayload = (payload) => {
   return quoteMap;
 };
 
+const extractPremarketMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
+  const previousClose = toNumber(
+    quote?.previous_close
+    ?? quote?.previousClose
+    ?? quote?.prev_close
+    ?? quote?.prevClose
+  );
+
+  const preMarketPrice = toNumber(
+    quote?.pre_market_price
+    ?? quote?.preMarketPrice
+    ?? quote?.premarket_price
+    ?? quote?.premarketPrice
+  );
+
+  let preMarketChange = toNumber(
+    quote?.pre_market_change
+    ?? quote?.preMarketChange
+    ?? quote?.premarket_change
+    ?? quote?.premarketChange
+  );
+
+  let preMarketChangePercent = toNumber(
+    quote?.pre_market_change_percent
+    ?? quote?.preMarketChangePercent
+    ?? quote?.premarket_change_percent
+    ?? quote?.premarketChangePercent
+  );
+
+  const preMarketReferencePrice = Number.isFinite(preMarketPrice)
+    ? preMarketPrice
+    : toNumber(fallbackPrice);
+
+  if (!Number.isFinite(preMarketChange) && Number.isFinite(preMarketReferencePrice) && Number.isFinite(previousClose)) {
+    preMarketChange = preMarketReferencePrice - previousClose;
+  }
+
+  if (
+    !Number.isFinite(preMarketChangePercent)
+    && Number.isFinite(preMarketChange)
+    && Number.isFinite(previousClose)
+    && previousClose !== 0
+  ) {
+    preMarketChangePercent = (preMarketChange / previousClose) * 100;
+  }
+
+  if (
+    !Number.isFinite(preMarketChange)
+    && Number.isFinite(preMarketChangePercent)
+    && Number.isFinite(previousClose)
+  ) {
+    preMarketChange = previousClose * (preMarketChangePercent / 100);
+  }
+
+  return {
+    preMarketPrice: Number.isFinite(preMarketPrice) ? preMarketPrice : null,
+    preMarketChange: Number.isFinite(preMarketChange) ? preMarketChange : null,
+    preMarketChangePercent: Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : null,
+  };
+};
+
 export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
   const source = Array.isArray(symbols) ? symbols : String(symbols || '').split(',');
   const seen = new Set();
@@ -820,14 +881,19 @@ export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
 
   return normalized.map((symbol) => {
     const quote = quoteMap[symbol];
+    const price = toNumber(quote?.close || quote?.price || quote?.last);
+    const preMarketMetrics = extractPremarketMetricsFromQuote(quote, price);
     return {
       symbol,
       name: quote?.name || symbol,
       exchange: quote?.exchange || '',
       currency: quote?.currency || 'USD',
-      price: toNumber(quote?.close || quote?.price || quote?.last),
+      price,
       change: toNumber(quote?.change),
       percentChange: toNumber(quote?.percent_change ?? quote?.percentChange),
+      preMarketPrice: preMarketMetrics.preMarketPrice,
+      preMarketChange: preMarketMetrics.preMarketChange,
+      preMarketChangePercent: preMarketMetrics.preMarketChangePercent,
       timestamp: quote?.datetime || quote?.timestamp || null,
       raw: quote || null,
     };

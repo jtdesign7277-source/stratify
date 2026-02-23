@@ -271,6 +271,67 @@ const parseMarketOpen = (value) => {
   return null;
 };
 
+const extractPremarketQuoteMetrics = (payload, fallbackPrice = null) => {
+  const previousClose = toNumber(
+    payload?.previous_close
+    ?? payload?.previousClose
+    ?? payload?.prev_close
+    ?? payload?.prevClose
+  );
+
+  const preMarketPrice = toNumber(
+    payload?.pre_market_price
+    ?? payload?.preMarketPrice
+    ?? payload?.premarket_price
+    ?? payload?.premarketPrice
+  );
+
+  let preMarketChange = toNumber(
+    payload?.pre_market_change
+    ?? payload?.preMarketChange
+    ?? payload?.premarket_change
+    ?? payload?.premarketChange
+  );
+
+  let preMarketChangePercent = toNumber(
+    payload?.pre_market_change_percent
+    ?? payload?.preMarketChangePercent
+    ?? payload?.premarket_change_percent
+    ?? payload?.premarketChangePercent
+  );
+
+  const preMarketReferencePrice = Number.isFinite(preMarketPrice)
+    ? preMarketPrice
+    : toNumber(fallbackPrice);
+
+  if (!Number.isFinite(preMarketChange) && Number.isFinite(preMarketReferencePrice) && Number.isFinite(previousClose)) {
+    preMarketChange = preMarketReferencePrice - previousClose;
+  }
+
+  if (
+    !Number.isFinite(preMarketChangePercent)
+    && Number.isFinite(preMarketChange)
+    && Number.isFinite(previousClose)
+    && previousClose !== 0
+  ) {
+    preMarketChangePercent = (preMarketChange / previousClose) * 100;
+  }
+
+  if (
+    !Number.isFinite(preMarketChange)
+    && Number.isFinite(preMarketChangePercent)
+    && Number.isFinite(previousClose)
+  ) {
+    preMarketChange = previousClose * (preMarketChangePercent / 100);
+  }
+
+  return {
+    preMarketPrice: Number.isFinite(preMarketPrice) ? preMarketPrice : null,
+    preMarketChange: Number.isFinite(preMarketChange) ? preMarketChange : null,
+    preMarketChangePercent: Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : null,
+  };
+};
+
 const toUnixSeconds = (value) => {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number') {
@@ -331,6 +392,25 @@ const formatSignedPercent = (value) => {
   if (percent === null) return '--';
   const formatted = formatPercent(percent, 2);
   return percent >= 0 ? `+${formatted}` : formatted;
+};
+
+const formatSignedDollar = (value) => {
+  const amount = toNumber(value);
+  if (amount === null) return '--';
+  const precision = Math.abs(amount) >= 1 ? 2 : 4;
+  const formatted = formatCurrency(Math.abs(amount), precision);
+  return `${amount >= 0 ? '+' : '-'}${formatted}`;
+};
+
+const formatWatchlistChangeValue = ({ mode, percentValue, dollarValue }) => {
+  if (mode === 'dollar') return formatSignedDollar(dollarValue);
+  return formatSignedPercent(percentValue);
+};
+
+const getWatchlistChangeToneClass = (value) => {
+  const numeric = toNumber(value);
+  if (numeric === null) return 'bg-white/10 text-white/45';
+  return numeric >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400';
 };
 
 const getBucketTimeForTimeframe = (timeSeconds, timeframeId) => {
@@ -839,6 +919,7 @@ export default function TraderPage({
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
+  const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
@@ -876,6 +957,25 @@ export default function TraderPage({
     return new Set(market?.exchanges || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET].exchanges);
   }, [activeMarket]);
   const selectedChartTimeframe = CHART_TIMEFRAME_BY_ID[chartTimeframe] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
+
+  const toggleWatchlistChangeDisplayMode = useCallback((symbol, metric) => {
+    const normalized = normalizeSymbol(symbol);
+    if (!normalized) return;
+    if (metric !== 'day' && metric !== 'preMarket') return;
+
+    setWatchlistChangeDisplayModeBySymbol((previous) => {
+      const currentMode = previous?.[normalized]?.[metric] === 'dollar' ? 'dollar' : 'percent';
+      const nextMode = currentMode === 'percent' ? 'dollar' : 'percent';
+
+      return {
+        ...previous,
+        [normalized]: {
+          ...previous[normalized],
+          [metric]: nextMode,
+        },
+      };
+    });
+  }, []);
 
   useEffect(() => {
     selectedSymbolRef.current = normalizeSymbol(selectedSymbol);
@@ -1056,6 +1156,7 @@ export default function TraderPage({
         : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
           ? (change / previousClose) * 100
           : null;
+      const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
       const name = String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim();
 
       setQuotesBySymbol((previous) => {
@@ -1072,6 +1173,9 @@ export default function TraderPage({
             price,
             change,
             changePercent,
+            preMarketPrice: preMarketMetrics.preMarketPrice,
+            preMarketChange: preMarketMetrics.preMarketChange,
+            preMarketChangePercent: preMarketMetrics.preMarketChangePercent,
             isMarketOpen: parseMarketOpen(payload?.is_market_open),
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: name || current?.name,
@@ -1144,12 +1248,16 @@ export default function TraderPage({
             : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
               ? (change / previousClose) * 100
               : null;
+          const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
 
           return {
             symbol,
             price,
             change,
             changePercent,
+            preMarketPrice: preMarketMetrics.preMarketPrice,
+            preMarketChange: preMarketMetrics.preMarketChange,
+            preMarketChangePercent: preMarketMetrics.preMarketChangePercent,
             isMarketOpen: parseMarketOpen(payload?.is_market_open),
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || '').trim() || undefined,
@@ -1540,6 +1648,7 @@ export default function TraderPage({
 
       const rawChange = toNumber(payload?.change);
       const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
+      const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
 
       setQuotesBySymbol((previous) => {
         const previousQuote = previous[symbol] || {};
@@ -1560,10 +1669,20 @@ export default function TraderPage({
         return {
           ...previous,
           [symbol]: {
+            ...previousQuote,
             symbol,
             price,
             change,
             changePercent,
+            preMarketPrice: Number.isFinite(preMarketMetrics.preMarketPrice)
+              ? preMarketMetrics.preMarketPrice
+              : toNumber(previousQuote?.preMarketPrice),
+            preMarketChange: Number.isFinite(preMarketMetrics.preMarketChange)
+              ? preMarketMetrics.preMarketChange
+              : toNumber(previousQuote?.preMarketChange),
+            preMarketChangePercent: Number.isFinite(preMarketMetrics.preMarketChangePercent)
+              ? preMarketMetrics.preMarketChangePercent
+              : toNumber(previousQuote?.preMarketChangePercent),
             isMarketOpen: true,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || previousQuote?.name || '').trim() || undefined,
@@ -2015,9 +2134,18 @@ export default function TraderPage({
                             watchlist.map((symbol, index) => {
                               const quote = quotesBySymbol[symbol] || {};
                               const price = toNumber(quote?.price);
-                              const change = toNumber(quote?.change) ?? 0;
-                              const changePercent = toNumber(quote?.changePercent) ?? 0;
-                              const isPositive = changePercent !== 0 ? changePercent >= 0 : change >= 0;
+                              const dayChange = toNumber(quote?.change);
+                              const dayChangePercent = toNumber(quote?.changePercent);
+                              const dayReferenceChange = Number.isFinite(dayChangePercent) ? dayChangePercent : dayChange;
+                              const preMarketChange = toNumber(quote?.preMarketChange ?? quote?.pre_market_change);
+                              const preMarketChangePercent = toNumber(
+                                quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
+                              );
+                              const preMarketReferenceChange = Number.isFinite(preMarketChangePercent)
+                                ? preMarketChangePercent
+                                : preMarketChange;
+                              const dayDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.day || 'percent';
+                              const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.preMarket || 'percent';
                               const isSelected = selectedSymbol === symbol;
                               const isPlaceholder = quote?.isPlaceholder === true;
                               const companyName = String(
@@ -2075,11 +2203,40 @@ export default function TraderPage({
                                         </div>
                                         {Number.isFinite(price) && !isPlaceholder && (
                                           <div className="flex flex-col items-end gap-1">
-                                            <span
-                                              className={`px-2 py-0.5 rounded text-xs font-semibold ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
+                                            <button
+                                              type="button"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                toggleWatchlistChangeDisplayMode(symbol, 'day');
+                                              }}
+                                              title="Previous day change (% / $)"
+                                              className={`px-2 py-0.5 rounded text-xs font-semibold transition-opacity hover:opacity-80 ${
+                                                getWatchlistChangeToneClass(dayReferenceChange)
+                                              }`}
                                             >
-                                              {`${isPositive ? '+' : ''}${changePercent.toFixed(2)}%`}
-                                            </span>
+                                              {`Day ${formatWatchlistChangeValue({
+                                                mode: dayDisplayMode,
+                                                percentValue: dayChangePercent,
+                                                dollarValue: dayChange,
+                                              })}`}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                toggleWatchlistChangeDisplayMode(symbol, 'preMarket');
+                                              }}
+                                              title="Premarket change (% / $)"
+                                              className={`px-2 py-0.5 rounded text-xs font-semibold transition-opacity hover:opacity-80 ${
+                                                getWatchlistChangeToneClass(preMarketReferenceChange)
+                                              }`}
+                                            >
+                                              {`Pre ${formatWatchlistChangeValue({
+                                                mode: preMarketDisplayMode,
+                                                percentValue: preMarketChangePercent,
+                                                dollarValue: preMarketChange,
+                                              })}`}
+                                            </button>
                                           </div>
                                         )}
                                       </div>
