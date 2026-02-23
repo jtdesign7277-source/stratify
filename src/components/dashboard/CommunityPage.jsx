@@ -259,6 +259,9 @@ const ComposeBox = ({ currentUser, onPost }) => {
       setPnlPercent('');
       setShowPnlFields(false);
       if (fileRef.current) fileRef.current.value = '';
+      
+      // Trigger refresh callback if provided
+      if (onPost) onPost();
     } catch (err) {
       console.error('Post failed:', err);
       alert('Failed to post. Try again.');
@@ -844,7 +847,7 @@ const CommunityPage = () => {
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         <div className="max-w-2xl mx-auto">
           {/* Compose */}
-          {currentUser && <ComposeBox currentUser={currentUser} />}
+          {currentUser && <ComposeBox currentUser={currentUser} onPost={() => fetchPosts(0)} />}
 
           {/* Posts */}
           {loading && posts.length === 0 ? (
