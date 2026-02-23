@@ -1561,9 +1561,6 @@ const PostCard = ({ post, currentUser, onDelete }) => {
             dangerouslySetInnerHTML={{ __html: highlightTickers(post.content) }}
           />
 
-          {/* P&L Card */}
-          {post.post_type === 'pnl_share' && <PnLCard metadata={post.metadata} />}
-
           {/* Image */}
           {post.image_url && (
             <div className="mt-3">

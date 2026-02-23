@@ -94,6 +94,18 @@ const parseOrderRequest = (body = {}) => {
   const timeInForce = String(body.time_in_force || '').trim().toLowerCase();
   const parsedQty = toNumber(body.qty);
   const parsedNotional = toNumber(body.notional);
+  const strategyName = typeof body.strategy_name === 'string'
+    ? body.strategy_name.trim()
+    : typeof body.strategyName === 'string'
+      ? body.strategyName.trim()
+      : typeof body.strategy === 'string'
+        ? body.strategy.trim()
+        : '';
+  const strategyId = typeof body.strategy_id === 'string'
+    ? body.strategy_id.trim()
+    : typeof body.strategyId === 'string'
+      ? body.strategyId.trim()
+      : '';
 
   if (!symbol || !side || !type || !timeInForce || (!Number.isFinite(parsedQty) && !Number.isFinite(parsedNotional))) {
     return {
@@ -134,6 +146,8 @@ const parseOrderRequest = (body = {}) => {
     order,
     parsedQty: Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : null,
     parsedNotional: Number.isFinite(parsedNotional) && parsedNotional > 0 ? parsedNotional : null,
+    strategyName,
+    strategyId,
   };
 };
 
@@ -237,19 +251,63 @@ const applyPaperTradeToState = ({ account, positions, side, symbol, quantity, pr
   };
 };
 
-const buildTradeHistoryEntry = ({ orderLike, symbol, side, quantity, price, mode, simulated }) => ({
-  id: String(orderLike?.id || orderLike?.order_id || `trade_${Date.now()}_${Math.random().toString(16).slice(2)}`),
+const buildTradeHistoryEntry = ({
+  orderLike,
   symbol,
   side,
-  shares: round6(quantity),
-  qty: round6(quantity),
-  price: round2(price),
-  total: round2(quantity * price),
-  timestamp: orderLike?.filled_at || orderLike?.submitted_at || new Date().toISOString(),
-  status: String(orderLike?.status || 'filled').toLowerCase(),
+  quantity,
+  price,
   mode,
-  simulated: Boolean(simulated),
-});
+  simulated,
+  strategyName = '',
+  strategyId = '',
+  fallbackOrderType = '',
+  fallbackTimeInForce = '',
+}) => {
+  const resolvedStrategyName = String(strategyName || '').trim();
+  const resolvedStrategyId = String(strategyId || '').trim();
+  const resolvedOrderType = String(
+    orderLike?.order_type
+    || orderLike?.type
+    || fallbackOrderType
+    || 'market',
+  ).trim().toLowerCase();
+  const resolvedTimeInForce = String(
+    orderLike?.time_in_force
+    || fallbackTimeInForce
+    || '',
+  ).trim().toUpperCase();
+  const resolvedClientOrderId = String(orderLike?.client_order_id || '').trim();
+  const resolvedFees = Math.abs(toNumber(
+    orderLike?.fees
+    ?? orderLike?.fee
+    ?? orderLike?.commission
+    ?? orderLike?.commissions
+    ?? orderLike?.filled_fees,
+    0,
+  ));
+
+  return {
+    id: String(orderLike?.id || orderLike?.order_id || `trade_${Date.now()}_${Math.random().toString(16).slice(2)}`),
+    symbol,
+    side,
+    shares: round6(quantity),
+    qty: round6(quantity),
+    price: round2(price),
+    total: round2(quantity * price),
+    timestamp: orderLike?.filled_at || orderLike?.submitted_at || new Date().toISOString(),
+    status: String(orderLike?.status || 'filled').toLowerCase(),
+    mode,
+    simulated: Boolean(simulated),
+    order_type: resolvedOrderType || 'market',
+    time_in_force: resolvedTimeInForce || undefined,
+    client_order_id: resolvedClientOrderId || undefined,
+    fees: resolvedFees,
+    commission: resolvedFees,
+    strategy_name: resolvedStrategyName || undefined,
+    strategy_id: resolvedStrategyId || undefined,
+  };
+};
 
 const isCryptoSymbol = (symbol) => symbol.includes('/') || CRYPTO_SYMBOL_REGEX.test(symbol);
 
@@ -403,7 +461,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: parsed.error, mode });
     }
 
-    const { order, parsedQty, parsedNotional } = parsed;
+    const {
+      order,
+      parsedQty,
+      parsedNotional,
+      strategyName,
+      strategyId,
+    } = parsed;
     const marketPriceFallback = calculatePriceFallback(req.body || {}, parsedQty || 0, parsedNotional || 0);
     const resolvedPrice = toNumber(marketPriceFallback);
 
@@ -465,6 +529,10 @@ export default async function handler(req, res) {
         price: simulatedPrice,
         mode,
         simulated: true,
+        strategyName,
+        strategyId,
+        fallbackOrderType: order.type,
+        fallbackTimeInForce: order.time_in_force,
       });
 
       const nextHistory = appendTradeHistoryEntry(modeTradeHistory, historyEntry);
@@ -547,6 +615,10 @@ export default async function handler(req, res) {
         price: finalPrice,
         mode,
         simulated: false,
+        strategyName,
+        strategyId,
+        fallbackOrderType: order.type,
+        fallbackTimeInForce: order.time_in_force,
       }));
     }
 

@@ -32,7 +32,7 @@ import AIChat from './AIChat';
 import StratifyChat from './StratifyChat';
 import WatchlistPage from './WatchlistPage';
 import GlobalMarketsPage from './GlobalMarketsPage';
-import PortfolioPage from './PortfolioPage';
+import PortfolioPage from './PortfolioPageRebuilt';
 import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
 import { PRO_STRIPE_PRICE_ID } from '../../lib/billing';
@@ -2055,6 +2055,8 @@ export default function Dashboard({
                 }
               }}
               tradeHistory={trades}
+              savedStrategies={savedStrategies}
+              deployedStrategies={deployedStrategies}
             />
           )}
           {activeTab === 'history' && (
