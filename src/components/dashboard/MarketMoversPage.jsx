@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, RefreshCw, Volume2, Zap, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Volume2, BarChart3 } from 'lucide-react';
 
 const CATEGORIES = [
   { id: 'gainers', label: 'Top Gainers', icon: TrendingUp, color: 'emerald' },
@@ -37,68 +37,129 @@ function StockCard({ stock, rank, isLast }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: rank * 0.03 }}
-      className={`group p-4 hover:bg-white/[0.02] transition-all ${isLast ? '' : 'border-b border-[#1f1f1f]/40'}`}
+      transition={{ delay: rank * 0.02 }}
+      className={`group px-3 py-2.5 hover:bg-white/[0.02] transition-all ${isLast ? '' : 'border-b border-[#1f1f1f]/40'}`}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="font-semibold text-white text-sm">{stock.symbol}</div>
-          <div className="text-[11px] text-white/50 line-clamp-1 mt-0.5">{stock.name || 'N/A'}</div>
+      <div className="flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-white text-xs">{stock.symbol}</div>
+          <div className="text-[10px] text-white/40 truncate mt-0.5">{stock.name || 'N/A'}</div>
         </div>
-        <div className="text-right ml-4">
-          <div className="text-sm font-semibold text-white">{formatPrice(stock.price)}</div>
-          <div className={`text-xs font-medium ${colorClass}`}>
+        <div className="text-right ml-3">
+          <div className="text-xs font-semibold text-white">{formatPrice(stock.price)}</div>
+          <div className={`text-[10px] font-medium ${colorClass}`}>
             {formatPercent(changePercent)}
           </div>
-        </div>
-      </div>
-      <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px]">
-        <div className="text-white/50">
-          <span className="text-white/70">Vol:</span> {formatVolume(stock.volume)}
-        </div>
-        <div className="text-white/50">
-          <span className="text-white/70">Change:</span> {formatPrice(stock.change)}
         </div>
       </div>
     </motion.div>
   );
 }
 
+function CategoryColumn({ category, data, loading, error }) {
+  const Icon = category.icon;
+  const colorMap = {
+    emerald: 'text-emerald-400',
+    red: 'text-red-400',
+    blue: 'text-blue-400',
+  };
+  const iconColor = colorMap[category.color];
+
+  return (
+    <div className="flex flex-col min-h-0">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1f1f1f]">
+        <Icon className={`w-4 h-4 ${iconColor}`} strokeWidth={1.5} />
+        <h3 className="text-xs font-semibold text-white">{category.label}</h3>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-5 h-5 text-white/30 animate-spin" strokeWidth={1.5} />
+          </div>
+        )}
+
+        {error && (
+          <div className="px-3 py-4">
+            <p className="text-xs text-red-400">{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && data.length === 0 && (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-xs text-white/30">No data</p>
+          </div>
+        )}
+
+        {!loading && !error && data.length > 0 && (
+          <>
+            {data.slice(0, 15).map((stock, index, array) => (
+              <StockCard
+                key={stock.symbol}
+                stock={stock}
+                rank={index + 1}
+                isLast={index === array.length - 1}
+              />
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MarketMoversPage() {
-  const [activeCategory, setActiveCategory] = useState('gainers');
-  const [movers, setMovers] = useState([]);
+  const [gainers, setGainers] = useState([]);
+  const [losers, setLosers] = useState([]);
+  const [actives, setActives] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [errors, setErrors] = useState({ gainers: null, losers: null, volume: null });
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const fetchMovers = async (category) => {
+  const fetchAllMovers = async () => {
     setLoading(true);
-    setError(null);
+    setErrors({ gainers: null, losers: null, volume: null });
 
-    try {
-      const response = await fetch(`/api/market-movers?type=${category}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${category}`);
+    const fetchCategory = async (type) => {
+      try {
+        const response = await fetch(`/api/market-movers?type=${type}`);
+        if (!response.ok) throw new Error(`Failed to fetch ${type}`);
+        const data = await response.json();
+        return { type, data: data.values || [], error: null };
+      } catch (err) {
+        console.error(`[MarketMovers] ${type} error:`, err);
+        return { type, data: [], error: err.message };
       }
-      const data = await response.json();
-      setMovers(data.values || []);
-      setLastUpdated(Date.now());
-    } catch (err) {
-      console.error('[MarketMovers] Fetch error:', err);
-      setError(err.message);
-      setMovers([]);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    const results = await Promise.all([
+      fetchCategory('gainers'),
+      fetchCategory('losers'),
+      fetchCategory('volume'),
+    ]);
+
+    results.forEach(result => {
+      if (result.type === 'gainers') {
+        setGainers(result.data);
+        if (result.error) setErrors(prev => ({ ...prev, gainers: result.error }));
+      } else if (result.type === 'losers') {
+        setLosers(result.data);
+        if (result.error) setErrors(prev => ({ ...prev, losers: result.error }));
+      } else if (result.type === 'volume') {
+        setActives(result.data);
+        if (result.error) setErrors(prev => ({ ...prev, volume: result.error }));
+      }
+    });
+
+    setLastUpdated(Date.now());
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchMovers(activeCategory);
-    const interval = setInterval(() => fetchMovers(activeCategory), 300000); // Refresh every 5 minutes
+    fetchAllMovers();
+    const interval = setInterval(fetchAllMovers, 300000); // Refresh every 5 minutes
     return () => clearInterval(interval);
-  }, [activeCategory]);
-
-  const activeTab = CATEGORIES.find(c => c.id === activeCategory);
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col bg-transparent overflow-hidden">
@@ -113,7 +174,7 @@ export default function MarketMoversPage() {
             <p className="text-xs text-white/50 mt-1">Real-time market activity across all exchanges</p>
           </div>
           <button
-            onClick={() => fetchMovers(activeCategory)}
+            onClick={fetchAllMovers}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs transition-all disabled:opacity-50"
           >
@@ -122,85 +183,41 @@ export default function MarketMoversPage() {
           </button>
         </div>
 
-        {/* Category Tabs */}
-        <div className="flex gap-2 mt-4">
-          {CATEGORIES.map(category => {
-            const Icon = category.icon;
-            const isActive = activeCategory === category.id;
-            const colorMap = {
-              emerald: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400',
-              red: 'border-red-500/30 bg-red-500/15 text-red-400',
-              blue: 'border-blue-500/30 bg-blue-500/15 text-blue-400',
-            };
-
-            return (
-              <button
-                key={category.id}
-                onClick={() => setActiveCategory(category.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-medium transition-all ${
-                  isActive
-                    ? colorMap[category.color]
-                    : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:border-white/20'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
-                {category.label}
-              </button>
-            );
-          })}
-        </div>
-
         {lastUpdated && !loading && (
-          <div className="mt-3 text-[10px] text-white/40">
+          <div className="mt-2 text-[10px] text-white/30">
             Last updated: {new Date(lastUpdated).toLocaleTimeString()}
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {loading && movers.length === 0 && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <RefreshCw className="w-8 h-8 text-white/30 animate-spin mx-auto" strokeWidth={1.5} />
-              <p className="text-sm text-white/50 mt-3">Loading market data...</p>
-            </div>
+      {/* Three Column Layout */}
+      <div className="flex-1 overflow-hidden px-6 py-4">
+        <div className="grid grid-cols-3 gap-4 h-full">
+          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+            <CategoryColumn
+              category={CATEGORIES[0]}
+              data={gainers}
+              loading={loading}
+              error={errors.gainers}
+            />
           </div>
-        )}
-
-        {error && (
-          <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-center">
-            <p className="text-sm text-red-400">Error: {error}</p>
-            <button
-              onClick={() => fetchMovers(activeCategory)}
-              className="mt-3 px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/20 text-xs text-red-300 hover:bg-red-500/30"
-            >
-              Try Again
-            </button>
+          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+            <CategoryColumn
+              category={CATEGORIES[1]}
+              data={losers}
+              loading={loading}
+              error={errors.losers}
+            />
           </div>
-        )}
-
-        {!loading && !error && movers.length === 0 && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Zap className="w-8 h-8 text-white/30 mx-auto" strokeWidth={1.5} />
-              <p className="text-sm text-white/50 mt-3">No data available</p>
-            </div>
+          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+            <CategoryColumn
+              category={CATEGORIES[2]}
+              data={actives}
+              loading={loading}
+              error={errors.volume}
+            />
           </div>
-        )}
-
-        {movers.length > 0 && (
-          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden">
-            {movers.slice(0, 30).map((stock, index, array) => (
-              <StockCard 
-                key={stock.symbol} 
-                stock={stock} 
-                rank={index + 1} 
-                isLast={index === array.length - 1}
-              />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
