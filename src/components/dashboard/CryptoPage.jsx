@@ -708,6 +708,11 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
     border: '1px solid rgba(255, 255, 255, 0.06)',
   };
 
+  const orderTicketStyle = {
+    background: '#060d18',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+  };
+
   return (
     <div className="h-full w-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       {/* ── Top Bar ──────────────────────────────────────────────── */}
@@ -770,7 +775,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
         {/* ── RIGHT: Order Entry ───────────────────────────────────── */}
         <div
           className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
-          style={glassStyle}
+          style={orderTicketStyle}
         >
           {isRightPanelCollapsed ? (
             <div className="h-full flex flex-col items-center py-2 gap-2">
