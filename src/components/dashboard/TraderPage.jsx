@@ -2572,6 +2572,14 @@ export default function TraderPage({
                                 : secondaryDollarChange;
                               const dayDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.day || 'percent';
                               const secondaryDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.preMarket || 'percent';
+                              const isRegularSession = secondarySession === 'live';
+                              const primaryMetricMode = isRegularSession ? secondaryDisplayMode : dayDisplayMode;
+                              const primaryPercentChange = isRegularSession ? secondaryPercentChange : dayChangePercent;
+                              const primaryDollarChange = isRegularSession ? secondaryDollarChange : dayChange;
+                              const primaryReferenceChange = isRegularSession ? secondaryReferenceChange : dayReferenceChange;
+                              const primaryMetricLabel = isRegularSession ? '' : 'Day';
+                              const primaryMetricTitle = isRegularSession ? 'Live change (% / $)' : 'Previous day change (% / $)';
+                              const primaryMetricToggleKey = isRegularSession ? 'preMarket' : 'day';
                               const isSelected = selectedSymbol === symbol;
                               const isPlaceholder = quote?.isPlaceholder === true;
                               const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
@@ -2580,6 +2588,7 @@ export default function TraderPage({
                               const isSecondaryLoading = secondarySession === 'pre-market'
                                 ? valueLoading.preMarket === true
                                 : valueLoading.day === true;
+                              const primaryLoading = isRegularSession ? isSecondaryLoading : isDayLoading;
                               const companyName = String(
                                 quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
                               ).trim();
@@ -2643,48 +2652,50 @@ export default function TraderPage({
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
-                                                toggleWatchlistChangeDisplayMode(symbol, 'day');
+                                                toggleWatchlistChangeDisplayMode(symbol, primaryMetricToggleKey);
                                               }}
-                                              title="Previous day change (% / $)"
+                                              title={primaryMetricTitle}
                                               className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
-                                                getWatchlistChangeToneClass(dayReferenceChange)
+                                                getWatchlistChangeToneClass(primaryReferenceChange)
                                               }`}
                                             >
-                                              <span>{`Day ${formatWatchlistChangeValue({
-                                                mode: dayDisplayMode,
-                                                percentValue: dayChangePercent,
-                                                dollarValue: dayChange,
+                                              <span>{`${primaryMetricLabel ? `${primaryMetricLabel} ` : ''}${formatWatchlistChangeValue({
+                                                mode: primaryMetricMode,
+                                                percentValue: primaryPercentChange,
+                                                dollarValue: primaryDollarChange,
                                               })}`}</span>
-                                              {isDayLoading && (
+                                              {primaryLoading && (
                                                 <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
                                               )}
                                             </button>
-                                            <button
-                                              type="button"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                toggleWatchlistChangeDisplayMode(symbol, 'preMarket');
-                                              }}
-                                              title={
-                                                secondarySession === 'pre-market'
-                                                  ? 'Premarket change (% / $)'
-                                                  : secondarySession === 'post-market'
-                                                    ? 'Post-market change (% / $)'
-                                                    : 'Live change (% / $)'
-                                              }
-                                              className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
-                                                getWatchlistChangeToneClass(secondaryReferenceChange)
-                                              }`}
-                                            >
-                                              <span>{`${secondaryLabel} ${formatWatchlistChangeValue({
-                                                mode: secondaryDisplayMode,
-                                                percentValue: secondaryPercentChange,
-                                                dollarValue: secondaryDollarChange,
-                                              })}`}</span>
-                                              {isSecondaryLoading && (
-                                                <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating premarket change" />
-                                              )}
-                                            </button>
+                                            {!isRegularSession ? (
+                                              <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  toggleWatchlistChangeDisplayMode(symbol, 'preMarket');
+                                                }}
+                                                title={
+                                                  secondarySession === 'pre-market'
+                                                    ? 'Premarket change (% / $)'
+                                                    : secondarySession === 'post-market'
+                                                      ? 'Post-market change (% / $)'
+                                                      : 'Live change (% / $)'
+                                                }
+                                                className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
+                                                  getWatchlistChangeToneClass(secondaryReferenceChange)
+                                                }`}
+                                              >
+                                                <span>{`${secondaryLabel} ${formatWatchlistChangeValue({
+                                                  mode: secondaryDisplayMode,
+                                                  percentValue: secondaryPercentChange,
+                                                  dollarValue: secondaryDollarChange,
+                                                })}`}</span>
+                                                {isSecondaryLoading && (
+                                                  <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating premarket change" />
+                                                )}
+                                              </button>
+                                            ) : null}
                                           </div>
                                         )}
                                       </div>
