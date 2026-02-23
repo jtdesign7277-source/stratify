@@ -2197,7 +2197,7 @@ export default function TraderPage({ onPinToTop }) {
                   title="Expand order entry panel"
                   aria-label="Expand order entry panel"
                 >
-                  <ChevronsLeft className="mx-auto h-3.5 w-3.5" strokeWidth={1.7} />
+                  <ChevronsRight className="mx-auto h-3.5 w-3.5" strokeWidth={1.7} />
                 </button>
                 <div
                   className="text-[9px] font-bold uppercase tracking-[0.2em]"
@@ -2228,7 +2228,7 @@ export default function TraderPage({ onPinToTop }) {
                       title="Collapse order entry panel"
                       aria-label="Collapse order entry panel"
                     >
-                      <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
+                      <ChevronsLeft className="h-4 w-4" strokeWidth={1.7} />
                     </button>
                   </div>
                 </div>

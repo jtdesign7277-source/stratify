@@ -648,7 +648,7 @@ function CoinSelector({ coins, selected, onSelect }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function CryptoPage({ alpacaData, onOrderPlaced }) {
   const [selectedCoin, setSelectedCoin] = useState(CRYPTO_COINS[0]);
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [userId, setUserId] = useState(null);
   const [orderHistory, setOrderHistory] = useState([]);
   const { connected, hasRecentMessage, lastPrice } = useAlpacaOrderbook(selectedCoin.alpacaSymbol);
@@ -790,7 +790,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
                 title="Expand order entry panel"
                 aria-label="Expand order entry panel"
               >
-                <ChevronsLeft className="h-3.5 w-3.5 mx-auto" strokeWidth={1.7} />
+                <ChevronsRight className="h-3.5 w-3.5 mx-auto" strokeWidth={1.7} />
               </button>
               <div
                 className="text-[9px] font-bold tracking-[0.2em] uppercase"
@@ -819,7 +819,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
                   title="Collapse order entry panel"
                   aria-label="Collapse order entry panel"
                 >
-                  <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
+                  <ChevronsLeft className="h-4 w-4" strokeWidth={1.7} />
                 </button>
               </div>
 
