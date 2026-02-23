@@ -41,17 +41,15 @@ const DEFAULT_WATCHLIST = [
 const BOTTOM_INTERVALS_PRIMARY = [
   { label: '1m', value: '1min' },
   { label: '5m', value: '5min' },
+  { label: '15m', value: '15min' },
   { label: '30m', value: '30min' },
   { label: '1h', value: '1h' },
-  { label: 'D', value: '1day' },
-  { label: 'W', value: '1week' },
-  { label: 'M', value: '1month' },
+  { label: '2h', value: '2h' },
+  { label: '4h', value: '4h' },
+  { label: '1D', value: '1day' },
 ];
 
-const BOTTOM_INTERVALS_MORE = [
-  { label: '15m', value: '15min' },
-  { label: '4h', value: '4h' },
-];
+const BOTTOM_INTERVALS_MORE = [];
 
 const RANGE_PRESETS_PRIMARY = [
   { label: '1D', value: '1D' },
@@ -74,6 +72,7 @@ const INTERVAL_TO_MS = {
   '15min': 900_000,
   '30min': 1_800_000,
   '1h': 3_600_000,
+  '2h': 7_200_000,
   '4h': 14_400_000,
   '1day': 86_400_000,
   '1week': 604_800_000,
@@ -194,7 +193,7 @@ export default function HighchartsStockChart({
   const [symbol, setSymbol] = useState(propSymbol);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [interval, setIv] = useState('1day');
+  const [interval, setIv] = useState('5min');
   const [chartType, setChartType] = useState('candlestick');
   const [activeInd, setActiveInd] = useState([]);
   const [theme, setTheme] = useState(CANDLE_THEMES[0]);
@@ -211,7 +210,7 @@ export default function HighchartsStockChart({
   const [showRangeMore, setShowRangeMore] = useState(false);
   const [showIntervalMore, setShowIntervalMore] = useState(false);
   const [symSearch, setSymSearch] = useState('');
-  const [activeRange, setActiveRange] = useState('1M');
+  const [activeRange, setActiveRange] = useState('1D');
 
   const [hover, setHover] = useState({ o: null, h: null, l: null, c: null, v: null, chg: null, pct: null });
 
@@ -379,7 +378,7 @@ export default function HighchartsStockChart({
 
   // ─── WebSocket live feed ───
   useEffect(() => {
-    const ok = ['1min', '5min', '15min', '30min', '1h'];
+    const ok = ['1min', '5min', '15min', '30min', '1h', '2h', '4h', '1day'];
     if (!ok.includes(interval)) { setIsLive(false); return; }
     let cancelled = false;
     const connect = async () => {
@@ -885,16 +884,18 @@ export default function HighchartsStockChart({
         {BOTTOM_INTERVALS_PRIMARY.map((item) => (
           <button key={item.value} onClick={() => setIv(item.value)} className={`${P} ${interval === item.value ? PN : PF}`}>{item.label}</button>
         ))}
-        <div style={{ position: 'relative' }} data-dd>
-          <button onClick={() => setShowIntervalMore(!showIntervalMore)} className={`${P} ${BOTTOM_INTERVALS_MORE.some((o) => o.value === interval) ? PN : PF}`}>▼</button>
-          {showIntervalMore && (
-            <div style={{ ...DD, minWidth: '90px' }}>
-              {BOTTOM_INTERVALS_MORE.map((item) => (
-                <button key={item.value} onClick={() => { setIv(item.value); setShowIntervalMore(false); }} style={DI(interval === item.value)}>{item.label}</button>
-              ))}
-            </div>
-          )}
-        </div>
+        {BOTTOM_INTERVALS_MORE.length > 0 ? (
+          <div style={{ position: 'relative' }} data-dd>
+            <button onClick={() => setShowIntervalMore(!showIntervalMore)} className={`${P} ${BOTTOM_INTERVALS_MORE.some((o) => o.value === interval) ? PN : PF}`}>▼</button>
+            {showIntervalMore && (
+              <div style={{ ...DD, minWidth: '90px' }}>
+                {BOTTOM_INTERVALS_MORE.map((item) => (
+                  <button key={item.value} onClick={() => { setIv(item.value); setShowIntervalMore(false); }} style={DI(interval === item.value)}>{item.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <style>{`

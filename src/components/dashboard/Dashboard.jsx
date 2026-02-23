@@ -41,7 +41,6 @@ import MoreInfoPage from './MoreInfoPage';
 import DemoPanel from './DemoPanel';
 import StrategyTemplateFlow from './StrategyTemplateFlow';
 import ActiveTrades from './ActiveTrades';
-import ChallengeLeaderboard from './ChallengeLeaderboard';
 import TrendScanner from './TrendScanner';
 import FloatingGrokChat from './FloatingGrokChat';
 import CryptoPage from './CryptoPage';
@@ -126,6 +125,7 @@ const sanitizeActiveTab = (tab, fallback = 'war-room') => {
   if (normalized === 'strategies') return 'terminal';
   if (normalized === 'home') return 'war-room';
   if (normalized === 'markets') return 'global-markets';
+  if (normalized === 'legend') return 'war-room';
   if (!normalized || HIDDEN_TABS.has(normalized)) return fallback;
   return normalized;
 };
@@ -1711,7 +1711,6 @@ export default function Dashboard({
         theme={theme} 
         themeClasses={themeClasses} 
         onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
-        onLegendClick={() => setActiveTab('legend')}
         connectedBrokers={connectedBrokers}
         miniPills={miniPillSlots}
         onTickerDrop={handleTickerDrop}
@@ -1946,7 +1945,6 @@ export default function Dashboard({
               nextMarketOpen={nextMarketOpenAt}
             />
           )}
-          {activeTab === 'legend' && <ChallengeLeaderboard isPaid={true} />}
           {activeTab === 'trends' && <TrendScanner />}
           {activeTab === 'fred' && <FredPage />}
           {activeTab === 'calendar' && <EconomicsCalendarPage />}

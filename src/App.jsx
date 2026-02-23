@@ -5,6 +5,7 @@ import LandingPage from './components/dashboard/LandingPage';
 import WhitePaperPage from './components/WhitePaperPage';
 import SpaceBackground from './components/SpaceBackground';
 import SignUpPage from './components/auth/SignUpPage';
+import XRayPage from './components/xray/XRayPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useMarketData } from './store/StratifyProvider';
 import { useAlpacaData } from './hooks/useAlpacaData';
@@ -970,21 +971,35 @@ export class TeslaEMAStrategy extends Strategy {
 const PRO_CHECKOUT_PRICE_ID =
   import.meta.env.VITE_STRIPE_PRO_PRICE_ID || 'price_1T0jBTRdPxQfs9UeRln3Uj68';
 
+const normalizeXRaySymbol = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9.:-]/g, '')
+    .slice(0, 24);
+
 function StratifyAppContent() {
   const { user, isAuthenticated, loading } = useAuth();
   const { isProUser, loading: subscriptionLoading } = useSubscription();
 
-  const resolveInitialPage = () => {
-    if (typeof window === 'undefined') return 'landing';
+  const resolveInitialRoute = () => {
+    if (typeof window === 'undefined') return { page: 'landing', symbol: 'TSLA' };
 
     const path = window.location.pathname.toLowerCase();
-    if (path === '/whitepaper') return 'whitepaper';
-    if (path === '/auth') return 'auth';
+    if (path === '/whitepaper') return { page: 'whitepaper', symbol: 'TSLA' };
+    if (path === '/auth') return { page: 'auth', symbol: 'TSLA' };
+    if (path === '/xray' || path.startsWith('/xray/')) {
+      const parts = window.location.pathname.split('/');
+      const symbol = normalizeXRaySymbol(parts[2] || 'TSLA') || 'TSLA';
+      return { page: 'xray', symbol };
+    }
 
-    return 'landing';
+    return { page: 'landing', symbol: 'TSLA' };
   };
 
-  const [currentPage, setCurrentPage] = useState(resolveInitialPage);
+  const initialRoute = resolveInitialRoute();
+  const [currentPage, setCurrentPage] = useState(initialRoute.page);
+  const [xraySymbol, setXraySymbol] = useState(initialRoute.symbol);
   const [isSocialFeedOpen, setIsSocialFeedOpen] = useState(false);
   const [hasSocialFeedUnread, setHasSocialFeedUnread] = useState(false);
   const [isLiveScoresOpen, setIsLiveScoresOpen] = useState(false);
@@ -1020,15 +1035,26 @@ function StratifyAppContent() {
         realized_pl: 0,
       };
 
-  const navigateToPage = (page) => {
+  const navigateToPage = (page, options = {}) => {
     setCurrentPage(page);
 
     if (typeof window === 'undefined') return;
 
-    const nextPath = page === 'whitepaper' ? '/whitepaper' : page === 'auth' ? '/auth' : '/';
+    let nextPath = '/';
+
+    if (page === 'whitepaper') {
+      nextPath = '/whitepaper';
+    } else if (page === 'auth') {
+      nextPath = '/auth';
+    } else if (page === 'xray') {
+      const nextSymbol = normalizeXRaySymbol(options.symbol || xraySymbol || 'TSLA') || 'TSLA';
+      setXraySymbol(nextSymbol);
+      nextPath = `/xray/${nextSymbol}`;
+    }
 
     if (window.location.pathname !== nextPath) {
-      window.history.pushState({ page }, '', nextPath);
+      const stateSymbol = page === 'xray' ? normalizeXRaySymbol(options.symbol || xraySymbol || 'TSLA') || 'TSLA' : undefined;
+      window.history.pushState({ page, symbol: stateSymbol }, '', nextPath);
     }
   };
 
@@ -1125,6 +1151,21 @@ function StratifyAppContent() {
           ) : null}
         </div>
       </div>
+    ) : currentPage === 'xray' ? (
+      <XRayPage
+        initialSymbol={xraySymbol}
+        onSymbolChange={(nextSymbol) => {
+          const normalized = normalizeXRaySymbol(nextSymbol) || 'TSLA';
+          setXraySymbol(normalized);
+
+          if (typeof window !== 'undefined') {
+            const nextPath = `/xray/${normalized}`;
+            if (window.location.pathname !== nextPath) {
+              window.history.replaceState({ page: 'xray', symbol: normalized }, '', nextPath);
+            }
+          }
+        }}
+      />
     ) : (
       <Dashboard
         setCurrentPage={navigateToPage}
@@ -1155,6 +1196,14 @@ function StratifyAppContent() {
         return;
       }
 
+      if (path === '/xray' || path.startsWith('/xray/')) {
+        const parts = window.location.pathname.split('/');
+        const symbol = normalizeXRaySymbol(parts[2] || 'TSLA') || 'TSLA';
+        setXraySymbol(symbol);
+        setCurrentPage('xray');
+        return;
+      }
+
       setCurrentPage('landing');
     };
 
@@ -1164,7 +1213,7 @@ function StratifyAppContent() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      if (currentPage === 'dashboard') {
+      if (currentPage === 'dashboard' || currentPage === 'xray') {
         openAuth();
       }
     }

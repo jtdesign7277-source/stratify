@@ -1,9 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Settings, Zap } from 'lucide-react';
-import { API_URL } from '../../config';
-
-const API_BASE = API_URL || 'https://stratify-backend-production-3ebd.up.railway.app';
-const WS_URL = (API_BASE).replace(/^https/, 'wss').replace(/^http/, 'ws');
+import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 
 // ── Mag 7 + Popular ──
 const QUICK_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'SPY', 'QQQ', 'AMD'];
@@ -65,7 +62,6 @@ const OptionsPage = () => {
   const [chainView, setChainView] = useState('both');
   const [expandedExps, setExpandedExps] = useState(new Set());
   const [wsConnected, setWsConnected] = useState(false);
-  const wsRef = useRef(null);
   const visibleExpCount = useMemo(() => Math.max(1, Math.min(numStrikes, 10)), [numStrikes]);
   const visibleChains = useMemo(() => chains.slice(0, visibleExpCount), [chains, visibleExpCount]);
 
@@ -75,13 +71,37 @@ const OptionsPage = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch stock price
-      const quoteRes = await fetch(`${API_BASE}/api/public/quote/${symbol}`);
+      // Fetch stock price (Twelve Data route, same feed family as stream)
+      const quoteRes = await fetch(`/api/lse/quotes?symbols=${encodeURIComponent(symbol)}`, { cache: 'no-store' });
       if (quoteRes.ok) {
-        const q = await quoteRes.json();
-        setStockPrice(q.latestTrade?.p || q.price || q.close || null);
-        setStockChange(q.change ?? q.dailyBar?.c - q.prevDailyBar?.c ?? null);
-        setStockChangePct(q.changePercent ?? null);
+        const quotePayload = await quoteRes.json();
+        const quoteRow = Array.isArray(quotePayload?.data)
+          ? quotePayload.data.find((item) => {
+              const requested = String(item?.requestedSymbol || '').toUpperCase();
+              const stream = String(item?.symbol || '').toUpperCase();
+              return requested === symbol || stream.startsWith(symbol);
+            }) || quotePayload.data[0]
+          : null;
+
+        const nextPrice = Number(quoteRow?.price);
+        if (Number.isFinite(nextPrice)) {
+          setStockPrice(nextPrice);
+        }
+
+        const nextChange = Number(quoteRow?.change);
+        if (Number.isFinite(nextChange)) {
+          setStockChange(nextChange);
+        }
+
+        const nextPercent = Number(quoteRow?.percentChange);
+        if (Number.isFinite(nextPercent)) {
+          setStockChangePct(nextPercent);
+        } else if (Number.isFinite(nextPrice) && Number.isFinite(nextChange) && nextPrice !== nextChange) {
+          const prevClose = nextPrice - nextChange;
+          if (prevClose !== 0) {
+            setStockChangePct((nextChange / prevClose) * 100);
+          }
+        }
       }
 
       // Fetch options contracts + snapshots
@@ -110,15 +130,39 @@ const OptionsPage = () => {
     fetchChain(activeTicker);
   }, [activeTicker, numStrikes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // WS for live updates
+  // Twelve Data WS for live underlying updates + connection state
   useEffect(() => {
-    const socket = new WebSocket(WS_URL);
-    wsRef.current = socket;
-    socket.onopen = () => setWsConnected(true);
-    socket.onclose = () => setWsConnected(false);
-    socket.onerror = () => socket.close();
-    return () => socket.close();
-  }, []);
+    const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
+      setWsConnected(Boolean(status?.connected));
+    });
+
+    const unsubscribeQuote = subscribeTwelveDataQuotes([activeTicker], (update) => {
+      const nextPrice = Number(update?.price);
+      if (Number.isFinite(nextPrice) && nextPrice > 0) {
+        setStockPrice(nextPrice);
+      }
+
+      const nextChange = Number(update?.change);
+      if (Number.isFinite(nextChange)) {
+        setStockChange(nextChange);
+      }
+
+      const nextPercent = Number(update?.percentChange);
+      if (Number.isFinite(nextPercent)) {
+        setStockChangePct(nextPercent);
+      } else if (Number.isFinite(nextChange) && Number.isFinite(nextPrice) && nextPrice !== nextChange) {
+        const prevClose = nextPrice - nextChange;
+        if (prevClose !== 0) {
+          setStockChangePct((nextChange / prevClose) * 100);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeQuote?.();
+      unsubscribeStatus?.();
+    };
+  }, [activeTicker]);
 
   const toggleExp = (exp) => {
     setExpandedExps((prev) => {
@@ -136,15 +180,15 @@ const OptionsPage = () => {
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: '#000' }}>
       {/* ── Toolbar ── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-[#1f1f1f]" style={{ background: HEADER_BG }}>
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-[#1f1f1f]" style={{ background: HEADER_BG }}>
         {/* Strategy type */}
-        <span className="text-[11px] text-white/60 px-2 py-1 rounded border border-[#333] cursor-default">Single</span>
+        <span className="text-[14px] text-white/70 px-2.5 py-1 rounded border border-[#333] cursor-default">Single</span>
 
         {/* Strikes selector */}
         <select
           value={numStrikes}
           onChange={(e) => setNumStrikes(Number(e.target.value))}
-          className="text-[11px] text-white bg-transparent border border-[#333] rounded px-2 py-1 cursor-pointer outline-none"
+          className="text-[14px] text-white bg-transparent border border-[#333] rounded px-2.5 py-1 cursor-pointer outline-none"
         >
           {[4, 6, 8, 10, 14, 20, 30, 50].map((n) => (
             <option key={n} value={n} className="bg-[#111]">{n}</option>
@@ -155,7 +199,7 @@ const OptionsPage = () => {
         <select
           value={chainView}
           onChange={(e) => setChainView(e.target.value)}
-          className="text-[11px] text-white bg-transparent border border-[#333] rounded px-2 py-1 cursor-pointer outline-none"
+          className="text-[14px] text-white bg-transparent border border-[#333] rounded px-2.5 py-1 cursor-pointer outline-none"
         >
           <option value="both" className="bg-[#111]">Both</option>
           <option value="calls" className="bg-[#111]">Calls</option>
@@ -164,8 +208,8 @@ const OptionsPage = () => {
 
         {/* Live indicator */}
         <div className="flex items-center gap-1.5 ml-auto">
-          <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-          <span className={`text-[10px] uppercase tracking-wider ${wsConnected ? 'text-emerald-400' : 'text-red-400/60'}`}>
+          <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+          <span className={`text-[12px] uppercase tracking-wider ${wsConnected ? 'text-emerald-400' : 'text-red-400/60'}`}>
             {wsConnected ? 'LIVE' : 'OFF'}
           </span>
         </div>
@@ -173,10 +217,10 @@ const OptionsPage = () => {
         {/* Stock info */}
         {stockPrice && (
           <div className="flex items-center gap-2 ml-4">
-            <span className="text-sm text-white font-semibold">{activeTicker}</span>
-            <span className="text-sm text-white font-mono">{fmt(stockPrice)}</span>
+            <span className="text-lg text-white font-semibold">{activeTicker}</span>
+            <span className="text-lg text-white font-mono">{fmt(stockPrice)}</span>
             {stockChange != null && (
-              <span className="text-xs font-mono" style={{ color: stockChange >= 0 ? GREEN : RED }}>
+              <span className="text-base font-mono font-semibold" style={{ color: stockChange >= 0 ? GREEN : RED }}>
                 {stockChange >= 0 ? '+' : ''}{fmt(stockChange)} ({fmtPct(stockChangePct ? stockChangePct : (stockChange / (stockPrice - stockChange)) * 100)})
               </span>
             )}
@@ -185,12 +229,12 @@ const OptionsPage = () => {
       </div>
 
       {/* ── Quick Ticker Tabs ── */}
-      <div className="flex-shrink-0 flex items-center gap-1 px-4 py-2 border-b border-[#1f1f1f] overflow-x-auto scrollbar-hide">
+      <div className="flex-shrink-0 flex items-center gap-1 px-4 py-2.5 border-b border-[#1f1f1f] overflow-x-auto scrollbar-hide">
         {QUICK_TICKERS.map((sym) => (
           <button
             key={sym}
             onClick={() => handleTickerClick(sym)}
-            className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+            className={`flex-shrink-0 px-3 py-1.5 text-base font-semibold rounded transition-all ${
               activeTicker === sym
                 ? 'bg-white/10 text-white border border-white/20'
                 : 'text-white/40 hover:text-white/70 hover:bg-white/5'
@@ -202,32 +246,32 @@ const OptionsPage = () => {
       </div>
 
       {/* ── Column Headers ── */}
-      <div className="flex-shrink-0 flex items-center text-[10px] text-white/35 uppercase tracking-wider font-medium" style={{ background: HEADER_BG }}>
+      <div className="flex-shrink-0 flex items-center text-[13px] text-white/45 uppercase tracking-wider font-semibold" style={{ background: HEADER_BG }}>
         {/* Calls header */}
         {chainView !== 'puts' && (
           <div className="flex-1 flex items-center">
-            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>Impl Vol</div>
-            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>Mid</div>
-            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>% Chg</div>
-            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH }}>Last</div>
-            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR + '80' }}>Ask</div>
-            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR + '80' }}>Bid</div>
+            <div className="px-2 py-2 text-right" style={{ width: SIDE_COL_WIDTH }}>Impl Vol</div>
+            <div className="px-2 py-2 text-right" style={{ width: SIDE_COL_WIDTH }}>Mid</div>
+            <div className="px-2 py-2 text-right" style={{ width: SIDE_COL_WIDTH }}>% Chg</div>
+            <div className="px-2 py-2 text-right" style={{ width: SIDE_COL_WIDTH }}>Last</div>
+            <div className="px-2 py-2 text-right" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR + '80' }}>Ask</div>
+            <div className="px-2 py-2 text-right" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR + '80' }}>Bid</div>
           </div>
         )}
 
         {chainView === 'both' && (
-          <div className="w-16 text-center px-1 py-1.5 font-semibold text-white/55">Strike</div>
+          <div className="w-16 text-center px-1 py-2 font-semibold text-white/65">Strike</div>
         )}
 
         {/* Puts header */}
         {chainView !== 'calls' && (
           <div className="flex-1 flex items-center">
-            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR + '80' }}>Bid</div>
-            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR + '80' }}>Ask</div>
-            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>Last</div>
-            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>% Chg</div>
-            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>Mid</div>
-            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH }}>Impl Vol</div>
+            <div className="px-2 py-2 text-left" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR + '80' }}>Bid</div>
+            <div className="px-2 py-2 text-left" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR + '80' }}>Ask</div>
+            <div className="px-2 py-2 text-left" style={{ width: SIDE_COL_WIDTH }}>Last</div>
+            <div className="px-2 py-2 text-left" style={{ width: SIDE_COL_WIDTH }}>% Chg</div>
+            <div className="px-2 py-2 text-left" style={{ width: SIDE_COL_WIDTH }}>Mid</div>
+            <div className="px-2 py-2 text-left" style={{ width: SIDE_COL_WIDTH }}>Impl Vol</div>
           </div>
         )}
       </div>
@@ -269,16 +313,16 @@ const OptionsPage = () => {
                         ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
                         : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
                       }
-                      <span className="text-white text-xs font-medium">
+                      <span className="text-white text-sm font-medium">
                         {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
                       </span>
-                      <span className="text-[10px] text-white/30 ml-auto mr-2">↗ Calls</span>
+                      <span className="text-[12px] text-white/30 ml-auto mr-2">↗ Calls</span>
                     </div>
                   )}
 
                   {chainView === 'both' && (
                     <div className="w-16 text-center flex-shrink-0">
-                      <span className="text-white/50 text-xs font-mono font-semibold">{daysToExp} D</span>
+                      <span className="text-white/50 text-sm font-mono font-semibold">{daysToExp} D</span>
                     </div>
                   )}
 
@@ -291,12 +335,12 @@ const OptionsPage = () => {
                             ? <ChevronDown size={14} className="text-white/40 mr-2 flex-shrink-0" />
                             : <ChevronRight size={14} className="text-white/40 mr-2 flex-shrink-0" />
                           }
-                          <span className="text-white text-xs font-medium">
+                          <span className="text-white text-sm font-medium">
                             {dateLabel} {isWeekly ? <span className="text-white/30">(W)</span> : ''} <span className="text-white/30 ml-1">{strikeCount}</span>
                           </span>
                         </>
                       )}
-                      <span className={`text-[10px] text-white/30 ${chainView === 'puts' ? 'ml-auto' : 'ml-2'}`}>Puts ↘</span>
+                      <span className={`text-[12px] text-white/30 ${chainView === 'puts' ? 'ml-auto' : 'ml-2'}`}>Puts ↘</span>
                     </div>
                   )}
                 </button>
@@ -319,9 +363,9 @@ const OptionsPage = () => {
                     <React.Fragment key={`${expGroup.expiration}-${strike}`}>
                       {showSeparator && (
                         <div className="flex items-center px-4 py-1" style={{ background: SEPARATOR_BG }}>
-                          <span className="text-[10px] text-white/25">△ ITM</span>
+                          <span className="text-[13px] text-white/30">△ ITM</span>
                           <div className="flex-1 text-center">
-                            <span className="text-[11px] font-mono font-medium" style={{ color: CALL_COLOR }}>
+                            <span className="text-[15px] font-mono font-semibold" style={{ color: CALL_COLOR }}>
                               {activeTicker}: {fmt(stockPrice)} {stockChange != null && (
                                 <span style={{ color: stockChange >= 0 ? GREEN : RED }}>
                                   {stockChange >= 0 ? '+' : ''}{fmt(stockChange)} {fmtPct(stockChangePct || 0)}
@@ -329,31 +373,31 @@ const OptionsPage = () => {
                               )}
                             </span>
                           </div>
-                          <span className="text-[10px] text-white/25">ITM ▽</span>
+                          <span className="text-[13px] text-white/30">ITM ▽</span>
                         </div>
                       )}
 
                       <div
-                        className="flex items-center text-[11px] font-mono border-b border-[#0f0f0f] hover:bg-white/[0.03] transition-colors"
+                        className="flex items-center text-[15px] font-mono border-b border-[#0f0f0f] hover:bg-white/[0.03] transition-colors"
                         style={{ background: rowBg }}
                       >
                         {/* ── Calls side ── */}
                         {chainView !== 'puts' && (
                           <div className="flex-1 flex items-center">
-                            <div className="px-2 py-1.5 text-right text-white/60" style={{ width: SIDE_COL_WIDTH }}>{call.iv ? fmtIV(call.iv) : '—'}</div>
-                            <div className="px-2 py-1.5 text-right text-white/70" style={{ width: SIDE_COL_WIDTH }}>{call.mid ? fmt(call.mid) : '—'}</div>
-                            <div className="px-2 py-1.5 text-right" style={{ width: SIDE_COL_WIDTH, color: call.pctChange > 0 ? GREEN : call.pctChange < 0 ? RED : '#888' }}>
+                            <div className="px-2.5 py-2.5 text-right text-white/65" style={{ width: SIDE_COL_WIDTH }}>{call.iv ? fmtIV(call.iv) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-right text-white/80" style={{ width: SIDE_COL_WIDTH }}>{call.mid ? fmt(call.mid) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-right font-semibold" style={{ width: SIDE_COL_WIDTH, color: call.pctChange > 0 ? GREEN : call.pctChange < 0 ? RED : '#888' }}>
                               {call.pctChange != null ? fmtPct(call.pctChange) : '—'}
                             </div>
-                            <div className="px-2 py-1.5 text-right text-white/70" style={{ width: SIDE_COL_WIDTH }}>{call.last ? fmt(call.last) : '—'}</div>
-                            <div className="px-2 py-1.5 text-right font-medium" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR }}>{call.ask ? fmt(call.ask) : '—'}</div>
-                            <div className="px-2 py-1.5 text-right font-medium" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR }}>{call.bid ? fmt(call.bid) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-right text-white/80" style={{ width: SIDE_COL_WIDTH }}>{call.last ? fmt(call.last) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-right font-semibold" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR }}>{call.ask ? fmt(call.ask) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-right font-semibold" style={{ width: SIDE_COL_WIDTH, color: CALL_COLOR }}>{call.bid ? fmt(call.bid) : '—'}</div>
                           </div>
                         )}
 
                         {/* ── Strike ── */}
                         {chainView === 'both' && (
-                          <div className={`w-16 text-center px-1 py-1.5 font-semibold ${isATM ? 'text-amber-300' : 'text-white'}`}>
+                          <div className={`w-16 text-center px-1 py-2.5 text-[16px] font-bold ${isATM ? 'text-amber-300' : 'text-white'}`}>
                             {fmtStrike(strike)}
                           </div>
                         )}
@@ -361,14 +405,14 @@ const OptionsPage = () => {
                         {/* ── Puts side ── */}
                         {chainView !== 'calls' && (
                           <div className="flex-1 flex items-center">
-                            <div className="px-2 py-1.5 text-left font-medium" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR }}>{put.bid ? fmt(put.bid) : '—'}</div>
-                            <div className="px-2 py-1.5 text-left font-medium" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR }}>{put.ask ? fmt(put.ask) : '—'}</div>
-                            <div className="px-2 py-1.5 text-left text-white/70" style={{ width: SIDE_COL_WIDTH }}>{put.last ? fmt(put.last) : '—'}</div>
-                            <div className="px-2 py-1.5 text-left" style={{ width: SIDE_COL_WIDTH, color: put.pctChange > 0 ? GREEN : put.pctChange < 0 ? RED : '#888' }}>
+                            <div className="px-2.5 py-2.5 text-left font-semibold" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR }}>{put.bid ? fmt(put.bid) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-left font-semibold" style={{ width: SIDE_COL_WIDTH, color: PUT_COLOR }}>{put.ask ? fmt(put.ask) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-left text-white/80" style={{ width: SIDE_COL_WIDTH }}>{put.last ? fmt(put.last) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-left font-semibold" style={{ width: SIDE_COL_WIDTH, color: put.pctChange > 0 ? GREEN : put.pctChange < 0 ? RED : '#888' }}>
                               {put.pctChange != null ? fmtPct(put.pctChange) : '—'}
                             </div>
-                            <div className="px-2 py-1.5 text-left text-white/70" style={{ width: SIDE_COL_WIDTH }}>{put.mid ? fmt(put.mid) : '—'}</div>
-                            <div className="px-2 py-1.5 text-left text-white/60" style={{ width: SIDE_COL_WIDTH }}>{put.iv ? fmtIV(put.iv) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-left text-white/80" style={{ width: SIDE_COL_WIDTH }}>{put.mid ? fmt(put.mid) : '—'}</div>
+                            <div className="px-2.5 py-2.5 text-left text-white/65" style={{ width: SIDE_COL_WIDTH }}>{put.iv ? fmtIV(put.iv) : '—'}</div>
                           </div>
                         )}
                       </div>
