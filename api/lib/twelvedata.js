@@ -476,7 +476,7 @@ const GLOBAL_MARKETS = {
     label: 'Tokyo Stock Exchange',
     currency: 'JPY',
     country: 'Japan',
-    defaultSymbols: ['7203', '6758', '9984', '8306', '6861', '9432'],
+    defaultSymbols: ['7203.T', '6758.T', '9984.T', '8306.T', '6861.T', '9432.T'],
     exchangeHints: ['TYO', 'TSE', 'JPX', 'TOKYO', 'JAPAN'],
     candidateFormats: (base) => [`${base}:TYO`, `${base}:TSE`, `${base}:JPX`, `${base}.JP`, base],
     stockListParams: [
@@ -512,7 +512,7 @@ const GLOBAL_MARKETS = {
     label: 'Sydney Stock Exchange',
     currency: 'AUD',
     country: 'Australia',
-    defaultSymbols: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
+    defaultSymbols: ['BHP.AX', 'CBA.AX', 'WBC.AX', 'NAB.AX', 'ANZ.AX', 'CSL.AX'],
     exchangeHints: ['ASX', 'XASX', 'SYDNEY', 'AUSTRALIA'],
     candidateFormats: (base) => [`${base}:ASX`, `${base}:XASX`, `${base}.AU`, base],
     stockListParams: [

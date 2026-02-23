@@ -14,31 +14,31 @@ import {
 const MARKETS = [
   {
     id: 'nyse',
-    title: 'New York Stock Exchange',
+    title: '🇺🇸 NYSE',
     currency: 'USD',
     accent: 'text-emerald-400',
     defaultSymbols: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'],
   },
   {
     id: 'lse',
-    title: 'London Stock Exchange',
+    title: '🇬🇧 LSE',
     currency: 'GBP',
     accent: 'text-blue-400',
     defaultSymbols: ['SHEL', 'AZN', 'HSBA', 'BP', 'BARC', 'LLOY'],
   },
   {
     id: 'tokyo',
-    title: 'Tokyo Stock Exchange',
+    title: '🇯🇵 TSE',
     currency: 'JPY',
     accent: 'text-cyan-400',
-    defaultSymbols: ['7203', '6758', '9984', '8306', '6861', '9432'],
+    defaultSymbols: ['7203.T', '6758.T', '9984.T', '8306.T', '6861.T', '9432.T'],
   },
   {
     id: 'sydney',
-    title: 'Sydney Stock Exchange',
+    title: '🇦🇺 ASX',
     currency: 'AUD',
     accent: 'text-violet-400',
-    defaultSymbols: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
+    defaultSymbols: ['BHP.AX', 'CBA.AX', 'WBC.AX', 'NAB.AX', 'ANZ.AX', 'CSL.AX'],
   },
 ];
 
@@ -208,11 +208,12 @@ const GlobalMarketsPage = () => {
       fetchQuotesForMarket(market.id);
     });
 
+    // Refresh every 5 minutes instead of 10 seconds to avoid distracting updates
     const timer = setInterval(() => {
       MARKETS.forEach((market) => {
         fetchQuotesForMarket(market.id);
       });
-    }, 10000);
+    }, 300000);
 
     return () => clearInterval(timer);
   }, [fetchQuotesForMarket]);
