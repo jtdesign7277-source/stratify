@@ -28,31 +28,24 @@ function formatVolume(volume) {
   return volume.toString();
 }
 
-function StockCard({ stock, rank }) {
+function StockCard({ stock, rank, isLast }) {
   const changePercent = Number(stock.percent_change || 0);
   const isPositive = changePercent >= 0;
   const colorClass = isPositive ? 'text-emerald-400' : 'text-red-400';
-  const bgClass = isPositive ? 'bg-emerald-500/10' : 'bg-red-500/10';
-  const borderClass = isPositive ? 'border-emerald-500/20' : 'border-red-500/20';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: rank * 0.03 }}
-      className="group p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/20 transition-all"
+      className={`group p-4 hover:bg-white/[0.02] transition-all ${isLast ? '' : 'border-b border-[#1f1f1f]/40'}`}
     >
       <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div className={`w-8 h-8 rounded-lg ${bgClass} border ${borderClass} flex items-center justify-center text-xs font-bold ${colorClass}`}>
-            {rank}
-          </div>
-          <div>
-            <div className="font-semibold text-white text-sm">{stock.symbol}</div>
-            <div className="text-[11px] text-white/50 line-clamp-1">{stock.name || 'N/A'}</div>
-          </div>
+        <div className="flex-1">
+          <div className="font-semibold text-white text-sm">{stock.symbol}</div>
+          <div className="text-[11px] text-white/50 line-clamp-1 mt-0.5">{stock.name || 'N/A'}</div>
         </div>
-        <div className="text-right">
+        <div className="text-right ml-4">
           <div className="text-sm font-semibold text-white">{formatPrice(stock.price)}</div>
           <div className={`text-xs font-medium ${colorClass}`}>
             {formatPercent(changePercent)}
@@ -108,7 +101,7 @@ export default function MarketMoversPage() {
   const activeTab = CATEGORIES.find(c => c.id === activeCategory);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0b0b0b] overflow-hidden">
+    <div className="flex-1 flex flex-col bg-transparent overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -197,9 +190,14 @@ export default function MarketMoversPage() {
         )}
 
         {movers.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {movers.slice(0, 30).map((stock, index) => (
-              <StockCard key={stock.symbol} stock={stock} rank={index + 1} />
+          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden">
+            {movers.slice(0, 30).map((stock, index, array) => (
+              <StockCard 
+                key={stock.symbol} 
+                stock={stock} 
+                rank={index + 1} 
+                isLast={index === array.length - 1}
+              />
             ))}
           </div>
         )}
