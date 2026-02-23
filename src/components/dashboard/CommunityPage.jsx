@@ -484,13 +484,14 @@ const ComposeBox = ({ currentUser, onPost }) => {
   );
 };
 
-const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = false }) => {
+const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = false, inActionRow = false }) => {
   const [reactions, setReactions] = useState(initialReactions || []);
   const [showPicker, setShowPicker] = useState(false);
   const isInteractive = Boolean(currentUser?.id);
 
   useEffect(() => {
     setReactions(initialReactions || []);
+    setShowPicker(false);
   }, [postId, initialReactions]);
 
   const toggleReaction = async (emoji) => {
@@ -498,21 +499,40 @@ const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = fal
 
     const target = reactions.find((reaction) => reaction.emoji === emoji);
     const shouldReact = !target?.reacted;
-    const previousReactions = reactions;
+    const previousReactions = [...reactions];
+
+    console.log('[CommunityPage] Toggle reaction requested:', {
+      postId,
+      userId: currentUser.id,
+      emoji,
+      shouldReact,
+    });
 
     setReactions((prev) => applyReactionState(prev, emoji, shouldReact));
 
     try {
       if (shouldReact) {
-        const { error } = await supabase.from('community_reactions').insert({
+        const payload = {
           post_id: postId,
           user_id: currentUser.id,
           emoji,
-        });
+        };
+        console.log('[CommunityPage] Inserting reaction:', payload);
+        const { error } = await supabase.from('community_reactions').insert(payload);
 
         // Duplicate insertion means the user already reacted in another session.
         if (error && error.code !== '23505') throw error;
+        console.log('[CommunityPage] Reaction insert completed:', {
+          postId,
+          emoji,
+          duplicate: error?.code === '23505',
+        });
       } else {
+        console.log('[CommunityPage] Removing reaction:', {
+          postId,
+          userId: currentUser.id,
+          emoji,
+        });
         const { error } = await supabase
           .from('community_reactions')
           .delete()
@@ -521,73 +541,130 @@ const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = fal
           .eq('emoji', emoji);
 
         if (error) throw error;
+        console.log('[CommunityPage] Reaction removal completed:', { postId, emoji });
       }
     } catch (err) {
-      console.error('[CommunityPage] Failed to toggle reaction:', err);
+      console.error('[CommunityPage] Failed to toggle reaction:', {
+        postId,
+        emoji,
+        shouldReact,
+        err,
+      });
       setReactions(previousReactions);
     }
   };
 
+  const renderTrigger = () => (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setShowPicker((open) => !open)}
+        disabled={!isInteractive}
+        className={
+          inActionRow
+            ? `inline-flex items-center gap-1.5 text-xs transition-colors ${
+                isInteractive ? 'text-gray-600 hover:text-gray-300' : 'text-gray-700 cursor-not-allowed'
+              }`
+            : `inline-flex items-center justify-center rounded-full border px-2.5 ${
+                compact ? 'h-7 w-7' : 'h-8 w-8'
+              } transition-colors ${
+                isInteractive
+                  ? 'border-[#2a2a2a] bg-[#121212] text-gray-400 hover:text-gray-200 hover:border-[#3a3a3a]'
+                  : 'border-[#232323] bg-[#101010] text-gray-600 cursor-not-allowed'
+              }`
+        }
+        title={isInteractive ? 'Add reaction' : 'Sign in to react'}
+      >
+        <SmilePlus size={compact ? 13 : 15} strokeWidth={1.8} />
+        {inActionRow && <span>React</span>}
+      </button>
+
+      {showPicker && isInteractive && (
+        <EmojiPicker
+          align={compact ? 'right' : 'left'}
+          onClose={() => setShowPicker(false)}
+          onSelect={(emoji) => {
+            console.log('[CommunityPage] Emoji selected from picker:', {
+              postId,
+              userId: currentUser?.id,
+              emoji,
+            });
+            setShowPicker(false);
+            void toggleReaction(emoji);
+          }}
+        />
+      )}
+    </span>
+  );
+
   return (
-    <div className={compact ? 'mt-1.5' : 'mt-2.5'}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowPicker((open) => !open)}
-            disabled={!isInteractive}
-            className={`inline-flex items-center justify-center rounded-full border px-2.5 ${
-              compact ? 'h-7 w-7' : 'h-8 w-8'
-            } transition-colors ${
-              isInteractive
-                ? 'border-[#2a2a2a] bg-[#121212] text-gray-400 hover:text-gray-200 hover:border-[#3a3a3a]'
-                : 'border-[#232323] bg-[#101010] text-gray-600 cursor-not-allowed'
-            }`}
-            title={isInteractive ? 'Add reaction' : 'Sign in to react'}
-          >
-            <SmilePlus size={compact ? 13 : 14} strokeWidth={1.8} />
-          </button>
-
-          {showPicker && isInteractive && (
-            <EmojiPicker
-              align={compact ? 'right' : 'left'}
-              onClose={() => setShowPicker(false)}
-              onSelect={(emoji) => {
-                setShowPicker(false);
-                toggleReaction(emoji);
-              }}
-            />
-          )}
+    inActionRow ? (
+      <>
+        {renderTrigger()}
+        {reactions.length > 0 && (
+          <div className="w-full mt-1.5 flex flex-wrap items-center gap-1.5">
+            <AnimatePresence initial={false}>
+              {reactions.map((reaction) => (
+                <motion.button
+                  key={`${postId}-${reaction.emoji}`}
+                  layout
+                  initial={{ opacity: 0, scale: 0.86 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.86 }}
+                  transition={{ duration: 0.16 }}
+                  type="button"
+                  onClick={() => void toggleReaction(reaction.emoji)}
+                  disabled={!isInteractive}
+                  className={`inline-flex items-center gap-1 rounded-full border transition-all ${
+                    compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+                  } ${
+                    reaction.reacted
+                      ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200'
+                      : 'border-[#2a2a2a] bg-[#121212] text-gray-300 hover:border-[#3a3a3a] hover:bg-[#171717]'
+                  } ${!isInteractive ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  title={isInteractive ? 'Toggle reaction' : 'Sign in to react'}
+                >
+                  <EmojiGlyph emoji={reaction.emoji} size={16} />
+                  <span className="font-semibold">{reaction.count}</span>
+                </motion.button>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </>
+    ) : (
+      <div className={compact ? 'mt-1.5' : 'mt-2.5'}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {renderTrigger()}
+          <AnimatePresence initial={false}>
+            {reactions.map((reaction) => (
+              <motion.button
+                key={`${postId}-${reaction.emoji}`}
+                layout
+                initial={{ opacity: 0, scale: 0.86 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.86 }}
+                transition={{ duration: 0.16 }}
+                type="button"
+                onClick={() => void toggleReaction(reaction.emoji)}
+                disabled={!isInteractive}
+                className={`inline-flex items-center gap-1 rounded-full border transition-all ${
+                  compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+                } ${
+                  reaction.reacted
+                    ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200'
+                    : 'border-[#2a2a2a] bg-[#121212] text-gray-300 hover:border-[#3a3a3a] hover:bg-[#171717]'
+                } ${!isInteractive ? 'opacity-70 cursor-not-allowed' : ''}`}
+                title={isInteractive ? 'Toggle reaction' : 'Sign in to react'}
+              >
+                <EmojiGlyph emoji={reaction.emoji} size={16} />
+                <span className="font-semibold">{reaction.count}</span>
+              </motion.button>
+            ))}
+          </AnimatePresence>
         </div>
-
-        <AnimatePresence initial={false}>
-          {reactions.map((reaction) => (
-            <motion.button
-              key={`${postId}-${reaction.emoji}`}
-              layout
-              initial={{ opacity: 0, scale: 0.86 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.86 }}
-              transition={{ duration: 0.16 }}
-              type="button"
-              onClick={() => toggleReaction(reaction.emoji)}
-              disabled={!isInteractive}
-              className={`inline-flex items-center gap-1 rounded-full border transition-all ${
-                compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
-              } ${
-                reaction.reacted
-                  ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200'
-                  : 'border-[#2a2a2a] bg-[#121212] text-gray-300 hover:border-[#3a3a3a] hover:bg-[#171717]'
-              } ${!isInteractive ? 'opacity-70 cursor-not-allowed' : ''}`}
-              title={isInteractive ? 'Toggle reaction' : 'Sign in to react'}
-            >
-              <EmojiGlyph emoji={reaction.emoji} size={compact ? 16 : 16} />
-              <span className="font-semibold">{reaction.count}</span>
-            </motion.button>
-          ))}
-        </AnimatePresence>
       </div>
-    </div>
+    )
   );
 };
 
@@ -648,12 +725,20 @@ const PostCard = ({ post, currentUser, onDelete }) => {
       .select('*, profiles:user_id(id, display_name, avatar_url, email), community_reactions(emoji, user_id)')
       .or(`parent_id.eq.${post.id},parent_post_id.eq.${post.id}`)
       .order('created_at', { ascending: true });
-    setReplies(
-      (data || []).map((reply) => ({
-        ...reply,
-        reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
-      }))
-    );
+    const mappedReplies = (data || []).map((reply) => ({
+      ...reply,
+      reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
+    }));
+    console.log('[CommunityPage] Replies fetched with reactions:', {
+      postId: post.id,
+      count: mappedReplies.length,
+      reactions: mappedReplies.map((reply) => ({
+        replyId: reply.id,
+        raw: Array.isArray(reply.community_reactions) ? reply.community_reactions.length : 0,
+        summary: Array.isArray(reply.reaction_summary) ? reply.reaction_summary.length : 0,
+      })),
+    });
+    setReplies(mappedReplies);
     setLoadingReplies(false);
   };
 
@@ -780,38 +865,42 @@ const PostCard = ({ post, currentUser, onDelete }) => {
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-6 mt-3 pt-2">
+          <div className="flex flex-nowrap items-center gap-4 mt-3 pt-2">
             <button
               onClick={toggleLike}
-              className={`flex items-center gap-1.5 text-xs transition-colors ${
+              className={`inline-flex items-center gap-1.5 text-xs transition-colors ${
                 liked ? 'text-red-400' : 'text-gray-600 hover:text-red-400'
               }`}
             >
               <Heart size={15} strokeWidth={1.5} fill={liked ? 'currentColor' : 'none'} />
-              <span>{likesCount > 0 ? likesCount : ''}</span>
+              <span>Like</span>
+              {likesCount > 0 && <span className="text-[11px] text-gray-500">{likesCount}</span>}
             </button>
 
             <button
               onClick={toggleReplies}
-              className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-cyan-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-cyan-400 transition-colors"
             >
               <MessageCircle size={15} strokeWidth={1.5} />
-              <span>{repliesCount > 0 ? repliesCount : ''}</span>
+              <span>Reply</span>
+              {repliesCount > 0 && <span className="text-[11px] text-gray-500">{repliesCount}</span>}
             </button>
 
             <button
               onClick={() => shareToX(post)}
-              className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-300 transition-colors"
             >
               <Share2 size={15} strokeWidth={1.5} />
+              <span>Share</span>
             </button>
-          </div>
 
-          <ReactionBar
-            postId={post.id}
-            currentUser={currentUser}
-            initialReactions={initialReactions}
-          />
+            <ReactionBar
+              postId={post.id}
+              currentUser={currentUser}
+              initialReactions={initialReactions}
+              inActionRow
+            />
+          </div>
 
           {/* Replies Section */}
           {showReplies && (
@@ -955,6 +1044,27 @@ const CommunityPage = () => {
     getUser();
   }, []);
 
+  useEffect(() => {
+    const verifyReactionsTable = async () => {
+      const { error } = await supabase
+        .from('community_reactions')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        console.error('[CommunityPage] community_reactions table check failed:', error);
+        if (error.code === '42P01') {
+          console.warn('[CommunityPage] Missing table. Run migration: supabase/migrations/003_community_reactions.sql');
+        }
+        return;
+      }
+
+      console.log('[CommunityPage] community_reactions table check passed');
+    };
+
+    verifyReactionsTable();
+  }, []);
+
   // Fetch posts
   const fetchPosts = useCallback(
     async (pageNum = 0, append = false) => {
@@ -996,6 +1106,9 @@ const CommunityPage = () => {
         // Join reactions in the feed query, with a fallback for pre-migration environments.
         let { data: postsData, error: postsError } = await runPostsQuery(true);
         if (postsError && postsError.message?.includes('community_reactions')) {
+          console.warn(
+            '[CommunityPage] community_reactions join failed, falling back without reaction join. Check migration 003_community_reactions.sql.'
+          );
           const fallback = await runPostsQuery(false);
           postsData = fallback.data;
           postsError = fallback.error;
@@ -1029,6 +1142,14 @@ const CommunityPage = () => {
           profiles: profilesMap[post.user_id] || null,
           reaction_summary: buildReactionSummary(post.community_reactions || [], currentUser?.id),
         }));
+        console.log('[CommunityPage] Posts fetched with reactions:', {
+          count: data.length,
+          reactions: data.map((post) => ({
+            postId: post.id,
+            raw: Array.isArray(post.community_reactions) ? post.community_reactions.length : 0,
+            summary: Array.isArray(post.reaction_summary) ? post.reaction_summary.length : 0,
+          })),
+        });
 
         if (data) {
           if (append) {

@@ -2,6 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const POLL_INTERVAL = 30000; // 30s refresh
+const MODE_SWITCH_EVENT = 'stratify:trading-mode-switched';
+const MODE_CHANGED_EVENT = 'stratify:trading-mode-changed';
+
+const readTradingMode = () => {
+  if (typeof window === 'undefined') return 'paper';
+  try {
+    const stored = String(localStorage.getItem('stratify-trading-mode') || '').trim().toLowerCase();
+    return stored === 'live' ? 'live' : 'paper';
+  } catch {
+    return 'paper';
+  }
+};
 
 export function useAlpacaData() {
   const [account, setAccount] = useState(null);
@@ -10,15 +22,19 @@ export function useAlpacaData() {
   const [error, setError] = useState(null);
   const [brokerConnected, setBrokerConnected] = useState(null); // null = unknown, true/false
 
-  const getAuthHeaders = async () => {
+  const getAuthHeaders = async (mode) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
-    return { Authorization: `Bearer ${session.access_token}` };
+    return {
+      Authorization: `Bearer ${session.access_token}`,
+      'X-Trading-Mode': mode,
+    };
   };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forcedMode) => {
     try {
-      const headers = await getAuthHeaders();
+      const mode = forcedMode === 'live' ? 'live' : 'paper';
+      const headers = await getAuthHeaders(mode);
       if (!headers) {
         setBrokerConnected(false);
         setLoading(false);
@@ -26,12 +42,12 @@ export function useAlpacaData() {
       }
 
       // Try Alpaca first, then Webull
-      let acctRes = await fetch('/api/account', { headers });
-      let posRes = await fetch('/api/positions', { headers });
+      let acctRes = await fetch(`/api/account?mode=${mode}`, { headers });
+      let posRes = await fetch(`/api/positions?mode=${mode}`, { headers });
       let broker = 'alpaca';
 
       // If Alpaca not connected, try Webull
-      if (acctRes.status === 401) {
+      if (acctRes.status === 401 && mode === 'live') {
         const body = await acctRes.json().catch(() => ({}));
         if (body.error === 'not_connected') {
           acctRes = await fetch('/api/webull-account', { headers });
@@ -91,9 +107,30 @@ export function useAlpacaData() {
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    const load = () => {
+      fetchData(readTradingMode());
+    };
+
+    load();
+    const interval = setInterval(load, POLL_INTERVAL);
+
+    if (typeof window === 'undefined') {
+      return () => clearInterval(interval);
+    }
+
+    const handleModeEvent = (event) => {
+      const nextMode = event?.detail?.nextMode || event?.detail?.mode || readTradingMode();
+      fetchData(nextMode === 'live' ? 'live' : 'paper');
+    };
+
+    window.addEventListener(MODE_SWITCH_EVENT, handleModeEvent);
+    window.addEventListener(MODE_CHANGED_EVENT, handleModeEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(MODE_SWITCH_EVENT, handleModeEvent);
+      window.removeEventListener(MODE_CHANGED_EVENT, handleModeEvent);
+    };
   }, [fetchData]);
 
   return { account, positions, loading, error, brokerConnected, refresh: fetchData };

@@ -230,6 +230,8 @@ const EmojiPicker = ({ onSelect, onClose, align = 'left' }) => {
   };
 
   const handlePick = (emoji) => {
+    if (!emoji) return;
+    console.log('[EmojiPicker] Emoji picked:', emoji);
     registerFrequentEmoji(emoji);
     onSelect?.(emoji);
     onClose?.();
@@ -239,6 +241,8 @@ const EmojiPicker = ({ onSelect, onClose, align = 'left' }) => {
   return (
     <div
       ref={pickerRef}
+      onMouseDown={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
       className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} bottom-full mb-2 z-40 w-[min(340px,92vw)] rounded-2xl border border-[#252525] bg-[#0a0a0a] shadow-[0_18px_44px_rgba(0,0,0,0.6)]`}
     >
       <div className="p-3 border-b border-[#1c1c1c]">
@@ -269,7 +273,12 @@ const EmojiPicker = ({ onSelect, onClose, align = 'left' }) => {
                     <button
                       key={`${section.title}-${emoji}`}
                       type="button"
-                      onClick={() => handlePick(emoji)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handlePick(emoji);
+                      }}
                       className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
                       title={title}
                     >

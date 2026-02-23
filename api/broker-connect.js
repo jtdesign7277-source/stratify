@@ -34,7 +34,8 @@ export default async function handler(req, res) {
 
   // Test the connection before saving
   if (broker === 'alpaca') {
-    const baseUrl = is_paper
+    const connectPaper = is_paper !== false;
+    const baseUrl = connectPaper
       ? 'https://paper-api.alpaca.markets'
       : 'https://api.alpaca.markets';
 
@@ -54,16 +55,34 @@ export default async function handler(req, res) {
       const accountData = await testResp.json();
 
       // Save to Supabase
+      const upsertPayload = {
+        user_id: user.id,
+        broker,
+        api_key,
+        api_secret,
+        is_paper: connectPaper,
+      };
+
+      if (connectPaper) {
+        upsertPayload.paper_api_key = api_key;
+        upsertPayload.paper_api_secret = api_secret;
+        upsertPayload.paper_api_keys = {
+          api_key,
+          api_secret,
+        };
+      } else {
+        upsertPayload.live_api_key = api_key;
+        upsertPayload.live_api_secret = api_secret;
+        upsertPayload.live_api_keys = {
+          api_key,
+          api_secret,
+        };
+      }
+
       const { error: upsertError } = await supabase
         .from('broker_connections')
         .upsert(
-          {
-            user_id: user.id,
-            broker,
-            api_key,
-            api_secret,
-            is_paper: is_paper || false,
-          },
+          upsertPayload,
           { onConflict: 'user_id,broker' }
         );
 
@@ -77,7 +96,7 @@ export default async function handler(req, res) {
         account_id: accountData.account_number,
         status: accountData.status,
         equity: accountData.equity,
-        is_paper,
+        is_paper: connectPaper,
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });

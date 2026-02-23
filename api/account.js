@@ -1,18 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-async function getUserFromToken(req) {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  const token = auth.slice(7);
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return null;
-  return user;
-}
+import { supabase } from './lib/supabase.js';
+import {
+  getProfileForTrading,
+  getTradingModeFromRequest,
+  getUserFromToken,
+  normalizeTradingMode,
+  readModeDataFromProfile,
+  resolveAlpacaCredentialsForMode,
+  upsertModeProfileData,
+} from './lib/tradingMode.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -22,7 +17,22 @@ export default async function handler(req, res) {
   const user = await getUserFromToken(req);
   if (!user) return res.status(401).json({ error: 'not_connected', message: 'No broker connected' });
 
-  // Fetch user's broker connection
+  const { data: profile, error: profileError } = await getProfileForTrading(user.id);
+  if (profileError) return res.status(500).json({ error: profileError.message });
+
+  const profileMode = normalizeTradingMode(profile?.trading_mode);
+  const mode = getTradingModeFromRequest(req, profileMode);
+  const { account: cachedAccount } = readModeDataFromProfile(profile, mode);
+
+  if (mode === 'paper') {
+    return res.status(200).json({
+      ...cachedAccount,
+      trading_mode: mode,
+      mode,
+      source: 'profile_cache',
+    });
+  }
+
   const { data: conn, error: connError } = await supabase
     .from('broker_connections')
     .select('*')
@@ -31,28 +41,51 @@ export default async function handler(req, res) {
     .maybeSingle();
 
   if (connError) return res.status(500).json({ error: connError.message });
-  if (!conn) return res.status(401).json({ error: 'not_connected', message: 'No Alpaca broker connected' });
 
-  const baseUrl = conn.is_paper
-    ? 'https://paper-api.alpaca.markets'
-    : 'https://api.alpaca.markets';
+  const credentials = resolveAlpacaCredentialsForMode(conn, mode);
+  if (!credentials.apiKey || !credentials.apiSecret) {
+    const hasCachedLive = Number(cachedAccount?.equity || 0) > 0 || Number(cachedAccount?.portfolio_value || 0) > 0;
+    if (hasCachedLive) {
+      return res.status(200).json({
+        ...cachedAccount,
+        trading_mode: mode,
+        mode,
+        source: 'profile_cache',
+      });
+    }
+    return res.status(401).json({
+      error: 'not_connected',
+      message: 'No Alpaca live broker connected',
+      mode,
+    });
+  }
 
   try {
-    const resp = await fetch(`${baseUrl}/v2/account`, {
+    const resp = await fetch(`${credentials.baseUrl}/v2/account`, {
       headers: {
-        'APCA-API-KEY-ID': conn.api_key,
-        'APCA-API-SECRET-KEY': conn.api_secret,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
       },
     });
 
     if (!resp.ok) {
       const text = await resp.text();
-      return res.status(resp.status).json({ error: `Alpaca error: ${text}` });
+      return res.status(resp.status).json({ error: `Alpaca error: ${text}`, mode });
     }
 
     const account = await resp.json();
-    res.status(200).json(account);
+    await upsertModeProfileData(user.id, mode, {
+      account,
+      tradingMode: mode,
+    });
+
+    return res.status(200).json({
+      ...account,
+      trading_mode: mode,
+      mode,
+      source: 'alpaca_live',
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message, mode });
   }
 }

@@ -4,8 +4,9 @@ import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, X } from 'luci
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
-import { supabase } from '../../lib/supabaseClient';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
+import useTradingMode from '../../hooks/useTradingMode';
+import { fetchAccount, placeOrder } from '../../services/alpacaService';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
@@ -408,7 +409,15 @@ function TraderOrderEntry({
   lastPrice,
   onSymbolChange,
   onOrderPlaced,
+  tradingMode = 'paper',
+  canUseLiveTrading = true,
 }) {
+  const normalizedTradingMode = String(tradingMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
+  const isLiveMode = normalizedTradingMode === 'live';
+  const modeBadgeClass = isLiveMode
+    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 to-amber-400/20 text-emerald-100'
+    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 to-cyan-400/20 text-cyan-100';
+
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
   const [sizeMode, setSizeMode] = useState('shares');
@@ -464,17 +473,11 @@ function TraderOrderEntry({
 
     const fetchBuyingPower = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers = {};
-        if (session?.access_token) {
-          headers.Authorization = `Bearer ${session.access_token}`;
-        }
-
-        const response = await fetch('/api/account', {
-          headers,
+        const payload = await fetchAccount({
+          mode: normalizedTradingMode,
+          forceFresh: true,
         });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || cancelled) return;
+        if (cancelled) return;
 
         const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
         const parsed = Number(buyingPower);
@@ -500,9 +503,13 @@ function TraderOrderEntry({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [normalizedTradingMode]);
 
   const handleSubmit = () => {
+    if (isLiveMode && !canUseLiveTrading) {
+      alert('Live mode is available for Pro users. Upgrade your plan to place live trades.');
+      return;
+    }
     if (!selectedSymbol || !hasValidOrderSize) return;
     if (requiresLimit && (!Number.isFinite(limitPriceNumber) || limitPriceNumber <= 0)) return;
     if (requiresStop && (!Number.isFinite(stopPriceNumber) || stopPriceNumber <= 0)) return;
@@ -512,6 +519,11 @@ function TraderOrderEntry({
 
   const executeOrder = async () => {
     if (!selectedSymbol) return;
+    if (isLiveMode && !canUseLiveTrading) {
+      alert('Live mode is available for Pro users. Upgrade your plan to place live trades.');
+      return;
+    }
+
     setSubmitting(true);
     setConfirmModal(false);
 
@@ -542,43 +554,52 @@ function TraderOrderEntry({
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
+      if (!Number.isFinite(payload.qty) || payload.qty <= 0) {
+        delete payload.qty;
       }
 
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
+      const result = await placeOrder(payload, {
+        mode: normalizedTradingMode,
       });
-      const result = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        const errorMsg = result?.error || 'Order rejected';
-        if (errorMsg.includes('No Alpaca broker connected') || errorMsg.includes('not_connected')) {
-          alert('Order rejected\n\nNo broker connected. Connect your Alpaca paper account in Portfolio before trading.');
-        } else if (errorMsg.toLowerCase().includes('insufficient')) {
-          alert('Order rejected\n\nInsufficient buying power. Check your account balance.');
-        } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
-          alert('Order rejected\n\nYour Alpaca API keys may not have trading permissions. Check your Alpaca dashboard.');
-        } else {
-          alert(`Order rejected\n\n${errorMsg}`);
+      setLastResult('filled');
+      setTimeout(() => setLastResult(null), 3000);
+      onOrderPlaced?.(result);
+
+      try {
+        const refreshedAccount = await fetchAccount({
+          mode: normalizedTradingMode,
+          forceFresh: true,
+        });
+        const buyingPower = refreshedAccount?.buying_power ?? refreshedAccount?.cash ?? refreshedAccount?.buyingPower;
+        const parsed = Number(buyingPower);
+        if (Number.isFinite(parsed)) {
+          setBuyingPowerDisplay(
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(parsed),
+          );
         }
-
-        setLastResult('rejected');
-        setTimeout(() => setLastResult(null), 3000);
-      } else {
-        setLastResult('filled');
-        setTimeout(() => setLastResult(null), 3000);
-        onOrderPlaced?.(result);
+      } catch {
+        // Ignore post-trade balance refresh failures.
       }
     } catch (error) {
       console.error('Order submission error:', error);
-      setLastResult('error');
+      const errorMsg = error?.message || 'Order rejected';
+      if (errorMsg.includes('No Alpaca') || errorMsg.includes('not_connected')) {
+        alert(`Order rejected\n\n${isLiveMode ? 'No live broker connected. Add live keys in Portfolio.' : 'No broker connected.'}`);
+      } else if (errorMsg.toLowerCase().includes('insufficient')) {
+        alert('Order rejected\n\nInsufficient buying power. Check your account balance.');
+      } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
+        alert('Order rejected\n\nYour API keys may not have trading permissions. Check your broker dashboard.');
+      } else {
+        alert(`Order rejected\n\n${errorMsg}`);
+      }
+
+      setLastResult('rejected');
       setTimeout(() => setLastResult(null), 3000);
     }
 
@@ -599,6 +620,13 @@ function TraderOrderEntry({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="mb-1 px-1">
+        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.16em] ${modeBadgeClass}`}>
+          <span>{isLiveMode ? '💰' : '📄'}</span>
+          <span>{isLiveMode ? 'LIVE MODE' : 'PAPER MODE'}</span>
+        </span>
+      </div>
+
       <AlpacaOrderTicket
         side={side}
         onSideChange={setSide}
@@ -624,8 +652,8 @@ function TraderOrderEntry({
         estimatedCost={estimatedTotal}
         buyingPowerDisplay={buyingPowerDisplay}
         onReview={handleSubmit}
-        reviewDisabled={submitting || !selectedSymbol || !hasValidOrderSize}
-        reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
+        reviewDisabled={submitting || !selectedSymbol || !hasValidOrderSize || (isLiveMode && !canUseLiveTrading)}
+        reviewLabel={submitting ? 'Submitting...' : `Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
         density="crypto"
         stickyReviewFooter
         className="flex-1 min-h-0"
@@ -729,7 +757,9 @@ function TraderOrderEntry({
             style={{ background: 'rgba(10, 22, 40, 0.98)', border: '1px solid rgba(255, 255, 255, 0.1)' }}
           >
             <div className="text-center">
-              <div className="mb-1 text-sm font-bold" style={{ color: '#e2e8f0' }}>Confirm Order</div>
+              <div className="mb-1 text-sm font-bold" style={{ color: '#e2e8f0' }}>
+                Confirm {isLiveMode ? 'Live' : 'Paper'} Order
+              </div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
                 {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedSymbol || '--'} @ {
                   orderType === 'market'
@@ -772,7 +802,7 @@ function TraderOrderEntry({
                   border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
                 }}
               >
-                Confirm {side.toUpperCase()}
+                Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
               </button>
             </div>
           </div>
@@ -782,7 +812,17 @@ function TraderOrderEntry({
   );
 }
 
-export default function TraderPage({ onPinToTop }) {
+export default function TraderPage({
+  onPinToTop,
+  tradingMode: tradingModeOverride,
+  canUseLiveTrading: canUseLiveTradingOverride,
+}) {
+  const tradingModeState = useTradingMode();
+  const resolvedTradingMode = tradingModeOverride || tradingModeState.tradingMode;
+  const resolvedCanUseLiveTrading = typeof canUseLiveTradingOverride === 'boolean'
+    ? canUseLiveTradingOverride
+    : tradingModeState.canUseLiveTrading;
+
   const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
 
@@ -2244,6 +2284,8 @@ export default function TraderPage({ onPinToTop }) {
                   <TraderOrderEntry
                     selectedSymbol={selectedSymbol}
                     lastPrice={selectedMarketPrice}
+                    tradingMode={resolvedTradingMode}
+                    canUseLiveTrading={resolvedCanUseLiveTrading}
                     onSymbolChange={(symbolInput) => {
                       const normalized = normalizeSymbol(symbolInput);
                       if (!normalized) return;

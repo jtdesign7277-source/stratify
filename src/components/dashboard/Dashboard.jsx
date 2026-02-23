@@ -36,7 +36,7 @@ import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
-const TraderPage = lazy(() => import('./TraderPage'));
+const TradePage = lazy(() => import('./TradePage'));
 const communityPageModules = import.meta.glob('./CommunityPage.jsx');
 const MissingCommunityPage = () => (
   <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
@@ -1778,7 +1778,7 @@ export default function Dashboard({
           {/* Tab-based Views */}
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
-              <TraderPage onPinToTop={pinToTop} />
+              <TradePage onPinToTop={pinToTop} />
             </Suspense>
           )}
           {activeTab === 'trade' && (

@@ -1,17 +1,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import {
-  Wallet,
-  DollarSign,
-  CreditCard,
-  TrendingUp,
-  TrendingDown,
   Plus,
   Unlink,
   History,
+  AlertTriangle,
 } from 'lucide-react';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 import BrokerConnect from './BrokerConnect';
 import { supabase } from '../../lib/supabaseClient';
+import useTradingMode from '../../hooks/useTradingMode';
+import usePortfolio from '../../hooks/usePortfolio';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -103,12 +101,20 @@ const clearBrokerModalPersistence = () => {
 
 const PortfolioPage = ({
   themeClasses: _themeClasses,
-  alpacaData,
   connectedBrokers: _connectedBrokers = [],
   onBrokerConnect = () => {},
   onBrokerDisconnect = () => {},
-  tradeHistory = [],
 }) => {
+  const {
+    tradingMode,
+    isPaper,
+    isLive,
+    canUseLiveTrading,
+    switchTradingMode,
+    switching: switchingMode,
+  } = useTradingMode();
+  const portfolio = usePortfolio({ tradingMode });
+
   const [showBrokerModal, setShowBrokerModal] = useState(() => {
     try {
       return sessionStorage.getItem(BROKER_MODAL_OPEN_KEY) === 'true' || hasInProgressBrokerConnection();
@@ -117,6 +123,8 @@ const PortfolioPage = ({
     }
   });
   const [dbConnections, setDbConnections] = useState([]);
+  const [showLiveConfirmModal, setShowLiveConfirmModal] = useState(false);
+  const [modeError, setModeError] = useState('');
 
   // Persist modal state to sessionStorage
   useEffect(() => {
@@ -144,6 +152,16 @@ const PortfolioPage = ({
             id: conn.broker,
             name: conn.broker.charAt(0).toUpperCase() + conn.broker.slice(1),
             is_paper: conn.is_paper,
+            paperConnected: Boolean(
+              conn.paper_api_key
+              || conn.paper_api_keys?.api_key
+              || (conn.is_paper !== false && conn.api_key)
+            ),
+            liveConnected: Boolean(
+              conn.live_api_key
+              || conn.live_api_keys?.api_key
+              || (conn.is_paper === false && conn.api_key)
+            ),
           })));
         }
       } catch (err) {
@@ -155,9 +173,24 @@ const PortfolioPage = ({
 
   // Use database connections if available, otherwise fall back to prop
   const connectedBrokers = dbConnections.length > 0 ? dbConnections : _connectedBrokers;
+  const account = portfolio?.account || {};
+  const rawPositions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
+  const tradeHistory = Array.isArray(portfolio?.tradeHistory) ? portfolio.tradeHistory : [];
 
-  const account = alpacaData?.account || {};
-  const rawPositions = Array.isArray(alpacaData?.positions) ? alpacaData.positions : [];
+  const hasLiveAlpacaConnection = connectedBrokers.some((broker) => (
+    String(broker.id || '').toLowerCase() === 'alpaca'
+      ? Boolean(broker.liveConnected || broker.is_paper === false)
+      : true
+  ));
+  const modeIcon = isLive ? '💰' : '📄';
+  const modeLabel = isLive ? 'LIVE' : 'PAPER';
+  const modeTitle = isLive ? 'Live Trading' : 'Paper Trading';
+  const modeBadgeClasses = isLive
+    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 to-amber-400/20 text-emerald-200'
+    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 to-cyan-400/20 text-cyan-200';
+  const modeCardClasses = isLive
+    ? 'border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-amber-400/10'
+    : 'border-cyan-500/30 bg-gradient-to-r from-blue-500/10 via-cyan-500/5 to-cyan-400/10';
 
   const equity = toNumber(account.equity ?? account.portfolio_value);
   const cash = toNumber(account.cash);
@@ -206,6 +239,36 @@ const PortfolioPage = ({
       .slice(0, 12);
   }, [tradeHistory]);
 
+  const handleModeSwitch = async (targetMode) => {
+    setModeError('');
+    const result = await switchTradingMode(targetMode);
+    if (!result?.ok) {
+      if (result.reason === 'upgrade_required') {
+        setModeError('Live trading is available for Pro users. Upgrade to unlock LIVE mode.');
+      } else {
+        setModeError('Unable to switch trading mode right now. Please try again.');
+      }
+      return;
+    }
+    await portfolio.refresh({ forceFresh: true });
+  };
+
+  const requestModeSwitch = async (targetMode) => {
+    const normalizedTarget = String(targetMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
+    if ((normalizedTarget === 'live' && isLive) || (normalizedTarget === 'paper' && isPaper)) return;
+
+    if (normalizedTarget === 'live') {
+      if (!canUseLiveTrading) {
+        setModeError('Live trading is available for Pro users. Upgrade to unlock LIVE mode.');
+        return;
+      }
+      setShowLiveConfirmModal(true);
+      return;
+    }
+
+    await handleModeSwitch('paper');
+  };
+
   const handleBrokerConnect = (broker) => {
     onBrokerConnect(broker);
     clearBrokerModalPersistence();
@@ -248,6 +311,8 @@ const PortfolioPage = ({
     }
   };
 
+  const noLiveBrokerConnected = isLive && !hasLiveAlpacaConnection && rawPositions.length === 0 && equity <= 0;
+
   const totalMarketValue = useMemo(() => positions.reduce((sum, p) => sum + p.marketValue, 0), [positions]);
   const totalUnrealizedPL = useMemo(() => positions.reduce((sum, p) => sum + p.unrealizedPL, 0), [positions]);
   const totalCostBasis = useMemo(() => positions.reduce((sum, p) => sum + (p.avgEntry * p.shares), 0), [positions]);
@@ -258,249 +323,353 @@ const PortfolioPage = ({
 
   const dailyIsPositive = dailyPnL >= 0;
 
-  const noBrokerConnected = !account.equity && !account.portfolio_value && rawPositions.length === 0;
-
-  if (noBrokerConnected) {
-    return (
-      <div className="flex-1 flex flex-col h-full bg-transparent text-white overflow-auto">
-        <BrokerConnect onConnected={() => window.location.reload()} />
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent text-white overflow-auto">
       <div className="px-6 pt-6 pb-8 space-y-6">
-        {/* Connected Accounts — compact row */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {connectedBrokers.map((broker) => (
-            <div key={broker.id} className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-1.5 group">
-              <div className="w-5 h-5 rounded flex items-center justify-center overflow-hidden">
-                <BrokerIcon broker={broker.id} className="w-5 h-5" />
+        <div className={`rounded-2xl border p-4 ${modeCardClasses}`}>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">Trading Mode</div>
+              <h2 className="mt-1 text-xl font-semibold">{modeIcon} {modeTitle}</h2>
+              <div className="mt-1 text-xs text-white/70">
+                Portfolio is showing {modeLabel} account data.
               </div>
-              <span className="text-xs font-medium text-white">{broker.name}</span>
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-              <span className="text-xs text-white/50 font-mono">{formatCurrency(broker.value || 0)}</span>
+            </div>
+            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.18em] ${modeBadgeClasses}`}>
+              <span>{modeIcon}</span>
+              <span>{modeLabel}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => requestModeSwitch('paper')}
+              disabled={switchingMode || isPaper}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                isPaper
+                  ? 'border-cyan-400/60 bg-cyan-500/20 text-cyan-200'
+                  : 'border-white/15 bg-black/20 text-white/70 hover:border-cyan-400/40 hover:text-cyan-200'
+              } disabled:opacity-70`}
+            >
+              Paper 📄
+            </button>
+            <button
+              onClick={() => requestModeSwitch('live')}
+              disabled={switchingMode || isLive}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                isLive
+                  ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200'
+                  : 'border-white/15 bg-black/20 text-white/70 hover:border-emerald-400/40 hover:text-emerald-200'
+              } disabled:opacity-70`}
+            >
+              Live 💰
+            </button>
+            <div className="text-xs text-white/60">
+              {switchingMode ? 'Switching mode and reloading data...' : (portfolio.loading ? 'Loading account...' : 'Mode is synced to Supabase')}
+            </div>
+          </div>
+
+          {modeError ? (
+            <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {modeError}
+            </div>
+          ) : null}
+        </div>
+
+        {noLiveBrokerConnected ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" strokeWidth={1.6} />
+                <div>
+                  <div className="text-sm font-semibold text-amber-100">Live mode requires live Alpaca keys</div>
+                  <p className="text-xs text-amber-100/80 mt-1">
+                    Connect your live broker credentials to access real-money positions and order routing.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <BrokerConnect onConnected={() => window.location.reload()} />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 flex-wrap">
+              {connectedBrokers.map((broker) => {
+                const paperConnected = broker.paperConnected ?? (broker.is_paper !== false);
+                const liveConnected = broker.liveConnected ?? (broker.is_paper === false);
+                const modeStatus = liveConnected && paperConnected
+                  ? 'Paper + Live'
+                  : liveConnected
+                    ? 'Live'
+                    : 'Paper';
+                const isActiveForCurrentMode = isLive ? liveConnected : paperConnected;
+                return (
+                  <div key={broker.id} className="flex items-center gap-2 bg-[#111111] border border-[#1f1f1f] rounded-lg px-3 py-1.5 group">
+                    <div className="w-5 h-5 rounded flex items-center justify-center overflow-hidden">
+                      <BrokerIcon broker={broker.id} className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-medium text-white">{broker.name}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActiveForCurrentMode ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                    <span className="text-[10px] text-white/50">{modeStatus}</span>
+                    <button
+                      onClick={() => handleDisconnectBroker(broker.id)}
+                      className="text-white/40 hover:text-red-400 transition-colors ml-1"
+                      title="Disconnect broker"
+                    >
+                      <Unlink className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                );
+              })}
               <button
-                onClick={() => handleDisconnectBroker(broker.id)}
-                className="text-white/40 hover:text-red-400 transition-colors ml-1"
-                title="Disconnect broker"
+                onClick={() => setShowBrokerModal(true)}
+                className="flex items-center gap-1.5 border border-dashed border-[#2a2a2a] rounded-lg px-3 py-1.5 hover:border-emerald-500/50 transition-colors"
               >
-                <Unlink className="w-4 h-4" strokeWidth={1.5} />
+                <Plus className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
+                <span className="text-xs text-white/50">Add Broker</span>
               </button>
             </div>
-          ))}
-          <button
-            onClick={() => setShowBrokerModal(true)}
-            className="flex items-center gap-1.5 border border-dashed border-[#2a2a2a] rounded-lg px-3 py-1.5 hover:border-emerald-500/50 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5 text-emerald-400" strokeWidth={1.5} />
-            <span className="text-xs text-white/50">Add Broker</span>
-          </button>
-        </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Net Liquidation</div>
-              <div className="text-2xl font-semibold font-mono">{formatCurrency(equity)}</div>
-            </div>
-            <div className="w-px h-8 bg-white/10"></div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Buying Power</div>
-              <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(buyingPower)}</div>
-            </div>
-            <div className="w-px h-8 bg-white/10"></div>
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Cash</div>
-              <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(cash)}</div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Daily P&L</div>
-            <div className={`text-2xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatSignedCurrency(dailyPnL)}
-            </div>
-            <div className={`text-xs font-mono ${dailyIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-              {formatSigned(dailyPnLPercent, '%')}
-            </div>
-          </div>
-        </div>
-
-
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-white/40">Positions</div>
-              <h3 className="text-lg font-semibold">Live Holdings</h3>
-            </div>
-            <div className="text-xs text-white/40">{positions.length} positions</div>
-          </div>
-
-          {positions.length > 0 && (
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Total Market Value</div>
-                <div className="text-lg font-semibold font-mono text-white">{formatCurrency(totalMarketValue)}</div>
-              </div>
-              <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Unrealized P&L</div>
-                <div className={`text-lg font-semibold font-mono ${totalPLIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {formatSignedCurrency(totalUnrealizedPL)}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Net Liquidation</div>
+                  <div className="text-2xl font-semibold font-mono">{formatCurrency(equity)}</div>
                 </div>
-                <div className={`text-[10px] font-mono ${totalPLIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                  {formatSigned(totalUnrealizedPLPercent, '%')}
+                <div className="w-px h-8 bg-white/10"></div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Buying Power</div>
+                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(buyingPower)}</div>
+                </div>
+                <div className="w-px h-8 bg-white/10"></div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Cash</div>
+                  <div className="text-lg font-semibold font-mono text-white/80">{formatCurrency(cash)}</div>
                 </div>
               </div>
-              <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Cost Basis</div>
-                <div className="text-lg font-semibold font-mono text-white">{formatCurrency(totalCostBasis)}</div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/40">Daily P&L</div>
+                <div className={`text-2xl font-semibold font-mono ${dailyIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatSignedCurrency(dailyPnL)}
+                </div>
+                <div className={`text-xs font-mono ${dailyIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                  {formatSigned(dailyPnLPercent, '%')}
+                </div>
               </div>
             </div>
-          )}
 
-          {positions.length === 0 ? (
-            <div className="text-sm text-white/50 py-6 text-center">-$0.00 - Connect a broker to get started</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40">
-                    <th className="py-3 pr-4">Ticker</th>
-                    <th className="py-3 pr-4">Company</th>
-                    <th className="py-3 pr-4">Shares</th>
-                    <th className="py-3 pr-4">Avg Entry</th>
-                    <th className="py-3 pr-4">Current</th>
-                    <th className="py-3 pr-4">Market Value</th>
-                    <th className="py-3 pr-4">Daily P&L</th>
-                    <th className="py-3 pr-4">Total P&L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((pos) => {
-                    const isPositive = pos.unrealizedPL >= 0;
-                    return (
-                      <tr key={pos.symbol} className="border-t border-[#1f1f1f]">
+            <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-white/40">Positions</div>
+                  <h3 className="text-lg font-semibold">{modeLabel} Holdings</h3>
+                </div>
+                <div className="text-xs text-white/40">{positions.length} positions</div>
+              </div>
+
+              {positions.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Total Market Value</div>
+                    <div className="text-lg font-semibold font-mono text-white">{formatCurrency(totalMarketValue)}</div>
+                  </div>
+                  <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Unrealized P&L</div>
+                    <div className={`text-lg font-semibold font-mono ${totalPLIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {formatSignedCurrency(totalUnrealizedPL)}
+                    </div>
+                    <div className={`text-[10px] font-mono ${totalPLIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                      {formatSigned(totalUnrealizedPLPercent, '%')}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Cost Basis</div>
+                    <div className="text-lg font-semibold font-mono text-white">{formatCurrency(totalCostBasis)}</div>
+                  </div>
+                </div>
+              )}
+
+              {positions.length === 0 ? (
+                <div className="text-sm text-white/50 py-6 text-center">
+                  {isPaper ? 'No paper positions yet. Submit a paper trade to get started.' : 'No live positions available yet.'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40">
+                        <th className="py-3 pr-4">Ticker</th>
+                        <th className="py-3 pr-4">Company</th>
+                        <th className="py-3 pr-4">Shares</th>
+                        <th className="py-3 pr-4">Avg Entry</th>
+                        <th className="py-3 pr-4">Current</th>
+                        <th className="py-3 pr-4">Market Value</th>
+                        <th className="py-3 pr-4">Daily P&L</th>
+                        <th className="py-3 pr-4">Total P&L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {positions.map((pos) => {
+                        const isPositive = pos.unrealizedPL >= 0;
+                        return (
+                          <tr key={pos.symbol} className="border-t border-[#1f1f1f]">
+                            <td className="py-4 pr-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${isPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                                <span className="font-semibold">{pos.symbol}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 pr-4 text-white/70">{pos.companyName}</td>
+                            <td className="py-4 pr-4 font-mono">{formatNumber(pos.shares, 2)}</td>
+                            <td className="py-4 pr-4 font-mono">{formatCurrency(pos.avgEntry)}</td>
+                            <td className="py-4 pr-4 font-mono">{formatCurrency(pos.currentPrice)}</td>
+                            <td className="py-4 pr-4 font-mono">{formatCurrency(pos.marketValue)}</td>
+                            <td className="py-4 pr-4">
+                              <span className={`font-mono ${pos.dailyChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatSignedCurrency(pos.dailyChange)}
+                              </span>
+                              <span className={`text-xs font-mono ${pos.dailyChange >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                                ({formatSigned(pos.dailyChangePct, '%')})
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className={`font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatSignedCurrency(pos.unrealizedPL)}
+                              </span>
+                              <span className={`text-xs font-mono ${isPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                                ({formatSigned(pos.unrealizedPLPercent, '%')})
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="border-t-2 border-[#2a2a2a] bg-[#0d0d0d]">
                         <td className="py-4 pr-4">
                           <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${isPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                            <span className="font-semibold">{pos.symbol}</span>
+                            <span className={`w-2 h-2 rounded-full ${totalPLIsPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                            <span className="font-semibold text-white/80">TOTAL</span>
                           </div>
                         </td>
-                        <td className="py-4 pr-4 text-white/70">{pos.companyName}</td>
-                        <td className="py-4 pr-4 font-mono">{formatNumber(pos.shares, 2)}</td>
-                        <td className="py-4 pr-4 font-mono">{formatCurrency(pos.avgEntry)}</td>
-                        <td className="py-4 pr-4 font-mono">{formatCurrency(pos.currentPrice)}</td>
-                        <td className="py-4 pr-4 font-mono">{formatCurrency(pos.marketValue)}</td>
+                        <td className="py-4 pr-4 text-white/50 text-xs">{positions.length} positions</td>
+                        <td className="py-4 pr-4"></td>
+                        <td className="py-4 pr-4"></td>
+                        <td className="py-4 pr-4 font-mono text-white/30">—</td>
+                        <td className="py-4 pr-4 font-mono font-semibold">{formatCurrency(totalMarketValue)}</td>
                         <td className="py-4 pr-4">
-                          <span className={`font-mono ${pos.dailyChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatSignedCurrency(pos.dailyChange)}
+                          <span className={`font-mono font-semibold ${totalDailyChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatSignedCurrency(totalDailyChange)}
                           </span>
-                          <span className={`text-xs font-mono ${pos.dailyChange >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                            ({formatSigned(pos.dailyChangePct, '%')})
+                          <span className={`text-xs font-mono ${totalDailyChange >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                            {' '}({formatSigned(totalDailyChangePct, '%')})
                           </span>
                         </td>
                         <td className="py-4 pr-4">
-                          <span className={`font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {formatSignedCurrency(pos.unrealizedPL)}
+                          <span className={`font-mono font-semibold ${totalPLIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatSignedCurrency(totalUnrealizedPL)}
                           </span>
-                          <span className={`text-xs font-mono ${isPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                            ({formatSigned(pos.unrealizedPLPercent, '%')})
+                          <span className={`text-xs font-mono ${totalPLIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
+                            {' '}({formatSigned(totalUnrealizedPLPercent, '%')})
                           </span>
                         </td>
                       </tr>
-                    );
-                  })}
-                  <tr className="border-t-2 border-[#2a2a2a] bg-[#0d0d0d]">
-                    <td className="py-4 pr-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${totalPLIsPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                        <span className="font-semibold text-white/80">TOTAL</span>
-                      </div>
-                    </td>
-                    <td className="py-4 pr-4 text-white/50 text-xs">{positions.length} positions</td>
-                    <td className="py-4 pr-4"></td>
-                    <td className="py-4 pr-4"></td>
-                    <td className="py-4 pr-4 font-mono text-white/30">—</td>
-                    <td className="py-4 pr-4 font-mono font-semibold">{formatCurrency(totalMarketValue)}</td>
-                    <td className="py-4 pr-4">
-                      <span className={`font-mono font-semibold ${totalDailyChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {formatSignedCurrency(totalDailyChange)}
-                      </span>
-                      <span className={`text-xs font-mono ${totalDailyChange >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                        {' '}({formatSigned(totalDailyChangePct, '%')})
-                      </span>
-                    </td>
-                    <td className="py-4 pr-4">
-                      <span className={`font-mono font-semibold ${totalPLIsPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {formatSignedCurrency(totalUnrealizedPL)}
-                      </span>
-                      <span className={`text-xs font-mono ${totalPLIsPositive ? 'text-emerald-400/70' : 'text-red-400/70'}`}>
-                        {' '}({formatSigned(totalUnrealizedPLPercent, '%')})
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-white/60" strokeWidth={1.5} />
+            <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-white/60" strokeWidth={1.5} />
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-white/40">Trade History</div>
+                    <h3 className="text-lg font-semibold">{modeLabel} Activity</h3>
+                  </div>
+                </div>
+                <div className="text-xs text-white/40">{recentTrades.length} trades</div>
+              </div>
+
+              {recentTrades.length === 0 ? (
+                <div className="text-sm text-white/50 py-6 text-center">No {isPaper ? 'paper' : 'live'} trades yet</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40">
+                        <th className="py-3 pr-4">Date</th>
+                        <th className="py-3 pr-4">Ticker</th>
+                        <th className="py-3 pr-4">Side</th>
+                        <th className="py-3 pr-4">Shares</th>
+                        <th className="py-3 pr-4">Price</th>
+                        <th className="py-3 pr-4">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentTrades.map((trade) => {
+                        const side = String(trade.side || '').toLowerCase();
+                        const isBuy = side === 'buy';
+                        const total = toNumber(trade.total ?? (trade.shares * trade.price));
+                        return (
+                          <tr key={trade.id || `${trade.symbol}-${trade.timestamp}`} className="border-t border-[#1f1f1f]">
+                            <td className="py-4 pr-4 text-white/70">{formatTimestamp(trade.timestamp)}</td>
+                            <td className="py-4 pr-4 font-semibold">{trade.symbol}</td>
+                            <td className="py-4 pr-4">
+                              <span className={`text-xs font-semibold uppercase tracking-[0.2em] ${
+                                isBuy ? 'text-emerald-400' : 'text-red-400'
+                              }`}>
+                                {isBuy ? 'Buy' : 'Sell'}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4 font-mono">{formatNumber(trade.shares, 2)}</td>
+                            <td className="py-4 pr-4 font-mono">{formatCurrency(trade.price)}</td>
+                            <td className="py-4 pr-4 font-mono">{formatCurrency(total)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {showLiveConfirmModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-amber-400/35 bg-[#101216] p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" strokeWidth={1.7} />
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-white/40">Trade History</div>
-                <h3 className="text-lg font-semibold">Recent Activity</h3>
+                <div className="text-sm font-semibold text-amber-100">Confirm Live Mode</div>
+                <p className="text-xs text-white/75 mt-1">
+                  ⚠️ You&apos;re about to switch to LIVE trading with real money. Are you sure?
+                </p>
               </div>
             </div>
-            <div className="text-xs text-white/40">{recentTrades.length} trades</div>
-          </div>
-
-          {recentTrades.length === 0 ? (
-            <div className="text-sm text-white/50 py-6 text-center">No trades yet</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40">
-                    <th className="py-3 pr-4">Date</th>
-                    <th className="py-3 pr-4">Ticker</th>
-                    <th className="py-3 pr-4">Side</th>
-                    <th className="py-3 pr-4">Shares</th>
-                    <th className="py-3 pr-4">Price</th>
-                    <th className="py-3 pr-4">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentTrades.map((trade) => {
-                    const side = String(trade.side || '').toLowerCase();
-                    const isBuy = side === 'buy';
-                    const total = toNumber(trade.total ?? (trade.shares * trade.price));
-                    return (
-                      <tr key={trade.id || `${trade.symbol}-${trade.timestamp}`} className="border-t border-[#1f1f1f]">
-                        <td className="py-4 pr-4 text-white/70">{formatTimestamp(trade.timestamp)}</td>
-                        <td className="py-4 pr-4 font-semibold">{trade.symbol}</td>
-                        <td className="py-4 pr-4">
-                          <span className={`text-xs font-semibold uppercase tracking-[0.2em] ${
-                            isBuy ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {isBuy ? 'Buy' : 'Sell'}
-                          </span>
-                        </td>
-                        <td className="py-4 pr-4 font-mono">{formatNumber(trade.shares, 2)}</td>
-                        <td className="py-4 pr-4 font-mono">{formatCurrency(trade.price)}</td>
-                        <td className="py-4 pr-4 font-mono">{formatCurrency(total)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLiveConfirmModal(false)}
+                className="rounded-lg border border-white/15 px-3 py-2 text-xs text-white/75 hover:bg-white/5 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowLiveConfirmModal(false);
+                  await handleModeSwitch('live');
+                }}
+                className="rounded-lg border border-emerald-400/35 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30 transition"
+              >
+                Switch to Live
+              </button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       <BrokerConnectModal
         isOpen={showBrokerModal}
