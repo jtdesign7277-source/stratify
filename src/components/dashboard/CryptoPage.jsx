@@ -780,8 +780,11 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
           {isRightPanelCollapsed ? (
             <div className="h-full flex flex-col items-center py-2 gap-2">
               <button
-                onClick={() => setIsRightPanelCollapsed(false)}
-                className="h-7 w-7 rounded-md text-xs font-bold transition-colors"
+                onClick={() => {
+                  console.log('Crypto expand button clicked, current state:', isRightPanelCollapsed);
+                  setIsRightPanelCollapsed(false);
+                }}
+                className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10"
                 style={{
                   color: 'rgba(148, 163, 184, 0.6)',
                   background: 'rgba(255, 255, 255, 0.04)',
@@ -813,8 +816,11 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
                   Order Entry
                 </span>
                 <button
-                  onClick={() => setIsRightPanelCollapsed(true)}
-                  className="h-7 w-7 flex items-center justify-center rounded transition-colors hover:bg-white/[0.03]"
+                  onClick={() => {
+                    console.log('Crypto collapse button clicked, current state:', isRightPanelCollapsed);
+                    setIsRightPanelCollapsed(true);
+                  }}
+                  className="h-7 w-7 flex items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
                   style={{ color: 'rgba(148, 163, 184, 0.55)' }}
                   title="Collapse order entry panel"
                   aria-label="Collapse order entry panel"

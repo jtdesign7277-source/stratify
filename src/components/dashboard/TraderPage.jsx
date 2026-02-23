@@ -2187,8 +2187,11 @@ export default function TraderPage({ onPinToTop }) {
               <div className="flex h-full flex-col items-center gap-2 py-2">
                 <button
                   type="button"
-                  onClick={() => setIsRightPanelCollapsed(false)}
-                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors"
+                  onClick={() => {
+                    console.log('Expand button clicked, current state:', isRightPanelCollapsed);
+                    setIsRightPanelCollapsed(false);
+                  }}
+                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10"
                   style={{
                     color: 'rgba(148, 163, 184, 0.6)',
                     background: 'rgba(255, 255, 255, 0.04)',
@@ -2222,8 +2225,11 @@ export default function TraderPage({ onPinToTop }) {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setIsRightPanelCollapsed(true)}
-                      className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/[0.03]"
+                      onClick={() => {
+                        console.log('Collapse button clicked, current state:', isRightPanelCollapsed);
+                        setIsRightPanelCollapsed(true);
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
                       style={{ color: 'rgba(148, 163, 184, 0.55)' }}
                       title="Collapse order entry panel"
                       aria-label="Collapse order entry panel"
