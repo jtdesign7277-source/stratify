@@ -42,12 +42,12 @@ function StockCard({ stock, rank, isLast }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white text-xs">{stock.symbol}</div>
-          <div className="text-[10px] text-white/40 truncate mt-0.5">{stock.name || 'N/A'}</div>
+          <div className="font-semibold text-white text-sm">{stock.symbol}</div>
+          <div className="text-[11px] text-white/40 truncate mt-0.5">{stock.name || 'N/A'}</div>
         </div>
         <div className="text-right ml-3">
-          <div className="text-xs font-semibold text-white">{formatPrice(stock.price)}</div>
-          <div className={`text-[10px] font-medium ${colorClass}`}>
+          <div className="text-sm font-semibold text-white">{formatPrice(stock.price)}</div>
+          <div className={`text-[11px] font-medium ${colorClass}`}>
             {formatPercent(changePercent)}
           </div>
         </div>
