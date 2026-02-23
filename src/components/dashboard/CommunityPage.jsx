@@ -733,12 +733,12 @@ const TrendingPnlPanel = ({ wins = [], losses = [], loading = false }) => {
   );
 
   return (
-    <div className="w-full rounded-2xl border border-[#1f1f1f] bg-[#111111] overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#1f1f1f]">
+    <div className="w-full rounded-2xl border border-gray-800/60 bg-black/30 backdrop-blur-sm overflow-hidden xl:max-h-[46vh] flex flex-col">
+      <div className="px-4 py-3 border-b border-gray-800/70">
         <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Trending</div>
         <h3 className="text-base font-semibold text-white">Wildest Wins & Losses</h3>
       </div>
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-3 overflow-y-auto">
         {loading ? (
           <div className="text-xs text-gray-500">Loading trend tape...</div>
         ) : (
@@ -1917,104 +1917,95 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0b0b0b]">
-      <div className="flex-shrink-0 px-6 pt-5 pb-3">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-lg font-bold text-gray-100">Community</h1>
-            <p className="text-xs text-gray-600 mt-0.5">Share trades, strategies, and insights with fellow traders</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-emerald-400 text-xs font-medium">Live</span>
-            </div>
-          </div>
+    <div className="h-full w-full bg-transparent relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.08),transparent_38%),radial-gradient(circle_at_90%_100%,rgba(59,130,246,0.06),transparent_42%)]" />
+      <div className="relative z-10 h-full flex flex-col">
+        <div className="flex-shrink-0 px-6 pt-4 pb-2">
+          <FilterTabs active={filter} onChange={setFilter} />
         </div>
-        <FilterTabs active={filter} onChange={setFilter} />
-      </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
-        <div className="max-w-[1280px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
-          <div className="min-w-0">
-            {currentUser && (
-              <ComposeBox
-                currentUser={currentUser}
-                betSlipOpen={pnlPanelOpen}
-                onOpenBetSlip={() => setPnlPanelOpen(true)}
-                onPost={prependPost}
-              />
-            )}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="max-w-[1280px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+            <div className="min-w-0">
+              {currentUser && (
+                <ComposeBox
+                  currentUser={currentUser}
+                  betSlipOpen={pnlPanelOpen}
+                  onOpenBetSlip={() => setPnlPanelOpen(true)}
+                  onPost={prependPost}
+                />
+              )}
 
-            {loading && posts.length === 0 ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 size={24} className="animate-spin text-gray-600" />
-              </div>
-            ) : posts.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="text-gray-600 text-sm">No posts yet. Be the first to share!</div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    currentUser={currentUser}
-                    onDelete={handleDelete}
-                  />
-                ))}
+              {loading && posts.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 size={24} className="animate-spin text-gray-600" />
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="text-gray-600 text-sm">No posts yet. Be the first to share!</div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      currentUser={currentUser}
+                      onDelete={handleDelete}
+                    />
+                  ))}
 
-                {hasMore && (
-                  <div className="text-center py-4">
+                  {hasMore && (
+                    <div className="text-center py-4">
+                      <button
+                        onClick={loadMore}
+                        className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+                      >
+                        Load more
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-7.5rem)] xl:overflow-y-auto pr-1">
+              {pnlPanelOpen ? (
+                <BetSlipPanel
+                  open={pnlPanelOpen}
+                  onClose={() => setPnlPanelOpen(false)}
+                  closedTrades={closedTrades}
+                  posting={pnlPosting}
+                  onSubmit={handleSharePnl}
+                />
+              ) : (
+                <div className="w-full rounded-2xl border border-gray-800/60 bg-black/30 backdrop-blur-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-800/70">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
+                    <h3 className="text-base font-semibold text-white">Open Bet Slip</h3>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-xs text-gray-500 mb-3">
+                      Build a polymarket-style ticket from your completed trades and post it directly in chat.
+                    </p>
                     <button
-                      onClick={loadMore}
-                      className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+                      onClick={() => setPnlPanelOpen(true)}
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 transition-colors"
                     >
-                      Load more
+                      <TrendingUp size={14} strokeWidth={2} />
+                      Share P&L
                     </button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
 
-          <aside className="space-y-4 xl:sticky xl:top-4">
-            {pnlPanelOpen ? (
-              <BetSlipPanel
-                open={pnlPanelOpen}
-                onClose={() => setPnlPanelOpen(false)}
-                closedTrades={closedTrades}
-                posting={pnlPosting}
-                onSubmit={handleSharePnl}
+              <TrendingPnlPanel
+                wins={topWins}
+                losses={topLosses}
+                loading={trendingLoading}
               />
-            ) : (
-              <div className="w-full rounded-2xl border border-[#1f1f1f] bg-[#111111] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#1f1f1f]">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
-                  <h3 className="text-base font-semibold text-white">Open Bet Slip</h3>
-                </div>
-                <div className="p-4">
-                  <p className="text-xs text-gray-500 mb-3">
-                    Build a polymarket-style ticket from your completed trades and post it directly in chat.
-                  </p>
-                  <button
-                    onClick={() => setPnlPanelOpen(true)}
-                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 transition-colors"
-                  >
-                    <TrendingUp size={14} strokeWidth={2} />
-                    Share P&L
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <TrendingPnlPanel
-              wins={topWins}
-              losses={topLosses}
-              loading={trendingLoading}
-            />
-          </aside>
+            </aside>
+          </div>
         </div>
       </div>
     </div>
