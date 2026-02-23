@@ -242,6 +242,7 @@ const ComposeBox = ({ currentUser, onPost }) => {
         .from('community_posts')
         .insert({
           user_id: currentUser.id,
+          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
           content: content.trim(),
           image_url: imageUrl,
           ticker_mentions: extractTickers(content),
@@ -426,7 +427,7 @@ const ComposeBox = ({ currentUser, onPost }) => {
 // ─── Single Post Component ────────────────────────────────
 const PostCard = ({ post, currentUser, onReply, onDelete }) => {
   const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(post.likes_count || 0);
+  const [likesCount, setLikesCount] = useState(post.likes_count || post.likes || 0);
   const [showReplies, setShowReplies] = useState(false);
   const [replies, setReplies] = useState([]);
   const [replyContent, setReplyContent] = useState('');
@@ -474,7 +475,7 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
     const { data } = await supabase
       .from('community_posts')
       .select('*, profiles:user_id(id, display_name, avatar_url, email)')
-      .eq('parent_id', post.id)
+      .or(`parent_id.eq.${post.id},parent_post_id.eq.${post.id}`)
       .order('created_at', { ascending: true });
     setReplies(data || []);
     setLoadingReplies(false);
@@ -494,8 +495,10 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
     try {
       const { error } = await supabase.from('community_posts').insert({
         user_id: currentUser.id,
+        author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
         content: replyContent.trim(),
         parent_id: post.id,
+        parent_post_id: post.id,
         ticker_mentions: extractTickers(replyContent),
       });
 
@@ -510,8 +513,12 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
     }
   };
 
-  const user = post.profiles || {};
+  const user = post.profiles || {
+    display_name: post.author_name,
+    avatar_url: post.metadata?.bot_avatar_url,
+  };
   const isOwner = currentUser?.id === post.user_id;
+  const repliesCount = post.replies_count ?? post.comments_count ?? 0;
 
   return (
     <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4 hover:border-[#2a2a2a] transition-colors">
@@ -523,7 +530,7 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2 min-w-0">
               <span className="font-semibold text-gray-100 text-sm truncate">
-                {user.display_name || user.email?.split('@')[0] || 'Trader'}
+                {user.display_name || post.author_name || user.email?.split('@')[0] || 'Trader'}
               </span>
               <span className="text-gray-600 text-xs">•</span>
               <span className="text-gray-600 text-xs flex-shrink-0">{timeAgo(post.created_at)}</span>
@@ -604,7 +611,7 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
               className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-cyan-400 transition-colors"
             >
               <MessageCircle size={15} strokeWidth={1.5} />
-              <span>{post.replies_count > 0 ? post.replies_count : ''}</span>
+              <span>{repliesCount > 0 ? repliesCount : ''}</span>
             </button>
 
             <button
@@ -625,14 +632,17 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
               ) : (
                 <div className="space-y-3">
                   {replies.map((reply) => {
-                    const replyUser = reply.profiles || {};
+                    const replyUser = reply.profiles || {
+                      display_name: reply.author_name,
+                      avatar_url: reply.metadata?.bot_avatar_url,
+                    };
                     return (
                       <div key={reply.id} className="flex gap-2.5">
                         <UserAvatar user={replyUser} size={28} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="font-medium text-gray-200 text-xs">
-                              {replyUser.display_name || replyUser.email?.split('@')[0] || 'Trader'}
+                              {replyUser.display_name || reply.author_name || replyUser.email?.split('@')[0] || 'Trader'}
                             </span>
                             <span className="text-gray-700 text-xs">{timeAgo(reply.created_at)}</span>
                           </div>
@@ -775,6 +785,7 @@ const CommunityPage = () => {
           .from('community_posts')
           .select('*')
           .is('parent_id', null)
+          .is('parent_post_id', null)
           .order('created_at', { ascending: false })
           .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
@@ -791,14 +802,18 @@ const CommunityPage = () => {
         }
 
         // Manually fetch profile data for each post
-        const userIds = [...new Set(postsData.map(p => p.user_id))];
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url, email')
-          .in('id', userIds);
+        const userIds = [...new Set(postsData.map((p) => p.user_id).filter(Boolean))];
+        let profilesData = [];
+        if (userIds.length > 0) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, display_name, avatar_url, email')
+            .in('id', userIds);
+          profilesData = data || [];
+        }
 
         const profilesMap = {};
-        (profilesData || []).forEach(p => {
+        profilesData.forEach((p) => {
           profilesMap[p.id] = p;
         });
 

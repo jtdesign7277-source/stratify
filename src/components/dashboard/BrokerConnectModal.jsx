@@ -161,107 +161,148 @@ const brokers = [
   { id: 'tradingview', name: 'TradingView', category: 'tools', description: 'Charts & social trading' },
 ];
 
+const BROKER_MODAL_STATE_KEY = 'portfolio-broker-modal-state';
+const BROKER_MODAL_FIELDS_KEY = 'portfolio-broker-modal-fields';
+const LEGACY_BROKER_CONNECT_FORM_KEY = 'broker-connect-form';
+const BROKER_KEYS_URLS = {
+  alpaca: 'https://app.alpaca.markets/brokerage/api-keys',
+  tradier: 'https://developer.tradier.com/user/tokens',
+  webull: 'https://www.webull.com/center#main/setting/api',
+};
+const BROKERS_WITH_PAPER_TOGGLE = new Set(['alpaca', 'tradier', 'webull']);
+
+const readStoredModalState = () => {
+  try {
+    const saved = sessionStorage.getItem(BROKER_MODAL_STATE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const readStoredModalFields = () => {
+  try {
+    const saved = localStorage.getItem(BROKER_MODAL_FIELDS_KEY);
+    if (!saved) return {};
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const getStoredBrokerFields = (brokerId) => {
+  if (!brokerId) return { apiKey: '', secretKey: '' };
+  const storedFields = readStoredModalFields();
+  const brokerFields = storedFields[brokerId];
+  if (!brokerFields || typeof brokerFields !== 'object') {
+    return { apiKey: '', secretKey: '' };
+  }
+  return {
+    apiKey: typeof brokerFields.apiKey === 'string' ? brokerFields.apiKey : '',
+    secretKey: typeof brokerFields.secretKey === 'string' ? brokerFields.secretKey : '',
+  };
+};
+
 export default function BrokerConnectModal({ isOpen, onClose, onConnect, connectedBrokers = [] }) {
-  // Restore saved form state from sessionStorage
-  const [selectedBroker, setSelectedBroker] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('broker-connect-form');
-      const parsed = saved ? JSON.parse(saved) : null;
-      console.log('[BrokerConnectModal] Restoring selectedBroker from sessionStorage:', parsed?.broker);
-      return parsed?.broker || null;
-    } catch (err) {
-      console.error('[BrokerConnectModal] Failed to restore selectedBroker:', err);
-      return null;
-    }
-  });
-  const [apiKey, setApiKey] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('broker-connect-form');
-      const parsed = saved ? JSON.parse(saved) : null;
-      console.log('[BrokerConnectModal] Restoring apiKey:', parsed?.apiKey ? '***' : 'empty');
-      return parsed?.apiKey || '';
-    } catch (err) {
-      console.error('[BrokerConnectModal] Failed to restore apiKey:', err);
-      return '';
-    }
-  });
-  const [secretKey, setSecretKey] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('broker-connect-form');
-      const parsed = saved ? JSON.parse(saved) : null;
-      console.log('[BrokerConnectModal] Restoring secretKey:', parsed?.secretKey ? '***' : 'empty');
-      return parsed?.secretKey || '';
-    } catch (err) {
-      console.error('[BrokerConnectModal] Failed to restore secretKey:', err);
-      return '';
-    }
-  });
+  const initialModalState = readStoredModalState();
+  const initialSelectedBroker = brokers.find((broker) => broker.id === initialModalState?.selectedBrokerId) || null;
+  const initialBrokerFields = getStoredBrokerFields(initialSelectedBroker?.id);
+
+  const [selectedBroker, setSelectedBroker] = useState(initialSelectedBroker);
+  const [apiKey, setApiKey] = useState(initialBrokerFields.apiKey);
+  const [secretKey, setSecretKey] = useState(initialBrokerFields.secretKey);
+  const [isPaper, setIsPaper] = useState(initialModalState?.isPaper !== false);
   const [connecting, setConnecting] = useState(false);
   const [filter, setFilter] = useState('all');
   const [connectError, setConnectError] = useState('');
 
-  // Auto-save form state on change (persists across tab switches)
+  // Persist selected broker + paper/live mode in sessionStorage.
   useEffect(() => {
-    if (selectedBroker || apiKey || secretKey) {
-      const formData = {
-        broker: selectedBroker,
-        apiKey,
-        secretKey,
-      };
-      console.log('[BrokerConnectModal] Saving to sessionStorage:', {
-        brokerId: selectedBroker?.id,
-        hasApiKey: !!apiKey,
-        hasSecretKey: !!secretKey,
-      });
-      sessionStorage.setItem('broker-connect-form', JSON.stringify(formData));
+    try {
+      if (!selectedBroker) {
+        sessionStorage.removeItem(BROKER_MODAL_STATE_KEY);
+        return;
+      }
+      sessionStorage.setItem(BROKER_MODAL_STATE_KEY, JSON.stringify({
+        selectedBrokerId: selectedBroker.id,
+        isPaper,
+      }));
+    } catch (err) {
+      console.error('[BrokerConnectModal] Failed to persist modal state:', err);
     }
-  }, [selectedBroker, apiKey, secretKey]);
+  }, [selectedBroker, isPaper]);
 
-  // DON'T auto-clear on modal close - only clear on explicit actions
-  // This allows users to close modal, switch tabs to copy keys, and come back
+  // Restore broker-specific API keys from localStorage when broker selection changes.
   useEffect(() => {
-    console.log('[BrokerConnectModal] isOpen changed:', isOpen);
-    // Removed auto-clear logic - state now persists across modal close/open
-  }, [isOpen, connecting]);
-
-  // Log when modal renders
-  useEffect(() => {
-    if (isOpen) {
-      console.log('[BrokerConnectModal] Modal open, current state:', {
-        selectedBrokerId: selectedBroker?.id,
-        hasApiKey: !!apiKey,
-        hasSecretKey: !!secretKey,
-      });
+    if (!selectedBroker?.id) {
+      setApiKey('');
+      setSecretKey('');
+      return;
     }
-  }, [isOpen, selectedBroker, apiKey, secretKey]);
+    const storedFields = getStoredBrokerFields(selectedBroker.id);
+    setApiKey(storedFields.apiKey);
+    setSecretKey(storedFields.secretKey);
+  }, [selectedBroker?.id]);
+
+  // Persist form fields in localStorage so they survive browser restarts.
+  useEffect(() => {
+    if (!selectedBroker?.id) return;
+    try {
+      const storedFields = readStoredModalFields();
+      if (apiKey || secretKey) {
+        storedFields[selectedBroker.id] = { apiKey, secretKey };
+      } else {
+        delete storedFields[selectedBroker.id];
+      }
+
+      if (Object.keys(storedFields).length === 0) {
+        localStorage.removeItem(BROKER_MODAL_FIELDS_KEY);
+      } else {
+        localStorage.setItem(BROKER_MODAL_FIELDS_KEY, JSON.stringify(storedFields));
+      }
+    } catch (err) {
+      console.error('[BrokerConnectModal] Failed to persist modal fields:', err);
+    }
+  }, [selectedBroker?.id, apiKey, secretKey]);
 
   if (!isOpen) return null;
 
-  const filteredBrokers = filter === 'all' 
-    ? brokers 
+  const filteredBrokers = filter === 'all'
+    ? brokers
     : brokers.filter(b => b.category === filter);
+  const canTogglePaper = BROKERS_WITH_PAPER_TOGGLE.has(selectedBroker?.id);
+  const keysUrl = selectedBroker ? BROKER_KEYS_URLS[selectedBroker.id] : null;
+
+  const clearPersistedState = () => {
+    try {
+      sessionStorage.removeItem(BROKER_MODAL_STATE_KEY);
+      sessionStorage.removeItem(LEGACY_BROKER_CONNECT_FORM_KEY);
+      localStorage.removeItem(BROKER_MODAL_FIELDS_KEY);
+    } catch (err) {
+      console.error('[BrokerConnectModal] Failed to clear persisted state:', err);
+    }
+  };
 
   const handleSelectBroker = (broker) => {
-    console.log('[BrokerConnectModal] Broker selected:', broker.id, broker.name);
+    setConnectError('');
     setSelectedBroker(broker);
   };
 
   const handleBackToBrokers = () => {
-    console.log('[BrokerConnectModal] Back to brokers - clearing form');
-    sessionStorage.removeItem('broker-connect-form');
     setSelectedBroker(null);
-    setApiKey('');
-    setSecretKey('');
+    setConnectError('');
   };
 
   const handleClose = () => {
-    // Only clear if no broker selected (user is just browsing)
-    if (!selectedBroker && !apiKey && !secretKey) {
-      console.log('[BrokerConnectModal] Closing with no form data - clearing sessionStorage');
-      sessionStorage.removeItem('broker-connect-form');
-    } else {
-      console.log('[BrokerConnectModal] Closing with form data - keeping sessionStorage');
-    }
+    clearPersistedState();
+    setSelectedBroker(null);
+    setApiKey('');
+    setSecretKey('');
+    setIsPaper(true);
+    setConnectError('');
     onClose();
   };
 
@@ -291,6 +332,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           apiKey: apiKey.slice(0, 8) + '...',
           connectedAt: Date.now(),
           status: 'connected',
+          is_paper: isPaper,
           balance: result.balance,
           availableBalance: result.availableBalance,
         });
@@ -303,16 +345,18 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           name: selectedBroker.name,
           apiKey: apiKey.slice(0, 8) + '...',
           connectedAt: Date.now(),
-          status: 'connected'
+          status: 'connected',
+          is_paper: isPaper,
         });
       }
       
-      // Clear saved form on success
-      sessionStorage.removeItem('broker-connect-form');
+      // Clear persisted state on success.
+      clearPersistedState();
       setConnecting(false);
       setSelectedBroker(null);
       setApiKey('');
       setSecretKey('');
+      setIsPaper(true);
     } catch (error) {
       setConnectError(error.message || 'Connection failed');
       setConnecting(false);
@@ -421,6 +465,20 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
               </div>
 
               <div className="p-6 space-y-4">
+                {keysUrl && (
+                  <a
+                    href={keysUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-blue-300 border border-blue-500/30 bg-blue-500/10 rounded-lg px-3 py-2 hover:bg-blue-500/20 hover:border-blue-400/50 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                    Get Your API Keys
+                  </a>
+                )}
+
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wide block mb-2">API Key</label>
                   <input
@@ -442,6 +500,26 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                     className="w-full bg-[#303134] border border-[#5f6368] focus:border-blue-500 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none transition-colors"
                   />
                 </div>
+
+                {canTogglePaper && (
+                  <div className="flex items-center justify-between py-1">
+                    <div>
+                      <div className={`text-sm ${isPaper ? 'text-emerald-300' : 'text-orange-300'}`}>
+                        {isPaper ? 'Paper Trading' : 'Live Trading'}
+                      </div>
+                      <div className={`text-xs ${isPaper ? 'text-emerald-300/70' : 'text-orange-300/70'}`}>
+                        {isPaper ? 'Use paper endpoint' : 'Orders may execute live'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsPaper(!isPaper)}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${isPaper ? 'bg-emerald-500/40' : 'bg-orange-500/40'}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0.5 bg-orange-400'}`} />
+                    </button>
+                  </div>
+                )}
 
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                   <p className="text-xs text-blue-300">

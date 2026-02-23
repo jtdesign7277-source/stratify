@@ -139,15 +139,115 @@ const StatusBadge = ({ label, color }) => (
   </span>
 );
 
+const BROKER_CONNECT_PAGE_STATE_KEY = 'portfolio-broker-connect-state';
+const BROKER_CONNECT_PAGE_FIELDS_KEY = 'portfolio-broker-connect-fields';
+
+const readStoredConnectState = () => {
+  try {
+    const saved = sessionStorage.getItem(BROKER_CONNECT_PAGE_STATE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const readStoredConnectFields = () => {
+  try {
+    const saved = localStorage.getItem(BROKER_CONNECT_PAGE_FIELDS_KEY);
+    if (!saved) return {};
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const getStoredConnectBrokerFields = (brokerId) => {
+  if (!brokerId) return { apiKey: '', apiSecret: '' };
+  const storedFields = readStoredConnectFields();
+  const brokerFields = storedFields[brokerId];
+  if (!brokerFields || typeof brokerFields !== 'object') {
+    return { apiKey: '', apiSecret: '' };
+  }
+  return {
+    apiKey: typeof brokerFields.apiKey === 'string' ? brokerFields.apiKey : '',
+    apiSecret: typeof brokerFields.apiSecret === 'string' ? brokerFields.apiSecret : '',
+  };
+};
+
 const BrokerConnect = ({ onConnected }) => {
-  const [selectedBroker, setSelectedBroker] = useState(null);
-  const [apiKey, setApiKey] = useState('');
-  const [apiSecret, setApiSecret] = useState('');
-  const [isPaper, setIsPaper] = useState(true);
+  const initialConnectState = readStoredConnectState();
+  const initialBrokerId = BROKERS.find((broker) => broker.id === initialConnectState?.selectedBrokerId)?.id || null;
+  const initialBrokerFields = getStoredConnectBrokerFields(initialBrokerId);
+
+  const [selectedBroker, setSelectedBroker] = useState(initialBrokerId);
+  const [apiKey, setApiKey] = useState(initialBrokerFields.apiKey);
+  const [apiSecret, setApiSecret] = useState(initialBrokerFields.apiSecret);
+  const [isPaper, setIsPaper] = useState(initialConnectState?.isPaper !== false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [existingConnections, setExistingConnections] = useState([]);
+
+  const clearPersistedConnectState = () => {
+    try {
+      sessionStorage.removeItem(BROKER_CONNECT_PAGE_STATE_KEY);
+      localStorage.removeItem(BROKER_CONNECT_PAGE_FIELDS_KEY);
+    } catch (err) {
+      console.error('[BrokerConnect] Failed to clear persisted state:', err);
+    }
+  };
+
+  // Persist selected broker + paper/live mode in sessionStorage.
+  useEffect(() => {
+    try {
+      if (!selectedBroker) {
+        sessionStorage.removeItem(BROKER_CONNECT_PAGE_STATE_KEY);
+        return;
+      }
+      sessionStorage.setItem(BROKER_CONNECT_PAGE_STATE_KEY, JSON.stringify({
+        selectedBrokerId: selectedBroker,
+        isPaper,
+      }));
+    } catch (err) {
+      console.error('[BrokerConnect] Failed to persist session state:', err);
+    }
+  }, [selectedBroker, isPaper]);
+
+  // Restore broker-specific keys when the selected broker changes.
+  useEffect(() => {
+    if (!selectedBroker) {
+      setApiKey('');
+      setApiSecret('');
+      return;
+    }
+    const storedFields = getStoredConnectBrokerFields(selectedBroker);
+    setApiKey(storedFields.apiKey);
+    setApiSecret(storedFields.apiSecret);
+  }, [selectedBroker]);
+
+  // Persist API keys per broker in localStorage.
+  useEffect(() => {
+    if (!selectedBroker) return;
+    try {
+      const storedFields = readStoredConnectFields();
+      if (apiKey || apiSecret) {
+        storedFields[selectedBroker] = { apiKey, apiSecret };
+      } else {
+        delete storedFields[selectedBroker];
+      }
+
+      if (Object.keys(storedFields).length === 0) {
+        localStorage.removeItem(BROKER_CONNECT_PAGE_FIELDS_KEY);
+      } else {
+        localStorage.setItem(BROKER_CONNECT_PAGE_FIELDS_KEY, JSON.stringify(storedFields));
+      }
+    } catch (err) {
+      console.error('[BrokerConnect] Failed to persist local fields:', err);
+    }
+  }, [selectedBroker, apiKey, apiSecret]);
 
   // Fetch existing broker connections on mount
   useEffect(() => {
@@ -236,6 +336,7 @@ const BrokerConnect = ({ onConnected }) => {
         return;
       }
 
+      clearPersistedConnectState();
       setSuccess(true);
       setTesting(false);
       if (onConnected) onConnected(data);
@@ -265,9 +366,6 @@ const BrokerConnect = ({ onConnected }) => {
     if (b.status === 'coming_soon') return;
     setSelectedBroker(b.id);
     setError('');
-    setApiKey('');
-    setApiSecret('');
-    setIsPaper(true);
   };
 
   // Sidebar + content layout

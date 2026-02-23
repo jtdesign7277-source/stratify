@@ -5,7 +5,9 @@
 CREATE TABLE IF NOT EXISTS community_posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  author_name TEXT,
   parent_id UUID REFERENCES community_posts(id) ON DELETE CASCADE,
+  parent_post_id UUID REFERENCES community_posts(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   image_url TEXT,
   ticker_mentions TEXT[] DEFAULT '{}',
@@ -17,9 +19,15 @@ CREATE TABLE IF NOT EXISTS community_posts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Backward-compatible alters when table already exists
+ALTER TABLE community_posts
+  ADD COLUMN IF NOT EXISTS author_name TEXT,
+  ADD COLUMN IF NOT EXISTS parent_post_id UUID REFERENCES community_posts(id) ON DELETE CASCADE;
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_community_posts_user_id ON community_posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_community_posts_parent_id ON community_posts(parent_id);
+CREATE INDEX IF NOT EXISTS idx_community_posts_parent_post_id ON community_posts(parent_post_id);
 CREATE INDEX IF NOT EXISTS idx_community_posts_created_at ON community_posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_community_posts_post_type ON community_posts(post_type);
 CREATE INDEX IF NOT EXISTS idx_community_posts_ticker_mentions ON community_posts USING gin(ticker_mentions);
@@ -124,14 +132,43 @@ CREATE TRIGGER trigger_update_post_likes_count
 AFTER INSERT OR DELETE ON community_likes
 FOR EACH ROW EXECUTE FUNCTION update_post_likes_count();
 
+-- Keep legacy parent_id and parent_post_id in sync for reply threads
+CREATE OR REPLACE FUNCTION sync_community_parent_ids()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.parent_post_id IS NULL THEN
+    NEW.parent_post_id = NEW.parent_id;
+  END IF;
+
+  IF NEW.parent_id IS NULL THEN
+    NEW.parent_id = NEW.parent_post_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_sync_community_parent_ids ON community_posts;
+CREATE TRIGGER trigger_sync_community_parent_ids
+BEFORE INSERT OR UPDATE ON community_posts
+FOR EACH ROW EXECUTE FUNCTION sync_community_parent_ids();
+
 -- Function to update comments count
 CREATE OR REPLACE FUNCTION update_post_comments_count()
 RETURNS TRIGGER AS $$
+DECLARE
+  target_parent_id UUID;
 BEGIN
-  IF TG_OP = 'INSERT' AND NEW.parent_id IS NOT NULL THEN
-    UPDATE community_posts SET comments_count = comments_count + 1 WHERE id = NEW.parent_id;
-  ELSIF TG_OP = 'DELETE' AND OLD.parent_id IS NOT NULL THEN
-    UPDATE community_posts SET comments_count = comments_count - 1 WHERE id = OLD.parent_id;
+  IF TG_OP = 'INSERT' THEN
+    target_parent_id = COALESCE(NEW.parent_post_id, NEW.parent_id);
+    IF target_parent_id IS NOT NULL THEN
+      UPDATE community_posts SET comments_count = comments_count + 1 WHERE id = target_parent_id;
+    END IF;
+  ELSIF TG_OP = 'DELETE' THEN
+    target_parent_id = COALESCE(OLD.parent_post_id, OLD.parent_id);
+    IF target_parent_id IS NOT NULL THEN
+      UPDATE community_posts SET comments_count = comments_count - 1 WHERE id = target_parent_id;
+    END IF;
   END IF;
   RETURN NULL;
 END;

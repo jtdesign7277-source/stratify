@@ -74,6 +74,33 @@ const normalizePercent = (value, fallback) => {
   return Number.isFinite(fallback) ? fallback : 0;
 };
 
+const BROKER_MODAL_OPEN_KEY = 'broker-modal-open';
+const BROKER_MODAL_STATE_KEY = 'portfolio-broker-modal-state';
+const BROKER_MODAL_FIELDS_KEY = 'portfolio-broker-modal-fields';
+const LEGACY_BROKER_CONNECT_FORM_KEY = 'broker-connect-form';
+
+const hasInProgressBrokerConnection = () => {
+  try {
+    const modalState = sessionStorage.getItem(BROKER_MODAL_STATE_KEY);
+    if (!modalState) return false;
+    const parsed = JSON.parse(modalState);
+    return Boolean(parsed?.selectedBrokerId);
+  } catch {
+    return false;
+  }
+};
+
+const clearBrokerModalPersistence = () => {
+  try {
+    sessionStorage.removeItem(BROKER_MODAL_OPEN_KEY);
+    sessionStorage.removeItem(BROKER_MODAL_STATE_KEY);
+    sessionStorage.removeItem(LEGACY_BROKER_CONNECT_FORM_KEY);
+    localStorage.removeItem(BROKER_MODAL_FIELDS_KEY);
+  } catch (err) {
+    console.error('[PortfolioPage] Failed to clear broker modal persistence:', err);
+  }
+};
+
 const PortfolioPage = ({
   themeClasses: _themeClasses,
   alpacaData,
@@ -84,7 +111,7 @@ const PortfolioPage = ({
 }) => {
   const [showBrokerModal, setShowBrokerModal] = useState(() => {
     try {
-      return sessionStorage.getItem('broker-modal-open') === 'true';
+      return sessionStorage.getItem(BROKER_MODAL_OPEN_KEY) === 'true' || hasInProgressBrokerConnection();
     } catch {
       return false;
     }
@@ -94,7 +121,7 @@ const PortfolioPage = ({
   // Persist modal state to sessionStorage
   useEffect(() => {
     try {
-      sessionStorage.setItem('broker-modal-open', showBrokerModal.toString());
+      sessionStorage.setItem(BROKER_MODAL_OPEN_KEY, showBrokerModal.toString());
     } catch (err) {
       console.error('[PortfolioPage] Failed to persist modal state:', err);
     }
@@ -181,6 +208,12 @@ const PortfolioPage = ({
 
   const handleBrokerConnect = (broker) => {
     onBrokerConnect(broker);
+    clearBrokerModalPersistence();
+    setShowBrokerModal(false);
+  };
+
+  const handleBrokerModalClose = () => {
+    clearBrokerModalPersistence();
     setShowBrokerModal(false);
   };
 
@@ -471,7 +504,7 @@ const PortfolioPage = ({
 
       <BrokerConnectModal
         isOpen={showBrokerModal}
-        onClose={() => setShowBrokerModal(false)}
+        onClose={handleBrokerModalClose}
         onConnect={handleBrokerConnect}
         connectedBrokers={connectedBrokers}
       />
