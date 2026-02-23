@@ -7,6 +7,18 @@ const formatErrorMessage = (error) => {
   return 'A runtime error occurred while rendering this page.';
 };
 
+const isChunkLoadError = (error) => {
+  const message = String(error?.message || error || '').toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes('failed to fetch dynamically imported module')
+    || message.includes('dynamically imported module')
+    || message.includes('importing a module script failed')
+    || message.includes('chunkloaderror')
+    || message.includes('loading chunk')
+  );
+};
+
 class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -18,10 +30,19 @@ class AppErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
+    // Dynamic-import chunk misses can happen transiently during navigation/deploy swaps.
+    // Let the app continue rendering instead of flashing the full crash UI.
+    if (isChunkLoadError(error)) {
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
+    if (isChunkLoadError(error)) {
+      console.warn('[app/error-boundary] Suppressed transient chunk-load error:', error);
+      return;
+    }
     console.error('[app/error-boundary] Unhandled render error:', error, errorInfo);
   }
 

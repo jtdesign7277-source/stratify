@@ -37,7 +37,45 @@ import HistoryPage from './HistoryPage';
 import MarketMoversPage from './MarketMoversPage';
 const AnalyticsPage = lazy(() => import('./AnalyticsPage'));
 // import AdvancedChartsPage from './AdvancedChartsPage';
-const TradePage = lazy(() => import('./TradePage'));
+const tradePageModules = import.meta.glob('./TradePage.jsx');
+const MissingTradePage = () => (
+  <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+    Trader page is unavailable. Refresh and try again.
+  </div>
+);
+const TradePage = lazy(async () => {
+  const importer = tradePageModules['./TradePage.jsx'];
+  if (!importer) return { default: MissingTradePage };
+
+  try {
+    const module = await importer();
+    if (module?.default) return { default: module.default };
+  } catch (error) {
+    const message = String(error?.message || error || '').toLowerCase();
+    const isChunkError = (
+      message.includes('failed to fetch dynamically imported module')
+      || message.includes('dynamically imported module')
+      || message.includes('importing a module script failed')
+      || message.includes('chunkloaderror')
+      || message.includes('loading chunk')
+    );
+
+    if (isChunkError) {
+      console.warn('[Dashboard] Suppressed transient TradePage chunk-load error:', error);
+      return {
+        default: () => (
+          <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+            Loading trader page...
+          </div>
+        ),
+      };
+    }
+
+    console.error('[Dashboard] Failed to load TradePage:', error);
+  }
+
+  return { default: MissingTradePage };
+});
 const communityPageModules = import.meta.glob('./CommunityPage.jsx');
 const MissingCommunityPage = () => (
   <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
