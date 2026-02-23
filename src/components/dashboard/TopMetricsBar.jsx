@@ -350,6 +350,22 @@ const GLOBAL_MARKET_CLOCKS = [
     hoursLabel: '10:00-16:00',
     windows: [[10 * 60, 16 * 60]],
   },
+  {
+    id: 'sha',
+    city: 'Shanghai',
+    timezone: 'Asia/Shanghai',
+    code: 'SSE',
+    hoursLabel: '09:30-11:30, 13:00-15:00',
+    windows: [[9 * 60 + 30, 11 * 60 + 30], [13 * 60, 15 * 60]],
+  },
+  {
+    id: 'dxb',
+    city: 'Dubai',
+    timezone: 'Asia/Dubai',
+    code: 'DFM',
+    hoursLabel: '10:00-14:00',
+    windows: [[10 * 60, 14 * 60]],
+  },
 ];
 
 const getLocalMarketParts = (date, timezone) => {
@@ -676,13 +692,6 @@ export default function TopMetricsBar({
           </div>
           {/* Notification Bell */}
           <NotificationButton themeClasses={themeClasses} />
-          <button
-            onClick={onLegendClick}
-            className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-            title="Legend Challenge"
-          >
-            <span className="text-[15px] leading-none">🏆</span>
-          </button>
           <button onClick={onLogout} className={`p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors ${themeClasses.textMuted}`}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
           </button>

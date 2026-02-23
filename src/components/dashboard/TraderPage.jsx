@@ -4,6 +4,8 @@ import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, X } from 'luci
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { formatCurrency, formatPercent } from '../../lib/twelvedata';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
+import { supabase } from '../../lib/supabaseClient';
+import AlpacaOrderTicket from './AlpacaOrderTicket';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
@@ -67,6 +69,13 @@ const RECONNECT_MIN_MS = 1200;
 const RECONNECT_MAX_MS = 15000;
 const NO_STREAM_DATA_TIMEOUT_MS = 5000;
 const CLOSED_MARKET_POLL_INTERVAL_MS = 30000;
+const TRADER_ORDER_TYPE_OPTIONS = [
+  { value: 'market', label: 'Market' },
+  { value: 'limit', label: 'Limit' },
+  { value: 'stop', label: 'Stop' },
+  { value: 'stop_limit', label: 'Stop Limit' },
+  { value: 'trailing_stop', label: 'Trailing Stop' },
+];
 
 const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
@@ -394,6 +403,385 @@ const loadInitialChartTimeframe = () => {
   return DEFAULT_CHART_TIMEFRAME;
 };
 
+function TraderOrderEntry({
+  selectedSymbol,
+  lastPrice,
+  onSymbolChange,
+  onOrderPlaced,
+}) {
+  const [side, setSide] = useState('buy');
+  const [orderType, setOrderType] = useState('market');
+  const [sizeMode, setSizeMode] = useState('shares');
+  const [quantity, setQuantity] = useState('');
+  const [dollarAmount, setDollarAmount] = useState('');
+  const [limitPrice, setLimitPrice] = useState('');
+  const [stopPrice, setStopPrice] = useState('');
+  const [trailAmount, setTrailAmount] = useState('');
+  const [trailType, setTrailType] = useState('dollars');
+  const [timeInForce, setTimeInForce] = useState('day');
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+  const [buyingPowerDisplay, setBuyingPowerDisplay] = useState('$ -');
+
+  const referencePrice = useMemo(() => {
+    if (orderType === 'market' || orderType === 'trailing_stop') {
+      return Number(lastPrice) || 0;
+    }
+    if (orderType === 'stop') {
+      return parseFloat(stopPrice) || Number(lastPrice) || 0;
+    }
+    return parseFloat(limitPrice) || Number(lastPrice) || 0;
+  }, [lastPrice, limitPrice, orderType, stopPrice]);
+
+  const resolvedQuantity = useMemo(() => {
+    if (sizeMode === 'shares') return parseFloat(quantity) || 0;
+    const dollars = parseFloat(dollarAmount) || 0;
+    if (!referencePrice || referencePrice <= 0) return 0;
+    return dollars / referencePrice;
+  }, [dollarAmount, quantity, referencePrice, sizeMode]);
+
+  const notionalNumber = useMemo(() => {
+    const parsed = parseFloat(dollarAmount);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [dollarAmount]);
+
+  const estimatedTotal = useMemo(() => {
+    if (sizeMode === 'dollars') return notionalNumber;
+    return resolvedQuantity * referencePrice;
+  }, [notionalNumber, referencePrice, resolvedQuantity, sizeMode]);
+
+  const hasValidOrderSize = sizeMode === 'dollars' ? notionalNumber > 0 : resolvedQuantity > 0;
+  const limitPriceNumber = Number(limitPrice);
+  const stopPriceNumber = Number(stopPrice);
+  const trailAmountNumber = Number(trailAmount);
+  const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
+  const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
+  const requiresTrail = orderType === 'trailing_stop';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchBuyingPower = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = {};
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+
+        const response = await fetch('/api/account', {
+          headers,
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || cancelled) return;
+
+        const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
+        const parsed = Number(buyingPower);
+        if (!Number.isFinite(parsed)) return;
+
+        setBuyingPowerDisplay(
+          new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(parsed),
+        );
+      } catch {
+        if (!cancelled) {
+          setBuyingPowerDisplay('$ -');
+        }
+      }
+    };
+
+    fetchBuyingPower();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSubmit = () => {
+    if (!selectedSymbol || !hasValidOrderSize) return;
+    if (requiresLimit && (!Number.isFinite(limitPriceNumber) || limitPriceNumber <= 0)) return;
+    if (requiresStop && (!Number.isFinite(stopPriceNumber) || stopPriceNumber <= 0)) return;
+    if (requiresTrail && (!Number.isFinite(trailAmountNumber) || trailAmountNumber <= 0)) return;
+    setConfirmModal(true);
+  };
+
+  const executeOrder = async () => {
+    if (!selectedSymbol) return;
+    setSubmitting(true);
+    setConfirmModal(false);
+
+    const normalizedTimeInForce = String(timeInForce || 'day').toLowerCase() === 'day'
+      ? 'gtc'
+      : String(timeInForce || 'gtc').toLowerCase();
+
+    const payload = {
+      symbol: selectedSymbol,
+      side,
+      type: orderType,
+      time_in_force: normalizedTimeInForce,
+    };
+
+    payload.qty = resolvedQuantity;
+    if (sizeMode === 'dollars') {
+      payload.notional = notionalNumber;
+    }
+
+    if (requiresLimit) payload.limit_price = limitPriceNumber;
+    if (requiresStop) payload.stop_price = stopPriceNumber;
+    if (requiresTrail) {
+      if (trailType === 'percent') {
+        payload.trail_percent = trailAmountNumber;
+      } else {
+        payload.trail_price = trailAmountNumber;
+      }
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const errorMsg = result?.error || 'Order rejected';
+        if (errorMsg.includes('No Alpaca broker connected') || errorMsg.includes('not_connected')) {
+          alert('Order rejected\n\nNo broker connected. Connect your Alpaca paper account in Portfolio before trading.');
+        } else if (errorMsg.toLowerCase().includes('insufficient')) {
+          alert('Order rejected\n\nInsufficient buying power. Check your account balance.');
+        } else if (errorMsg.toLowerCase().includes('forbidden') || errorMsg.toLowerCase().includes('not authorized')) {
+          alert('Order rejected\n\nYour Alpaca API keys may not have trading permissions. Check your Alpaca dashboard.');
+        } else {
+          alert(`Order rejected\n\n${errorMsg}`);
+        }
+
+        setLastResult('rejected');
+        setTimeout(() => setLastResult(null), 3000);
+      } else {
+        setLastResult('filled');
+        setTimeout(() => setLastResult(null), 3000);
+        onOrderPlaced?.(result);
+      }
+    } catch (error) {
+      console.error('Order submission error:', error);
+      setLastResult('error');
+      setTimeout(() => setLastResult(null), 3000);
+    }
+
+    setSubmitting(false);
+  };
+
+  const fieldClassName =
+    'h-[36px] w-full rounded-lg border border-[#1f2a3a] bg-[#050b16] px-3 text-[13px] font-semibold text-white outline-none focus:border-blue-500/60';
+
+  const handleSymbolSubmit = (input) => {
+    const normalized = String(input || '')
+      .replace(/^\$/, '')
+      .replace(/[-/_]/g, '')
+      .toUpperCase();
+    if (!normalized) return;
+    onSymbolChange?.(normalized);
+  };
+
+  return (
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+      <AlpacaOrderTicket
+        side={side}
+        onSideChange={setSide}
+        symbol={selectedSymbol ? `$${selectedSymbol}` : ''}
+        onSymbolSubmit={handleSymbolSubmit}
+        marketPrice={referencePrice}
+        quantity={quantity}
+        onQuantityChange={setQuantity}
+        orderType={orderType}
+        onOrderTypeChange={setOrderType}
+        orderTypeOptions={TRADER_ORDER_TYPE_OPTIONS}
+        sizeMode={sizeMode}
+        onSizeModeChange={setSizeMode}
+        dollarAmount={dollarAmount}
+        onDollarAmountChange={setDollarAmount}
+        timeInForce={timeInForce}
+        onTimeInForceChange={setTimeInForce}
+        timeInForceOptions={[
+          { value: 'day', label: 'DAY' },
+          { value: 'gtc', label: 'GTC' },
+          { value: 'ioc', label: 'IOC' },
+        ]}
+        estimatedCost={estimatedTotal}
+        buyingPowerDisplay={buyingPowerDisplay}
+        onReview={handleSubmit}
+        reviewDisabled={submitting || !selectedSymbol || !hasValidOrderSize}
+        reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
+        density="crypto"
+        stickyReviewFooter
+        className="flex-1 min-h-0"
+        extraFields={
+          <div className="space-y-1">
+            {(orderType === 'limit' || orderType === 'stop_limit') && (
+              <div className="space-y-1">
+                <label className="block text-[12px] font-semibold text-slate-300">Limit Price</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={limitPrice}
+                  onChange={(event) => setLimitPrice(event.target.value)}
+                  placeholder={lastPrice ? Number(lastPrice).toFixed(2) : '0.00'}
+                  className={fieldClassName}
+                />
+              </div>
+            )}
+            {(orderType === 'stop' || orderType === 'stop_limit') && (
+              <div className="space-y-1">
+                <label className="block text-[12px] font-semibold text-slate-300">Stop Price</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={stopPrice}
+                  onChange={(event) => setStopPrice(event.target.value)}
+                  placeholder="0.00"
+                  className={fieldClassName}
+                />
+              </div>
+            )}
+            {orderType === 'trailing_stop' && (
+              <div className="space-y-1">
+                <div className="grid grid-cols-2 border-b border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setTrailType('dollars')}
+                    className={`py-1 text-[12px] font-semibold transition-colors ${
+                      trailType === 'dollars' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
+                    }`}
+                  >
+                    $
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrailType('percent')}
+                    className={`py-1 text-[12px] font-semibold transition-colors ${
+                      trailType === 'percent' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-gray-500'
+                    }`}
+                  >
+                    %
+                  </button>
+                </div>
+                <label className="block text-[12px] font-semibold text-slate-300">
+                  {trailType === 'percent' ? 'Trail Amount (%)' : 'Trail Amount ($)'}
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={trailAmount}
+                  onChange={(event) => setTrailAmount(event.target.value)}
+                  placeholder="0.00"
+                  className={fieldClassName}
+                />
+              </div>
+            )}
+            {sizeMode === 'dollars' && (
+              <div className="text-[12px] font-semibold text-slate-300">
+                Est. Qty: {resolvedQuantity > 0 ? resolvedQuantity.toFixed(6) : '0.000000'} {selectedSymbol || '--'}
+              </div>
+            )}
+          </div>
+        }
+      />
+
+      <div className="px-2">
+        {lastResult && (
+          <div
+            className="animate-pulse rounded-lg py-2 text-center text-xs font-semibold"
+            style={{
+              background: lastResult === 'filled' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              color: lastResult === 'filled' ? '#22c55e' : '#ef4444',
+              border: `1px solid ${lastResult === 'filled' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+            }}
+          >
+            {lastResult === 'filled' ? 'Order Filled' : lastResult === 'rejected' ? 'Order Rejected' : 'Connection Error'}
+          </div>
+        )}
+      </div>
+
+      {confirmModal && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-[280px] space-y-4 rounded-xl p-5"
+            style={{ background: 'rgba(10, 22, 40, 0.98)', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+          >
+            <div className="text-center">
+              <div className="mb-1 text-sm font-bold" style={{ color: '#e2e8f0' }}>Confirm Order</div>
+              <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
+                {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedSymbol || '--'} @ {
+                  orderType === 'market'
+                    ? 'MARKET'
+                    : orderType === 'limit'
+                      ? `$${limitPrice}`
+                      : orderType === 'stop'
+                        ? `STOP $${stopPrice}`
+                        : orderType === 'stop_limit'
+                          ? `STOP $${stopPrice} / LIMIT $${limitPrice}`
+                          : trailType === 'percent'
+                            ? `TRAIL ${trailAmount}%`
+                            : `TRAIL $${trailAmount}`
+                }
+              </div>
+              {sizeMode === 'dollars' && (
+                <div className="mt-1 text-[10px]" style={{ color: 'rgba(148, 163, 184, 0.45)' }}>
+                  From ${notionalNumber.toFixed(2)} notional
+                </div>
+              )}
+            </div>
+            <div className="text-center text-lg font-mono font-black" style={{ color: side === 'buy' ? '#22c55e' : '#ef4444' }}>
+              ${estimatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(false)}
+                className="rounded-lg border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeOrder}
+                className="rounded-lg py-2.5 text-xs font-bold transition-colors"
+                style={{
+                  background: side === 'buy' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)',
+                  color: side === 'buy' ? '#22c55e' : '#ef4444',
+                  border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                }}
+              >
+                Confirm {side.toUpperCase()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TraderPage({ onPinToTop }) {
   const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY;
   const initialWatchlist = useMemo(() => loadInitialWatchlist(), []);
@@ -419,6 +807,7 @@ export default function TraderPage({ onPinToTop }) {
   const [chartTimeframe, setChartTimeframe] = useState(() => loadInitialChartTimeframe());
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
@@ -589,6 +978,16 @@ export default function TraderPage({ onPinToTop }) {
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
   const selectedQuoteIsPlaceholder = selectedQuote?.isPlaceholder === true;
+  const selectedMarketPrice = useMemo(() => {
+    const price = toNumber(
+      selectedQuote?.price
+      ?? selectedQuote?.last
+      ?? selectedQuote?.close
+      ?? selectedQuote?.ask
+      ?? selectedQuote?.bid,
+    );
+    return Number.isFinite(price) ? price : 0;
+  }, [selectedQuote]);
 
   const fetchImmediateClosePlaceholder = useCallback(async (symbol) => {
     if (!apiKey) return;
@@ -1464,6 +1863,10 @@ export default function TraderPage({ onPinToTop }) {
       : streamStatus.retryCount > 0
         ? `Reconnecting (${streamStatus.retryCount})`
         : 'Disconnected';
+  const orderTicketStyle = {
+    background: '#060d18',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+  };
 
   return (
     <div className="h-full w-full bg-[#0b0b0b] text-[#e5e7eb]">
@@ -1711,66 +2114,143 @@ export default function TraderPage({ onPinToTop }) {
           )}
         </aside>
 
-        <section className="flex min-h-0 flex-col">
-          <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
-            <div>
-              <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
-              <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
+        <section className="flex min-h-0">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
+              <div>
+                <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
+                <p className="mt-1 text-xs text-[#7c8087]">Candlestick chart · {selectedChartTimeframe.label}</p>
+              </div>
+              <div className="text-right">
+                <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
+                  {formatPrice(selectedQuote?.price)}
+                </div>
+                <div
+                  className={`text-xs font-medium tabular-nums ${
+                    Number.isFinite(Number(selectedQuote?.changePercent))
+                      ? Number(selectedQuote?.changePercent) >= 0
+                        ? 'text-emerald-400'
+                        : 'text-red-400'
+                      : 'text-[#6b7280]'
+                  }`}
+                >
+                  {formatSignedPercent(selectedQuote?.changePercent)}
+                </div>
+              </div>
             </div>
-            <div className="text-right">
-              <div className={`text-lg font-semibold tabular-nums ${selectedQuoteIsPlaceholder ? 'text-white/80' : 'text-white'}`}>
-                {formatPrice(selectedQuote?.price)}
+
+            <div className="border-b border-[#1f1f1f] px-4 py-2">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
+                  const isActive = chartTimeframe === timeframe.id;
+                  return (
+                    <button
+                      key={timeframe.id}
+                      type="button"
+                      onClick={() => setChartTimeframe(timeframe.id)}
+                      className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
+                        isActive
+                          ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
+                          : 'border-[#1f1f1f] text-gray-400 hover:bg-white/5 hover:text-white'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {timeframe.label}
+                    </button>
+                  );
+                })}
               </div>
-              <div
-                className={`text-xs font-medium tabular-nums ${
-                  Number.isFinite(Number(selectedQuote?.changePercent))
-                    ? Number(selectedQuote?.changePercent) >= 0
-                      ? 'text-emerald-400'
-                      : 'text-red-400'
-                    : 'text-[#6b7280]'
-                }`}
-              >
-                {formatSignedPercent(selectedQuote?.changePercent)}
-              </div>
+            </div>
+
+            <div className="relative min-h-[260px] flex-1">
+              <div ref={chartContainerRef} className="h-full w-full" />
+
+              {chartStatus.loading && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/55 text-sm text-[#9ca3af]">
+                  Loading candles...
+                </div>
+              )}
+
+              {!chartStatus.loading && chartStatus.error && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/65 px-6 text-center text-sm text-[#9ca3af]">
+                  {chartStatus.error}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="border-b border-[#1f1f1f] px-4 py-2">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-              {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
-                const isActive = chartTimeframe === timeframe.id;
-                return (
-                  <button
-                    key={timeframe.id}
-                    type="button"
-                    onClick={() => setChartTimeframe(timeframe.id)}
-                    className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
-                      isActive
-                        ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
-                        : 'border-[#1f1f1f] text-gray-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                    aria-pressed={isActive}
-                  >
-                    {timeframe.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="relative min-h-[260px] flex-1">
-            <div ref={chartContainerRef} className="h-full w-full" />
-
-            {chartStatus.loading && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/55 text-sm text-[#9ca3af]">
-                Loading candles...
+          <div
+            className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl transition-all duration-200`}
+            style={orderTicketStyle}
+          >
+            {isRightPanelCollapsed ? (
+              <div className="flex h-full flex-col items-center gap-2 py-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRightPanelCollapsed(false)}
+                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors"
+                  style={{
+                    color: 'rgba(148, 163, 184, 0.6)',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                  title="Expand order entry panel"
+                  aria-label="Expand order entry panel"
+                >
+                  <ChevronsLeft className="mx-auto h-3.5 w-3.5" strokeWidth={1.7} />
+                </button>
+                <div
+                  className="text-[9px] font-bold uppercase tracking-[0.2em]"
+                  style={{
+                    color: 'rgba(96, 165, 250, 0.75)',
+                    writingMode: 'vertical-rl',
+                    textOrientation: 'mixed',
+                  }}
+                >
+                  Order
+                </div>
               </div>
-            )}
+            ) : (
+              <>
+                <div className="shrink-0 border-b border-white/[0.06] px-2.5 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-[0.16em]"
+                      style={{ color: 'rgba(96, 165, 250, 0.85)' }}
+                    >
+                      Order Entry
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRightPanelCollapsed(true)}
+                      className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/[0.03]"
+                      style={{ color: 'rgba(148, 163, 184, 0.55)' }}
+                      title="Collapse order entry panel"
+                      aria-label="Collapse order entry panel"
+                    >
+                      <ChevronsRight className="h-4 w-4" strokeWidth={1.7} />
+                    </button>
+                  </div>
+                </div>
 
-            {!chartStatus.loading && chartStatus.error && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0b0b0b]/65 px-6 text-center text-sm text-[#9ca3af]">
-                {chartStatus.error}
-              </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <TraderOrderEntry
+                    selectedSymbol={selectedSymbol}
+                    lastPrice={selectedMarketPrice}
+                    onSymbolChange={(symbolInput) => {
+                      const normalized = normalizeSymbol(symbolInput);
+                      if (!normalized) return;
+                      const nextSymbol = watchlist.find((symbol) => normalizeSymbol(symbol) === normalized);
+                      if (nextSymbol) {
+                        setSelectedSymbol(nextSymbol);
+                      }
+                    }}
+                    onOrderPlaced={() => {
+                      void fetchQuoteSnapshot();
+                    }}
+                  />
+                </div>
+              </>
             )}
           </div>
         </section>

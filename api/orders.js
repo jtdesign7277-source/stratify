@@ -111,6 +111,7 @@ export default async function handler(req, res) {
       limit_price,
       stop_price,
       trail_price,
+      trail_percent,
     } = req.body || {};
 
     if (!symbol || !side || !type || !time_in_force || (!qty && !notional)) {
@@ -152,6 +153,9 @@ export default async function handler(req, res) {
     }
     if (trail_price !== undefined && trail_price !== null && trail_price !== '') {
       order.trail_price = String(trail_price);
+    }
+    if (trail_percent !== undefined && trail_percent !== null && trail_percent !== '') {
+      order.trail_percent = String(trail_percent);
     }
 
     // Detect crypto symbols (contain / or common crypto pairs)
