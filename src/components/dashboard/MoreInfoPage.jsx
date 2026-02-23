@@ -58,7 +58,7 @@ export default function MoreInfoPage() {
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [avatarStatus, setAvatarStatus] = useState(null);
   const { user, isAuthenticated, updateProfile } = useAuth();
-  const { isProUser } = useSubscription();
+  const { isProUser, loading: subscriptionLoading } = useSubscription();
 
   const fullName = user?.user_metadata?.full_name?.trim();
   const displayName = fullName || 'Stratify User';
@@ -80,6 +80,7 @@ export default function MoreInfoPage() {
         badgeClass: 'border-amber-500/30 bg-white/5 text-amber-300',
         iconClass: 'text-amber-300',
       };
+  const canUpgrade = isAuthenticated && !subscriptionLoading && !isProUser;
 
   const handleCopyId = async () => {
     if (!user?.id || !navigator?.clipboard) return;
@@ -87,6 +88,33 @@ export default function MoreInfoPage() {
       await navigator.clipboard.writeText(user.id);
     } catch {
       // no-op
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!canUpgrade) return;
+
+    try {
+      const resp = await (await import('../../lib/supabaseClient')).supabase.auth.getUser();
+      const currentUser = resp.data.user;
+      if (currentUser === null) {
+        window.location.href = '/signup';
+        return;
+      }
+
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId: 'price_1T0jBTRdPxQfs9UeRln3Uj68',
+          userId: currentUser.id,
+          userEmail: currentUser.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (error) {
+      console.error('Checkout error:', error);
     }
   };
 
@@ -369,36 +397,36 @@ export default function MoreInfoPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Account Type — clickable to upgrade */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        const resp = await (await import('../../lib/supabaseClient')).supabase.auth.getUser();
-                        const u = resp.data.user;
-                        if (u === null) { window.location.href = '/signup'; return; }
-                        const res = await fetch('/api/create-checkout-session', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ priceId: 'price_1T0jBTRdPxQfs9UeRln3Uj68', userId: u.id, userEmail: u.email })
-                        });
-                        const data = await res.json();
-                        if (data.url) window.location.href = data.url;
-                      } catch (e) { console.error('Checkout error:', e); }
-                    }}
-                    className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block text-left w-full"
-                  >
-                    <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
-                      <Shield className="w-4 h-4" strokeWidth={1.5} />
-                      Account Type
+                  {canUpgrade ? (
+                    <button
+                      type="button"
+                      onClick={handleUpgrade}
+                      className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3 hover:border-emerald-500/40 transition-colors group cursor-pointer block text-left w-full"
+                    >
+                      <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
+                        <Shield className="w-4 h-4" strokeWidth={1.5} />
+                        Account Type
+                      </div>
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
+                        <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                        {accountBadge.label}
+                      </span>
+                      <p className="text-sm text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
+                        Upgrade to Pro →
+                      </p>
+                    </button>
+                  ) : (
+                    <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
+                      <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
+                        <Shield className="w-4 h-4" strokeWidth={1.5} />
+                        Account Type
+                      </div>
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
+                        <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
+                        {accountBadge.label}
+                      </span>
                     </div>
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${accountBadge.badgeClass}`}>
-                      <Shield className={`w-3.5 h-3.5 ${accountBadge.iconClass}`} strokeWidth={1.5} />
-                      {accountBadge.label}
-                    </span>
-                    <p className="text-sm text-emerald-400/70 mt-1.5 group-hover:text-emerald-400 transition-colors">
-                      Upgrade to Pro →
-                    </p>
-                  </button>
+                  )}
                   <div className="rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] p-3">
                     <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-1">
                       <Calendar className="w-4 h-4" strokeWidth={1.5} />
