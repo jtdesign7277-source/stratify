@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { withTimeout } from '../lib/withTimeout';
 
 const SUBSCRIPTION_CHECK_TIMEOUT_MS = 5000;
+const PRO_STATUSES = new Set(['pro', 'elite', 'active', 'trialing', 'paid']);
 
 const withSubscriptionTimeout = (promise, operationName) =>
   withTimeout(
@@ -41,7 +42,7 @@ export default function useSubscription(userOverride) {
         throw fetchError;
       }
 
-      setSubscriptionStatus(data?.subscription_status ?? 'free');
+      setSubscriptionStatus(String(data?.subscription_status ?? 'free').toLowerCase());
     } catch (fetchError) {
       console.error('[Subscription] Failed to fetch subscription status:', fetchError);
       setError(fetchError);
@@ -120,7 +121,32 @@ export default function useSubscription(userOverride) {
     };
   }, [fetchSubscription, loadUser, userOverride]);
 
-  const isProUser = subscriptionStatus === 'pro' || subscriptionStatus === 'elite';
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    const channel = supabase
+      .channel(`subscription-profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const nextStatus = String(payload?.new?.subscription_status || 'free').toLowerCase();
+          setSubscriptionStatus(nextStatus);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  const isProUser = PRO_STATUSES.has(String(subscriptionStatus || '').toLowerCase());
 
   return {
     subscriptionStatus,

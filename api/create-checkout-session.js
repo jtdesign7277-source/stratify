@@ -1,7 +1,16 @@
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+const resolveRequestOrigin = (req) => {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const host = forwardedHost || req.headers.host;
+
+  if (!host) return null;
+  const protocol = forwardedProto || 'https';
+  return `${protocol}://${host}`;
+};
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,14 +36,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields: priceId, userId, userEmail' });
     }
 
-    const origin = process.env.VITE_APP_URL || 'https://stratify-black.vercel.app';
+    const origin = process.env.VITE_APP_URL
+      || process.env.APP_URL
+      || resolveRequestOrigin(req)
+      || 'https://stratify.associates';
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/pricing`,
+      success_url: `${origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/dashboard?checkout=cancelled`,
       client_reference_id: userId,
       customer_email: userEmail,
       metadata: { supabase_user_id: userId },

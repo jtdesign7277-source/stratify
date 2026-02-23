@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
+import { persistPendingCheckoutSession } from '../lib/checkoutSession';
 
 export default function UpgradePrompt({
   featureName = 'Premium Feature',
@@ -64,6 +65,10 @@ export default function UpgradePrompt({
 
       if (!response.ok) {
         throw new Error(data?.error || 'Unable to start checkout.');
+      }
+
+      if (data?.sessionId) {
+        persistPendingCheckoutSession(data.sessionId);
       }
 
       if (data?.url) {

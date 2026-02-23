@@ -18,6 +18,7 @@ import SupportChat from './SupportChat';
 import { useAuth } from '../../context/AuthContext';
 import useSubscription from '../../hooks/useSubscription';
 import { supabase } from '../../lib/supabaseClient';
+import { persistPendingCheckoutSession } from '../../lib/checkoutSession';
 
 const UPGRADE_URL = null; // Handled by click handler
 
@@ -134,6 +135,9 @@ export default function MoreInfoPage() {
         }),
       });
       const data = await res.json();
+      if (data?.sessionId) {
+        persistPendingCheckoutSession(data.sessionId);
+      }
       if (data.url) window.location.href = data.url;
     } catch (error) {
       console.error('Checkout error:', error);

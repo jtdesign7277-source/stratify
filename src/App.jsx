@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { Dashboard } from './components/dashboard';
 import LandingPage from './components/dashboard/LandingPage';
@@ -13,6 +13,11 @@ import useSubscription from './hooks/useSubscription';
 import LiveScoresPill from './components/shared/LiveScoresPill';
 import BlueSkyFeed from './components/dashboard/BlueSkyFeed';
 import AppErrorBoundary from './components/shared/AppErrorBoundary';
+import {
+  clearPendingCheckoutSession,
+  persistPendingCheckoutSession,
+  readPendingCheckoutSession,
+} from './lib/checkoutSession';
 
 // Cinematic Video Intro Component - "The Drop"
 const VideoIntro = ({ onComplete }) => {
@@ -974,7 +979,12 @@ const AUTH_GATE_TIMEOUT_MS = 5000;
 
 function StratifyAppContent() {
   const { user, isAuthenticated, loading } = useAuth();
-  const { isProUser, loading: subscriptionLoading } = useSubscription(user);
+  const {
+    isProUser,
+    loading: subscriptionLoading,
+    refetch: refetchSubscription,
+  } = useSubscription(user);
+  const handledCheckoutSessionsRef = useRef(new Set());
 
   const isLegacyXrayPath = (path) => /^\/xray\/[^/?#]+\/?$/i.test(String(path || ''));
 
@@ -985,6 +995,7 @@ function StratifyAppContent() {
     const normalizedPath = path.toLowerCase();
     if (normalizedPath === '/whitepaper') return 'whitepaper';
     if (normalizedPath === '/auth') return 'auth';
+    if (normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
     if (isLegacyXrayPath(path)) return 'dashboard';
 
     return 'landing';
@@ -998,6 +1009,7 @@ function StratifyAppContent() {
   const [isCheckoutRedirecting, setIsCheckoutRedirecting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [authGateTimedOut, setAuthGateTimedOut] = useState(false);
+  const [isCheckoutVerifying, setIsCheckoutVerifying] = useState(false);
 
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
@@ -1039,6 +1051,8 @@ function StratifyAppContent() {
       nextPath = '/whitepaper';
     } else if (nextPage === 'auth') {
       nextPath = '/auth';
+    } else if (nextPage === 'dashboard') {
+      nextPath = '/dashboard';
     }
 
     if (window.location.pathname !== nextPath) {
@@ -1116,6 +1130,10 @@ function StratifyAppContent() {
         throw new Error(data?.error || 'Unable to start checkout.');
       }
 
+      if (data?.sessionId) {
+        persistPendingCheckoutSession(data.sessionId);
+      }
+
       if (data?.url) {
         window.location.assign(data.url);
         return;
@@ -1127,6 +1145,111 @@ function StratifyAppContent() {
       setIsCheckoutRedirecting(false);
     }
   }, [user?.email, user?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    const checkoutSessionIdFromQuery = String(url.searchParams.get('session_id') || '').trim();
+    const pendingCheckoutSessionId = readPendingCheckoutSession();
+    const checkoutSessionId = checkoutSessionIdFromQuery || pendingCheckoutSessionId;
+    const checkoutResult = String(url.searchParams.get('checkout') || '').toLowerCase();
+
+    const shouldProcessCheckout =
+      Boolean(checkoutSessionId) || checkoutResult === 'success' || checkoutResult === 'cancelled';
+    if (!shouldProcessCheckout) return;
+
+    const sessionKey = checkoutSessionId || `checkout-${checkoutResult}`;
+    if (handledCheckoutSessionsRef.current.has(sessionKey)) return;
+    handledCheckoutSessionsRef.current.add(sessionKey);
+
+    let cancelled = false;
+
+    const clearCheckoutParams = () => {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete('session_id');
+      nextUrl.searchParams.delete('checkout');
+      const search = nextUrl.searchParams.toString();
+      const finalPath = `/dashboard${search ? `?${search}` : ''}${nextUrl.hash}`;
+      window.history.replaceState({ page: 'dashboard' }, '', finalPath || '/dashboard');
+    };
+
+    const confirmCheckout = async () => {
+      setCurrentPage('dashboard');
+      setCheckoutError('');
+      setIsCheckoutVerifying(true);
+
+      try {
+        if (checkoutResult === 'cancelled') {
+          clearPendingCheckoutSession();
+          return;
+        }
+
+        let confirmed = false;
+        let shouldClearPendingSession = false;
+
+        if (checkoutSessionId) {
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            if (cancelled) return;
+
+            const response = await fetch('/api/confirm-checkout-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: checkoutSessionId,
+                userId: user.id,
+              }),
+            });
+
+            if (response.ok) {
+              confirmed = true;
+              shouldClearPendingSession = true;
+              break;
+            }
+
+            if (response.status === 400 || response.status === 403 || response.status === 404) {
+              shouldClearPendingSession = true;
+              break;
+            }
+
+            if (response.status >= 500) {
+              const message = `[Checkout] Session confirmation failed with ${response.status}.`;
+              console.error(message);
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 900));
+          }
+        }
+
+        if (cancelled) return;
+        await refetchSubscription();
+
+        if (shouldClearPendingSession || confirmed) {
+          clearPendingCheckoutSession();
+        }
+
+        if (!confirmed && checkoutResult === 'success' && !isProUser) {
+          setCheckoutError('Payment received. We are still confirming your subscription, please wait a moment and retry.');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[Checkout] Failed to confirm Stripe checkout session:', error);
+          setCheckoutError('Payment is processing. Please wait a few seconds and open Dashboard again.');
+        }
+      } finally {
+        if (!cancelled) {
+          clearCheckoutParams();
+          setIsCheckoutVerifying(false);
+        }
+      }
+    };
+
+    confirmCheckout();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user?.id, refetchSubscription, isProUser]);
 
   const mainContent =
     currentPage === 'whitepaper' ? (
@@ -1153,6 +1276,19 @@ function StratifyAppContent() {
         onDashboard={() => navigateToPage('dashboard')}
         isAuthenticated={isAuthenticated}
       />
+    ) : isCheckoutVerifying ? (
+      <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
+        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
+          <h1 className="text-2xl font-semibold">Finalizing Your Subscription</h1>
+          <p className="mt-3 text-sm text-white/70">
+            We detected your Stripe checkout and are unlocking your dashboard now.
+          </p>
+          <div className="mt-5 flex items-center justify-center gap-3 text-sm text-gray-300">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
+            Verifying payment...
+          </div>
+        </div>
+      </div>
     ) : !isProUser ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
         <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
@@ -1202,6 +1338,11 @@ function StratifyAppContent() {
 
       if (path === '/auth') {
         setCurrentPage('auth');
+        return;
+      }
+
+      if (path === '/dashboard' || path === '/dashboard/') {
+        setCurrentPage('dashboard');
         return;
       }
 
