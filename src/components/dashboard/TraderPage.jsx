@@ -2536,7 +2536,6 @@ export default function TraderPage({
                               const price = toNumber(quote?.price);
                               const dayChange = toNumber(quote?.change);
                               const dayChangePercent = toNumber(quote?.changePercent);
-                              const dayReferenceChange = Number.isFinite(dayChangePercent) ? dayChangePercent : dayChange;
                               const preMarketChange = toNumber(quote?.preMarketChange ?? quote?.pre_market_change);
                               const preMarketChangePercent = toNumber(
                                 quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
@@ -2556,11 +2555,6 @@ export default function TraderPage({
                                   : extendedHoursStatus === 'post-market'
                                     ? 'post-market'
                                     : 'live';
-                              const secondaryLabel = secondarySession === 'pre-market'
-                                ? 'Pre'
-                                : secondarySession === 'post-market'
-                                  ? 'Post'
-                                  : 'Live';
                               const secondaryDollarChange = secondarySession === 'pre-market'
                                 ? (Number.isFinite(preMarketChange) ? preMarketChange : liveChange)
                                 : liveChange;
@@ -2570,25 +2564,19 @@ export default function TraderPage({
                               const secondaryReferenceChange = Number.isFinite(secondaryPercentChange)
                                 ? secondaryPercentChange
                                 : secondaryDollarChange;
-                              const dayDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.day || 'percent';
-                              const secondaryDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.preMarket || 'percent';
-                              const isRegularSession = secondarySession === 'live';
-                              const primaryMetricMode = isRegularSession ? secondaryDisplayMode : dayDisplayMode;
-                              const primaryPercentChange = isRegularSession ? secondaryPercentChange : dayChangePercent;
-                              const primaryDollarChange = isRegularSession ? secondaryDollarChange : dayChange;
-                              const primaryReferenceChange = isRegularSession ? secondaryReferenceChange : dayReferenceChange;
-                              const primaryMetricLabel = isRegularSession ? '' : 'Day';
-                              const primaryMetricTitle = isRegularSession ? 'Live change (% / $)' : 'Previous day change (% / $)';
-                              const primaryMetricToggleKey = isRegularSession ? 'preMarket' : 'day';
+                              const displayMode = watchlistChangeDisplayModeBySymbol[symbol]?.day || 'percent';
+                              const primaryMetricTitle = secondarySession === 'pre-market'
+                                ? 'Premarket change (% / $)'
+                                : secondarySession === 'post-market'
+                                  ? 'Post-market change (% / $)'
+                                  : 'Live change (% / $)';
                               const isSelected = selectedSymbol === symbol;
                               const isPlaceholder = quote?.isPlaceholder === true;
                               const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
                               const isPriceLoading = valueLoading.price === true;
-                              const isDayLoading = valueLoading.day === true;
-                              const isSecondaryLoading = secondarySession === 'pre-market'
+                              const isPrimaryLoading = secondarySession === 'pre-market'
                                 ? valueLoading.preMarket === true
                                 : valueLoading.day === true;
-                              const primaryLoading = isRegularSession ? isSecondaryLoading : isDayLoading;
                               const companyName = String(
                                 quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
                               ).trim();
@@ -2652,50 +2640,22 @@ export default function TraderPage({
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
-                                                toggleWatchlistChangeDisplayMode(symbol, primaryMetricToggleKey);
+                                                toggleWatchlistChangeDisplayMode(symbol, 'day');
                                               }}
                                               title={primaryMetricTitle}
                                               className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
-                                                getWatchlistChangeToneClass(primaryReferenceChange)
+                                                getWatchlistChangeToneClass(secondaryReferenceChange)
                                               }`}
                                             >
-                                              <span>{`${primaryMetricLabel ? `${primaryMetricLabel} ` : ''}${formatWatchlistChangeValue({
-                                                mode: primaryMetricMode,
-                                                percentValue: primaryPercentChange,
-                                                dollarValue: primaryDollarChange,
+                                              <span>{`${formatWatchlistChangeValue({
+                                                mode: displayMode,
+                                                percentValue: secondaryPercentChange,
+                                                dollarValue: secondaryDollarChange,
                                               })}`}</span>
-                                              {primaryLoading && (
+                                              {isPrimaryLoading && (
                                                 <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
                                               )}
                                             </button>
-                                            {!isRegularSession ? (
-                                              <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                  event.stopPropagation();
-                                                  toggleWatchlistChangeDisplayMode(symbol, 'preMarket');
-                                                }}
-                                                title={
-                                                  secondarySession === 'pre-market'
-                                                    ? 'Premarket change (% / $)'
-                                                    : secondarySession === 'post-market'
-                                                      ? 'Post-market change (% / $)'
-                                                      : 'Live change (% / $)'
-                                                }
-                                                className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
-                                                  getWatchlistChangeToneClass(secondaryReferenceChange)
-                                                }`}
-                                              >
-                                                <span>{`${secondaryLabel} ${formatWatchlistChangeValue({
-                                                  mode: secondaryDisplayMode,
-                                                  percentValue: secondaryPercentChange,
-                                                  dollarValue: secondaryDollarChange,
-                                                })}`}</span>
-                                                {isSecondaryLoading && (
-                                                  <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating premarket change" />
-                                                )}
-                                              </button>
-                                            ) : null}
                                           </div>
                                         )}
                                       </div>
