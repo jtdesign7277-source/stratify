@@ -14,7 +14,16 @@ const TIMEFRAME_MAP = {
   '1Week': '1Week',
 };
 const INTRADAY_TIMEFRAMES = new Set(['1Min', '5Min', '15Min', '1Hour']);
-const INTRADAY_LOOKBACK_DAYS = 21;
+const INTRADAY_LOOKBACK_DAYS_BY_TIMEFRAME = {
+  '1Min': 7,
+  '5Min': 30,
+  '15Min': 90,
+  '1Hour': 365,
+};
+const DAILY_LOOKBACK_MIN_DAYS = 365;
+const DAILY_LOOKBACK_MAX_DAYS = 365 * 25;
+const WEEKLY_LOOKBACK_MIN_DAYS = 365 * 5;
+const WEEKLY_LOOKBACK_MAX_DAYS = 365 * 40;
 const ALLOWED_TIMEFRAMES = new Set(Object.keys(TIMEFRAME_MAP));
 
 const normalizeRawSymbol = (value) =>
@@ -71,6 +80,26 @@ const getLookbackStartIso = (days) => {
   return start.toISOString();
 };
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const getLookbackDaysForTimeframe = (timeframe, limit) => {
+  const safeLimit = parseLimit(limit);
+
+  if (INTRADAY_TIMEFRAMES.has(timeframe)) {
+    return INTRADAY_LOOKBACK_DAYS_BY_TIMEFRAME[timeframe] || 21;
+  }
+
+  if (timeframe === '1Day') {
+    return clamp(Math.ceil(safeLimit * 2.2), DAILY_LOOKBACK_MIN_DAYS, DAILY_LOOKBACK_MAX_DAYS);
+  }
+
+  if (timeframe === '1Week') {
+    return clamp(Math.ceil(safeLimit * 7.5), WEEKLY_LOOKBACK_MIN_DAYS, WEEKLY_LOOKBACK_MAX_DAYS);
+  }
+
+  return null;
+};
+
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -98,6 +127,7 @@ export default async function handler(req, res) {
   const isCrypto = Boolean(cryptoSymbol);
   const normalizedSymbol = isCrypto ? cryptoSymbol : normalizedInputSymbol;
   const normalizedTimeframe = typeof timeframe === 'string' ? timeframe : String(timeframe);
+  const resolvedLimit = parseLimit(limit);
 
   if (!ALLOWED_TIMEFRAMES.has(normalizedTimeframe)) {
     return res.status(400).json({
@@ -109,8 +139,11 @@ export default async function handler(req, res) {
   let startIso = parseDate(start);
   const endIso = parseDate(end);
 
-  if (!startIso && INTRADAY_TIMEFRAMES.has(normalizedTimeframe)) {
-    startIso = getLookbackStartIso(INTRADAY_LOOKBACK_DAYS);
+  if (!startIso) {
+    const lookbackDays = getLookbackDaysForTimeframe(normalizedTimeframe, resolvedLimit);
+    if (Number.isFinite(lookbackDays) && lookbackDays > 0) {
+      startIso = getLookbackStartIso(lookbackDays);
+    }
   }
 
   if (start && !startIso) {
@@ -140,7 +173,8 @@ export default async function handler(req, res) {
       const params = new URLSearchParams({
         symbols: normalizedSymbol,
         timeframe: mappedTimeframe,
-        limit: String(parseLimit(limit)),
+        limit: String(resolvedLimit),
+        sort: 'desc',
       });
       if (startIso) params.set('start', startIso);
       if (endIso) params.set('end', endIso);
@@ -182,7 +216,8 @@ export default async function handler(req, res) {
             volume: Number.isFinite(volume) ? volume : 0,
           };
         })
-        .filter(Boolean);
+        .filter(Boolean)
+        .sort((a, b) => a.time - b.time);
 
       return res.status(200).json(payload);
     }
@@ -195,10 +230,10 @@ export default async function handler(req, res) {
 
     const options = {
       timeframe: mappedTimeframe,
-      limit: parseLimit(limit),
+      limit: resolvedLimit,
       adjustment: 'split',
       feed: 'sip',
-      sort: 'asc',
+      sort: 'desc',
     };
 
     if (startIso) options.start = startIso;
@@ -220,7 +255,8 @@ export default async function handler(req, res) {
           volume: bar.Volume ?? 0,
         };
       })
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => a.time - b.time);
 
     return res.status(200).json(payload);
   } catch (err) {
