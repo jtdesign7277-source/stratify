@@ -27,13 +27,6 @@ const MARKETS = [
     defaultSymbols: ['SHEL', 'AZN', 'HSBA', 'BP', 'BARC', 'LLOY'],
   },
   {
-    id: 'tokyo',
-    title: '🇯🇵 TSE',
-    currency: 'JPY',
-    accent: 'text-cyan-400',
-    defaultSymbols: ['7203.T', '6758.T', '9984.T', '8306.T', '6861.T', '9432.T'],
-  },
-  {
     id: 'sydney',
     title: '🇦🇺 ASX',
     currency: 'AUD',
