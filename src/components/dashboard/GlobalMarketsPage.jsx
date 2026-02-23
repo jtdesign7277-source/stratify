@@ -28,6 +28,14 @@ const MARKETS = [
     accent: 'text-blue-400',
     defaultSymbols: ['SHEL', 'AZN', 'HSBA', 'BP', 'BARC', 'LLOY'],
   },
+  {
+    id: 'sydney',
+    title: 'Sydney Stock Exchange',
+    shortTitle: '🇦🇺 ASX',
+    currency: 'AUD',
+    accent: 'text-violet-400',
+    defaultSymbols: ['BHP', 'CBA', 'WBC', 'NAB', 'ANZ', 'CSL'],
+  },
 ];
 
 const WATCHLIST_STORAGE_PREFIX = 'stratify-global-market-watchlist';
@@ -365,7 +373,7 @@ const GlobalMarketsPage = () => {
         </div>
       </div>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
         {MARKETS.map((market) => {
           const marketQuotes = quotesByMarket[market.id] || {};
           const symbols = watchlists[market.id] || market.defaultSymbols;
