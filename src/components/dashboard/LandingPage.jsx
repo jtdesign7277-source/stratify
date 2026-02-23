@@ -241,7 +241,7 @@ const createStars = (count = 90) =>
     driftX: (Math.random() - 0.5) * 34,
   }));
 
-const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
+const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
   const [openFaq, setOpenFaq] = useState(0);
   const stars = useMemo(() => createStars(90), []);
 
@@ -300,7 +300,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
           >
             <svg width="20" height="16" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1C20.3 1.3 15.4 2.8 10.9 4.9c0 0-.1 0-.1.1C1.6 18.7-.9 32.1.3 45.4v.2c6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .2-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.7-3.8-1.6-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.7-.6 1.1-.9.1-.1.1-.1.2-.1 11.6 5.3 24.2 5.3 35.7 0h.2c.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 2-5.6 2.7-.1.1-.2.2-.1.3 1.1 2.1 2.3 4.1 3.6 5.9.1.1.2.1.2.1 5.8-1.8 11.6-4.5 17.7-9 0 0 .1-.1.1-.2 1.5-15.6-2.5-29.1-10.7-41.1 0 0 0 0-.1-.1z"/></svg>
           </a>
-          {isAuthenticated ? (
+          {canAccessDashboard ? (
             <button
               type="button"
               onClick={onDashboard || onEnter}

@@ -17,6 +17,8 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
 
   const inputClass =
     'w-full rounded-xl border border-white/15 bg-black/25 px-4 py-2.5 text-sm text-white/90 placeholder:text-white/35 backdrop-blur-sm focus:border-emerald-400/70 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 transition';
+  const actionButtonClass =
+    'flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/40 bg-gradient-to-r from-emerald-500/30 via-emerald-400/22 to-cyan-400/22 py-2.5 text-sm font-semibold text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.16)] backdrop-blur-sm transition hover:from-emerald-400/40 hover:via-emerald-300/30 hover:to-cyan-300/30 disabled:cursor-not-allowed disabled:opacity-60';
 
   const resetStatus = () => setStatus({ type: '', message: '' });
 
@@ -279,7 +281,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/85 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={actionButtonClass}
                 >
                   {loading ? 'Signing in...' : 'Sign In'}
                 </button>
@@ -378,7 +380,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
                     <button
                       type="button"
                       onClick={() => handleTabChange('signin')}
-                      className="rounded-lg bg-emerald-600/90 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                      className="rounded-lg border border-emerald-300/40 bg-emerald-500/18 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/26"
                     >
                       I confirmed my email — Sign In
                     </button>
@@ -394,7 +396,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/85 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={actionButtonClass}
                 >
                   {loading ? 'Creating account...' : 'Create Account'}
                 </button>

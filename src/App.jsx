@@ -1391,7 +1391,7 @@ function StratifyAppContent() {
         onEnter={() => navigateToPage('auth')}
         onSignUp={() => navigateToPage('auth')}
         onDashboard={() => navigateToPage('dashboard')}
-        isAuthenticated={isAuthenticated}
+        canAccessDashboard={Boolean(isAuthenticated && isProUser)}
       />
     ) : currentPage === 'auth' ? (
       <SignUpPage
@@ -1403,7 +1403,7 @@ function StratifyAppContent() {
         onEnter={() => navigateToPage('auth')}
         onSignUp={() => navigateToPage('auth')}
         onDashboard={() => navigateToPage('dashboard')}
-        isAuthenticated={isAuthenticated}
+        canAccessDashboard={Boolean(isAuthenticated && isProUser)}
       />
     ) : isCheckoutVerifying || isSubscriptionRestoring ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
