@@ -899,14 +899,14 @@ const PostCard = ({ post, currentUser, onDelete }) => {
               <Share2 size={15} strokeWidth={1.5} />
               <span>Share</span>
             </button>
-
-            <ReactionBar
-              postId={post.id}
-              currentUser={currentUser}
-              initialReactions={initialReactions}
-              inActionRow
-            />
           </div>
+
+          {/* Reaction chips below action buttons */}
+          <ReactionBar
+            postId={post.id}
+            currentUser={currentUser}
+            initialReactions={initialReactions}
+          />
 
           {/* Replies Section */}
           {showReplies && (
