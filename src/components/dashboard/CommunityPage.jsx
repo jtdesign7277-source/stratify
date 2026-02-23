@@ -238,16 +238,34 @@ const ComposeBox = ({ currentUser, onPost }) => {
         if (pnlPercent) metadata.percent = parseFloat(pnlPercent);
       }
 
-      const { error } = await supabase.from('community_posts').insert({
-        user_id: currentUser.id,
-        content: content.trim(),
-        image_url: imageUrl,
-        ticker_mentions: extractTickers(content),
-        post_type: postType,
-        metadata,
-      });
+      const { data: newPost, error } = await supabase
+        .from('community_posts')
+        .insert({
+          user_id: currentUser.id,
+          content: content.trim(),
+          image_url: imageUrl,
+          ticker_mentions: extractTickers(content),
+          post_type: postType,
+          metadata,
+        })
+        .select('*')
+        .single();
 
       if (error) throw error;
+
+      // Add the new post to the UI immediately with user profile data
+      if (newPost && onPost) {
+        const postWithProfile = {
+          ...newPost,
+          profiles: {
+            id: currentUser.id,
+            display_name: currentUser.display_name,
+            avatar_url: currentUser.avatar_url,
+            email: currentUser.email,
+          },
+        };
+        onPost(postWithProfile);
+      }
 
       // Reset
       setContent('');
@@ -259,9 +277,6 @@ const ComposeBox = ({ currentUser, onPost }) => {
       setPnlPercent('');
       setShowPnlFields(false);
       if (fileRef.current) fileRef.current.value = '';
-      
-      // Trigger refresh callback if provided
-      if (onPost) onPost();
     } catch (err) {
       console.error('Post failed:', err);
       alert('Failed to post. Try again.');
@@ -847,7 +862,19 @@ const CommunityPage = () => {
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         <div className="max-w-2xl mx-auto">
           {/* Compose */}
-          {currentUser && <ComposeBox currentUser={currentUser} onPost={() => fetchPosts(0)} />}
+          {currentUser && (
+            <ComposeBox
+              currentUser={currentUser}
+              onPost={(newPost) => {
+                // Add the new post to the top of the feed immediately
+                setPosts((prev) => {
+                  // Avoid duplicates
+                  if (prev.some((p) => p.id === newPost.id)) return prev;
+                  return [newPost, ...prev];
+                });
+              }}
+            />
+          )}
 
           {/* Posts */}
           {loading && posts.length === 0 ? (
