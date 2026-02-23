@@ -755,10 +755,26 @@ const CommunityPage = () => {
       setLoading(!append);
 
       try {
+        // First, check if table exists by doing a simple query
+        const { data: testData, error: testError } = await supabase
+          .from('community_posts')
+          .select('id')
+          .limit(1);
+
+        if (testError) {
+          console.error('[CommunityPage] community_posts table check failed:', testError);
+          if (testError.code === '42P01') {
+            alert('Community feature is not yet set up. Please contact support to enable the community_posts table.');
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Table exists, now query with join
         let query = supabase
           .from('community_posts')
-          .select('*, profiles:user_id(id, display_name, avatar_url, email)')
-          .is('parent_id', null) // top-level posts only
+          .select('*')
+          .is('parent_id', null)
           .order('created_at', { ascending: false })
           .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
@@ -766,12 +782,49 @@ const CommunityPage = () => {
           query = query.eq('post_type', filter);
         }
 
-        const { data, error } = await query;
+        const { data: postsData, error: postsError } = await query;
 
-        console.log('[CommunityPage] fetchPosts result:', { data, error, count: data?.length });
+        if (postsError) {
+          console.error('[CommunityPage] fetchPosts query error:', postsError);
+          setLoading(false);
+          return;
+        }
+
+        // Manually fetch profile data for each post
+        const userIds = [...new Set(postsData.map(p => p.user_id))];
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, email')
+          .in('id', userIds);
+
+        const profilesMap = {};
+        (profilesData || []).forEach(p => {
+          profilesMap[p.id] = p;
+        });
+
+        // Attach profiles to posts
+        const data = postsData.map(post => ({
+          ...post,
+          profiles: profilesMap[post.user_id] || null,
+        }));
+
+        const error = null;
+
+        console.log('[CommunityPage] fetchPosts result:', { 
+          data, 
+          error, 
+          count: data?.length,
+          errorDetails: error ? JSON.stringify(error) : null 
+        });
 
         if (error) {
           console.error('[CommunityPage] fetchPosts error:', error);
+          
+          // If the table/relationship doesn't exist, show helpful message
+          if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+            console.error('[CommunityPage] community_posts table does not exist. Please create it in Supabase.');
+          }
+          
           setLoading(false);
           return;
         }
