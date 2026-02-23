@@ -21,12 +21,29 @@ import { supabase } from '../../lib/supabaseClient';
 
 const UPGRADE_URL = null; // Handled by click handler
 
-const avatarOptions = [
-  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/bottts/svg?seed=avatar${i + 1}`),
-  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/avataaars/svg?seed=avatar${i + 7}`),
-  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/pixel-art/svg?seed=avatar${i + 13}`),
-  ...Array.from({ length: 6 }, (_, i) => `https://api.dicebear.com/7.x/fun-emoji/svg?seed=avatar${i + 19}`),
+const AVATAR_STYLES = [
+  { id: 'all', label: 'All' },
+  { id: 'bottts', label: 'Robots' },
+  { id: 'avataaars', label: 'Classic' },
+  { id: 'pixel-art', label: 'Pixel' },
+  { id: 'fun-emoji', label: 'Emoji' },
 ];
+
+const AVATAR_SEEDS_PER_STYLE = 24;
+const AVATAR_BACKGROUND_COLORS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';
+
+const buildAvatarUrl = (style, seed) =>
+  `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=128&radius=50&backgroundType=gradientLinear&backgroundColor=${AVATAR_BACKGROUND_COLORS}`;
+
+const avatarOptionsByStyle = AVATAR_STYLES.filter((style) => style.id !== 'all').reduce((acc, style) => {
+  acc[style.id] = Array.from(
+    { length: AVATAR_SEEDS_PER_STYLE },
+    (_, i) => buildAvatarUrl(style.id, `stratify-${style.id}-${i + 1}`)
+  );
+  return acc;
+}, {});
+
+const avatarOptions = Object.values(avatarOptionsByStyle).flat();
 
 const faqs = [
   {
@@ -56,6 +73,7 @@ export default function MoreInfoPage() {
   const [editStatus, setEditStatus] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [activeAvatarStyle, setActiveAvatarStyle] = useState('all');
   const [avatarStatus, setAvatarStatus] = useState(null);
   const { user, isAuthenticated, updateProfile } = useAuth();
   const { isProUser, loading: subscriptionLoading } = useSubscription();
@@ -81,6 +99,10 @@ export default function MoreInfoPage() {
         iconClass: 'text-amber-300',
       };
   const canUpgrade = isAuthenticated && !subscriptionLoading && !isProUser;
+  const visibleAvatarOptions =
+    activeAvatarStyle === 'all'
+      ? avatarOptions
+      : avatarOptionsByStyle[activeAvatarStyle] || avatarOptions;
 
   const handleCopyId = async () => {
     if (!user?.id || !navigator?.clipboard) return;
@@ -537,25 +559,49 @@ export default function MoreInfoPage() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-4 gap-3">
-                {avatarOptions.map((url) => {
-                  const isSelected = avatarUrl === url;
+              <p className="text-xs text-gray-400 mb-3">Modern avatar packs · {visibleAvatarOptions.length} options</p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {AVATAR_STYLES.map((style) => {
+                  const isActive = activeAvatarStyle === style.id;
                   return (
                     <button
-                      key={url}
+                      key={style.id}
                       type="button"
-                      onClick={() => handleAvatarSelect(url)}
-                      className={`h-[60px] w-[60px] rounded-full border ${isSelected ? 'border-blue-500' : 'border-transparent'} hover:border-blue-500 transition-all`}
-                      aria-pressed={isSelected}
+                      onClick={() => setActiveAvatarStyle(style.id)}
+                      className={`rounded-full px-3 py-1 text-xs border transition-all ${
+                        isActive
+                          ? 'border-blue-500/70 bg-blue-500/15 text-blue-300'
+                          : 'border-white/10 text-gray-300 hover:border-blue-500/40'
+                      }`}
                     >
-                      <img
-                        src={url}
-                        alt="Avatar option"
-                        className="h-full w-full rounded-full object-cover"
-                      />
+                      {style.label}
                     </button>
                   );
                 })}
+              </div>
+              <div className="flex-1 overflow-y-auto pr-1">
+                <div className="grid grid-cols-4 gap-3 pb-2">
+                  {visibleAvatarOptions.map((url) => {
+                    const isSelected = avatarUrl === url;
+                    return (
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => handleAvatarSelect(url)}
+                        className={`h-[60px] w-[60px] rounded-full border ${isSelected ? 'border-blue-500' : 'border-transparent'} hover:border-blue-500 transition-all`}
+                        aria-pressed={isSelected}
+                      >
+                        <img
+                          src={url}
+                          alt="Avatar option"
+                          className="h-full w-full rounded-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               {avatarStatus === 'error' && (
                 <p className="text-red-400 text-sm mt-3 flex items-center gap-1">
