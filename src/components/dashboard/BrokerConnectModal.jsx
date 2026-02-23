@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { validateKalshiCredentials, setKalshiCredentials } from '../../lib/kalshi';
 
 // Broker logos as simple icons
@@ -268,14 +268,6 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
     }
   }, [selectedBroker?.id, apiKey, secretKey]);
 
-  if (!isOpen) return null;
-
-  const filteredBrokers = filter === 'all'
-    ? brokers
-    : brokers.filter(b => b.category === filter);
-  const canTogglePaper = BROKERS_WITH_PAPER_TOGGLE.has(selectedBroker?.id);
-  const keysUrl = selectedBroker ? BROKER_KEYS_URLS[selectedBroker.id] : null;
-
   const clearPersistedState = () => {
     try {
       sessionStorage.removeItem(BROKER_MODAL_STATE_KEY);
@@ -286,6 +278,42 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
     }
   };
 
+  const handleClose = useCallback(() => {
+    clearPersistedState();
+    setSelectedBroker(null);
+    setApiKey('');
+    setSecretKey('');
+    setIsPaper(true);
+    setConnectError('');
+    if (typeof onClose === 'function') {
+      onClose();
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, handleClose]);
+
+  if (!isOpen) return null;
+
+  const filteredBrokers = filter === 'all'
+    ? brokers
+    : brokers.filter(b => b.category === filter);
+  const canTogglePaper = BROKERS_WITH_PAPER_TOGGLE.has(selectedBroker?.id);
+  const keysUrl = selectedBroker ? BROKER_KEYS_URLS[selectedBroker.id] : null;
+
   const handleSelectBroker = (broker) => {
     setConnectError('');
     setSelectedBroker(broker);
@@ -294,16 +322,6 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
   const handleBackToBrokers = () => {
     setSelectedBroker(null);
     setConnectError('');
-  };
-
-  const handleClose = () => {
-    clearPersistedState();
-    setSelectedBroker(null);
-    setApiKey('');
-    setSecretKey('');
-    setIsPaper(true);
-    setConnectError('');
-    onClose();
   };
 
   const handleConnect = async () => {
@@ -367,22 +385,30 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop - no click to close, users need to switch tabs to copy API keys */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+      <div
+        className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+        onClick={handleClose}
+      />
       
       {/* Modal */}
-      <div className="relative w-full max-w-2xl mx-4 animate-fadeIn">
-        {/* Close button */}
-        <button
-          onClick={handleClose}
-          className="absolute -top-10 right-0 text-gray-400 hover:text-white transition-colors z-10"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        <div className="bg-[#202124] rounded-2xl overflow-hidden border border-[#5f6368]">
+      <div
+        className="relative w-full max-w-2xl mx-4 animate-fadeIn"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Connect broker modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="relative bg-[#202124] rounded-2xl overflow-hidden border border-[#5f6368]">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
+            aria-label="Close broker connect modal"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           
           {!selectedBroker ? (
             <>
@@ -396,6 +422,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
               <div className="px-6 py-3 border-b border-[#5f6368] flex gap-2 flex-wrap">
                 {['all', 'stocks', 'futures', 'prediction', 'crypto', 'tools'].map(f => (
                   <button
+                    type="button"
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
@@ -415,6 +442,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                   const connected = isConnected(broker.id);
                   return (
                     <button
+                      type="button"
                       key={broker.id}
                       onClick={() => !connected && handleSelectBroker(broker)}
                       disabled={connected}
@@ -445,9 +473,10 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
             <>
               {/* Connect Form */}
               <div className="p-6 border-b border-[#5f6368]">
-                <button 
+                <button
+                  type="button"
                   onClick={handleBackToBrokers}
-                  className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors"
+                  className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-4 transition-colors pr-8"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
@@ -543,27 +572,37 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                   </div>
                 )}
 
-                <button
-                  onClick={handleConnect}
-                  disabled={!apiKey || !secretKey || connecting}
-                  className={`w-full py-3 rounded-lg font-medium transition-all ${
-                    apiKey && secretKey && !connecting
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : 'bg-[#3c4043] text-white/50 cursor-not-allowed'
-                  }`}
-                >
-                  {connecting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                      </svg>
-                      Connecting...
-                    </span>
-                  ) : (
-                    'Connect Account'
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="w-1/3 py-3 rounded-lg font-medium border border-[#5f6368] text-gray-200 hover:bg-[#3c4043] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConnect}
+                    disabled={!apiKey || !secretKey || connecting}
+                    className={`w-2/3 py-3 rounded-lg font-medium transition-all ${
+                      apiKey && secretKey && !connecting
+                        ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                        : 'bg-[#3c4043] text-white/50 cursor-not-allowed'
+                    }`}
+                  >
+                    {connecting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        Connecting...
+                      </span>
+                    ) : (
+                      'Connect Account'
+                    )}
+                  </button>
+                </div>
               </div>
             </>
           )}
