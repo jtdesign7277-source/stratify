@@ -590,8 +590,8 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
             </button>
             <p className="mt-5 text-sm text-gray-500">
-              <a href="https://stratify.associates" className="text-amber-400 hover:text-amber-300 transition-colors">
-                stratify.associates
+              <a href="https://stratifymarket.com" className="text-amber-400 hover:text-amber-300 transition-colors">
+                stratifymarket.com
               </a>
             </p>
           </div>

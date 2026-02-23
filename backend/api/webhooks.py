@@ -24,7 +24,7 @@ About Stratify:
 - AI-powered algorithmic trading platform
 - Features: Arb Scanner (arbitrage), Atlas AI (strategy builder), real-time alerts, backtesting
 - Supports Alpaca broker for stocks and crypto
-- Website: stratify.associates
+- Website: stratifymarket.com
 - Twitter: @stratify_hq
 
 Your role:

@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     const origin = process.env.VITE_APP_URL
       || process.env.APP_URL
       || resolveRequestOrigin(req)
-      || 'https://stratify.associates';
+      || 'https://stratifymarket.com';
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',

@@ -450,12 +450,12 @@ export default function WhitePaperPage({ onBackHome, onGetStarted }) {
                 </button>
                 <div className="mt-6">
                   <a
-                    href="https://stratify.associates"
+                    href="https://stratifymarket.com"
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-amber-400 hover:underline"
                   >
-                    stratify.associates
+                    stratifymarket.com
                     <ExternalLink size={14} />
                   </a>
                 </div>

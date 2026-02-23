@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required field: customerId' });
     }
 
-    const origin = process.env.VITE_APP_URL || 'https://stratify-black.vercel.app';
+    const origin = process.env.VITE_APP_URL || process.env.APP_URL || 'https://stratifymarket.com';
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

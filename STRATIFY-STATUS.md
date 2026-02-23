@@ -1,7 +1,7 @@
 # Stratify — Complete Platform Knowledge Base
 
 ## What Is Stratify
-Stratify is an AI-powered stock trading strategy platform at stratify.associates. It combines real-time market data, AI strategy generation (via Sophia AI), backtesting, paper/live trading via connected brokers, and social features like leaderboards and challenges. Think TradingView meets AI meets brokerage — all in one dark terminal-pro interface.
+Stratify is an AI-powered stock trading strategy platform at stratifymarket.com. It combines real-time market data, AI strategy generation (via Sophia AI), backtesting, paper/live trading via connected brokers, and social features like leaderboards and challenges. Think TradingView meets AI meets brokerage — all in one dark terminal-pro interface.
 
 ## Tech Stack
 
@@ -10,7 +10,7 @@ Stratify is an AI-powered stock trading strategy platform at stratify.associates
 - **Styling**: TailwindCSS (dark theme, emerald accents)
 - **Animations**: Framer Motion
 - **Charts**: TradingView Lightweight Charts (pending full Charting Library approval)
-- **Hosting**: Vercel (stratify-eight.vercel.app / stratify.associates)
+- **Hosting**: Vercel (stratify-eight.vercel.app / stratifymarket.com)
 - **Auto-deploy**: GitHub push to main → Vercel auto-deploys
 
 ### Backend
