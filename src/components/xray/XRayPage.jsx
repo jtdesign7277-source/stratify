@@ -95,6 +95,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [chartEngineReady, setChartEngineReady] = useState(false);
   const [chartEngineError, setChartEngineError] = useState('');
+  const [isCompactHeader, setIsCompactHeader] = useState(() => (
+    typeof window !== 'undefined' ? window.innerHeight < 980 : false
+  ));
 
   const { data: quote, loading: quoteLoading, error: quoteError } = useQuote(symbol);
   const {
@@ -170,6 +173,15 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
     setHasTypedSymbolQuery(false);
     setIsSuggestionsOpen(false);
   }, [initialSymbol]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleResize = () => {
+      setIsCompactHeader(window.innerHeight < 980);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!symbol) return undefined;
@@ -302,21 +314,21 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   try {
     return (
       <div className="h-full overflow-hidden bg-transparent text-white">
-        <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-3 py-3 md:px-4 md:py-4">
-          <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-3 py-2 md:px-4 md:py-3">
+          <div className={`rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm ${isCompactHeader ? 'p-2.5' : 'p-3'}`}>
+            <div className={`flex flex-col ${isCompactHeader ? 'gap-2' : 'gap-3'} lg:flex-row lg:items-center lg:justify-between`}>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={handleGoBack}
-                  className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-[#9ca3af] transition hover:border-white/20 hover:text-[#e5e7eb]"
+                  className={`inline-flex items-center gap-1 rounded-lg border border-white/10 ${isCompactHeader ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs'} text-[#9ca3af] transition hover:border-white/20 hover:text-[#e5e7eb]`}
                 >
                   <ArrowLeft size={14} strokeWidth={1.5} />
                   Back
                 </button>
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.14em] text-[#6b7280]">X-Ray Fundamentals</p>
-                  <h1 className="mt-1 text-lg font-semibold text-[#e5e7eb]">{symbol}</h1>
+                  <h1 className={`${isCompactHeader ? 'mt-0.5 text-base' : 'mt-1 text-lg'} font-semibold text-[#e5e7eb]`}>{symbol}</h1>
                 </div>
                 <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-1 text-[10px] text-[#9ca3af]">
                   <Activity size={11} strokeWidth={1.5} className={connected ? 'text-emerald-300' : 'text-red-300'} />
@@ -324,22 +336,22 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                 </span>
               </div>
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className={`flex flex-col ${isCompactHeader ? 'gap-2' : 'gap-3'} md:flex-row md:items-center`}>
                 <form onSubmit={handleSubmit} className="relative">
-                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-3 py-2">
+                  <div className={`flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 ${isCompactHeader ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
                     <Search size={14} strokeWidth={1.5} className="text-[#6b7280]" />
                     <input
                       value={symbolInput}
                       onChange={handleSymbolInputChange}
                       onFocus={handleSymbolInputFocus}
                       onBlur={handleSymbolInputBlur}
-                      className="w-36 bg-transparent font-mono text-sm text-[#e5e7eb] outline-none placeholder:text-[#6b7280]"
+                      className={`bg-transparent font-mono ${isCompactHeader ? 'w-28 text-xs' : 'w-36 text-sm'} text-[#e5e7eb] outline-none placeholder:text-[#6b7280]`}
                       placeholder="Symbol"
                       maxLength={12}
                     />
                     <button
                       type="submit"
-                      className="rounded-md bg-[#3b82f6] px-2 py-1 text-[11px] font-medium text-white transition hover:bg-[#2563eb]"
+                      className={`rounded-md bg-[#3b82f6] ${isCompactHeader ? 'px-2 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'} font-medium text-white transition hover:bg-[#2563eb]`}
                     >
                       Load
                     </button>
@@ -363,13 +375,13 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                   ) : null}
                 </form>
 
-                <div className="inline-flex rounded-xl border border-white/10 bg-black/50 p-1">
+                <div className="inline-flex rounded-xl border border-white/10 bg-black/50 p-0.5">
                   {PERIOD_OPTIONS.map((option) => (
                     <button
                       key={option.id}
                       type="button"
                       onClick={() => setPeriod(option.id)}
-                      className={`rounded-lg px-3 py-1.5 text-xs transition ${
+                      className={`rounded-lg ${isCompactHeader ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'} transition ${
                         period === option.id
                           ? 'bg-[#3b82f6] text-white'
                           : 'text-[#9ca3af] hover:text-[#e5e7eb]'
@@ -401,25 +413,29 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
               </div>
             ) : null}
 
-            <div className="mt-3 grid grid-cols-2 gap-2.5 md:grid-cols-5">
+            <div className={`grid grid-cols-2 gap-2 ${isCompactHeader ? 'mt-2' : 'mt-3'} md:grid-cols-5`}>
               <StatCard
                 label="Price"
                 value={livePrice !== null ? formatCurrency(livePrice) : quoteLoading ? '...' : '--'}
                 subvalue={livePriceSubvalue}
                 tone="accent"
+                compact={isCompactHeader}
               />
               <StatCard
                 label="Change"
                 value={quote?.change_percent !== null && quote?.change_percent !== undefined ? formatSignedPercent(quote.change_percent) : '--'}
                 tone={getToneFromChange(quote?.change_percent)}
+                compact={isCompactHeader}
               />
               <StatCard
                 label="Market Cap"
                 value={stats?.market_cap ? formatCompactNumber(stats.market_cap) : '--'}
+                compact={isCompactHeader}
               />
               <StatCard
                 label="P/E"
                 value={stats?.pe_ratio !== null && stats?.pe_ratio !== undefined ? Number(stats.pe_ratio).toFixed(2) : '--'}
+                compact={isCompactHeader}
               />
               <StatCard
                 label="52W Range"
@@ -428,11 +444,12 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                     ? `${formatCurrency(stats.fifty_two_week_low)} - ${formatCurrency(stats.fifty_two_week_high)}`
                     : '--'
                 }
+                compact={isCompactHeader}
               />
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -449,7 +466,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
             ))}
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 overflow-hidden pb-1">
+          <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
             {activeTab === 'income' ? <IncomeTab symbol={symbol} period={period} /> : null}
             {activeTab === 'balance' ? <BalanceTab symbol={symbol} period={period} /> : null}
             {activeTab === 'cashflow' ? <CashFlowTab symbol={symbol} period={period} /> : null}
