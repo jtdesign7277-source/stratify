@@ -1,0 +1,61 @@
+.portfolio-highcharts-grid {
+  height: 430px;
+  width: 100%;
+}
+
+.portfolio-highcharts-grid .hcg-container {
+  --hcg-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --hcg-font-size: 12px;
+  --hcg-color: #d6e4ff;
+  --hcg-background: #0b121d;
+  --hcg-border-width: 1px;
+  --hcg-border-style: solid;
+  --hcg-border-color: #243247;
+  --hcg-row-border-width: 1px;
+  --hcg-row-border-color: #1b283a;
+  --hcg-header-row-border-width: 1px;
+  --hcg-header-row-border-color: #28374b;
+  --hcg-column-border-width: 1px;
+  --hcg-column-border-color: #1b283a;
+  --hcg-header-column-border-width: 1px;
+  --hcg-header-column-border-color: #28374b;
+  --hcg-header-color: #8fa4c3;
+  --hcg-header-background: #0f1a2a;
+  --hcg-horizontal-padding: 10px;
+  --hcg-vertical-padding: 9px;
+  --hcg-header-horizontal-padding: 10px;
+  --hcg-header-vertical-padding: 9px;
+}
+
+.portfolio-highcharts-grid .hcg-table {
+  background: #0b121d;
+}
+
+.portfolio-highcharts-grid .hcg-tbody .hcg-row {
+  cursor: pointer;
+}
+
+.portfolio-highcharts-grid .hcg-head-row-content .hcg-header-cell-content {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.portfolio-highcharts-grid .portfolio-col-symbol {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.portfolio-highcharts-grid .portfolio-col-company {
+  color: #9cb2cf;
+}
+
+.portfolio-highcharts-grid .portfolio-col-numeric {
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.portfolio-highcharts-grid .hcg-credits-container {
+  display: none;
+}

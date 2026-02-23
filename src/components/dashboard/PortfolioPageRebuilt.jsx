@@ -1,18 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
-  ChevronDown,
-  ChevronRight,
   Plus,
   RefreshCw,
   Unlink,
   Wallet,
 } from 'lucide-react';
+import * as Grid from '@highcharts/grid-lite';
+import '@highcharts/grid-lite/css/grid-lite.css';
 import BrokerConnectModal, { BrokerIcon } from './BrokerConnectModal';
 import { supabase } from '../../lib/supabaseClient';
 import useTradingMode from '../../hooks/useTradingMode';
 import usePortfolio from '../../hooks/usePortfolio';
 import { clearAlpacaCache } from '../../services/alpacaService';
+import './PortfolioHighchartsGrid.css';
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -257,6 +258,8 @@ const PortfolioPageRebuilt = ({
   const [dbConnections, setDbConnections] = useState([]);
   const [dbConnectionsLoaded, setDbConnectionsLoaded] = useState(false);
   const [expandedSymbol, setExpandedSymbol] = useState('');
+  const holdingsGridContainerRef = useRef(null);
+  const holdingsGridRef = useRef(null);
 
   const loadConnections = useCallback(async () => {
     try {
@@ -400,6 +403,108 @@ const PortfolioPageRebuilt = ({
     return map;
   }, [displayedTrades]);
 
+  const holdingsGridColumns = useMemo(() => ([
+    { id: 'symbol', width: 90, header: { format: 'Symbol' }, cells: { className: 'portfolio-col-symbol' } },
+    { id: 'companyName', width: 180, header: { format: 'Company Name' }, cells: { className: 'portfolio-col-company' } },
+    { id: 'shares', width: 90, header: { format: 'Shares' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'avgCostBasis', width: 120, header: { format: 'Avg Cost Basis' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'currentPrice', width: 120, header: { format: 'Current Price' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'marketValue', width: 130, header: { format: 'Market Value' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'totalCost', width: 130, header: { format: 'Total Cost' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'unrealizedPnlDollars', width: 145, header: { format: 'Unrealized P&L ($)' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'unrealizedPnlPercent', width: 135, header: { format: 'Unrealized P&L (%)' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'dayChangeDollars', width: 130, header: { format: 'Day Change ($)' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'dayChangePercent', width: 125, header: { format: 'Day Change (%)' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'weight', width: 95, header: { format: 'Weight' }, cells: { className: 'portfolio-col-numeric' } },
+  ]), []);
+
+  const holdingsGridDataTable = useMemo(() => {
+    const columns = {
+      symbol: [],
+      companyName: [],
+      shares: [],
+      avgCostBasis: [],
+      currentPrice: [],
+      marketValue: [],
+      totalCost: [],
+      unrealizedPnlDollars: [],
+      unrealizedPnlPercent: [],
+      dayChangeDollars: [],
+      dayChangePercent: [],
+      weight: [],
+    };
+
+    displayedPositions.forEach((position) => {
+      const totalCost = position.avgEntry * position.qty;
+      const weightPct = totals.marketValue > 0 ? (position.marketValue / totals.marketValue) * 100 : 0;
+
+      columns.symbol.push(position.symbol);
+      columns.companyName.push(position.name || position.symbol);
+      columns.shares.push(formatQuantity(position.qty));
+      columns.avgCostBasis.push(formatCurrency(position.avgEntry));
+      columns.currentPrice.push(formatCurrency(position.current));
+      columns.marketValue.push(formatCurrency(position.marketValue));
+      columns.totalCost.push(formatCurrency(totalCost));
+      columns.unrealizedPnlDollars.push(formatSignedCurrency(position.pnl));
+      columns.unrealizedPnlPercent.push(formatSignedPercent(position.pnlPercent));
+      columns.dayChangeDollars.push(formatSignedCurrency(position.dayPnl));
+      columns.dayChangePercent.push(formatSignedPercent(position.dayPercent));
+      columns.weight.push(formatPercent(weightPct));
+    });
+
+    return { columns };
+  }, [displayedPositions, totals.marketValue]);
+
+  useEffect(() => {
+    const container = holdingsGridContainerRef.current;
+    if (!container) return undefined;
+
+    if (holdingsGridRef.current) {
+      holdingsGridRef.current.destroy();
+      holdingsGridRef.current = null;
+    }
+
+    const grid = Grid.grid(container, {
+      dataTable: holdingsGridDataTable,
+      columns: holdingsGridColumns,
+      rendering: {
+        rows: {
+          strictHeights: true,
+        },
+      },
+    });
+
+    holdingsGridRef.current = grid;
+
+    const handleGridRowClick = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const row = target.closest('tr[data-row-index]');
+      if (!row) return;
+
+      const rowIndex = Number.parseInt(row.getAttribute('data-row-index') || '', 10);
+      if (!Number.isFinite(rowIndex)) return;
+
+      const symbol = String(grid.presentationTable?.getCell('symbol', rowIndex) || '')
+        .trim()
+        .toUpperCase();
+      if (!symbol) return;
+
+      setExpandedSymbol((previous) => (previous === symbol ? '' : symbol));
+    };
+
+    container.addEventListener('click', handleGridRowClick);
+
+    return () => {
+      container.removeEventListener('click', handleGridRowClick);
+      if (holdingsGridRef.current) {
+        holdingsGridRef.current.destroy();
+        holdingsGridRef.current = null;
+      }
+    };
+  }, [holdingsGridColumns, holdingsGridDataTable]);
+
   useEffect(() => {
     if (!expandedSymbol) return;
     const exists = displayedPositions.some((position) => position.symbol === expandedSymbol);
@@ -407,6 +512,8 @@ const PortfolioPageRebuilt = ({
       setExpandedSymbol('');
     }
   }, [displayedPositions, expandedSymbol]);
+
+  const expandedSymbolTrades = expandedSymbol ? (tradesBySymbol.get(expandedSymbol) || []) : [];
 
   const requestModeSwitch = async (targetMode) => {
     const mode = String(targetMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
@@ -658,149 +765,85 @@ const PortfolioPageRebuilt = ({
             <div className="text-xs text-white/50">{displayedPositions.length} symbols</div>
           </div>
 
-          {displayedPositions.length === 0 ? (
-            <div className="rounded-xl border border-[#1f2632] bg-[#0c111a] px-4 py-8 text-center text-sm text-white/55">
-              No open positions in this account mode yet.
+          <div className="space-y-4">
+            <div className="rounded-xl border border-[#243247] bg-[#0b111b] p-2">
+              <div ref={holdingsGridContainerRef} className="portfolio-highcharts-grid" />
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1560px] text-sm">
-                <thead>
-                  <tr className="text-left text-[10px] uppercase tracking-[0.16em] text-white/45 border-b border-[#1f2632]">
-                    <th className="py-3 pr-4">Symbol</th>
-                    <th className="py-3 pr-4">Company Name</th>
-                    <th className="py-3 pr-4 text-right">Shares</th>
-                    <th className="py-3 pr-4 text-right">Avg Cost Basis</th>
-                    <th className="py-3 pr-4 text-right">Current Price</th>
-                    <th className="py-3 pr-4 text-right">Market Value</th>
-                    <th className="py-3 pr-4 text-right">Total Cost</th>
-                    <th className="py-3 pr-4 text-right">Unrealized P&amp;L ($)</th>
-                    <th className="py-3 pr-4 text-right">Unrealized P&amp;L (%)</th>
-                    <th className="py-3 pr-4 text-right">Day Change ($)</th>
-                    <th className="py-3 pr-4 text-right">Day Change (%)</th>
-                    <th className="py-3 pr-0 text-right">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedPositions.map((pos) => {
-                    const isExpanded = expandedSymbol === pos.symbol;
-                    const symbolTrades = tradesBySymbol.get(pos.symbol) || [];
-                    const weightPct = totals.marketValue > 0 ? (pos.marketValue / totals.marketValue) * 100 : 0;
-                    const totalCost = pos.avgEntry * pos.qty;
-                    const pnlPositive = pos.pnl >= 0;
-                    const dayPositive = pos.dayPnl >= 0;
 
-                    return (
-                      <React.Fragment key={pos.symbol}>
-                        <tr
-                          onClick={() => setExpandedSymbol((prev) => (prev === pos.symbol ? '' : pos.symbol))}
-                          className="cursor-pointer border-b border-[#1a2230]/70 hover:bg-white/[0.03]"
-                        >
-                          <td className="py-3 pr-4">
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-cyan-300" strokeWidth={1.8} />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-white/60" strokeWidth={1.8} />
-                              )}
-                              <span className="font-semibold text-white">{pos.symbol}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-4 text-white/70">{pos.name || pos.symbol}</td>
-                          <td className="py-3 pr-4 text-right font-mono">{formatQuantity(pos.qty)}</td>
-                          <td className="py-3 pr-4 text-right font-mono">{formatCurrency(pos.avgEntry)}</td>
-                          <td className="py-3 pr-4 text-right font-mono">{formatCurrency(pos.current)}</td>
-                          <td className="py-3 pr-4 text-right font-mono">{formatCurrency(pos.marketValue)}</td>
-                          <td className="py-3 pr-4 text-right font-mono">{formatCurrency(totalCost)}</td>
-                          <td className={`py-3 pr-4 text-right font-mono ${pnlPositive ? 'text-emerald-300' : 'text-red-300'}`}>
-                            {formatSignedCurrency(pos.pnl)}
-                          </td>
-                          <td className={`py-3 pr-4 text-right font-mono ${pnlPositive ? 'text-emerald-300/80' : 'text-red-300/80'}`}>
-                            {formatSignedPercent(pos.pnlPercent)}
-                          </td>
-                          <td className={`py-3 pr-4 text-right font-mono ${dayPositive ? 'text-emerald-300' : 'text-red-300'}`}>
-                            {formatSignedCurrency(pos.dayPnl)}
-                          </td>
-                          <td className={`py-3 pr-4 text-right font-mono ${dayPositive ? 'text-emerald-300/80' : 'text-red-300/80'}`}>
-                            {formatSignedPercent(pos.dayPercent)}
-                          </td>
-                          <td className="py-3 pr-0 text-right font-mono text-white/80">{formatPercent(weightPct)}</td>
+            {displayedPositions.length === 0 ? (
+              <div className="rounded-lg border border-[#1f2632] bg-[#0c111a] px-4 py-3 text-sm text-white/55">
+                No open positions in this account mode yet.
+              </div>
+            ) : (
+              <div className="text-xs text-white/55">
+                Click a symbol row to view Layer 3 transaction drilldown.
+              </div>
+            )}
+
+            {expandedSymbol && (
+              <div className="rounded-xl border border-[#253244] bg-[#0a1019] p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-white/45">
+                      Layer 3 · Transactions for {expandedSymbol}
+                    </div>
+                    <div className="text-xs text-white/60 mt-1">
+                      Every buy/sell tied to order details and strategy attribution.
+                    </div>
+                  </div>
+                  <div className="text-xs text-white/55">{expandedSymbolTrades.length} rows</div>
+                </div>
+
+                {expandedSymbolTrades.length === 0 ? (
+                  <div className="rounded-lg border border-[#1f2632] bg-[#0c111a] px-3 py-5 text-center text-xs text-white/55">
+                    No transactions found yet for {expandedSymbol}.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1120px] text-xs">
+                      <thead>
+                        <tr className="text-left text-[10px] uppercase tracking-[0.16em] text-white/45 border-b border-[#1f2632]">
+                          <th className="py-2 pr-3">Date</th>
+                          <th className="py-2 pr-3">Time</th>
+                          <th className="py-2 pr-3">Buy/Sell</th>
+                          <th className="py-2 pr-3 text-right">Quantity</th>
+                          <th className="py-2 pr-3 text-right">Price at Execution</th>
+                          <th className="py-2 pr-3 text-right">Value</th>
+                          <th className="py-2 pr-3 text-right">Fees/Commission</th>
+                          <th className="py-2 pr-3">Order Type</th>
+                          <th className="py-2 pr-3">TIF</th>
+                          <th className="py-2 pr-0">Strategy Name</th>
                         </tr>
-
-                        {isExpanded && (
-                          <tr className="border-b border-[#1f2632] bg-[#0c121d]">
-                            <td colSpan={12} className="px-4 py-4">
-                              <div className="rounded-xl border border-[#253244] bg-[#0a1019] p-3">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div>
-                                    <div className="text-[10px] uppercase tracking-[0.16em] text-white/45">
-                                      Layer 3 · Transactions for {pos.symbol}
-                                    </div>
-                                    <div className="text-xs text-white/60 mt-1">
-                                      Every buy/sell tied to order details and strategy attribution.
-                                    </div>
-                                  </div>
-                                  <div className="text-xs text-white/55">{symbolTrades.length} rows</div>
-                                </div>
-
-                                {symbolTrades.length === 0 ? (
-                                  <div className="rounded-lg border border-[#1f2632] bg-[#0c111a] px-3 py-5 text-center text-xs text-white/55">
-                                    No transactions found yet for {pos.symbol}.
-                                  </div>
-                                ) : (
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[1120px] text-xs">
-                                      <thead>
-                                        <tr className="text-left text-[10px] uppercase tracking-[0.16em] text-white/45 border-b border-[#1f2632]">
-                                          <th className="py-2 pr-3">Date</th>
-                                          <th className="py-2 pr-3">Time</th>
-                                          <th className="py-2 pr-3">Buy/Sell</th>
-                                          <th className="py-2 pr-3 text-right">Quantity</th>
-                                          <th className="py-2 pr-3 text-right">Price at Execution</th>
-                                          <th className="py-2 pr-3 text-right">Value</th>
-                                          <th className="py-2 pr-3 text-right">Fees/Commission</th>
-                                          <th className="py-2 pr-3">Order Type</th>
-                                          <th className="py-2 pr-3">TIF</th>
-                                          <th className="py-2 pr-0">Strategy Name</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {symbolTrades.map((trade) => {
-                                          const isBuy = trade.side === 'buy';
-                                          return (
-                                            <tr key={`${trade.id}-${trade.timestamp}`} className="border-b border-[#1a2230]/70">
-                                              <td className="py-2 pr-3 text-white/70">{formatDate(trade.timestamp)}</td>
-                                              <td className="py-2 pr-3 text-white/60">{formatTime(trade.timestamp)}</td>
-                                              <td className="py-2 pr-3">
-                                                <span className={`font-semibold uppercase tracking-[0.14em] ${isBuy ? 'text-emerald-300' : 'text-red-300'}`}>
-                                                  {isBuy ? 'Buy' : 'Sell'}
-                                                </span>
-                                              </td>
-                                              <td className="py-2 pr-3 text-right font-mono">{formatQuantity(trade.qty)}</td>
-                                              <td className="py-2 pr-3 text-right font-mono">{formatCurrency(trade.price)}</td>
-                                              <td className="py-2 pr-3 text-right font-mono">{formatCurrency(trade.total)}</td>
-                                              <td className="py-2 pr-3 text-right font-mono">{formatCurrency(trade.fees)}</td>
-                                              <td className="py-2 pr-3 text-white/70">{formatLabelCase(trade.orderType, 'Market')}</td>
-                                              <td className="py-2 pr-3 text-white/70">{formatTif(trade.timeInForce)}</td>
-                                              <td className="py-2 pr-0 text-white">{trade.strategyName || 'Manual'}</td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      </thead>
+                      <tbody>
+                        {expandedSymbolTrades.map((trade) => {
+                          const isBuy = trade.side === 'buy';
+                          return (
+                            <tr key={`${trade.id}-${trade.timestamp}`} className="border-b border-[#1a2230]/70">
+                              <td className="py-2 pr-3 text-white/70">{formatDate(trade.timestamp)}</td>
+                              <td className="py-2 pr-3 text-white/60">{formatTime(trade.timestamp)}</td>
+                              <td className="py-2 pr-3">
+                                <span className={`font-semibold uppercase tracking-[0.14em] ${isBuy ? 'text-emerald-300' : 'text-red-300'}`}>
+                                  {isBuy ? 'Buy' : 'Sell'}
+                                </span>
+                              </td>
+                              <td className="py-2 pr-3 text-right font-mono">{formatQuantity(trade.qty)}</td>
+                              <td className="py-2 pr-3 text-right font-mono">{formatCurrency(trade.price)}</td>
+                              <td className="py-2 pr-3 text-right font-mono">{formatCurrency(trade.total)}</td>
+                              <td className="py-2 pr-3 text-right font-mono">{formatCurrency(trade.fees)}</td>
+                              <td className="py-2 pr-3 text-white/70">{formatLabelCase(trade.orderType, 'Market')}</td>
+                              <td className="py-2 pr-3 text-white/70">{formatTif(trade.timeInForce)}</td>
+                              <td className="py-2 pr-0 text-white">{trade.strategyName || 'Manual'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </section>
       </div>
 
