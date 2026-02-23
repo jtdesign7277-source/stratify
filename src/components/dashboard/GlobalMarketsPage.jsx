@@ -14,24 +14,19 @@ import {
 const MARKETS = [
   {
     id: 'nyse',
-    title: '🇺🇸 NYSE',
+    title: 'New York Stock Exchange',
+    shortTitle: '🇺🇸 NYSE',
     currency: 'USD',
     accent: 'text-emerald-400',
     defaultSymbols: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'],
   },
   {
     id: 'lse',
-    title: '🇬🇧 LSE',
+    title: 'London Stock Exchange',
+    shortTitle: '🇬🇧 LSE',
     currency: 'GBP',
     accent: 'text-blue-400',
     defaultSymbols: ['SHEL', 'AZN', 'HSBA', 'BP', 'BARC', 'LLOY'],
-  },
-  {
-    id: 'sydney',
-    title: '🇦🇺 ASX',
-    currency: 'AUD',
-    accent: 'text-violet-400',
-    defaultSymbols: ['BHP.AX', 'CBA.AX', 'WBC.AX', 'NAB.AX', 'ANZ.AX', 'CSL.AX'],
   },
 ];
 
@@ -357,16 +352,20 @@ const GlobalMarketsPage = () => {
           <p className="text-xs text-gray-400">Twelve Data real-time market board</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
-          {marketStatuses.map((status) => (
-            <span key={status.id} className={`inline-flex items-center gap-1 ${status.connected ? 'text-emerald-400' : 'text-yellow-400'}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${status.connected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
-              {status.title}
-            </span>
-          ))}
+          {MARKETS.map((market) => {
+            const status = marketStatuses.find(s => s.id === market.id);
+            const connected = status?.connected || false;
+            return (
+              <span key={market.id} className={`inline-flex items-center gap-1 ${connected ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}`} />
+                {market.shortTitle}
+              </span>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2">
         {MARKETS.map((market) => {
           const marketQuotes = quotesByMarket[market.id] || {};
           const symbols = watchlists[market.id] || market.defaultSymbols;
