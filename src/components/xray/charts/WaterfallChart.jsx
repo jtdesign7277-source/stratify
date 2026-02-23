@@ -1,10 +1,5 @@
 import Highcharts from 'highcharts';
-import HighchartsMore from 'highcharts/highcharts-more';
 import ChartWrapper from './ChartWrapper';
-
-if (typeof HighchartsMore === 'function') {
-  HighchartsMore(Highcharts);
-}
 
 function getIncomeWaterfallConfig(data) {
   const revenue = Number(data?.total_revenue) || 0;
@@ -18,13 +13,13 @@ function getIncomeWaterfallConfig(data) {
 
   return {
     chart: { 
-      type: 'waterfall', 
+      type: 'column', 
       height: 300,
       backgroundColor: 'transparent'
     },
     title: { text: null },
     xAxis: {
-      type: 'category',
+      categories: ['Revenue', 'COGS', 'Gross Profit', 'OpEx', 'Op. Income', 'Other', 'Net Income'],
       labels: { style: { fontSize: '9px', color: '#9ca3af' } },
       lineColor: '#374151',
     },
@@ -37,44 +32,38 @@ function getIncomeWaterfallConfig(data) {
           return `$${(this.value / 1e9).toFixed(0)}B`;
         },
       },
+      min: 0,
     },
     tooltip: {
       formatter() {
         const val = Math.abs(this.y);
-        const sign = this.y < 0 ? '-' : '+';
-        const label = this.point.isSum || this.point.isIntermediateSum ? '' : sign;
-        return `<b>${this.key}</b><br/>${label}$${(val / 1e6).toLocaleString()}M`;
+        return `<b>${this.x}</b><br/>$${(val / 1e6).toLocaleString()}M`;
       },
     },
     legend: { enabled: false },
     plotOptions: {
-      series: {
-        pointPadding: 0,
-        groupPadding: 0.1,
-        minPointLength: 5,
+      column: {
+        pointPadding: 0.1,
+        groupPadding: 0.15,
+        borderWidth: 0,
+        borderRadius: 3,
       },
     },
     series: [
       {
-        borderWidth: 0,
-        borderRadius: 3,
-        upColor: '#10b981',
-        color: '#ef4444',
-        lineWidth: 1,
-        lineColor: '#374151',
         data: [
-          { name: 'Revenue', y: revenue, color: '#3b82f6' },
-          { name: 'COGS', y: -cogs, color: '#ef4444' },
-          { name: 'Gross Profit', isIntermediateSum: true, color: '#10b981' },
-          { name: 'OpEx', y: -operatingExpenses, color: '#f97316' },
-          { name: 'Op. Income', isIntermediateSum: true, color: '#10b981' },
-          { name: 'Other', y: otherItems, color: otherItems >= 0 ? '#6366f1' : '#ef4444' },
-          { name: 'Net Income', isSum: true, color: '#22c55e' },
+          { y: revenue, color: '#3b82f6' },
+          { y: cogs, color: '#ef4444' },
+          { y: grossProfit, color: '#10b981' },
+          { y: operatingExpenses, color: '#f97316' },
+          { y: operatingIncome, color: '#10b981' },
+          { y: Math.abs(otherItems), color: otherItems >= 0 ? '#6366f1' : '#ef4444' },
+          { y: netIncome, color: '#22c55e' },
         ],
         dataLabels: {
           enabled: true,
           formatter() {
-            return `$${(Math.abs(this.y) / 1e9).toFixed(1)}B`;
+            return `$${(this.y / 1e9).toFixed(1)}B`;
           },
           style: {
             color: '#e5e7eb',
