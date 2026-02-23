@@ -364,10 +364,22 @@ export const useTradeHistory = ({ onApplyTrade } = {}) => {
     [onApplyTrade],
   );
 
+  const removeTrade = useCallback((tradeId) => {
+    const normalizedId = String(tradeId || '').trim();
+    if (!normalizedId) return;
+
+    setTrades((prev) => prev.filter((trade) => String(trade.id || '') !== normalizedId));
+  }, []);
+
+  const clearTrades = useCallback(() => {
+    setTrades([]);
+  }, []);
+
   return {
     trades,
     addTrade,
+    removeTrade,
+    clearTrades,
     loaded,
   };
 };
-

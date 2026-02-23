@@ -573,7 +573,7 @@ export default function Dashboard({
   
   const { user } = useAuth();
   const { subscriptionStatus, loading: subscriptionLoading } = useSubscription();
-  const { trades, addTrade } = useTradeHistoryStore();
+  const { trades, addTrade, removeTrade, clearTrades } = useTradeHistoryStore();
   const { watchlist, addToWatchlist, removeFromWatchlist, reorderWatchlist, pinToTop } = useWatchlistSync(user);
   const {
     strategies,
@@ -2064,6 +2064,8 @@ export default function Dashboard({
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
               alpacaData={alpacaData}
+              onDeleteTrade={removeTrade}
+              onClearTradeHistory={clearTrades}
             />
           )}
           {/* strategy workspace lives in Terminal */}

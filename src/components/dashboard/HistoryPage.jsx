@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, History, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, History, Sparkles, Trash2 } from 'lucide-react';
 
-const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+const HIDDEN_TRADES_STORAGE_KEY = 'stratify-history-hidden-trades';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -21,7 +21,7 @@ const formatCurrency = (value) => `$${Math.abs(toNumber(value)).toLocaleString('
 
 const formatPnl = (value) => {
   const amount = toNumber(value);
-  if (amount === 0) return '-$0.00';
+  if (amount === 0) return '$0.00';
   return `${amount > 0 ? '+' : '-'}${formatCurrency(amount)}`;
 };
 
@@ -179,8 +179,29 @@ const HistoryPage = ({
   savedStrategies = [],
   deployedStrategies = [],
   alpacaData = {},
+  onDeleteTrade,
+  onClearTradeHistory,
 }) => {
   const [apiTrades, setApiTrades] = useState([]);
+  const [hiddenTradeKeys, setHiddenTradeKeys] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(HIDDEN_TRADES_STORAGE_KEY);
+      const parsed = JSON.parse(stored || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(HIDDEN_TRADES_STORAGE_KEY, JSON.stringify(hiddenTradeKeys));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [hiddenTradeKeys]);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +210,6 @@ const HistoryPage = ({
       const endpoints = [
         '/api/trades/orders?status=filled&limit=200',
         '/api/orders?status=filled&limit=200',
-        `${API_URL}/api/trades/orders?status=filled&limit=200`,
       ];
 
       for (const endpoint of endpoints) {
@@ -250,8 +270,14 @@ const HistoryPage = ({
     return [...byKey.values()].sort((a, b) => b.timestamp - a.timestamp);
   }, [apiTrades, normalizedBrokerTrades, normalizedLocalTrades]);
 
+  const visibleTrades = useMemo(() => {
+    if (hiddenTradeKeys.length === 0) return trades;
+    const hidden = new Set(hiddenTradeKeys);
+    return trades.filter((trade) => !hidden.has(getTradeRowKey(trade)));
+  }, [trades, hiddenTradeKeys]);
+
   const tradeLogPnl = useMemo(() => {
-    const sorted = [...trades]
+    const sorted = [...visibleTrades]
       .filter(isCompletedTrade)
       .sort((a, b) => a.timestamp - b.timestamp);
 
@@ -280,7 +306,28 @@ const HistoryPage = ({
     });
 
     return Number(realized.toFixed(2));
-  }, [trades]);
+  }, [visibleTrades]);
+
+  const handleDeleteTrade = (trade) => {
+    if (!trade) return;
+    const rowKey = getTradeRowKey(trade);
+    setHiddenTradeKeys((prev) => (prev.includes(rowKey) ? prev : [...prev, rowKey]));
+    if (typeof onDeleteTrade === 'function') {
+      onDeleteTrade(trade.id);
+    }
+  };
+
+  const handleClearTrades = () => {
+    if (!visibleTrades.length) return;
+    const shouldClear = window.confirm('Delete all trade history rows from this page?');
+    if (!shouldClear) return;
+
+    const allKeys = visibleTrades.map((trade) => getTradeRowKey(trade));
+    setHiddenTradeKeys((prev) => [...new Set([...prev, ...allKeys])]);
+    if (typeof onClearTradeHistory === 'function') {
+      onClearTradeHistory();
+    }
+  };
 
   const strategyRuns = useMemo(() => {
     const byKey = new Map();
@@ -321,11 +368,23 @@ const HistoryPage = ({
         <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl flex flex-col min-h-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white">Trade Log</h2>
-            <span className="text-xs text-white/45">{trades.length} trades</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-white/45">{visibleTrades.length} trades</span>
+              {visibleTrades.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearTrades}
+                  className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/15 transition-colors"
+                >
+                  <Trash2 className="h-3 w-3" strokeWidth={1.6} />
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 min-h-0 overflow-auto">
-            {trades.length === 0 ? (
+            {visibleTrades.length === 0 ? (
               <div className="h-full flex items-center justify-center px-6 text-center">
                 <div>
                   <History className="w-8 h-8 text-white/20 mx-auto mb-3" strokeWidth={1.5} />
@@ -335,7 +394,7 @@ const HistoryPage = ({
                 </div>
               </div>
             ) : (
-              <table className="w-full min-w-[920px] text-sm">
+              <table className="w-full min-w-[980px] text-sm">
                 <thead className="text-xs text-white/45 uppercase tracking-[0.1em]">
                   <tr className="border-b border-[#1f1f1f]">
                     <th className="px-4 py-3 text-left">Type</th>
@@ -346,10 +405,11 @@ const HistoryPage = ({
                     <th className="px-4 py-3 text-left">Date</th>
                     <th className="px-4 py-3 text-left">Time</th>
                     <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-right">Remove</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {trades.map((trade) => {
+                  {visibleTrades.map((trade) => {
                     const isBuy = trade.type === 'buy';
                     return (
                       <tr key={getTradeRowKey(trade)} className="border-b border-[#1f1f1f]/60 hover:bg-white/[0.02]">
@@ -375,6 +435,17 @@ const HistoryPage = ({
                           <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-xs font-medium capitalize">
                             {String(trade.status || 'filled').replace(/_/g, ' ')}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTrade(trade)}
+                            className="inline-flex items-center justify-center rounded-md border border-red-500/25 bg-red-500/10 p-1.5 text-red-300 hover:bg-red-500/20 transition-colors"
+                            title="Delete row"
+                            aria-label={`Delete ${trade.symbol} trade row`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                          </button>
                         </td>
                       </tr>
                     );

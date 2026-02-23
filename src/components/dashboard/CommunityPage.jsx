@@ -948,7 +948,7 @@ const TrendingPnlPanel = ({ wins = [], losses = [], loading = false, onSelectTra
 };
 
 // ─── Compose Box ──────────────────────────────────────────
-const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false }) => {
+const ComposeBox = ({ currentUser, onPost }) => {
   const [content, setContent] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -1110,16 +1110,6 @@ const ComposeBox = ({ currentUser, onPost, onOpenBetSlip, betSlipOpen = false })
                 title="Add image"
               >
                 <Camera size={16} strokeWidth={1.5} />
-              </button>
-
-              <button
-                onClick={() => onOpenBetSlip?.()}
-                className={`p-1.5 rounded-md hover:bg-white/5 transition-colors ${
-                  betSlipOpen ? 'text-emerald-400' : 'text-gray-500 hover:text-emerald-400'
-                }`}
-                title="Share P&L"
-              >
-                <TrendingUp size={16} strokeWidth={1.5} />
               </button>
 
               <button
@@ -2113,8 +2103,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               {currentUser && (
                 <ComposeBox
                   currentUser={currentUser}
-                  betSlipOpen={pnlPanelOpen}
-                  onOpenBetSlip={() => setPnlPanelOpen(true)}
                   onPost={prependPost}
                 />
               )}
