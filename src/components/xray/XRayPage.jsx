@@ -371,7 +371,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
               <StatCard
                 label="Price"
                 value={livePrice !== null ? formatCurrency(livePrice) : quoteLoading ? '...' : '--'}
-                subvalue={quoteError ? quoteError : liveQuote?.timestamp ? `Tick ${liveQuote.timestamp}` : 'Delayed fallback'}
+                subvalue={quoteError ? quoteError : liveQuote ? `Live • ${new Date(liveQuote.timestamp * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : connected ? 'Connecting...' : 'Market data loading'}
                 tone="accent"
               />
               <StatCard
