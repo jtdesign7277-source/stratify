@@ -554,48 +554,53 @@ const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = fal
     }
   };
 
-  const renderTrigger = () => (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setShowPicker((open) => !open)}
-        disabled={!isInteractive}
-        className={
-          inActionRow
-            ? `inline-flex items-center gap-1.5 text-xs transition-colors ${
-                isInteractive ? 'text-gray-600 hover:text-gray-300' : 'text-gray-700 cursor-not-allowed'
-              }`
-            : `inline-flex items-center justify-center rounded-full border px-2.5 ${
-                compact ? 'h-7 w-7' : 'h-8 w-8'
-              } transition-colors ${
-                isInteractive
-                  ? 'border-[#2a2a2a] bg-[#121212] text-gray-400 hover:text-gray-200 hover:border-[#3a3a3a]'
-                  : 'border-[#232323] bg-[#101010] text-gray-600 cursor-not-allowed'
-              }`
-        }
-        title={isInteractive ? 'Add reaction' : 'Sign in to react'}
-      >
-        <SmilePlus size={compact ? 13 : 15} strokeWidth={1.8} />
-        {inActionRow && <span>React</span>}
-      </button>
+  const renderTrigger = () => {
+    // Don't render button if no user is logged in
+    if (!currentUser?.id) return null;
 
-      {showPicker && isInteractive && (
-        <EmojiPicker
-          align={compact ? 'right' : 'left'}
-          onClose={() => setShowPicker(false)}
-          onSelect={(emoji) => {
-            console.log('[CommunityPage] Emoji selected from picker:', {
-              postId,
-              userId: currentUser?.id,
-              emoji,
-            });
-            setShowPicker(false);
-            void toggleReaction(emoji);
-          }}
-        />
-      )}
-    </span>
-  );
+    return (
+      <span className="relative inline-flex">
+        <button
+          type="button"
+          onClick={() => setShowPicker((open) => !open)}
+          disabled={!isInteractive}
+          className={
+            inActionRow
+              ? `inline-flex items-center gap-1.5 text-xs transition-colors ${
+                  isInteractive ? 'text-gray-600 hover:text-gray-300' : 'text-gray-700 cursor-not-allowed'
+                }`
+              : `inline-flex items-center justify-center rounded-full border px-2.5 ${
+                  compact ? 'h-7 w-7' : 'h-8 w-8'
+                } transition-colors ${
+                  isInteractive
+                    ? 'border-[#2a2a2a] bg-[#121212] text-gray-400 hover:text-gray-200 hover:border-[#3a3a3a]'
+                    : 'border-[#232323] bg-[#101010] text-gray-600 cursor-not-allowed'
+                }`
+          }
+          title={isInteractive ? 'Add reaction' : 'Sign in to react'}
+        >
+          <SmilePlus size={compact ? 13 : 15} strokeWidth={1.8} />
+          {inActionRow && <span>React</span>}
+        </button>
+
+        {showPicker && isInteractive && (
+          <EmojiPicker
+            align={compact ? 'right' : 'left'}
+            onClose={() => setShowPicker(false)}
+            onSelect={(emoji) => {
+              console.log('[CommunityPage] Emoji selected from picker:', {
+                postId,
+                userId: currentUser?.id,
+                emoji,
+              });
+              setShowPicker(false);
+              void toggleReaction(emoji);
+            }}
+          />
+        )}
+      </span>
+    );
+  };
 
   return (
     inActionRow ? (
