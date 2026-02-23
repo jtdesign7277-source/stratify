@@ -980,6 +980,7 @@ export class TeslaEMAStrategy extends Strategy {
 
 const PRO_CHECKOUT_PRICE_ID = PRO_STRIPE_PRICE_ID;
 const AUTH_GATE_TIMEOUT_MS = 5000;
+const SUBSCRIPTION_RESTORE_TIMEOUT_MS = 12000;
 
 function StratifyAppContent() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -1245,8 +1246,8 @@ function StratifyAppContent() {
       } finally {
         if (!cancelled) {
           clearCheckoutParams();
-          setIsCheckoutVerifying(false);
         }
+        setIsCheckoutVerifying(false);
       }
     };
 
@@ -1271,6 +1272,11 @@ function StratifyAppContent() {
 
     attemptedSubscriptionRestoreRef.current.add(user.id);
     let cancelled = false;
+    let restored = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort('subscription_restore_timeout');
+    }, SUBSCRIPTION_RESTORE_TIMEOUT_MS);
 
     const restoreSubscription = async () => {
       setIsSubscriptionRestoring(true);
@@ -1283,6 +1289,7 @@ function StratifyAppContent() {
             userId: user.id,
             email: user.email,
           }),
+          signal: controller.signal,
         });
 
         const data = await response.json().catch(() => null);
@@ -1294,15 +1301,22 @@ function StratifyAppContent() {
         }
 
         if (data?.isPro && !cancelled) {
+          restored = true;
           await refetchSubscription();
         }
       } catch (error) {
         if (!cancelled) {
-          setCheckoutError('Unable to verify subscription right now. Please refresh in a few seconds.');
+          if (error?.name === 'AbortError') {
+            setCheckoutError('Subscription check timed out. Please refresh and try again.');
+          } else {
+            setCheckoutError('Unable to verify subscription right now. Please refresh in a few seconds.');
+          }
         }
       } finally {
-        if (!cancelled) {
-          setIsSubscriptionRestoring(false);
+        window.clearTimeout(timeoutId);
+        setIsSubscriptionRestoring(false);
+        if (!restored) {
+          attemptedSubscriptionRestoreRef.current.delete(user.id);
         }
       }
     };
@@ -1311,6 +1325,7 @@ function StratifyAppContent() {
 
     return () => {
       cancelled = true;
+      controller.abort('subscription_restore_cleanup');
     };
   }, [
     currentPage,
