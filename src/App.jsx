@@ -1014,6 +1014,8 @@ function StratifyAppContent() {
   const [checkoutError, setCheckoutError] = useState('');
   const [authGateTimedOut, setAuthGateTimedOut] = useState(false);
   const [isCheckoutVerifying, setIsCheckoutVerifying] = useState(false);
+  const [isSubscriptionRestoring, setIsSubscriptionRestoring] = useState(false);
+  const attemptedSubscriptionRestoreRef = useRef(new Set());
 
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
@@ -1255,6 +1257,77 @@ function StratifyAppContent() {
     };
   }, [isAuthenticated, user?.id, refetchSubscription, isProUser]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || subscriptionLoading || isProUser || typeof window === 'undefined') {
+      return;
+    }
+
+    const shouldAttempt = currentPage === 'dashboard';
+    if (!shouldAttempt) return;
+
+    if (attemptedSubscriptionRestoreRef.current.has(user.id)) {
+      return;
+    }
+
+    attemptedSubscriptionRestoreRef.current.add(user.id);
+    let cancelled = false;
+
+    const restoreSubscription = async () => {
+      setIsSubscriptionRestoring(true);
+
+      try {
+        const response = await fetch('/api/refresh-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            email: user.email,
+          }),
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          if (!cancelled && data?.error) {
+            setCheckoutError(data.error);
+          }
+          return;
+        }
+
+        if (data?.isPro && !cancelled) {
+          await refetchSubscription();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCheckoutError('Unable to verify subscription right now. Please refresh in a few seconds.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSubscriptionRestoring(false);
+        }
+      }
+    };
+
+    restoreSubscription();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentPage,
+    isAuthenticated,
+    isProUser,
+    refetchSubscription,
+    subscriptionLoading,
+    user?.email,
+    user?.id,
+  ]);
+
+  useEffect(() => {
+    if (isProUser && user?.id) {
+      attemptedSubscriptionRestoreRef.current.delete(user.id);
+    }
+  }, [isProUser, user?.id]);
+
   const mainContent =
     currentPage === 'whitepaper' ? (
       <WhitePaperPage
@@ -1280,16 +1353,16 @@ function StratifyAppContent() {
         onDashboard={() => navigateToPage('dashboard')}
         isAuthenticated={isAuthenticated}
       />
-    ) : isCheckoutVerifying ? (
+    ) : isCheckoutVerifying || isSubscriptionRestoring ? (
       <div className="min-h-screen bg-transparent text-white flex items-center justify-center px-6">
         <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0a1220] p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.4)]">
           <h1 className="text-2xl font-semibold">Finalizing Your Subscription</h1>
           <p className="mt-3 text-sm text-white/70">
-            We detected your Stripe checkout and are unlocking your dashboard now.
+            We are verifying your access and unlocking your dashboard now.
           </p>
           <div className="mt-5 flex items-center justify-center gap-3 text-sm text-gray-300">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/80 border-t-transparent" />
-            Verifying payment...
+            Verifying subscription...
           </div>
         </div>
       </div>
