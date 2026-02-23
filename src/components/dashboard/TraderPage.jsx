@@ -9,8 +9,8 @@ import useTradingMode from '../../hooks/useTradingMode';
 import { fetchAccount, placeOrder } from '../../services/alpacaService';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
-const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
 const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search';
+const CHART_CANDLES_ENDPOINT = '/api/chart/candles';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
 const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
@@ -1098,6 +1098,7 @@ export default function TraderPage({
   const searchContainerRef = useRef(null);
   const searchRequestRef = useRef(0);
   const chartTimeframeRef = useRef(chartTimeframe);
+  const chartRequestIdRef = useRef(0);
   const dragPositionYRef = useRef(null);
   const activeMarketExchanges = useMemo(() => {
     const market = MARKET_FILTER_BY_ID[activeMarket] || MARKET_FILTER_BY_ID[DEFAULT_ACTIVE_MARKET];
@@ -1792,6 +1793,8 @@ export default function TraderPage({
   const loadCandles = useCallback(async (symbol, timeframeId = chartTimeframeRef.current) => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
 
+    const requestId = chartRequestIdRef.current + 1;
+    chartRequestIdRef.current = requestId;
     const normalized = normalizeSymbol(symbol);
     const timeframeConfig = CHART_TIMEFRAME_BY_ID[timeframeId] || CHART_TIMEFRAME_BY_ID[DEFAULT_CHART_TIMEFRAME];
     if (!normalized) {
@@ -1799,14 +1802,6 @@ export default function TraderPage({
       volumeSeriesRef.current.setData([]);
       lastBarRef.current = null;
       setChartStatus({ loading: false, error: 'Add a ticker to load chart data.' });
-      return;
-    }
-
-    if (!apiKey) {
-      candleSeriesRef.current.setData([]);
-      volumeSeriesRef.current.setData([]);
-      lastBarRef.current = null;
-      setChartStatus({ loading: false, error: 'Missing VITE_TWELVE_DATA_API_KEY.' });
       return;
     }
 
@@ -1818,16 +1813,17 @@ export default function TraderPage({
         interval: timeframeConfig.interval,
         outputsize: timeframeConfig.outputsize,
         format: 'JSON',
-        apikey: apiKey,
       });
 
-      const response = await fetch(`${TWELVE_DATA_REST_URL}?${params.toString()}`, {
+      const response = await fetch(`${CHART_CANDLES_ENDPOINT}?${params.toString()}`, {
         cache: 'no-store',
       });
       const payload = await response.json().catch(() => ({}));
 
+      if (requestId !== chartRequestIdRef.current) return;
+
       if (!response.ok || payload?.status === 'error') {
-        throw new Error(payload?.message || payload?.code || 'Failed to load chart data.');
+        throw new Error(payload?.error || payload?.message || payload?.code || 'Failed to load chart data.');
       }
 
       const values = Array.isArray(payload?.values) ? payload.values : [];
@@ -1840,6 +1836,8 @@ export default function TraderPage({
         })
         .filter(Boolean)
         .sort((a, b) => a.time - b.time);
+
+      if (requestId !== chartRequestIdRef.current) return;
 
       const deduped = [];
       parsed.forEach((bar) => {
@@ -1892,12 +1890,13 @@ export default function TraderPage({
       lastBarRef.current = deduped[deduped.length - 1];
       setChartStatus({ loading: false, error: '' });
     } catch (error) {
+      if (requestId !== chartRequestIdRef.current) return;
       setChartStatus({
         loading: false,
         error: error?.message || 'Failed to load chart data.',
       });
     }
-  }, [apiKey]);
+  }, []);
 
   useEffect(() => {
     if (!chartReady) return;
