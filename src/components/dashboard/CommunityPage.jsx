@@ -111,6 +111,9 @@ const applyReactionState = (currentReactions = [], emoji, shouldReact) => {
   });
 };
 
+const sortByCreatedAtAsc = (rows = []) =>
+  [...rows].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
 // ─── Share to X ───────────────────────────────────────────
 const shareToX = (post) => {
   let text = post.content;
@@ -746,7 +749,16 @@ const PostCard = ({ post, currentUser, onDelete }) => {
       count: mappedReplies.length,
       data: mappedReplies,
     });
-    setReplies(mappedReplies);
+    setReplies((prev) => {
+      if (prev.length === 0) return mappedReplies;
+
+      const merged = new Map(prev.map((reply) => [reply.id, reply]));
+      mappedReplies.forEach((reply) => {
+        merged.set(reply.id, reply);
+      });
+
+      return sortByCreatedAtAsc(Array.from(merged.values()));
+    });
     setLoadingReplies(false);
   };
 
@@ -767,26 +779,47 @@ const PostCard = ({ post, currentUser, onDelete }) => {
   }, [currentUser?.id]);
 
   const submitReply = async () => {
-    if (!replyContent.trim() || !currentUser) return;
+    if (replying || !replyContent.trim() || !currentUser) return;
+
+    const trimmedReply = replyContent.trim();
     setReplying(true);
 
     try {
-      const { data, error } = await supabase.from('community_posts').insert({
-        user_id: currentUser.id,
-        author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
-        content: replyContent.trim(),
-        parent_id: post.id,
-        parent_post_id: post.id,
-        ticker_mentions: extractTickers(replyContent),
-      }).select();
+      const { data: insertedReply, error } = await supabase
+        .from('community_posts')
+        .insert({
+          user_id: currentUser.id,
+          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+          content: trimmedReply,
+          parent_id: post.id,
+          parent_post_id: post.id,
+          ticker_mentions: extractTickers(trimmedReply),
+        })
+        .select('*, profiles:user_id(id, display_name, avatar_url, email), community_reactions(emoji, user_id)')
+        .single();
 
       if (error) {
         console.error('[CommunityPage] Reply insert error:', error);
       } else {
-        console.log('[CommunityPage] Reply inserted:', data);
+        console.log('[CommunityPage] Reply inserted:', insertedReply);
+        const mappedReply = {
+          ...insertedReply,
+          profiles: insertedReply.profiles || {
+            id: currentUser.id,
+            display_name: currentUser.display_name,
+            avatar_url: currentUser.avatar_url,
+            email: currentUser.email,
+          },
+          reaction_summary: buildReactionSummary(insertedReply.community_reactions || [], currentUser?.id),
+        };
+
+        setReplies((prev) => {
+          if (prev.some((reply) => reply.id === mappedReply.id)) return prev;
+          return sortByCreatedAtAsc([...prev, mappedReply]);
+        });
+
         setReplyContent('');
         setShowReplies(true);
-        await loadReplies();
       }
     } catch (err) {
       console.error('[CommunityPage] Reply failed:', err);
@@ -961,7 +994,11 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                 <input
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && submitReply()}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    void submitReply();
+                  }}
                   placeholder="Write a reply..."
                   className="flex-1 bg-[#0b0b0b] border border-[#1f1f1f] rounded-full px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 outline-none focus:border-cyan-500/30 transition-colors"
                 />
