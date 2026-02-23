@@ -414,9 +414,6 @@ function TraderOrderEntry({
 }) {
   const normalizedTradingMode = String(tradingMode || '').toLowerCase() === 'live' ? 'live' : 'paper';
   const isLiveMode = normalizedTradingMode === 'live';
-  const modeBadgeClass = isLiveMode
-    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 to-amber-400/20 text-emerald-100'
-    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 to-cyan-400/20 text-cyan-100';
 
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
@@ -620,13 +617,6 @@ function TraderOrderEntry({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="mb-1 px-1">
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.16em] ${modeBadgeClass}`}>
-          <span>{isLiveMode ? '💰' : '📄'}</span>
-          <span>{isLiveMode ? 'LIVE MODE' : 'PAPER MODE'}</span>
-        </span>
-      </div>
-
       <AlpacaOrderTicket
         side={side}
         onSideChange={setSide}
