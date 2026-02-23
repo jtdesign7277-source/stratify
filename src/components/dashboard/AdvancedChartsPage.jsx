@@ -10,6 +10,7 @@ import {
   subscribeTwelveDataQuotes,
   subscribeTwelveDataStatus,
 } from '../../services/twelveDataWebSocket';
+import useTradingMode from '../../hooks/useTradingMode';
 
 const TIMEFRAME_GROUPS = [
   {
@@ -198,6 +199,13 @@ const TIME_IN_FORCE_OPTIONS = [
 ];
 
 export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
+  const { tradingMode } = useTradingMode();
+  const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
+  const isLiveMode = normalizedTradingMode === 'live';
+  const accountBadgeToneClass = isLiveMode
+    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
+    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
+  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
   const [ticker, setTicker] = useState(activeTicker);
   const [timeframe, setTimeframe] = useState('1m');
   const [rangeKey, setRangeKey] = useState('5D');
@@ -372,7 +380,9 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const refreshAccount = useCallback(async () => {
     try {
       setAccountStatus({ state: 'loading', message: '' });
-      const response = await fetch('/api/account');
+      const response = await fetch(`/api/account?mode=${normalizedTradingMode}`, {
+        headers: { 'x-trading-mode': normalizedTradingMode },
+      });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || 'Failed to fetch account');
@@ -382,12 +392,14 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     } catch (err) {
       setAccountStatus({ state: 'error', message: err.message });
     }
-  }, []);
+  }, [normalizedTradingMode]);
 
   const refreshPositions = useCallback(async () => {
     try {
       setPositionsStatus({ state: 'loading', message: '' });
-      const response = await fetch('/api/positions');
+      const response = await fetch(`/api/positions?mode=${normalizedTradingMode}`, {
+        headers: { 'x-trading-mode': normalizedTradingMode },
+      });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || 'Failed to fetch positions');
@@ -397,7 +409,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
     } catch (err) {
       setPositionsStatus({ state: 'error', message: err.message });
     }
-  }, []);
+  }, [normalizedTradingMode]);
 
   useEffect(() => {
     if (!isTradePanelOpen) return;
@@ -599,6 +611,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-trading-mode': normalizedTradingMode,
         },
         body: JSON.stringify(payload),
       });
@@ -1343,11 +1356,12 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 setTimeInForce(nextValue);
               }}
               timeInForceOptions={TIME_IN_FORCE_OPTIONS}
+              tradingMode={normalizedTradingMode}
               estimatedCost={estimatedTotal}
               buyingPowerDisplay={buyingPowerDisplay}
               onReview={handleReview}
               reviewDisabled={!canReview}
-              reviewLabel="Review Order"
+              reviewLabel={`Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
               density="trade"
               className="rounded-2xl border border-blue-500/25 bg-[#07162f]/95"
               extraFields={
@@ -1466,6 +1480,12 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-white/60">Account</span>
+                <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${accountBadgeToneClass}`}>
+                  {accountBadgeText}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-white/60">Ticker</span>
                 <span className="text-white">{ticker}</span>
               </div>
@@ -1534,7 +1554,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
                 orderStatus.state === 'submitting' ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit Order'}
+              {orderStatus.state === 'submitting' ? 'Submitting...' : `Submit ${isLiveMode ? 'Live' : 'Paper'} Order`}
             </button>
           </div>
 
@@ -1561,6 +1581,12 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
               <div className="flex items-center justify-between">
                 <span className="text-white/60">Ticker</span>
                 <span className="text-white">{ticker}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Account</span>
+                <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${accountBadgeToneClass}`}>
+                  {accountBadgeText}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/60">Side</span>

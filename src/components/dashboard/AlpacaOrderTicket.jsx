@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
+import useTradingMode from '../../hooks/useTradingMode';
 
 const formatMoney = (value) => {
   const number = Number(value);
@@ -59,15 +60,23 @@ export default function AlpacaOrderTicket({
   stickyReviewFooter = false,
   extraFields = null,
   density = 'default',
+  tradingMode,
   className = '',
 }) {
   const [symbolInput, setSymbolInput] = useState(symbol);
+  const { tradingMode: activeTradingMode, isLive } = useTradingMode();
 
   useEffect(() => {
     setSymbolInput(symbol || '');
   }, [symbol]);
 
   const activeAmount = sizeMode === 'dollars' ? dollarAmount : quantity;
+  const normalizedProvidedMode = String(tradingMode || '').trim().toLowerCase();
+  const hasProvidedMode = normalizedProvidedMode === 'live' || normalizedProvidedMode === 'paper';
+  const normalizedTradingMode = hasProvidedMode
+    ? normalizedProvidedMode
+    : (String(activeTradingMode || '').trim().toLowerCase() === 'live' || isLive ? 'live' : 'paper');
+  const isLiveMode = normalizedTradingMode === 'live';
 
   const handleCommitSymbol = () => {
     if (!onSymbolSubmit) return;
@@ -136,11 +145,24 @@ export default function AlpacaOrderTicket({
   const contentLayoutClass = stickyReviewFooter
     ? `${contentTopClass} ${verticalGapClass} flex-1 min-h-0`
     : `${contentTopClass} ${verticalGapClass}`;
+  const accountBadgeToneClass = isLiveMode
+    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
+    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
+  const accountBadgeSizeClass = isCompactCryptoSticky ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-[10px]';
+  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
 
   return (
     <div
       className={`rounded-xl border border-white/10 bg-[#0a1628]/95 ${panelPaddingClass} ${rootLayoutClass} text-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] backdrop-blur ${className}`}
     >
+      <div className="mb-2.5 flex">
+        <span
+          className={`${accountBadgeSizeClass} inline-flex items-center rounded-md border font-bold uppercase tracking-[0.14em] ${accountBadgeToneClass}`}
+        >
+          {accountBadgeText}
+        </span>
+      </div>
+
       <div className="grid grid-cols-2 border-b border-white/10">
         <button
           type="button"

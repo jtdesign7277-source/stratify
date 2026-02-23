@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
+import useTradingMode from '../../hooks/useTradingMode';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE CLIENT (uses existing app client)
@@ -253,6 +254,9 @@ function OrderEntry({
   onSymbolChange,
   buyingPowerDisplay,
 }) {
+  const { tradingMode } = useTradingMode();
+  const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
+  const isLiveMode = normalizedTradingMode === 'live';
   const [side, setSide] = useState('buy');
   const [orderType, setOrderType] = useState('market');
   const [sizeMode, setSizeMode] = useState('shares');
@@ -266,6 +270,7 @@ function OrderEntry({
   const [submitting, setSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [accountBuyingPowerDisplay, setAccountBuyingPowerDisplay] = useState(buyingPowerDisplay || '$ -');
 
   const referencePrice = useMemo(() => {
     const price =
@@ -306,19 +311,29 @@ function OrderEntry({
   const requiresLimit = orderType === 'limit' || orderType === 'stop_limit';
   const requiresStop = orderType === 'stop' || orderType === 'stop_limit';
   const requiresTrail = orderType === 'trailing_stop';
+  const accountBadgeToneClass = isLiveMode
+    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
+    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
+  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
+
+  useEffect(() => {
+    setAccountBuyingPowerDisplay(buyingPowerDisplay || '$ -');
+  }, [buyingPowerDisplay]);
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchBuyingPower = async () => {
       try {
-        const response = await fetch('/api/account');
+        const response = await fetch(`/api/account?mode=${normalizedTradingMode}`, {
+          headers: { 'x-trading-mode': normalizedTradingMode },
+        });
         const payload = await response.json();
         if (!response.ok || cancelled) return;
         const buyingPower = payload?.buying_power ?? payload?.cash ?? payload?.buyingPower;
         const parsed = Number(buyingPower);
         if (!Number.isFinite(parsed)) return;
-        setBuyingPowerDisplay(new Intl.NumberFormat('en-US', {
+        setAccountBuyingPowerDisplay(new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: 'USD',
           minimumFractionDigits: 2,
@@ -326,7 +341,7 @@ function OrderEntry({
         }).format(parsed));
       } catch {
         if (!cancelled) {
-          setBuyingPowerDisplay('$ -');
+          setAccountBuyingPowerDisplay('$ -');
         }
       }
     };
@@ -335,7 +350,7 @@ function OrderEntry({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [normalizedTradingMode]);
 
   const handleSubmit = () => {
     if (!hasValidOrderSize) return;
@@ -356,6 +371,7 @@ function OrderEntry({
       symbol: selectedCoin.alpacaSymbol,
       side,
       orderType,
+      mode: normalizedTradingMode,
       quantity: resolvedQuantity,
       notionalAmount: sizeMode === 'dollars' ? notionalNumber : null,
       limitPrice: requiresLimit ? limitPriceNumber : null,
@@ -373,6 +389,7 @@ function OrderEntry({
       const { data: { session } } = await supabase.auth.getSession();
       const headers = {
         'Content-Type': 'application/json',
+        'x-trading-mode': normalizedTradingMode,
       };
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
@@ -400,7 +417,7 @@ function OrderEntry({
         console.error('Order rejected:', errorMsg);
         
         if (errorMsg.includes('No Alpaca broker connected') || errorMsg.includes('not_connected')) {
-          alert('❌ No broker connected\n\nPlease connect your Alpaca paper account in the Portfolio page before trading.');
+          alert(`❌ No broker connected\n\nPlease connect your Alpaca ${isLiveMode ? 'live' : 'paper'} account in the Portfolio page before trading.`);
         } else if (errorMsg.includes('insufficient')) {
           alert(`❌ Order rejected\n\nInsufficient buying power. Check your account balance.`);
         } else if (errorMsg.includes('forbidden') || errorMsg.includes('not authorized')) {
@@ -460,11 +477,12 @@ function OrderEntry({
           { value: 'gtc', label: 'GTC' },
           { value: 'ioc', label: 'IOC' },
         ]}
+        tradingMode={normalizedTradingMode}
         estimatedCost={estimatedTotal}
-        buyingPowerDisplay={buyingPowerDisplay}
+        buyingPowerDisplay={accountBuyingPowerDisplay}
         onReview={handleSubmit}
         reviewDisabled={submitting || !hasValidOrderSize}
-        reviewLabel={submitting ? 'Submitting...' : 'Review Order'}
+        reviewLabel={submitting ? 'Submitting...' : `Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
         density="crypto"
         stickyReviewFooter
         className="flex-1 min-h-0"
@@ -567,7 +585,14 @@ function OrderEntry({
             style={{ background: 'rgba(10, 22, 40, 0.98)', border: '1px solid rgba(255, 255, 255, 0.1)' }}
           >
             <div className="text-center">
-              <div className="text-sm font-bold mb-1" style={{ color: '#e2e8f0' }}>Confirm Order</div>
+              <div className="mb-2">
+                <span className={`inline-flex rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${accountBadgeToneClass}`}>
+                  {accountBadgeText}
+                </span>
+              </div>
+              <div className="text-sm font-bold mb-1" style={{ color: '#e2e8f0' }}>
+                Confirm {isLiveMode ? 'Live' : 'Paper'} Order
+              </div>
               <div className="text-[11px]" style={{ color: 'rgba(148, 163, 184, 0.5)' }}>
                 {side.toUpperCase()} {resolvedQuantity.toFixed(6)} {selectedCoin.symbol} @ {
                   orderType === 'market'
@@ -608,7 +633,7 @@ function OrderEntry({
                   border: side === 'buy' ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
                 }}
               >
-                Confirm {side.toUpperCase()}
+                Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
               </button>
             </div>
           </div>

@@ -14,6 +14,7 @@ import AlpacaOrderTicket from './AlpacaOrderTicket';
 import LiveChart from './LiveChart';
 // import HighchartsStockChart from './HighchartsStockChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
+import useTradingMode from '../../hooks/useTradingMode';
 
 const MAX_SYMBOLS = 120;
 
@@ -271,6 +272,13 @@ const WatchlistPage = ({
   onReorderWatchlist,
   addTrade,
 }) => {
+  const { tradingMode } = useTradingMode();
+  const normalizedTradingMode = String(tradingMode || '').trim().toLowerCase() === 'live' ? 'live' : 'paper';
+  const isLiveMode = normalizedTradingMode === 'live';
+  const accountBadgeToneClass = isLiveMode
+    ? 'border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-amber-400/20 text-emerald-200'
+    : 'border-cyan-400/40 bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-cyan-400/20 text-cyan-200';
+  const accountBadgeText = isLiveMode ? '💰 LIVE ACCOUNT' : '📄 PAPER ACCOUNT';
   const [watchlistPanelState, setWatchlistPanelState] = useState(() => loadPanelState(WATCHLIST_PANEL_KEY, 'small'));
   const [orderPanelState, setOrderPanelState] = useState(() => {
     const saved = loadPanelState(ORDER_PANEL_KEY, 'closed');
@@ -663,7 +671,9 @@ const WatchlistPage = ({
   const refreshAccount = useCallback(async () => {
     try {
       setAccountStatus({ state: 'loading', message: '' });
-      const response = await fetch('/api/account');
+      const response = await fetch(`/api/account?mode=${normalizedTradingMode}`, {
+        headers: { 'x-trading-mode': normalizedTradingMode },
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Failed to fetch account');
       setAccount(data);
@@ -671,12 +681,14 @@ const WatchlistPage = ({
     } catch (fetchError) {
       setAccountStatus({ state: 'error', message: fetchError?.message || 'Failed to fetch account' });
     }
-  }, []);
+  }, [normalizedTradingMode]);
 
   const refreshPositions = useCallback(async () => {
     try {
       setPositionsStatus({ state: 'loading', message: '' });
-      const response = await fetch('/api/positions');
+      const response = await fetch(`/api/positions?mode=${normalizedTradingMode}`, {
+        headers: { 'x-trading-mode': normalizedTradingMode },
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Failed to fetch positions');
       setTradePositions(Array.isArray(data) ? data : []);
@@ -684,7 +696,7 @@ const WatchlistPage = ({
     } catch (fetchError) {
       setPositionsStatus({ state: 'error', message: fetchError?.message || 'Failed to fetch positions' });
     }
-  }, []);
+  }, [normalizedTradingMode]);
 
   useEffect(() => {
     if (orderPanelState === 'closed') return;
@@ -806,7 +818,10 @@ const WatchlistPage = ({
 
       const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-trading-mode': normalizedTradingMode,
+        },
         body: JSON.stringify(payload),
       });
 
@@ -861,6 +876,7 @@ const WatchlistPage = ({
     stopPriceNumber,
     timeInForce,
     trailAmountNumber,
+    normalizedTradingMode,
   ]);
 
   const handleResetOrder = useCallback(() => {
@@ -1273,10 +1289,12 @@ const WatchlistPage = ({
                         timeInForce={timeInForce}
                         onTimeInForceChange={(value) => setTimeInForce(value)}
                         timeInForceOptions={TIME_IN_FORCE_OPTIONS}
+                        tradingMode={normalizedTradingMode}
                         estimatedCost={estimatedTotal}
                         buyingPowerDisplay={buyingPowerDisplay}
                         onReview={handleReview}
                         reviewDisabled={!canReview}
+                        reviewLabel={`Review ${isLiveMode ? 'Live' : 'Paper'} Order`}
                         density="trade"
                         extraFields={
                           <div className="space-y-2">
@@ -1343,6 +1361,12 @@ const WatchlistPage = ({
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Side</span>
                           <span className={orderSide === 'buy' ? 'text-emerald-300' : 'text-red-300'}>{orderSide === 'buy' ? 'Buy' : 'Sell'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/60">Account</span>
+                          <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${accountBadgeToneClass}`}>
+                            {accountBadgeText}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Ticker</span>
@@ -1413,7 +1437,7 @@ const WatchlistPage = ({
                         disabled={orderStatus.state === 'submitting'}
                         className={`h-10 w-full rounded-lg text-sm font-medium text-white ${orderSide === 'buy' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-red-500 hover:bg-red-400'} ${orderStatus.state === 'submitting' ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        {orderStatus.state === 'submitting' ? 'Submitting...' : 'Submit Order'}
+                        {orderStatus.state === 'submitting' ? 'Submitting...' : `Submit ${isLiveMode ? 'Live' : 'Paper'} Order`}
                       </button>
                     </div>
 
@@ -1430,6 +1454,12 @@ const WatchlistPage = ({
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Ticker</span>
                           <span className="text-white">{selectedTicker}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/60">Account</span>
+                          <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${accountBadgeToneClass}`}>
+                            {accountBadgeText}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-white/60">Side</span>

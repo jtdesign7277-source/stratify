@@ -639,6 +639,7 @@ function TraderOrderEntry({
           { value: 'gtc', label: 'GTC' },
           { value: 'ioc', label: 'IOC' },
         ]}
+        tradingMode={normalizedTradingMode}
         estimatedCost={estimatedTotal}
         buyingPowerDisplay={buyingPowerDisplay}
         onReview={handleSubmit}
