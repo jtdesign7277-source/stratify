@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Calendar, Clock, RefreshCw, AlertTriangle, Minus, ChevronDown } from 'lucide-react';
+import { Calendar, RefreshCw } from 'lucide-react';
 
 const ECON_CALENDAR_URL = '/api/economic-calendar';
 
@@ -13,6 +13,16 @@ const IMPACT_CONFIG = {
 const COUNTRY_FLAGS = {
   USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵', AUD: '🇦🇺', CAD: '🇨🇦', NZD: '🇳🇿', CHF: '🇨🇭', CNY: '🇨🇳',
 };
+
+const REGION_TABS = [
+  { key: 'US', label: 'United States', shortLabel: 'US', flag: '🇺🇸', currencies: ['USD'] },
+  { key: 'LONDON', label: 'London', shortLabel: 'UK', flag: '🇬🇧', currencies: ['GBP'] },
+  { key: 'AUSTRALIA', label: 'Australia', shortLabel: 'AU', flag: '🇦🇺', currencies: ['AUD'] },
+];
+
+const getEventCurrency = (event) => String(event?.country || event?.currency || '')
+  .trim()
+  .toUpperCase();
 
 const formatTime = (dateStr) => {
   try {
@@ -43,8 +53,7 @@ const EconomicsCalendarPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [filter, setFilter] = useState('USD'); // 'ALL', 'USD', 'High'
-  const [showFilter, setShowFilter] = useState(false);
+  const [activeRegionKey, setActiveRegionKey] = useState('US');
   const todayRef = useRef(null);
 
   const todayStr = useMemo(() => {
@@ -81,11 +90,13 @@ const EconomicsCalendarPage = () => {
     }
   }, [loading, events]);
 
+  const activeRegion = useMemo(
+    () => REGION_TABS.find((tab) => tab.key === activeRegionKey) || REGION_TABS[0],
+    [activeRegionKey],
+  );
+
   const filteredGrouped = useMemo(() => {
-    let filtered = events;
-    if (filter === 'USD') filtered = events.filter((e) => e.country === 'USD');
-    else if (filter === 'High') filtered = events.filter((e) => e.impact === 'High');
-    else if (filter === 'Major') filtered = events.filter((e) => ['USD', 'EUR', 'GBP', 'JPY'].includes(e.country));
+    const filtered = events.filter((event) => activeRegion.currencies.includes(getEventCurrency(event)));
 
     const groups = {};
     filtered.forEach((e) => {
@@ -99,21 +110,14 @@ const EconomicsCalendarPage = () => {
       date,
       events: groups[date].sort((a, b) => new Date(a.date) - new Date(b.date)),
     }));
-  }, [events, filter]);
+  }, [events, activeRegion]);
 
   const stats = useMemo(() => {
-    const usd = events.filter((e) => e.country === 'USD');
-    const high = events.filter((e) => e.impact === 'High');
-    const todayEvents = events.filter((e) => getDateKey(e.date) === todayStr && e.country === 'USD');
-    return { total: events.length, usd: usd.length, high: high.length, today: todayEvents.length };
-  }, [events, todayStr]);
-
-  const FILTERS = [
-    { key: 'USD', label: '🇺🇸 USD Only' },
-    { key: 'Major', label: 'Major Currencies' },
-    { key: 'High', label: '🔴 High Impact' },
-    { key: 'ALL', label: 'All Events' },
-  ];
+    const regionEvents = events.filter((event) => activeRegion.currencies.includes(getEventCurrency(event)));
+    const high = regionEvents.filter((event) => event.impact === 'High');
+    const todayEvents = regionEvents.filter((event) => getDateKey(event.date) === todayStr);
+    return { total: regionEvents.length, high: high.length, today: todayEvents.length };
+  }, [events, activeRegion, todayStr]);
 
   return (
     <div className="h-full w-full bg-transparent text-white overflow-hidden relative flex flex-col">
@@ -146,26 +150,27 @@ const EconomicsCalendarPage = () => {
 
         {/* Stats row */}
         <div className="flex items-center gap-4 mb-3 text-[11px]">
-          <span className="text-gray-500">{stats.today} USD events today</span>
+          <span className="text-gray-500">{stats.today} {activeRegion.shortLabel} events today</span>
           <span className="text-gray-600">•</span>
-          <span className="text-gray-500">{stats.high} high impact this week</span>
+          <span className="text-gray-500">{stats.high} high impact events</span>
           <span className="text-gray-600">•</span>
-          <span className="text-gray-500">{stats.total} total events</span>
+          <span className="text-gray-500">{stats.total} total region events</span>
         </div>
 
-        {/* Filter tabs */}
+        {/* Region tabs */}
         <div className="flex items-center gap-1">
-          {FILTERS.map((f) => (
+          {REGION_TABS.map((tab) => (
             <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
+              key={tab.key}
+              onClick={() => setActiveRegionKey(tab.key)}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                filter === f.key
+                activeRegionKey === tab.key
                   ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
                   : 'text-gray-400 hover:text-white border border-transparent'
               }`}
             >
-              {f.label}
+              <span className="mr-1">{tab.flag}</span>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -194,7 +199,7 @@ const EconomicsCalendarPage = () => {
         )}
 
         {!loading && !error && filteredGrouped.length === 0 && (
-          <div className="mt-8 text-center text-gray-500 text-sm">No events found for this filter.</div>
+          <div className="mt-8 text-center text-gray-500 text-sm">No events found for {activeRegion.label}.</div>
         )}
 
         {filteredGrouped.map(({ date, events: dayEvents }) => {
@@ -232,7 +237,7 @@ const EconomicsCalendarPage = () => {
               {/* Rows */}
               {dayEvents.map((e, i) => {
                 const impact = IMPACT_CONFIG[e.impact] || IMPACT_CONFIG.Low;
-                const flag = COUNTRY_FLAGS[e.country] || '';
+                const flag = COUNTRY_FLAGS[getEventCurrency(e)] || '';
                 const hasActual = e.actual !== undefined && e.actual !== null && e.actual !== '';
                 const isPast = new Date(e.date) < new Date();
                 
