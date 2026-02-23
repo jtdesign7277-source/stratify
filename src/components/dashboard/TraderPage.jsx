@@ -807,7 +807,7 @@ export default function TraderPage({ onPinToTop }) {
   const [chartTimeframe, setChartTimeframe] = useState(() => loadInitialChartTimeframe());
   const [activeMarket, setActiveMarket] = useState(() => loadInitialActiveMarket());
   const [isWatchlistCollapsed, setIsWatchlistCollapsed] = useState(() => loadInitialWatchlistCollapsed());
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
