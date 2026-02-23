@@ -725,23 +725,26 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 
   const loadReplies = async () => {
     setLoadingReplies(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('community_posts')
       .select('*, profiles:user_id(id, display_name, avatar_url, email), community_reactions(emoji, user_id)')
       .or(`parent_id.eq.${post.id},parent_post_id.eq.${post.id}`)
       .order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('[CommunityPage] Failed to load replies:', error);
+      setLoadingReplies(false);
+      return;
+    }
+
     const mappedReplies = (data || []).map((reply) => ({
       ...reply,
       reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
     }));
-    console.log('[CommunityPage] Replies fetched with reactions:', {
+    console.log('[CommunityPage] Replies loaded:', {
       postId: post.id,
       count: mappedReplies.length,
-      reactions: mappedReplies.map((reply) => ({
-        replyId: reply.id,
-        raw: Array.isArray(reply.community_reactions) ? reply.community_reactions.length : 0,
-        summary: Array.isArray(reply.reaction_summary) ? reply.reaction_summary.length : 0,
-      })),
+      data: mappedReplies,
     });
     setReplies(mappedReplies);
     setLoadingReplies(false);
@@ -768,22 +771,25 @@ const PostCard = ({ post, currentUser, onDelete }) => {
     setReplying(true);
 
     try {
-      const { error } = await supabase.from('community_posts').insert({
+      const { data, error } = await supabase.from('community_posts').insert({
         user_id: currentUser.id,
         author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
         content: replyContent.trim(),
         parent_id: post.id,
         parent_post_id: post.id,
         ticker_mentions: extractTickers(replyContent),
-      });
+      }).select();
 
-      if (!error) {
+      if (error) {
+        console.error('[CommunityPage] Reply insert error:', error);
+      } else {
+        console.log('[CommunityPage] Reply inserted:', data);
         setReplyContent('');
         setShowReplies(true);
-        loadReplies();
+        await loadReplies();
       }
     } catch (err) {
-      console.error('Reply failed:', err);
+      console.error('[CommunityPage] Reply failed:', err);
     } finally {
       setReplying(false);
     }
@@ -794,7 +800,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
     avatar_url: post.metadata?.bot_avatar_url,
   };
   const isOwner = currentUser?.id === post.user_id;
-  const repliesCount = post.replies_count ?? post.comments_count ?? 0;
+  const repliesCount = replies.length > 0 ? replies.length : (post.replies_count ?? post.comments_count ?? 0);
 
   return (
     <div className="bg-[#111111] border border-[#1f1f1f] rounded-2xl p-4 hover:border-[#2a2a2a] transition-colors">
