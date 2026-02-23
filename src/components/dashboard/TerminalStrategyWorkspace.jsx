@@ -1143,7 +1143,7 @@ const TerminalStrategyWorkspace = ({
   }, [moveStrategyToFolder]);
 
   return (
-    <div className="h-full w-full bg-transparent flex overflow-hidden">
+    <div className="h-full min-h-0 w-full bg-transparent flex overflow-hidden">
       <aside className={`${foldersCollapsed ? 'w-10' : 'w-[250px]'} shrink-0 border-r border-[#1f1f1f] bg-[#0b0b0b] flex flex-col transition-all duration-200`}>
         {foldersCollapsed ? (
           <div className="h-full flex flex-col items-center py-3">
@@ -1389,37 +1389,41 @@ const TerminalStrategyWorkspace = ({
         )}
       </aside>
 
-      <div className="flex-1 min-w-0 overflow-hidden">
+      <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
         {selectedStrategy ? (
-          <StrategyOutput
-            strategy={selectedStrategy}
-            onBack={() => setSelectedStrategyId(null)}
-            onSave={(strategy) => {
-              onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
-            }}
-            onContentSave={(strategy) => {
-              onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
-            }}
-            onDeploy={(activation) => {
-              onDeployStrategy?.({
-                ...selectedStrategy,
-                ...activation,
-                id: selectedStrategy.id || `terminal-${Date.now()}`,
-                name: selectedStrategy.name || 'Terminal Strategy',
-                ticker: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
-                symbol: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
-                content: selectedStrategy.content || selectedStrategy.raw || '',
-                summary: selectedStrategy.summary || {},
-              });
-            }}
-            onRetest={(prompt) => {
-              onRetestStrategy?.(prompt);
-            }}
-          />
+          <div className="flex-1 min-h-0">
+            <StrategyOutput
+              strategy={selectedStrategy}
+              onBack={() => setSelectedStrategyId(null)}
+              onSave={(strategy) => {
+                onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
+              }}
+              onContentSave={(strategy) => {
+                onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
+              }}
+              onDeploy={(activation) => {
+                onDeployStrategy?.({
+                  ...selectedStrategy,
+                  ...activation,
+                  id: selectedStrategy.id || `terminal-${Date.now()}`,
+                  name: selectedStrategy.name || 'Terminal Strategy',
+                  ticker: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
+                  symbol: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
+                  content: selectedStrategy.content || selectedStrategy.raw || '',
+                  summary: selectedStrategy.summary || {},
+                });
+              }}
+              onRetest={(prompt) => {
+                onRetestStrategy?.(prompt);
+              }}
+            />
+          </div>
         ) : isSophiaThinking ? (
-          <SophiaThinkingState onOpenBuilder={onOpenBuilder} />
+          <div className="flex-1 min-h-0">
+            <SophiaThinkingState onOpenBuilder={onOpenBuilder} />
+          </div>
         ) : (
-          <div className="h-full flex items-center justify-center px-8 bg-transparent">
+          <div className="flex-1 min-h-0 flex items-center justify-center px-8 bg-transparent">
             <div className="text-center max-w-lg">
               <h2 className="text-2xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
               <p className="mt-2 text-sm text-white/55">

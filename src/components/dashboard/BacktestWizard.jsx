@@ -79,19 +79,18 @@ export default function BacktestWizard({ onSubmit, onClose, inline }) {
     if (onClose) onClose();
   };
 
-  const Wrapper = inline ? 'div' : 'div';
   const wrapperClass = inline
-    ? 'flex flex-col h-full overflow-hidden'
-    : 'flex-1 flex items-center justify-center bg-[#0a0a0a]';
+    ? 'flex h-full min-h-0 flex-col overflow-hidden'
+    : 'flex-1 min-h-0 overflow-hidden bg-[#0a0a0a] p-4 sm:p-6';
   const innerClass = inline
-    ? 'flex flex-col h-full overflow-hidden'
-    : 'w-full max-w-[460px] rounded-2xl border border-emerald-500/[0.15] bg-gradient-to-b from-[#111111] to-[#0a0a0a] shadow-2xl shadow-black/60 overflow-hidden';
+    ? 'flex h-full min-h-0 flex-col overflow-hidden'
+    : 'mx-auto flex h-full min-h-0 w-full max-w-[460px] flex-col rounded-2xl border border-emerald-500/[0.15] bg-gradient-to-b from-[#111111] to-[#0a0a0a] shadow-2xl shadow-black/60 overflow-hidden';
 
   return (
     <div className={wrapperClass}>
       <div className={innerClass}>
         {/* Header */}
-        <div className="px-6 pt-5 pb-3 border-b border-[#1f1f1f]">
+        <div className="shrink-0 border-b border-[#1f1f1f] px-6 pt-5 pb-3">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
@@ -123,7 +122,7 @@ export default function BacktestWizard({ onSubmit, onClose, inline }) {
         </div>
 
         {/* Body */}
-        <div className={`px-6 py-5 ${inline ? 'flex-1 overflow-y-auto' : 'min-h-[260px]'}`}>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 pb-6">
           {/* Ticker */}
           {currentKey === 'ticker' && (
             <div>
@@ -164,7 +163,7 @@ export default function BacktestWizard({ onSubmit, onClose, inline }) {
           {currentKey === 'strategy' && (
             <div>
               <p className="text-[13px] text-white/30 mb-3">Pick a trading strategy</p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 pb-1">
                 {STRATEGIES.map((s, i) => (
                   <button
                     key={s.name}
@@ -248,7 +247,7 @@ export default function BacktestWizard({ onSubmit, onClose, inline }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-5 pt-3 border-t border-[#1f1f1f] flex gap-3">
+        <div className="shrink-0 border-t border-[#1f1f1f] px-6 pb-5 pt-3 flex gap-3">
           {step > 0 && (
             <button
               type="button"

@@ -885,9 +885,9 @@ export default function StrategyOutput({
   };
 
   return (
-    <div className="flex h-full text-zinc-300 text-sm overflow-hidden">
+    <div className="flex h-full min-h-0 text-zinc-300 text-sm overflow-hidden">
       {/* LEFT SIDE */}
-      <div className="flex-1 overflow-y-auto px-8 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-8 py-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
