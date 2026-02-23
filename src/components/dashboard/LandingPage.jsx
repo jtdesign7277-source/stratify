@@ -333,7 +333,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
               <button
                 type="button"
                 onClick={handleGetStarted}
-                className="bg-amber-500 hover:bg-amber-600 text-black font-bold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
+                className="border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
               >
                 Get Started — $9.99/mo
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
@@ -579,7 +579,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
             <button
               type="button"
               onClick={handleGetStarted}
-              className="mt-8 bg-amber-500 hover:bg-amber-600 text-black font-bold px-8 py-3 rounded-xl transition-colors"
+              className="mt-8 border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-8 py-3 rounded-xl transition-colors"
             >
               Get Started — $9.99/mo
             </button>
