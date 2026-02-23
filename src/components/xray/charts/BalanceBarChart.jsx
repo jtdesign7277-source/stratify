@@ -3,7 +3,7 @@ import { getPeriodLabel, sortByFiscalDate, toMillions } from '../../../lib/twelv
 
 function getBalanceSheetBarConfig(labels, currentAssets, nonCurrentAssets, currentLiab, nonCurrentLiab, equity) {
   return {
-    chart: { type: 'bar', height: 320 },
+    chart: { type: 'bar', height: 220 },
     title: { text: null },
     xAxis: { categories: labels, crosshair: true },
     yAxis: {

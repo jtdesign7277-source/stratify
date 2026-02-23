@@ -29,31 +29,31 @@ export default function KeyStatsTab({ symbol }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard label="Market Cap" value={metric(stats?.market_cap, formatCompactNumber)} tone="accent" />
         <StatCard label="Enterprise Value" value={metric(stats?.enterprise_value, formatCompactNumber)} />
         <StatCard label="P/E" value={metric(stats?.pe_ratio, (v) => Number(v).toFixed(2))} />
         <StatCard label="Forward P/E" value={metric(stats?.forward_pe, (v) => Number(v).toFixed(2))} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard label="EV / EBITDA" value={metric(stats?.ev_to_ebitda, (v) => Number(v).toFixed(2))} />
         <StatCard label="EV / Revenue" value={metric(stats?.ev_to_revenue, (v) => Number(v).toFixed(2))} />
         <StatCard label="Profit Margin" value={metric(stats?.profit_margin, (v) => formatPercent(Number(v) * 100))} tone="positive" />
         <StatCard label="Operating Margin" value={metric(stats?.operating_margin, (v) => formatPercent(Number(v) * 100))} tone="positive" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard label="ROE" value={metric(stats?.return_on_equity, (v) => formatPercent(Number(v) * 100))} tone="positive" />
         <StatCard label="ROA" value={metric(stats?.return_on_assets, (v) => formatPercent(Number(v) * 100))} tone="positive" />
         <StatCard label="Revenue Growth" value={metric(stats?.revenue_growth, (v) => formatPercent(Number(v) * 100))} tone={(Number(stats?.revenue_growth) || 0) >= 0 ? 'positive' : 'negative'} />
         <StatCard label="Earnings Growth" value={metric(stats?.earnings_growth, (v) => formatPercent(Number(v) * 100))} tone={(Number(stats?.earnings_growth) || 0) >= 0 ? 'positive' : 'negative'} />
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-4">
+      <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-3">
         <h3 className="text-sm font-semibold text-[#e5e7eb]">Company Profile</h3>
-        <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-[#9ca3af] md:grid-cols-2">
+        <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px] text-[#9ca3af] md:grid-cols-2">
           <div>
             <span className="text-[#6b7280]">Name:</span> {profile?.name || profile?.company_name || '--'}
           </div>

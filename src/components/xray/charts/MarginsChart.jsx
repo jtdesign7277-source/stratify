@@ -3,7 +3,7 @@ import { getPeriodLabel, sortByFiscalDate } from '../../../lib/twelvedata';
 
 function getMarginsTrendConfig(labels, grossMargins, opMargins, netMargins) {
   return {
-    chart: { type: 'spline', height: 240 },
+    chart: { type: 'spline', height: 170 },
     title: { text: null },
     xAxis: { categories: labels },
     yAxis: {

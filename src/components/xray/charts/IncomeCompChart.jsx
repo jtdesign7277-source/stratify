@@ -3,7 +3,7 @@ import { getPeriodLabel, sortByFiscalDate, toMillions } from '../../../lib/twelv
 
 function getIncomeComparisonConfig(labels, grossProfit, opIncome, netIncome) {
   return {
-    chart: { type: 'column', height: 260 },
+    chart: { type: 'column', height: 180 },
     title: { text: null },
     xAxis: { categories: labels, crosshair: true },
     yAxis: {

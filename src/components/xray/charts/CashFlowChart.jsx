@@ -3,7 +3,7 @@ import { getPeriodLabel, sortByFiscalDate, toMillions } from '../../../lib/twelv
 
 function getCashFlowGroupedConfig(labels, operating, investing, financing) {
   return {
-    chart: { type: 'column', height: 300 },
+    chart: { type: 'column', height: 190 },
     title: { text: null },
     xAxis: { categories: labels, crosshair: true },
     yAxis: {

@@ -20,8 +20,8 @@ export default function BalanceTab({ symbol, period }) {
   const debtToAssets = ratio(latest?.total_liabilities, latest?.total_assets);
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard
           label="Total Assets"
           value={latest ? `${toBillions(latest.total_assets).toFixed(2)}B` : '--'}
@@ -45,7 +45,9 @@ export default function BalanceTab({ symbol, period }) {
         />
       </div>
 
-      <BalanceBarChart statements={statements} period={period} loading={loading} error={error} />
+      <div className="min-h-0 flex-1">
+        <BalanceBarChart statements={statements} period={period} loading={loading} error={error} />
+      </div>
     </div>
   );
 }

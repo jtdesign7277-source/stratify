@@ -14,7 +14,7 @@ function getIncomeWaterfallConfig(data) {
   return {
     chart: { 
       type: 'column', 
-      height: 300,
+      height: 180,
       backgroundColor: 'transparent'
     },
     title: { text: null },

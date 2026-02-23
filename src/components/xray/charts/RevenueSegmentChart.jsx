@@ -3,7 +3,7 @@ import { getPeriodLabel, parseRevenueSegments, sortByFiscalDate, toMillions } fr
 
 function getRevenueSegmentsConfig(labels, segments, grossMargins) {
   return {
-    chart: { type: 'column', height: 280 },
+    chart: { type: 'column', height: 180 },
     title: { text: null },
     xAxis: { categories: labels, crosshair: true },
     yAxis: [

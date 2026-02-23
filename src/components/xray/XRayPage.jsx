@@ -45,6 +45,31 @@ const getErrorMessage = (error, fallback = 'Unexpected error') => {
   return fallback;
 };
 
+const toDisplayTimestamp = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') {
+    if (value > 1e12) return value;
+    if (value > 1e10) return Math.floor(value);
+    return value * 1000;
+  }
+
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    if (numeric > 1e12) return numeric;
+    if (numeric > 1e10) return Math.floor(numeric);
+    return numeric * 1000;
+  }
+
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatLiveTimestamp = (value) => {
+  const ts = toDisplayTimestamp(value);
+  if (!Number.isFinite(ts)) return null;
+  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+};
+
 const hasHighchartsCdnScript = () => {
   if (typeof document === 'undefined') return false;
   return Array.from(document.querySelectorAll('script[src]')).some((script) =>
@@ -183,6 +208,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   }, [hasTypedSymbolQuery, isSuggestionsOpen, isSymbolInputFocused, symbolInput]);
 
   const liveQuote = prices?.[symbol] || null;
+  const liveQuoteTime = formatLiveTimestamp(liveQuote?.timestamp);
 
   const livePrice = useMemo(() => {
     if (liveQuote?.price !== null && liveQuote?.price !== undefined && Number.isFinite(liveQuote.price)) {
@@ -190,6 +216,14 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
     }
     return quote?.price ?? null;
   }, [liveQuote?.price, quote?.price]);
+
+  const livePriceSubvalue = useMemo(() => {
+    if (quoteError) return quoteError;
+    if (liveQuote && liveQuoteTime) return `Live • ${liveQuoteTime}`;
+    if (liveQuote) return 'Live • updated';
+    if (connected) return 'Live feed connected';
+    return 'Connecting...';
+  }, [connected, liveQuote, liveQuoteTime, quoteError]);
 
   const handleGoBack = () => {
     if (typeof onBack === 'function') {
@@ -254,7 +288,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   if (!chartEngineReady && !chartEngineError) {
     return (
-      <div className="h-screen overflow-hidden bg-transparent text-white">
+      <div className="h-full overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
           <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm px-5 py-4 text-sm text-[#cbd5e1]">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300/80 border-t-transparent" />
@@ -267,10 +301,10 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   try {
     return (
-      <div className="h-screen overflow-hidden bg-transparent text-white">
-        <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-4 py-4 md:px-6 md:py-5">
-          <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="h-full overflow-hidden bg-transparent text-white">
+        <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-3 py-3 md:px-4 md:py-4">
+          <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -367,11 +401,11 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
               </div>
             ) : null}
 
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="mt-3 grid grid-cols-2 gap-2.5 md:grid-cols-5">
               <StatCard
                 label="Price"
                 value={livePrice !== null ? formatCurrency(livePrice) : quoteLoading ? '...' : '--'}
-                subvalue={quoteError ? quoteError : liveQuote ? `Live • ${new Date(liveQuote.timestamp * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : connected ? 'Connecting...' : 'Market data loading'}
+                subvalue={livePriceSubvalue}
                 tone="accent"
               />
               <StatCard
@@ -398,7 +432,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -415,7 +449,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
             ))}
           </div>
 
-          <div className="mt-4 flex-1 overflow-y-auto pb-4">
+          <div className="mt-3 min-h-0 flex-1 overflow-hidden pb-1">
             {activeTab === 'income' ? <IncomeTab symbol={symbol} period={period} /> : null}
             {activeTab === 'balance' ? <BalanceTab symbol={symbol} period={period} /> : null}
             {activeTab === 'cashflow' ? <CashFlowTab symbol={symbol} period={period} /> : null}
@@ -427,7 +461,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   } catch (error) {
     console.error('[xray/page] Render error:', error);
     return (
-      <div className="h-screen overflow-hidden bg-transparent text-white">
+      <div className="h-full overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
           <div className="w-full max-w-xl rounded-2xl border border-red-500/30 bg-black/40 backdrop-blur-sm p-5">
             <p className="text-[11px] uppercase tracking-[0.18em] text-red-300">X-Ray Error</p>

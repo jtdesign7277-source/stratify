@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
+const WS_CONFIG_URL = '/api/lse/ws-config';
+const RECONNECT_DELAY_MS = 3000;
+const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
 
 export function useTwelveDataWS() {
   const [prices, setPrices] = useState({});
@@ -8,105 +10,164 @@ export function useTwelveDataWS() {
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const isActiveRef = useRef(true);
+  const subscribedSymbolsRef = useRef(new Set());
+
+  const sendSubscription = useCallback((action, symbols) => {
+    const socket = wsRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+    const normalized = Array.isArray(symbols)
+      ? symbols.map(normalizeSymbol).filter(Boolean)
+      : [];
+    if (normalized.length === 0) return;
+
+    socket.send(
+      JSON.stringify({
+        action,
+        params: { symbols: normalized.join(',') },
+      })
+    );
+  }, []);
+
+  const scheduleReconnect = useCallback((connectFn) => {
+    if (!isActiveRef.current) return;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+    }
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = null;
+      connectFn();
+    }, RECONNECT_DELAY_MS);
+  }, []);
+
+  const fetchSocketUrl = useCallback(async () => {
+    const response = await fetch(WS_CONFIG_URL, { cache: 'no-store' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || `ws-config failed (${response.status})`);
+    }
+    const websocketUrl = String(payload?.websocketUrl || '').trim();
+    if (!websocketUrl) {
+      throw new Error('Missing Twelve Data websocket URL');
+    }
+    return websocketUrl;
+  }, []);
 
   const connect = useCallback(() => {
     if (!isActiveRef.current) return;
-
-    const apiKey = import.meta.env.VITE_TWELVE_DATA_WS_KEY;
-
-    if (!apiKey) {
-      console.error('[xray/ws] Missing VITE_TWELVE_DATA_WS_KEY');
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    const ws = new WebSocket(`${WS_URL}?apikey=${encodeURIComponent(apiKey)}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      if (!isActiveRef.current) return;
-      setConnected(true);
-    };
-
-    ws.onmessage = (event) => {
+    (async () => {
       try {
-        const data = JSON.parse(event.data);
+        const socketUrl = await fetchSocketUrl();
+        if (!isActiveRef.current) return;
 
-        if (data?.event === 'subscribe-status' || data?.event === 'heartbeat') {
-          return;
-        }
+        const ws = new WebSocket(socketUrl);
+        wsRef.current = ws;
 
-        if (data?.event === 'price') {
-          setPrices((previous) => ({
-            ...previous,
-            [String(data.symbol || '').toUpperCase()]: {
-              price: Number.parseFloat(data.price),
-              timestamp: data.timestamp,
-              day_volume: Number.parseInt(data.day_volume, 10) || 0,
-              bid: Number.parseFloat(data.bid) || null,
-              ask: Number.parseFloat(data.ask) || null,
-              exchange: data.exchange || null,
-            },
-          }));
-        }
+        ws.onopen = () => {
+          if (!isActiveRef.current) return;
+          setConnected(true);
+          const subscribed = [...subscribedSymbolsRef.current];
+          sendSubscription('subscribe', subscribed);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+
+            if (data?.event === 'subscribe-status' || data?.event === 'heartbeat') {
+              return;
+            }
+
+            if (data?.event === 'price') {
+              const symbol = normalizeSymbol(data.symbol);
+              const price = Number.parseFloat(data.price);
+              if (!symbol || !Number.isFinite(price)) return;
+
+              setPrices((previous) => ({
+                ...previous,
+                [symbol]: {
+                  price,
+                  timestamp: data.timestamp,
+                  day_volume: Number.parseInt(data.day_volume, 10) || 0,
+                  bid: Number.parseFloat(data.bid) || null,
+                  ask: Number.parseFloat(data.ask) || null,
+                  exchange: data.exchange || null,
+                },
+              }));
+            }
+          } catch (error) {
+            console.error('[xray/ws] Parse error:', error);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('[xray/ws] Error:', error);
+        };
+
+        ws.onclose = () => {
+          if (wsRef.current === ws) {
+            wsRef.current = null;
+          }
+          if (!isActiveRef.current) return;
+          setConnected(false);
+          scheduleReconnect(connect);
+        };
       } catch (error) {
-        console.error('[xray/ws] Parse error:', error);
+        console.error('[xray/ws] Connect error:', error);
+        setConnected(false);
+        if (isActiveRef.current) {
+          scheduleReconnect(connect);
+        }
       }
-    };
-
-    ws.onerror = (error) => {
-      console.error('[xray/ws] Error:', error);
-    };
-
-    ws.onclose = () => {
-      if (!isActiveRef.current) return;
-      setConnected(false);
-      reconnectTimerRef.current = setTimeout(connect, 3000);
-    };
-  }, []);
+    })();
+  }, [fetchSocketUrl, scheduleReconnect, sendSubscription]);
 
   useEffect(() => {
     isActiveRef.current = true;
     connect();
     return () => {
       isActiveRef.current = false;
-      if (wsRef.current) wsRef.current.close();
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      setConnected(false);
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [connect]);
 
   const subscribe = useCallback((symbols) => {
     const normalized = Array.isArray(symbols)
-      ? symbols.map((symbol) => String(symbol || '').trim().toUpperCase()).filter(Boolean)
+      ? symbols.map(normalizeSymbol).filter(Boolean)
       : [];
 
     if (normalized.length === 0) return;
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          action: 'subscribe',
-          params: { symbols: normalized.join(',') },
-        })
-      );
-    }
-  }, []);
+    normalized.forEach((symbol) => {
+      subscribedSymbolsRef.current.add(symbol);
+    });
+    sendSubscription('subscribe', normalized);
+  }, [sendSubscription]);
 
   const unsubscribe = useCallback((symbols) => {
     const normalized = Array.isArray(symbols)
-      ? symbols.map((symbol) => String(symbol || '').trim().toUpperCase()).filter(Boolean)
+      ? symbols.map(normalizeSymbol).filter(Boolean)
       : [];
 
     if (normalized.length === 0) return;
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          action: 'unsubscribe',
-          params: { symbols: normalized.join(',') },
-        })
-      );
-    }
-  }, []);
+    normalized.forEach((symbol) => {
+      subscribedSymbolsRef.current.delete(symbol);
+    });
+    sendSubscription('unsubscribe', normalized);
+  }, [sendSubscription]);
 
   return { prices, connected, subscribe, unsubscribe };
 }

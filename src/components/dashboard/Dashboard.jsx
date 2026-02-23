@@ -479,6 +479,7 @@ export default function Dashboard({
   const [sidebarExpanded, setSidebarExpanded] = useState(() => getInitialSidebarExpanded(savedState));
   const [rightPanelWidth, setRightPanelWidth] = useState(savedState?.rightPanelWidth ?? 320);
   const [activeTab, setActiveTab] = useState(() => sanitizeActiveTab(savedState?.activeTab));
+  const [hasMountedCryptoTab, setHasMountedCryptoTab] = useState(() => sanitizeActiveTab(savedState?.activeTab) === 'crypto');
   const [xraySymbol, setXraySymbol] = useState('TSLA');
   const [activeSection, setActiveSection] = useState(savedState?.activeSection ?? 'watchlist');
   const [isDragging, setIsDragging] = useState(false);
@@ -489,6 +490,12 @@ export default function Dashboard({
   useEffect(() => {
     if (activeTab === 'builder' || activeTab === 'strategies') {
       setActiveTab('terminal');
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'crypto') {
+      setHasMountedCryptoTab(true);
     }
   }, [activeTab]);
   
@@ -2047,7 +2054,11 @@ export default function Dashboard({
               onBack={() => setActiveTab('watchlist')}
             />
           )}
-          {activeTab === 'crypto' && <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />}
+          {hasMountedCryptoTab ? (
+            <div className={activeTab === 'crypto' ? 'h-full w-full' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
+              <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
+            </div>
+          ) : null}
           {activeTab === 'terminal' && (
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}

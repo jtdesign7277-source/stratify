@@ -13,8 +13,8 @@ export default function IncomeTab({ symbol, period }) {
   const latest = sortByFiscalDate(statements, false)[0] || null;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard
           label="Revenue"
           value={latest ? `${toBillions(latest.total_revenue).toFixed(2)}B` : '--'}
@@ -38,12 +38,9 @@ export default function IncomeTab({ symbol, period }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-2">
         <WaterfallChart statement={latest} loading={loading} error={error} />
         <RevenueSegmentChart statements={statements} period={period} loading={loading} error={error} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <MarginsChart statements={statements} period={period} loading={loading} error={error} />
         <IncomeCompChart statements={statements} period={period} loading={loading} error={error} />
       </div>

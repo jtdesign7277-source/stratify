@@ -5,7 +5,7 @@ function getFreeCashFlowConfig(labels, operatingCF, investingCF) {
   const freeCF = operatingCF.map((value, index) => value + (investingCF[index] || 0));
 
   return {
-    chart: { type: 'areaspline', height: 260 },
+    chart: { type: 'areaspline', height: 180 },
     title: { text: null },
     xAxis: { categories: labels },
     yAxis: {
