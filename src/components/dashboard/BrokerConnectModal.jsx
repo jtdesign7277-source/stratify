@@ -276,8 +276,8 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
+      {/* Backdrop - no click to close, users need to switch tabs to copy API keys */}
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
       
       {/* Modal */}
       <div className="relative w-full max-w-2xl mx-4 animate-fadeIn">
