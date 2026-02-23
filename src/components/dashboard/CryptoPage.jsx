@@ -774,17 +774,18 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
 
         {/* ── RIGHT: Order Entry ───────────────────────────────────── */}
         <div
-          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200`}
+          className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200 z-10`}
           style={orderTicketStyle}
         >
           {isRightPanelCollapsed ? (
             <div className="h-full flex flex-col items-center py-2 gap-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   console.log('Crypto expand button clicked, current state:', isRightPanelCollapsed);
                   setIsRightPanelCollapsed(false);
                 }}
-                className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10"
+                className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10 pointer-events-auto relative z-20"
                 style={{
                   color: 'rgba(148, 163, 184, 0.6)',
                   background: 'rgba(255, 255, 255, 0.04)',
@@ -793,7 +794,7 @@ export default function CryptoPage({ alpacaData, onOrderPlaced }) {
                 title="Expand order entry panel"
                 aria-label="Expand order entry panel"
               >
-                <ChevronsRight className="h-3.5 w-3.5 mx-auto" strokeWidth={1.7} />
+                <ChevronsRight className="h-3.5 w-3.5 mx-auto pointer-events-none" strokeWidth={1.7} />
               </button>
               <div
                 className="text-[9px] font-bold tracking-[0.2em] uppercase"

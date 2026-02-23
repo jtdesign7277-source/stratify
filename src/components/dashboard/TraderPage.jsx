@@ -2114,8 +2114,8 @@ export default function TraderPage({ onPinToTop }) {
           )}
         </aside>
 
-        <section className="flex min-h-0">
-          <div className="flex min-h-0 flex-1 flex-col">
+        <section className="flex min-h-0 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
               <div>
                 <h2 className="text-sm font-medium text-white">{selectedSymbol || 'Select a symbol'}</h2>
@@ -2180,18 +2180,19 @@ export default function TraderPage({ onPinToTop }) {
           </div>
 
           <div
-            className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl transition-all duration-200`}
+            className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl transition-all duration-200 z-10`}
             style={orderTicketStyle}
           >
             {isRightPanelCollapsed ? (
               <div className="flex h-full flex-col items-center gap-2 py-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     console.log('Expand button clicked, current state:', isRightPanelCollapsed);
                     setIsRightPanelCollapsed(false);
                   }}
-                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10"
+                  className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10 pointer-events-auto relative z-20"
                   style={{
                     color: 'rgba(148, 163, 184, 0.6)',
                     background: 'rgba(255, 255, 255, 0.04)',
@@ -2200,7 +2201,7 @@ export default function TraderPage({ onPinToTop }) {
                   title="Expand order entry panel"
                   aria-label="Expand order entry panel"
                 >
-                  <ChevronsRight className="mx-auto h-3.5 w-3.5" strokeWidth={1.7} />
+                  <ChevronsRight className="mx-auto h-3.5 w-3.5 pointer-events-none" strokeWidth={1.7} />
                 </button>
                 <div
                   className="text-[9px] font-bold uppercase tracking-[0.2em]"
