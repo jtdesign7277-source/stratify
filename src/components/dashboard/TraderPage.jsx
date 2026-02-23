@@ -549,8 +549,8 @@ const formatWatchlistChangeValue = ({ mode, percentValue, dollarValue }) => {
 
 const getWatchlistChangeToneClass = (value) => {
   const numeric = toNumber(value);
-  if (numeric === null) return 'bg-white/10 text-white/45';
-  return numeric >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400';
+  if (numeric === null) return 'text-white/45';
+  return numeric >= 0 ? 'text-emerald-400' : 'text-red-400';
 };
 
 const getBucketTimeForTimeframe = (timeSeconds, timeframeId) => {
@@ -2634,7 +2634,7 @@ export default function TraderPage({
                                                 toggleWatchlistChangeDisplayMode(symbol, 'day');
                                               }}
                                               title="Previous day change (% / $)"
-                                              className={`px-2 py-0.5 rounded text-xs font-semibold transition-opacity hover:opacity-80 ${
+                                              className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
                                                 getWatchlistChangeToneClass(dayReferenceChange)
                                               }`}
                                             >
@@ -2660,7 +2660,7 @@ export default function TraderPage({
                                                     ? 'Post-market change (% / $)'
                                                     : 'Live change (% / $)'
                                               }
-                                              className={`px-2 py-0.5 rounded text-xs font-semibold transition-opacity hover:opacity-80 ${
+                                              className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
                                                 getWatchlistChangeToneClass(secondaryReferenceChange)
                                               }`}
                                             >
