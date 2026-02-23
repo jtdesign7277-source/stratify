@@ -620,12 +620,12 @@ const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = fal
                   type="button"
                   onClick={() => void toggleReaction(reaction.emoji)}
                   disabled={!isInteractive}
-                  className={`inline-flex items-center gap-1 rounded-full border transition-all ${
-                    compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+                  className={`inline-flex items-center gap-1 transition-colors ${
+                    compact ? 'text-[11px]' : 'text-xs'
                   } ${
                     reaction.reacted
-                      ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200'
-                      : 'border-[#2a2a2a] bg-[#121212] text-gray-300 hover:border-[#3a3a3a] hover:bg-[#171717]'
+                      ? 'text-cyan-400'
+                      : 'text-gray-400 hover:text-gray-300'
                   } ${!isInteractive ? 'opacity-70 cursor-not-allowed' : ''}`}
                   title={isInteractive ? 'Toggle reaction' : 'Sign in to react'}
                 >
@@ -653,12 +653,12 @@ const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = fal
                 type="button"
                 onClick={() => void toggleReaction(reaction.emoji)}
                 disabled={!isInteractive}
-                className={`inline-flex items-center gap-1 rounded-full border transition-all ${
-                  compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+                className={`inline-flex items-center gap-1 transition-colors ${
+                  compact ? 'text-[11px]' : 'text-xs'
                 } ${
                   reaction.reacted
-                    ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200'
-                    : 'border-[#2a2a2a] bg-[#121212] text-gray-300 hover:border-[#3a3a3a] hover:bg-[#171717]'
+                    ? 'text-cyan-400'
+                    : 'text-gray-400 hover:text-gray-300'
                 } ${!isInteractive ? 'opacity-70 cursor-not-allowed' : ''}`}
                 title={isInteractive ? 'Toggle reaction' : 'Sign in to react'}
               >
