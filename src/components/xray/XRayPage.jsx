@@ -254,9 +254,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   if (!chartEngineReady && !chartEngineError) {
     return (
-      <div className="h-screen overflow-hidden bg-[#060d18] text-white">
+      <div className="h-screen overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1628] px-5 py-4 text-sm text-[#cbd5e1]">
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm px-5 py-4 text-sm text-[#cbd5e1]">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300/80 border-t-transparent" />
             Loading X-Ray chart engine...
           </div>
@@ -267,9 +267,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   try {
     return (
-      <div className="h-screen overflow-hidden bg-[#060d18] text-white">
+      <div className="h-screen overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] flex-col px-4 py-4 md:px-6 md:py-5">
-          <div className="rounded-2xl border border-white/10 bg-[#0a1628] p-4">
+          <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
                 <button
@@ -292,7 +292,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <form onSubmit={handleSubmit} className="relative">
-                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0d1b2a] px-3 py-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-3 py-2">
                     <Search size={14} strokeWidth={1.5} className="text-[#6b7280]" />
                     <input
                       value={symbolInput}
@@ -312,7 +312,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                   </div>
 
                   {isSuggestionsOpen && isSymbolInputFocused && suggestions.length > 0 ? (
-                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-[#0a1628] p-1 shadow-2xl">
+                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm p-1 shadow-2xl">
                       {suggestions.map((item) => (
                         <button
                           key={item.symbol}
@@ -329,7 +329,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                   ) : null}
                 </form>
 
-                <div className="inline-flex rounded-xl border border-white/10 bg-[#0d1b2a] p-1">
+                <div className="inline-flex rounded-xl border border-white/10 bg-black/50 p-1">
                   {PERIOD_OPTIONS.map((option) => (
                     <button
                       key={option.id}
@@ -361,7 +361,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
             ) : null}
 
             {apiLoading ? (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#060d18] px-3 py-1.5 text-[11px] text-[#9ca3af]">
+              <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-transparent px-3 py-1.5 text-[11px] text-[#9ca3af]">
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#9ca3af]/70 border-t-transparent" />
                 Loading fundamentals...
               </div>
@@ -407,7 +407,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                 className={`rounded-xl border px-3 py-1.5 text-xs transition ${
                   activeTab === tab.id
                     ? 'border-[#3b82f6] bg-[#3b82f6]/20 text-[#dbeafe]'
-                    : 'border-white/10 bg-[#0a1628] text-[#9ca3af] hover:text-[#e5e7eb]'
+                    : 'border-white/10 bg-black/40 backdrop-blur-sm text-[#9ca3af] hover:text-[#e5e7eb]'
                 }`}
               >
                 {tab.label}
@@ -427,9 +427,9 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
   } catch (error) {
     console.error('[xray/page] Render error:', error);
     return (
-      <div className="h-screen overflow-hidden bg-[#060d18] text-white">
+      <div className="h-screen overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
-          <div className="w-full max-w-xl rounded-2xl border border-red-500/30 bg-[#0a1628] p-5">
+          <div className="w-full max-w-xl rounded-2xl border border-red-500/30 bg-black/40 backdrop-blur-sm p-5">
             <p className="text-[11px] uppercase tracking-[0.18em] text-red-300">X-Ray Error</p>
             <p className="mt-2 text-sm text-[#e5e7eb]">
               {getErrorMessage(error, 'Unable to render this X-Ray page right now.')}

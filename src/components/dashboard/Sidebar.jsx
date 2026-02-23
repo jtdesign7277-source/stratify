@@ -69,6 +69,7 @@ const Sidebar = ({
     { id: 'market', label: 'Market', icon: TrendingUp, isNew: true, labelClass: 'font-semibold text-emerald-400', iconClass: 'text-emerald-400' },
     { id: 'crypto', label: 'Crypto', icon: Bitcoin },
     { id: 'global-markets', label: 'Global Markets', icon: Globe },
+    { id: 'xray', label: 'X-Ray', icon: Microscope },
     { id: 'trade', label: 'Community', icon: SlidersHorizontal },
     { id: 'terminal', label: 'Terminal', icon: Terminal, isNew: true, labelClass: 'font-semibold text-emerald-400' },
     { id: 'active', label: 'Active', icon: Play, badge: resolvedActiveCount },
@@ -77,7 +78,6 @@ const Sidebar = ({
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
     { id: 'analytics', label: 'Analytics', icon: LineChart },
-    { id: 'xray', label: 'X-Ray', icon: Microscope },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
   ];
