@@ -307,7 +307,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, isAuthenticated }) => {
             <button
               type="button"
               onClick={handleGetStarted}
-              className="border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-bold px-4 py-1.5 rounded-lg text-sm transition-colors"
+              className="border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
             >
               Sign Up
             </button>
