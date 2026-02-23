@@ -23,7 +23,6 @@ const MAX_CHART_OUTPUTSIZE = '5000';
 const MARKET_FILTERS = [
   { id: 'us', label: '🇺🇸 NYSE', exchanges: ['NASDAQ', 'NYSE'] },
   { id: 'london', label: '🇬🇧 LSE', exchanges: ['LSE'] },
-  { id: 'tokyo', label: '🇯🇵 TSE', exchanges: ['TSE'] },
   { id: 'sydney', label: '🇦🇺 ASX', exchanges: ['ASX'] },
 ];
 const MARKET_FILTER_BY_ID = MARKET_FILTERS.reduce((accumulator, market) => {
