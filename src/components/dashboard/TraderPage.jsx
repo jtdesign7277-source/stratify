@@ -2408,6 +2408,7 @@ export default function TraderPage({
       : streamStatus.retryCount > 0
         ? `Reconnecting (${streamStatus.retryCount})`
         : 'Disconnected';
+  const extendedHoursStatus = getExtendedHoursStatus();
   const orderTicketStyle = {
     background: '#060d18',
     border: '1px solid rgba(255, 255, 255, 0.06)',
@@ -2536,17 +2537,37 @@ export default function TraderPage({
                               const preMarketChangePercent = toNumber(
                                 quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
                               );
-                              const preMarketReferenceChange = Number.isFinite(preMarketChangePercent)
-                                ? preMarketChangePercent
-                                : preMarketChange;
+                              const previousClose = resolvePreviousCloseFromQuote(quote);
+                              const liveChange = Number.isFinite(price) && Number.isFinite(previousClose)
+                                ? price - previousClose
+                                : dayChange;
+                              const liveChangePercent = Number.isFinite(liveChange) && Number.isFinite(previousClose) && previousClose !== 0
+                                ? (liveChange / previousClose) * 100
+                                : dayChangePercent;
+                              const secondaryLabel = extendedHoursStatus === 'pre-market'
+                                ? 'Pre'
+                                : extendedHoursStatus === 'post-market'
+                                  ? 'Post'
+                                  : 'Live';
+                              const secondaryDollarChange = extendedHoursStatus === 'pre-market'
+                                ? (Number.isFinite(preMarketChange) ? preMarketChange : liveChange)
+                                : liveChange;
+                              const secondaryPercentChange = extendedHoursStatus === 'pre-market'
+                                ? (Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : liveChangePercent)
+                                : liveChangePercent;
+                              const secondaryReferenceChange = Number.isFinite(secondaryPercentChange)
+                                ? secondaryPercentChange
+                                : secondaryDollarChange;
                               const dayDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.day || 'percent';
-                              const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.preMarket || 'percent';
+                              const secondaryDisplayMode = watchlistChangeDisplayModeBySymbol[symbol]?.preMarket || 'percent';
                               const isSelected = selectedSymbol === symbol;
                               const isPlaceholder = quote?.isPlaceholder === true;
                               const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
                               const isPriceLoading = valueLoading.price === true;
                               const isDayLoading = valueLoading.day === true;
-                              const isPreMarketLoading = valueLoading.preMarket === true;
+                              const isSecondaryLoading = extendedHoursStatus === 'pre-market'
+                                ? valueLoading.preMarket === true
+                                : valueLoading.day === true;
                               const companyName = String(
                                 quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
                               ).trim();
@@ -2581,14 +2602,13 @@ export default function TraderPage({
                                         <div className="flex items-center">
                                           <div className="text-white font-bold text-[13px]">${symbol}</div>
                                           {(() => {
-                                            const extendedStatus = getExtendedHoursStatus();
-                                            if (!extendedStatus) return null;
+                                            if (!extendedHoursStatus) return null;
                                             return (
                                               <span
                                                 className="ml-1.5 text-[10px]"
-                                                title={extendedStatus === 'pre-market' ? 'Pre-Market' : 'Post-Market'}
+                                                title={extendedHoursStatus === 'pre-market' ? 'Pre-Market' : 'Post-Market'}
                                               >
-                                                {extendedStatus === 'pre-market' ? '☀️' : '🌙'}
+                                                {extendedHoursStatus === 'pre-market' ? '☀️' : '🌙'}
                                               </span>
                                             );
                                           })()}
@@ -2633,17 +2653,23 @@ export default function TraderPage({
                                                 event.stopPropagation();
                                                 toggleWatchlistChangeDisplayMode(symbol, 'preMarket');
                                               }}
-                                              title="Premarket change (% / $)"
+                                              title={
+                                                extendedHoursStatus === 'pre-market'
+                                                  ? 'Premarket change (% / $)'
+                                                  : extendedHoursStatus === 'post-market'
+                                                    ? 'Post-market change (% / $)'
+                                                    : 'Live change (% / $)'
+                                              }
                                               className={`px-2 py-0.5 rounded text-xs font-semibold transition-opacity hover:opacity-80 ${
-                                                getWatchlistChangeToneClass(preMarketReferenceChange)
+                                                getWatchlistChangeToneClass(secondaryReferenceChange)
                                               }`}
                                             >
-                                              <span>{`Pre ${formatWatchlistChangeValue({
-                                                mode: preMarketDisplayMode,
-                                                percentValue: preMarketChangePercent,
-                                                dollarValue: preMarketChange,
+                                              <span>{`${secondaryLabel} ${formatWatchlistChangeValue({
+                                                mode: secondaryDisplayMode,
+                                                percentValue: secondaryPercentChange,
+                                                dollarValue: secondaryDollarChange,
                                               })}`}</span>
-                                              {isPreMarketLoading && (
+                                              {isSecondaryLoading && (
                                                 <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating premarket change" />
                                               )}
                                             </button>
