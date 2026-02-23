@@ -272,13 +272,16 @@ const parseMarketOpen = (value) => {
   return null;
 };
 
-const extractPremarketQuoteMetrics = (payload, fallbackPrice = null) => {
-  const previousClose = toNumber(
+const extractPremarketQuoteMetrics = (payload, fallbackPrice = null, fallbackPreviousClose = null) => {
+  const explicitPreviousClose = toNumber(
     payload?.previous_close
     ?? payload?.previousClose
     ?? payload?.prev_close
     ?? payload?.prevClose
   );
+  const previousClose = Number.isFinite(explicitPreviousClose)
+    ? explicitPreviousClose
+    : toNumber(fallbackPreviousClose);
 
   const preMarketPrice = toNumber(
     payload?.pre_market_price
@@ -1494,6 +1497,7 @@ export default function TraderPage({
       if (!response.ok) return;
 
       const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const inPreMarketSession = getExtendedHoursStatus() === 'pre-market';
       const updates = rows
         .map((row) => {
           const symbol = normalizeSymbol(row?.symbol);
@@ -1522,22 +1526,40 @@ export default function TraderPage({
             : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
               ? (change / previousClose) * 100
               : null;
-          const preMarketMetrics = extractPremarketQuoteMetrics(raw, price);
+          const preMarketMetrics = extractPremarketQuoteMetrics(raw, price, previousClose);
+          const rowPreMarketPrice = toNumber(row?.preMarketPrice);
+          const rowPreMarketChange = toNumber(row?.preMarketChange);
+          const rowPreMarketChangePercent = toNumber(row?.preMarketChangePercent);
+          const derivedPreMarketChange = Number.isFinite(rowPreMarketChange)
+            ? rowPreMarketChange
+            : Number.isFinite(preMarketMetrics.preMarketChange)
+              ? preMarketMetrics.preMarketChange
+              : inPreMarketSession && Number.isFinite(previousClose)
+                ? price - previousClose
+                : null;
+          const derivedPreMarketChangePercent = Number.isFinite(rowPreMarketChangePercent)
+            ? rowPreMarketChangePercent
+            : Number.isFinite(preMarketMetrics.preMarketChangePercent)
+              ? preMarketMetrics.preMarketChangePercent
+              : Number.isFinite(derivedPreMarketChange) && Number.isFinite(previousClose) && previousClose !== 0
+                ? (derivedPreMarketChange / previousClose) * 100
+                : null;
+          const derivedPreMarketPrice = Number.isFinite(rowPreMarketPrice)
+            ? rowPreMarketPrice
+            : Number.isFinite(preMarketMetrics.preMarketPrice)
+              ? preMarketMetrics.preMarketPrice
+              : inPreMarketSession
+                ? price
+                : null;
 
           return {
             symbol,
             price,
             change,
             changePercent,
-            preMarketPrice: Number.isFinite(toNumber(row?.preMarketPrice))
-              ? toNumber(row?.preMarketPrice)
-              : preMarketMetrics.preMarketPrice,
-            preMarketChange: Number.isFinite(toNumber(row?.preMarketChange))
-              ? toNumber(row?.preMarketChange)
-              : preMarketMetrics.preMarketChange,
-            preMarketChangePercent: Number.isFinite(toNumber(row?.preMarketChangePercent))
-              ? toNumber(row?.preMarketChangePercent)
-              : preMarketMetrics.preMarketChangePercent,
+            preMarketPrice: derivedPreMarketPrice,
+            preMarketChange: derivedPreMarketChange,
+            preMarketChangePercent: derivedPreMarketChangePercent,
             previousClose: Number.isFinite(previousClose) ? previousClose : null,
             isMarketOpen: parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
             timestamp: row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
@@ -1956,24 +1978,63 @@ export default function TraderPage({
 
       const rawChange = toNumber(payload?.change);
       const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
-      const preMarketMetrics = extractPremarketQuoteMetrics(payload, price);
-      const previousClose = resolvePreviousCloseFromQuote(payload);
+      const inPreMarketSession = getExtendedHoursStatus() === 'pre-market';
+      const marketOpenFromPayload = parseMarketOpen(
+        payload?.is_market_open
+        ?? payload?.isMarketOpen
+        ?? payload?.market_open
+        ?? payload?.marketOpen
+      );
+      const cachedPreviousClose = toNumber(previousCloseCacheRef.current?.[symbol]?.previousClose);
+      const streamPreviousClose = resolvePreviousCloseFromQuote({
+        ...payload,
+        previousClose: payload?.previous_close ?? payload?.previousClose ?? cachedPreviousClose,
+        previous_close: payload?.previous_close ?? cachedPreviousClose,
+        price,
+        change: rawChange,
+        changePercent: rawPercent,
+      });
+      const streamPremarketMetrics = extractPremarketQuoteMetrics(payload, price, cachedPreviousClose);
 
       setQuotesBySymbol((previous) => {
         const previousQuote = previous[symbol] || {};
         const previousPrice = toNumber(previousQuote?.price);
+        const previousCloseFromState = resolvePreviousCloseFromQuote(previousQuote);
+        const previousClose = Number.isFinite(streamPreviousClose)
+          ? streamPreviousClose
+          : Number.isFinite(previousCloseFromState)
+            ? previousCloseFromState
+            : cachedPreviousClose;
+        const preMarketMetrics = extractPremarketQuoteMetrics(payload, price, previousClose);
 
         const change = Number.isFinite(rawChange)
           ? rawChange
-          : Number.isFinite(previousPrice)
-            ? price - previousPrice
-            : null;
+          : Number.isFinite(previousClose)
+            ? price - previousClose
+            : Number.isFinite(previousPrice)
+              ? price - previousPrice
+              : null;
 
         const changePercent = Number.isFinite(rawPercent)
           ? rawPercent
-          : Number.isFinite(change) && Number.isFinite(price - change) && price - change !== 0
-            ? (change / (price - change)) * 100
+          : Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0
+            ? (change / previousClose) * 100
             : null;
+        const derivedPreMarketChange = Number.isFinite(preMarketMetrics.preMarketChange)
+          ? preMarketMetrics.preMarketChange
+          : inPreMarketSession && Number.isFinite(previousClose)
+            ? price - previousClose
+            : toNumber(previousQuote?.preMarketChange);
+        const derivedPreMarketChangePercent = Number.isFinite(preMarketMetrics.preMarketChangePercent)
+          ? preMarketMetrics.preMarketChangePercent
+          : Number.isFinite(derivedPreMarketChange) && Number.isFinite(previousClose) && previousClose !== 0
+            ? (derivedPreMarketChange / previousClose) * 100
+            : toNumber(previousQuote?.preMarketChangePercent);
+        const derivedPreMarketPrice = Number.isFinite(preMarketMetrics.preMarketPrice)
+          ? preMarketMetrics.preMarketPrice
+          : inPreMarketSession
+            ? price
+            : toNumber(previousQuote?.preMarketPrice);
 
         return {
           ...previous,
@@ -1983,19 +2044,15 @@ export default function TraderPage({
             price,
             change,
             changePercent,
-            preMarketPrice: Number.isFinite(preMarketMetrics.preMarketPrice)
-              ? preMarketMetrics.preMarketPrice
-              : toNumber(previousQuote?.preMarketPrice),
-            preMarketChange: Number.isFinite(preMarketMetrics.preMarketChange)
-              ? preMarketMetrics.preMarketChange
-              : toNumber(previousQuote?.preMarketChange),
-            preMarketChangePercent: Number.isFinite(preMarketMetrics.preMarketChangePercent)
-              ? preMarketMetrics.preMarketChangePercent
-              : toNumber(previousQuote?.preMarketChangePercent),
+            preMarketPrice: derivedPreMarketPrice,
+            preMarketChange: derivedPreMarketChange,
+            preMarketChangePercent: derivedPreMarketChangePercent,
             previousClose: Number.isFinite(previousClose)
               ? previousClose
               : toNumber(previousQuote?.previousClose),
-            isMarketOpen: true,
+            isMarketOpen: marketOpenFromPayload !== null
+              ? marketOpenFromPayload
+              : previousQuote?.isMarketOpen ?? true,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || previousQuote?.name || '').trim() || undefined,
             source: 'stream',
@@ -2009,16 +2066,17 @@ export default function TraderPage({
           symbol,
           price: true,
           day: true,
-          preMarket: Number.isFinite(preMarketMetrics.preMarketChange)
-            || Number.isFinite(preMarketMetrics.preMarketChangePercent),
+          preMarket: inPreMarketSession
+            || Number.isFinite(streamPremarketMetrics.preMarketChange)
+            || Number.isFinite(streamPremarketMetrics.preMarketChangePercent),
         },
       ]);
 
-      if (Number.isFinite(previousClose)) {
+      if (Number.isFinite(streamPreviousClose)) {
         cachePreviousCloseQuotes([
           {
             symbol,
-            previousClose,
+            previousClose: streamPreviousClose,
             name: payload?.name || payload?.instrument_name || payload?.display_name || symbol,
             exchange: payload?.exchange,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
