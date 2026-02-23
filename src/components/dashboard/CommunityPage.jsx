@@ -17,6 +17,10 @@ import {
   Loader2,
   Camera,
   SmilePlus,
+  CalendarDays,
+  Clock3,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -114,12 +118,172 @@ const applyReactionState = (currentReactions = [], emoji, shouldReact) => {
 const sortByCreatedAtAsc = (rows = []) =>
   [...rows].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
+const toFiniteNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const formatCurrency = (value) => `$${Math.abs(toFiniteNumber(value)).toLocaleString('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+
+const formatSignedCurrency = (value) => `${toFiniteNumber(value) >= 0 ? '+' : '-'}${formatCurrency(value)}`;
+
+const formatSignedPercent = (value, digits = 2) => {
+  const amount = toFiniteNumber(value);
+  return `${amount >= 0 ? '+' : ''}${amount.toFixed(digits)}%`;
+};
+
+const formatDateTime = (value) => {
+  const timestamp = Number.isFinite(value) ? value : Date.parse(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return '—';
+  return new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
+const normalizeTradeForSlip = (rawTrade) => {
+  if (!rawTrade || typeof rawTrade !== 'object') return null;
+
+  const symbol = String(rawTrade.symbol ?? rawTrade.ticker ?? '').trim().toUpperCase();
+  if (!symbol) return null;
+
+  const shares = Math.abs(toFiniteNumber(
+    rawTrade.shares
+      ?? rawTrade.qty
+      ?? rawTrade.quantity
+      ?? rawTrade.size
+      ?? rawTrade.amount,
+  ));
+  const price = toFiniteNumber(
+    rawTrade.price
+      ?? rawTrade.fillPrice
+      ?? rawTrade.avgPrice
+      ?? rawTrade.executionPrice
+      ?? rawTrade.cost
+      ?? rawTrade.limitPrice,
+  );
+  if (shares <= 0 || price <= 0) return null;
+
+  const sideRaw = String(rawTrade.side ?? rawTrade.type ?? rawTrade.action ?? '').trim().toLowerCase();
+  const side = sideRaw.includes('sell') || sideRaw.includes('short') || sideRaw.includes('close')
+    ? 'sell'
+    : 'buy';
+
+  const timestamp = Number.isFinite(rawTrade.timestamp)
+    ? rawTrade.timestamp
+    : Date.parse(rawTrade.timestamp ?? rawTrade.time ?? rawTrade.date ?? rawTrade.created_at);
+  if (!Number.isFinite(timestamp)) return null;
+
+  return {
+    id: String(rawTrade.id ?? `${symbol}-${side}-${timestamp}-${shares}`).trim(),
+    symbol,
+    side,
+    shares,
+    price,
+    timestamp,
+  };
+};
+
+const buildClosedTradesForSlip = (tradeHistory = []) => {
+  const normalized = (Array.isArray(tradeHistory) ? tradeHistory : [])
+    .map(normalizeTradeForSlip)
+    .filter(Boolean)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const lotsBySymbol = new Map();
+  const closedTrades = [];
+
+  normalized.forEach((trade) => {
+    if (!lotsBySymbol.has(trade.symbol)) {
+      lotsBySymbol.set(trade.symbol, []);
+    }
+
+    const lots = lotsBySymbol.get(trade.symbol);
+    if (trade.side === 'buy') {
+      lots.push({
+        shares: trade.shares,
+        price: trade.price,
+        timestamp: trade.timestamp,
+      });
+      return;
+    }
+
+    let remaining = trade.shares;
+    let matchedShares = 0;
+    let totalEntryValue = 0;
+    let openedAt = null;
+
+    while (remaining > 0 && lots.length > 0) {
+      const lot = lots[0];
+      const sharesToMatch = Math.min(remaining, lot.shares);
+      if (sharesToMatch <= 0) break;
+
+      matchedShares += sharesToMatch;
+      totalEntryValue += sharesToMatch * lot.price;
+      openedAt = openedAt === null ? lot.timestamp : Math.min(openedAt, lot.timestamp);
+
+      lot.shares -= sharesToMatch;
+      remaining -= sharesToMatch;
+
+      if (lot.shares <= 0) {
+        lots.shift();
+      }
+    }
+
+    if (matchedShares <= 0 || totalEntryValue <= 0) return;
+
+    const exitValue = matchedShares * trade.price;
+    const pnl = exitValue - totalEntryValue;
+    const percent = (pnl / totalEntryValue) * 100;
+
+    closedTrades.push({
+      id: `${trade.symbol}-${trade.timestamp}-${closedTrades.length}`,
+      symbol: trade.symbol,
+      shares: matchedShares,
+      entryPrice: totalEntryValue / matchedShares,
+      exitPrice: trade.price,
+      pnl,
+      percent,
+      openedAt,
+      closedAt: trade.timestamp,
+    });
+  });
+
+  return closedTrades.sort((a, b) => b.closedAt - a.closedAt);
+};
+
+const createSlipCaption = ({ trade, emojis = [], note = '' }) => {
+  if (!trade) return '';
+
+  const emojiPrefix = Array.isArray(emojis) && emojis.length > 0 ? `${emojis.join('')} ` : '';
+  const lines = [];
+  if (note?.trim()) lines.push(note.trim());
+  lines.push(
+    `${emojiPrefix}$${trade.symbol} ${formatSignedPercent(trade.percent)} • ${formatSignedCurrency(trade.pnl)}`
+  );
+  lines.push(
+    `In ${formatCurrency(trade.entryPrice)} → Out ${formatCurrency(trade.exitPrice)} • ${trade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} sh`
+  );
+  lines.push(`Opened ${formatDateTime(trade.openedAt)} • Closed ${formatDateTime(trade.closedAt)}`);
+  lines.push('#StratifyPnl');
+  return lines.join('\n');
+};
+
 // ─── Share to X ───────────────────────────────────────────
 const shareToX = (post) => {
   let text = post.content;
-  if (post.post_type === 'pnl_share' && post.metadata?.pnl) {
-    const sign = post.metadata.pnl >= 0 ? '+' : '';
-    text = `${sign}$${Math.abs(post.metadata.pnl).toLocaleString()} on $${post.metadata.ticker || ''} 📈\n\n${post.content}`;
+  const pnlValue = Number(post?.metadata?.pnl);
+  if (post.post_type === 'pnl_share' && Number.isFinite(pnlValue)) {
+    const ticker = post?.metadata?.ticker ? `$${post.metadata.ticker}` : 'my trade';
+    text = `${ticker} ${formatSignedCurrency(pnlValue)}${
+      Number.isFinite(Number(post?.metadata?.percent)) ? ` (${formatSignedPercent(Number(post.metadata.percent))})` : ''
+    }\n\n${post.content}`;
   }
   text += '\n\nPowered by @StratifyTrading';
   const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
@@ -194,43 +358,79 @@ const PostTypeBadge = ({ type, metadata }) => {
 
 // ─── P&L Card (for pnl_share posts) ──────────────────────
 const PnLCard = ({ metadata }) => {
-  if (!metadata?.pnl) return null;
-  const isPositive = metadata.pnl >= 0;
+  const pnlValue = Number(metadata?.pnl);
+  if (!Number.isFinite(pnlValue)) return null;
+
+  const isPositive = pnlValue >= 0;
+  const percentValue = Number(metadata?.percent);
+  const hasPercent = Number.isFinite(percentValue);
+  const entryPrice = Number(metadata?.entry_price ?? metadata?.entryPrice);
+  const exitPrice = Number(metadata?.exit_price ?? metadata?.exitPrice);
+  const openedAt = metadata?.opened_at ?? metadata?.openedAt;
+  const closedAt = metadata?.closed_at ?? metadata?.closedAt;
+  const shares = Number(metadata?.shares ?? metadata?.qty ?? metadata?.quantity);
+  const hasShares = Number.isFinite(shares) && shares > 0;
+  const rawEmoji = metadata?.emoji;
+  const emojis = Array.isArray(rawEmoji) ? rawEmoji : (rawEmoji ? [rawEmoji] : []);
 
   return (
     <div
-      className={`mt-3 p-4 rounded-xl border ${
-        isPositive
-          ? 'bg-emerald-500/5 border-emerald-500/20'
-          : 'bg-red-500/5 border-red-500/20'
+      className={`mt-3 rounded-xl border overflow-hidden ${
+        isPositive ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-gray-500 mb-1">
-            {metadata.ticker ? `$${metadata.ticker}` : 'Portfolio'} • {metadata.strategy || 'Manual Trade'}
+      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+        <div className="text-xs tracking-[0.14em] uppercase text-gray-500">Stratify Bet Slip</div>
+        {emojis.length > 0 && <div className="text-lg leading-none">{emojis.join(' ')}</div>}
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-500">
+              {metadata?.ticker ? `$${metadata.ticker}` : 'Portfolio'}
+            </div>
+            <div className={`text-2xl font-semibold font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatSignedCurrency(pnlValue)}
+            </div>
           </div>
-          <div
-            className={`text-2xl font-bold font-mono ${
-              isPositive ? 'text-emerald-400' : 'text-red-400'
-            }`}
-          >
-            {isPositive ? '+' : '-'}${Math.abs(metadata.pnl).toLocaleString()}
-          </div>
-        </div>
-        <div className="text-right">
-          {metadata.percent && (
-            <div
-              className={`text-lg font-mono font-semibold ${
-                isPositive ? 'text-emerald-400' : 'text-red-400'
-              }`}
-            >
-              {isPositive ? '+' : ''}
-              {metadata.percent}%
+          {hasPercent && (
+            <div className={`text-lg font-semibold font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatSignedPercent(percentValue)}
             </div>
           )}
-          {metadata.timeframe && (
-            <div className="text-xs text-gray-500">{metadata.timeframe}</div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-gray-300">
+          {Number.isFinite(entryPrice) && (
+            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Entry</div>
+              <div className="font-mono">{formatCurrency(entryPrice)}</div>
+            </div>
+          )}
+          {Number.isFinite(exitPrice) && (
+            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Exit</div>
+              <div className="font-mono">{formatCurrency(exitPrice)}</div>
+            </div>
+          )}
+          {openedAt && (
+            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Bought</div>
+              <div>{formatDateTime(openedAt)}</div>
+            </div>
+          )}
+          {closedAt && (
+            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Sold</div>
+              <div>{formatDateTime(closedAt)}</div>
+            </div>
+          )}
+          {hasShares && (
+            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 sm:col-span-2">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Size</div>
+              <div className="font-mono">{shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares</div>
+            </div>
           )}
         </div>
       </div>
@@ -238,19 +438,317 @@ const PnLCard = ({ metadata }) => {
   );
 };
 
+const SLIP_EMOJIS = ['🚀', '💰', '👍', '👎', '🦍', '🔥', '📈', '📉'];
+
+const BetSlipModal = ({
+  open,
+  onClose,
+  closedTrades = [],
+  posting = false,
+  onSubmit,
+}) => {
+  const [selectedTradeId, setSelectedTradeId] = useState('');
+  const [note, setNote] = useState('');
+  const [selectedEmojis, setSelectedEmojis] = useState([]);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedTradeId(closedTrades[0]?.id || '');
+    setNote('');
+    setSelectedEmojis([]);
+    setCopied(false);
+  }, [open, closedTrades]);
+
+  const selectedTrade = useMemo(
+    () => closedTrades.find((trade) => trade.id === selectedTradeId) || null,
+    [closedTrades, selectedTradeId],
+  );
+
+  const shareText = useMemo(
+    () => createSlipCaption({ trade: selectedTrade, emojis: selectedEmojis, note }),
+    [selectedTrade, selectedEmojis, note],
+  );
+
+  const hasTradeSelection = Boolean(selectedTrade);
+
+  const toggleEmoji = (emoji) => {
+    setSelectedEmojis((prev) =>
+      prev.includes(emoji) ? prev.filter((item) => item !== emoji) : [...prev, emoji]
+    );
+  };
+
+  const copyShareText = async () => {
+    if (!shareText) return;
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch (error) {
+      console.warn('[CommunityPage] Failed to copy share text:', error);
+    }
+  };
+
+  const shareToExternal = (platform) => {
+    if (!shareText) return;
+    const pageUrl = window.location.origin;
+    let url = '';
+
+    if (platform === 'x') {
+      url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    } else if (platform === 'facebook') {
+      url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}&quote=${encodeURIComponent(shareText)}`;
+    } else {
+      void copyShareText();
+      url = 'https://www.instagram.com/';
+    }
+
+    window.open(url, '_blank', 'noopener,noreferrer,width=980,height=720');
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-black/75 backdrop-blur-sm p-4 sm:p-6 flex items-center justify-center">
+      <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl border border-[#21314f] bg-[#070b12] shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
+        <div className="px-5 py-4 border-b border-[#1b2a45] flex items-center justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Share P&L</div>
+            <h3 className="text-lg font-semibold text-white">Bet Slip</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg border border-[#1b2a45] text-gray-400 hover:text-white hover:border-[#2e4a73] transition-colors"
+            title="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {closedTrades.length === 0 ? (
+            <div className="rounded-xl border border-[#1a2233] bg-[#0b1019] p-5 text-sm text-gray-400">
+              No completed trades found yet. Close a trade first, then you can share a generated slip.
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs uppercase tracking-[0.14em] text-gray-500">Previous Trade</label>
+                <select
+                  value={selectedTradeId}
+                  onChange={(e) => setSelectedTradeId(e.target.value)}
+                  className="mt-2 w-full bg-[#0b1019] border border-[#1e2e4b] rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-cyan-400/40"
+                >
+                  {closedTrades.map((trade) => (
+                    <option key={trade.id} value={trade.id}>
+                      {trade.symbol} {formatSignedPercent(trade.percent)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedTrade && (
+                <div className="rounded-2xl border border-[#203255] bg-gradient-to-br from-[#091321] via-[#0b1828] to-[#11161d]">
+                  <div className="px-4 py-3 border-b border-[#203255]/70 flex items-center justify-between">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80">Stratify Ticket</div>
+                    <div className={`text-sm font-semibold font-mono ${selectedTrade.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {formatSignedPercent(selectedTrade.percent)}
+                    </div>
+                  </div>
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Ticker</div>
+                      <div className="text-2xl font-semibold text-white">${selectedTrade.symbol}</div>
+                    </div>
+                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Total P&L</div>
+                      <div className={`text-2xl font-semibold font-mono ${selectedTrade.pnl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                        {formatSignedCurrency(selectedTrade.pnl)}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Entry → Exit</div>
+                      <div className="text-sm text-white font-mono">
+                        {formatCurrency(selectedTrade.entryPrice)} → {formatCurrency(selectedTrade.exitPrice)}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1">Size</div>
+                      <div className="text-sm text-white font-mono">
+                        {selectedTrade.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1 flex items-center gap-1">
+                        <CalendarDays size={12} />
+                        Bought
+                      </div>
+                      <div className="text-sm text-white">{formatDateTime(selectedTrade.openedAt)}</div>
+                    </div>
+                    <div className="rounded-xl bg-black/25 border border-white/10 p-3">
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-gray-400 mb-1 flex items-center gap-1">
+                        <Clock3 size={12} />
+                        Sold
+                      </div>
+                      <div className="text-sm text-white">{formatDateTime(selectedTrade.closedAt)}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-2">Customize</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {SLIP_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => toggleEmoji(emoji)}
+                      className={`h-9 w-9 rounded-lg border text-lg transition-colors ${
+                        selectedEmojis.includes(emoji)
+                          ? 'border-cyan-400/70 bg-cyan-400/15'
+                          : 'border-[#1e2b44] bg-[#0b1019] hover:border-[#33507a]'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-[0.14em] text-gray-500">Caption (optional)</label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add context before sharing..."
+                  rows={2}
+                  className="mt-2 w-full bg-[#0b1019] border border-[#1e2e4b] rounded-xl px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-cyan-400/40 resize-none"
+                />
+              </div>
+
+              <div className="rounded-xl border border-[#1f2a3f] bg-[#0b1019] p-3">
+                <div className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-2">Generated Post</div>
+                <pre className="text-xs text-gray-200 whitespace-pre-wrap break-words font-sans leading-relaxed">
+                  {shareText}
+                </pre>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="px-5 py-4 border-t border-[#1b2a45] bg-[#060a11] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={copyShareText}
+              disabled={!hasTradeSelection}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+            >
+              <Copy size={12} />
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            <button
+              type="button"
+              onClick={() => shareToExternal('x')}
+              disabled={!hasTradeSelection}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+            >
+              <ExternalLink size={12} />
+              X
+            </button>
+            <button
+              type="button"
+              onClick={() => shareToExternal('instagram')}
+              disabled={!hasTradeSelection}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+            >
+              <ExternalLink size={12} />
+              Instagram
+            </button>
+            <button
+              type="button"
+              onClick={() => shareToExternal('facebook')}
+              disabled={!hasTradeSelection}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#30496f] text-cyan-300 text-xs hover:border-cyan-300/60 disabled:opacity-40 transition-colors"
+            >
+              <ExternalLink size={12} />
+              Facebook
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!selectedTrade || !onSubmit) return;
+              onSubmit({
+                trade: selectedTrade,
+                caption: shareText,
+                emojis: selectedEmojis,
+                note: note.trim(),
+              });
+            }}
+            disabled={!hasTradeSelection || posting}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-black text-sm font-semibold hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+          >
+            {posting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={2} />}
+            Post to Community
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Compose Box ──────────────────────────────────────────
-const ComposeBox = ({ currentUser, onPost }) => {
+const ComposeBox = ({ currentUser, onPost, tradeHistory = [] }) => {
   const [content, setContent] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [postType, setPostType] = useState('post');
-  const [pnlAmount, setPnlAmount] = useState('');
-  const [pnlTicker, setPnlTicker] = useState('');
-  const [pnlPercent, setPnlPercent] = useState('');
   const [posting, setPosting] = useState(false);
-  const [showPnlFields, setShowPnlFields] = useState(false);
+  const [showBetSlip, setShowBetSlip] = useState(false);
   const fileRef = useRef(null);
   const textRef = useRef(null);
+  const closedTrades = useMemo(
+    () => buildClosedTradesForSlip(tradeHistory).slice(0, 120),
+    [tradeHistory],
+  );
+
+  const createPost = useCallback(
+    async ({ contentText, metadata = {}, postKind = 'post', imageUrl = null }) => {
+      const { data: newPost, error } = await supabase
+        .from('community_posts')
+        .insert({
+          user_id: currentUser.id,
+          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+          content: contentText,
+          image_url: imageUrl,
+          ticker_mentions: extractTickers(contentText),
+          post_type: postKind,
+          metadata,
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      if (newPost && onPost) {
+        const postWithProfile = {
+          ...newPost,
+          community_reactions: [],
+          reaction_summary: [],
+          profiles: {
+            id: currentUser.id,
+            display_name: currentUser.display_name,
+            avatar_url: currentUser.avatar_url,
+            email: currentUser.email,
+          },
+        };
+        onPost(postWithProfile);
+      }
+    },
+    [currentUser, onPost],
+  );
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
@@ -269,18 +767,29 @@ const ComposeBox = ({ currentUser, onPost }) => {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const resetComposer = useCallback(() => {
+    setContent('');
+    setImageFile(null);
+    setImagePreview(null);
+    setPostType('post');
+    if (fileRef.current) fileRef.current.value = '';
+  }, []);
+
   const handleSubmit = async () => {
     if (!content.trim() && !imageFile) return;
     setPosting(true);
 
     try {
+      const safePostType = ['post', 'strategy_share', 'trade_share', 'alert_share'].includes(postType)
+        ? postType
+        : 'post';
       let imageUrl = null;
 
       // Upload image if present
       if (imageFile) {
         const ext = imageFile.name.split('.').pop();
         const fileName = `${currentUser.id}/${Date.now()}.${ext}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('community-images')
           .upload(fileName, imageFile);
 
@@ -292,58 +801,48 @@ const ComposeBox = ({ currentUser, onPost }) => {
         imageUrl = publicUrl;
       }
 
-      const metadata = {};
-      if (postType === 'pnl_share') {
-        if (pnlAmount) metadata.pnl = parseFloat(pnlAmount);
-        if (pnlTicker) metadata.ticker = pnlTicker.toUpperCase().replace('$', '');
-        if (pnlPercent) metadata.percent = parseFloat(pnlPercent);
-      }
+      await createPost({
+        contentText: content.trim(),
+        postKind: safePostType,
+        imageUrl,
+      });
 
-      const { data: newPost, error } = await supabase
-        .from('community_posts')
-        .insert({
-          user_id: currentUser.id,
-          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
-          content: content.trim(),
-          image_url: imageUrl,
-          ticker_mentions: extractTickers(content),
-          post_type: postType,
-          metadata,
-        })
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      // Add the new post to the UI immediately with user profile data
-      if (newPost && onPost) {
-        const postWithProfile = {
-          ...newPost,
-          community_reactions: [],
-          reaction_summary: [],
-          profiles: {
-            id: currentUser.id,
-            display_name: currentUser.display_name,
-            avatar_url: currentUser.avatar_url,
-            email: currentUser.email,
-          },
-        };
-        onPost(postWithProfile);
-      }
-
-      // Reset
-      setContent('');
-      setImageFile(null);
-      setImagePreview(null);
-      setPostType('post');
-      setPnlAmount('');
-      setPnlTicker('');
-      setPnlPercent('');
-      setShowPnlFields(false);
-      if (fileRef.current) fileRef.current.value = '';
+      resetComposer();
     } catch (err) {
       console.error('Post failed:', err);
       alert('Failed to post. Try again.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handlePostBetSlip = async ({ trade, caption, emojis, note }) => {
+    if (!trade || !caption) return;
+    setPosting(true);
+
+    try {
+      await createPost({
+        contentText: caption,
+        postKind: 'pnl_share',
+        metadata: {
+          ticker: trade.symbol,
+          pnl: Number(trade.pnl.toFixed(2)),
+          percent: Number(trade.percent.toFixed(2)),
+          shares: Number(trade.shares.toFixed(4)),
+          entry_price: Number(trade.entryPrice.toFixed(4)),
+          exit_price: Number(trade.exitPrice.toFixed(4)),
+          opened_at: new Date(trade.openedAt).toISOString(),
+          closed_at: new Date(trade.closedAt).toISOString(),
+          emoji: Array.isArray(emojis) ? emojis : [],
+          note: note || '',
+        },
+      });
+
+      setShowBetSlip(false);
+      resetComposer();
+    } catch (err) {
+      console.error('P&L share failed:', err);
+      alert('Failed to share P&L. Try again.');
     } finally {
       setPosting(false);
     }
@@ -387,32 +886,6 @@ const ComposeBox = ({ currentUser, onPost }) => {
             </div>
           )}
 
-          {/* P&L Fields */}
-          {showPnlFields && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <input
-                value={pnlTicker}
-                onChange={(e) => setPnlTicker(e.target.value)}
-                placeholder="Ticker (NVDA)"
-                className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 outline-none focus:border-cyan-500/30 w-28"
-              />
-              <input
-                value={pnlAmount}
-                onChange={(e) => setPnlAmount(e.target.value)}
-                placeholder="P&L ($)"
-                type="number"
-                className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 outline-none focus:border-cyan-500/30 w-28"
-              />
-              <input
-                value={pnlPercent}
-                onChange={(e) => setPnlPercent(e.target.value)}
-                placeholder="% gain"
-                type="number"
-                className="bg-[#0b0b0b] border border-[#1f1f1f] rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 outline-none focus:border-cyan-500/30 w-24"
-              />
-            </div>
-          )}
-
           {/* Action Bar */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#1a1a1a]">
             <div className="flex items-center gap-1">
@@ -432,13 +905,9 @@ const ComposeBox = ({ currentUser, onPost }) => {
               </button>
 
               <button
-                onClick={() => {
-                  const next = postType === 'pnl_share' ? 'post' : 'pnl_share';
-                  setPostType(next);
-                  setShowPnlFields(next === 'pnl_share');
-                }}
+                onClick={() => setShowBetSlip(true)}
                 className={`p-2 rounded-lg hover:bg-white/5 transition-colors ${
-                  postType === 'pnl_share' ? 'text-emerald-400' : 'text-gray-500 hover:text-emerald-400'
+                  showBetSlip ? 'text-emerald-400' : 'text-gray-500 hover:text-emerald-400'
                 }`}
                 title="Share P&L"
               >
@@ -483,6 +952,13 @@ const ComposeBox = ({ currentUser, onPost }) => {
           </div>
         </div>
       </div>
+      <BetSlipModal
+        open={showBetSlip}
+        onClose={() => setShowBetSlip(false)}
+        closedTrades={closedTrades}
+        posting={posting}
+        onSubmit={handlePostBetSlip}
+      />
     </div>
   );
 };
@@ -1052,7 +1528,7 @@ const FilterTabs = ({ active, onChange }) => {
 };
 
 // ─── Main Community Page ──────────────────────────────────
-const CommunityPage = () => {
+const CommunityPage = ({ tradeHistory = [] }) => {
   const [posts, setPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1336,6 +1812,7 @@ const CommunityPage = () => {
           {currentUser && (
             <ComposeBox
               currentUser={currentUser}
+              tradeHistory={tradeHistory}
               onPost={(newPost) => {
                 // Add the new post to the top of the feed immediately
                 setPosts((prev) => {

@@ -1844,7 +1844,7 @@ export default function Dashboard({
           {activeTab === 'trade' && (
             <AppErrorBoundary>
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading community page...</div>}>
-                <CommunityPage />
+                <CommunityPage tradeHistory={trades} />
               </Suspense>
             </AppErrorBoundary>
           )}
