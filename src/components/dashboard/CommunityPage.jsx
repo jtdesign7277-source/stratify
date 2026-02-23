@@ -719,24 +719,30 @@ const CommunityPage = () => {
   // Get current user
   useEffect(() => {
     const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (user) {
-        // Fetch profile data
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
+        console.log('[CommunityPage] Current user:', user?.id);
 
-        setCurrentUser({
-          id: user.id,
-          email: user.email,
-          display_name: profile?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0],
-          avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url,
-        });
+        if (user) {
+          // Fetch profile data
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          setCurrentUser({
+            id: user.id,
+            email: user.email,
+            display_name: profile?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0],
+            avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url,
+          });
+        }
+      } catch (err) {
+        console.error('[CommunityPage] Failed to get user:', err);
       }
     };
     getUser();
@@ -745,35 +751,50 @@ const CommunityPage = () => {
   // Fetch posts
   const fetchPosts = useCallback(
     async (pageNum = 0, append = false) => {
+      console.log('[CommunityPage] fetchPosts called:', { pageNum, append, filter });
       setLoading(!append);
 
-      let query = supabase
-        .from('community_posts')
-        .select('*, profiles:user_id(id, display_name, avatar_url, email)')
-        .is('parent_id', null) // top-level posts only
-        .order('created_at', { ascending: false })
-        .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+      try {
+        let query = supabase
+          .from('community_posts')
+          .select('*, profiles:user_id(id, display_name, avatar_url, email)')
+          .is('parent_id', null) // top-level posts only
+          .order('created_at', { ascending: false })
+          .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-      if (filter !== 'all') {
-        query = query.eq('post_type', filter);
-      }
-
-      const { data, error } = await query;
-
-      if (!error && data) {
-        if (append) {
-          setPosts((prev) => [...prev, ...data]);
-        } else {
-          setPosts(data);
+        if (filter !== 'all') {
+          query = query.eq('post_type', filter);
         }
-        setHasMore(data.length === PAGE_SIZE);
+
+        const { data, error } = await query;
+
+        console.log('[CommunityPage] fetchPosts result:', { data, error, count: data?.length });
+
+        if (error) {
+          console.error('[CommunityPage] fetchPosts error:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (data) {
+          if (append) {
+            setPosts((prev) => [...prev, ...data]);
+          } else {
+            setPosts(data);
+          }
+          setHasMore(data.length === PAGE_SIZE);
+        }
+      } catch (err) {
+        console.error('[CommunityPage] fetchPosts exception:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     },
     [filter]
   );
 
   useEffect(() => {
+    console.log('[CommunityPage] Mount/filter change effect triggered:', { filter });
     setPage(0);
     fetchPosts(0);
   }, [filter, fetchPosts]);
