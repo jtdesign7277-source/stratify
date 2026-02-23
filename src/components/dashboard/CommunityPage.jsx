@@ -1,23 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { AnimatePresence, motion } from 'framer-motion';
+import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import {
   Heart,
   MessageCircle,
   Share2,
-  Image as ImageIcon,
   Send,
   X,
   TrendingUp,
-  TrendingDown,
   BarChart3,
   Bell,
   Zap,
   MoreHorizontal,
   Trash2,
-  ChevronDown,
-  ChevronUp,
   Loader2,
   Camera,
+  SmilePlus,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -51,6 +50,65 @@ const POST_TYPE_CONFIG = {
   strategy_share: { label: 'Strategy', icon: Zap, color: 'cyan' },
   alert_share: { label: 'Alert', icon: Bell, color: 'amber' },
   trade_share: { label: 'Trade', icon: BarChart3, color: 'blue' },
+};
+
+const buildReactionSummary = (rows = [], currentUserId = null) => {
+  const grouped = rows.reduce((acc, row) => {
+    const emoji = row?.emoji;
+    if (!emoji) return acc;
+
+    if (!acc[emoji]) {
+      acc[emoji] = {
+        emoji,
+        count: 0,
+        reacted: false,
+      };
+    }
+
+    acc[emoji].count += 1;
+    if (currentUserId && row.user_id === currentUserId) {
+      acc[emoji].reacted = true;
+    }
+
+    return acc;
+  }, {});
+
+  return Object.values(grouped).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.emoji.localeCompare(b.emoji);
+  });
+};
+
+const applyReactionState = (currentReactions = [], emoji, shouldReact) => {
+  let changed = false;
+  const next = currentReactions
+    .map((reaction) => {
+      if (reaction.emoji !== emoji) return reaction;
+      changed = true;
+
+      const nextCount = Math.max(0, (reaction.count || 0) + (shouldReact ? 1 : -1));
+      if (nextCount === 0) return null;
+
+      return {
+        ...reaction,
+        count: nextCount,
+        reacted: shouldReact,
+      };
+    })
+    .filter(Boolean);
+
+  if (!changed && shouldReact) {
+    next.push({
+      emoji,
+      count: 1,
+      reacted: true,
+    });
+  }
+
+  return next.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.emoji.localeCompare(b.emoji);
+  });
 };
 
 // ─── Share to X ───────────────────────────────────────────
@@ -258,6 +316,8 @@ const ComposeBox = ({ currentUser, onPost }) => {
       if (newPost && onPost) {
         const postWithProfile = {
           ...newPost,
+          community_reactions: [],
+          reaction_summary: [],
           profiles: {
             id: currentUser.id,
             display_name: currentUser.display_name,
@@ -424,8 +484,115 @@ const ComposeBox = ({ currentUser, onPost }) => {
   );
 };
 
+const ReactionBar = ({ postId, currentUser, initialReactions = [], compact = false }) => {
+  const [reactions, setReactions] = useState(initialReactions || []);
+  const [showPicker, setShowPicker] = useState(false);
+  const isInteractive = Boolean(currentUser?.id);
+
+  useEffect(() => {
+    setReactions(initialReactions || []);
+  }, [postId, initialReactions]);
+
+  const toggleReaction = async (emoji) => {
+    if (!currentUser?.id || !emoji) return;
+
+    const target = reactions.find((reaction) => reaction.emoji === emoji);
+    const shouldReact = !target?.reacted;
+    const previousReactions = reactions;
+
+    setReactions((prev) => applyReactionState(prev, emoji, shouldReact));
+
+    try {
+      if (shouldReact) {
+        const { error } = await supabase.from('community_reactions').insert({
+          post_id: postId,
+          user_id: currentUser.id,
+          emoji,
+        });
+
+        // Duplicate insertion means the user already reacted in another session.
+        if (error && error.code !== '23505') throw error;
+      } else {
+        const { error } = await supabase
+          .from('community_reactions')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', currentUser.id)
+          .eq('emoji', emoji);
+
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error('[CommunityPage] Failed to toggle reaction:', err);
+      setReactions(previousReactions);
+    }
+  };
+
+  return (
+    <div className={compact ? 'mt-1.5' : 'mt-2.5'}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowPicker((open) => !open)}
+            disabled={!isInteractive}
+            className={`inline-flex items-center justify-center rounded-full border px-2.5 ${
+              compact ? 'h-7 w-7' : 'h-8 w-8'
+            } transition-colors ${
+              isInteractive
+                ? 'border-[#2a2a2a] bg-[#121212] text-gray-400 hover:text-gray-200 hover:border-[#3a3a3a]'
+                : 'border-[#232323] bg-[#101010] text-gray-600 cursor-not-allowed'
+            }`}
+            title={isInteractive ? 'Add reaction' : 'Sign in to react'}
+          >
+            <SmilePlus size={compact ? 13 : 14} strokeWidth={1.8} />
+          </button>
+
+          {showPicker && isInteractive && (
+            <EmojiPicker
+              align={compact ? 'right' : 'left'}
+              onClose={() => setShowPicker(false)}
+              onSelect={(emoji) => {
+                setShowPicker(false);
+                toggleReaction(emoji);
+              }}
+            />
+          )}
+        </div>
+
+        <AnimatePresence initial={false}>
+          {reactions.map((reaction) => (
+            <motion.button
+              key={`${postId}-${reaction.emoji}`}
+              layout
+              initial={{ opacity: 0, scale: 0.86 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.86 }}
+              transition={{ duration: 0.16 }}
+              type="button"
+              onClick={() => toggleReaction(reaction.emoji)}
+              disabled={!isInteractive}
+              className={`inline-flex items-center gap-1 rounded-full border transition-all ${
+                compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
+              } ${
+                reaction.reacted
+                  ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200'
+                  : 'border-[#2a2a2a] bg-[#121212] text-gray-300 hover:border-[#3a3a3a] hover:bg-[#171717]'
+              } ${!isInteractive ? 'opacity-70 cursor-not-allowed' : ''}`}
+              title={isInteractive ? 'Toggle reaction' : 'Sign in to react'}
+            >
+              <EmojiGlyph emoji={reaction.emoji} size={compact ? 16 : 16} />
+              <span className="font-semibold">{reaction.count}</span>
+            </motion.button>
+          ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
 // ─── Single Post Component ────────────────────────────────
-const PostCard = ({ post, currentUser, onReply, onDelete }) => {
+const PostCard = ({ post, currentUser, onDelete }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes_count || post.likes || 0);
   const [showReplies, setShowReplies] = useState(false);
@@ -434,6 +601,10 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
   const [replying, setReplying] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  const initialReactions = useMemo(() => {
+    if (Array.isArray(post.reaction_summary)) return post.reaction_summary;
+    return buildReactionSummary(post.community_reactions || [], currentUser?.id);
+  }, [post.reaction_summary, post.community_reactions, currentUser?.id]);
 
   // Check if current user liked this post
   useEffect(() => {
@@ -474,10 +645,15 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
     setLoadingReplies(true);
     const { data } = await supabase
       .from('community_posts')
-      .select('*, profiles:user_id(id, display_name, avatar_url, email)')
+      .select('*, profiles:user_id(id, display_name, avatar_url, email), community_reactions(emoji, user_id)')
       .or(`parent_id.eq.${post.id},parent_post_id.eq.${post.id}`)
       .order('created_at', { ascending: true });
-    setReplies(data || []);
+    setReplies(
+      (data || []).map((reply) => ({
+        ...reply,
+        reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
+      }))
+    );
     setLoadingReplies(false);
   };
 
@@ -487,6 +663,15 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
     }
     setShowReplies(!showReplies);
   };
+
+  useEffect(() => {
+    setReplies((prev) =>
+      prev.map((reply) => ({
+        ...reply,
+        reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
+      }))
+    );
+  }, [currentUser?.id]);
 
   const submitReply = async () => {
     if (!replyContent.trim() || !currentUser) return;
@@ -622,6 +807,12 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
             </button>
           </div>
 
+          <ReactionBar
+            postId={post.id}
+            currentUser={currentUser}
+            initialReactions={initialReactions}
+          />
+
           {/* Replies Section */}
           {showReplies && (
             <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
@@ -649,6 +840,12 @@ const PostCard = ({ post, currentUser, onReply, onDelete }) => {
                           <div
                             className="text-gray-400 text-xs leading-relaxed break-words"
                             dangerouslySetInnerHTML={{ __html: highlightTickers(reply.content) }}
+                          />
+                          <ReactionBar
+                            postId={reply.id}
+                            currentUser={currentUser}
+                            initialReactions={reply.reaction_summary || []}
+                            compact
                           />
                         </div>
                       </div>
@@ -765,8 +962,8 @@ const CommunityPage = () => {
       setLoading(!append);
 
       try {
-        // First, check if table exists by doing a simple query
-        const { data: testData, error: testError } = await supabase
+        // First, check if table exists by doing a simple query.
+        const { error: testError } = await supabase
           .from('community_posts')
           .select('id')
           .limit(1);
@@ -780,20 +977,29 @@ const CommunityPage = () => {
           }
         }
 
-        // Table exists, now query with join
-        let query = supabase
-          .from('community_posts')
-          .select('*')
-          .is('parent_id', null)
-          .is('parent_post_id', null)
-          .order('created_at', { ascending: false })
-          .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+        const runPostsQuery = (withReactions) => {
+          let query = supabase
+            .from('community_posts')
+            .select(withReactions ? '*, community_reactions(emoji, user_id)' : '*')
+            .is('parent_id', null)
+            .is('parent_post_id', null)
+            .order('created_at', { ascending: false })
+            .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-        if (filter !== 'all') {
-          query = query.eq('post_type', filter);
+          if (filter !== 'all') {
+            query = query.eq('post_type', filter);
+          }
+
+          return query;
+        };
+
+        // Join reactions in the feed query, with a fallback for pre-migration environments.
+        let { data: postsData, error: postsError } = await runPostsQuery(true);
+        if (postsError && postsError.message?.includes('community_reactions')) {
+          const fallback = await runPostsQuery(false);
+          postsData = fallback.data;
+          postsError = fallback.error;
         }
-
-        const { data: postsData, error: postsError } = await query;
 
         if (postsError) {
           console.error('[CommunityPage] fetchPosts query error:', postsError);
@@ -817,32 +1023,12 @@ const CommunityPage = () => {
           profilesMap[p.id] = p;
         });
 
-        // Attach profiles to posts
-        const data = postsData.map(post => ({
+        // Attach profiles + reaction summaries
+        const data = (postsData || []).map((post) => ({
           ...post,
           profiles: profilesMap[post.user_id] || null,
+          reaction_summary: buildReactionSummary(post.community_reactions || [], currentUser?.id),
         }));
-
-        const error = null;
-
-        console.log('[CommunityPage] fetchPosts result:', { 
-          data, 
-          error, 
-          count: data?.length,
-          errorDetails: error ? JSON.stringify(error) : null 
-        });
-
-        if (error) {
-          console.error('[CommunityPage] fetchPosts error:', error);
-          
-          // If the table/relationship doesn't exist, show helpful message
-          if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
-            console.error('[CommunityPage] community_posts table does not exist. Please create it in Supabase.');
-          }
-          
-          setLoading(false);
-          return;
-        }
 
         if (data) {
           if (append) {
@@ -858,7 +1044,7 @@ const CommunityPage = () => {
         setLoading(false);
       }
     },
-    [filter]
+    [filter, currentUser?.id]
   );
 
   useEffect(() => {
@@ -880,18 +1066,32 @@ const CommunityPage = () => {
           filter: 'parent_id=is.null', // only top-level posts
         },
         async (payload) => {
-          // Fetch the full post with profile data
-          const { data } = await supabase
+          const { data: insertedPost } = await supabase
             .from('community_posts')
-            .select('*, profiles:user_id(id, display_name, avatar_url, email)')
+            .select('*, community_reactions(emoji, user_id)')
             .eq('id', payload.new.id)
             .maybeSingle();
 
-          if (data) {
+          if (insertedPost) {
+            let profile = null;
+            if (insertedPost.user_id) {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('id, display_name, avatar_url, email')
+                .eq('id', insertedPost.user_id)
+                .maybeSingle();
+              profile = profileData;
+            }
+
+            const hydratedPost = {
+              ...insertedPost,
+              profiles: profile,
+              reaction_summary: buildReactionSummary(insertedPost.community_reactions || [], currentUser?.id),
+            };
+
             setPosts((prev) => {
-              // Avoid duplicates
-              if (prev.some((p) => p.id === data.id)) return prev;
-              return [data, ...prev];
+              if (prev.some((p) => p.id === hydratedPost.id)) return prev;
+              return [hydratedPost, ...prev];
             });
           }
         }
@@ -912,7 +1112,7 @@ const CommunityPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [currentUser?.id]);
 
   const handleDelete = async (postId) => {
     const confirmed = window.confirm('Delete this post?');

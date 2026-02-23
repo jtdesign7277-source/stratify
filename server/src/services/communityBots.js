@@ -68,6 +68,23 @@ const SECTOR_ROTATION = [
   ['growth', 'value'],
 ];
 
+const BOT_REACTION_EMOJIS = [
+  '📈',
+  '📉',
+  '💰',
+  '💎',
+  '🔥',
+  '🚀',
+  '⚡',
+  '💪',
+  '👍',
+  '💯',
+  '🐂',
+  '🐻',
+  '✅',
+  '👀',
+];
+
 const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const randomFloat = (min, max, decimals = 2) =>
   Number((Math.random() * (max - min) + min).toFixed(decimals));
@@ -301,6 +318,41 @@ export function likeRandomPosts(recentPosts = [], options = {}) {
   return actions;
 }
 
+export function reactToPosts(recentPosts = [], options = {}) {
+  if (!Array.isArray(recentPosts) || recentPosts.length === 0) return [];
+
+  const bots = Array.isArray(options.bots) && options.bots.length > 0 ? options.bots : BOT_PROFILES;
+  const maxReactions = Math.max(1, Math.min(recentPosts.length * 2, options.maxReactions || 14));
+  const lowerBound = Math.min(3, maxReactions);
+  const targetReactions = randomInt(lowerBound, maxReactions);
+
+  const actions = [];
+  const dedupe = new Set();
+  let attempts = 0;
+
+  while (actions.length < targetReactions && attempts < targetReactions * 12) {
+    attempts += 1;
+    const bot = pickOne(bots);
+    const post = pickOne(recentPosts);
+    const emoji = pickOne(BOT_REACTION_EMOJIS);
+    if (!bot || !post || !post.id || !emoji) continue;
+    if (post.user_id && post.user_id === bot.id) continue;
+
+    // Keep bot behavior realistic: one emoji reaction per bot/post pair.
+    const botPostKey = `${bot.id}:${post.id}`;
+    if (dedupe.has(botPostKey)) continue;
+
+    dedupe.add(botPostKey);
+    actions.push({
+      bot,
+      post_id: post.id,
+      emoji,
+    });
+  }
+
+  return actions;
+}
+
 const buildReply = (parentPost = {}) => {
   const mentioned = Array.isArray(parentPost.ticker_mentions) && parentPost.ticker_mentions.length > 0
     ? parentPost.ticker_mentions
@@ -362,5 +414,6 @@ export default {
   generatePost,
   postAsBots,
   likeRandomPosts,
+  reactToPosts,
   commentOnPosts,
 };

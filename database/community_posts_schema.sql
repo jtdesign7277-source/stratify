@@ -45,6 +45,25 @@ CREATE TABLE IF NOT EXISTS community_likes (
 CREATE INDEX IF NOT EXISTS idx_community_likes_user_id ON community_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_community_likes_post_id ON community_likes(post_id);
 
+-- Create community_reactions table (Discord-style emoji reactions)
+CREATE TABLE IF NOT EXISTS community_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL CHECK (char_length(trim(emoji)) > 0),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(post_id, user_id, emoji)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_community_reactions_post_user_emoji
+  ON community_reactions(post_id, user_id, emoji);
+CREATE INDEX IF NOT EXISTS idx_community_reactions_post_id
+  ON community_reactions(post_id);
+CREATE INDEX IF NOT EXISTS idx_community_reactions_user_id
+  ON community_reactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_community_reactions_post_emoji
+  ON community_reactions(post_id, emoji);
+
 -- Create community-images storage bucket
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('community-images', 'community-images', true)
@@ -69,6 +88,7 @@ USING (bucket_id = 'community-images' AND auth.uid()::text = (storage.foldername
 -- Row Level Security (RLS) policies
 ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_reactions ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can read posts
 CREATE POLICY "Posts are viewable by everyone"
@@ -110,6 +130,24 @@ WITH CHECK (auth.uid() = user_id);
 -- Users can unlike posts
 CREATE POLICY "Users can unlike posts"
 ON community_likes FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Anyone can read reactions
+CREATE POLICY "Reactions are viewable by everyone"
+ON community_reactions FOR SELECT
+TO public
+USING (true);
+
+-- Users can react with their own account
+CREATE POLICY "Users can react with their own account"
+ON community_reactions FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- Users can remove their own reactions
+CREATE POLICY "Users can remove their own reactions"
+ON community_reactions FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 

@@ -3,6 +3,7 @@ import {
   BOT_PROFILES,
   postAsBots,
   likeRandomPosts,
+  reactToPosts,
   commentOnPosts,
 } from '../server/src/services/communityBots.js';
 
@@ -125,7 +126,7 @@ async function resolveBotUsers() {
   return resolved;
 }
 
-async function fetchRecentTopLevelPosts(limit = 80) {
+async function fetchRecentPosts(limit = 80) {
   const { data, error } = await supabase
     .from('community_posts')
     .select('id, user_id, content, ticker_mentions, parent_id, parent_post_id, created_at')
@@ -136,7 +137,7 @@ async function fetchRecentTopLevelPosts(limit = 80) {
     throw new Error(`Failed to fetch recent posts: ${error.message}`);
   }
 
-  return (data || []).filter((post) => !post.parent_id && !post.parent_post_id);
+  return data || [];
 }
 
 async function insertBotPosts(postDrafts = []) {
@@ -184,6 +185,27 @@ async function insertBotLikes(likeActions = []) {
 
   if (error) {
     throw new Error(`Failed to insert bot likes: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+async function insertBotReactions(reactionActions = []) {
+  if (reactionActions.length === 0) return [];
+
+  const rows = reactionActions.map((action) => ({
+    user_id: action.bot.id,
+    post_id: action.post_id,
+    emoji: action.emoji,
+  }));
+
+  const { data, error } = await supabase
+    .from('community_reactions')
+    .upsert(rows, { onConflict: 'post_id,user_id,emoji', ignoreDuplicates: true })
+    .select('id, user_id, post_id, emoji');
+
+  if (error) {
+    throw new Error(`Failed to insert bot reactions: ${error.message}`);
   }
 
   return data || [];
@@ -252,9 +274,12 @@ export default async function handler(req, res) {
     const postDrafts = postAsBots({ bots, minBots: 1, maxBots: 3 });
     const insertedPosts = await insertBotPosts(postDrafts);
 
-    const recentTopLevelPosts = await fetchRecentTopLevelPosts(80);
+    const recentPosts = await fetchRecentPosts(100);
+    const recentTopLevelPosts = recentPosts.filter((post) => !post.parent_id && !post.parent_post_id);
     const likeActions = likeRandomPosts(recentTopLevelPosts, { bots, maxLikes: 12 });
     const insertedLikes = await insertBotLikes(likeActions);
+    const reactionActions = reactToPosts(recentPosts, { bots, maxReactions: 16 });
+    const insertedReactions = await insertBotReactions(reactionActions);
 
     const commentActions = commentOnPosts(recentTopLevelPosts, { bots, maxComments: 4 });
     const insertedComments = await insertBotComments(commentActions);
@@ -265,6 +290,7 @@ export default async function handler(req, res) {
       totals: {
         posts: insertedPosts.length,
         likes: insertedLikes.length,
+        reactions: insertedReactions.length,
         comments: insertedComments.length,
       },
       bots_used: [...new Set(postDrafts.map((draft) => draft.bot.name))],
