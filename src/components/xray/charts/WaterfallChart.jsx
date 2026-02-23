@@ -17,15 +17,22 @@ function getIncomeWaterfallConfig(data) {
   const otherItems = netIncome - operatingIncome;
 
   return {
-    chart: { type: 'waterfall', height: 300 },
+    chart: { 
+      type: 'waterfall', 
+      height: 300,
+      backgroundColor: 'transparent'
+    },
     title: { text: null },
     xAxis: {
       type: 'category',
-      labels: { style: { fontSize: '9px' } },
+      labels: { style: { fontSize: '9px', color: '#9ca3af' } },
+      lineColor: '#374151',
     },
     yAxis: {
       title: { text: null },
+      gridLineColor: '#374151',
       labels: {
+        style: { color: '#9ca3af' },
         formatter() {
           return `$${(this.value / 1e9).toFixed(0)}B`;
         },
@@ -40,10 +47,21 @@ function getIncomeWaterfallConfig(data) {
       },
     },
     legend: { enabled: false },
+    plotOptions: {
+      series: {
+        pointPadding: 0,
+        groupPadding: 0.1,
+        minPointLength: 5,
+      },
+    },
     series: [
       {
         borderWidth: 0,
         borderRadius: 3,
+        upColor: '#10b981',
+        color: '#ef4444',
+        lineWidth: 1,
+        lineColor: '#374151',
         data: [
           { name: 'Revenue', y: revenue, color: '#3b82f6' },
           { name: 'COGS', y: -cogs, color: '#ef4444' },
