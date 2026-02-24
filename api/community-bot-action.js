@@ -1,4 +1,5 @@
 import { supabase } from './lib/supabase.js';
+import { runDiscordAlertCycle } from './lib/discord-alerts.js';
 import {
   BOT_PROFILES,
   postAsBots,
@@ -11,6 +12,9 @@ const BOT_EMAIL_DOMAIN = process.env.COMMUNITY_BOT_EMAIL_DOMAIN || 'bots.stratif
 const BOT_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_AUTH_USER_PAGES = 50;
 const AUTH_USERS_PER_PAGE = 1000;
+const BOT_POSTS_PER_RUN = 10;
+const DISCORD_ITEMS_PER_RUN = 10;
+const DISCORD_MOVER_ITEMS_PER_RUN = 3;
 
 let botCache = {
   resolvedBots: null,
@@ -271,18 +275,45 @@ export default async function handler(req, res) {
 
   try {
     const bots = await resolveBotUsers();
-    const postDrafts = postAsBots({ bots, minBots: 1, maxBots: 3 });
+    const postDrafts = postAsBots({
+      bots,
+      minBots: BOT_POSTS_PER_RUN,
+      maxBots: BOT_POSTS_PER_RUN,
+    });
     const insertedPosts = await insertBotPosts(postDrafts);
 
     const recentPosts = await fetchRecentPosts(100);
     const recentTopLevelPosts = recentPosts.filter((post) => !post.parent_id && !post.parent_post_id);
-    const likeActions = likeRandomPosts(recentTopLevelPosts, { bots, maxLikes: 12 });
+    const likeActions = likeRandomPosts(recentTopLevelPosts, { bots, maxLikes: 30 });
     const insertedLikes = await insertBotLikes(likeActions);
-    const reactionActions = reactToPosts(recentPosts, { bots, maxReactions: 16 });
+    const reactionActions = reactToPosts(recentPosts, { bots, maxReactions: 40 });
     const insertedReactions = await insertBotReactions(reactionActions);
 
-    const commentActions = commentOnPosts(recentTopLevelPosts, { bots, maxComments: 4 });
+    const commentActions = commentOnPosts(recentTopLevelPosts, { bots, maxComments: 10 });
     const insertedComments = await insertBotComments(commentActions);
+    let discordAlerts = {
+      success: false,
+      requested: DISCORD_ITEMS_PER_RUN,
+      generated: 0,
+      postedCount: 0,
+      failedCount: 0,
+      counts: { alerts: 0, movers: 0 },
+      failures: [],
+    };
+
+    try {
+      discordAlerts = await runDiscordAlertCycle({
+        limit: DISCORD_ITEMS_PER_RUN,
+        marketMoverPosts: DISCORD_MOVER_ITEMS_PER_RUN,
+        dryRun: false,
+      });
+    } catch (discordError) {
+      console.error('[community-bot-action] discord alert cycle failed:', discordError);
+      discordAlerts = {
+        ...discordAlerts,
+        failures: [{ error: discordError?.message || 'Discord alert cycle failed' }],
+      };
+    }
 
     return res.status(200).json({
       success: true,
@@ -292,8 +323,18 @@ export default async function handler(req, res) {
         likes: insertedLikes.length,
         reactions: insertedReactions.length,
         comments: insertedComments.length,
+        discord_items_posted: discordAlerts.postedCount || 0,
+        discord_items_failed: discordAlerts.failedCount || 0,
       },
       bots_used: [...new Set(postDrafts.map((draft) => draft.bot.name))],
+      discord: {
+        success: discordAlerts.success,
+        requested: discordAlerts.requested,
+        generated: discordAlerts.generated,
+        posted: discordAlerts.postedCount,
+        failed: discordAlerts.failedCount,
+        counts: discordAlerts.counts,
+      },
     });
   } catch (error) {
     console.error('[community-bot-action] failed:', error);

@@ -7,7 +7,18 @@ const CHANNELS = {
   showYourPnl:   process.env.DISCORD_WEBHOOK_SHOW_YOUR_PNL,
 };
 
-export async function postToDiscord(channel, { content, embeds, username, avatarUrl }) {
+const toBlob = (file = {}) => {
+  const bytes = file?.data;
+  if (bytes instanceof Uint8Array || bytes instanceof ArrayBuffer) {
+    return new Blob([bytes], { type: file.contentType || 'application/octet-stream' });
+  }
+  if (typeof bytes === 'string') {
+    return new Blob([bytes], { type: file.contentType || 'text/plain' });
+  }
+  return null;
+};
+
+export async function postToDiscord(channel, { content, embeds, username, avatarUrl, allowedMentions, files }) {
   const webhookUrl = CHANNELS[channel];
   if (!webhookUrl) {
     throw new Error(`No webhook URL for channel: ${channel}`);
@@ -19,13 +30,36 @@ export async function postToDiscord(channel, { content, embeds, username, avatar
   };
 
   if (content) payload.content = content;
-  if (embeds)  payload.embeds = embeds;
+  if (embeds) payload.embeds = embeds;
+  if (allowedMentions) payload.allowed_mentions = allowedMentions;
 
-  const res = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const normalizedFiles = Array.isArray(files)
+    ? files.map((file) => ({
+      name: file?.name || `attachment-${Date.now()}.bin`,
+      blob: toBlob(file),
+    })).filter((file) => Boolean(file.blob))
+    : [];
+
+  const useMultipart = normalizedFiles.length > 0;
+
+  const res = useMultipart
+    ? await (async () => {
+      const formData = new FormData();
+      formData.set('payload_json', JSON.stringify(payload));
+      normalizedFiles.forEach((file, index) => {
+        formData.append(`files[${index}]`, file.blob, file.name);
+      });
+
+      return fetch(webhookUrl, {
+        method: 'POST',
+        body: formData,
+      });
+    })()
+    : await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
   if (!res.ok) {
     const text = await res.text();
