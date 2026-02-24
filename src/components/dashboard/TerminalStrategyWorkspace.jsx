@@ -384,22 +384,22 @@ const renderFolderIcon = (folderId) => {
 };
 
 const SophiaThinkingState = ({ onOpenBuilder }) => (
-  <div className="h-full flex items-center justify-center px-8 bg-transparent relative overflow-hidden">
-    <div className="relative z-10 max-w-2xl text-center">
-      <div className="mx-auto relative h-72 w-72 overflow-hidden rounded-[2rem] border border-cyan-400/30 bg-[#030916] shadow-[0_0_40px_rgba(8,145,178,0.35)]">
-        <video
-          className="h-full w-full object-cover"
-          src="/sophia-thinking-neural.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#020617]/50" />
-      </div>
+  <div className="relative h-full overflow-hidden bg-[#020617]">
+    <video
+      className="absolute inset-0 h-full w-full object-cover"
+      src="/sophia-thinking-electric-v2.mp4"
+      autoPlay
+      loop
+      muted
+      playsInline
+      preload="auto"
+    />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(7,89,133,0.24)_0%,rgba(2,6,23,0.68)_55%,rgba(1,2,8,0.92)_100%)]" />
+    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#020617]/28 via-transparent to-[#020617]/78" />
 
-      <div className="mt-1 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-violet-200/90">
+    <div className="relative z-10 flex h-full items-center justify-center px-8">
+      <div className="max-w-2xl text-center">
+      <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/35 px-3 py-1 text-xs uppercase tracking-[0.2em] text-violet-200/90">
         <Brain className="h-3.5 w-3.5 text-violet-300" strokeWidth={1.7} />
         Sophia is thinking
       </div>
@@ -414,6 +414,7 @@ const SophiaThinkingState = ({ onOpenBuilder }) => (
       >
         Open Builder
       </button>
+      </div>
     </div>
   </div>
 );
