@@ -231,12 +231,9 @@
   border: 0;
   background: transparent;
   color: rgba(180, 196, 219, 0.36);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
   cursor: pointer;
-  line-height: 1;
-  padding: 0;
+  line-height: 0;
+  padding: 2px;
   opacity: 0;
   transition: opacity 120ms ease, color 120ms ease;
 }
@@ -245,8 +242,29 @@
   opacity: 1;
 }
 
+.watchlist-remove-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .watchlist-remove-btn:hover {
   color: rgba(255, 122, 145, 0.92);
+}
+
+.watchlist-ext-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.watchlist-ext-btn:hover {
+  opacity: 0.82;
 }
 
 @media (max-width: 1100px) {

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Grid from '@highcharts/grid-lite';
-import { getExtendedHoursStatus } from '../../lib/marketHours';
+import { getExtendedHoursStatus, getMarketStatus } from '../../lib/marketHours';
+import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import '@highcharts/grid-lite/css/grid.css';
 import './AnalyticsWatchlistGrid.css';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
-const TWELVE_DATA_CLIENT_API_KEY = String(
-  import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || ''
-).trim();
 const MAX_SYMBOLS = 120;
 const QUOTE_POLL_INTERVAL_MS = 5000;
 const DEFAULT_SYMBOLS = [
@@ -100,22 +98,20 @@ const deriveMainChangeAndPercent = (quote = {}) => {
   };
 };
 
-const deriveExtendedMetric = (quote = {}, sessionStatus = null) => {
+const deriveExtendedMetric = (quote = {}, sessionStatus = null, marketStatus = '') => {
   const previousClose = toNumber(quote?.previousClose);
   const livePrice = toNumber(quote?.price);
+  const mainMetric = deriveMainChangeAndPercent(quote);
 
   const buildMetric = (prefix, fallbackLivePrice = null) => {
     let extPrice = toNumber(quote?.[`${prefix}Price`]);
-    const storedExtChange = toNumber(quote?.[`${prefix}Change`]);
-    const storedExtPercent = toNumber(quote?.[`${prefix}ChangePercent`]);
-    let extChange = storedExtChange;
-    let extPercent = storedExtPercent;
+    let extChange = toNumber(quote?.[`${prefix}Change`]);
+    let extPercent = toNumber(quote?.[`${prefix}ChangePercent`]);
 
     if (!Number.isFinite(extPrice) && Number.isFinite(fallbackLivePrice)) {
       extPrice = fallbackLivePrice;
     }
 
-    // Always recompute from latest extended-session price when possible so values tick live.
     if (Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
       extChange = extPrice - previousClose;
       extPercent = previousClose !== 0 ? (extChange / previousClose) * 100 : null;
@@ -123,14 +119,17 @@ const deriveExtendedMetric = (quote = {}, sessionStatus = null) => {
       if (!Number.isFinite(extChange) && Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
         extChange = extPrice - previousClose;
       }
-      if (
-        !Number.isFinite(extPercent)
-        && Number.isFinite(extChange)
-        && Number.isFinite(previousClose)
-        && previousClose !== 0
-      ) {
+      if (!Number.isFinite(extPercent) && Number.isFinite(extChange) && Number.isFinite(previousClose) && previousClose !== 0) {
         extPercent = (extChange / previousClose) * 100;
       }
+    }
+
+    if (!Number.isFinite(extChange)) {
+      extChange = toNumber(quote?.change);
+    }
+
+    if (!Number.isFinite(extPercent)) {
+      extPercent = toNumber(quote?.percentChange);
     }
 
     return {
@@ -140,22 +139,50 @@ const deriveExtendedMetric = (quote = {}, sessionStatus = null) => {
     };
   };
 
-  const pre = buildMetric('preMarket', sessionStatus === 'pre-market' ? livePrice : null);
-  const post = buildMetric('afterHours', sessionStatus === 'post-market' ? livePrice : null);
+  const deriveFromLive = (label) => {
+    if (Number.isFinite(livePrice) && Number.isFinite(previousClose)) {
+      const change = livePrice - previousClose;
+      return {
+        label,
+        price: livePrice,
+        change,
+        percent: previousClose !== 0 ? (change / previousClose) * 100 : null,
+      };
+    }
 
-  if (sessionStatus === 'pre-market' && Number.isFinite(pre.percent)) {
-    return { label: 'Pre', ...pre };
+    return {
+      label,
+      price: Number.isFinite(livePrice) ? livePrice : null,
+      change: mainMetric.change,
+      percent: mainMetric.percent,
+    };
+  };
+
+  if (sessionStatus === 'pre-market' || marketStatus === 'Pre-Market') {
+    return deriveFromLive('Pre');
   }
 
-  if (sessionStatus === 'post-market' && Number.isFinite(post.percent)) {
+  if (sessionStatus === 'post-market' || marketStatus === 'After Hours') {
+    return deriveFromLive('Post');
+  }
+
+  if (marketStatus === 'Open') {
+    return {
+      label: 'Live',
+      price: Number.isFinite(livePrice) ? livePrice : null,
+      change: mainMetric.change,
+      percent: mainMetric.percent,
+    };
+  }
+
+  const pre = buildMetric('preMarket');
+  const post = buildMetric('afterHours');
+
+  if (Number.isFinite(post.percent) || Number.isFinite(post.change)) {
     return { label: 'Post', ...post };
   }
 
-  if (Number.isFinite(post.percent)) {
-    return { label: 'Post', ...post };
-  }
-
-  if (Number.isFinite(pre.percent)) {
+  if (Number.isFinite(pre.percent) || Number.isFinite(pre.change)) {
     return { label: 'Pre', ...pre };
   }
 
@@ -179,19 +206,49 @@ const extractInputSymbols = (value) =>
     .map((item) => normalizeSymbol(item))
     .filter(Boolean);
 
-const getFallbackWebSocketUrl = () =>
-  TWELVE_DATA_CLIENT_API_KEY
-    ? `wss://ws.twelvedata.com/v1/quotes/price?apikey=${encodeURIComponent(TWELVE_DATA_CLIENT_API_KEY)}`
-    : '';
+const buildExtCell = (symbol, metric, mode = 'percent') => {
+  const toneValue = Number.isFinite(toNumber(metric?.percent)) ? metric?.percent : metric?.change;
+  const directionClass = getDirectionClass(toneValue);
+  const hasValue = mode === 'dollar'
+    ? Number.isFinite(toNumber(metric?.change))
+    : Number.isFinite(toNumber(metric?.percent));
 
-const buildExtCell = (metric) => {
-  const directionClass = getDirectionClass(metric?.percent);
-  if (!Number.isFinite(toNumber(metric?.percent))) {
+  if (!hasValue) {
     return '<span class="watchlist-value watchlist-value-neutral">--</span>';
   }
 
-  return `<span class="watchlist-value ${directionClass}">${metric.label} ${formatSignedPercent(metric.percent)}</span>`;
+  const renderedValue = mode === 'dollar'
+    ? formatSigned(metric?.change)
+    : formatSignedPercent(metric?.percent);
+
+  return `
+    <button
+      type="button"
+      class="watchlist-ext-btn watchlist-value ${directionClass}"
+      data-symbol="${symbol}"
+      title="Toggle Ext between % and $"
+    >
+      ${metric.label} ${renderedValue}
+    </button>
+  `;
 };
+
+const buildDeleteCell = (symbol) => `
+  <button
+    type="button"
+    class="watchlist-remove-btn"
+    data-symbol="${symbol}"
+    aria-label="Remove ${symbol}"
+    title="Remove ${symbol}"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14h10l1-14" />
+      <path d="M10 10v7M14 10v7" />
+    </svg>
+  </button>
+`;
 
 function generateWatchlistColumns(rows) {
   const columns = {
@@ -218,6 +275,7 @@ function generateWatchlistColumns(rows) {
 export default function AnalyticsPage() {
   const [symbols, setSymbols] = useState(loadStoredSymbols);
   const [quotesBySymbol, setQuotesBySymbol] = useState({});
+  const [extDisplayModeBySymbol, setExtDisplayModeBySymbol] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -255,6 +313,21 @@ export default function AnalyticsPage() {
       delete next[target];
       return next;
     });
+    setExtDisplayModeBySymbol((previous) => {
+      const next = { ...previous };
+      delete next[target];
+      return next;
+    });
+  }, []);
+
+  const toggleExtDisplayMode = useCallback((symbolToToggle) => {
+    const target = normalizeSymbol(symbolToToggle);
+    if (!target) return;
+
+    setExtDisplayModeBySymbol((previous) => ({
+      ...previous,
+      [target]: previous[target] === 'dollar' ? 'percent' : 'dollar',
+    }));
   }, []);
 
   useEffect(() => {
@@ -262,6 +335,13 @@ export default function AnalyticsPage() {
     if (!container) return undefined;
 
     const handleGridClick = (event) => {
+      const extButton = event.target?.closest?.('.watchlist-ext-btn');
+      if (extButton) {
+        const targetSymbol = normalizeSymbol(extButton.getAttribute('data-symbol'));
+        if (targetSymbol) toggleExtDisplayMode(targetSymbol);
+        return;
+      }
+
       const button = event.target?.closest?.('.watchlist-remove-btn');
       if (!button) return;
       const targetSymbol = normalizeSymbol(button.getAttribute('data-symbol'));
@@ -271,7 +351,7 @@ export default function AnalyticsPage() {
 
     container.addEventListener('click', handleGridClick);
     return () => container.removeEventListener('click', handleGridClick);
-  }, [removeSymbol]);
+  }, [removeSymbol, toggleExtDisplayMode]);
 
   const fetchQuotes = useCallback(async () => {
     if (symbols.length === 0) {
@@ -301,19 +381,37 @@ export default function AnalyticsPage() {
         if (!symbol) return;
 
         const raw = row?.raw && typeof row.raw === 'object' ? row.raw : {};
+        const parsedPrice = toNumber(row?.price ?? raw?.close ?? raw?.price ?? raw?.last);
+        const parsedChange = toNumber(row?.change ?? raw?.change);
+        const parsedPercent = toNumber(row?.percentChange ?? raw?.percent_change ?? raw?.percentChange);
+        let parsedPreviousClose = toNumber(
+          row?.previousClose
+          ?? raw?.previous_close
+          ?? raw?.previousClose
+          ?? raw?.prev_close
+          ?? raw?.prevClose
+        );
+
+        if (!Number.isFinite(parsedPreviousClose) && Number.isFinite(parsedPrice) && Number.isFinite(parsedChange)) {
+          parsedPreviousClose = parsedPrice - parsedChange;
+        }
+
+        if (
+          !Number.isFinite(parsedPreviousClose)
+          && Number.isFinite(parsedPrice)
+          && Number.isFinite(parsedPercent)
+          && parsedPercent !== -100
+        ) {
+          parsedPreviousClose = parsedPrice / (1 + (parsedPercent / 100));
+        }
+
         next[symbol] = {
           symbol,
           name: String(row?.name || raw?.name || symbol).trim(),
-          price: toNumber(row?.price ?? raw?.close ?? raw?.price ?? raw?.last),
-          change: toNumber(row?.change ?? raw?.change),
-          percentChange: toNumber(row?.percentChange ?? raw?.percent_change ?? raw?.percentChange),
-          previousClose: toNumber(
-            row?.previousClose
-            ?? raw?.previous_close
-            ?? raw?.previousClose
-            ?? raw?.prev_close
-            ?? raw?.prevClose
-          ),
+          price: parsedPrice,
+          change: parsedChange,
+          percentChange: parsedPercent,
+          previousClose: parsedPreviousClose,
           preMarketPrice: toNumber(row?.preMarketPrice ?? raw?.pre_market_price ?? raw?.premarket_price),
           preMarketChange: toNumber(row?.preMarketChange ?? raw?.pre_market_change ?? raw?.premarket_change),
           preMarketChangePercent: toNumber(
@@ -357,213 +455,100 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (symbols.length === 0) return undefined;
+    const unsubscribeQuotes = subscribeTwelveDataQuotes(symbols, (update) => {
+      const symbol = normalizeSymbol(update?.symbol);
+      const livePrice = toNumber(update?.price);
+      if (!symbol || !Number.isFinite(livePrice)) return;
 
-    let socket = null;
-    let reconnectTimer = null;
-    let closedManually = false;
-    const subscribedSymbols = symbols.map((item) => normalizeSymbol(item)).filter(Boolean);
+      setQuotesBySymbol((previous) => {
+        const current = previous[symbol];
+        if (!current) return previous;
 
-    const connect = async () => {
-      try {
-        let websocketUrl = '';
-
-        try {
-          const response = await fetch(`/api/lse/ws-config?symbols=${encodeURIComponent(symbols.join(','))}`, {
-            cache: 'no-store',
-          });
-          const payload = await response.json().catch(() => ({}));
-          if (response.ok) {
-            websocketUrl = String(payload?.websocketUrl || '').trim();
+        let previousClose = toNumber(current.previousClose);
+        if (!Number.isFinite(previousClose)) {
+          const knownPrice = toNumber(current.price);
+          const knownChange = toNumber(current.change);
+          const knownPercent = toNumber(current.percentChange);
+          if (Number.isFinite(knownPrice) && Number.isFinite(knownChange)) {
+            previousClose = knownPrice - knownChange;
+          } else if (Number.isFinite(knownPrice) && Number.isFinite(knownPercent) && knownPercent !== -100) {
+            previousClose = knownPrice / (1 + (knownPercent / 100));
           }
-        } catch {
-          websocketUrl = '';
         }
 
-        if (!websocketUrl) {
-          websocketUrl = getFallbackWebSocketUrl();
+        let nextChange = toNumber(update?.change);
+        let nextPercent = toNumber(update?.percentChange);
+
+        if (!Number.isFinite(nextChange) && Number.isFinite(previousClose)) {
+          nextChange = livePrice - previousClose;
         }
 
-        if (!websocketUrl) {
-          throw new Error('Missing Twelve Data websocket URL');
+        if (!Number.isFinite(nextPercent) && Number.isFinite(nextChange) && Number.isFinite(previousClose) && previousClose !== 0) {
+          nextPercent = (nextChange / previousClose) * 100;
         }
 
-        socket = new WebSocket(websocketUrl);
+        if (!Number.isFinite(nextChange) && Number.isFinite(nextPercent) && Number.isFinite(previousClose)) {
+          nextChange = previousClose * (nextPercent / 100);
+        }
 
-        socket.onopen = () => {
-          if (subscribedSymbols.length === 0) return;
-          socket?.send(
-            JSON.stringify({
-              action: 'subscribe',
-              params: { symbols: subscribedSymbols.join(',') },
-            })
-          );
+        const sessionStatus = getExtendedHoursStatus();
+        const marketStatus = getMarketStatus();
+        const isPreMarket = sessionStatus === 'pre-market' || marketStatus === 'Pre-Market';
+        const isPostMarket = sessionStatus === 'post-market' || marketStatus === 'After Hours';
+
+        const next = {
+          ...current,
+          price: livePrice,
+          change: Number.isFinite(nextChange) ? nextChange : toNumber(current.change),
+          percentChange: Number.isFinite(nextPercent) ? nextPercent : toNumber(current.percentChange),
+          volume: toNumber(update?.volume ?? current.volume),
+          timestamp: update?.timestamp || new Date().toISOString(),
         };
 
-        socket.onmessage = (event) => {
-          let messagePayload;
-          try {
-            messagePayload = JSON.parse(event.data);
-          } catch {
-            return;
+        if (Number.isFinite(previousClose)) {
+          next.previousClose = previousClose;
+        }
+
+        if (isPreMarket) {
+          next.preMarketPrice = livePrice;
+          if (Number.isFinite(previousClose)) {
+            const preChange = livePrice - previousClose;
+            next.preMarketChange = preChange;
+            next.preMarketChangePercent = previousClose !== 0 ? (preChange / previousClose) * 100 : null;
+          } else {
+            next.preMarketChange = next.change;
+            next.preMarketChangePercent = next.percentChange;
           }
+        }
 
-          const isPriceEvent = messagePayload?.event === 'price' || messagePayload?.symbol;
-          if (!isPriceEvent) return;
+        if (isPostMarket) {
+          next.afterHoursPrice = livePrice;
+          if (Number.isFinite(previousClose)) {
+            const postChange = livePrice - previousClose;
+            next.afterHoursChange = postChange;
+            next.afterHoursChangePercent = previousClose !== 0 ? (postChange / previousClose) * 100 : null;
+          } else {
+            next.afterHoursChange = next.change;
+            next.afterHoursChangePercent = next.percentChange;
+          }
+        }
 
-          const symbol = normalizeSymbol(messagePayload?.symbol);
-          const livePrice = toNumber(messagePayload?.price ?? messagePayload?.close ?? messagePayload?.last);
-          if (!symbol || !Number.isFinite(livePrice)) return;
-
-          setQuotesBySymbol((previous) => {
-            const current = previous[symbol];
-            if (!current) return previous;
-
-            const sessionStatus = getExtendedHoursStatus();
-            const previousClose = toNumber(current.previousClose);
-            const payloadPreviousClose = toNumber(
-              messagePayload?.previous_close
-              ?? messagePayload?.previousClose
-              ?? messagePayload?.prev_close
-              ?? messagePayload?.prevClose
-            );
-            const next = {
-              ...current,
-              price: livePrice,
-              change: toNumber(messagePayload?.change ?? current.change),
-              percentChange: toNumber(messagePayload?.percent_change ?? messagePayload?.percentChange ?? current.percentChange),
-              volume: toNumber(messagePayload?.volume ?? messagePayload?.day_volume ?? current.volume),
-              timestamp: messagePayload?.timestamp || messagePayload?.datetime || new Date().toISOString(),
-            };
-            if (Number.isFinite(payloadPreviousClose)) {
-              next.previousClose = payloadPreviousClose;
-            }
-
-            const effectivePreviousClose = Number.isFinite(payloadPreviousClose) ? payloadPreviousClose : previousClose;
-
-            const payloadPreMarketPrice = toNumber(
-              messagePayload?.pre_market_price
-              ?? messagePayload?.premarket_price
-              ?? messagePayload?.preMarketPrice
-            );
-            const payloadPreMarketChange = toNumber(
-              messagePayload?.pre_market_change
-              ?? messagePayload?.premarket_change
-              ?? messagePayload?.preMarketChange
-            );
-            const payloadPreMarketChangePercent = toNumber(
-              messagePayload?.pre_market_change_percent
-              ?? messagePayload?.premarket_change_percent
-              ?? messagePayload?.preMarketChangePercent
-            );
-            const payloadAfterHoursPrice = toNumber(
-              messagePayload?.after_hours_price
-              ?? messagePayload?.post_market_price
-              ?? messagePayload?.afterHoursPrice
-            );
-            const payloadAfterHoursChange = toNumber(
-              messagePayload?.after_hours_change
-              ?? messagePayload?.post_market_change
-              ?? messagePayload?.afterHoursChange
-            );
-            const payloadAfterHoursChangePercent = toNumber(
-              messagePayload?.after_hours_change_percent
-              ?? messagePayload?.post_market_change_percent
-              ?? messagePayload?.afterHoursChangePercent
-            );
-            const payloadGenericChange = toNumber(messagePayload?.change ?? next.change);
-            const payloadGenericPercent = toNumber(
-              messagePayload?.percent_change
-              ?? messagePayload?.percentChange
-              ?? next.percentChange
-            );
-
-            if (Number.isFinite(payloadPreMarketPrice)) {
-              next.preMarketPrice = payloadPreMarketPrice;
-              if (Number.isFinite(effectivePreviousClose)) {
-                const preChange = payloadPreMarketPrice - effectivePreviousClose;
-                next.preMarketChange = preChange;
-                next.preMarketChangePercent = effectivePreviousClose !== 0
-                  ? (preChange / effectivePreviousClose) * 100
-                  : null;
-              } else {
-                next.preMarketChange = Number.isFinite(payloadPreMarketChange)
-                  ? payloadPreMarketChange
-                  : payloadGenericChange;
-                next.preMarketChangePercent = Number.isFinite(payloadPreMarketChangePercent)
-                  ? payloadPreMarketChangePercent
-                  : payloadGenericPercent;
-              }
-            } else if (sessionStatus === 'pre-market') {
-              next.preMarketPrice = livePrice;
-              if (Number.isFinite(effectivePreviousClose)) {
-                const preChange = livePrice - effectivePreviousClose;
-                next.preMarketChange = preChange;
-                next.preMarketChangePercent = effectivePreviousClose !== 0
-                  ? (preChange / effectivePreviousClose) * 100
-                  : null;
-              } else {
-                next.preMarketChange = payloadGenericChange;
-                next.preMarketChangePercent = payloadGenericPercent;
-              }
-            }
-
-            if (Number.isFinite(payloadAfterHoursPrice)) {
-              next.afterHoursPrice = payloadAfterHoursPrice;
-              if (Number.isFinite(effectivePreviousClose)) {
-                const postChange = payloadAfterHoursPrice - effectivePreviousClose;
-                next.afterHoursChange = postChange;
-                next.afterHoursChangePercent = effectivePreviousClose !== 0
-                  ? (postChange / effectivePreviousClose) * 100
-                  : null;
-              } else {
-                next.afterHoursChange = Number.isFinite(payloadAfterHoursChange)
-                  ? payloadAfterHoursChange
-                  : payloadGenericChange;
-                next.afterHoursChangePercent = Number.isFinite(payloadAfterHoursChangePercent)
-                  ? payloadAfterHoursChangePercent
-                  : payloadGenericPercent;
-              }
-            } else if (sessionStatus === 'post-market') {
-              next.afterHoursPrice = livePrice;
-              if (Number.isFinite(effectivePreviousClose)) {
-                const postChange = livePrice - effectivePreviousClose;
-                next.afterHoursChange = postChange;
-                next.afterHoursChangePercent = effectivePreviousClose !== 0
-                  ? (postChange / effectivePreviousClose) * 100
-                  : null;
-              } else {
-                next.afterHoursChange = payloadGenericChange;
-                next.afterHoursChangePercent = payloadGenericPercent;
-              }
-            }
-
-            const derived = deriveMainChangeAndPercent(next);
-            next.change = derived.change;
-            next.percentChange = derived.percent;
-
-            return {
-              ...previous,
-              [symbol]: next,
-            };
-          });
+        return {
+          ...previous,
+          [symbol]: next,
         };
+      });
+    });
 
-        socket.onclose = () => {
-          if (closedManually) return;
-          reconnectTimer = window.setTimeout(connect, 3000);
-        };
-      } catch {
-        if (closedManually) return;
-        reconnectTimer = window.setTimeout(connect, 3000);
-      };
-    };
-
-    connect();
+    const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
+      if (status?.error) {
+        setFetchError(status.error);
+      }
+    });
 
     return () => {
-      closedManually = true;
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      if (socket) socket.close();
+      unsubscribeQuotes?.();
+      unsubscribeStatus?.();
     };
   }, [symbols]);
 
@@ -614,37 +599,31 @@ export default function AnalyticsPage() {
 
   const gridRows = useMemo(() => {
     const sessionStatus = getExtendedHoursStatus();
+    const marketStatus = getMarketStatus();
 
     return symbols.map((rawSymbol) => {
       const symbol = normalizeSymbol(rawSymbol);
       const quote = quotesBySymbol[symbol] || { symbol, name: symbol };
       const mainMetric = deriveMainChangeAndPercent(quote);
-      const extMetric = deriveExtendedMetric(quote, sessionStatus);
+      const extMetric = deriveExtendedMetric(quote, sessionStatus, marketStatus);
+      const extMode = extDisplayModeBySymbol[symbol] === 'dollar' ? 'dollar' : 'percent';
       const directionClass = getDirectionClass(mainMetric.percent ?? mainMetric.change);
 
       return {
         symbol: `
           <span class="watchlist-symbol-cell">
             <span class="watchlist-symbol-text">${symbol}</span>
-            <button
-              type="button"
-              class="watchlist-remove-btn"
-              data-symbol="${symbol}"
-              aria-label="Remove ${symbol}"
-              title="Remove ${symbol}"
-            >
-              x
-            </button>
+            ${buildDeleteCell(symbol)}
           </span>
         `,
         last: `<span class="watchlist-value ${directionClass}">${formatPrice(quote.price)}</span>`,
         chg: `<span class="watchlist-value ${directionClass}">${formatSigned(mainMetric.change)}</span>`,
         chgPercent: `<span class="watchlist-value ${directionClass}">${formatSignedPercent(mainMetric.percent)}</span>`,
         vol: `<span class="watchlist-value watchlist-value-neutral">${formatVolume(quote.volume)}</span>`,
-        ext: buildExtCell(extMetric),
+        ext: buildExtCell(symbol, extMetric, extMode),
       };
     });
-  }, [quotesBySymbol, symbols]);
+  }, [extDisplayModeBySymbol, quotesBySymbol, symbols]);
 
   const dataTable = useMemo(
     () => ({
