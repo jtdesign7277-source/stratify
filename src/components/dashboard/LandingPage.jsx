@@ -1,17 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
   Ban,
   Bell,
+  Bolt,
   Brain,
+  CalendarDays,
   ChevronDown,
+  CircleDollarSign,
   Code,
   Crosshair,
   Eye,
   Globe,
   Lock,
   Monitor,
+  Search,
   Shield,
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
@@ -289,6 +293,50 @@ const LANDING_INTEGRATIONS = [
   { name: 'Vercel', glyph: '◯' },
 ];
 
+const FEATURE_NAV_ITEMS = [
+  {
+    id: 'overview',
+    title: 'Features overview',
+    description: 'See every Stratify module connected in one workflow.',
+    icon: Bolt,
+    detailTitle: 'Everything you need in one command center.',
+    detailBody: 'War Room, Trader, X-Ray, Calendar, Portfolio, and Sophia AI stay synced from signal to execution.',
+    chips: ['War Room', 'Trader', 'X-Ray'],
+    cta: 'Explore features',
+  },
+  {
+    id: 'earnings',
+    title: 'Earnings',
+    description: 'Press releases, calls and transcripts.',
+    badge: 'New',
+    icon: CalendarDays,
+    detailTitle: 'Earnings intelligence, ready before the open.',
+    detailBody: 'Track reports, read transcripts, and react faster to surprises with context from Sophia.',
+    chips: ['Upcoming reports', 'Transcripts', 'Surprise tracker'],
+    cta: 'Open earnings flow',
+  },
+  {
+    id: 'portfolio',
+    title: 'Portfolio',
+    description: 'Easily sync your brokerage accounts.',
+    icon: CircleDollarSign,
+    detailTitle: 'Portfolio truth, not disconnected widgets.',
+    detailBody: 'Live holdings, P&L, and transaction drilldown tied directly to the strategy that placed each trade.',
+    chips: ['Holdings grid', 'P&L drilldown', 'Strategy attribution'],
+    cta: 'See portfolio view',
+  },
+  {
+    id: 'stock-finder',
+    title: 'Stock Finder',
+    description: 'Find any stock with natural language.',
+    icon: Search,
+    detailTitle: 'The smartest stock finder in the world.',
+    detailBody: 'Ask in plain English and screen by catalysts, revenue acceleration, quality, and momentum in seconds.',
+    chips: ['AI stocks that beat estimates', 'AI with growing revenue'],
+    cta: 'Start screening',
+  },
+];
+
 const sectionMotion = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
@@ -340,7 +388,11 @@ const landingStyles = `
 `;
 
 const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
-  const [openFaq, setOpenFaq] = useState(0);
+  const [isFeatureMenuOpen, setIsFeatureMenuOpen] = useState(false);
+  const [activeFeatureId, setActiveFeatureId] = useState(FEATURE_NAV_ITEMS[0].id);
+  const featureMenuRef = useRef(null);
+
+  const activeFeature = FEATURE_NAV_ITEMS.find((item) => item.id === activeFeatureId) || FEATURE_NAV_ITEMS[0];
 
   useEffect(() => {
     const html = document.documentElement;
@@ -351,13 +403,43 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
     };
   }, []);
 
+  useEffect(() => {
+    if (!isFeatureMenuOpen) return undefined;
+
+    const handleOutsideClick = (event) => {
+      if (featureMenuRef.current && !featureMenuRef.current.contains(event.target)) {
+        setIsFeatureMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsFeatureMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isFeatureMenuOpen]);
+
   const handleGetStarted = () => {
+    setIsFeatureMenuOpen(false);
     if (onSignUp) {
       onSignUp();
       return;
     }
 
     onEnter?.();
+  };
+
+  const jumpToSection = (id) => {
+    const target = typeof document !== 'undefined' ? document.getElementById(id) : null;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -470,7 +552,116 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
 
       {/* Top Row (integrated into page, no separate header bar) */}
       <nav className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
-        <span className="text-white/95 font-bold text-sm tracking-[0.3em]">STRATIFY</span>
+        <div className="flex items-center gap-7">
+          <span className="text-white/95 font-bold text-sm tracking-[0.3em]">STRATIFY</span>
+          <div className="hidden md:flex items-center gap-6 text-sm text-white/75">
+            <div className="relative" ref={featureMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsFeatureMenuOpen((open) => !open)}
+                className="inline-flex items-center gap-1.5 text-white/85 transition hover:text-white"
+                aria-expanded={isFeatureMenuOpen}
+                aria-haspopup="dialog"
+              >
+                Features
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${isFeatureMenuOpen ? 'rotate-180' : 'rotate-0'}`}
+                  strokeWidth={1.8}
+                />
+              </button>
+
+              {isFeatureMenuOpen && (
+                <div className="absolute left-0 top-full mt-3 w-[min(92vw,820px)] overflow-hidden rounded-2xl border border-white/15 bg-[linear-gradient(158deg,rgba(16,20,35,0.9),rgba(8,11,22,0.9))] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
+                  <div className="grid md:grid-cols-[320px_minmax(0,1fr)]">
+                    <div className="border-r border-white/10">
+                      {FEATURE_NAV_ITEMS.map((item, index) => {
+                        const Icon = item.icon;
+                        const isActive = activeFeatureId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setActiveFeatureId(item.id)}
+                            className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'} ${index === 1 ? 'border-t border-white/10' : ''}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <Icon className="mt-1 h-4 w-4 text-white/65" strokeWidth={1.8} />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-base font-medium leading-none text-white">{item.title}</p>
+                                  {item.badge ? (
+                                    <span className="rounded-full border border-emerald-300/30 bg-emerald-500/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-emerald-200">
+                                      {item.badge}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-1 text-sm text-white/50">{item.description}</p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="px-6 py-5">
+                      <p className="text-sm text-white/62">
+                        {activeFeature.id === 'stock-finder' ? 'Stocks with AI exposure' : 'Feature spotlight'}
+                      </p>
+                      <h3 className="mt-3 text-4xl font-semibold leading-tight text-white">
+                        {activeFeature.detailTitle}
+                      </h3>
+                      <p className="mt-3 text-base leading-relaxed text-white/70">
+                        {activeFeature.detailBody}
+                      </p>
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {activeFeature.chips.map((chip) => (
+                          <span
+                            key={`${activeFeature.id}-${chip}`}
+                            className="rounded-full border border-white/16 bg-black/25 px-3 py-1 text-xs text-white/80"
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsFeatureMenuOpen(false);
+                          handleGetStarted();
+                        }}
+                        className="mt-7 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/18"
+                      >
+                        {activeFeature.cta}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsFeatureMenuOpen(false);
+                jumpToSection('pricing-section');
+              }}
+              className="text-white/70 transition hover:text-white"
+            >
+              Pricing
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsFeatureMenuOpen(false);
+                jumpToSection('updates-section');
+              }}
+              className="text-white/70 transition hover:text-white"
+            >
+              Updates
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-4">
           <a
             href="https://discord.gg/6RPsREggYV"
@@ -577,7 +768,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           </div>
         </motion.section>
 
-        <motion.section {...sectionMotion} className="border-t border-white/8 py-24 px-6">
+        <motion.section id="pricing-section" {...sectionMotion} className="border-t border-white/8 py-24 px-6">
           <div className="max-w-5xl mx-auto">
             <h2
               className="text-center text-white text-4xl md:text-5xl leading-tight"
@@ -609,7 +800,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           </div>
         </motion.section>
 
-        <motion.section {...sectionMotion} className="border-t border-white/8 py-24 px-6">
+        <motion.section id="updates-section" {...sectionMotion} className="border-t border-white/8 py-24 px-6">
           <div className="max-w-6xl mx-auto">
             <h2
               className="text-center text-white text-4xl md:text-5xl leading-tight"
