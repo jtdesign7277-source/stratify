@@ -1972,7 +1972,10 @@ export default function TraderPage({
 
       const rawChange = toNumber(payload?.change);
       const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
-      const inPreMarketSession = getExtendedHoursStatus() === 'pre-market';
+      const currentExtendedHoursStatus = getExtendedHoursStatus();
+      const inPreMarketSession = currentExtendedHoursStatus === 'pre-market';
+      const inPostMarketSession = currentExtendedHoursStatus === 'post-market';
+      const inExtendedHoursSession = inPreMarketSession || inPostMarketSession;
       const marketOpenFromPayload = parseMarketOpen(
         payload?.is_market_open
         ?? payload?.isMarketOpen
@@ -2055,7 +2058,9 @@ export default function TraderPage({
               : toNumber(previousQuote?.previousClose),
             isMarketOpen: marketOpenFromPayload !== null
               ? marketOpenFromPayload
-              : previousQuote?.isMarketOpen ?? true,
+              : typeof previousQuote?.isMarketOpen === 'boolean'
+                ? previousQuote.isMarketOpen
+                : !inExtendedHoursSession,
             timestamp: payload?.timestamp || payload?.datetime || Date.now(),
             name: String(payload?.name || payload?.instrument_name || payload?.display_name || previousQuote?.name || '').trim() || undefined,
             source: 'stream',
@@ -2541,12 +2546,16 @@ export default function TraderPage({
                                 quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
                               );
                               const previousClose = resolvePreviousCloseFromQuote(quote);
-                              const liveChange = Number.isFinite(price) && Number.isFinite(previousClose)
-                                ? price - previousClose
-                                : dayChange;
-                              const liveChangePercent = Number.isFinite(liveChange) && Number.isFinite(previousClose) && previousClose !== 0
-                                ? (liveChange / previousClose) * 100
-                                : dayChangePercent;
+                              const liveDollarChange = Number.isFinite(dayChange)
+                                ? dayChange
+                                : Number.isFinite(price) && Number.isFinite(previousClose)
+                                  ? price - previousClose
+                                  : null;
+                              const livePercentChange = Number.isFinite(dayChangePercent)
+                                ? dayChangePercent
+                                : Number.isFinite(liveDollarChange) && Number.isFinite(previousClose) && previousClose !== 0
+                                  ? (liveDollarChange / previousClose) * 100
+                                  : null;
                               const quoteMarketOpen = parseMarketOpen(quote?.isMarketOpen ?? quote?.is_market_open);
                               const secondarySession = quoteMarketOpen === true
                                 ? 'live'
@@ -2556,11 +2565,11 @@ export default function TraderPage({
                                     ? 'post-market'
                                     : 'live';
                               const secondaryDollarChange = secondarySession === 'pre-market'
-                                ? (Number.isFinite(preMarketChange) ? preMarketChange : liveChange)
-                                : liveChange;
+                                ? (Number.isFinite(preMarketChange) ? preMarketChange : liveDollarChange)
+                                : liveDollarChange;
                               const secondaryPercentChange = secondarySession === 'pre-market'
-                                ? (Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : liveChangePercent)
-                                : liveChangePercent;
+                                ? (Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : livePercentChange)
+                                : livePercentChange;
                               const secondaryReferenceChange = Number.isFinite(secondaryPercentChange)
                                 ? secondaryPercentChange
                                 : secondaryDollarChange;
