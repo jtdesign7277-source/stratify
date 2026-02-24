@@ -1,25 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Grid from '@highcharts/grid-lite';
-import { ChevronDown, Link2, Plus, RefreshCw, Share2, X } from 'lucide-react';
-import { getExtendedHoursStatus, isMarketOpen } from '../../lib/marketHours';
+import { Plus, Search, X } from 'lucide-react';
 import '@highcharts/grid-lite/css/grid.css';
 import './AnalyticsWatchlistGrid.css';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY;
-
-const DEFAULT_SYMBOLS = ['NDQ', 'SPX', 'DJI', 'DXY', 'VIX', 'SOFI', 'HIMS', 'FUBO', 'NIO', 'PYPL'];
 const MAX_SYMBOLS = 120;
 const QUOTE_POLL_INTERVAL_MS = 20000;
-const OVERVIEW_TABS = ['Overview', 'Earnings', 'Dividends', 'News'];
-const DATA_TABS = ['Price', 'Financials', 'Performance', 'Risk', 'Technicals'];
-const SESSION_LABELS = {
-  regular: 'Live',
-  premarket: 'Pre',
-  postmarket: 'After',
-  closed: 'Closed',
-};
+const DEFAULT_SYMBOLS = ['SOFI', 'HIMS', 'FUBO', 'NIO', 'PYPL', 'NVDA', 'AAPL', 'PLTR', 'AMD'];
 
 const normalizeSymbol = (value) =>
   String(value || '')
@@ -37,34 +27,13 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const formatSignedPercent = (value) => {
-  const number = toNumber(value);
-  if (!Number.isFinite(number)) return '--';
-  return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`;
-};
-
-const formatPriceWithCurrency = (value) => {
-  const number = toNumber(value);
-  if (!Number.isFinite(number)) return '--';
-  return `${number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-};
-
-const formatPriceNumber = (value) => {
+const formatPrice = (value) => {
   const number = toNumber(value);
   if (!Number.isFinite(number)) return '--';
   return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const formatSignedUsd = (value) => {
-  const number = toNumber(value);
-  if (!Number.isFinite(number)) return '--';
-  return `${number >= 0 ? '+' : ''}${number.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} USD`;
-};
-
-const formatSignedNumber = (value) => {
+const formatSigned = (value) => {
   const number = toNumber(value);
   if (!Number.isFinite(number)) return '--';
   return `${number >= 0 ? '+' : ''}${number.toLocaleString('en-US', {
@@ -73,98 +42,27 @@ const formatSignedNumber = (value) => {
   })}`;
 };
 
-const formatCompactPlain = (value) => {
+const formatSignedPercent = (value) => {
   const number = toNumber(value);
   if (!Number.isFinite(number)) return '--';
-  if (Math.abs(number) >= 1e9) return `${(number / 1e9).toFixed(2)} B`;
-  if (Math.abs(number) >= 1e6) return `${(number / 1e6).toFixed(2)} M`;
-  if (Math.abs(number) >= 1e3) return `${(number / 1e3).toFixed(2)} K`;
+  return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`;
+};
+
+const formatVolume = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  if (Math.abs(number) >= 1e9) return `${(number / 1e9).toFixed(2)}B`;
+  if (Math.abs(number) >= 1e6) return `${(number / 1e6).toFixed(2)}M`;
+  if (Math.abs(number) >= 1e3) return `${(number / 1e3).toFixed(2)}K`;
   return number.toLocaleString('en-US');
 };
 
-const formatCompactUsd = (value) => {
-  const number = toNumber(value);
-  if (!Number.isFinite(number)) return '--';
-  if (Math.abs(number) >= 1e12) return `${(number / 1e12).toFixed(2)} T USD`;
-  if (Math.abs(number) >= 1e9) return `${(number / 1e9).toFixed(2)} B USD`;
-  if (Math.abs(number) >= 1e6) return `${(number / 1e6).toFixed(2)} M USD`;
-  return `${number.toLocaleString('en-US')} USD`;
-};
+const deriveChangeAndPercent = (quote = {}) => {
+  const price = toNumber(quote?.price);
+  const previousClose = toNumber(quote?.previousClose);
 
-const formatTimestamp = (value) => {
-  if (!value) return '--';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '--';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
-const inferMarketSession = () => {
-  const extended = getExtendedHoursStatus();
-  if (extended === 'pre-market') return 'premarket';
-  if (extended === 'post-market') return 'postmarket';
-  if (isMarketOpen()) return 'regular';
-  return 'closed';
-};
-
-const extractInputSymbols = (value) =>
-  String(value || '')
-    .split(',')
-    .map((item) => normalizeSymbol(item))
-    .filter(Boolean);
-
-const extractWatchlistSymbols = (watchlist = []) => {
-  const source = Array.isArray(watchlist) ? watchlist : [];
-  return source
-    .map((entry) => (typeof entry === 'string' ? entry : entry?.symbol))
-    .map((entry) => normalizeSymbol(entry))
-    .filter(Boolean);
-};
-
-const loadStoredSymbols = (fallbackSymbols = DEFAULT_SYMBOLS) => {
-  if (typeof window === 'undefined') return fallbackSymbols;
-  try {
-    const raw = JSON.parse(localStorage.getItem(WATCHLIST_STORAGE_KEY) || '[]');
-    const source = Array.isArray(raw) ? raw : [];
-    const cleaned = source.map((symbol) => normalizeSymbol(symbol)).filter(Boolean);
-    if (cleaned.length > 0) return cleaned.slice(0, MAX_SYMBOLS);
-  } catch {}
-  return fallbackSymbols.slice(0, MAX_SYMBOLS);
-};
-
-const getAfterHoursValue = (quote = {}, field = 'price') => {
-  if (field === 'price') {
-    return toNumber(
-      quote?.afterHoursPrice
-      ?? quote?.after_hours_price
-      ?? quote?.postMarketPrice
-      ?? quote?.post_market_price
-      ?? quote?.postmarket_price
-      ?? quote?.postmarketPrice
-    );
-  }
-  if (field === 'change') {
-    return toNumber(
-      quote?.afterHoursChange
-      ?? quote?.after_hours_change
-      ?? quote?.postMarketChange
-      ?? quote?.post_market_change
-      ?? quote?.postmarket_change
-      ?? quote?.postmarketChange
-    );
-  }
-  return toNumber(
-    quote?.afterHoursChangePercent
-    ?? quote?.after_hours_change_percent
-    ?? quote?.postMarketChangePercent
-    ?? quote?.post_market_change_percent
-    ?? quote?.postmarket_change_percent
-    ?? quote?.postmarketChangePercent
-  );
-};
-
-const deriveChangePair = (price, rawChange, rawPercent, previousClose) => {
-  let change = toNumber(rawChange);
-  let percent = toNumber(rawPercent);
+  let change = toNumber(quote?.change);
+  let percent = toNumber(quote?.percentChange);
 
   if (!Number.isFinite(change) && Number.isFinite(price) && Number.isFinite(previousClose)) {
     change = price - previousClose;
@@ -182,97 +80,59 @@ const deriveChangePair = (price, rawChange, rawPercent, previousClose) => {
   };
 };
 
-const inferExtendedFromLive = (price, previousClose) => {
-  if (!Number.isFinite(price) || !Number.isFinite(previousClose) || previousClose === 0) {
-    return { change: null, percent: null };
-  }
-  const change = price - previousClose;
-  return {
-    change,
-    percent: (change / previousClose) * 100,
-  };
+const loadStoredSymbols = () => {
+  if (typeof window === 'undefined') return DEFAULT_SYMBOLS;
+  try {
+    const raw = JSON.parse(localStorage.getItem(WATCHLIST_STORAGE_KEY) || '[]');
+    const source = Array.isArray(raw) ? raw : [];
+    const cleaned = source.map((symbol) => normalizeSymbol(symbol)).filter(Boolean);
+    if (cleaned.length > 0) return cleaned.slice(0, MAX_SYMBOLS);
+  } catch {}
+  return DEFAULT_SYMBOLS;
 };
 
-const getDisplayQuote = (quote = {}, session = 'regular') => {
-  const price = toNumber(quote?.price);
-  const previousClose = toNumber(quote?.previousClose);
-  const sessionLabel = SESSION_LABELS[session] || SESSION_LABELS.regular;
+const extractInputSymbols = (value) =>
+  String(value || '')
+    .split(',')
+    .map((item) => normalizeSymbol(item))
+    .filter(Boolean);
 
-  const regular = deriveChangePair(price, quote?.change, quote?.percentChange, previousClose);
-  const pre = deriveChangePair(
-    toNumber(quote?.preMarketPrice),
-    quote?.preMarketChange,
-    quote?.preMarketChangePercent,
-    previousClose
-  );
-  const post = deriveChangePair(
-    toNumber(quote?.afterHoursPrice),
-    quote?.afterHoursChange,
-    quote?.afterHoursChangePercent,
-    previousClose
-  );
-
-  if (session === 'premarket' && Number.isFinite(toNumber(quote?.preMarketPrice))) {
-    return {
-      sessionLabel,
-      price: toNumber(quote?.preMarketPrice),
-      change: pre.change,
-      percentChange: pre.percent,
-    };
-  }
-
-  if (session === 'postmarket' && Number.isFinite(toNumber(quote?.afterHoursPrice))) {
-    return {
-      sessionLabel,
-      price: toNumber(quote?.afterHoursPrice),
-      change: post.change,
-      percentChange: post.percent,
-    };
-  }
-
-  return {
-    sessionLabel,
-    price,
-    change: regular.change,
-    percentChange: regular.percent,
+function generateWatchlistColumns(rows) {
+  const columns = {
+    Ticker: [],
+    Last: [],
+    Change: [],
+    ChangePercent: [],
+    Volume: [],
   };
-};
 
-export default function AnalyticsPage({ watchlist = [] }) {
-  const seedSymbols = useMemo(() => {
-    const fromWatchlist = extractWatchlistSymbols(watchlist);
-    return fromWatchlist.length > 0 ? fromWatchlist : DEFAULT_SYMBOLS;
-  }, [watchlist]);
+  rows.forEach((row) => {
+    columns.Ticker.push(row.ticker);
+    columns.Last.push(row.last);
+    columns.Change.push(row.change);
+    columns.ChangePercent.push(row.changePercent);
+    columns.Volume.push(row.volume);
+  });
 
-  const [symbols, setSymbols] = useState(() => loadStoredSymbols(seedSymbols));
+  return columns;
+}
+
+export default function AnalyticsPage() {
+  const [symbols, setSymbols] = useState(loadStoredSymbols);
   const [quotesBySymbol, setQuotesBySymbol] = useState({});
-  const [symbolInput, setSymbolInput] = useState('');
-  const [isFetching, setIsFetching] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [fetchError, setFetchError] = useState('');
-  const [sessionMode, setSessionMode] = useState(inferMarketSession);
-  const [overviewTab, setOverviewTab] = useState('Overview');
-  const [dataTab, setDataTab] = useState('Price');
-  const [inlineFiltering, setInlineFiltering] = useState(true);
-  const [showCurrency, setShowCurrency] = useState(true);
+  const [isFetchingQuotes, setIsFetchingQuotes] = useState(false);
   const gridRef = useRef(null);
-
-  useEffect(() => {
-    if (symbols.length > 0) return;
-    if (seedSymbols.length === 0) return;
-    setSymbols(seedSymbols.slice(0, MAX_SYMBOLS));
-  }, [seedSymbols, symbols.length]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(symbols));
   }, [symbols]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSessionMode(inferMarketSession());
-    }, 45000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   const fetchQuotes = useCallback(async () => {
     if (symbols.length === 0) {
@@ -280,7 +140,7 @@ export default function AnalyticsPage({ watchlist = [] }) {
       return;
     }
 
-    setIsFetching(true);
+    setIsFetchingQuotes(true);
     setFetchError('');
 
     try {
@@ -295,82 +155,47 @@ export default function AnalyticsPage({ watchlist = [] }) {
         throw new Error(payload?.error || 'Failed to load watchlist quotes');
       }
 
-      const data = Array.isArray(payload?.data) ? payload.data : [];
-      const incomingBySymbol = {};
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const next = {};
 
-      data.forEach((row) => {
+      rows.forEach((row) => {
         const symbol = normalizeSymbol(row?.symbol);
         if (!symbol) return;
 
         const raw = row?.raw && typeof row.raw === 'object' ? row.raw : {};
-        const previousClose = toNumber(
-          row?.previousClose
-          ?? raw?.previous_close
-          ?? raw?.previousClose
-          ?? raw?.prev_close
-          ?? raw?.prevClose
-        );
-        const price = toNumber(row?.price);
-        const regular = deriveChangePair(price, row?.change, row?.percentChange, previousClose);
-
-        const preMarketPrice = toNumber(row?.preMarketPrice);
-        const preMarket = deriveChangePair(
-          preMarketPrice,
-          row?.preMarketChange,
-          row?.preMarketChangePercent,
-          previousClose
-        );
-
-        const afterHoursPrice = getAfterHoursValue(row, 'price');
-        const afterHours = deriveChangePair(
-          afterHoursPrice,
-          getAfterHoursValue(row, 'change'),
-          getAfterHoursValue(row, 'percent'),
-          previousClose
-        );
-
-        incomingBySymbol[symbol] = {
+        next[symbol] = {
           symbol,
-          name: String(row?.name || symbol).trim(),
-          exchange: String(row?.exchange || '').trim(),
-          price,
-          change: regular.change,
-          percentChange: regular.percent,
-          previousClose,
-          preMarketPrice,
-          preMarketChange: preMarket.change,
-          preMarketChangePercent: preMarket.percent,
-          afterHoursPrice,
-          afterHoursChange: afterHours.change,
-          afterHoursChangePercent: afterHours.percent,
-          volume: toNumber(row?.volume ?? raw?.volume ?? raw?.day_volume),
-          avgVolume10: toNumber(
-            row?.avgVolume10
-            ?? raw?.average_volume_10d
-            ?? raw?.average_volume
-            ?? raw?.avg_volume
-            ?? raw?.avgVolume
+          name: String(row?.name || raw?.name || symbol).trim(),
+          price: toNumber(row?.price),
+          change: toNumber(row?.change),
+          percentChange: toNumber(row?.percentChange),
+          previousClose: toNumber(
+            row?.previousClose
+            ?? raw?.previous_close
+            ?? raw?.previousClose
+            ?? raw?.prev_close
+            ?? raw?.prevClose
           ),
-          marketCap: toNumber(row?.marketCap ?? raw?.market_cap ?? raw?.marketCap),
-          timestamp: row?.timestamp || raw?.datetime || raw?.timestamp || new Date().toISOString(),
+          volume: toNumber(row?.volume ?? raw?.volume ?? raw?.day_volume),
+          timestamp: row?.timestamp || raw?.datetime || raw?.timestamp || null,
         };
       });
 
       setQuotesBySymbol((previous) => {
-        const next = {};
+        const merged = {};
         symbols.forEach((symbol) => {
           const normalized = normalizeSymbol(symbol);
-          next[normalized] = incomingBySymbol[normalized] || previous[normalized] || {
+          merged[normalized] = next[normalized] || previous[normalized] || {
             symbol: normalized,
             name: normalized,
           };
         });
-        return next;
+        return merged;
       });
     } catch (error) {
       setFetchError(error?.message || 'Failed to load watchlist quotes');
     } finally {
-      setIsFetching(false);
+      setIsFetchingQuotes(false);
     }
   }, [symbols]);
 
@@ -418,21 +243,9 @@ export default function AnalyticsPage({ watchlist = [] }) {
             timestamp: payload?.timestamp || new Date().toISOString(),
           };
 
-          const previousClose = toNumber(current?.previousClose);
-          const regular = inferExtendedFromLive(livePrice, previousClose);
-          if (Number.isFinite(regular.change)) next.change = regular.change;
-          if (Number.isFinite(regular.percent)) next.percentChange = regular.percent;
-
-          const extended = getExtendedHoursStatus();
-          if (extended === 'pre-market') {
-            if (Number.isFinite(regular.change)) next.preMarketChange = regular.change;
-            if (Number.isFinite(regular.percent)) next.preMarketChangePercent = regular.percent;
-            next.preMarketPrice = livePrice;
-          } else if (extended === 'post-market') {
-            if (Number.isFinite(regular.change)) next.afterHoursChange = regular.change;
-            if (Number.isFinite(regular.percent)) next.afterHoursChangePercent = regular.percent;
-            next.afterHoursPrice = livePrice;
-          }
+          const derived = deriveChangeAndPercent(next);
+          next.change = derived.change;
+          next.percentChange = derived.percent;
 
           return {
             ...previous,
@@ -456,43 +269,74 @@ export default function AnalyticsPage({ watchlist = [] }) {
     };
   }, [symbols]);
 
-  const rows = useMemo(() => {
-    return symbols.map((symbol, index) => {
-      const normalized = normalizeSymbol(symbol);
-      const quote = quotesBySymbol[normalized] || { symbol: normalized, name: normalized };
-      const display = getDisplayQuote(quote, sessionMode);
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    const query = searchQuery.trim();
+    setSearchLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!active) return;
+        const list = Array.isArray(payload?.results) ? payload.results : [];
+        setSearchResults(
+          list
+            .map((item) => ({
+              symbol: normalizeSymbol(item?.symbol),
+              name: String(item?.name || '').trim(),
+              exchange: String(item?.exchange || '').trim(),
+            }))
+            .filter((item) => item.symbol)
+        );
+      } catch (error) {
+        if (error?.name !== 'AbortError' && active) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (active) setSearchLoading(false);
+      }
+    }, 220);
+
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery]);
+
+  const gridRows = useMemo(() => {
+    return symbols.map((rawSymbol) => {
+      const symbol = normalizeSymbol(rawSymbol);
+      const quote = quotesBySymbol[symbol] || { symbol, name: symbol };
+      const derived = deriveChangeAndPercent(quote);
+
+      const isPositive = Number.isFinite(derived.change) && derived.change >= 0;
+      const changeClass = Number.isFinite(derived.change)
+        ? (isPositive ? 'value-positive' : 'value-negative')
+        : 'value-neutral';
 
       return {
-        row: index + 1,
-        ticker: normalized,
-        company: quote?.name || normalized,
-        last: showCurrency ? formatPriceWithCurrency(display.price) : formatPriceNumber(display.price),
-        chgPercent: formatSignedPercent(display.percentChange),
-        chg: showCurrency ? formatSignedUsd(display.change) : formatSignedNumber(display.change),
-        volume: formatCompactPlain(quote?.volume),
-        avgVol10: formatCompactPlain(quote?.avgVolume10),
-        marketCap: showCurrency ? formatCompactUsd(quote?.marketCap) : formatCompactPlain(quote?.marketCap),
-        session: display.sessionLabel,
-        updated: formatTimestamp(quote?.timestamp),
+        ticker: symbol,
+        last: formatPrice(quote.price),
+        change: `<span class="${changeClass}">${formatSigned(derived.change)}</span>`,
+        changePercent: `<span class="${changeClass}">${formatSignedPercent(derived.percent)}</span>`,
+        volume: formatVolume(quote.volume),
       };
     });
-  }, [quotesBySymbol, sessionMode, showCurrency, symbols]);
+  }, [quotesBySymbol, symbols]);
 
   const dataTable = useMemo(() => ({
-    columns: {
-      row: rows.map((row) => row.row),
-      ticker: rows.map((row) => row.ticker),
-      company: rows.map((row) => row.company),
-      last: rows.map((row) => row.last),
-      chgPercent: rows.map((row) => row.chgPercent),
-      chg: rows.map((row) => row.chg),
-      volume: rows.map((row) => row.volume),
-      avgVol10: rows.map((row) => row.avgVol10),
-      marketCap: rows.map((row) => row.marketCap),
-      session: rows.map((row) => row.session),
-      updated: rows.map((row) => row.updated),
-    },
-  }), [rows]);
+    columns: generateWatchlistColumns(gridRows),
+  }), [gridRows]);
 
   useEffect(() => {
     if (gridRef.current) {
@@ -502,63 +346,51 @@ export default function AnalyticsPage({ watchlist = [] }) {
 
     const grid = Grid.grid('container', {
       dataTable,
-      columnDefaults: {
-        filtering: {
-          enabled: true,
-          inline: inlineFiltering,
+      lang: {
+        pagination: {
+          pageInfo: 'Showing {start} - {end} of {total} (page {currentPage} of {totalPages})',
+          rowsPerPage: 'rows per page',
+        },
+      },
+      rendering: {
+        rows: {
+          minVisibleRows: 12,
+        },
+      },
+      pagination: {
+        enabled: true,
+        pageSize: 20,
+        controls: {
+          pageSizeSelector: {
+            enabled: true,
+            options: [10, 20, 50],
+          },
+          pageInfo: true,
+          firstLastButtons: true,
+          previousNextButtons: true,
+          pageButtons: {
+            enabled: true,
+            count: 5,
+          },
         },
       },
       columns: [
-        { id: 'row', width: 56, title: '#' },
-        { id: 'ticker', width: 98, title: 'Ticker' },
-        { id: 'company', width: 270, title: 'Company' },
-        { id: 'last', width: 156, title: 'Last' },
-        { id: 'chgPercent', width: 118, title: 'Chg%' },
-        { id: 'chg', width: 132, title: 'Chg' },
-        { id: 'volume', width: 120, title: 'Volume' },
-        { id: 'avgVol10', width: 122, title: 'Avg Vol (10)' },
-        { id: 'marketCap', width: 140, title: 'Market Cap' },
-        { id: 'session', width: 100, title: 'Session' },
-        { id: 'updated', width: 118, title: 'Updated' },
+        { id: 'Ticker', width: 170 },
+        { id: 'Last', width: 170 },
+        { id: 'Change', width: 170 },
+        { id: 'ChangePercent', title: 'Change %', width: 170 },
+        { id: 'Volume', width: 170 },
       ],
-      rendering: {
-        rows: {
-          strictHeights: false,
-        },
-      },
     });
 
     gridRef.current = grid;
-
     return () => {
       if (gridRef.current) {
         gridRef.current.destroy();
         gridRef.current = null;
       }
     };
-  }, [dataTable, inlineFiltering]);
-
-  useEffect(() => {
-    const toggle = document.getElementById('inlineToggle');
-    if (!toggle) return undefined;
-
-    const handleInlineToggle = (event) => {
-      const nextValue = Boolean(event?.target?.checked);
-      setInlineFiltering(nextValue);
-      gridRef.current?.update({
-        columnDefaults: {
-          filtering: {
-            inline: nextValue,
-          },
-        },
-      });
-    };
-
-    toggle.addEventListener('change', handleInlineToggle);
-    return () => {
-      toggle.removeEventListener('change', handleInlineToggle);
-    };
-  }, []);
+  }, [dataTable]);
 
   const addSymbols = useCallback((items = []) => {
     const normalized = items.map((item) => normalizeSymbol(item)).filter(Boolean);
@@ -577,122 +409,95 @@ export default function AnalyticsPage({ watchlist = [] }) {
     });
   }, []);
 
-  const handleAddTicker = (event) => {
-    event.preventDefault();
-    const incoming = extractInputSymbols(symbolInput);
-    if (incoming.length === 0) return;
-    addSymbols(incoming);
-    setSymbolInput('');
-  };
-
-  const removeSymbol = (symbol) => {
-    const normalized = normalizeSymbol(symbol);
-    if (!normalized) return;
-    setSymbols((previous) => previous.filter((item) => normalizeSymbol(item) !== normalized));
+  const removeSymbol = useCallback((symbolToRemove) => {
+    const target = normalizeSymbol(symbolToRemove);
+    if (!target) return;
+    setSymbols((previous) => previous.filter((symbol) => normalizeSymbol(symbol) !== target));
     setQuotesBySymbol((previous) => {
       const next = { ...previous };
-      delete next[normalized];
+      delete next[target];
       return next;
     });
+  }, []);
+
+  const handleAddFromInput = (event) => {
+    event.preventDefault();
+    const next = extractInputSymbols(inputValue);
+    if (next.length === 0) return;
+    addSymbols(next);
+    setInputValue('');
+  };
+
+  const handlePickSearch = (symbol) => {
+    addSymbols([symbol]);
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   return (
-    <div className="analytics-tv-page h-full w-full">
-      <section className="analytics-tv-shell">
-        <header className="analytics-tv-header">
-          <div>
-            <h1 className="analytics-tv-title">
-              Watchlist <ChevronDown className="h-5 w-5 text-slate-300" />
-            </h1>
-            <p className="analytics-tv-description-link">Add description</p>
-          </div>
-          <div className="analytics-tv-top-actions">
-            <button type="button" className="analytics-tv-icon-btn" title="Share list">
-              <Share2 className="h-4 w-4" />
-            </button>
-            <button type="button" className="analytics-tv-icon-btn" title="Copy link">
-              <Link2 className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
+    <div className="watchlist-grid-page">
+      <div className="watchlist-grid-shell">
+        <div className="watchlist-grid-top">
+          <h1 className="watchlist-grid-title">Watchlist</h1>
+        </div>
 
-        <nav className="analytics-tv-nav-tabs">
-          {OVERVIEW_TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setOverviewTab(tab)}
-              className={`analytics-tv-tab ${overviewTab === tab ? 'is-active' : ''}`}
-            >
-              {tab}
+        <div className="watchlist-grid-search-row">
+          <form className="watchlist-grid-add-form" onSubmit={handleAddFromInput}>
+            <input
+              className="watchlist-grid-input"
+              value={inputValue}
+              onChange={(event) => setInputValue(event.target.value)}
+              placeholder="Add ticker(s), e.g. AMD, PLTR"
+            />
+            <button type="submit" className="watchlist-grid-add-btn">
+              <Plus className="h-4 w-4" />
+              Add
             </button>
-          ))}
-        </nav>
+          </form>
 
-        <div className="analytics-tv-toolbar">
-          <div>
-            <h2 className="analytics-tv-symbols-title">Symbols</h2>
-            <div className="analytics-tv-symbol-count">
-              {symbols.length} symbols · Session {SESSION_LABELS[sessionMode] || SESSION_LABELS.regular}
-            </div>
-          </div>
-          <div className="analytics-tv-toolbar-actions">
-            <label className="analytics-tv-currency-toggle">
-              Currency in USD
-              <input
-                type="checkbox"
-                checked={showCurrency}
-                onChange={(event) => setShowCurrency(event.target.checked)}
-              />
-            </label>
-            <label className="analytics-tv-currency-toggle">
-              Inline filters
-              <input id="inlineToggle" type="checkbox" defaultChecked={inlineFiltering} />
-            </label>
-            <button
-              type="button"
-              className="analytics-tv-refresh-btn"
-              onClick={fetchQuotes}
-              disabled={isFetching}
-              title="Refresh quotes"
-            >
-              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-            </button>
+          <div className="watchlist-grid-search">
+            <Search className="h-4 w-4 text-white/55" />
+            <input
+              className="watchlist-grid-input watchlist-grid-search-input"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchOpen(true);
+                setSearchQuery(event.target.value);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Search stocks..."
+            />
+            {searchOpen && (searchQuery.trim() || searchLoading) && (
+              <div className="watchlist-grid-search-results">
+                {searchLoading ? (
+                  <div className="watchlist-grid-search-empty">Searching...</div>
+                ) : searchResults.length === 0 ? (
+                  <div className="watchlist-grid-search-empty">No results</div>
+                ) : (
+                  searchResults.slice(0, 8).map((item) => (
+                    <button
+                      key={`${item.symbol}-${item.exchange}`}
+                      type="button"
+                      className="watchlist-grid-search-item"
+                      onClick={() => handlePickSearch(item.symbol)}
+                    >
+                      <span className="symbol">{item.symbol}</span>
+                      <span className="name">{item.name || item.exchange || ''}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="analytics-tv-subtabs">
-          {DATA_TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setDataTab(tab)}
-              className={`analytics-tv-tab-pill ${dataTab === tab ? 'is-active' : ''}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <form className="analytics-tv-add-ticker-form" onSubmit={handleAddTicker}>
-          <input
-            value={symbolInput}
-            onChange={(event) => setSymbolInput(event.target.value)}
-            placeholder="Add ticker(s), e.g. SOFI, AMD, PLTR"
-            className="analytics-tv-add-input"
-          />
-          <button type="submit" className="analytics-tv-add-btn">
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-        </form>
-
-        <div className="analytics-tv-chips">
+        <div className="watchlist-grid-chips">
           {symbols.map((symbol) => (
             <button
               key={symbol}
               type="button"
-              className="analytics-tv-chip"
+              className="watchlist-grid-chip"
               onClick={() => removeSymbol(symbol)}
               title={`Remove ${symbol}`}
             >
@@ -702,10 +507,11 @@ export default function AnalyticsPage({ watchlist = [] }) {
           ))}
         </div>
 
-        {fetchError && <div className="analytics-tv-error">{fetchError}</div>}
+        {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
+        {isFetchingQuotes && <div className="watchlist-grid-status">Loading latest quotes...</div>}
 
-        <div id="container" className="analytics-tv-grid" />
-      </section>
+        <div id="container" className="watchlist-grid-container" />
+      </div>
     </div>
   );
 }
