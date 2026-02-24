@@ -4,18 +4,14 @@ import {
   ArrowRight,
   Ban,
   Bell,
-  Bolt,
   Brain,
-  CalendarDays,
   ChevronDown,
-  CircleDollarSign,
   Code,
   Crosshair,
   Eye,
   Globe,
   Lock,
   Monitor,
-  Search,
   Shield,
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
@@ -298,7 +294,6 @@ const FEATURE_NAV_ITEMS = [
     id: 'overview',
     title: 'Features overview',
     description: 'See every Stratify module connected in one workflow.',
-    icon: Bolt,
     detailTitle: 'Everything you need in one command center.',
     detailBody: 'War Room, Trader, X-Ray, Calendar, Portfolio, and Sophia AI stay synced from signal to execution.',
     chips: ['War Room', 'Trader', 'X-Ray'],
@@ -309,7 +304,6 @@ const FEATURE_NAV_ITEMS = [
     title: 'Earnings',
     description: 'Press releases, calls and transcripts.',
     badge: 'New',
-    icon: CalendarDays,
     detailTitle: 'Earnings intelligence, ready before the open.',
     detailBody: 'Track reports, read transcripts, and react faster to surprises with context from Sophia.',
     chips: ['Upcoming reports', 'Transcripts', 'Surprise tracker'],
@@ -319,7 +313,6 @@ const FEATURE_NAV_ITEMS = [
     id: 'portfolio',
     title: 'Portfolio',
     description: 'Easily sync your brokerage accounts.',
-    icon: CircleDollarSign,
     detailTitle: 'Portfolio truth, not disconnected widgets.',
     detailBody: 'Live holdings, P&L, and transaction drilldown tied directly to the strategy that placed each trade.',
     chips: ['Holdings grid', 'P&L drilldown', 'Strategy attribution'],
@@ -329,7 +322,6 @@ const FEATURE_NAV_ITEMS = [
     id: 'stock-finder',
     title: 'Stock Finder',
     description: 'Find any stock with natural language.',
-    icon: Search,
     detailTitle: 'The smartest stock finder in the world.',
     detailBody: 'Ask in plain English and screen by catalysts, revenue acceleration, quality, and momentum in seconds.',
     chips: ['AI stocks that beat estimates', 'AI with growing revenue'],
@@ -561,9 +553,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
 
       {/* Top Row (integrated into page, no separate header bar) */}
       <nav className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
-        <div className="flex items-center gap-7">
-          <span className="text-white/95 font-bold text-sm tracking-[0.3em]">STRATIFY</span>
-          <div className="hidden md:flex items-center gap-6 text-sm text-white/75">
+        <div className="hidden md:flex items-center gap-7 text-sm text-white/75">
             <div className="relative" ref={featureMenuRef}>
               <button
                 type="button"
@@ -580,39 +570,35 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
               </button>
 
               {isFeatureMenuOpen && (
-                <div className="absolute left-[-120px] top-full mt-3 w-[min(88vw,560px)] overflow-hidden rounded-2xl border border-white/15 bg-[linear-gradient(158deg,rgba(16,20,35,0.9),rgba(8,11,22,0.9))] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
+                <div className="group/featurepanel absolute left-[-120px] top-full mt-3 w-[min(88vw,560px)] overflow-hidden rounded-2xl border border-cyan-300/10 bg-[rgba(5,10,24,0.62)] shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-colors hover:border-cyan-300/55">
                   <div className="max-h-[74vh] overflow-y-auto">
-                    <div className="border-b border-white/10">
+                    <div className="border-b border-transparent transition-colors group-hover/featurepanel:border-cyan-300/25">
                       {FEATURE_NAV_ITEMS.map((item, index) => {
-                        const Icon = item.icon;
                         const isActive = activeFeatureId === item.id;
                         return (
                           <button
                             key={item.id}
                             type="button"
                             onClick={() => setActiveFeatureId(item.id)}
-                            className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'} ${index > 0 ? 'border-t border-white/8' : ''}`}
+                            className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'} ${index > 0 ? 'border-t border-transparent group-hover/featurepanel:border-cyan-300/20' : ''}`}
                           >
-                            <div className="flex items-start gap-3">
-                              <Icon className="mt-1 h-4 w-4 text-white/65" strokeWidth={1.8} />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-base font-medium leading-none text-white">{item.title}</p>
-                                  {item.badge ? (
-                                    <span className="rounded-full border border-emerald-300/30 bg-emerald-500/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-emerald-200">
-                                      {item.badge}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <p className="mt-1 text-sm text-white/50">{item.description}</p>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-base font-medium leading-none text-white">{item.title}</p>
+                                {item.badge ? (
+                                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-200/80">
+                                    {item.badge}
+                                  </span>
+                                ) : null}
                               </div>
+                              <p className="mt-1 text-sm text-white/50">{item.description}</p>
                             </div>
                           </button>
                         );
                       })}
                     </div>
 
-                    <div className="px-6 py-6">
+                    <div className="px-6 py-6 border-t border-transparent transition-colors group-hover/featurepanel:border-cyan-300/20">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-white/52">
                         {activeFeature.id === 'stock-finder' ? 'Stocks with AI exposure' : 'Feature spotlight'}
                       </p>
@@ -625,13 +611,11 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
                       <p className="mt-4 text-[15px] leading-relaxed text-white/68">
                         {activeFeature.detailBody}
                       </p>
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        {activeFeature.chips.map((chip) => (
-                          <span
-                            key={`${activeFeature.id}-${chip}`}
-                            className="rounded-full border border-white/16 bg-black/25 px-3 py-1 text-xs text-white/80"
-                          >
-                            {chip}
+                      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs uppercase tracking-[0.14em] text-white/60">
+                        {activeFeature.chips.map((chip, index) => (
+                          <span key={`${activeFeature.id}-${chip}`} className="inline-flex items-center gap-3">
+                            {index > 0 ? <span className="text-cyan-200/55">·</span> : null}
+                            <span>{chip}</span>
                           </span>
                         ))}
                       </div>
@@ -641,7 +625,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
                           setIsFeatureMenuOpen(false);
                           handleCheckoutStart();
                         }}
-                        className="mt-7 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/18"
+                        className="mt-7 text-sm font-medium tracking-[0.1em] text-cyan-200/90 transition hover:text-cyan-100"
                       >
                         {activeFeature.cta}
                       </button>
@@ -675,7 +659,6 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
             >
               Get Started
             </button>
-          </div>
         </div>
 
         <div className="flex items-center gap-4">
