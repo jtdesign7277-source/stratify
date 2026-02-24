@@ -277,6 +277,17 @@ const landingStyles = `
     from { transform: translateY(0px) scale(1); opacity: 0.6; }
     to { transform: translateY(-22px) scale(1.03); opacity: 0.85; }
   }
+
+  @keyframes landing-star-twinkle {
+    0%, 100% { opacity: 0.42; }
+    35% { opacity: 0.72; }
+    70% { opacity: 0.58; }
+  }
+
+  @keyframes landing-milkyway-drift {
+    0%, 100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.38; }
+    50% { transform: translate(-50%, -50%) rotate(-13deg) scale(1.03); opacity: 0.58; }
+  }
 `;
 
 const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
@@ -309,14 +320,34 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(circle at 50% 50%, rgba(3, 6, 8, 0.16) 0%, rgba(3, 6, 8, 0.58) 60%, rgba(3, 6, 8, 0.84) 100%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 34%), radial-gradient(circle at 78% 22%, rgba(147, 197, 253, 0.08) 0%, transparent 32%), radial-gradient(circle at 50% 44%, rgba(16, 185, 129, 0.08) 0%, transparent 44%)',
+              'radial-gradient(circle at 50% 50%, rgba(3, 6, 8, 0.12) 0%, rgba(3, 6, 8, 0.54) 60%, rgba(3, 6, 8, 0.82) 100%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.1) 0%, transparent 34%), radial-gradient(circle at 78% 22%, rgba(147, 197, 253, 0.1) 0%, transparent 32%), radial-gradient(circle at 50% 44%, rgba(16, 185, 129, 0.1) 0%, transparent 44%)',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-[46%] h-[540px] w-[1700px] rounded-[50%]"
+          style={{
+            background:
+              'linear-gradient(92deg, transparent 8%, rgba(255,255,255,0.2) 23%, rgba(56,189,248,0.24) 43%, rgba(16,185,129,0.2) 56%, rgba(96,165,250,0.18) 71%, transparent 91%), radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, rgba(148,220,255,0.16) 36%, rgba(16,185,129,0.13) 58%, transparent 80%)',
+            filter: 'blur(34px)',
+            mixBlendMode: 'screen',
+            animation: 'landing-milkyway-drift 34s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-[48%] h-[360px] w-[1140px] rounded-[50%]"
+          style={{
+            background:
+              'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(167,243,208,0.2) 30%, rgba(125,211,252,0.16) 52%, transparent 78%)',
+            filter: 'blur(30px)',
+            mixBlendMode: 'screen',
+            animation: 'landing-nebula-float 26s ease-in-out infinite',
           }}
         />
         <div
           className="absolute left-1/2 top-1/2 h-[960px] w-[1420px] rounded-[50%] blur-3xl"
           style={{
             background:
-              'radial-gradient(ellipse at center, rgba(255,255,255,0.26) 0%, rgba(52, 211, 153, 0.20) 18%, rgba(96, 165, 250, 0.18) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
+              'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(52, 211, 153, 0.22) 18%, rgba(96, 165, 250, 0.2) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
             animation: 'landing-nebula-float 24s ease-in-out infinite',
           }}
         />
@@ -339,17 +370,27 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute inset-0 opacity-80"
+          className="absolute inset-0 opacity-95"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 10% 18%, rgba(255,255,255,0.92) 0 1px, transparent 1px), radial-gradient(circle at 28% 76%, rgba(255,255,255,0.72) 0 1px, transparent 1px), radial-gradient(circle at 41% 62%, rgba(255,255,255,0.65) 0 1px, transparent 1px), radial-gradient(circle at 58% 22%, rgba(255,255,255,0.72) 0 1px, transparent 1px), radial-gradient(circle at 73% 42%, rgba(255,255,255,0.68) 0 1px, transparent 1px), radial-gradient(circle at 82% 14%, rgba(255,255,255,0.82) 0 1px, transparent 1px), radial-gradient(circle at 90% 78%, rgba(255,255,255,0.68) 0 1px, transparent 1px)',
-            animation: 'landing-starfield-drift 15s ease-in-out infinite alternate',
+              'radial-gradient(circle at 5% 12%, rgba(255,255,255,0.96) 0 1.15px, transparent 1.6px), radial-gradient(circle at 9% 74%, rgba(255,255,255,0.78) 0 1.05px, transparent 1.45px), radial-gradient(circle at 17% 34%, rgba(167,243,208,0.7) 0 1px, transparent 1.4px), radial-gradient(circle at 24% 57%, rgba(255,255,255,0.8) 0 1.1px, transparent 1.5px), radial-gradient(circle at 30% 22%, rgba(125,211,252,0.7) 0 1px, transparent 1.4px), radial-gradient(circle at 37% 80%, rgba(255,255,255,0.75) 0 1.05px, transparent 1.4px), radial-gradient(circle at 44% 63%, rgba(255,255,255,0.7) 0 1px, transparent 1.35px), radial-gradient(circle at 52% 15%, rgba(167,243,208,0.72) 0 1.05px, transparent 1.45px), radial-gradient(circle at 59% 41%, rgba(255,255,255,0.74) 0 1px, transparent 1.35px), radial-gradient(circle at 67% 71%, rgba(125,211,252,0.7) 0 1.05px, transparent 1.45px), radial-gradient(circle at 73% 24%, rgba(255,255,255,0.85) 0 1.1px, transparent 1.5px), radial-gradient(circle at 78% 53%, rgba(255,255,255,0.7) 0 1px, transparent 1.35px), radial-gradient(circle at 84% 12%, rgba(167,243,208,0.72) 0 1px, transparent 1.35px), radial-gradient(circle at 90% 39%, rgba(255,255,255,0.86) 0 1.1px, transparent 1.5px), radial-gradient(circle at 94% 78%, rgba(255,255,255,0.76) 0 1px, transparent 1.35px)',
+            animation: 'landing-starfield-drift 16s ease-in-out infinite alternate',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-70"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.36) 0.65px, transparent 0.95px), radial-gradient(rgba(125,211,252,0.28) 0.55px, transparent 0.9px), radial-gradient(rgba(167,243,208,0.24) 0.6px, transparent 0.95px)',
+            backgroundSize: '180px 180px, 250px 250px, 320px 320px',
+            backgroundPosition: '0 0, 80px 120px, 140px 30px',
+            animation: 'landing-star-twinkle 10s ease-in-out infinite',
           }}
         />
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(180deg, rgba(3,6,8,0.08) 0%, rgba(3,6,8,0.56) 45%, rgba(3,6,8,0.84) 100%)',
+            background: 'linear-gradient(180deg, rgba(3,6,8,0.04) 0%, rgba(3,6,8,0.5) 45%, rgba(3,6,8,0.8) 100%)',
           }}
         />
       </div>
