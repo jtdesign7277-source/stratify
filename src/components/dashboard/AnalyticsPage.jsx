@@ -5,6 +5,9 @@ import '@highcharts/grid-lite/css/grid.css';
 import './AnalyticsWatchlistGrid.css';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
+const TWELVE_DATA_CLIENT_API_KEY = String(
+  import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || ''
+).trim();
 const MAX_SYMBOLS = 120;
 const QUOTE_POLL_INTERVAL_MS = 20000;
 const DEFAULT_SYMBOLS = [
@@ -176,6 +179,11 @@ const extractInputSymbols = (value) =>
     .map((item) => normalizeSymbol(item))
     .filter(Boolean);
 
+const getFallbackWebSocketUrl = () =>
+  TWELVE_DATA_CLIENT_API_KEY
+    ? `wss://ws.twelvedata.com/v1/quotes/price?apikey=${encodeURIComponent(TWELVE_DATA_CLIENT_API_KEY)}`
+    : '';
+
 const buildExtCell = (metric) => {
   const directionClass = getDirectionClass(metric?.percent);
   if (!Number.isFinite(toNumber(metric?.percent))) {
@@ -185,6 +193,9 @@ const buildExtCell = (metric) => {
   return `<span class="watchlist-value ${directionClass}">${metric.label} ${formatSignedPercent(metric.percent)}</span>`;
 };
 
+const buildDeleteCell = (symbol) =>
+  `<button type="button" class="watchlist-remove-btn" data-symbol="${symbol}" aria-label="Remove ${symbol}">Del</button>`;
+
 function generateWatchlistColumns(rows) {
   const columns = {
     Symbol: [],
@@ -193,6 +204,7 @@ function generateWatchlistColumns(rows) {
     ChgPercent: [],
     Vol: [],
     Ext: [],
+    Del: [],
   };
 
   rows.forEach((row) => {
@@ -202,6 +214,7 @@ function generateWatchlistColumns(rows) {
     columns.ChgPercent.push(row.chgPercent);
     columns.Vol.push(row.vol);
     columns.Ext.push(row.ext);
+    columns.Del.push(row.del);
   });
 
   return columns;
@@ -237,6 +250,34 @@ export default function AnalyticsPage() {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [searchOpen]);
+
+  const removeSymbol = useCallback((symbolToRemove) => {
+    const target = normalizeSymbol(symbolToRemove);
+    if (!target) return;
+
+    setSymbols((previous) => previous.filter((symbol) => normalizeSymbol(symbol) !== target));
+    setQuotesBySymbol((previous) => {
+      const next = { ...previous };
+      delete next[target];
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const container = document.getElementById('analytics-watchlist-grid');
+    if (!container) return undefined;
+
+    const handleGridClick = (event) => {
+      const button = event.target?.closest?.('.watchlist-remove-btn');
+      if (!button) return;
+      const targetSymbol = normalizeSymbol(button.getAttribute('data-symbol'));
+      if (!targetSymbol) return;
+      removeSymbol(targetSymbol);
+    };
+
+    container.addEventListener('click', handleGridClick);
+    return () => container.removeEventListener('click', handleGridClick);
+  }, [removeSymbol]);
 
   const fetchQuotes = useCallback(async () => {
     if (symbols.length === 0) {
@@ -332,13 +373,26 @@ export default function AnalyticsPage() {
 
     const connect = async () => {
       try {
-        const response = await fetch(`/api/lse/ws-config?symbols=${encodeURIComponent(symbols.join(','))}`, {
-          cache: 'no-store',
-        });
-        const payload = await response.json().catch(() => ({}));
-        const websocketUrl = String(payload?.websocketUrl || '').trim();
-        if (!response.ok || !websocketUrl) {
-          throw new Error(payload?.error || 'Missing Twelve Data websocket URL');
+        let websocketUrl = '';
+
+        try {
+          const response = await fetch(`/api/lse/ws-config?symbols=${encodeURIComponent(symbols.join(','))}`, {
+            cache: 'no-store',
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (response.ok) {
+            websocketUrl = String(payload?.websocketUrl || '').trim();
+          }
+        } catch {
+          websocketUrl = '';
+        }
+
+        if (!websocketUrl) {
+          websocketUrl = getFallbackWebSocketUrl();
+        }
+
+        if (!websocketUrl) {
+          throw new Error('Missing Twelve Data websocket URL');
         }
 
         socket = new WebSocket(websocketUrl);
@@ -393,10 +447,36 @@ export default function AnalyticsPage() {
               ?? messagePayload?.premarket_price
               ?? messagePayload?.preMarketPrice
             );
+            const payloadPreMarketChange = toNumber(
+              messagePayload?.pre_market_change
+              ?? messagePayload?.premarket_change
+              ?? messagePayload?.preMarketChange
+            );
+            const payloadPreMarketChangePercent = toNumber(
+              messagePayload?.pre_market_change_percent
+              ?? messagePayload?.premarket_change_percent
+              ?? messagePayload?.preMarketChangePercent
+            );
             const payloadAfterHoursPrice = toNumber(
               messagePayload?.after_hours_price
               ?? messagePayload?.post_market_price
               ?? messagePayload?.afterHoursPrice
+            );
+            const payloadAfterHoursChange = toNumber(
+              messagePayload?.after_hours_change
+              ?? messagePayload?.post_market_change
+              ?? messagePayload?.afterHoursChange
+            );
+            const payloadAfterHoursChangePercent = toNumber(
+              messagePayload?.after_hours_change_percent
+              ?? messagePayload?.post_market_change_percent
+              ?? messagePayload?.afterHoursChangePercent
+            );
+            const payloadGenericChange = toNumber(messagePayload?.change ?? next.change);
+            const payloadGenericPercent = toNumber(
+              messagePayload?.percent_change
+              ?? messagePayload?.percentChange
+              ?? next.percentChange
             );
 
             if (Number.isFinite(payloadPreMarketPrice)) {
@@ -407,6 +487,13 @@ export default function AnalyticsPage() {
                 next.preMarketChangePercent = effectivePreviousClose !== 0
                   ? (preChange / effectivePreviousClose) * 100
                   : null;
+              } else {
+                next.preMarketChange = Number.isFinite(payloadPreMarketChange)
+                  ? payloadPreMarketChange
+                  : payloadGenericChange;
+                next.preMarketChangePercent = Number.isFinite(payloadPreMarketChangePercent)
+                  ? payloadPreMarketChangePercent
+                  : payloadGenericPercent;
               }
             } else if (sessionStatus === 'pre-market') {
               next.preMarketPrice = livePrice;
@@ -416,6 +503,9 @@ export default function AnalyticsPage() {
                 next.preMarketChangePercent = effectivePreviousClose !== 0
                   ? (preChange / effectivePreviousClose) * 100
                   : null;
+              } else {
+                next.preMarketChange = payloadGenericChange;
+                next.preMarketChangePercent = payloadGenericPercent;
               }
             }
 
@@ -427,6 +517,13 @@ export default function AnalyticsPage() {
                 next.afterHoursChangePercent = effectivePreviousClose !== 0
                   ? (postChange / effectivePreviousClose) * 100
                   : null;
+              } else {
+                next.afterHoursChange = Number.isFinite(payloadAfterHoursChange)
+                  ? payloadAfterHoursChange
+                  : payloadGenericChange;
+                next.afterHoursChangePercent = Number.isFinite(payloadAfterHoursChangePercent)
+                  ? payloadAfterHoursChangePercent
+                  : payloadGenericPercent;
               }
             } else if (sessionStatus === 'post-market') {
               next.afterHoursPrice = livePrice;
@@ -436,6 +533,9 @@ export default function AnalyticsPage() {
                 next.afterHoursChangePercent = effectivePreviousClose !== 0
                   ? (postChange / effectivePreviousClose) * 100
                   : null;
+              } else {
+                next.afterHoursChange = payloadGenericChange;
+                next.afterHoursChangePercent = payloadGenericPercent;
               }
             }
 
@@ -531,6 +631,7 @@ export default function AnalyticsPage() {
         chgPercent: `<span class="watchlist-value ${directionClass}">${formatSignedPercent(mainMetric.percent)}</span>`,
         vol: `<span class="watchlist-value watchlist-value-neutral">${formatVolume(quote.volume)}</span>`,
         ext: buildExtCell(extMetric),
+        del: buildDeleteCell(symbol),
       };
     });
   }, [quotesBySymbol, symbols]);
@@ -562,6 +663,7 @@ export default function AnalyticsPage() {
         { id: 'ChgPercent', title: 'Chg%', width: 170 },
         { id: 'Vol', width: 170 },
         { id: 'Ext', width: 170 },
+        { id: 'Del', width: 90 },
       ],
     });
 
@@ -601,6 +703,7 @@ export default function AnalyticsPage() {
           { id: 'ChgPercent', title: 'Chg%', width: 170 },
           { id: 'Vol', width: 170 },
           { id: 'Ext', width: 170 },
+          { id: 'Del', width: 90 },
         ],
       });
     }

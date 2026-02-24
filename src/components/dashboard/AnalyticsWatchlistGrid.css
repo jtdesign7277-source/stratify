@@ -218,6 +218,21 @@
   color: #e9f0fd;
 }
 
+.watchlist-remove-btn {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 107, 129, 0.88);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.watchlist-remove-btn:hover {
+  color: rgba(255, 148, 164, 0.96);
+}
+
 @media (max-width: 1100px) {
   .watchlist-grid-title {
     font-size: 30px;
