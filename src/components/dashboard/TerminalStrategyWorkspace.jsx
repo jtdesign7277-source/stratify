@@ -18,7 +18,6 @@ import { useAuth } from '../../context/AuthContext';
 
 const STORAGE_KEY = 'stratify-strategies-folders';
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
-const ONE_TIME_RESET_FLAG = 'stratify-strategies-reset-20260217-complete';
 const USER_STATE_FOLDERS_KEY = 'terminal_strategy_folders';
 
 const DEFAULT_FOLDERS = [
@@ -122,6 +121,30 @@ const deriveTicker = (strategy) => {
     strategy.tickers?.[0] ||
     '';
   return String(rawTicker || '').replace(/^\$/, '').trim().toUpperCase();
+};
+
+const strategyIdentityKey = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return '';
+
+  const id = String(strategy.id || '').trim();
+  if (id) return `id:${id}`;
+
+  const name = String(strategy.name || '').trim().toLowerCase();
+  const ticker = deriveTicker(strategy).toLowerCase();
+  const savedAt = String(strategy.savedAt || strategy.createdAt || strategy.updatedAt || '').trim();
+
+  if (!name && !ticker && !savedAt) return '';
+  return `sig:${name}|${ticker}|${savedAt}`;
+};
+
+const loadSavedStrategiesFallback = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAVED_STRATEGIES_FALLBACK_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((item) => item && typeof item === 'object') : [];
+  } catch {
+    return [];
+  }
 };
 
 const deriveProfit = (strategy, fallback = 0) => {
@@ -543,7 +566,6 @@ const TerminalStrategyWorkspace = ({
   deployedStrategies = [],
   onSaveStrategy,
   onDeleteStrategy,
-  onClearStrategies,
   onDeployStrategy,
   onRetestStrategy,
   onOpenBuilder,
@@ -559,6 +581,7 @@ const TerminalStrategyWorkspace = ({
   const [foldersLoaded, setFoldersLoaded] = useState(false);
   const [draggingStrategyId, setDraggingStrategyId] = useState(null);
   const [dragOverFolderId, setDragOverFolderId] = useState(null);
+  const [fallbackStrategies, setFallbackStrategies] = useState(() => loadSavedStrategiesFallback());
 
   const folderSaveTimerRef = useRef(null);
   const lastSavedFoldersRef = useRef('');
@@ -568,20 +591,45 @@ const TerminalStrategyWorkspace = ({
   const safeSaved = Array.isArray(savedStrategies) ? savedStrategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
 
+  const refreshFallbackStrategies = useCallback(() => {
+    setFallbackStrategies(loadSavedStrategiesFallback());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    refreshFallbackStrategies();
+
+    const handleStorage = (event) => {
+      if (!event.key || event.key === SAVED_STRATEGIES_FALLBACK_KEY) {
+        refreshFallbackStrategies();
+      }
+    };
+    const handleFocus = () => refreshFallbackStrategies();
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshFallbackStrategies]);
+
   const sourceStrategies = useMemo(() => {
-    const merged = [...safeSaved, ...safeDeployed];
+    const merged = [...safeSaved, ...safeDeployed, ...fallbackStrategies];
     const seen = new Set();
     const unique = [];
 
     merged.forEach((strategy) => {
-      const id = String(strategy?.id || '').trim();
-      if (!id || seen.has(id)) return;
-      seen.add(id);
+      const key = strategyIdentityKey(strategy);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
       unique.push(strategy);
     });
 
     return unique;
-  }, [safeSaved, safeDeployed]);
+  }, [safeSaved, safeDeployed, fallbackStrategies]);
 
   const strategySourceMap = useMemo(() => {
     const map = new Map();
@@ -744,55 +792,6 @@ const TerminalStrategyWorkspace = ({
       if (folderSaveTimerRef.current) clearTimeout(folderSaveTimerRef.current);
     };
   }, [folders, foldersLoaded, user?.id, saveFoldersToSupabase]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const runOneTimeReset = async () => {
-      if (typeof window === 'undefined') return;
-      if (localStorage.getItem(ONE_TIME_RESET_FLAG) === 'done') return;
-
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) return;
-
-        const response = await fetch('/api/delete-all-strategies', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-            'x-stratify-reset': '2026-02-17-reset',
-          },
-          body: JSON.stringify({ confirm: 'DELETE_ALL_STRATEGIES' }),
-        });
-
-        if (!response.ok) {
-          if (response.status === 410) {
-            localStorage.setItem(ONE_TIME_RESET_FLAG, 'done');
-          }
-          return;
-        }
-        if (cancelled) return;
-
-        onClearStrategies?.();
-        setFolders(buildDefaultFolders());
-        setSelectedStrategyId(null);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem('stratify-strategy-sync');
-        localStorage.removeItem(SAVED_STRATEGIES_FALLBACK_KEY);
-        localStorage.setItem(ONE_TIME_RESET_FLAG, 'done');
-      } catch (error) {
-        console.warn('[TerminalStrategyWorkspace] One-time strategy reset failed:', error);
-      }
-    };
-
-    runOneTimeReset();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [onClearStrategies]);
 
   const allStrategies = useMemo(() => uniqueStrategiesFromFolders(folders), [folders]);
 
@@ -1063,6 +1062,62 @@ const TerminalStrategyWorkspace = ({
       return next;
     });
   }, []);
+
+  const upsertStrategyIntoFolders = useCallback((strategyInput) => {
+    if (!strategyInput || typeof strategyInput !== 'object') return;
+
+    const strategyId = String(strategyInput.id || '').trim() || `strategy-${Date.now()}`;
+    const normalized = normalizeStrategyEntry({
+      ...strategyInput,
+      id: strategyId,
+    });
+    if (!normalized) return;
+
+    const requestedFolderId = String(strategyInput.folderId || strategyInput.folder_id || '').trim();
+    const deployedIds = new Set(safeDeployed.map((strategy) => String(strategy?.id || '').trim()));
+    const derivedStatus = deriveStatus({ ...strategyInput, id: strategyId }, deployedIds);
+
+    setFolders((prev) => {
+      const next = ensureDefaultFolders(prev).map((folder) => ({
+        ...folder,
+        strategies: Array.isArray(folder.strategies) ? [...folder.strategies] : [],
+      }));
+
+      next.forEach((folder) => {
+        folder.strategies = folder.strategies.filter((entry) => String(entry.id) !== strategyId);
+      });
+
+      let targetFolderId = '';
+      if (requestedFolderId && next.some((folder) => folder.id === requestedFolderId)) {
+        targetFolderId = requestedFolderId;
+      } else if (isActiveFolderStatus(derivedStatus) && next.some((folder) => folder.id === 'active-strategies')) {
+        targetFolderId = 'active-strategies';
+      } else if (isSophiaStrategy(strategyInput) && next.some((folder) => folder.id === 'sophia-strategies')) {
+        targetFolderId = 'sophia-strategies';
+      } else if (strategyInput.isStarred && next.some((folder) => folder.id === 'favorites')) {
+        targetFolderId = 'favorites';
+      } else if (strategyInput.archived && next.some((folder) => folder.id === 'archive')) {
+        targetFolderId = 'archive';
+      } else if (next.some((folder) => folder.id === 'stratify')) {
+        targetFolderId = 'stratify';
+      } else {
+        targetFolderId = next[0]?.id || '';
+      }
+
+      const targetFolder = next.find((folder) => folder.id === targetFolderId);
+      if (!targetFolder) return prev;
+
+      targetFolder.strategies.unshift({
+        ...normalized,
+        id: strategyId,
+        status: normalizeStrategyStatus(derivedStatus || normalized.status || 'saved'),
+      });
+
+      return next;
+    });
+
+    setSelectedStrategyId(strategyId);
+  }, [safeDeployed]);
 
   const handleStrategyDragStart = useCallback((event, strategyId, fromFolderId) => {
     const payload = {
@@ -1375,15 +1430,11 @@ const TerminalStrategyWorkspace = ({
               onBack={() => setSelectedStrategyId(null)}
               onSave={(strategy) => {
                 onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
-                if (strategy?.folderId) {
-                  moveStrategyToFolder(strategy.id || selectedStrategy.id, strategy.folderId);
-                }
+                upsertStrategyIntoFolders(strategy);
               }}
               onContentSave={(strategy) => {
                 onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
-                if (strategy?.folderId) {
-                  moveStrategyToFolder(strategy.id || selectedStrategy.id, strategy.folderId);
-                }
+                upsertStrategyIntoFolders(strategy);
               }}
               onDeploy={(activation) => {
                 onDeployStrategy?.({
