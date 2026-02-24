@@ -1193,7 +1193,7 @@ function StratifyAppContent() {
   }, [authGateTimedOut, isCheckingSession]);
 
   useEffect(() => {
-    if (!authGateTimedOut) {
+    if (!authGateTimedOut || loading) {
       return;
     }
 
@@ -1208,7 +1208,7 @@ function StratifyAppContent() {
     if (window.location.pathname !== '/auth') {
       window.history.pushState({ page: 'auth' }, '', '/auth');
     }
-  }, [authGateTimedOut, isAuthenticated]);
+  }, [authGateTimedOut, isAuthenticated, loading]);
 
   const startCheckout = useCallback(async () => {
     if (!user?.id || !user?.email) {
@@ -1633,12 +1633,12 @@ function StratifyAppContent() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      if (currentPage === 'dashboard') {
-        openAuth();
-      }
+    // Do not redirect while auth is still restoring a persisted session.
+    if (loading) return;
+    if (!isAuthenticated && currentPage === 'dashboard') {
+      openAuth();
     }
-  }, [currentPage, isAuthenticated]);
+  }, [currentPage, isAuthenticated, loading]);
 
   const isInternalAppPage =
     isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth';
