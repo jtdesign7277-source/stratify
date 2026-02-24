@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 const STORAGE_KEY = 'stratify-strategies-folders';
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const USER_STATE_FOLDERS_KEY = 'terminal_strategy_folders';
+const FOLDERS_COLLAPSED_KEY = 'terminal_strategy_folders_collapsed';
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
@@ -81,6 +82,22 @@ const normalizeReturnPercent = (value) => {
   return number;
 };
 
+const stableHash = (value) => {
+  const text = String(value || '');
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+};
+
+const sanitizeStrategyId = (value) => {
+  const id = String(value ?? '').trim();
+  if (!id) return '';
+  if (id === 'undefined' || id === 'null' || id === 'NaN') return '';
+  return id;
+};
+
 const formatProfit = (value) => {
   const number = normalizeReturnPercent(value);
   if (!Number.isFinite(number)) return null;
@@ -123,18 +140,52 @@ const deriveTicker = (strategy) => {
   return String(rawTicker || '').replace(/^\$/, '').trim().toUpperCase();
 };
 
+const strategyFingerprint = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return '';
+  const name = String(strategy?.name || strategy?.summary?.name || '').trim().toLowerCase();
+  const ticker = deriveTicker(strategy).toLowerCase();
+  const timestamp = String(
+    strategy?.savedAt ||
+      strategy?.createdAt ||
+      strategy?.updatedAt ||
+      strategy?.date ||
+      ''
+  ).trim();
+
+  if (!name && !ticker && !timestamp) return '';
+  return `${name}|${ticker}|${timestamp}`;
+};
+
+const resolveStrategyId = (strategy) => {
+  const existingId = sanitizeStrategyId(
+    strategy?.id || strategy?.strategyId || strategy?.uuid || strategy?.supabaseId || strategy?.supabase_id
+  );
+  if (existingId) return existingId;
+
+  const fingerprint = strategyFingerprint(strategy);
+  if (fingerprint) return `st-${stableHash(fingerprint)}`;
+
+  return `st-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const ensureStrategyIdentity = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return null;
+  const id = resolveStrategyId(strategy);
+  const savedAt = strategy.savedAt || strategy.createdAt || Date.now();
+  return {
+    ...strategy,
+    id,
+    savedAt,
+  };
+};
+
 const strategyIdentityKey = (strategy) => {
   if (!strategy || typeof strategy !== 'object') return '';
-
-  const id = String(strategy.id || '').trim();
+  const id = sanitizeStrategyId(strategy.id);
   if (id) return `id:${id}`;
-
-  const name = String(strategy.name || '').trim().toLowerCase();
-  const ticker = deriveTicker(strategy).toLowerCase();
-  const savedAt = String(strategy.savedAt || strategy.createdAt || strategy.updatedAt || '').trim();
-
-  if (!name && !ticker && !savedAt) return '';
-  return `sig:${name}|${ticker}|${savedAt}`;
+  const fingerprint = strategyFingerprint(strategy);
+  if (!fingerprint) return '';
+  return `fp:${fingerprint}`;
 };
 
 const loadSavedStrategiesFallback = () => {
@@ -183,7 +234,7 @@ const deriveCreatedAt = (strategy, fallback = Date.now()) => {
 const deriveStatus = (strategy, deployedIds) => {
   const status = String(strategy?.runStatus || strategy?.status || '').toLowerCase().trim();
   if (status) return status;
-  if (deployedIds.has(String(strategy?.id))) return 'active';
+  if (deployedIds.has(resolveStrategyId(strategy))) return 'active';
   return 'saved';
 };
 
@@ -198,7 +249,7 @@ const isSophiaStrategy = (strategy) => {
 
 const normalizeStrategyEntry = (strategy) => {
   if (!strategy) return null;
-  const id = String(strategy.id || '').trim();
+  const id = resolveStrategyId(strategy);
   if (!id) return null;
 
   return {
@@ -208,7 +259,7 @@ const normalizeStrategyEntry = (strategy) => {
     createdAt: deriveCreatedAt(strategy),
     profit: deriveProfit(strategy),
     isStarred: Boolean(strategy.isStarred),
-    status: String(strategy.status || strategy.runStatus || 'saved').toLowerCase(),
+    status: normalizeStrategyStatus(String(strategy.status || strategy.runStatus || 'saved')),
   };
 };
 
@@ -229,22 +280,25 @@ const ensureDefaultFolders = (folders) => {
     if (!byId.has(folder.id)) byId.set(folder.id, folder);
   });
 
-  const merged = [];
+  const merged = buildDefaultFolders().map((defaultFolder) => {
+    const existing = byId.get(defaultFolder.id);
+    if (!existing) return defaultFolder;
+    byId.delete(defaultFolder.id);
+    return {
+      ...defaultFolder,
+      name: existing.name || defaultFolder.name,
+      isExpanded: existing.isExpanded,
+      strategies: existing.strategies,
+    };
+  });
+
   byId.forEach((folder) => merged.push(folder));
-
-  if (merged.length === 0) {
-    return buildDefaultFolders();
-  }
-
-  if (!merged.some((folder) => folder.id === 'stratify')) {
-    merged.unshift(normalizeFolder(DEFAULT_FOLDERS[0], 0));
-  }
 
   const seenStrategyIds = new Set();
   return merged.map((folder) => ({
     ...folder,
     strategies: folder.strategies.filter((strategy) => {
-      const strategyId = String(strategy.id);
+      const strategyId = sanitizeStrategyId(strategy.id);
       if (!strategyId || seenStrategyIds.has(strategyId)) return false;
       seenStrategyIds.add(strategyId);
       return true;
@@ -298,82 +352,92 @@ const toStoragePayload = (folders) => ({
 const mergeFoldersWithStrategies = (prevFolders, strategies, deployedStrategies) => {
   const safeStrategies = Array.isArray(strategies) ? strategies : [];
   const safeDeployed = Array.isArray(deployedStrategies) ? deployedStrategies : [];
-  const deployedIds = new Set(safeDeployed.map((strategy) => String(strategy?.id)));
+  const deployedIds = new Set(safeDeployed.map((strategy) => resolveStrategyId(strategy)));
+  const normalizedFolders = ensureDefaultFolders(prevFolders);
 
-  const normalized = ensureDefaultFolders(prevFolders);
-  const strategyMap = new Map(
-    safeStrategies
-      .map((strategy) => [String(strategy?.id), strategy])
-      .filter(([id]) => id)
-  );
+  const previousFolderById = new Map();
+  const previousFolderByFingerprint = new Map();
+  normalizedFolders.forEach((folder) => {
+    folder.strategies.forEach((entry) => {
+      const strategyId = sanitizeStrategyId(entry?.id);
+      const fingerprint = strategyFingerprint(entry);
+      if (strategyId && !previousFolderById.has(strategyId)) previousFolderById.set(strategyId, folder.id);
+      if (fingerprint && !previousFolderByFingerprint.has(fingerprint)) {
+        previousFolderByFingerprint.set(fingerprint, folder.id);
+      }
+    });
+  });
 
-  const seen = new Set();
-  const mergedFolders = normalized.map((folder) => ({
+  const sourceStrategies = [];
+  const sourceIndexByIdentity = new Map();
+  safeStrategies.forEach((strategy) => {
+    if (!strategy || typeof strategy !== 'object') return;
+    const normalizedStrategy = {
+      ...strategy,
+      id: resolveStrategyId(strategy),
+    };
+    const identity = strategyIdentityKey(normalizedStrategy) || `id:${normalizedStrategy.id}`;
+    const existingIndex = sourceIndexByIdentity.get(identity);
+    if (existingIndex === undefined) {
+      sourceIndexByIdentity.set(identity, sourceStrategies.length);
+      sourceStrategies.push(normalizedStrategy);
+      return;
+    }
+    sourceStrategies[existingIndex] = {
+      ...sourceStrategies[existingIndex],
+      ...normalizedStrategy,
+      id: sourceStrategies[existingIndex].id || normalizedStrategy.id,
+    };
+  });
+
+  const nextFolders = normalizedFolders.map((folder) => ({
     ...folder,
-    strategies: folder.strategies
-      .map((entry) => {
-        const source = strategyMap.get(String(entry.id));
-        if (!source) return null;
-        seen.add(String(entry.id));
-        return {
-          id: String(entry.id),
-          name: entry.name || source.name || 'Untitled Strategy',
-          ticker: entry.ticker || deriveTicker(source),
-          createdAt: entry.createdAt || deriveCreatedAt(source),
-          profit: deriveProfit(source, entry.profit),
-          isStarred: Boolean(
-            Object.prototype.hasOwnProperty.call(entry, 'isStarred')
-              ? entry.isStarred
-              : source.isStarred
-          ),
-          status: deriveStatus(source, deployedIds),
-        };
-      })
-      .filter(Boolean),
+    strategies: [],
   }));
+  const folderIndexById = new Map(nextFolders.map((folder, index) => [folder.id, index]));
 
-  const folderIndexById = new Map(mergedFolders.map((folder, index) => [folder.id, index]));
-
-  const resolveFolderId = (strategy) => {
+  const resolveFolderId = (strategy, status) => {
     const explicitFolderId = String(strategy?.folderId || strategy?.folder_id || '').trim();
     if (explicitFolderId && folderIndexById.has(explicitFolderId)) return explicitFolderId;
 
-    const status = deriveStatus(strategy, deployedIds);
-    if (isActiveFolderStatus(status)) return 'active-strategies';
-    if (isSophiaStrategy(strategy)) return 'sophia-strategies';
-    if (strategy?.isStarred) return 'favorites';
-    if (strategy?.archived) return 'archive';
-    return 'stratify';
+    const strategyId = resolveStrategyId(strategy);
+    if (strategyId && previousFolderById.has(strategyId)) {
+      const previousFolderId = previousFolderById.get(strategyId);
+      if (folderIndexById.has(previousFolderId)) return previousFolderId;
+    }
+
+    const fingerprint = strategyFingerprint(strategy);
+    if (fingerprint && previousFolderByFingerprint.has(fingerprint)) {
+      const previousFolderId = previousFolderByFingerprint.get(fingerprint);
+      if (folderIndexById.has(previousFolderId)) return previousFolderId;
+    }
+
+    if (isActiveFolderStatus(status) && folderIndexById.has('active-strategies')) return 'active-strategies';
+    if (isSophiaStrategy(strategy) && folderIndexById.has('sophia-strategies')) return 'sophia-strategies';
+    if (strategy?.isStarred && folderIndexById.has('favorites')) return 'favorites';
+    if (strategy?.archived && folderIndexById.has('archive')) return 'archive';
+    if (folderIndexById.has('stratify')) return 'stratify';
+    return nextFolders[0]?.id || '';
   };
 
-  strategyMap.forEach((strategy, strategyId) => {
-    if (seen.has(strategyId)) return;
-
+  sourceStrategies.forEach((strategy) => {
+    const status = deriveStatus(strategy, deployedIds);
     const nextEntry = normalizeStrategyEntry({
-      id: strategyId,
-      name: strategy.name,
-      ticker: deriveTicker(strategy),
+      ...strategy,
+      id: resolveStrategyId(strategy),
       createdAt: deriveCreatedAt(strategy),
-      profit: deriveProfit(strategy),
-      isStarred: Boolean(strategy.isStarred),
-      status: deriveStatus(strategy, deployedIds),
+      status,
     });
     if (!nextEntry) return;
 
-    const targetFolderId = resolveFolderId(strategy);
-    const targetFolderIndex = folderIndexById.has(targetFolderId)
-      ? folderIndexById.get(targetFolderId)
-      : folderIndexById.get('stratify');
+    const targetFolderId = resolveFolderId(strategy, status);
+    if (!targetFolderId || !folderIndexById.has(targetFolderId)) return;
 
-    if (typeof targetFolderIndex === 'number') {
-      mergedFolders[targetFolderIndex] = {
-        ...mergedFolders[targetFolderIndex],
-        strategies: [...mergedFolders[targetFolderIndex].strategies, nextEntry],
-      };
-    }
+    const targetFolderIndex = folderIndexById.get(targetFolderId);
+    nextFolders[targetFolderIndex].strategies.push(nextEntry);
   });
 
-  return ensureDefaultFolders(mergedFolders);
+  return ensureDefaultFolders(nextFolders);
 };
 
 const uniqueStrategiesFromFolders = (folders) => {
@@ -381,7 +445,8 @@ const uniqueStrategiesFromFolders = (folders) => {
   const items = [];
   folders.forEach((folder) => {
     folder.strategies.forEach((strategy) => {
-      const id = String(strategy.id);
+      const id = sanitizeStrategyId(strategy.id);
+      if (!id) return;
       if (seen.has(id)) return;
       seen.add(id);
       items.push(strategy);
@@ -528,15 +593,18 @@ const toOutputStrategy = (strategy) => {
 };
 
 const upsertStrategy = (prev, strategy) => {
+  const normalized = ensureStrategyIdentity(strategy);
+  if (!normalized) return prev;
+
   const nextStrategy = {
-    ...strategy,
-    id: strategy.id || `strategy-${Date.now()}`,
-    savedAt: strategy.savedAt || Date.now(),
+    ...normalized,
+    id: resolveStrategyId(normalized),
+    savedAt: normalized.savedAt || Date.now(),
   };
 
-  const nextId = String(nextStrategy.id || '');
+  const nextId = sanitizeStrategyId(nextStrategy.id);
   const existingIndex = prev.findIndex((item) => {
-    const itemId = String(item?.id || '');
+    const itemId = sanitizeStrategyId(item?.id);
     if (nextId && itemId && nextId === itemId) return true;
 
     const itemName = String(item?.name || '').trim().toLowerCase();
@@ -553,7 +621,8 @@ const upsertStrategy = (prev, strategy) => {
     updated[existingIndex] = {
       ...updated[existingIndex],
       ...nextStrategy,
-      savedAt: Date.now(),
+      id: nextId || sanitizeStrategyId(updated[existingIndex]?.id) || resolveStrategyId(nextStrategy),
+      savedAt: nextStrategy.savedAt || Date.now(),
     };
     return updated;
   }
@@ -577,7 +646,10 @@ const TerminalStrategyWorkspace = ({
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [deletingStrategyId, setDeletingStrategyId] = useState(null);
-  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
+  const [foldersCollapsed, setFoldersCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(FOLDERS_COLLAPSED_KEY) === '1';
+  });
   const [foldersLoaded, setFoldersLoaded] = useState(false);
   const [draggingStrategyId, setDraggingStrategyId] = useState(null);
   const [dragOverFolderId, setDragOverFolderId] = useState(null);
@@ -594,6 +666,11 @@ const TerminalStrategyWorkspace = ({
   const refreshFallbackStrategies = useCallback(() => {
     setFallbackStrategies(loadSavedStrategiesFallback());
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(FOLDERS_COLLAPSED_KEY, foldersCollapsed ? '1' : '0');
+  }, [foldersCollapsed]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -618,23 +695,37 @@ const TerminalStrategyWorkspace = ({
 
   const sourceStrategies = useMemo(() => {
     const merged = [...safeSaved, ...safeDeployed, ...fallbackStrategies];
-    const seen = new Set();
+    const indexByIdentity = new Map();
     const unique = [];
 
     merged.forEach((strategy) => {
-      const key = strategyIdentityKey(strategy);
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      unique.push(strategy);
+      if (!strategy || typeof strategy !== 'object') return;
+      const normalized = {
+        ...strategy,
+        id: resolveStrategyId(strategy),
+      };
+      const identity = strategyIdentityKey(normalized) || `id:${normalized.id}`;
+      const existingIndex = indexByIdentity.get(identity);
+      if (existingIndex === undefined) {
+        indexByIdentity.set(identity, unique.length);
+        unique.push(normalized);
+        return;
+      }
+
+      unique[existingIndex] = {
+        ...unique[existingIndex],
+        ...normalized,
+        id: unique[existingIndex].id || normalized.id,
+      };
     });
 
-    return unique;
+    return unique.filter((item) => sanitizeStrategyId(item?.id));
   }, [safeSaved, safeDeployed, fallbackStrategies]);
 
   const strategySourceMap = useMemo(() => {
     const map = new Map();
     sourceStrategies.forEach((strategy) => {
-      const id = String(strategy?.id || '').trim();
+      const id = sanitizeStrategyId(strategy?.id);
       if (!id) return;
       map.set(id, strategy);
     });
@@ -804,8 +895,12 @@ const TerminalStrategyWorkspace = ({
       return;
     }
 
-    const targetId = String(selectedStrategyId);
-    const existsInFolders = allStrategies.some((strategy) => String(strategy.id) === targetId);
+    const targetId = sanitizeStrategyId(selectedStrategyId);
+    if (!targetId) {
+      setSelectedStrategyId(null);
+      return;
+    }
+    const existsInFolders = allStrategies.some((strategy) => sanitizeStrategyId(strategy.id) === targetId);
     const existsInSource = strategySourceMap.has(targetId);
 
     if (existsInFolders || existsInSource) {
@@ -822,7 +917,7 @@ const TerminalStrategyWorkspace = ({
 
     // Guard against brief sync windows where strategy maps are rebuilding.
     missingSelectionTimerRef.current = setTimeout(() => {
-      setSelectedStrategyId((prev) => (String(prev || '') === targetId ? null : prev));
+      setSelectedStrategyId((prev) => (sanitizeStrategyId(prev) === targetId ? null : prev));
       missingSelectionTimerRef.current = null;
     }, 900);
 
@@ -843,19 +938,19 @@ const TerminalStrategyWorkspace = ({
 
   const selectedStrategy = useMemo(() => {
     if (!selectedStrategyId) return null;
-    const source = strategySourceMap.get(String(selectedStrategyId));
+    const source = strategySourceMap.get(sanitizeStrategyId(selectedStrategyId));
     if (source) return toOutputStrategy(source);
 
-    const fallback = allStrategies.find((strategy) => String(strategy.id) === String(selectedStrategyId));
+    const fallback = allStrategies.find((strategy) => sanitizeStrategyId(strategy.id) === sanitizeStrategyId(selectedStrategyId));
     return toOutputStrategy(fallback || null);
   }, [allStrategies, selectedStrategyId, strategySourceMap]);
 
   const selectedStrategyFolderId = useMemo(() => {
-    const targetId = String(selectedStrategyId || '').trim();
+    const targetId = sanitizeStrategyId(selectedStrategyId);
     if (!targetId) return '';
 
     const folderMatch = folders.find((folder) =>
-      Array.isArray(folder?.strategies) && folder.strategies.some((strategy) => String(strategy?.id || '') === targetId)
+      Array.isArray(folder?.strategies) && folder.strategies.some((strategy) => sanitizeStrategyId(strategy?.id) === targetId)
     );
     return folderMatch?.id || '';
   }, [folders, selectedStrategyId]);
@@ -896,13 +991,13 @@ const TerminalStrategyWorkspace = ({
   };
 
   const removeStrategyFromFolders = (strategyId) => {
-    const targetId = String(strategyId || '').trim();
+    const targetId = sanitizeStrategyId(strategyId);
     if (!targetId) return;
 
     setFolders((prev) =>
       prev.map((folder) => ({
         ...folder,
-        strategies: folder.strategies.filter((strategy) => String(strategy.id) !== targetId),
+        strategies: folder.strategies.filter((strategy) => sanitizeStrategyId(strategy.id) !== targetId),
       }))
     );
   };
@@ -936,10 +1031,10 @@ const TerminalStrategyWorkspace = ({
       return remainingFolders.map((folder) => {
         if (folder.id !== fallbackFolderId) return folder;
 
-        const existingIds = new Set(folder.strategies.map((strategy) => String(strategy.id)));
+        const existingIds = new Set(folder.strategies.map((strategy) => sanitizeStrategyId(strategy.id)));
         const mergedStrategies = [...folder.strategies];
         deletedStrategies.forEach((strategy) => {
-          const strategyId = String(strategy?.id || '');
+          const strategyId = sanitizeStrategyId(strategy?.id);
           if (!strategyId || existingIds.has(strategyId)) return;
           existingIds.add(strategyId);
           mergedStrategies.push(strategy);
@@ -951,12 +1046,12 @@ const TerminalStrategyWorkspace = ({
   };
 
   const handleDeleteStrategy = async (strategyId) => {
-    const targetId = String(strategyId || '').trim();
+    const targetId = sanitizeStrategyId(strategyId);
     if (!targetId || deletingStrategyId === targetId) return;
 
     const strategyRef =
       strategySourceMap.get(targetId) ||
-      allStrategies.find((strategy) => String(strategy.id) === targetId) ||
+      allStrategies.find((strategy) => sanitizeStrategyId(strategy.id) === targetId) ||
       null;
 
     const confirmed =
@@ -1000,7 +1095,7 @@ const TerminalStrategyWorkspace = ({
       console.warn('[TerminalStrategyWorkspace] Failed to delete strategy from Supabase:', error);
     } finally {
       removeStrategyFromFolders(targetId);
-      if (String(selectedStrategyId || '') === targetId) {
+      if (sanitizeStrategyId(selectedStrategyId) === targetId) {
         setSelectedStrategyId(null);
       }
 
@@ -1010,7 +1105,7 @@ const TerminalStrategyWorkspace = ({
           const strategyName = String(strategyRef?.name || '').trim().toLowerCase();
           const strategyTicker = deriveTicker(strategyRef).toLowerCase();
           const nextFallback = fallbackRaw.filter((item) => {
-            const itemId = String(item?.id || '').trim();
+            const itemId = sanitizeStrategyId(item?.id);
             if (itemId && itemId === targetId) return false;
 
             const itemName = String(item?.name || '').trim().toLowerCase();
@@ -1030,7 +1125,7 @@ const TerminalStrategyWorkspace = ({
 
   const moveStrategyToFolder = useCallback((strategyId, targetFolderId) => {
     const targetId = String(targetFolderId || '').trim();
-    const draggedId = String(strategyId || '').trim();
+    const draggedId = sanitizeStrategyId(strategyId);
     if (!targetId || !draggedId) return;
 
     setFolders((prev) => {
@@ -1046,7 +1141,7 @@ const TerminalStrategyWorkspace = ({
       let sourceFolderId = '';
 
       next.forEach((folder) => {
-        const index = folder.strategies.findIndex((strategy) => String(strategy.id) === draggedId);
+        const index = folder.strategies.findIndex((strategy) => sanitizeStrategyId(strategy.id) === draggedId);
         if (index < 0) return;
         sourceFolderId = folder.id;
         movedStrategy = folder.strategies[index];
@@ -1055,7 +1150,7 @@ const TerminalStrategyWorkspace = ({
 
       if (!movedStrategy || sourceFolderId === targetId) return prev;
 
-      if (!destinationFolder.strategies.some((strategy) => String(strategy.id) === draggedId)) {
+      if (!destinationFolder.strategies.some((strategy) => sanitizeStrategyId(strategy.id) === draggedId)) {
         destinationFolder.strategies.unshift(movedStrategy);
       }
 
@@ -1064,18 +1159,19 @@ const TerminalStrategyWorkspace = ({
   }, []);
 
   const upsertStrategyIntoFolders = useCallback((strategyInput) => {
-    if (!strategyInput || typeof strategyInput !== 'object') return;
+    const normalizedStrategy = ensureStrategyIdentity(strategyInput);
+    if (!normalizedStrategy) return null;
 
-    const strategyId = String(strategyInput.id || '').trim() || `strategy-${Date.now()}`;
+    const strategyId = resolveStrategyId(normalizedStrategy);
     const normalized = normalizeStrategyEntry({
-      ...strategyInput,
+      ...normalizedStrategy,
       id: strategyId,
     });
     if (!normalized) return;
 
-    const requestedFolderId = String(strategyInput.folderId || strategyInput.folder_id || '').trim();
-    const deployedIds = new Set(safeDeployed.map((strategy) => String(strategy?.id || '').trim()));
-    const derivedStatus = deriveStatus({ ...strategyInput, id: strategyId }, deployedIds);
+    const requestedFolderId = String(normalizedStrategy.folderId || normalizedStrategy.folder_id || '').trim();
+    const deployedIds = new Set(safeDeployed.map((strategy) => resolveStrategyId(strategy)));
+    const derivedStatus = deriveStatus({ ...normalizedStrategy, id: strategyId }, deployedIds);
 
     setFolders((prev) => {
       const next = ensureDefaultFolders(prev).map((folder) => ({
@@ -1084,7 +1180,7 @@ const TerminalStrategyWorkspace = ({
       }));
 
       next.forEach((folder) => {
-        folder.strategies = folder.strategies.filter((entry) => String(entry.id) !== strategyId);
+        folder.strategies = folder.strategies.filter((entry) => sanitizeStrategyId(entry.id) !== strategyId);
       });
 
       let targetFolderId = '';
@@ -1092,11 +1188,11 @@ const TerminalStrategyWorkspace = ({
         targetFolderId = requestedFolderId;
       } else if (isActiveFolderStatus(derivedStatus) && next.some((folder) => folder.id === 'active-strategies')) {
         targetFolderId = 'active-strategies';
-      } else if (isSophiaStrategy(strategyInput) && next.some((folder) => folder.id === 'sophia-strategies')) {
+      } else if (isSophiaStrategy(normalizedStrategy) && next.some((folder) => folder.id === 'sophia-strategies')) {
         targetFolderId = 'sophia-strategies';
-      } else if (strategyInput.isStarred && next.some((folder) => folder.id === 'favorites')) {
+      } else if (normalizedStrategy.isStarred && next.some((folder) => folder.id === 'favorites')) {
         targetFolderId = 'favorites';
-      } else if (strategyInput.archived && next.some((folder) => folder.id === 'archive')) {
+      } else if (normalizedStrategy.archived && next.some((folder) => folder.id === 'archive')) {
         targetFolderId = 'archive';
       } else if (next.some((folder) => folder.id === 'stratify')) {
         targetFolderId = 'stratify';
@@ -1117,11 +1213,16 @@ const TerminalStrategyWorkspace = ({
     });
 
     setSelectedStrategyId(strategyId);
+    return {
+      ...normalizedStrategy,
+      id: strategyId,
+      status: normalizeStrategyStatus(derivedStatus || normalized.status || 'saved'),
+    };
   }, [safeDeployed]);
 
   const handleStrategyDragStart = useCallback((event, strategyId, fromFolderId) => {
     const payload = {
-      strategyId: String(strategyId || '').trim(),
+      strategyId: sanitizeStrategyId(strategyId),
       fromFolderId: String(fromFolderId || '').trim(),
     };
 
@@ -1163,11 +1264,12 @@ const TerminalStrategyWorkspace = ({
     }
 
     const strategyId = String(payload?.strategyId || '').trim();
+    const sanitizedStrategyId = sanitizeStrategyId(strategyId);
     const fromFolderId = String(payload?.fromFolderId || '').trim();
     const targetFolderId = String(folderId || '').trim();
 
-    if (strategyId && targetFolderId && targetFolderId !== fromFolderId) {
-      moveStrategyToFolder(strategyId, targetFolderId);
+    if (sanitizedStrategyId && targetFolderId && targetFolderId !== fromFolderId) {
+      moveStrategyToFolder(sanitizedStrategyId, targetFolderId);
     }
 
     dragPayloadRef.current = null;
@@ -1313,8 +1415,8 @@ const TerminalStrategyWorkspace = ({
                       <div className="ml-6 border-l border-zinc-800 pl-2">
                         {hasStrategies ? (
                           folder.strategies.map((strategy) => {
-                            const id = String(strategy.id);
-                            const isSelected = id === String(selectedStrategyId || '');
+                            const id = sanitizeStrategyId(strategy.id);
+                            const isSelected = id === sanitizeStrategyId(selectedStrategyId);
                             const profitText = formatProfit(strategy.profit);
                             const normalizedStatus = normalizeStrategyStatus(strategy.status);
                             const isLive = LIVE_STATUSES.has(normalizedStatus);
@@ -1429,12 +1531,14 @@ const TerminalStrategyWorkspace = ({
               strategy={selectedStrategy}
               onBack={() => setSelectedStrategyId(null)}
               onSave={(strategy) => {
-                onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
-                upsertStrategyIntoFolders(strategy);
+                const syncedStrategy = upsertStrategyIntoFolders(strategy);
+                if (!syncedStrategy) return;
+                onSaveStrategy?.((prev) => upsertStrategy(prev, syncedStrategy));
               }}
               onContentSave={(strategy) => {
-                onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
-                upsertStrategyIntoFolders(strategy);
+                const syncedStrategy = upsertStrategyIntoFolders(strategy);
+                if (!syncedStrategy) return;
+                onSaveStrategy?.((prev) => upsertStrategy(prev, syncedStrategy));
               }}
               onDeploy={(activation) => {
                 onDeployStrategy?.({
