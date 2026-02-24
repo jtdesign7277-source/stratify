@@ -141,6 +141,7 @@ const StatusBadge = ({ label, color }) => (
 
 const BROKER_CONNECT_PAGE_STATE_KEY = 'portfolio-broker-connect-state';
 const BROKER_CONNECT_PAGE_FIELDS_KEY = 'portfolio-broker-connect-fields';
+const CONNECT_REQUEST_TIMEOUT_MS = 15000;
 
 const readStoredConnectState = () => {
   try {
@@ -315,19 +316,32 @@ const BrokerConnect = ({ onConnected }) => {
         return;
       }
 
-      const resp = await fetch('/api/broker-connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          broker: selectedBroker,
-          api_key: apiKey,
-          api_secret: apiSecret,
-          is_paper: isPaper,
-        }),
-      });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), CONNECT_REQUEST_TIMEOUT_MS);
+      let resp;
+      try {
+        resp = await fetch('/api/broker-connect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            broker: selectedBroker,
+            api_key: apiKey,
+            api_secret: apiSecret,
+            is_paper: isPaper,
+          }),
+          signal: controller.signal,
+        });
+      } catch (requestError) {
+        if (requestError?.name === 'AbortError') {
+          throw new Error('Connection timed out. Please verify your keys and try again.');
+        }
+        throw requestError;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
 
       const data = await resp.json();
       if (!resp.ok) {
@@ -530,7 +544,7 @@ const BrokerConnect = ({ onConnected }) => {
                 onClick={() => setIsPaper(!isPaper)}
                 className={`relative w-10 h-5 rounded-full transition-colors ${isPaper ? 'bg-emerald-500/40' : 'bg-orange-500/40'}`}
               >
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0.5 bg-orange-400'}`} />
+                <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0 bg-orange-400'}`} />
               </button>
             </div>
           )}

@@ -165,6 +165,7 @@ const brokers = [
 const BROKER_MODAL_STATE_KEY = 'portfolio-broker-modal-state';
 const BROKER_MODAL_FIELDS_KEY = 'portfolio-broker-modal-fields';
 const LEGACY_BROKER_CONNECT_FORM_KEY = 'broker-connect-form';
+const CONNECT_REQUEST_TIMEOUT_MS = 15000;
 const BROKER_KEYS_URLS = {
   alpaca: 'https://app.alpaca.markets/brokerage/api-keys',
   tradier: 'https://developer.tradier.com/user/tokens',
@@ -362,19 +363,32 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           throw new Error('Not authenticated. Please sign in and try again.');
         }
 
-        const response = await fetch('/api/broker-connect', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            broker: selectedBroker.id,
-            api_key: apiKey.trim(),
-            api_secret: secretKey.trim(),
-            is_paper: isPaper,
-          }),
-        });
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), CONNECT_REQUEST_TIMEOUT_MS);
+        let response;
+        try {
+          response = await fetch('/api/broker-connect', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              broker: selectedBroker.id,
+              api_key: apiKey.trim(),
+              api_secret: secretKey.trim(),
+              is_paper: isPaper,
+            }),
+            signal: controller.signal,
+          });
+        } catch (requestError) {
+          if (requestError?.name === 'AbortError') {
+            throw new Error('Connection timed out. Please verify keys and try again.');
+          }
+          throw requestError;
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -572,7 +586,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
                       onClick={() => setIsPaper(!isPaper)}
                       className={`relative w-10 h-5 rounded-full transition-colors ${isPaper ? 'bg-emerald-500/40' : 'bg-orange-500/40'}`}
                     >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0.5 bg-orange-400'}`} />
+                      <span className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full transition-transform ${isPaper ? 'translate-x-5 bg-emerald-400' : 'translate-x-0 bg-orange-400'}`} />
                     </button>
                   </div>
                 )}

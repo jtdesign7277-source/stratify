@@ -4,6 +4,7 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+const ALPACA_VERIFY_TIMEOUT_MS = 12000;
 
 async function getUserFromToken(req) {
   const auth = req.headers.authorization;
@@ -40,12 +41,20 @@ export default async function handler(req, res) {
       : 'https://api.alpaca.markets';
 
     try {
-      const testResp = await fetch(`${baseUrl}/v2/account`, {
-        headers: {
-          'APCA-API-KEY-ID': api_key,
-          'APCA-API-SECRET-KEY': api_secret,
-        },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), ALPACA_VERIFY_TIMEOUT_MS);
+      let testResp;
+      try {
+        testResp = await fetch(`${baseUrl}/v2/account`, {
+          headers: {
+            'APCA-API-KEY-ID': api_key,
+            'APCA-API-SECRET-KEY': api_secret,
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!testResp.ok) {
         const text = await testResp.text();
@@ -99,6 +108,9 @@ export default async function handler(req, res) {
         is_paper: connectPaper,
       });
     } catch (err) {
+      if (err?.name === 'AbortError') {
+        return res.status(504).json({ error: 'Alpaca connection timed out. Please try again.' });
+      }
       return res.status(500).json({ error: err.message });
     }
   }
