@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -28,6 +28,13 @@ const PROBLEM_CARDS = [
   { title: 'Email Alerts', cost: '$25/mo' },
   { title: 'Backtesting', cost: '$100/mo' },
   { title: 'Spreadsheet P&L', cost: 'Manual' },
+];
+
+const PROBLEM_SCRIPT = [
+  'Sophia: Running stack audit...',
+  ...PROBLEM_CARDS.map((card) => `${card.title} -> ${card.cost}`),
+  'Sophia: Combined monthly spend estimates at $373-$784.',
+  'Sophia: Recommendation -> collapse this into one Stratify key.',
 ];
 
 const FEATURE_CARDS = [
@@ -288,10 +295,35 @@ const landingStyles = `
     0%, 100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.38; }
     50% { transform: translate(-50%, -50%) rotate(-13deg) scale(1.03); opacity: 0.58; }
   }
+
+  @keyframes landing-cursor-blink {
+    0%, 48% { opacity: 1; }
+    49%, 100% { opacity: 0; }
+  }
+
+  @keyframes landing-asteroid-streak {
+    0% { transform: translate(-120px, -60px) scale(0.6) rotate(-24deg); opacity: 0; }
+    20% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { transform: translate(120px, 50px) scale(1.2) rotate(-24deg); opacity: 0; }
+  }
+
+  @keyframes landing-asteroid-burst {
+    0% { transform: scale(0.2); opacity: 0; filter: blur(1px); }
+    25% { opacity: 1; }
+    100% { transform: scale(6.6); opacity: 0; filter: blur(7px); }
+  }
 `;
 
 const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
   const [openFaq, setOpenFaq] = useState(0);
+  const problemSectionRef = useRef(null);
+  const [problemStarted, setProblemStarted] = useState(false);
+  const [problemBurst, setProblemBurst] = useState(false);
+  const [typedProblemLines, setTypedProblemLines] = useState([]);
+  const [typingProblemLine, setTypingProblemLine] = useState('');
+  const [problemRevealReady, setProblemRevealReady] = useState(false);
+  const [problemTypingDone, setProblemTypingDone] = useState(false);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -301,6 +333,72 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
       html.style.scrollBehavior = previous;
     };
   }, []);
+
+  useEffect(() => {
+    const node = problemSectionRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry?.isIntersecting) {
+          setProblemStarted(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!problemStarted) return undefined;
+
+    const timers = [];
+    const schedule = (fn, delay) => {
+      const id = window.setTimeout(fn, delay);
+      timers.push(id);
+      return id;
+    };
+
+    setProblemBurst(true);
+    setTypedProblemLines([]);
+    setTypingProblemLine('');
+    setProblemRevealReady(false);
+    setProblemTypingDone(false);
+
+    const typeLine = (lineIndex, charIndex) => {
+      const target = PROBLEM_SCRIPT[lineIndex];
+      if (!target) {
+        setProblemTypingDone(true);
+        setProblemRevealReady(true);
+        return;
+      }
+
+      const nextCharCount = charIndex + 1;
+      setTypingProblemLine(target.slice(0, nextCharCount));
+
+      if (nextCharCount < target.length) {
+        schedule(() => typeLine(lineIndex, nextCharCount), 24);
+        return;
+      }
+
+      schedule(() => {
+        setTypedProblemLines((prev) => [...prev, target]);
+        setTypingProblemLine('');
+        typeLine(lineIndex + 1, 0);
+      }, 280);
+    };
+
+    schedule(() => setProblemBurst(false), 900);
+    schedule(() => typeLine(0, 0), 280);
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [problemStarted]);
 
   const handleGetStarted = () => {
     if (onSignUp) {
@@ -509,18 +607,88 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
         </motion.section>
 
         <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">The Problem</h2>
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {PROBLEM_CARDS.map((card) => (
-                <div key={card.title} className="bg-white/5 border border-red-500/20 rounded-xl p-4">
-                  <p className="text-white font-medium">{card.title}</p>
-                  <p className="text-red-300 text-sm mt-2">{card.cost}</p>
+          <div ref={problemSectionRef} className="max-w-6xl mx-auto">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-red-300/70">Sophia Cost Analyzer</p>
+            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">The Problem</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-gray-400 md:text-base">
+              Legacy stack costs keep compounding. Sophia maps every expense line and flags the drag.
+            </p>
+
+            <div className="relative mt-10">
+              <div className="pointer-events-none absolute -inset-6 rounded-[40px] bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.12),rgba(239,68,68,0.06),transparent_72%)] blur-2xl" />
+              {problemBurst ? (
+                <div className="pointer-events-none absolute inset-0 z-20">
+                  <span
+                    className="absolute left-[26%] top-[18%] h-1.5 w-36 rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-amber-200"
+                    style={{ animation: 'landing-asteroid-streak 0.9s ease-out forwards', boxShadow: '0 0 24px rgba(251,146,60,0.75)' }}
+                  />
+                  <span
+                    className="absolute left-[56%] top-[36%] h-4 w-4 rounded-full bg-orange-200/95"
+                    style={{ animation: 'landing-asteroid-burst 0.9s ease-out forwards', boxShadow: '0 0 26px rgba(251,146,60,0.95)' }}
+                  />
                 </div>
+              ) : null}
+
+              <div className="relative overflow-hidden rounded-[34px] border border-cyan-300/24 bg-[linear-gradient(155deg,rgba(5,11,22,0.97),rgba(7,9,18,0.94))] p-6 md:p-8">
+                <div className="pointer-events-none absolute inset-0 opacity-65" style={{ background: 'radial-gradient(circle at 8% 18%, rgba(16,185,129,0.16) 0%, transparent 36%), radial-gradient(circle at 88% 20%, rgba(56,189,248,0.2) 0%, transparent 34%)' }} />
+                <div className="relative">
+                  <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-300/85" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-cyan-300/75" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-rose-300/75" />
+                    </div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">SOPHIA // Live Diagnostic</p>
+                  </div>
+
+                  <div className="mt-4 min-h-[240px] rounded-[24px] border border-white/10 bg-[#030b16]/88 p-4 font-mono text-[13px] leading-6 text-cyan-100/85 md:text-sm">
+                    {typedProblemLines.map((line) => (
+                      <p key={line} className="opacity-95">
+                        {line}
+                      </p>
+                    ))}
+                    {!problemTypingDone ? (
+                      <p className="opacity-95">
+                        {typingProblemLine}
+                        <span className="ml-0.5 inline-block h-[1em] w-[0.5ch] bg-cyan-200/85 align-[-0.12em]" style={{ animation: 'landing-cursor-blink 0.9s steps(1,end) infinite' }} />
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {PROBLEM_CARDS.map((card, index) => (
+                <motion.div
+                  key={card.title}
+                  initial={{ opacity: 0, scale: 0.86, y: 18 }}
+                  animate={
+                    problemRevealReady
+                      ? { opacity: 1, scale: 1, y: 0 }
+                      : { opacity: 0, scale: 0.86, y: 18 }
+                  }
+                  transition={{ duration: 0.42, ease: 'easeOut', delay: index * 0.08 }}
+                  className="group relative overflow-hidden rounded-[26px] border border-rose-300/22 bg-[linear-gradient(155deg,rgba(16,9,16,0.72),rgba(7,11,20,0.9))] px-5 py-4"
+                >
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-rose-300/10 blur-2xl" />
+                  <p className="text-[15px] font-medium text-white">{card.title}</p>
+                  <p className="mt-2 text-sm text-rose-200/92">{card.cost}</p>
+                </motion.div>
               ))}
             </div>
-            <p className="mt-8 text-center text-red-400 text-2xl font-bold">Total: $373-784/month</p>
-            <p className="mt-2 text-center text-emerald-500 text-xl">There&apos;s a better way.</p>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 12 }}
+              animate={
+                problemRevealReady ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.85, y: 12 }
+              }
+              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
+              className="mt-9 text-center"
+            >
+              <p className="text-3xl font-semibold text-rose-300 md:text-4xl">Total: $373-784/month</p>
+              <p className="mt-2 text-emerald-300 text-2xl">There&apos;s a better way.</p>
+            </motion.div>
           </div>
         </motion.section>
 
@@ -735,14 +903,19 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
         </motion.section>
 
         <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-4xl mx-auto rounded-2xl border border-gray-800 bg-black/35 p-8">
-            <h2 className="text-white text-3xl font-bold text-center">Your Security, Our Priority</h2>
+          <div className="max-w-5xl mx-auto overflow-hidden rounded-[34px] border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(5,11,21,0.95),rgba(3,8,17,0.92))] p-8 md:p-10 shadow-[0_20px_60px_rgba(2,8,20,0.45)]">
+            <h2 className="text-white text-3xl font-bold text-center md:text-4xl">Your Security, Our Priority</h2>
             <div className="mt-8 space-y-3">
               {SECURITY_ITEMS.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.text} className="flex items-center gap-3 rounded-lg border border-gray-800/70 bg-black/30 px-4 py-3">
-                    <Icon className="h-4 w-4 text-emerald-400" strokeWidth={1.5} />
+                  <div
+                    key={item.text}
+                    className="group flex items-center gap-3 rounded-[18px] border border-white/12 bg-[linear-gradient(120deg,rgba(7,16,30,0.82),rgba(4,9,18,0.76))] px-5 py-3.5 transition-colors hover:border-cyan-300/30"
+                  >
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/10">
+                      <Icon className="h-4 w-4 text-emerald-300" strokeWidth={1.6} />
+                    </span>
                     <span className="text-gray-300 text-sm">{item.text}</span>
                   </div>
                 );
@@ -753,23 +926,28 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
 
         <motion.section {...sectionMotion} className="py-24 px-6">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Questions?</h2>
+            <h2 className="text-white text-3xl font-bold text-center md:text-4xl">Questions?</h2>
             <div className="mt-8 space-y-3">
               {FAQ_ITEMS.map((faq, index) => {
                 const isOpen = openFaq === index;
                 return (
-                  <div key={faq.question} className="rounded-xl border border-gray-800 bg-black/35 overflow-hidden">
+                  <div
+                    key={faq.question}
+                    className={`overflow-hidden rounded-[20px] border bg-[linear-gradient(160deg,rgba(6,11,21,0.94),rgba(3,8,16,0.9))] backdrop-blur ${
+                      isOpen ? 'border-cyan-300/32 shadow-[0_0_28px_rgba(56,189,248,0.12)]' : 'border-white/12'
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() => setOpenFaq((prev) => (prev === index ? -1 : index))}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
-                        isOpen ? 'text-white' : 'text-gray-400 hover:text-white'
+                      className={`w-full flex items-center justify-between gap-3 px-5 py-4 text-left transition-colors ${
+                        isOpen ? 'text-white' : 'text-gray-300 hover:text-white'
                       }`}
                     >
                       <span className="font-medium">{faq.question}</span>
                       <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} strokeWidth={1.5} />
                     </button>
-                    {isOpen ? <div className="px-4 pb-4 text-sm text-gray-400 leading-relaxed">{faq.answer}</div> : null}
+                    {isOpen ? <div className="px-5 pb-4 text-sm text-gray-400 leading-relaxed">{faq.answer}</div> : null}
                   </div>
                 );
               })}
