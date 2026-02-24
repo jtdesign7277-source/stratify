@@ -15,7 +15,6 @@ import {
   Shield,
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
-import LandingMarketTape from './LandingMarketTape';
 import {
   PRO_MONTHLY_PRICE_LABEL,
 } from '../../lib/billing';
@@ -577,8 +576,6 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             </div>
           </div>
         </motion.section>
-
-        <LandingMarketTape />
 
         <motion.section {...sectionMotion} className="border-t border-white/8 py-24 px-6">
           <div className="max-w-5xl mx-auto">
