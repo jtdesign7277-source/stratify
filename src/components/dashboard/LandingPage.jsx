@@ -578,6 +578,8 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           </div>
         </motion.section>
 
+        <LandingMarketTape />
+
         <motion.section {...sectionMotion} className="border-t border-white/8 py-24 px-6">
           <div className="max-w-5xl mx-auto">
             <h2
@@ -681,7 +683,6 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           </div>
         </footer>
       </main>
-      <LandingMarketTape />
     </div>
   );
 };
