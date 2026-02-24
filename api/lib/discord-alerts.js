@@ -93,6 +93,151 @@ const formatVolume = (value) => {
 };
 
 const normalizeSymbol = (value) => String(value || '').trim().toUpperCase().replace(/^\$/, '');
+const DISCORD_EMBED_LIMITS = Object.freeze({
+  title: 256,
+  description: 4096,
+  fieldName: 256,
+  fieldValue: 1024,
+  footerText: 2048,
+  fields: 25,
+  embeds: 10,
+});
+const DISCORD_COLOR_BULLISH = 0x22C55E;
+
+const truncateText = (value, maxLength) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(1, maxLength - 1))}…`;
+};
+
+const toEmbedText = (value, { fallback = '—', maxLength = 1024, allowEmpty = false } = {}) => {
+  if (value === null || value === undefined) {
+    return allowEmpty ? '' : truncateText(fallback, maxLength);
+  }
+
+  const normalized = truncateText(
+    typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+      ? value
+      : '',
+    maxLength,
+  );
+
+  if (normalized) return normalized;
+  return allowEmpty ? '' : truncateText(fallback, maxLength);
+};
+
+const normalizeEmbedColor = (value, fallback = DISCORD_COLOR_BULLISH) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 0xFFFFFF) {
+    return fallback;
+  }
+  return parsed;
+};
+
+const normalizeEmbedTimestamp = (value) => {
+  const candidate = value || new Date().toISOString();
+  const parsed = new Date(candidate);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString();
+  return parsed.toISOString();
+};
+
+const normalizeEmbedImage = (candidate) => {
+  const rawUrl =
+    typeof candidate === 'string'
+      ? candidate
+      : candidate && typeof candidate === 'object'
+        ? candidate.url
+        : '';
+
+  const url = String(rawUrl || '').trim();
+  if (!url) return null;
+  if (url.startsWith('attachment://')) return { url };
+  if (/^https?:\/\//i.test(url)) return { url };
+  return null;
+};
+
+const normalizeEmbedField = (field) => {
+  if (!field || typeof field !== 'object' || Array.isArray(field)) return null;
+
+  const name = toEmbedText(field.name, {
+    fallback: 'Details',
+    maxLength: DISCORD_EMBED_LIMITS.fieldName,
+  });
+  const value = toEmbedText(field.value, {
+    fallback: '—',
+    maxLength: DISCORD_EMBED_LIMITS.fieldValue,
+  });
+  const inline = typeof field.inline === 'boolean' ? field.inline : Boolean(field.inline);
+
+  return { name, value, inline };
+};
+
+const sanitizeDiscordEmbed = (embed) => {
+  if (!embed || typeof embed !== 'object' || Array.isArray(embed)) return null;
+
+  const sanitized = {
+    color: normalizeEmbedColor(embed.color),
+    timestamp: normalizeEmbedTimestamp(embed.timestamp),
+  };
+
+  const title = toEmbedText(embed.title, {
+    fallback: '',
+    maxLength: DISCORD_EMBED_LIMITS.title,
+    allowEmpty: true,
+  });
+  if (title) sanitized.title = title;
+
+  const description = toEmbedText(embed.description, {
+    fallback: '',
+    maxLength: DISCORD_EMBED_LIMITS.description,
+    allowEmpty: true,
+  });
+  if (description) sanitized.description = description;
+
+  const fields = Array.isArray(embed.fields)
+    ? embed.fields.map(normalizeEmbedField).filter(Boolean).slice(0, DISCORD_EMBED_LIMITS.fields)
+    : [];
+  if (fields.length > 0) sanitized.fields = fields;
+
+  const footerText = toEmbedText(embed?.footer?.text, {
+    fallback: '',
+    maxLength: DISCORD_EMBED_LIMITS.footerText,
+    allowEmpty: true,
+  });
+  if (footerText) sanitized.footer = { text: footerText };
+
+  const image = normalizeEmbedImage(embed?.image || embed?.imageUrl);
+  if (image) sanitized.image = image;
+
+  const hasContent = Boolean(
+    sanitized.title
+      || sanitized.description
+      || (Array.isArray(sanitized.fields) && sanitized.fields.length > 0)
+      || sanitized.footer?.text
+      || sanitized.image?.url,
+  );
+
+  if (!hasContent) return null;
+  return sanitized;
+};
+
+export const sanitizeDiscordEmbeds = (embeds = []) => {
+  if (!Array.isArray(embeds)) return [];
+  return embeds
+    .map((embed) => sanitizeDiscordEmbed(embed))
+    .filter(Boolean)
+    .slice(0, DISCORD_EMBED_LIMITS.embeds);
+};
+
+const logEmbedValidation = (context, originalEmbeds, sanitizedEmbeds) => {
+  const originalCount = Array.isArray(originalEmbeds) ? originalEmbeds.length : 0;
+  if (sanitizedEmbeds.length !== originalCount) {
+    console.warn(
+      `[discord-alerts] ${context}: filtered ${Math.max(0, originalCount - sanitizedEmbeds.length)} invalid embed(s)`,
+    );
+  }
+};
 
 const dedupeBySymbol = (rows = []) => {
   const map = new Map();
@@ -776,37 +921,75 @@ const buildChartAttachment = async (alert) => {
   }
 };
 
-const buildTradeAlertEmbed = (alert, chartImageUrl = null) => {
-  const patternDetails = alert.patternName ? ` (${alert.patternName})` : '';
+export const buildTradeAlertEmbed = (alert = {}, chartImageUrl = null) => {
+  const safeSymbol = normalizeSymbol(alert.symbol) || 'TICKER';
+  const safeLabel = toEmbedText(alert.label, {
+    fallback: 'Trade Alert',
+    maxLength: 80,
+  });
+  const patternName = toEmbedText(alert.patternName, {
+    fallback: '',
+    maxLength: 80,
+    allowEmpty: true,
+  });
+  const patternDetails = patternName ? ` (${patternName})` : '';
+  const summary = toEmbedText(alert.summary, {
+    fallback: `Bullish setup on $${safeSymbol}`,
+    maxLength: DISCORD_EMBED_LIMITS.description - 16,
+  });
 
-  return {
-    title: `${alert.emoji} $${alert.symbol} ${alert.label}${patternDetails}`,
-    description: `**Buy signal:** ${alert.summary}`,
-    color: 0x22C55E,
+  const volumeRatio = toNumber(alert.volumeRatio);
+  const safeVolumeRatio = Number.isFinite(volumeRatio) ? volumeRatio : 0;
+  const rsiLatest = toNumber(alert.rsiLatest);
+  const rsiPrevious = toNumber(alert.rsiPrevious);
+
+  const signalType =
+    alert.type === 'pattern' && patternName
+      ? `${ALERT_META.pattern.label}: ${patternName}`
+      : (ALERT_META[alert.type]?.label
+        || toEmbedText(alert.type, { fallback: 'Trade setup', maxLength: 120 }));
+
+  const image = normalizeEmbedImage(chartImageUrl);
+
+  const rawEmbed = {
+    title: `${toEmbedText(alert.emoji, { fallback: '📈', maxLength: 8 })} $${safeSymbol} ${safeLabel}${patternDetails}`,
+    description: `**Buy signal:** ${summary}`,
+    color: DISCORD_COLOR_BULLISH,
     fields: [
       { name: 'Entry', value: formatPrice(alert.entry), inline: true },
       { name: 'Target', value: formatPrice(alert.target), inline: true },
       { name: 'Stop Loss', value: formatPrice(alert.stopLoss), inline: true },
       { name: 'Current', value: formatPrice(alert.currentPrice), inline: true },
       { name: 'Change', value: toPercent(alert.changePercent), inline: true },
-      { name: 'Volume', value: `${formatVolume(alert.volume)} (${alert.volumeRatio.toFixed(2)}x)`, inline: true },
+      { name: 'Volume', value: `${formatVolume(alert.volume)} (${safeVolumeRatio.toFixed(2)}x)`, inline: true },
       {
         name: 'Key Levels',
         value: `Support ${formatPrice(alert.support)} | Resistance ${formatPrice(alert.resistance)}`,
       },
-      { name: 'Setup Notes', value: alert.reasoning },
       {
-        name: 'Signal Type',
-        value: alert.type === 'pattern' && alert.patternName
-          ? `${ALERT_META.pattern.label}: ${alert.patternName}`
-          : (ALERT_META[alert.type]?.label || alert.type),
+        name: 'Setup Notes',
+        value: toEmbedText(alert.reasoning, {
+          fallback: 'Momentum setup aligned with current trend structure.',
+          maxLength: DISCORD_EMBED_LIMITS.fieldValue,
+        }),
       },
-      ...(Number.isFinite(alert.rsiLatest)
-        ? [{ name: 'RSI', value: `${alert.rsiPrevious?.toFixed?.(1) || '—'} → ${alert.rsiLatest.toFixed(1)}`, inline: true }]
+      { name: 'Signal Type', value: signalType },
+      ...(Number.isFinite(rsiLatest)
+        ? [{ name: 'RSI', value: `${Number.isFinite(rsiPrevious) ? rsiPrevious.toFixed(1) : '—'} → ${rsiLatest.toFixed(1)}`, inline: true }]
         : []),
     ],
-    ...(chartImageUrl ? { image: { url: chartImageUrl } } : {}),
+    ...(image ? { image } : {}),
     footer: { text: 'Stratify Trade Alerts • Educational only' },
+    timestamp: new Date().toISOString(),
+  };
+
+  const sanitized = sanitizeDiscordEmbed(rawEmbed);
+  if (sanitized) return sanitized;
+
+  return {
+    title: `$${safeSymbol} ${safeLabel}`,
+    description: '**Buy signal:** Setup detected.',
+    color: DISCORD_COLOR_BULLISH,
     timestamp: new Date().toISOString(),
   };
 };
@@ -976,17 +1159,20 @@ export const runDiscordAlertCycle = async ({
     selectedAlerts.map(async (alert) => {
       const chart = await buildChartAttachment(alert);
       const embed = buildTradeAlertEmbed(alert, chart.imageUrl);
+      const embeds = sanitizeDiscordEmbeds([embed]);
+      logEmbedValidation(`trade_alert:${alert.symbol || 'unknown'}`, [embed], embeds);
+
       return {
         kind: 'trade_alert',
         channel: 'tradeSetups',
         symbol: alert.symbol,
         alertType: alert.type,
         content: makeTradeAlertContent(alert, mention),
-        embeds: [embed],
-        files: chart.file ? [chart.file] : [],
+        embeds,
+        files: chart?.file ? [chart.file] : [],
         allowedMentions,
-        chartSource: chart.source,
-        chartUrl: chart.chartUrl,
+        chartSource: chart?.source || 'none',
+        chartUrl: chart?.chartUrl || null,
       };
     }),
   );
@@ -997,7 +1183,7 @@ export const runDiscordAlertCycle = async ({
     symbol: mover.symbol,
     alertType: 'market_mover',
     content: makeMarketMoverContent(mover, mention),
-    embeds: [
+    embeds: sanitizeDiscordEmbeds([
       buildMarketMoverEmbed({
         ticker: mover.symbol,
         price: toNumber(mover.price) || 0,
@@ -1006,7 +1192,7 @@ export const runDiscordAlertCycle = async ({
         volume: toNumber(mover.volume) || 0,
         catalyst: `Source: ${mover.source || 'scan'}`,
       }),
-    ],
+    ]),
     files: [],
     allowedMentions,
     chartSource: 'none',
@@ -1042,9 +1228,12 @@ export const runDiscordAlertCycle = async ({
 
   for (const item of items) {
     try {
+      const validatedEmbeds = sanitizeDiscordEmbeds(item.embeds);
+      logEmbedValidation(`${item.kind}:${item.symbol || 'unknown'}`, item.embeds, validatedEmbeds);
+
       await postToDiscord(item.channel, {
         content: item.content,
-        embeds: item.embeds,
+        embeds: validatedEmbeds.length > 0 ? validatedEmbeds : undefined,
         files: item.files,
         allowedMentions: item.allowedMentions,
       });
