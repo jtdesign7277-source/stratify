@@ -2,353 +2,147 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
-  Ban,
-  Bell,
   Brain,
-  ChevronDown,
-  Code,
-  Crosshair,
-  Eye,
-  Globe,
-  Lock,
+  ChevronRight,
+  Layers,
+  LineChart,
   Monitor,
   Shield,
+  Zap,
 } from 'lucide-react';
-import GlobalMarketsBadge from './GlobalMarketsBadge';
-import {
-  PRO_MONTHLY_PRICE_LABEL,
-} from '../../lib/billing';
+import supabase from '../../lib/supabaseClient';
 
-const PROBLEM_CARDS = [
-  { title: 'Charts & Technicals', cost: '$60/mo' },
-  { title: 'Broker App', cost: 'Varies' },
-  { title: 'Twitter/X for News', cost: '$100/mo' },
-  { title: 'Reddit for Ideas', cost: 'Time cost' },
-  { title: 'AI Research', cost: '$200/mo' },
-  { title: 'Email Alerts', cost: '$25/mo' },
-  { title: 'Backtesting', cost: '$100/mo' },
-  { title: 'Spreadsheet P&L', cost: 'Manual' },
-];
-
-const PROBLEM_SCRIPT = [
-  'Sophia: Running stack audit...',
-  ...PROBLEM_CARDS.map((card) => `${card.title} -> ${card.cost}`),
-  'Sophia: Combined monthly spend estimates at $373-$784.',
-  'Sophia: Recommendation -> collapse this into one Stratify key.',
-];
-
-const DESK_PREVIEW_CANDLES = [
-  { body: 32, wickTop: 16, wickBottom: 22, up: true },
-  { body: 42, wickTop: 24, wickBottom: 20, up: false },
-  { body: 28, wickTop: 12, wickBottom: 26, up: true },
-  { body: 48, wickTop: 20, wickBottom: 30, up: false },
-  { body: 36, wickTop: 18, wickBottom: 24, up: true },
-  { body: 20, wickTop: 10, wickBottom: 16, up: true },
-  { body: 54, wickTop: 16, wickBottom: 18, up: false },
-  { body: 30, wickTop: 14, wickBottom: 28, up: true },
-  { body: 40, wickTop: 20, wickBottom: 20, up: false },
-  { body: 34, wickTop: 12, wickBottom: 22, up: true },
-  { body: 46, wickTop: 18, wickBottom: 28, up: false },
-  { body: 24, wickTop: 10, wickBottom: 14, up: true },
-  { body: 38, wickTop: 16, wickBottom: 16, up: true },
-  { body: 44, wickTop: 20, wickBottom: 20, up: false },
-  { body: 26, wickTop: 12, wickBottom: 18, up: true },
-  { body: 40, wickTop: 16, wickBottom: 24, up: true },
-];
-
-const PARTNER_WORDMARKS = [
-  { id: 'ninja', name: 'NinjaTrader' },
-  { id: 'ib', name: 'Interactive Brokers' },
-  { id: 'td', name: 'TD Ameritrade' },
-];
-
-const FEATURE_CARDS = [
+const FEATURE_ITEMS = [
   {
-    title: 'War Room',
-    description: 'Real-time market intelligence with AI web search.',
-    icon: Crosshair,
-    signal: 'Signal Intel',
-    meta: 'Live narrative + catalyst feed',
+    title: 'API Aggregation',
+    description:
+      'One key unlocks broker execution, live feeds, AI context, and research modules without a fragmented stack.',
+    icon: Layers,
   },
   {
-    title: 'Sophia AI',
-    description: 'Your personal trading analyst that knows your portfolio.',
+    title: 'Sophia AI Strategies',
+    description:
+      'Describe the setup in plain language and Sophia returns structured strategy logic you can test and deploy.',
     icon: Brain,
-    signal: 'AI Analyst',
-    meta: 'Context-aware strategy reasoning',
   },
   {
-    title: 'Strategy Builder',
-    description: 'AI-generated strategies with real trade analysis.',
-    icon: Code,
-    signal: 'Build Stack',
-    meta: 'Backtest-ready logic blocks',
+    title: 'Real-Time Streaming',
+    description:
+      'Live market streams drive your watchlists, chart panels, and alerts in one synchronized flow.',
+    icon: Zap,
   },
   {
-    title: 'Live Terminal',
-    description: 'Professional charts and one-click broker execution.',
+    title: 'Mission Control',
+    description:
+      'Unified workspace for positions, P&L, execution context, and operating metrics in a single command layer.',
     icon: Monitor,
-    signal: 'Execution',
-    meta: 'Direct workflow from signal to order',
   },
   {
-    title: 'Smart Alerts',
-    description: 'Custom price, volume, and sentiment triggers via email/SMS.',
-    icon: Bell,
-    signal: 'Automation',
-    meta: 'Condition-based alerts that stay on',
+    title: 'X-Ray Fundamentals',
+    description:
+      'Fundamentals, estimates, ratios, and profile intelligence alongside your live symbols and strategies.',
+    icon: LineChart,
   },
   {
-    title: 'Social Sentiment',
-    description: 'X + Reddit monitoring with AI-filtered signals.',
-    icon: Globe,
-    signal: 'Sentiment',
-    meta: 'Crowd flow with noise filtered out',
+    title: 'Paper Trading',
+    description:
+      'Validate before capital deployment with realistic market conditions and full strategy telemetry.',
+    icon: Shield,
   },
 ];
 
-const FEATURE_LAYOUT = [
-  'xl:col-span-7',
-  'xl:col-span-5',
-  'xl:col-span-4',
-  'xl:col-span-4',
-  'xl:col-span-4',
-  'xl:col-span-12',
-];
-
-const FEATURE_THEMES = [
-  {
-    fog: 'from-emerald-400/22 via-cyan-400/10 to-transparent',
-    orb: 'from-emerald-300/40 via-emerald-400/12 to-transparent',
-    edge: 'border-emerald-300/28',
-    accent: 'text-emerald-200/90',
-    radius: '34px 18px 34px 18px',
-  },
-  {
-    fog: 'from-cyan-400/22 via-sky-400/12 to-transparent',
-    orb: 'from-cyan-300/36 via-cyan-400/14 to-transparent',
-    edge: 'border-cyan-300/30',
-    accent: 'text-cyan-200/90',
-    radius: '20px 34px 20px 34px',
-  },
-  {
-    fog: 'from-indigo-400/20 via-cyan-400/10 to-transparent',
-    orb: 'from-indigo-300/30 via-sky-300/12 to-transparent',
-    edge: 'border-indigo-300/24',
-    accent: 'text-indigo-100/95',
-    radius: '30px 22px 30px 14px',
-  },
-  {
-    fog: 'from-teal-400/20 via-emerald-400/10 to-transparent',
-    orb: 'from-teal-300/32 via-emerald-300/12 to-transparent',
-    edge: 'border-teal-300/26',
-    accent: 'text-teal-100/90',
-    radius: '18px 32px 16px 32px',
-  },
-  {
-    fog: 'from-sky-400/20 via-cyan-400/10 to-transparent',
-    orb: 'from-sky-300/34 via-cyan-300/12 to-transparent',
-    edge: 'border-sky-300/28',
-    accent: 'text-sky-100/90',
-    radius: '30px 20px 34px 20px',
-  },
-  {
-    fog: 'from-green-400/22 via-emerald-400/12 to-transparent',
-    orb: 'from-green-300/36 via-emerald-300/16 to-transparent',
-    edge: 'border-green-300/30',
-    accent: 'text-green-100/90',
-    radius: '34px 24px 34px 24px',
-  },
+const COMPARISON_ROWS = [
+  ['Real-time market data', '$100+/mo', 'Included'],
+  ['Professional charting', '$15-60/mo', 'Included'],
+  ['AI strategy generation', '$20+/mo', 'Sophia built-in'],
+  ['Fundamentals research', '$50+/mo', 'X-Ray included'],
+  ['Paper trading', 'Separate broker setup', 'One-click toggle'],
 ];
 
 const HOW_STEPS = [
   {
-    title: 'Sign up & get your API key',
-    description: 'Create your account and instantly unlock your Stratify key.',
+    title: 'Connect Once',
+    description:
+      'One Stratify account centralizes your workflow instead of managing multiple disconnected services.',
   },
   {
-    title: 'Connect your broker',
-    description: 'Securely link your broker to enable execution and portfolio sync.',
+    title: 'Build With Sophia',
+    description:
+      'Convert idea to structured strategy logic with AI-assisted setup, filtering, and risk framing.',
   },
   {
-    title: 'Customize your dashboard',
-    description: 'Arrange modules, watchlists, and strategy tools around your workflow.',
+    title: 'Test In Paper Mode',
+    description:
+      'Run strategy behavior against live conditions first, then tune entries, exits, and risk sizing.',
   },
   {
-    title: 'Let Sophia take over',
-    description: 'Run deep scans, generate setups, and monitor conditions 24/7.',
-  },
-  {
-    title: 'Trade with confidence',
-    description: 'Move from signal to execution with speed, clarity, and control.',
+    title: 'Deploy And Monitor',
+    description:
+      'Go live and track performance from Mission Control with real-time visibility across the stack.',
   },
 ];
 
-const PRICING_PLANS = [
-  {
-    id: 'starter',
-    name: 'STARTER',
-    price: 'Free',
-    subtitle: 'Ideal for exploring the platform',
-    features: ['Delayed data', '5 scans/day', 'Basic watchlist', '1 strategy'],
-    borderClass: 'border-gray-800',
-  },
-  {
-    id: 'pro',
-    name: 'PRO',
-    price: PRO_MONTHLY_PRICE_LABEL,
-    yearlyPrice: '$191.90/year (20% off)',
-    subtitle: 'For active independent traders',
-    features: [
-      'Live data',
-      '50 scans/day',
-      'Unlimited watchlist',
-      '1 broker connection',
-      'Email alerts',
-      'Sophia AI',
-    ],
-    borderClass: 'border-blue-500/50',
-  },
-  {
-    id: 'elite',
-    name: 'ELITE',
-    price: '$99/mo',
-    subtitle: 'Built for power users',
-    features: [
-      'Unlimited scans',
-      '3 broker connections',
-      'SMS alerts',
-      'Social sentiment engine',
-      'Custom layouts',
-      'Browser extension',
-    ],
-    borderClass: 'border-emerald-500',
-    isPopular: true,
-  },
-  {
-    id: 'institutional',
-    name: 'INSTITUTIONAL',
-    price: 'Email for info',
-    subtitle: 'For teams and firms',
-    features: ['Team accounts', 'White-label options', 'Dedicated support', 'Unlimited everything'],
-    borderClass: 'border-purple-500/50',
-    ctaLabel: 'Email us',
-    contactHref: 'mailto:jeff@stratify-associates.com?subject=Institutional%20Pricing%20Inquiry',
-  },
+const TICKER_ITEMS = [
+  'TSLA 398.91 +1.42%',
+  'QQQ 601.44 +0.83%',
+  'NVDA 893.20 +2.11%',
+  'AAPL 198.30 -0.48%',
+  'BTC 104,238 +1.90%',
+  'SPY 598.67 +0.56%',
+  'AMD 188.12 +1.77%',
+  'META 536.80 +0.39%',
 ];
 
-const SECURITY_ITEMS = [
-  { icon: Shield, text: 'AES-256 encrypted broker credentials' },
-  { icon: Lock, text: 'Hashed API keys - never stored in plaintext' },
-  { icon: Globe, text: 'HTTPS/TLS encryption on all data' },
-  { icon: Eye, text: 'Row-level security - your data is yours alone' },
-  { icon: Ban, text: 'We never sell your data' },
-];
-
-const FAQ_ITEMS = [
-  {
-    question: 'What is a Stratify API key?',
-    answer:
-      'Your Stratify API key is your secure access credential that connects every service in the platform under one identity.',
-  },
-  {
-    question: 'Do I need other subscriptions?',
-    answer:
-      'No. Stratify is designed to replace fragmented tools with one connected platform and one monthly plan.',
-  },
-  {
-    question: 'Is my broker account safe?',
-    answer:
-      'Yes. Broker credentials are encrypted with enterprise-grade standards and handled with strict access controls.',
-  },
-  {
-    question: 'Can I use it without a broker?',
-    answer:
-      'Yes. You can run scans, build strategies, monitor sentiment, and use Sophia AI before connecting execution.',
-  },
-  {
-    question: 'What makes Sophia different from ChatGPT?',
-    answer:
-      'Sophia is embedded into your live trading workflow, connected to your strategies, and built for market execution context.',
-  },
-  {
-    question: 'Can I cancel anytime?',
-    answer: 'Yes. Every paid plan is month-to-month and can be cancelled anytime from your account settings.',
-  },
-  {
-    question: 'What brokers do you support?',
-    answer:
-      'Current support includes Alpaca, Tradier, and Webull, with additional integrations on the roadmap.',
-  },
-];
+const INTEGRATIONS = ['Alpaca', 'Anthropic Claude', 'Twelve Data', 'TradingView', 'Vercel', 'Supabase'];
 
 const sectionMotion = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.25 },
+  viewport: { once: true, amount: 0.22 },
   transition: { duration: 0.55, ease: 'easeOut' },
 };
 
 const landingStyles = `
-  @keyframes landing-galaxy-rotate {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+  @keyframes landing-float-a {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(30px, 24px) scale(1.04); }
   }
 
-  @keyframes landing-galaxy-pulse {
-    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.94); }
-    50% { opacity: 0.88; transform: translate(-50%, -50%) scale(1.08); }
+  @keyframes landing-float-b {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-26px, -20px) scale(1.03); }
   }
 
-  @keyframes landing-nebula-float {
-    0%, 100% { transform: translate(-50%, -50%) translateX(0px) translateY(0px) rotate(-16deg) scale(1); }
-    50% { transform: translate(-50%, -50%) translateX(12px) translateY(-10px) rotate(-14deg) scale(1.03); }
+  @keyframes landing-ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
   }
 
-  @keyframes landing-starfield-drift {
-    from { transform: translateY(0px) scale(1); opacity: 0.6; }
-    to { transform: translateY(-22px) scale(1.03); opacity: 0.85; }
+  @keyframes landing-twinkle {
+    0%, 100% { opacity: 0.22; }
+    50% { opacity: 0.66; }
   }
 
-  @keyframes landing-star-twinkle {
-    0%, 100% { opacity: 0.42; }
-    35% { opacity: 0.72; }
-    70% { opacity: 0.58; }
+  .landing-ticker-track {
+    animation: landing-ticker-scroll 32s linear infinite;
+    width: max-content;
   }
 
-  @keyframes landing-milkyway-drift {
-    0%, 100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.38; }
-    50% { transform: translate(-50%, -50%) rotate(-13deg) scale(1.03); opacity: 0.58; }
-  }
-
-  @keyframes landing-cursor-blink {
-    0%, 48% { opacity: 1; }
-    49%, 100% { opacity: 0; }
-  }
-
-  @keyframes landing-asteroid-streak {
-    0% { transform: translate(-120px, -60px) scale(0.6) rotate(-24deg); opacity: 0; }
-    20% { opacity: 1; }
-    70% { opacity: 1; }
-    100% { transform: translate(120px, 50px) scale(1.2) rotate(-24deg); opacity: 0; }
-  }
-
-  @keyframes landing-asteroid-burst {
-    0% { transform: scale(0.2); opacity: 0; filter: blur(1px); }
-    25% { opacity: 1; }
-    100% { transform: scale(6.6); opacity: 0; filter: blur(7px); }
+  .landing-particle {
+    animation: landing-twinkle ease-in-out infinite;
   }
 `;
 
 const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
-  const [openFaq, setOpenFaq] = useState(0);
-  const problemSectionRef = useRef(null);
-  const [problemStarted, setProblemStarted] = useState(false);
-  const [problemBurst, setProblemBurst] = useState(false);
-  const [typedProblemLines, setTypedProblemLines] = useState([]);
-  const [typingProblemLine, setTypingProblemLine] = useState('');
-  const [problemRevealReady, setProblemRevealReady] = useState(false);
-  const [problemTypingDone, setProblemTypingDone] = useState(false);
+  const canvasRef = useRef(null);
+  const timersRef = useRef([]);
+  const [heroEmail, setHeroEmail] = useState('');
+  const [bottomEmail, setBottomEmail] = useState('');
+  const [loadingForm, setLoadingForm] = useState('');
+  const [feedback, setFeedback] = useState({
+    hero: { type: '', message: '' },
+    bottom: { type: '', message: '' },
+  });
 
   useEffect(() => {
     const html = document.documentElement;
@@ -360,72 +154,117 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
   }, []);
 
   useEffect(() => {
-    const node = problemSectionRef.current;
-    if (!node) return undefined;
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry?.isIntersecting) {
-          setProblemStarted(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.35 }
-    );
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
 
-    observer.observe(node);
-    return () => observer.disconnect();
+    let frame = null;
+    let stars = [];
+
+    const initializeStars = () => {
+      const count = Math.max(120, Math.floor((window.innerWidth * window.innerHeight) / 5200));
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 1.2 + 0.2,
+        speed: Math.random() * 0.003 + 0.0006,
+        phase: Math.random() * Math.PI * 2,
+      }));
+    };
+
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      initializeStars();
+    };
+
+    const draw = (time) => {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      for (const star of stars) {
+        const alpha = 0.16 + 0.56 * (0.5 + 0.5 * Math.sin(time * star.speed + star.phase));
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        ctx.fill();
+      }
+      frame = window.requestAnimationFrame(draw);
+    };
+
+    resize();
+    frame = window.requestAnimationFrame(draw);
+    window.addEventListener('resize', resize);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', resize);
+    };
   }, []);
 
   useEffect(() => {
-    if (!problemStarted) return undefined;
-
-    const timers = [];
-    const schedule = (fn, delay) => {
-      const id = window.setTimeout(fn, delay);
-      timers.push(id);
-      return id;
-    };
-
-    setProblemBurst(true);
-    setTypedProblemLines([]);
-    setTypingProblemLine('');
-    setProblemRevealReady(false);
-    setProblemTypingDone(false);
-
-    const typeLine = (lineIndex, charIndex) => {
-      const target = PROBLEM_SCRIPT[lineIndex];
-      if (!target) {
-        setProblemTypingDone(true);
-        setProblemRevealReady(true);
-        return;
-      }
-
-      const nextCharCount = charIndex + 1;
-      setTypingProblemLine(target.slice(0, nextCharCount));
-
-      if (nextCharCount < target.length) {
-        schedule(() => typeLine(lineIndex, nextCharCount), 24);
-        return;
-      }
-
-      schedule(() => {
-        setTypedProblemLines((prev) => [...prev, target]);
-        setTypingProblemLine('');
-        typeLine(lineIndex + 1, 0);
-      }, 280);
-    };
-
-    schedule(() => setProblemBurst(false), 900);
-    schedule(() => typeLine(0, 0), 280);
-
     return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current = [];
     };
-  }, [problemStarted]);
+  }, []);
 
-  const handleGetStarted = () => {
+  const queueTimeout = (callback, delayMs) => {
+    const id = window.setTimeout(callback, delayMs);
+    timersRef.current.push(id);
+  };
+
+  const setFormFeedback = (formKey, type, message) => {
+    setFeedback((prev) => ({
+      ...prev,
+      [formKey]: { type, message },
+    }));
+
+    if (message) {
+      queueTimeout(() => {
+        setFeedback((prev) => ({
+          ...prev,
+          [formKey]: { type: '', message: '' },
+        }));
+      }, 4200);
+    }
+  };
+
+  const handleNewsletterSubmit = (formKey) => async (event) => {
+    event.preventDefault();
+
+    const email = (formKey === 'hero' ? heroEmail : bottomEmail).trim();
+    if (!email || !email.includes('@')) {
+      setFormFeedback(formKey, 'error', 'Enter a valid email address.');
+      return;
+    }
+
+    setLoadingForm(formKey);
+    setFormFeedback(formKey, '', '');
+
+    try {
+      const { error } = await supabase
+        .from('newsletter_subscribers')
+        .upsert({ email, source: formKey === 'hero' ? 'landing_page_hero' : 'landing_page_footer' }, { onConflict: 'email' });
+
+      if (error) throw error;
+
+      if (formKey === 'hero') setHeroEmail('');
+      if (formKey === 'bottom') setBottomEmail('');
+      setFormFeedback(formKey, 'success', 'Subscribed. You will get launch and newsletter updates.');
+    } catch (err) {
+      const isDuplicate = String(err?.message || '').toLowerCase().includes('duplicate');
+      setFormFeedback(formKey, 'error', isDuplicate ? 'Already subscribed.' : 'Unable to subscribe right now.');
+    } finally {
+      setLoadingForm('');
+    }
+  };
+
+  const handlePrimaryAction = () => {
     if (onSignUp) {
       onSignUp();
       return;
@@ -435,765 +274,335 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-transparent text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#04060d] text-white">
       <style>{landingStyles}</style>
 
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0" />
+
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
-          className="absolute inset-0"
+          className="absolute -left-24 -top-32 h-[760px] w-[760px] rounded-full"
           style={{
-            background:
-              'radial-gradient(circle at 50% 50%, rgba(3, 6, 8, 0.12) 0%, rgba(3, 6, 8, 0.54) 60%, rgba(3, 6, 8, 0.82) 100%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.1) 0%, transparent 34%), radial-gradient(circle at 78% 22%, rgba(147, 197, 253, 0.1) 0%, transparent 32%), radial-gradient(circle at 50% 44%, rgba(16, 185, 129, 0.1) 0%, transparent 44%)',
+            background: 'radial-gradient(circle, rgba(56,189,248,0.08) 0%, transparent 66%)',
+            filter: 'blur(70px)',
+            animation: 'landing-float-a 20s ease-in-out infinite',
           }}
         />
         <div
-          className="absolute left-1/2 top-[46%] h-[540px] w-[1700px] rounded-[50%]"
+          className="absolute -bottom-40 -right-20 h-[640px] w-[640px] rounded-full"
           style={{
-            background:
-              'linear-gradient(92deg, transparent 8%, rgba(255,255,255,0.2) 23%, rgba(56,189,248,0.24) 43%, rgba(16,185,129,0.2) 56%, rgba(96,165,250,0.18) 71%, transparent 91%), radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, rgba(148,220,255,0.16) 36%, rgba(16,185,129,0.13) 58%, transparent 80%)',
-            filter: 'blur(34px)',
-            mixBlendMode: 'screen',
-            animation: 'landing-milkyway-drift 34s ease-in-out infinite',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-[48%] h-[360px] w-[1140px] rounded-[50%]"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(167,243,208,0.2) 30%, rgba(125,211,252,0.16) 52%, transparent 78%)',
-            filter: 'blur(30px)',
-            mixBlendMode: 'screen',
-            animation: 'landing-nebula-float 26s ease-in-out infinite',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 h-[960px] w-[1420px] rounded-[50%] blur-3xl"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(52, 211, 153, 0.22) 18%, rgba(96, 165, 250, 0.2) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
-            animation: 'landing-nebula-float 24s ease-in-out infinite',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 h-[840px] w-[840px] rounded-full opacity-90"
-          style={{
-            background:
-              'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.16) 0deg 5deg, rgba(74,222,128,0.08) 5deg 15deg, rgba(56,189,248,0.05) 15deg 26deg, rgba(17,24,39,0.02) 26deg 40deg)',
-            filter: 'blur(13px)',
-            animation: 'landing-galaxy-rotate 90s linear infinite',
-          }}
-        />
-        <div
-          className="absolute left-1/2 top-1/2 h-[420px] w-[420px] rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.65) 0%, rgba(167,243,208,0.35) 14%, rgba(125,211,252,0.18) 28%, transparent 64%)',
-            filter: 'blur(2px)',
-            animation: 'landing-galaxy-pulse 11s ease-in-out infinite',
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-95"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 5% 12%, rgba(255,255,255,0.96) 0 1.15px, transparent 1.6px), radial-gradient(circle at 9% 74%, rgba(255,255,255,0.78) 0 1.05px, transparent 1.45px), radial-gradient(circle at 17% 34%, rgba(167,243,208,0.7) 0 1px, transparent 1.4px), radial-gradient(circle at 24% 57%, rgba(255,255,255,0.8) 0 1.1px, transparent 1.5px), radial-gradient(circle at 30% 22%, rgba(125,211,252,0.7) 0 1px, transparent 1.4px), radial-gradient(circle at 37% 80%, rgba(255,255,255,0.75) 0 1.05px, transparent 1.4px), radial-gradient(circle at 44% 63%, rgba(255,255,255,0.7) 0 1px, transparent 1.35px), radial-gradient(circle at 52% 15%, rgba(167,243,208,0.72) 0 1.05px, transparent 1.45px), radial-gradient(circle at 59% 41%, rgba(255,255,255,0.74) 0 1px, transparent 1.35px), radial-gradient(circle at 67% 71%, rgba(125,211,252,0.7) 0 1.05px, transparent 1.45px), radial-gradient(circle at 73% 24%, rgba(255,255,255,0.85) 0 1.1px, transparent 1.5px), radial-gradient(circle at 78% 53%, rgba(255,255,255,0.7) 0 1px, transparent 1.35px), radial-gradient(circle at 84% 12%, rgba(167,243,208,0.72) 0 1px, transparent 1.35px), radial-gradient(circle at 90% 39%, rgba(255,255,255,0.86) 0 1.1px, transparent 1.5px), radial-gradient(circle at 94% 78%, rgba(255,255,255,0.76) 0 1px, transparent 1.35px)',
-            animation: 'landing-starfield-drift 16s ease-in-out infinite alternate',
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-70"
-          style={{
-            backgroundImage:
-              'radial-gradient(rgba(255,255,255,0.36) 0.65px, transparent 0.95px), radial-gradient(rgba(125,211,252,0.28) 0.55px, transparent 0.9px), radial-gradient(rgba(167,243,208,0.24) 0.6px, transparent 0.95px)',
-            backgroundSize: '180px 180px, 250px 250px, 320px 320px',
-            backgroundPosition: '0 0, 80px 120px, 140px 30px',
-            animation: 'landing-star-twinkle 10s ease-in-out infinite',
+            background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 68%)',
+            filter: 'blur(70px)',
+            animation: 'landing-float-b 24s ease-in-out infinite',
           }}
         />
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(180deg, rgba(3,6,8,0.04) 0%, rgba(3,6,8,0.5) 45%, rgba(3,6,8,0.8) 100%)',
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse 64% 42% at 50% 28%, black 16%, transparent 76%)',
           }}
         />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,6,10,0.08)_0%,rgba(3,6,10,0.58)_55%,rgba(3,6,10,0.88)_100%)]" />
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60">
-        BETA
-      </div>
-
-      {/* Top Row (integrated into page, no separate header bar) */}
-      <nav className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
-        <span className="text-white/95 font-bold text-sm tracking-[0.3em]">STRATIFY</span>
-        <div className="flex items-center gap-4">
-          <a
-            href="https://discord.gg/6RPsREggYV"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-400 hover:text-[#5865F2] transition-colors"
-            title="Join Discord"
-          >
-            <svg width="20" height="16" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1C20.3 1.3 15.4 2.8 10.9 4.9c0 0-.1 0-.1.1C1.6 18.7-.9 32.1.3 45.4v.2c6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .2-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.7-3.8-1.6-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.7-.6 1.1-.9.1-.1.1-.1.2-.1 11.6 5.3 24.2 5.3 35.7 0h.2c.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 2-5.6 2.7-.1.1-.2.2-.1.3 1.1 2.1 2.3 4.1 3.6 5.9.1.1.2.1.2.1 5.8-1.8 11.6-4.5 17.7-9 0 0 .1-.1.1-.2 1.5-15.6-2.5-29.1-10.7-41.1 0 0 0 0-.1-.1z"/></svg>
-          </a>
-          {canAccessDashboard ? (
-            <button
-              type="button"
-              onClick={onDashboard || onEnter}
-              className="text-white hover:text-gray-300 text-sm font-semibold transition-colors"
-            >
-              Dashboard
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleGetStarted}
-              className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
-            >
-              Sign Up
-            </button>
-          )}
-        </div>
-      </nav>
-
-      <main className="relative z-10">
-        <motion.section {...sectionMotion} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
-          <div className="max-w-6xl mx-auto text-center relative">
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-emerald-500/12 blur-3xl" />
-            <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
-
-            <p className="text-[11px] uppercase tracking-[0.45em] text-gray-500 mb-8">Market Infrastructure Reimagined</p>
-            <h1 className="mx-auto inline-block pl-[0.28em] text-white font-bold text-6xl leading-tight tracking-[0.28em]">
-              STRATIFY
-            </h1>
-            <p className="mt-6 text-emerald-500 text-xl italic">One Key. Every Market. Total Control.</p>
-            <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-center text-base md:text-lg leading-relaxed">
-              The all-in-one trading platform that connects live market data, AI-powered research, social sentiment,
-              broker execution, and personalized alerts into a single interface.
-            </p>
-
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+      <div className="relative z-10">
+        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-7">
+          <div className="text-sm font-semibold uppercase tracking-[0.28em] text-white/90">Stratify</div>
+          <div className="flex items-center gap-3">
+            <span className="hidden rounded-full border border-white/12 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-white/65 md:inline-flex">
+              Building in public
+            </span>
+            {canAccessDashboard ? (
               <button
                 type="button"
-                onClick={handleGetStarted}
-                className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
+                onClick={onDashboard || onEnter}
+                className="rounded-full border border-cyan-300/28 bg-cyan-400/8 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100 transition-colors hover:bg-cyan-400/16"
               >
-                {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
-                <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+                Dashboard
               </button>
-              <a
-                href="/whitepaper"
-                className="border border-gray-700 hover:border-emerald-500/50 text-gray-300 px-8 py-3 rounded-xl transition-colors"
+            ) : (
+              <button
+                type="button"
+                onClick={handlePrimaryAction}
+                className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-100 transition-colors hover:bg-emerald-400/18"
               >
-                Read White Paper
-              </a>
-            </div>
-
-            {/* Discord Community CTA */}
-            <div className="mt-8 flex items-center justify-center gap-2">
-              <a
-                href="https://discord.gg/6RPsREggYV"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#5865F2] transition-colors"
-              >
-                <svg width="20" height="16" viewBox="0 0 71 55" fill="currentColor" className="shrink-0">
-                  <path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1C20.3 1.3 15.4 2.8 10.9 4.9c0 0-.1 0-.1.1C1.6 18.7-.9 32.1.3 45.4v.2c6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .2-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.7-3.8-1.6-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.7-.6 1.1-.9.1-.1.1-.1.2-.1 11.6 5.3 24.2 5.3 35.7 0h.2c.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 2-5.6 2.7-.1.1-.2.2-.1.3 1.1 2.1 2.3 4.1 3.6 5.9.1.1.2.1.2.1 5.8-1.8 11.6-4.5 17.7-9 0 0 .1-.1.1-.2 1.5-15.6-2.5-29.1-10.7-41.1 0 0 0 0-.1-.1z"/>
-                </svg>
-                Join the Stratify community on Discord
-              </a>
-            </div>
-
-            <GlobalMarketsBadge />
-
-            {/* Powered By — inline SVGs only, no boxes, no backgrounds */}
-            <div className="mt-20 mb-16 flex flex-col items-center gap-10">
-              <p className="text-xs uppercase tracking-[0.35em] text-gray-500 font-medium">Powered By</p>
-              <div className="flex items-center justify-center gap-12 flex-wrap">
-                {/* Stripe — exact wordmark */}
-                <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="opacity-50 hover:opacity-90 transition-opacity duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="120" height="50" fill="none" viewBox="0 0 60 25"><path fill="white" fillRule="evenodd" d="M59.6444 14.2813h-8.062c.1843 1.9296 1.5983 2.5476 3.2032 2.5476 1.6352 0 2.9534-.3656 4.0453-.9506v3.3179c-1.1186.7115-2.5964 1.1068-4.5645 1.1068-4.011 0-6.8218-2.5122-6.8218-7.4783 0-4.19441 2.3837-7.52509 6.3017-7.52509 3.912 0 5.9537 3.28038 5.9537 7.49819 0 .3982-.0372 1.261-.0556 1.4835Zm-5.9241-5.62407c-1.0294 0-2.1739.72812-2.1739 2.58387h4.2573c0-1.85362-1.0721-2.58387-2.0834-2.58387ZM40.9547 20.303c-1.4411 0-2.322-.6087-2.9133-1.0417l-.0088 4.6271-4.1181.8755-.0014-19.19053h3.7543l.0864 1.01784c.6035-.52914 1.6114-1.29157 3.2256-1.29162 2.8925 0 5.6162 2.6052 5.6162 7.39971 0 5.2327-2.6948 7.6037-5.6409 7.6037Zm-.959-11.35573c-.9453 0-1.5376.34559-1.9669.81586l.0245 6.11967c.3997.433.9763.7813 1.9424.7813 1.5231 0 2.5437-1.6575 2.5437-3.8745 0-2.1544-1.037-3.84233-2.5437-3.84233Zm-11.7602-3.3739h4.1341V20.0088h-4.1341V5.57337Zm0-4.694699L32.3696 0v3.35821l-4.1341.87868V.878671ZM23.9198 10.2223v9.7861h-4.1156V5.57296h3.6867l.1317 1.21751c1.0035-1.7722 3.0722-1.41321 3.6209-1.21594v3.78524c-.5242-.16908-2.2894-.42779-3.3237.86253Zm-8.5525 4.7221c0 2.4275 2.5988 1.6719 3.1263 1.4609v3.3522c-.5492.3013-1.5437.5458-2.8901.5458-2.4441 0-4.2773-1.7999-4.2773-4.2379l.0173-13.17658 4.0206-.85464.0032 3.5395h3.1278V9.0857h-3.1278v5.8588-.0001Zm-4.9069.7026c0 2.9645-2.31051 4.6562-5.73464 4.6562-1.41958 0-2.92289-.2761-4.453935-.9347v-3.9319c1.382085.7516 3.093705 1.315 4.457755 1.315.91864 0 1.53106-.2459 1.53106-1.0069C6.26064 13.7786 0 14.5192 0 9.95995 0 7.04457 2.27622 5.2998 5.61655 5.2998c1.36404 0 2.72806.20934 4.09208.75351V9.9317c-1.25265-.67618-2.84332-1.05979-4.09588-1.05979-.86296 0-1.44753.24965-1.44753.8924.0001 1.85329 6.29518.97249 6.29518 5.88279v-.0001Z" clipRule="evenodd"/></svg>
-                </a>
-                {/* Supabase — green icon + wordmark from their dark theme */}
-                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="opacity-50 hover:opacity-90 transition-opacity duration-300">
-                  <img src="/logos/supabase-dark.png" alt="Supabase" className="h-[26px] w-auto" />
-                </a>
-                {/* Claude — exact wordmark SVG pulled from claude.ai */}
-                <a href="https://anthropic.com/claude" target="_blank" rel="noopener noreferrer" className="opacity-50 hover:opacity-90 transition-opacity duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 24" height="28" fill="white"><path d="M11.376 24L10.776 23.544L10.44 22.8L10.776 21.312L11.16 19.392L11.472 17.856L11.76 15.96L11.928 15.336L11.904 15.288L11.784 15.312L10.344 17.28L8.16 20.232L6.432 22.056L6.024 22.224L5.304 21.864L5.376 21.192L5.784 20.616L8.16 17.568L9.6 15.672L10.536 14.592L10.512 14.448H10.464L4.128 18.576L3 18.72L2.496 18.264L2.568 17.52L2.808 17.28L4.704 15.96L9.432 13.32L9.504 13.08L9.432 12.96H9.192L8.4 12.912L5.712 12.84L3.384 12.744L1.104 12.624L0.528 12.504L0 11.784L0.048 11.424L0.528 11.112L1.224 11.16L2.736 11.28L5.016 11.424L6.672 11.52L9.12 11.784H9.504L9.552 11.616L9.432 11.52L9.336 11.424L6.96 9.84L4.416 8.16L3.072 7.176L2.352 6.672L1.992 6.216L1.848 5.208L2.496 4.488L3.384 4.56L3.6 4.608L4.488 5.304L6.384 6.768L8.88 8.616L9.24 8.904L9.408 8.808V8.736L9.24 8.472L7.896 6.024L6.456 3.528L5.808 2.496L5.64 1.872C5.576 1.656 5.544 1.416 5.544 1.152L6.288 0.144L6.696 0L7.704 0.144L8.112 0.504L8.736 1.92L9.72 4.152L11.28 7.176L11.736 8.088L11.976 8.904L12.072 9.168H12.24V9.024L12.36 7.296L12.6 5.208L12.84 2.52L12.912 1.752L13.296 0.84L14.04 0.36L14.616 0.624L15.096 1.32L15.024 1.752L14.76 3.6L14.184 6.504L13.824 8.472H14.04L14.28 8.208L15.264 6.912L16.92 4.848L17.64 4.032L18.504 3.12L19.056 2.688H20.088L20.832 3.816L20.496 4.992L19.44 6.336L18.552 7.464L17.28 9.168L16.512 10.536L16.584 10.632H16.752L19.608 10.008L21.168 9.744L22.992 9.432L23.832 9.816L23.928 10.2L23.592 11.016L21.624 11.496L19.32 11.952L15.888 12.768L15.84 12.792L15.888 12.864L17.424 13.008L18.096 13.056H19.728L22.752 13.272L23.544 13.8L24 14.424L23.928 14.928L22.704 15.528L21.072 15.144L17.232 14.232L15.936 13.92H15.744V14.016L16.848 15.096L18.84 16.896L21.36 19.224L21.48 19.8L21.168 20.28L20.832 20.232L18.624 18.552L17.76 17.808L15.84 16.2H15.72V16.368L16.152 17.016L18.504 20.544L18.624 21.624L18.456 21.96L17.832 22.176L17.184 22.056L15.792 20.136L14.376 17.952L13.224 16.008L13.104 16.104L12.408 23.352L12.096 23.712L11.376 24Z" fill="#D97757"/><path d="M39.504 21.264C37.688 21.264 36.06 20.9 34.62 20.172C33.18 19.444 32.048 18.416 31.224 17.088C30.408 15.76 30 14.224 30 12.48C30 10.656 30.412 9.032 31.236 7.608C32.06 6.176 33.196 5.068 34.644 4.284C36.1 3.492 37.74 3.096 39.564 3.096C40.692 3.096 41.82 3.22 42.948 3.468C44.084 3.716 45.072 4.096 45.912 4.608V8.568H44.832C44.536 7.168 43.96 6.124 43.104 5.436C42.256 4.748 41.076 4.404 39.564 4.404C38.164 4.404 36.996 4.732 36.06 5.388C35.132 6.036 34.444 6.936 33.996 8.088C33.548 9.24 33.324 10.564 33.324 12.06C33.324 13.548 33.576 14.888 34.08 16.08C34.584 17.272 35.328 18.216 36.312 18.912C37.296 19.6 38.476 19.944 39.852 19.944C40.796 19.944 41.608 19.748 42.288 19.356C42.968 18.964 43.54 18.436 44.004 17.772C44.468 17.1 44.908 16.28 45.324 15.312H46.464L45.684 19.68C44.892 20.2 43.936 20.596 42.816 20.868C41.704 21.132 40.6 21.264 39.504 21.264ZM47.964 21V19.956C48.356 19.9 48.668 19.84 48.9 19.776C49.14 19.704 49.332 19.588 49.476 19.428C49.628 19.268 49.704 19.044 49.704 18.756V5.832L47.964 5.088V4.284L51.612 2.736H52.56V18.756C52.56 19.052 52.632 19.28 52.776 19.44C52.928 19.6 53.12 19.712 53.352 19.776C53.592 19.84 53.912 19.9 54.312 19.956V21H47.964ZM59.028 21.264C58.38 21.264 57.792 21.136 57.264 20.88C56.736 20.624 56.32 20.256 56.016 19.776C55.712 19.296 55.56 18.736 55.56 18.096C55.56 17.12 55.86 16.344 56.46 15.768C57.068 15.184 57.916 14.74 59.004 14.436L63.24 13.236V11.712C63.24 10.888 63.048 10.252 62.664 9.804C62.288 9.348 61.708 9.12 60.924 9.12C60.228 9.12 59.704 9.332 59.352 9.756C59.008 10.172 58.836 10.748 58.836 11.484V12.612H56.988C56.764 12.468 56.588 12.276 56.46 12.036C56.34 11.788 56.28 11.516 56.28 11.22C56.28 10.556 56.516 9.988 56.988 9.516C57.46 9.036 58.06 8.676 58.788 8.436C59.516 8.196 60.256 8.076 61.008 8.076C62.592 8.076 63.836 8.44 64.74 9.168C65.644 9.896 66.096 11 66.096 12.48V18.54C66.096 18.86 66.168 19.104 66.312 19.272C66.456 19.44 66.644 19.56 66.876 19.632C67.116 19.696 67.44 19.756 67.848 19.812V20.856C67.536 20.968 67.208 21.056 66.864 21.12C66.528 21.184 66.204 21.216 65.892 21.216C65.148 21.216 64.548 21.048 64.092 20.712C63.644 20.368 63.372 19.864 63.276 19.2C62.716 19.864 62.08 20.376 61.368 20.736C60.664 21.088 59.884 21.264 59.028 21.264ZM60.444 19.344C60.948 19.344 61.44 19.228 61.92 18.996C62.408 18.756 62.848 18.44 63.24 18.048V14.34L60.168 15.252C59.592 15.428 59.152 15.7 58.848 16.068C58.544 16.436 58.392 16.9 58.392 17.46C58.392 17.82 58.48 18.144 58.656 18.432C58.832 18.72 59.076 18.944 59.388 19.104C59.7 19.264 60.052 19.344 60.444 19.344ZM73.608 21.264C72.32 21.264 71.356 20.928 70.716 20.256C70.084 19.584 69.768 18.636 69.768 17.412V10.908L68.016 10.26L68.112 9.456L71.664 8.076H72.624V16.932C72.624 17.692 72.812 18.256 73.188 18.624C73.564 18.992 74.14 19.176 74.916 19.176C75.428 19.176 75.964 19.06 76.524 18.828C77.084 18.588 77.6 18.28 78.072 17.904V10.908L76.32 10.26V9.456L79.98 8.076H80.928V17.832C80.928 18.152 81 18.4 81.144 18.576C81.288 18.744 81.476 18.864 81.708 18.936C81.948 19.008 82.272 19.072 82.68 19.128V20.16L79.02 21.18H78.072V19.08C77.44 19.736 76.728 20.264 75.936 20.664C75.144 21.064 74.368 21.264 73.608 21.264ZM89.328 21.264C88.264 21.264 87.312 21.008 86.472 20.496C85.632 19.976 84.976 19.268 84.504 18.372C84.032 17.476 83.796 16.484 83.796 15.396C83.796 13.964 84.08 12.696 84.648 11.592C85.224 10.488 86.032 9.628 87.072 9.012C88.112 8.388 89.32 8.076 90.696 8.076C91.12 8.076 91.556 8.124 92.004 8.22C92.46 8.308 92.896 8.436 93.312 8.604V5.82L91.56 5.088V4.284L95.22 2.736H96.168V17.832C96.168 18.152 96.24 18.4 96.384 18.576C96.536 18.744 96.728 18.864 96.96 18.936C97.2 19.008 97.52 19.072 97.92 19.128V20.16L94.26 21.18H93.312V19.584C92.752 20.112 92.132 20.524 91.452 20.82C90.78 21.116 90.072 21.264 89.328 21.264ZM90.504 19.332C90.976 19.332 91.456 19.236 91.944 19.044C92.432 18.852 92.888 18.588 93.312 18.252V10.356C92.584 9.764 91.776 9.468 90.888 9.468C89.992 9.468 89.236 9.696 88.62 10.152C88.004 10.608 87.54 11.228 87.228 12.012C86.924 12.788 86.772 13.656 86.772 14.616C86.772 15.528 86.908 16.34 87.18 17.052C87.452 17.756 87.868 18.312 88.428 18.72C88.988 19.128 89.68 19.332 90.504 19.332ZM105.252 21.264C104.068 21.264 103.004 20.988 102.06 20.436C101.116 19.884 100.376 19.116 99.84 18.132C99.304 17.148 99.036 16.044 99.036 14.82C99.036 13.556 99.308 12.412 99.852 11.388C100.404 10.356 101.156 9.548 102.108 8.964C103.068 8.372 104.136 8.076 105.312 8.076C106.216 8.076 107.048 8.264 107.808 8.64C108.568 9.016 109.2 9.544 109.704 10.224C110.216 10.904 110.552 11.688 110.712 12.576L101.928 15.288C102.168 16.4 102.644 17.276 103.356 17.916C104.076 18.556 104.968 18.876 106.032 18.876C106.92 18.876 107.716 18.652 108.42 18.204C109.124 17.748 109.748 17.06 110.292 16.14L111.228 16.44C111.012 17.4 110.62 18.244 110.052 18.972C109.484 19.7 108.784 20.264 107.952 20.664C107.128 21.064 106.228 21.264 105.252 21.264ZM107.628 12.204C107.516 11.652 107.324 11.168 107.052 10.752C106.788 10.328 106.46 10 106.068 9.768C105.676 9.536 105.244 9.42 104.772 9.42C104.18 9.42 103.656 9.6 103.2 9.96C102.752 10.312 102.4 10.816 102.144 11.472C101.896 12.12 101.772 12.872 101.772 13.728C101.772 13.88 101.776 13.996 101.784 14.076L107.628 12.204Z"/></svg>
-                </a>
-                {/* Vercel — exact triangle + wordmark */}
-                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="opacity-50 hover:opacity-90 transition-opacity duration-300 flex items-center gap-2">
-                  <svg height="20" viewBox="0 0 74 64" fill="white"><path d="M37.5896 0.25L74.5396 64.25H0.639648L37.5896 0.25Z"/></svg>
-                  <span className="text-[22px] font-semibold text-white tracking-tight" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>Vercel</span>
-                </a>
-              </div>
-            </div>
+                Sign Up
+              </button>
+            )}
           </div>
-        </motion.section>
+        </nav>
 
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div ref={problemSectionRef} className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-red-300/70">Sophia Cost Analyzer</p>
-            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">The Problem</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-gray-400 md:text-base">
-              Legacy stack costs keep compounding. Sophia maps every expense line and flags the drag.
-            </p>
+        <main>
+          <motion.section {...sectionMotion} className="px-6 pb-20 pt-20 md:pt-24">
+            <div className="mx-auto max-w-5xl text-center">
+              <span className="inline-flex rounded-full border border-cyan-300/24 bg-cyan-400/8 px-4 py-1.5 text-[11px] uppercase tracking-[0.24em] text-cyan-100/80">
+                Early Access - Coming Soon
+              </span>
 
-            <div className="relative mt-10">
-              <div className="pointer-events-none absolute -inset-6 rounded-[40px] bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.12),rgba(239,68,68,0.06),transparent_72%)] blur-2xl" />
-              {problemBurst ? (
-                <div className="pointer-events-none absolute inset-0 z-20">
-                  <span
-                    className="absolute left-[26%] top-[18%] h-1.5 w-36 rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-amber-200"
-                    style={{ animation: 'landing-asteroid-streak 0.9s ease-out forwards', boxShadow: '0 0 24px rgba(251,146,60,0.75)' }}
+              <h1 className="mt-8 text-balance text-5xl font-semibold leading-tight text-white md:text-7xl">
+                A Smarter Way to <span className="bg-gradient-to-r from-cyan-300 via-blue-300 to-emerald-300 bg-clip-text text-transparent">Trade</span>
+              </h1>
+
+              <p className="mx-auto mt-7 max-w-3xl text-base leading-relaxed text-slate-300 md:text-lg">
+                Stratify unifies trading APIs, real-time market data, and AI-powered strategy generation into one
+                command center. Stop juggling five platforms. Start trading smarter.
+              </p>
+
+              <div className="mx-auto mt-9 max-w-2xl">
+                <form
+                  onSubmit={handleNewsletterSubmit('hero')}
+                  className="flex flex-col gap-2 rounded-2xl border border-white/12 bg-[#070d18]/82 p-2 backdrop-blur sm:flex-row"
+                >
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={heroEmail}
+                    onChange={(event) => setHeroEmail(event.target.value)}
+                    placeholder="Your email address"
+                    className="h-12 flex-1 rounded-xl border border-transparent bg-transparent px-4 text-base text-white placeholder:text-slate-400 focus:border-cyan-300/28 focus:outline-none"
                   />
-                  <span
-                    className="absolute left-[56%] top-[36%] h-4 w-4 rounded-full bg-orange-200/95"
-                    style={{ animation: 'landing-asteroid-burst 0.9s ease-out forwards', boxShadow: '0 0 26px rgba(251,146,60,0.95)' }}
-                  />
+                  <button
+                    type="submit"
+                    disabled={loadingForm === 'hero'}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {loadingForm === 'hero' ? 'Joining...' : 'Join Newsletter'}
+                    <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                </form>
+
+                <div className="mt-3 flex items-center justify-center gap-4">
+                  <a
+                    href="/whitepaper"
+                    className="text-sm text-cyan-200/80 underline decoration-cyan-300/30 underline-offset-4 transition-colors hover:text-cyan-100"
+                  >
+                    Read White Paper
+                  </a>
                 </div>
-              ) : null}
 
-              <div className="relative overflow-hidden rounded-[34px] border border-cyan-300/24 bg-[linear-gradient(155deg,rgba(5,11,22,0.97),rgba(7,9,18,0.94))] p-6 md:p-8">
-                <div className="pointer-events-none absolute inset-0 opacity-65" style={{ background: 'radial-gradient(circle at 8% 18%, rgba(16,185,129,0.16) 0%, transparent 36%), radial-gradient(circle at 88% 20%, rgba(56,189,248,0.2) 0%, transparent 34%)' }} />
-                <div className="relative">
-                  <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-300/85" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-cyan-300/75" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-rose-300/75" />
-                    </div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100/80">SOPHIA // Live Diagnostic</p>
-                  </div>
+                {feedback.hero.message ? (
+                  <p className={`mt-3 text-sm ${feedback.hero.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`}>
+                    {feedback.hero.message}
+                  </p>
+                ) : null}
+              </div>
 
-                  <div className="mt-4 min-h-[240px] rounded-[24px] border border-white/10 bg-[#030b16]/88 p-4 font-mono text-[13px] leading-6 text-cyan-100/85 md:text-sm">
-                    {typedProblemLines.map((line) => (
-                      <p key={line} className="opacity-95">
-                        {line}
-                      </p>
-                    ))}
-                    {!problemTypingDone ? (
-                      <p className="opacity-95">
-                        {typingProblemLine}
-                        <span className="ml-0.5 inline-block h-[1em] w-[0.5ch] bg-cyan-200/85 align-[-0.12em]" style={{ animation: 'landing-cursor-blink 0.9s steps(1,end) infinite' }} />
-                      </p>
-                    ) : null}
-                  </div>
+              <div className="mt-7 flex items-center justify-center gap-2">
+                <a
+                  href="https://discord.gg/6RPsREggYV"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-[#5865F2]"
+                >
+                  <svg width="20" height="16" viewBox="0 0 71 55" fill="currentColor" className="shrink-0">
+                    <path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1C20.3 1.3 15.4 2.8 10.9 4.9c0 0-.1 0-.1.1C1.6 18.7-.9 32.1.3 45.4v.2c6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .2-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.7-3.8-1.6-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.7-.6 1.1-.9.1-.1.1-.1.2-.1 11.6 5.3 24.2 5.3 35.7 0h.2c.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 2-5.6 2.7-.1.1-.2.2-.1.3 1.1 2.1 2.3 4.1 3.6 5.9.1.1.2.1.2.1 5.8-1.8 11.6-4.5 17.7-9 0 0 .1-.1.1-.2 1.5-15.6-2.5-29.1-10.7-41.1 0 0 0 0-.1-.1z" />
+                  </svg>
+                  Join the Stratify community on Discord
+                </a>
+              </div>
+
+              <div className="mx-auto mt-10 grid max-w-lg grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/12 bg-white/5 p-4">
+                  <p className="text-3xl font-semibold text-cyan-200">1</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/60">Unified Key</p>
+                </div>
+                <div className="rounded-2xl border border-white/12 bg-white/5 p-4">
+                  <p className="text-3xl font-semibold text-emerald-200">15+</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/60">Connected Services</p>
+                </div>
+              </div>
+
+              <div className="mt-10">
+                <p className="text-xs uppercase tracking-[0.24em] text-white/55">Available In</p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-200">
+                  <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1">🇺🇸 United States</span>
+                  <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1">🇬🇧 London</span>
+                  <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1">🇦🇺 Australia</span>
+                  <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1">₿ Crypto</span>
+                </div>
+              </div>
+
+              <div className="mt-16">
+                <p className="text-xs uppercase tracking-[0.26em] text-white/50">Powered By</p>
+                <div className="mt-7 flex flex-wrap items-center justify-center gap-10 opacity-80">
+                  <img src="/logos/stripe.png" alt="Stripe" className="h-10 w-auto object-contain" />
+                  <img src="/logos/supabase.png" alt="Supabase" className="h-8 w-auto object-contain" />
+                  <img src="/logos/claude.png" alt="Claude" className="h-8 w-auto object-contain" />
+                  <img src="/logos/vercel-full.png" alt="Vercel" className="h-8 w-auto object-contain" />
                 </div>
               </div>
             </div>
+          </motion.section>
 
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {PROBLEM_CARDS.map((card, index) => (
-                <motion.div
-                  key={card.title}
-                  initial={{ opacity: 0, scale: 0.86, y: 18 }}
-                  animate={
-                    problemRevealReady
-                      ? { opacity: 1, scale: 1, y: 0 }
-                      : { opacity: 0, scale: 0.86, y: 18 }
-                  }
-                  transition={{ duration: 0.42, ease: 'easeOut', delay: index * 0.08 }}
-                  className="group relative overflow-hidden rounded-[26px] border border-rose-300/22 bg-[linear-gradient(155deg,rgba(16,9,16,0.72),rgba(7,11,20,0.9))] px-5 py-4"
-                >
-                  <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-rose-300/10 blur-2xl" />
-                  <p className="text-[15px] font-medium text-white">{card.title}</p>
-                  <p className="mt-2 text-sm text-rose-200/92">{card.cost}</p>
-                </motion.div>
+          <div className="border-y border-white/10 bg-white/5 py-3">
+            <div className="landing-ticker-track flex items-center gap-3 px-4 text-xs uppercase tracking-[0.12em] text-white/70">
+              {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, index) => (
+                <span key={`${item}-${index}`} className="inline-flex items-center gap-3">
+                  {item}
+                  <span className="text-cyan-300">•</span>
+                </span>
               ))}
             </div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85, y: 12 }}
-              animate={
-                problemRevealReady ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.85, y: 12 }
-              }
-              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-              className="mt-9 text-center"
-            >
-              <p className="text-3xl font-semibold text-rose-300 md:text-4xl">Total: $373-784/month</p>
-              <p className="mt-2 text-emerald-300 text-2xl">There&apos;s a better way.</p>
-            </motion.div>
           </div>
-        </motion.section>
 
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-emerald-300/65">Unified Command Layer</p>
-            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">One Platform. One Key.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-gray-400 md:text-base">
-              Swap disconnected subscriptions for a single operating layer built for signal discovery, strategy design,
-              and execution.
-            </p>
+          <motion.section {...sectionMotion} className="px-6 py-24">
+            <div className="mx-auto max-w-6xl">
+              <h2 className="text-center text-3xl font-semibold text-white md:text-4xl">Everything You Need</h2>
+              <p className="mx-auto mt-4 max-w-3xl text-center text-slate-300">
+                Purpose-built modules that connect context, execution, and accountability in one dark-theme workspace.
+              </p>
 
-            <div className="relative mt-12">
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/12 blur-3xl" />
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10" />
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/15" />
-
-              <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_minmax(380px,500px)_1fr]">
-                <div className="space-y-3 lg:pr-2">
-                  {[
-                    { value: '1', label: 'API Key', tone: 'text-emerald-300' },
-                    { value: '15+', label: 'Connected Services', tone: 'text-cyan-300' },
-                  ].map((stat, index) => (
+              <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {FEATURE_ITEMS.map((feature) => {
+                  const Icon = feature.icon;
+                  return (
                     <div
-                      key={stat.label}
-                      className={`flex items-center justify-between rounded-[999px] border border-white/15 bg-[#04101d]/80 px-5 py-3 backdrop-blur ${
-                        index % 2 === 0 ? 'lg:mr-8' : 'lg:ml-8'
-                      }`}
+                      key={feature.title}
+                      className="group rounded-[24px] border border-white/12 bg-[linear-gradient(160deg,rgba(6,12,24,0.9),rgba(4,8,16,0.82))] p-6 backdrop-blur transition-colors hover:border-cyan-300/28"
                     >
-                      <p className={`text-xl font-semibold ${stat.tone}`}>{stat.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="relative overflow-hidden rounded-[34px] border border-emerald-300/30 bg-[linear-gradient(145deg,rgba(6,15,28,0.98),rgba(3,10,19,0.92))] p-7 shadow-[0_0_50px_rgba(16,185,129,0.18)] md:p-9">
-                  <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(circle at 75% 20%, rgba(56,189,248,0.24) 0%, transparent 36%), radial-gradient(circle at 15% 80%, rgba(16,185,129,0.22) 0%, transparent 42%)' }} />
-                  <div className="pointer-events-none absolute inset-x-8 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-emerald-300/30 to-transparent" />
-
-                  <div className="relative">
-                    <p className="text-[11px] uppercase tracking-[0.34em] text-white/55">Stratify Core</p>
-                    <p className="mt-3 text-3xl font-semibold text-white">{`Stratify • ${PRO_MONTHLY_PRICE_LABEL}`}</p>
-                    <p className="mt-2 text-sm text-emerald-200/85">Institutional • Email for info</p>
-                    <p className="mt-5 max-w-sm text-sm leading-relaxed text-gray-300">
-                      One key unlocks every live module: War Room, Trader, X-Ray, Portfolio, and Sophia AI.
-                    </p>
-                    <a
-                      href="mailto:jeff@stratify-associates.com?subject=Institutional%20Pricing%20Inquiry"
-                      className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/35 bg-emerald-500/12 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100 transition-colors hover:bg-emerald-500/20"
-                    >
-                      Email for pricing
-                      <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.8} />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="space-y-3 lg:pl-2">
-                  {[
-                    { value: '24/7', label: 'AI Monitoring', tone: 'text-cyan-300' },
-                    { value: '87%', label: 'Stack Cost Savings', tone: 'text-emerald-300' },
-                  ].map((stat, index) => (
-                    <div
-                      key={stat.label}
-                      className={`flex items-center justify-between rounded-[999px] border border-white/15 bg-[#04101d]/80 px-5 py-3 backdrop-blur ${
-                        index % 2 === 0 ? 'lg:ml-8' : 'lg:mr-8'
-                      }`}
-                    >
-                      <p className={`text-xl font-semibold ${stat.tone}`}>{stat.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300/65">Capability Matrix</p>
-            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">Everything You Need</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-gray-400 md:text-base">
-              Purpose-built modules that connect context, execution, and accountability in a single workflow.
-            </p>
-
-            <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
-              {FEATURE_CARDS.map((feature, index) => {
-                const Icon = feature.icon;
-                const theme = FEATURE_THEMES[index % FEATURE_THEMES.length];
-                const layoutClass = FEATURE_LAYOUT[index % FEATURE_LAYOUT.length];
-                return (
-                  <div
-                    key={feature.title}
-                    className={`group relative overflow-hidden border bg-[linear-gradient(160deg,rgba(5,11,21,0.96),rgba(3,8,16,0.9))] p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_54px_rgba(4,12,23,0.7)] ${theme.edge} ${layoutClass}`}
-                    style={{ borderRadius: theme.radius }}
-                  >
-                    <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${theme.fog}`} />
-                    <div className="pointer-events-none absolute -right-14 -top-14 h-44 w-44 rounded-full bg-white/8 blur-3xl" />
-                    <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-
-                    <div className="relative flex h-full flex-col justify-between">
-                      <div className="flex items-start justify-between gap-4">
-                        <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${theme.orb} ring-1 ring-white/20`}>
-                          <Icon className="h-5 w-5 text-white" strokeWidth={1.7} />
-                        </span>
-                        <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
-                          {feature.signal}
-                        </span>
-                      </div>
-
-                      <div className="mt-10">
-                        <h3 className="text-2xl font-semibold text-white">{feature.title}</h3>
-                        <p className="mt-3 text-sm leading-relaxed text-gray-300">{feature.description}</p>
-                        <p className={`mt-4 text-xs font-semibold uppercase tracking-[0.16em] ${theme.accent}`}>{feature.meta}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300/70">Desk Mode Preview</p>
-            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">Trading View, Rebuilt For Stratify</h2>
-            <p className="mx-auto mt-4 max-w-3xl text-center text-sm text-gray-400 md:text-base">
-              Dark-by-default, context-first charts with live trade journaling and strategy telemetry in one surface.
-            </p>
-
-            <div className="mt-12 grid gap-5 lg:grid-cols-[330px_1fr]">
-              <div className="relative overflow-hidden rounded-[26px] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(4,10,20,0.95),rgba(3,8,16,0.92))] p-5">
-                <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-300/15 blur-2xl" />
-                <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/80">Live Trade Review</p>
-                <p className="mt-3 text-4xl font-semibold text-emerald-300">$3,611</p>
-                <p className="text-sm text-emerald-200/80">Net P&L +5.15%</p>
-
-                <div className="mt-6 space-y-2">
-                  {[
-                    ['Win Rate', '61.2%'],
-                    ['Profit Factor', '2.4'],
-                    ['Avg Risk', '$284'],
-                    ['Setups Tracked', '18'],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                      <span className="text-xs uppercase tracking-[0.14em] text-white/55">{label}</span>
-                      <span className="text-sm font-semibold text-white">{value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {['Pullback', 'Breakout', 'Momentum', 'AI Review'].map((tag) => (
-                    <span key={tag} className="rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100/90">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="relative overflow-hidden rounded-[30px] border border-emerald-300/20 bg-[linear-gradient(165deg,rgba(5,12,23,0.96),rgba(3,8,16,0.92))] p-5 md:p-6">
-                <div className="pointer-events-none absolute inset-0 opacity-65" style={{ background: 'radial-gradient(circle at 18% 16%, rgba(56,189,248,0.2) 0%, transparent 34%), radial-gradient(circle at 82% 84%, rgba(16,185,129,0.18) 0%, transparent 38%)' }} />
-                <div className="relative flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/55">STRATIFY CHART</p>
-                    <p className="mt-1 text-lg font-semibold text-white">TSLA · 1m</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {['1m', '5m', '15m', '1h'].map((tf, idx) => (
-                      <span
-                        key={tf}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                          idx === 0
-                            ? 'border-emerald-300/45 bg-emerald-400/12 text-emerald-100'
-                            : 'border-white/15 bg-white/5 text-white/70'
-                        }`}
-                      >
-                        {tf}
+                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/28 bg-cyan-400/10">
+                        <Icon className="h-5 w-5 text-cyan-100" strokeWidth={1.8} />
                       </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="relative mt-5 h-[340px] overflow-hidden rounded-[22px] border border-white/10 bg-[#040d18]/88">
-                  <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.09) 1px, transparent 1px)', backgroundSize: '100% 48px, 64px 100%' }} />
-
-                  <svg className="pointer-events-none absolute inset-x-0 bottom-[82px] h-[180px] w-full" viewBox="0 0 1000 180" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="landingPnlFill" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor="rgba(16,185,129,0.38)" />
-                        <stop offset="100%" stopColor="rgba(16,185,129,0)" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M0,154 C70,130 120,150 180,120 C240,86 290,112 350,80 C410,48 460,86 530,60 C600,34 660,58 730,42 C800,28 860,54 930,24 C960,14 980,10 1000,16 L1000,180 L0,180 Z" fill="url(#landingPnlFill)" />
-                    <path d="M0,154 C70,130 120,150 180,120 C240,86 290,112 350,80 C410,48 460,86 530,60 C600,34 660,58 730,42 C800,28 860,54 930,24 C960,14 980,10 1000,16" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="3" />
-                  </svg>
-
-                  <div className="absolute inset-x-4 bottom-[78px] top-5 flex items-end justify-between gap-1.5">
-                    {DESK_PREVIEW_CANDLES.map((candle, index) => {
-                      const total = candle.body + candle.wickTop + candle.wickBottom;
-                      return (
-                        <div key={`${index}-${candle.body}`} className="relative flex w-3 items-end md:w-4">
-                          <div className="relative w-full" style={{ height: `${total}px` }}>
-                            <span
-                              className={`absolute left-1/2 w-px -translate-x-1/2 ${candle.up ? 'bg-emerald-300/90' : 'bg-rose-300/90'}`}
-                              style={{ top: 0, height: `${total}px` }}
-                            />
-                            <span
-                              className={`absolute left-0 right-0 rounded-[3px] ${candle.up ? 'bg-emerald-300/85' : 'bg-rose-300/85'}`}
-                              style={{ top: `${candle.wickTop}px`, height: `${candle.body}px` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="absolute inset-x-4 bottom-3 flex items-end justify-between gap-1.5">
-                    {DESK_PREVIEW_CANDLES.map((candle, index) => (
-                      <span
-                        key={`vol-${index}`}
-                        className={`inline-block w-3 rounded-t-sm md:w-4 ${candle.up ? 'bg-emerald-300/55' : 'bg-rose-300/55'}`}
-                        style={{ height: `${Math.max(8, Math.floor(candle.body * 0.45))}px` }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                      <h3 className="mt-5 text-xl font-semibold text-white">{feature.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-300">{feature.description}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        </motion.section>
+          </motion.section>
 
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Get Started in 5 Minutes</h2>
+          <motion.section {...sectionMotion} className="px-6 pb-24">
+            <div className="mx-auto max-w-6xl rounded-[30px] border border-white/12 bg-[linear-gradient(160deg,rgba(6,12,24,0.92),rgba(4,8,16,0.84))] p-6 md:p-10">
+              <h2 className="text-center text-3xl font-semibold text-white md:text-4xl">
+                Stop Paying For <span className="text-cyan-200">Five Platforms</span>
+              </h2>
+              <p className="mt-3 text-center text-slate-300">Everything you need, unified under one subscription.</p>
 
-            <div className="mt-12 relative hidden md:block">
-              <div className="absolute left-[10%] right-[10%] top-5 h-px bg-emerald-500/35" />
-              <div className="grid grid-cols-5 gap-4">
-                {HOW_STEPS.map((step, index) => (
-                  <div key={step.title} className="text-center px-2">
-                    <div className="mx-auto h-10 w-10 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 flex items-center justify-center font-semibold">
-                      {index + 1}
-                    </div>
-                    <h3 className="mt-4 text-white font-semibold text-sm">{step.title}</h3>
-                    <p className="mt-2 text-gray-400 text-xs leading-relaxed">{step.description}</p>
+              <div className="mt-8 overflow-hidden rounded-2xl border border-white/12">
+                <div className="grid grid-cols-3 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.15em] text-white/70">
+                  <span>Feature</span>
+                  <span>Without Stratify</span>
+                  <span>With Stratify</span>
+                </div>
+                {COMPARISON_ROWS.map(([feature, without, withStratify]) => (
+                  <div
+                    key={feature}
+                    className="grid grid-cols-3 border-t border-white/10 px-4 py-3 text-sm text-slate-200"
+                  >
+                    <span className="text-white/90">{feature}</span>
+                    <span className="text-rose-200/90">{without}</span>
+                    <span className="text-emerald-200">{withStratify}</span>
                   </div>
                 ))}
               </div>
             </div>
+          </motion.section>
 
-            <div className="mt-10 space-y-4 md:hidden">
-              {HOW_STEPS.map((step, index) => (
-                <div key={step.title} className="relative rounded-xl border border-gray-800 bg-black/30 p-4 pl-14">
-                  {index < HOW_STEPS.length - 1 ? (
-                    <span className="absolute left-[26px] top-10 bottom-[-20px] w-px bg-emerald-500/30" />
-                  ) : null}
-                  <span className="absolute left-3 top-3 h-7 w-7 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-sm font-semibold flex items-center justify-center">
-                    {index + 1}
-                  </span>
-                  <h3 className="text-white font-semibold text-sm">{step.title}</h3>
-                  <p className="mt-1 text-gray-400 text-xs">{step.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
+          <motion.section {...sectionMotion} className="px-6 pb-24">
+            <div className="mx-auto max-w-6xl">
+              <h2 className="text-center text-3xl font-semibold text-white md:text-4xl">How It Works</h2>
+              <p className="mt-3 text-center text-slate-300">From idea to execution in minutes, not days.</p>
 
-        <motion.section {...sectionMotion} className="py-24 px-6" id="whitepaper-pricing">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Simple Pricing</h2>
-            <div className="mt-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
-              {PRICING_PLANS.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`rounded-2xl border ${plan.borderClass} bg-black/35 p-6 flex flex-col ${
-                    plan.isPopular ? 'xl:-translate-y-2 shadow-[0_0_38px_rgba(16,185,129,0.14)]' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-white font-semibold tracking-wide">{plan.name}</h3>
-                    {plan.isPopular ? (
-                      <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-500 text-black font-semibold">
-                        Most Popular
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-4 text-3xl font-bold text-white">{plan.price}</p>
-                  {plan.yearlyPrice ? <p className="mt-1 text-sm text-gray-500">{plan.yearlyPrice}</p> : null}
-                  <p className="mt-2 text-gray-400 text-sm">{plan.subtitle}</p>
-
-                  <div className="mt-5 space-y-2 flex-1">
-                    {plan.features.map((feature) => (
-                      <p key={feature} className="text-gray-300 text-sm">
-                        {feature}
-                      </p>
-                    ))}
-                  </div>
-
-                  {plan.contactHref ? (
-                    <a
-                      href={plan.contactHref}
-                      className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/18 hover:text-emerald-100"
-                    >
-                      {plan.ctaLabel || 'Email us'}
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleGetStarted}
-                      className="mt-6 w-full rounded-xl border border-gray-700 px-4 py-2.5 text-gray-200 transition-colors hover:border-emerald-500/50 hover:text-white"
-                    >
-                      Get Started
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-5xl mx-auto overflow-hidden rounded-[34px] border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(5,11,21,0.95),rgba(3,8,17,0.92))] p-8 md:p-10 shadow-[0_20px_60px_rgba(2,8,20,0.45)]">
-            <h2 className="text-white text-3xl font-bold text-center md:text-4xl">Your Security, Our Priority</h2>
-            <div className="mt-8 space-y-3">
-              {SECURITY_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
+              <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {HOW_STEPS.map((step, index) => (
                   <div
-                    key={item.text}
-                    className="group flex items-center gap-3 rounded-[18px] border border-white/12 bg-[linear-gradient(120deg,rgba(7,16,30,0.82),rgba(4,9,18,0.76))] px-5 py-3.5 transition-colors hover:border-cyan-300/30"
+                    key={step.title}
+                    className="rounded-[22px] border border-white/12 bg-white/5 p-5 backdrop-blur"
                   >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/10">
-                      <Icon className="h-4 w-4 text-emerald-300" strokeWidth={1.6} />
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-400/12 text-sm font-semibold text-cyan-100">
+                      {index + 1}
                     </span>
-                    <span className="text-gray-300 text-sm">{item.text}</span>
+                    <h3 className="mt-4 text-lg font-semibold text-white">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-300">{step.description}</p>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        </motion.section>
+          </motion.section>
 
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center md:text-4xl">Questions?</h2>
-            <div className="mt-8 space-y-3">
-              {FAQ_ITEMS.map((faq, index) => {
-                const isOpen = openFaq === index;
-                return (
-                  <div
-                    key={faq.question}
-                    className={`overflow-hidden rounded-[20px] border bg-[linear-gradient(160deg,rgba(6,11,21,0.94),rgba(3,8,16,0.9))] backdrop-blur ${
-                      isOpen ? 'border-cyan-300/32 shadow-[0_0_28px_rgba(56,189,248,0.12)]' : 'border-white/12'
-                    }`}
+          <motion.section {...sectionMotion} className="px-6 pb-24">
+            <div className="mx-auto max-w-6xl text-center">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/60">Integrated With</p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                {INTEGRATIONS.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm text-slate-200"
                   >
-                    <button
-                      type="button"
-                      onClick={() => setOpenFaq((prev) => (prev === index ? -1 : index))}
-                      className={`w-full flex items-center justify-between gap-3 px-5 py-4 text-left transition-colors ${
-                        isOpen ? 'text-white' : 'text-gray-300 hover:text-white'
-                      }`}
-                    >
-                      <span className="font-medium">{faq.question}</span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} strokeWidth={1.5} />
-                    </button>
-                    {isOpen ? <div className="px-5 pb-4 text-sm text-gray-400 leading-relaxed">{faq.answer}</div> : null}
-                  </div>
-                );
-              })}
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        </motion.section>
+          </motion.section>
 
-        <motion.section {...sectionMotion} className="py-28 px-6">
-          <div className="max-w-4xl mx-auto text-center rounded-3xl border border-gray-800 bg-black/30 p-10 md:p-14">
-            <h2 className="text-white text-4xl font-bold">Ready to Trade Smarter?</h2>
-            <p className="mt-4 text-gray-400 text-lg">Get your Stratify API key and take control.</p>
-            <button
-              type="button"
-              onClick={handleGetStarted}
-              className="mt-8 border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-8 py-3 rounded-xl transition-colors"
-            >
-              {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
-            </button>
-            <p className="mt-5 text-sm text-gray-500">
-              <a href="https://stratifymarket.com" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-                stratifymarket.com
-              </a>
-            </p>
-          </div>
-        </motion.section>
+          <motion.section {...sectionMotion} className="px-6 pb-24">
+            <div className="mx-auto max-w-4xl rounded-[30px] border border-cyan-300/18 bg-[linear-gradient(160deg,rgba(6,12,24,0.96),rgba(4,8,16,0.88))] p-7 text-center md:p-10">
+              <h2 className="text-3xl font-semibold text-white md:text-4xl">Be First In Line</h2>
+              <p className="mx-auto mt-3 max-w-2xl text-slate-300">
+                Join the newsletter waitlist for launch access, product drops, and market intelligence updates.
+              </p>
 
-        <motion.section {...sectionMotion} className="pb-16 px-6">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-white/55">Execution Partners</p>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {PARTNER_WORDMARKS.map((partner) => (
-                <div
-                  key={partner.id}
-                  className="group rounded-[20px] border border-white/12 bg-[linear-gradient(145deg,rgba(6,11,21,0.86),rgba(3,8,16,0.78))] px-5 py-4 backdrop-blur transition-colors hover:border-cyan-300/28"
+              <form
+                onSubmit={handleNewsletterSubmit('bottom')}
+                className="mx-auto mt-7 flex max-w-2xl flex-col gap-2 rounded-2xl border border-white/12 bg-[#070d18]/82 p-2 backdrop-blur sm:flex-row"
+              >
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={bottomEmail}
+                  onChange={(event) => setBottomEmail(event.target.value)}
+                  placeholder="Your email address"
+                  className="h-12 flex-1 rounded-xl border border-transparent bg-transparent px-4 text-base text-white placeholder:text-slate-400 focus:border-cyan-300/28 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={loadingForm === 'bottom'}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {partner.id === 'ninja' ? (
-                    <div className="flex items-center gap-3">
-                      <svg width="30" height="30" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                        <path d="M9 41c7-16 21-24 36-22" stroke="#7f8794" strokeWidth="5" strokeLinecap="round" />
-                        <path d="M19 48c6-13 18-20 31-18" stroke="#b3212a" strokeWidth="5" strokeLinecap="round" />
-                        <circle cx="48" cy="19" r="6" fill="#b3212a" />
-                      </svg>
-                      <p className="text-2xl font-semibold tracking-[0.08em]">
-                        <span className="text-gray-200">NINJA</span>
-                        <span className="text-[#c5303b]">TRADER</span>
-                      </p>
-                    </div>
-                  ) : null}
+                  {loadingForm === 'bottom' ? 'Joining...' : 'Get Early Access'}
+                  <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </form>
 
-                  {partner.id === 'ib' ? (
-                    <div className="flex items-center gap-3">
-                      <svg width="28" height="24" viewBox="0 0 28 24" fill="none" aria-hidden="true">
-                        <path d="M3 20L14 2L25 20H3Z" fill="#d6222b" />
-                        <path d="M11 16L14 11L17 16H11Z" fill="#111827" />
-                      </svg>
-                      <p className="text-[30px] font-semibold tracking-tight leading-none">
-                        <span className="text-[#d6222b]">Interactive</span>
-                        <span className="text-white">Brokers</span>
-                      </p>
-                    </div>
-                  ) : null}
+              {feedback.bottom.message ? (
+                <p className={`mt-3 text-sm ${feedback.bottom.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`}>
+                  {feedback.bottom.message}
+                </p>
+              ) : null}
 
-                  {partner.id === 'td' ? (
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-[#39b54a] text-lg font-extrabold text-white">
-                        TD
-                      </span>
-                      <p className="text-[30px] font-semibold tracking-tight leading-none text-[#37b34a]">Ameritrade</p>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+              <button
+                type="button"
+                onClick={handlePrimaryAction}
+                className="mt-7 inline-flex items-center gap-2 rounded-full border border-emerald-300/28 bg-emerald-400/10 px-5 py-2.5 text-sm font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/18"
+              >
+                Continue To Platform
+                <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+              </button>
             </div>
-          </div>
-        </motion.section>
+          </motion.section>
+        </main>
 
-        <footer className="border-t border-gray-800 px-6 py-8">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">
-            <p>© {new Date().getFullYear()} Stratify. All rights reserved.</p>
-            <div className="flex items-center gap-6">
-              <a href="/whitepaper" className="hover:text-emerald-300 transition-colors">
-                White Paper
-              </a>
-              <a href="/privacy" className="hover:text-emerald-300 transition-colors">
-                Privacy
-              </a>
-              <a href="/terms" className="hover:text-emerald-300 transition-colors">
-                Terms
-              </a>
-            </div>
+        <footer className="border-t border-white/10 px-6 py-8">
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-xs text-slate-400 md:flex-row">
             <div className="flex items-center gap-5">
-              {/* X (Twitter) */}
-              <a href="https://x.com/StratifyAI" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="X">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              <a href="https://x.com/stratify_hq" target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                X @stratify_hq
               </a>
-              {/* Discord */}
-              <a href="https://discord.gg/6RPsREggYV" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="Discord">
-                <svg width="20" height="15" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1C20.3 1.3 15.4 2.8 10.9 4.9c0 0-.1 0-.1.1C1.6 18.7-.9 32.1.3 45.4v.2c6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .2-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.7-3.8-1.6-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.7-.6 1.1-.9.1-.1.1-.1.2-.1 11.6 5.3 24.2 5.3 35.7 0h.2c.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 2-5.6 2.7-.1.1-.2.2-.1.3 1.1 2.1 2.3 4.1 3.6 5.9.1.1.2.1.2.1 5.8-1.8 11.6-4.5 17.7-9 0 0 .1-.1.1-.2 1.5-15.6-2.5-29.1-10.7-41.1 0 0 0 0-.1-.1z"/></svg>
-              </a>
-              {/* GitHub */}
-              <a href="https://github.com/jtdesign7277-source/stratify" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="GitHub">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-              </a>
-              {/* Instagram */}
-              <a href="https://instagram.com/stratifyai" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors" title="Instagram">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+              <a href="https://discord.gg/6RPsREggYV" target="_blank" rel="noopener noreferrer" className="hover:text-[#5865F2]">
+                Discord
               </a>
             </div>
+            <p>© {new Date().getFullYear()} Stratify · Built with obsession in Boston</p>
           </div>
         </footer>
-      </main>
+      </div>
     </div>
   );
 };
