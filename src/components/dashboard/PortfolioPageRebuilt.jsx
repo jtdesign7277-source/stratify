@@ -404,18 +404,18 @@ const PortfolioPageRebuilt = ({
   }, [displayedTrades]);
 
   const holdingsGridColumns = useMemo(() => ([
-    { id: 'symbol', width: 90, header: { format: 'Symbol' }, cells: { className: 'portfolio-col-symbol' } },
-    { id: 'companyName', width: 180, header: { format: 'Company Name' }, cells: { className: 'portfolio-col-company' } },
-    { id: 'shares', width: 90, header: { format: 'Shares' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'avgCostBasis', width: 120, header: { format: 'Avg Cost Basis' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'currentPrice', width: 120, header: { format: 'Current Price' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'marketValue', width: 130, header: { format: 'Market Value' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'totalCost', width: 130, header: { format: 'Total Cost' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'unrealizedPnlDollars', width: 145, header: { format: 'Unrealized P&L ($)' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'unrealizedPnlPercent', width: 135, header: { format: 'Unrealized P&L (%)' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'dayChangeDollars', width: 130, header: { format: 'Day Change ($)' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'dayChangePercent', width: 125, header: { format: 'Day Change (%)' }, cells: { className: 'portfolio-col-numeric' } },
-    { id: 'weight', width: 95, header: { format: 'Weight' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'symbol', width: '6%', header: { format: 'Symbol' }, cells: { className: 'portfolio-col-symbol' } },
+    { id: 'companyName', width: '14%', header: { format: 'Company' }, cells: { className: 'portfolio-col-company' } },
+    { id: 'shares', width: '6%', header: { format: 'Shares' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'avgCostBasis', width: '8%', header: { format: 'Avg Cost' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'currentPrice', width: '8%', header: { format: 'Current' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'marketValue', width: '9%', header: { format: 'Market Value' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'totalCost', width: '9%', header: { format: 'Total Cost' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'unrealizedPnlDollars', width: '10%', header: { format: 'Unrealized $' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'unrealizedPnlPercent', width: '8%', header: { format: 'Unrealized %' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'dayChangeDollars', width: '8%', header: { format: 'Day $' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'dayChangePercent', width: '8%', header: { format: 'Day %' }, cells: { className: 'portfolio-col-numeric' } },
+    { id: 'weight', width: '6%', header: { format: 'Weight' }, cells: { className: 'portfolio-col-numeric' } },
   ]), []);
 
   const holdingsGridDataTable = useMemo(() => {
@@ -469,7 +469,7 @@ const PortfolioPageRebuilt = ({
       columns: holdingsGridColumns,
       rendering: {
         rows: {
-          strictHeights: true,
+          strictHeights: false,
         },
       },
     });

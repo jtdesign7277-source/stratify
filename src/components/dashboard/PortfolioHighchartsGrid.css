@@ -1,11 +1,12 @@
 .portfolio-highcharts-grid {
   height: 430px;
   width: 100%;
+  min-width: 0;
 }
 
 .portfolio-highcharts-grid .hcg-container {
   --hcg-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --hcg-font-size: 12px;
+  --hcg-font-size: 11px;
   --hcg-color: #d6e4ff;
   --hcg-background: #0b121d;
   --hcg-border-width: 1px;
@@ -21,14 +22,16 @@
   --hcg-header-column-border-color: #28374b;
   --hcg-header-color: #8fa4c3;
   --hcg-header-background: #0f1a2a;
-  --hcg-horizontal-padding: 10px;
-  --hcg-vertical-padding: 9px;
-  --hcg-header-horizontal-padding: 10px;
-  --hcg-header-vertical-padding: 9px;
+  --hcg-horizontal-padding: 8px;
+  --hcg-vertical-padding: 8px;
+  --hcg-header-horizontal-padding: 8px;
+  --hcg-header-vertical-padding: 8px;
 }
 
 .portfolio-highcharts-grid .hcg-table {
   background: #0b121d;
+  width: 100%;
+  table-layout: fixed;
 }
 
 .portfolio-highcharts-grid .hcg-tbody .hcg-row {
@@ -36,8 +39,8 @@
 }
 
 .portfolio-highcharts-grid .hcg-head-row-content .hcg-header-cell-content {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

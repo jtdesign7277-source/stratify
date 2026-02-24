@@ -11,6 +11,64 @@ const EMPTY_STATE = {
 
 const normalizeList = (value) => (Array.isArray(value) ? value : []);
 
+const strategyIdentityKey = (strategy) => {
+  if (!strategy || typeof strategy !== 'object') return '';
+  const id = String(strategy.id || '').trim();
+  if (id) return `id:${id}`;
+
+  const name = String(strategy.name || '').trim().toLowerCase();
+  const ticker = String(
+    strategy.ticker ||
+      strategy.symbol ||
+      strategy.summary?.ticker ||
+      strategy.symbols?.[0] ||
+      '',
+  )
+    .trim()
+    .toLowerCase();
+  const savedAt = String(strategy.savedAt || strategy.createdAt || strategy.updatedAt || '').trim();
+
+  if (!name && !ticker && !savedAt) return '';
+  return `sig:${name}|${ticker}|${savedAt}`;
+};
+
+const mergeStrategyLists = (preferred, fallback) => {
+  const preferredList = normalizeList(preferred).filter((item) => item && typeof item === 'object');
+  const fallbackList = normalizeList(fallback).filter((item) => item && typeof item === 'object');
+
+  const mergedByKey = new Map();
+
+  fallbackList.forEach((item) => {
+    const key = strategyIdentityKey(item);
+    if (!key) return;
+    mergedByKey.set(key, item);
+  });
+
+  preferredList.forEach((item) => {
+    const key = strategyIdentityKey(item);
+    if (!key) return;
+    const existing = mergedByKey.get(key);
+    mergedByKey.set(key, existing ? { ...existing, ...item } : item);
+  });
+
+  const used = new Set();
+  const ordered = [];
+
+  const appendOrdered = (list) => {
+    list.forEach((item) => {
+      const key = strategyIdentityKey(item);
+      if (!key || used.has(key)) return;
+      used.add(key);
+      ordered.push(mergedByKey.get(key) || item);
+    });
+  };
+
+  appendOrdered(preferredList);
+  appendOrdered(fallbackList);
+
+  return ordered;
+};
+
 const isDeployedStrategy = (strategy) => {
   if (!strategy || typeof strategy !== 'object') return false;
   const status = String(strategy.status ?? '').toLowerCase();
@@ -56,6 +114,17 @@ const normalizeStrategyPayload = (raw) => {
   };
 };
 
+const mergeStrategyPayload = (preferredRaw, fallbackRaw) => {
+  const preferred = normalizeStrategyPayload(preferredRaw);
+  const fallback = normalizeStrategyPayload(fallbackRaw);
+
+  return {
+    strategies: mergeStrategyLists(preferred.strategies, fallback.strategies),
+    savedStrategies: mergeStrategyLists(preferred.savedStrategies, fallback.savedStrategies),
+    deployedStrategies: mergeStrategyLists(preferred.deployedStrategies, fallback.deployedStrategies),
+  };
+};
+
 const loadLocalState = () => {
   if (typeof window === 'undefined') return { ...EMPTY_STATE };
 
@@ -70,7 +139,9 @@ const loadLocalState = () => {
 
 const saveLocalState = (payload) => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+  } catch {}
 };
 
 const hasStrategyData = (payload) => (
@@ -89,6 +160,7 @@ export default function useStrategySync(user) {
 
   const saveTimer = useRef(null);
   const lastSaved = useRef('');
+  const latestPayload = useRef({ ...EMPTY_STATE });
 
   const saveToSupabase = useCallback(async (userId, payload) => {
     if (!userId || !supabase) return;
@@ -115,14 +187,12 @@ export default function useStrategySync(user) {
   useEffect(() => {
     if (!user?.id || !supabase) {
       const local = loadLocalState();
-      setStrategies(local.strategies);
-      setSavedStrategies(local.savedStrategies);
-      setDeployedStrategies(local.deployedStrategies);
-      lastSaved.current = JSON.stringify({
-        strategies: local.strategies,
-        savedStrategies: local.savedStrategies,
-        deployedStrategies: local.deployedStrategies,
-      });
+      const resolvedLocal = mergeStrategyPayload(local, latestPayload.current);
+      setStrategies(resolvedLocal.strategies);
+      setSavedStrategies(resolvedLocal.savedStrategies);
+      setDeployedStrategies(resolvedLocal.deployedStrategies);
+      saveLocalState(resolvedLocal);
+      lastSaved.current = JSON.stringify(resolvedLocal);
       setLoaded(true);
       return;
     }
@@ -141,43 +211,41 @@ export default function useStrategySync(user) {
         if (error) {
           console.warn('[StrategySync] Load error:', error.message);
           if (!cancelled) {
-            setStrategies([]);
-            setSavedStrategies([]);
-            setDeployedStrategies([]);
-            lastSaved.current = '';
+            const fallback = mergeStrategyPayload(loadLocalState(), latestPayload.current);
+            setStrategies(fallback.strategies);
+            setSavedStrategies(fallback.savedStrategies);
+            setDeployedStrategies(fallback.deployedStrategies);
+            saveLocalState(fallback);
+            lastSaved.current = JSON.stringify(fallback);
           }
           return;
         }
 
-        const next = normalizeStrategyPayload(data?.strategies);
+        const remote = normalizeStrategyPayload(data?.strategies);
         const local = loadLocalState();
-        const useLocal = !hasStrategyData(next) && hasStrategyData(local);
-        const resolved = useLocal ? local : next;
+        const inMemory = latestPayload.current;
+        const resolved = mergeStrategyPayload(mergeStrategyPayload(local, inMemory), remote);
+        const serializedResolved = JSON.stringify(resolved);
         if (cancelled) return;
 
         setStrategies(resolved.strategies);
         setSavedStrategies(resolved.savedStrategies);
         setDeployedStrategies(resolved.deployedStrategies);
-        lastSaved.current = JSON.stringify({
-          strategies: resolved.strategies,
-          savedStrategies: resolved.savedStrategies,
-          deployedStrategies: resolved.deployedStrategies,
-        });
+        saveLocalState(resolved);
+        lastSaved.current = serializedResolved;
 
-        if (useLocal) {
-          saveToSupabase(user.id, {
-            strategies: local.strategies,
-            savedStrategies: local.savedStrategies,
-            deployedStrategies: local.deployedStrategies,
-          });
+        if (serializedResolved !== JSON.stringify(remote)) {
+          saveToSupabase(user.id, resolved);
         }
       } catch (error) {
         if (!cancelled) {
           console.warn('[StrategySync] Load failed:', error);
-          setStrategies([]);
-          setSavedStrategies([]);
-          setDeployedStrategies([]);
-          lastSaved.current = '';
+          const fallback = mergeStrategyPayload(loadLocalState(), latestPayload.current);
+          setStrategies(fallback.strategies);
+          setSavedStrategies(fallback.savedStrategies);
+          setDeployedStrategies(fallback.deployedStrategies);
+          saveLocalState(fallback);
+          lastSaved.current = JSON.stringify(fallback);
         }
       } finally {
         if (!cancelled) setLoaded(true);
@@ -192,21 +260,23 @@ export default function useStrategySync(user) {
   }, [user?.id, saveToSupabase]);
 
   useEffect(() => {
-    if (!loaded) return;
-
     const payload = {
       strategies,
       savedStrategies,
       deployedStrategies,
     };
+    latestPayload.current = payload;
 
     const serialized = JSON.stringify(payload);
+    if (!loaded && !hasStrategyData(payload)) return;
+
+    saveLocalState(payload);
+    if (!loaded) return;
     if (serialized === lastSaved.current) return;
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       if (!user?.id || !supabase) {
-        saveLocalState(payload);
         lastSaved.current = serialized;
         return;
       }
