@@ -801,14 +801,7 @@ const parseBatchQuotePayload = (payload) => {
   return quoteMap;
 };
 
-const extractPremarketMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
-  const previousClose = toNumber(
-    quote?.previous_close
-    ?? quote?.previousClose
-    ?? quote?.prev_close
-    ?? quote?.prevClose
-  );
-
+const extractPremarketMetricsFromQuote = (quote = {}) => {
   const preMarketPrice = toNumber(
     quote?.pre_market_price
     ?? quote?.preMarketPrice
@@ -830,29 +823,24 @@ const extractPremarketMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
     ?? quote?.premarketChangePercent
   );
 
-  const preMarketReferencePrice = Number.isFinite(preMarketPrice)
-    ? preMarketPrice
-    : toNumber(fallbackPrice);
-
-  if (!Number.isFinite(preMarketChange) && Number.isFinite(preMarketReferencePrice) && Number.isFinite(previousClose)) {
-    preMarketChange = preMarketReferencePrice - previousClose;
+  if (
+    !Number.isFinite(preMarketChange)
+    && Number.isFinite(preMarketPrice)
+    && Number.isFinite(preMarketChangePercent)
+    && preMarketChangePercent !== -100
+  ) {
+    const referencePrice = preMarketPrice / (1 + (preMarketChangePercent / 100));
+    preMarketChange = preMarketPrice - referencePrice;
   }
 
   if (
     !Number.isFinite(preMarketChangePercent)
+    && Number.isFinite(preMarketPrice)
     && Number.isFinite(preMarketChange)
-    && Number.isFinite(previousClose)
-    && previousClose !== 0
+    && (preMarketPrice - preMarketChange) !== 0
   ) {
-    preMarketChangePercent = (preMarketChange / previousClose) * 100;
-  }
-
-  if (
-    !Number.isFinite(preMarketChange)
-    && Number.isFinite(preMarketChangePercent)
-    && Number.isFinite(previousClose)
-  ) {
-    preMarketChange = previousClose * (preMarketChangePercent / 100);
+    const referencePrice = preMarketPrice - preMarketChange;
+    preMarketChangePercent = (preMarketChange / referencePrice) * 100;
   }
 
   return {
@@ -862,14 +850,7 @@ const extractPremarketMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
   };
 };
 
-const extractAfterHoursMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
-  const previousClose = toNumber(
-    quote?.previous_close
-    ?? quote?.previousClose
-    ?? quote?.prev_close
-    ?? quote?.prevClose
-  );
-
+const extractAfterHoursMetricsFromQuote = (quote = {}) => {
   const afterHoursPrice = toNumber(
     quote?.after_hours_price
     ?? quote?.afterHoursPrice
@@ -897,29 +878,24 @@ const extractAfterHoursMetricsFromQuote = (quote = {}, fallbackPrice = null) => 
     ?? quote?.postmarketChangePercent
   );
 
-  const afterHoursReferencePrice = Number.isFinite(afterHoursPrice)
-    ? afterHoursPrice
-    : toNumber(fallbackPrice);
-
-  if (!Number.isFinite(afterHoursChange) && Number.isFinite(afterHoursReferencePrice) && Number.isFinite(previousClose)) {
-    afterHoursChange = afterHoursReferencePrice - previousClose;
+  if (
+    !Number.isFinite(afterHoursChange)
+    && Number.isFinite(afterHoursPrice)
+    && Number.isFinite(afterHoursChangePercent)
+    && afterHoursChangePercent !== -100
+  ) {
+    const referencePrice = afterHoursPrice / (1 + (afterHoursChangePercent / 100));
+    afterHoursChange = afterHoursPrice - referencePrice;
   }
 
   if (
     !Number.isFinite(afterHoursChangePercent)
+    && Number.isFinite(afterHoursPrice)
     && Number.isFinite(afterHoursChange)
-    && Number.isFinite(previousClose)
-    && previousClose !== 0
+    && (afterHoursPrice - afterHoursChange) !== 0
   ) {
-    afterHoursChangePercent = (afterHoursChange / previousClose) * 100;
-  }
-
-  if (
-    !Number.isFinite(afterHoursChange)
-    && Number.isFinite(afterHoursChangePercent)
-    && Number.isFinite(previousClose)
-  ) {
-    afterHoursChange = previousClose * (afterHoursChangePercent / 100);
+    const referencePrice = afterHoursPrice - afterHoursChange;
+    afterHoursChangePercent = (afterHoursChange / referencePrice) * 100;
   }
 
   return {
@@ -949,8 +925,8 @@ export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
   return normalized.map((symbol) => {
     const quote = quoteMap[symbol];
     const price = toNumber(quote?.close || quote?.price || quote?.last);
-    const preMarketMetrics = extractPremarketMetricsFromQuote(quote, price);
-    const afterHoursMetrics = extractAfterHoursMetricsFromQuote(quote, price);
+    const preMarketMetrics = extractPremarketMetricsFromQuote(quote);
+    const afterHoursMetrics = extractAfterHoursMetricsFromQuote(quote);
     return {
       symbol,
       name: quote?.name || symbol,

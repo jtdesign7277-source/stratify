@@ -548,6 +548,40 @@ export default function AnalyticsPage() {
         const marketStatus = getMarketStatus();
         const isPreMarket = sessionStatus === 'pre-market' || marketStatus === 'Pre-Market';
         const isPostMarket = sessionStatus === 'post-market' || marketStatus === 'After Hours';
+        const rawPayload = update?.raw && typeof update.raw === 'object' ? update.raw : {};
+        const payloadPreMarketPrice = toNumber(
+          rawPayload?.pre_market_price
+          ?? rawPayload?.premarket_price
+          ?? rawPayload?.preMarketPrice
+        );
+        const payloadPreMarketChange = toNumber(
+          rawPayload?.pre_market_change
+          ?? rawPayload?.premarket_change
+          ?? rawPayload?.preMarketChange
+        );
+        const payloadPreMarketPercent = toNumber(
+          rawPayload?.pre_market_change_percent
+          ?? rawPayload?.premarket_change_percent
+          ?? rawPayload?.preMarketChangePercent
+        );
+        const payloadAfterHoursPrice = toNumber(
+          rawPayload?.after_hours_price
+          ?? rawPayload?.post_market_price
+          ?? rawPayload?.postmarket_price
+          ?? rawPayload?.afterHoursPrice
+        );
+        const payloadAfterHoursChange = toNumber(
+          rawPayload?.after_hours_change
+          ?? rawPayload?.post_market_change
+          ?? rawPayload?.postmarket_change
+          ?? rawPayload?.afterHoursChange
+        );
+        const payloadAfterHoursPercent = toNumber(
+          rawPayload?.after_hours_change_percent
+          ?? rawPayload?.post_market_change_percent
+          ?? rawPayload?.postmarket_change_percent
+          ?? rawPayload?.afterHoursChangePercent
+        );
 
         let preMarketReferencePrice = toNumber(current.preMarketReferencePrice);
         if (!Number.isFinite(preMarketReferencePrice) && Number.isFinite(previousClose)) {
@@ -577,36 +611,72 @@ export default function AnalyticsPage() {
         }
 
         if (isPreMarket) {
-          next.preMarketPrice = livePrice;
+          const nextPrePrice = Number.isFinite(payloadPreMarketPrice) ? payloadPreMarketPrice : livePrice;
+          let nextPreChange = Number.isFinite(payloadPreMarketChange) ? payloadPreMarketChange : null;
+          let nextPrePercent = Number.isFinite(payloadPreMarketPercent) ? payloadPreMarketPercent : null;
+
+          if (!Number.isFinite(preMarketReferencePrice)) {
+            preMarketReferencePrice = getReferencePrice(nextPrePrice, nextPreChange, nextPrePercent);
+          }
+
+          if (!Number.isFinite(nextPreChange) && Number.isFinite(nextPrePrice) && Number.isFinite(preMarketReferencePrice)) {
+            nextPreChange = nextPrePrice - preMarketReferencePrice;
+          }
+
+          if (
+            !Number.isFinite(nextPrePercent)
+            && Number.isFinite(nextPreChange)
+            && Number.isFinite(preMarketReferencePrice)
+            && preMarketReferencePrice !== 0
+          ) {
+            nextPrePercent = (nextPreChange / preMarketReferencePrice) * 100;
+          }
+
+          if (!Number.isFinite(nextPreChange) && Number.isFinite(nextPrePercent) && Number.isFinite(preMarketReferencePrice)) {
+            nextPreChange = preMarketReferencePrice * (nextPrePercent / 100);
+          }
+
+          next.preMarketPrice = Number.isFinite(nextPrePrice) ? nextPrePrice : null;
+          next.preMarketChange = Number.isFinite(nextPreChange) ? nextPreChange : null;
+          next.preMarketChangePercent = Number.isFinite(nextPrePercent) ? nextPrePercent : null;
+
           if (Number.isFinite(preMarketReferencePrice)) {
-            const preChange = livePrice - preMarketReferencePrice;
-            next.preMarketChange = preChange;
-            next.preMarketChangePercent = preMarketReferencePrice !== 0
-              ? (preChange / preMarketReferencePrice) * 100
-              : null;
             next.preMarketReferencePrice = preMarketReferencePrice;
-          } else {
-            next.preMarketChange = next.change;
-            next.preMarketChangePercent = next.percentChange;
           }
         }
 
         if (isPostMarket) {
+          const nextPostPrice = Number.isFinite(payloadAfterHoursPrice) ? payloadAfterHoursPrice : livePrice;
+          let nextPostChange = Number.isFinite(payloadAfterHoursChange) ? payloadAfterHoursChange : null;
+          let nextPostPercent = Number.isFinite(payloadAfterHoursPercent) ? payloadAfterHoursPercent : null;
+
           if (!Number.isFinite(afterHoursReferencePrice)) {
-            afterHoursReferencePrice = livePrice;
+            afterHoursReferencePrice = getReferencePrice(nextPostPrice, nextPostChange, nextPostPercent);
           }
 
-          next.afterHoursPrice = livePrice;
+          if (!Number.isFinite(nextPostChange) && Number.isFinite(nextPostPrice) && Number.isFinite(afterHoursReferencePrice)) {
+            nextPostChange = nextPostPrice - afterHoursReferencePrice;
+          }
+
+          if (
+            !Number.isFinite(nextPostPercent)
+            && Number.isFinite(nextPostChange)
+            && Number.isFinite(afterHoursReferencePrice)
+            && afterHoursReferencePrice !== 0
+          ) {
+            nextPostPercent = (nextPostChange / afterHoursReferencePrice) * 100;
+          }
+
+          if (!Number.isFinite(nextPostChange) && Number.isFinite(nextPostPercent) && Number.isFinite(afterHoursReferencePrice)) {
+            nextPostChange = afterHoursReferencePrice * (nextPostPercent / 100);
+          }
+
+          next.afterHoursPrice = Number.isFinite(nextPostPrice) ? nextPostPrice : null;
+          next.afterHoursChange = Number.isFinite(nextPostChange) ? nextPostChange : null;
+          next.afterHoursChangePercent = Number.isFinite(nextPostPercent) ? nextPostPercent : null;
+
           if (Number.isFinite(afterHoursReferencePrice)) {
-            const postChange = livePrice - afterHoursReferencePrice;
-            next.afterHoursChange = postChange;
-            next.afterHoursChangePercent = afterHoursReferencePrice !== 0
-              ? (postChange / afterHoursReferencePrice) * 100
-              : null;
             next.afterHoursReferencePrice = afterHoursReferencePrice;
-          } else {
-            next.afterHoursChange = next.change;
-            next.afterHoursChangePercent = next.percentChange;
           }
         }
 
