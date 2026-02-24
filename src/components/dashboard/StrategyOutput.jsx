@@ -883,6 +883,11 @@ export default function StrategyOutput({
       key_trade_setups: payload.keyTradeSetups,
     };
 
+    // Optimistic UI update so strategy appears in folders immediately.
+    onSave?.(payload);
+    setSaved(true);
+    setSaveStatus('saved');
+
     try {
       const existing = JSON.parse(localStorage.getItem(SAVED_STRATEGIES_FALLBACK_KEY) || '[]');
       const next = Array.isArray(existing) ? existing : [];
@@ -940,10 +945,6 @@ export default function StrategyOutput({
     } catch (error) {
       console.warn('[StrategyOutput] Save to Supabase failed, local fallback kept:', error);
     }
-
-    onSave?.(payload);
-    setSaved(true);
-    setSaveStatus('saved');
   };
 
   const handleSaveToSophia = async () => {
@@ -990,6 +991,20 @@ export default function StrategyOutput({
 
     setIsSavingToSophia(true);
     setStrategyRaw(normalizedRaw);
+
+    // Optimistic UI update so strategy lands in selected folder immediately.
+    try {
+      if (typeof onSaveToSophia === 'function') {
+        onSaveToSophia(payload);
+      } else if (typeof onSave === 'function') {
+        onSave(payload);
+      }
+      setSaved(true);
+      setSaveStatus('saved');
+      setSavedToSophia(true);
+    } catch (error) {
+      console.warn('[StrategyOutput] Save to Sophia state callback failed:', error);
+    }
 
     try {
       const existing = JSON.parse(localStorage.getItem(SAVED_STRATEGIES_FALLBACK_KEY) || '[]');
@@ -1061,21 +1076,7 @@ export default function StrategyOutput({
     } catch (error) {
       console.warn('[StrategyOutput] Save to Sophia/Supabase failed, local fallback kept:', error);
     }
-
-    try {
-      if (typeof onSaveToSophia === 'function') {
-        onSaveToSophia(payload);
-      } else if (typeof onSave === 'function') {
-        onSave(payload);
-      }
-      setSaved(true);
-      setSaveStatus('saved');
-      setSavedToSophia(true);
-    } catch (error) {
-      console.warn('[StrategyOutput] Save to Sophia state callback failed:', error);
-    } finally {
-      setIsSavingToSophia(false);
-    }
+    setIsSavingToSophia(false);
   };
 
   return (
