@@ -373,7 +373,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute left-1/2 top-[46%] h-[540px] w-[1700px] rounded-[50%]"
+          className="absolute left-1/2 top-[58%] h-[540px] w-[1700px] rounded-[50%]"
           style={{
             background:
               'linear-gradient(92deg, transparent 8%, rgba(255,255,255,0.2) 23%, rgba(56,189,248,0.24) 43%, rgba(16,185,129,0.2) 56%, rgba(96,165,250,0.18) 71%, transparent 91%), radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, rgba(148,220,255,0.16) 36%, rgba(16,185,129,0.13) 58%, transparent 80%)',
@@ -383,7 +383,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute left-1/2 top-[48%] h-[360px] w-[1140px] rounded-[50%]"
+          className="absolute left-1/2 top-[60%] h-[360px] w-[1140px] rounded-[50%]"
           style={{
             background:
               'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(167,243,208,0.2) 30%, rgba(125,211,252,0.16) 52%, transparent 78%)',
@@ -393,7 +393,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[960px] w-[1420px] rounded-[50%] blur-3xl"
+          className="absolute left-1/2 top-[62%] h-[960px] w-[1420px] rounded-[50%] blur-3xl"
           style={{
             background:
               'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(52, 211, 153, 0.22) 18%, rgba(96, 165, 250, 0.2) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
@@ -401,7 +401,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[840px] w-[840px] rounded-full opacity-90"
+          className="absolute left-1/2 top-[62%] h-[840px] w-[840px] rounded-full opacity-90"
           style={{
             background:
               'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.16) 0deg 5deg, rgba(74,222,128,0.08) 5deg 15deg, rgba(56,189,248,0.05) 15deg 26deg, rgba(17,24,39,0.02) 26deg 40deg)',
@@ -410,7 +410,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[420px] w-[420px] rounded-full"
+          className="absolute left-1/2 top-[62%] h-[420px] w-[420px] rounded-full"
           style={{
             background:
               'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.65) 0%, rgba(167,243,208,0.35) 14%, rgba(125,211,252,0.18) 28%, transparent 64%)',
