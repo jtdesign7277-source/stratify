@@ -216,7 +216,6 @@ export default function AnalyticsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [isFetchingQuotes, setIsFetchingQuotes] = useState(false);
-  const [clockTick, setClockTick] = useState(() => Date.now());
   const gridRef = useRef(null);
   const searchWrapRef = useRef(null);
 
@@ -224,11 +223,6 @@ export default function AnalyticsPage() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(symbols));
   }, [symbols]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setClockTick(Date.now()), 30000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (!searchOpen) return undefined;
@@ -374,6 +368,12 @@ export default function AnalyticsPage() {
 
             const sessionStatus = getExtendedHoursStatus();
             const previousClose = toNumber(current.previousClose);
+            const payloadPreviousClose = toNumber(
+              messagePayload?.previous_close
+              ?? messagePayload?.previousClose
+              ?? messagePayload?.prev_close
+              ?? messagePayload?.prevClose
+            );
             const next = {
               ...current,
               price: livePrice,
@@ -382,22 +382,60 @@ export default function AnalyticsPage() {
               volume: toNumber(messagePayload?.volume ?? messagePayload?.day_volume ?? current.volume),
               timestamp: messagePayload?.timestamp || messagePayload?.datetime || new Date().toISOString(),
             };
+            if (Number.isFinite(payloadPreviousClose)) {
+              next.previousClose = payloadPreviousClose;
+            }
 
-            if (sessionStatus === 'pre-market') {
-              next.preMarketPrice = livePrice;
-              if (Number.isFinite(previousClose)) {
-                const preChange = livePrice - previousClose;
+            const effectivePreviousClose = Number.isFinite(payloadPreviousClose) ? payloadPreviousClose : previousClose;
+
+            const payloadPreMarketPrice = toNumber(
+              messagePayload?.pre_market_price
+              ?? messagePayload?.premarket_price
+              ?? messagePayload?.preMarketPrice
+            );
+            const payloadAfterHoursPrice = toNumber(
+              messagePayload?.after_hours_price
+              ?? messagePayload?.post_market_price
+              ?? messagePayload?.afterHoursPrice
+            );
+
+            if (Number.isFinite(payloadPreMarketPrice)) {
+              next.preMarketPrice = payloadPreMarketPrice;
+              if (Number.isFinite(effectivePreviousClose)) {
+                const preChange = payloadPreMarketPrice - effectivePreviousClose;
                 next.preMarketChange = preChange;
-                next.preMarketChangePercent = previousClose !== 0 ? (preChange / previousClose) * 100 : null;
+                next.preMarketChangePercent = effectivePreviousClose !== 0
+                  ? (preChange / effectivePreviousClose) * 100
+                  : null;
+              }
+            } else if (sessionStatus === 'pre-market') {
+              next.preMarketPrice = livePrice;
+              if (Number.isFinite(effectivePreviousClose)) {
+                const preChange = livePrice - effectivePreviousClose;
+                next.preMarketChange = preChange;
+                next.preMarketChangePercent = effectivePreviousClose !== 0
+                  ? (preChange / effectivePreviousClose) * 100
+                  : null;
               }
             }
 
-            if (sessionStatus === 'post-market') {
-              next.afterHoursPrice = livePrice;
-              if (Number.isFinite(previousClose)) {
-                const postChange = livePrice - previousClose;
+            if (Number.isFinite(payloadAfterHoursPrice)) {
+              next.afterHoursPrice = payloadAfterHoursPrice;
+              if (Number.isFinite(effectivePreviousClose)) {
+                const postChange = payloadAfterHoursPrice - effectivePreviousClose;
                 next.afterHoursChange = postChange;
-                next.afterHoursChangePercent = previousClose !== 0 ? (postChange / previousClose) * 100 : null;
+                next.afterHoursChangePercent = effectivePreviousClose !== 0
+                  ? (postChange / effectivePreviousClose) * 100
+                  : null;
+              }
+            } else if (sessionStatus === 'post-market') {
+              next.afterHoursPrice = livePrice;
+              if (Number.isFinite(effectivePreviousClose)) {
+                const postChange = livePrice - effectivePreviousClose;
+                next.afterHoursChange = postChange;
+                next.afterHoursChangePercent = effectivePreviousClose !== 0
+                  ? (postChange / effectivePreviousClose) * 100
+                  : null;
               }
             }
 
@@ -477,7 +515,7 @@ export default function AnalyticsPage() {
   }, [searchQuery]);
 
   const gridRows = useMemo(() => {
-    const sessionStatus = getExtendedHoursStatus(new Date(clockTick));
+    const sessionStatus = getExtendedHoursStatus();
 
     return symbols.map((rawSymbol) => {
       const symbol = normalizeSymbol(rawSymbol);
@@ -495,7 +533,7 @@ export default function AnalyticsPage() {
         ext: buildExtCell(extMetric),
       };
     });
-  }, [clockTick, quotesBySymbol, symbols]);
+  }, [quotesBySymbol, symbols]);
 
   const dataTable = useMemo(
     () => ({
@@ -505,10 +543,7 @@ export default function AnalyticsPage() {
   );
 
   useEffect(() => {
-    if (gridRef.current) {
-      gridRef.current.destroy();
-      gridRef.current = null;
-    }
+    if (gridRef.current) return undefined;
 
     const grid = Grid.grid('analytics-watchlist-grid', {
       dataTable,
@@ -538,6 +573,37 @@ export default function AnalyticsPage() {
         gridRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (!gridRef.current) return;
+    try {
+      gridRef.current.update({ dataTable });
+    } catch {
+      if (gridRef.current) {
+        gridRef.current.destroy();
+        gridRef.current = null;
+      }
+      gridRef.current = Grid.grid('analytics-watchlist-grid', {
+        dataTable,
+        rendering: {
+          rows: {
+            minVisibleRows: 18,
+          },
+        },
+        pagination: {
+          enabled: false,
+        },
+        columns: [
+          { id: 'Symbol', width: 280 },
+          { id: 'Last', width: 170 },
+          { id: 'Chg', width: 160 },
+          { id: 'ChgPercent', title: 'Chg%', width: 170 },
+          { id: 'Vol', width: 170 },
+          { id: 'Ext', width: 170 },
+        ],
+      });
+    }
   }, [dataTable]);
 
   const addSymbols = useCallback((items = []) => {

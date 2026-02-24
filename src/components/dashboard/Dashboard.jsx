@@ -1897,10 +1897,10 @@ export default function Dashboard({
           )}
           {activeTab === 'analytics' && (
             <ProGate
-              featureName="Analytics"
-              description="Deep portfolio analytics, performance metrics, and risk analysis."
+              featureName="Watchlist"
+              description="Live watchlist with real-time price, change, and extended-hours metrics."
             >
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading analytics...</div>}>
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading watchlist...</div>}>
                 <AnalyticsPage
                   themeClasses={themeClasses}
                   tradeHistory={trades}

@@ -77,7 +77,7 @@ const Sidebar = ({
     { id: 'fred', label: 'FRED', icon: Landmark },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'trends', label: 'Trends', icon: BarChart3, isNew: true },
-    { id: 'analytics', label: 'Analytics', icon: LineChart },
+    { id: 'analytics', label: 'Watchlist', icon: LineChart },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
     { id: 'history', label: 'History', icon: History },
   ];

@@ -1,16 +1,17 @@
 .watchlist-grid-page {
   height: 100%;
   width: 100%;
-  padding: 14px 16px 18px;
+  padding: 0;
   color: #eef4ff;
+  background: transparent;
 }
 
 .watchlist-grid-shell {
   height: 100%;
   min-height: calc(100vh - 198px);
-  border: 1px solid rgba(42, 58, 86, 0.92);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(7, 10, 16, 0.94), rgba(5, 8, 14, 0.98));
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -21,32 +22,32 @@
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  padding: 14px 16px 10px;
+  padding: 12px 16px 8px;
 }
 
 .watchlist-grid-title {
   margin: 0;
-  font-size: 36px;
+  font-size: 30px;
   line-height: 1;
-  font-weight: 700;
-  color: #f3f7ff;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: #eaf2ff;
+  letter-spacing: -0.01em;
 }
 
 .watchlist-grid-controls {
   display: block;
-  padding: 0 16px 10px;
+  padding: 0 16px 8px;
 }
 
 .watchlist-grid-input {
   width: 100%;
   min-width: 0;
-  border-radius: 8px;
-  border: 1px solid rgba(60, 80, 112, 0.76);
-  background: rgba(10, 14, 22, 0.88);
+  border-radius: 6px;
+  border: 1px solid rgba(54, 72, 100, 0.62);
+  background: rgba(6, 10, 17, 0.64);
   color: #eef4ff;
   font-size: 14px;
-  height: 36px;
+  height: 34px;
   padding: 0 12px;
   outline: none;
 }
@@ -56,7 +57,7 @@
 }
 
 .watchlist-grid-input:focus {
-  border-color: rgba(85, 175, 238, 0.9);
+  border-color: rgba(93, 126, 175, 0.72);
 }
 
 .watchlist-grid-search {
@@ -75,9 +76,9 @@
   left: 0;
   right: 0;
   z-index: 30;
-  border-radius: 10px;
-  border: 1px solid rgba(76, 100, 141, 0.82);
-  background: rgba(8, 13, 23, 0.97);
+  border-radius: 8px;
+  border: 1px solid rgba(55, 76, 107, 0.72);
+  background: rgba(8, 13, 23, 0.94);
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.38);
   overflow: hidden;
 }
@@ -143,8 +144,9 @@
 .watchlist-grid-container {
   flex: 1;
   min-height: 420px;
-  border-top: 1px solid rgba(42, 59, 86, 0.88);
+  border-top: 0;
   overflow: auto;
+  background: transparent;
 }
 
 .watchlist-grid-container .hcg-container {
@@ -152,18 +154,18 @@
   --hcg-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   --hcg-font-size: 18px;
   --hcg-color: #e7eefb;
-  --hcg-background: rgba(6, 8, 12, 0.95);
-  --hcg-border-width: 1px;
+  --hcg-background: transparent;
+  --hcg-border-width: 0px;
   --hcg-border-style: solid;
-  --hcg-border-color: rgba(36, 50, 73, 0.82);
+  --hcg-border-color: transparent;
   --hcg-row-border-width: 1px;
-  --hcg-row-border-color: rgba(28, 39, 57, 0.88);
+  --hcg-row-border-color: rgba(28, 39, 57, 0.72);
   --hcg-header-row-border-width: 1px;
-  --hcg-header-row-border-color: rgba(53, 69, 96, 0.9);
+  --hcg-header-row-border-color: rgba(53, 69, 96, 0.58);
   --hcg-column-border-width: 0;
   --hcg-header-column-border-width: 0;
-  --hcg-header-color: rgba(197, 208, 223, 0.82);
-  --hcg-header-background: rgba(8, 10, 14, 0.98);
+  --hcg-header-color: rgba(197, 208, 223, 0.8);
+  --hcg-header-background: transparent;
   --hcg-horizontal-padding: 12px;
   --hcg-vertical-padding: 10px;
   --hcg-header-horizontal-padding: 12px;
@@ -236,7 +238,7 @@
 
 @media (max-width: 760px) {
   .watchlist-grid-page {
-    padding: 10px;
+    padding: 0;
   }
 
   .watchlist-grid-shell {
