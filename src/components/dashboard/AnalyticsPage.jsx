@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Grid from '@highcharts/grid-lite';
-import { Plus, RefreshCw, X } from 'lucide-react';
+import { ChevronDown, Link2, Plus, RefreshCw, Share2, X } from 'lucide-react';
 import { getExtendedHoursStatus, isMarketOpen } from '../../lib/marketHours';
 import '@highcharts/grid-lite/css/grid.css';
 import './AnalyticsWatchlistGrid.css';
@@ -9,9 +9,17 @@ const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const TWELVE_DATA_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY;
 
-const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY', 'QQQ'];
+const DEFAULT_SYMBOLS = ['NDQ', 'SPX', 'DJI', 'DXY', 'VIX', 'SOFI', 'HIMS', 'FUBO', 'NIO', 'PYPL'];
 const MAX_SYMBOLS = 120;
 const QUOTE_POLL_INTERVAL_MS = 20000;
+const OVERVIEW_TABS = ['Overview', 'Earnings', 'Dividends', 'News'];
+const DATA_TABS = ['Price', 'Financials', 'Performance', 'Risk', 'Technicals'];
+const SESSION_LABELS = {
+  regular: 'Live',
+  premarket: 'Pre',
+  postmarket: 'After',
+  closed: 'Closed',
+};
 
 const normalizeSymbol = (value) =>
   String(value || '')
@@ -29,16 +37,58 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const formatPrice = (value) => {
-  const number = toNumber(value);
-  if (!Number.isFinite(number)) return '--';
-  return `$${number.toFixed(2)}`;
-};
-
 const formatSignedPercent = (value) => {
   const number = toNumber(value);
   if (!Number.isFinite(number)) return '--';
   return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`;
+};
+
+const formatPriceWithCurrency = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  return `${number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+};
+
+const formatPriceNumber = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatSignedUsd = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  return `${number >= 0 ? '+' : ''}${number.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} USD`;
+};
+
+const formatSignedNumber = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  return `${number >= 0 ? '+' : ''}${number.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const formatCompactPlain = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  if (Math.abs(number) >= 1e9) return `${(number / 1e9).toFixed(2)} B`;
+  if (Math.abs(number) >= 1e6) return `${(number / 1e6).toFixed(2)} M`;
+  if (Math.abs(number) >= 1e3) return `${(number / 1e3).toFixed(2)} K`;
+  return number.toLocaleString('en-US');
+};
+
+const formatCompactUsd = (value) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return '--';
+  if (Math.abs(number) >= 1e12) return `${(number / 1e12).toFixed(2)} T USD`;
+  if (Math.abs(number) >= 1e9) return `${(number / 1e9).toFixed(2)} B USD`;
+  if (Math.abs(number) >= 1e6) return `${(number / 1e6).toFixed(2)} M USD`;
+  return `${number.toLocaleString('en-US')} USD`;
 };
 
 const formatTimestamp = (value) => {
@@ -48,12 +98,12 @@ const formatTimestamp = (value) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 };
 
-const getCurrentSession = () => {
+const inferMarketSession = () => {
   const extended = getExtendedHoursStatus();
-  if (extended === 'pre-market') return 'Pre-Market';
-  if (extended === 'post-market') return 'After-Hours';
-  if (isMarketOpen()) return 'Live';
-  return 'Closed';
+  if (extended === 'pre-market') return 'premarket';
+  if (extended === 'post-market') return 'postmarket';
+  if (isMarketOpen()) return 'regular';
+  return 'closed';
 };
 
 const extractInputSymbols = (value) =>
@@ -112,6 +162,82 @@ const getAfterHoursValue = (quote = {}, field = 'price') => {
   );
 };
 
+const deriveChangePair = (price, rawChange, rawPercent, previousClose) => {
+  let change = toNumber(rawChange);
+  let percent = toNumber(rawPercent);
+
+  if (!Number.isFinite(change) && Number.isFinite(price) && Number.isFinite(previousClose)) {
+    change = price - previousClose;
+  }
+  if (!Number.isFinite(percent) && Number.isFinite(change) && Number.isFinite(previousClose) && previousClose !== 0) {
+    percent = (change / previousClose) * 100;
+  }
+  if (!Number.isFinite(change) && Number.isFinite(percent) && Number.isFinite(previousClose)) {
+    change = previousClose * (percent / 100);
+  }
+
+  return {
+    change: Number.isFinite(change) ? change : null,
+    percent: Number.isFinite(percent) ? percent : null,
+  };
+};
+
+const inferExtendedFromLive = (price, previousClose) => {
+  if (!Number.isFinite(price) || !Number.isFinite(previousClose) || previousClose === 0) {
+    return { change: null, percent: null };
+  }
+  const change = price - previousClose;
+  return {
+    change,
+    percent: (change / previousClose) * 100,
+  };
+};
+
+const getDisplayQuote = (quote = {}, session = 'regular') => {
+  const price = toNumber(quote?.price);
+  const previousClose = toNumber(quote?.previousClose);
+  const sessionLabel = SESSION_LABELS[session] || SESSION_LABELS.regular;
+
+  const regular = deriveChangePair(price, quote?.change, quote?.percentChange, previousClose);
+  const pre = deriveChangePair(
+    toNumber(quote?.preMarketPrice),
+    quote?.preMarketChange,
+    quote?.preMarketChangePercent,
+    previousClose
+  );
+  const post = deriveChangePair(
+    toNumber(quote?.afterHoursPrice),
+    quote?.afterHoursChange,
+    quote?.afterHoursChangePercent,
+    previousClose
+  );
+
+  if (session === 'premarket' && Number.isFinite(toNumber(quote?.preMarketPrice))) {
+    return {
+      sessionLabel,
+      price: toNumber(quote?.preMarketPrice),
+      change: pre.change,
+      percentChange: pre.percent,
+    };
+  }
+
+  if (session === 'postmarket' && Number.isFinite(toNumber(quote?.afterHoursPrice))) {
+    return {
+      sessionLabel,
+      price: toNumber(quote?.afterHoursPrice),
+      change: post.change,
+      percentChange: post.percent,
+    };
+  }
+
+  return {
+    sessionLabel,
+    price,
+    change: regular.change,
+    percentChange: regular.percent,
+  };
+};
+
 export default function AnalyticsPage({ watchlist = [] }) {
   const seedSymbols = useMemo(() => {
     const fromWatchlist = extractWatchlistSymbols(watchlist);
@@ -123,8 +249,11 @@ export default function AnalyticsPage({ watchlist = [] }) {
   const [symbolInput, setSymbolInput] = useState('');
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState('');
-  const [marketSession, setMarketSession] = useState(getCurrentSession);
+  const [sessionMode, setSessionMode] = useState(inferMarketSession);
+  const [overviewTab, setOverviewTab] = useState('Overview');
+  const [dataTab, setDataTab] = useState('Price');
   const [inlineFiltering, setInlineFiltering] = useState(true);
+  const [showCurrency, setShowCurrency] = useState(true);
   const gridRef = useRef(null);
 
   useEffect(() => {
@@ -140,8 +269,8 @@ export default function AnalyticsPage({ watchlist = [] }) {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setMarketSession(getCurrentSession());
-    }, 60000);
+      setSessionMode(inferMarketSession());
+    }, 45000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -182,28 +311,48 @@ export default function AnalyticsPage({ watchlist = [] }) {
           ?? raw?.prevClose
         );
         const price = toNumber(row?.price);
+        const regular = deriveChangePair(price, row?.change, row?.percentChange, previousClose);
+
         const preMarketPrice = toNumber(row?.preMarketPrice);
-        const preMarketChange = toNumber(row?.preMarketChange);
-        const preMarketChangePercent = toNumber(row?.preMarketChangePercent);
+        const preMarket = deriveChangePair(
+          preMarketPrice,
+          row?.preMarketChange,
+          row?.preMarketChangePercent,
+          previousClose
+        );
+
         const afterHoursPrice = getAfterHoursValue(row, 'price');
-        const afterHoursChange = getAfterHoursValue(row, 'change');
-        const afterHoursChangePercent = getAfterHoursValue(row, 'percent');
+        const afterHours = deriveChangePair(
+          afterHoursPrice,
+          getAfterHoursValue(row, 'change'),
+          getAfterHoursValue(row, 'percent'),
+          previousClose
+        );
 
         incomingBySymbol[symbol] = {
           symbol,
           name: String(row?.name || symbol).trim(),
           exchange: String(row?.exchange || '').trim(),
           price,
-          change: toNumber(row?.change),
-          percentChange: toNumber(row?.percentChange),
+          change: regular.change,
+          percentChange: regular.percent,
           previousClose,
           preMarketPrice,
-          preMarketChange,
-          preMarketChangePercent,
+          preMarketChange: preMarket.change,
+          preMarketChangePercent: preMarket.percent,
           afterHoursPrice,
-          afterHoursChange,
-          afterHoursChangePercent,
-          timestamp: row?.timestamp || new Date().toISOString(),
+          afterHoursChange: afterHours.change,
+          afterHoursChangePercent: afterHours.percent,
+          volume: toNumber(row?.volume ?? raw?.volume ?? raw?.day_volume),
+          avgVolume10: toNumber(
+            row?.avgVolume10
+            ?? raw?.average_volume_10d
+            ?? raw?.average_volume
+            ?? raw?.avg_volume
+            ?? raw?.avgVolume
+          ),
+          marketCap: toNumber(row?.marketCap ?? raw?.market_cap ?? raw?.marketCap),
+          timestamp: row?.timestamp || raw?.datetime || raw?.timestamp || new Date().toISOString(),
         };
       });
 
@@ -211,7 +360,10 @@ export default function AnalyticsPage({ watchlist = [] }) {
         const next = {};
         symbols.forEach((symbol) => {
           const normalized = normalizeSymbol(symbol);
-          next[normalized] = incomingBySymbol[normalized] || previous[normalized] || { symbol: normalized };
+          next[normalized] = incomingBySymbol[normalized] || previous[normalized] || {
+            symbol: normalized,
+            name: normalized,
+          };
         });
         return next;
       });
@@ -267,20 +419,19 @@ export default function AnalyticsPage({ watchlist = [] }) {
           };
 
           const previousClose = toNumber(current?.previousClose);
+          const regular = inferExtendedFromLive(livePrice, previousClose);
+          if (Number.isFinite(regular.change)) next.change = regular.change;
+          if (Number.isFinite(regular.percent)) next.percentChange = regular.percent;
+
           const extended = getExtendedHoursStatus();
-
-          if (extended === 'pre-market' && Number.isFinite(previousClose) && previousClose !== 0) {
-            const change = livePrice - previousClose;
+          if (extended === 'pre-market') {
+            if (Number.isFinite(regular.change)) next.preMarketChange = regular.change;
+            if (Number.isFinite(regular.percent)) next.preMarketChangePercent = regular.percent;
             next.preMarketPrice = livePrice;
-            next.preMarketChange = change;
-            next.preMarketChangePercent = (change / previousClose) * 100;
-          }
-
-          if (extended === 'post-market' && Number.isFinite(previousClose) && previousClose !== 0) {
-            const change = livePrice - previousClose;
+          } else if (extended === 'post-market') {
+            if (Number.isFinite(regular.change)) next.afterHoursChange = regular.change;
+            if (Number.isFinite(regular.percent)) next.afterHoursChangePercent = regular.percent;
             next.afterHoursPrice = livePrice;
-            next.afterHoursChange = change;
-            next.afterHoursChangePercent = (change / previousClose) * 100;
           }
 
           return {
@@ -308,34 +459,38 @@ export default function AnalyticsPage({ watchlist = [] }) {
   const rows = useMemo(() => {
     return symbols.map((symbol, index) => {
       const normalized = normalizeSymbol(symbol);
-      const quote = quotesBySymbol[normalized] || {};
+      const quote = quotesBySymbol[normalized] || { symbol: normalized, name: normalized };
+      const display = getDisplayQuote(quote, sessionMode);
+
       return {
-        id: index + 1,
-        symbol: normalized,
-        price: formatPrice(quote.price),
-        dayChangePercent: formatSignedPercent(quote.percentChange),
-        preMarketPrice: formatPrice(quote.preMarketPrice),
-        preMarketChangePercent: formatSignedPercent(quote.preMarketChangePercent),
-        afterHoursPrice: formatPrice(quote.afterHoursPrice),
-        afterHoursChangePercent: formatSignedPercent(quote.afterHoursChangePercent),
-        session: marketSession,
-        updatedAt: formatTimestamp(quote.timestamp),
+        row: index + 1,
+        ticker: normalized,
+        company: quote?.name || normalized,
+        last: showCurrency ? formatPriceWithCurrency(display.price) : formatPriceNumber(display.price),
+        chgPercent: formatSignedPercent(display.percentChange),
+        chg: showCurrency ? formatSignedUsd(display.change) : formatSignedNumber(display.change),
+        volume: formatCompactPlain(quote?.volume),
+        avgVol10: formatCompactPlain(quote?.avgVolume10),
+        marketCap: showCurrency ? formatCompactUsd(quote?.marketCap) : formatCompactPlain(quote?.marketCap),
+        session: display.sessionLabel,
+        updated: formatTimestamp(quote?.timestamp),
       };
     });
-  }, [marketSession, quotesBySymbol, symbols]);
+  }, [quotesBySymbol, sessionMode, showCurrency, symbols]);
 
   const dataTable = useMemo(() => ({
     columns: {
-      id: rows.map((row) => row.id),
-      symbol: rows.map((row) => row.symbol),
-      price: rows.map((row) => row.price),
-      dayChangePercent: rows.map((row) => row.dayChangePercent),
-      preMarketPrice: rows.map((row) => row.preMarketPrice),
-      preMarketChangePercent: rows.map((row) => row.preMarketChangePercent),
-      afterHoursPrice: rows.map((row) => row.afterHoursPrice),
-      afterHoursChangePercent: rows.map((row) => row.afterHoursChangePercent),
+      row: rows.map((row) => row.row),
+      ticker: rows.map((row) => row.ticker),
+      company: rows.map((row) => row.company),
+      last: rows.map((row) => row.last),
+      chgPercent: rows.map((row) => row.chgPercent),
+      chg: rows.map((row) => row.chg),
+      volume: rows.map((row) => row.volume),
+      avgVol10: rows.map((row) => row.avgVol10),
+      marketCap: rows.map((row) => row.marketCap),
       session: rows.map((row) => row.session),
-      updatedAt: rows.map((row) => row.updatedAt),
+      updated: rows.map((row) => row.updated),
     },
   }), [rows]);
 
@@ -354,16 +509,17 @@ export default function AnalyticsPage({ watchlist = [] }) {
         },
       },
       columns: [
-        { id: 'id', width: 56 },
-        { id: 'symbol', width: 96 },
-        { id: 'price', width: 112 },
-        { id: 'dayChangePercent', width: 122 },
-        { id: 'preMarketPrice', width: 122 },
-        { id: 'preMarketChangePercent', width: 126 },
-        { id: 'afterHoursPrice', width: 122 },
-        { id: 'afterHoursChangePercent', width: 130 },
-        { id: 'session', width: 112 },
-        { id: 'updatedAt', width: 116 },
+        { id: 'row', width: 56, title: '#' },
+        { id: 'ticker', width: 98, title: 'Ticker' },
+        { id: 'company', width: 270, title: 'Company' },
+        { id: 'last', width: 156, title: 'Last' },
+        { id: 'chgPercent', width: 118, title: 'Chg%' },
+        { id: 'chg', width: 132, title: 'Chg' },
+        { id: 'volume', width: 120, title: 'Volume' },
+        { id: 'avgVol10', width: 122, title: 'Avg Vol (10)' },
+        { id: 'marketCap', width: 140, title: 'Market Cap' },
+        { id: 'session', width: 100, title: 'Session' },
+        { id: 'updated', width: 118, title: 'Updated' },
       ],
       rendering: {
         rows: {
@@ -441,54 +597,102 @@ export default function AnalyticsPage({ watchlist = [] }) {
   };
 
   return (
-    <div className="analytics-watchlist-page h-full w-full px-6 py-5">
-      <section className="analytics-watchlist-shell">
-        <div className="analytics-watchlist-header">
+    <div className="analytics-tv-page h-full w-full">
+      <section className="analytics-tv-shell">
+        <header className="analytics-tv-header">
           <div>
-            <div className="analytics-watchlist-kicker">Analytics Watchlist</div>
-            <h1 className="analytics-watchlist-title">Highcharts Grid Watchlist</h1>
-            <p className="analytics-watchlist-subtitle">
-              Live price, pre-market, and after-hours pricing in one table.
-            </p>
+            <h1 className="analytics-tv-title">
+              Watchlist <ChevronDown className="h-5 w-5 text-slate-300" />
+            </h1>
+            <p className="analytics-tv-description-link">Add description</p>
           </div>
+          <div className="analytics-tv-top-actions">
+            <button type="button" className="analytics-tv-icon-btn" title="Share list">
+              <Share2 className="h-4 w-4" />
+            </button>
+            <button type="button" className="analytics-tv-icon-btn" title="Copy link">
+              <Link2 className="h-4 w-4" />
+            </button>
+          </div>
+        </header>
 
-          <div className="analytics-watchlist-actions">
-            <label className="analytics-inline-toggle">
-              <input id="inlineToggle" type="checkbox" defaultChecked={inlineFiltering} />
+        <nav className="analytics-tv-nav-tabs">
+          {OVERVIEW_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setOverviewTab(tab)}
+              className={`analytics-tv-tab ${overviewTab === tab ? 'is-active' : ''}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
+
+        <div className="analytics-tv-toolbar">
+          <div>
+            <h2 className="analytics-tv-symbols-title">Symbols</h2>
+            <div className="analytics-tv-symbol-count">
+              {symbols.length} symbols · Session {SESSION_LABELS[sessionMode] || SESSION_LABELS.regular}
+            </div>
+          </div>
+          <div className="analytics-tv-toolbar-actions">
+            <label className="analytics-tv-currency-toggle">
+              Currency in USD
+              <input
+                type="checkbox"
+                checked={showCurrency}
+                onChange={(event) => setShowCurrency(event.target.checked)}
+              />
+            </label>
+            <label className="analytics-tv-currency-toggle">
               Inline filters
+              <input id="inlineToggle" type="checkbox" defaultChecked={inlineFiltering} />
             </label>
             <button
               type="button"
-              className="analytics-refresh-btn"
+              className="analytics-tv-refresh-btn"
               onClick={fetchQuotes}
               disabled={isFetching}
               title="Refresh quotes"
             >
               <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-              Refresh
             </button>
           </div>
         </div>
 
-        <form className="analytics-add-ticker-form" onSubmit={handleAddTicker}>
+        <div className="analytics-tv-subtabs">
+          {DATA_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setDataTab(tab)}
+              className={`analytics-tv-tab-pill ${dataTab === tab ? 'is-active' : ''}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <form className="analytics-tv-add-ticker-form" onSubmit={handleAddTicker}>
           <input
             value={symbolInput}
             onChange={(event) => setSymbolInput(event.target.value)}
-            placeholder="Add ticker(s), e.g. AMD, QQQ, SPY"
-            className="analytics-add-input"
+            placeholder="Add ticker(s), e.g. SOFI, AMD, PLTR"
+            className="analytics-tv-add-input"
           />
-          <button type="submit" className="analytics-add-btn">
+          <button type="submit" className="analytics-tv-add-btn">
             <Plus className="h-4 w-4" />
             Add
           </button>
         </form>
 
-        <div className="analytics-symbol-chips">
+        <div className="analytics-tv-chips">
           {symbols.map((symbol) => (
             <button
               key={symbol}
               type="button"
-              className="analytics-symbol-chip"
+              className="analytics-tv-chip"
               onClick={() => removeSymbol(symbol)}
               title={`Remove ${symbol}`}
             >
@@ -498,9 +702,9 @@ export default function AnalyticsPage({ watchlist = [] }) {
           ))}
         </div>
 
-        {fetchError && <div className="analytics-watchlist-error">{fetchError}</div>}
+        {fetchError && <div className="analytics-tv-error">{fetchError}</div>}
 
-        <div id="container" className="analytics-watchlist-grid" />
+        <div id="container" className="analytics-tv-grid" />
       </section>
     </div>
   );
