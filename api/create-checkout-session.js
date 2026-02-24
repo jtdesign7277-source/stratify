@@ -3,8 +3,12 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const resolveRequestOrigin = (req) => {
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const forwardedHost = req.headers['x-forwarded-host'];
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
   const host = forwardedHost || req.headers.host;
 
   if (!host) return null;
@@ -36,9 +40,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields: priceId, userId, userEmail' });
     }
 
-    const origin = process.env.VITE_APP_URL
-      || process.env.APP_URL
-      || resolveRequestOrigin(req)
+    const origin = resolveRequestOrigin(req)
       || 'https://stratifymarket.com';
 
     const session = await stripe.checkout.sessions.create({

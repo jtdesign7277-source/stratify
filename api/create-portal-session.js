@@ -2,6 +2,20 @@ import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+const resolveRequestOrigin = (req) => {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
+  const host = forwardedHost || req.headers.host;
+
+  if (!host) return null;
+  const protocol = forwardedProto || 'https';
+  return `${protocol}://${host}`;
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -26,7 +40,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required field: customerId' });
     }
 
-    const origin = process.env.VITE_APP_URL || process.env.APP_URL || 'https://stratifymarket.com';
+    const origin = resolveRequestOrigin(req) || 'https://stratifymarket.com';
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
