@@ -218,19 +218,35 @@
   color: #e9f0fd;
 }
 
+.watchlist-symbol-cell {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .watchlist-remove-btn {
   border: 0;
   background: transparent;
-  color: rgba(255, 107, 129, 0.88);
-  font-size: 12px;
-  font-weight: 600;
+  color: rgba(180, 196, 219, 0.36);
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: 0.01em;
   cursor: pointer;
-  padding: 2px 0;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.watchlist-grid-container .hcg-row:hover .watchlist-remove-btn {
+  opacity: 1;
 }
 
 .watchlist-remove-btn:hover {
-  color: rgba(255, 148, 164, 0.96);
+  color: rgba(255, 122, 145, 0.92);
 }
 
 @media (max-width: 1100px) {

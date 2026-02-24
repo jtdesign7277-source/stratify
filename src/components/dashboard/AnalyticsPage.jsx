@@ -9,7 +9,7 @@ const TWELVE_DATA_CLIENT_API_KEY = String(
   import.meta.env.VITE_TWELVE_DATA_API_KEY || import.meta.env.VITE_TWELVEDATA_API_KEY || ''
 ).trim();
 const MAX_SYMBOLS = 120;
-const QUOTE_POLL_INTERVAL_MS = 20000;
+const QUOTE_POLL_INTERVAL_MS = 5000;
 const DEFAULT_SYMBOLS = [
   'TSLA',
   'NVDA',
@@ -193,9 +193,6 @@ const buildExtCell = (metric) => {
   return `<span class="watchlist-value ${directionClass}">${metric.label} ${formatSignedPercent(metric.percent)}</span>`;
 };
 
-const buildDeleteCell = (symbol) =>
-  `<button type="button" class="watchlist-remove-btn" data-symbol="${symbol}" aria-label="Remove ${symbol}">Del</button>`;
-
 function generateWatchlistColumns(rows) {
   const columns = {
     Symbol: [],
@@ -204,7 +201,6 @@ function generateWatchlistColumns(rows) {
     ChgPercent: [],
     Vol: [],
     Ext: [],
-    Del: [],
   };
 
   rows.forEach((row) => {
@@ -214,7 +210,6 @@ function generateWatchlistColumns(rows) {
     columns.ChgPercent.push(row.chgPercent);
     columns.Vol.push(row.vol);
     columns.Ext.push(row.ext);
-    columns.Del.push(row.del);
   });
 
   return columns;
@@ -228,7 +223,6 @@ export default function AnalyticsPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [fetchError, setFetchError] = useState('');
-  const [isFetchingQuotes, setIsFetchingQuotes] = useState(false);
   const gridRef = useRef(null);
   const searchWrapRef = useRef(null);
 
@@ -285,7 +279,6 @@ export default function AnalyticsPage() {
       return;
     }
 
-    setIsFetchingQuotes(true);
     setFetchError('');
 
     try {
@@ -353,8 +346,6 @@ export default function AnalyticsPage() {
       });
     } catch (error) {
       setFetchError(error?.message || 'Failed to load watchlist quotes');
-    } finally {
-      setIsFetchingQuotes(false);
     }
   }, [symbols]);
 
@@ -370,6 +361,7 @@ export default function AnalyticsPage() {
     let socket = null;
     let reconnectTimer = null;
     let closedManually = false;
+    const subscribedSymbols = symbols.map((item) => normalizeSymbol(item)).filter(Boolean);
 
     const connect = async () => {
       try {
@@ -398,7 +390,13 @@ export default function AnalyticsPage() {
         socket = new WebSocket(websocketUrl);
 
         socket.onopen = () => {
-          socket?.send(JSON.stringify({ action: 'subscribe', params: { symbols } }));
+          if (subscribedSymbols.length === 0) return;
+          socket?.send(
+            JSON.stringify({
+              action: 'subscribe',
+              params: { symbols: subscribedSymbols.join(',') },
+            })
+          );
         };
 
         socket.onmessage = (event) => {
@@ -625,13 +623,25 @@ export default function AnalyticsPage() {
       const directionClass = getDirectionClass(mainMetric.percent ?? mainMetric.change);
 
       return {
-        symbol: `<span class="watchlist-symbol-text">${symbol}</span>`,
+        symbol: `
+          <span class="watchlist-symbol-cell">
+            <span class="watchlist-symbol-text">${symbol}</span>
+            <button
+              type="button"
+              class="watchlist-remove-btn"
+              data-symbol="${symbol}"
+              aria-label="Remove ${symbol}"
+              title="Remove ${symbol}"
+            >
+              x
+            </button>
+          </span>
+        `,
         last: `<span class="watchlist-value ${directionClass}">${formatPrice(quote.price)}</span>`,
         chg: `<span class="watchlist-value ${directionClass}">${formatSigned(mainMetric.change)}</span>`,
         chgPercent: `<span class="watchlist-value ${directionClass}">${formatSignedPercent(mainMetric.percent)}</span>`,
         vol: `<span class="watchlist-value watchlist-value-neutral">${formatVolume(quote.volume)}</span>`,
         ext: buildExtCell(extMetric),
-        del: buildDeleteCell(symbol),
       };
     });
   }, [quotesBySymbol, symbols]);
@@ -663,7 +673,6 @@ export default function AnalyticsPage() {
         { id: 'ChgPercent', title: 'Chg%', width: 170 },
         { id: 'Vol', width: 170 },
         { id: 'Ext', width: 170 },
-        { id: 'Del', width: 90 },
       ],
     });
 
@@ -703,7 +712,6 @@ export default function AnalyticsPage() {
           { id: 'ChgPercent', title: 'Chg%', width: 170 },
           { id: 'Vol', width: 170 },
           { id: 'Ext', width: 170 },
-          { id: 'Del', width: 90 },
         ],
       });
     }
@@ -790,8 +798,6 @@ export default function AnalyticsPage() {
         </form>
 
         {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
-        {isFetchingQuotes && <div className="watchlist-grid-status">Syncing live quotes...</div>}
-
         <div id="analytics-watchlist-grid" className="watchlist-grid-container" />
       </div>
     </div>
