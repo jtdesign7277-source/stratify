@@ -387,7 +387,7 @@ const landingStyles = `
   }
 `;
 
-const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
+const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDashboard = false }) => {
   const [isFeatureMenuOpen, setIsFeatureMenuOpen] = useState(false);
   const [activeFeatureId, setActiveFeatureId] = useState(FEATURE_NAV_ITEMS[0].id);
   const featureMenuRef = useRef(null);
@@ -434,6 +434,15 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
     }
 
     onEnter?.();
+  };
+
+  const handleCheckoutStart = () => {
+    setIsFeatureMenuOpen(false);
+    if (onCheckout) {
+      onCheckout();
+      return;
+    }
+    handleGetStarted();
   };
 
   const jumpToSection = (id) => {
@@ -571,9 +580,9 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               </button>
 
               {isFeatureMenuOpen && (
-                <div className="absolute left-0 top-full mt-3 w-[min(92vw,820px)] overflow-hidden rounded-2xl border border-white/15 bg-[linear-gradient(158deg,rgba(16,20,35,0.9),rgba(8,11,22,0.9))] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
-                  <div className="grid md:grid-cols-[320px_minmax(0,1fr)]">
-                    <div className="border-r border-white/10">
+                <div className="absolute left-[-120px] top-full mt-3 w-[min(88vw,560px)] overflow-hidden rounded-2xl border border-white/15 bg-[linear-gradient(158deg,rgba(16,20,35,0.9),rgba(8,11,22,0.9))] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
+                  <div className="max-h-[74vh] overflow-y-auto">
+                    <div className="border-b border-white/10">
                       {FEATURE_NAV_ITEMS.map((item, index) => {
                         const Icon = item.icon;
                         const isActive = activeFeatureId === item.id;
@@ -582,7 +591,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                             key={item.id}
                             type="button"
                             onClick={() => setActiveFeatureId(item.id)}
-                            className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'} ${index === 1 ? 'border-t border-white/10' : ''}`}
+                            className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'} ${index > 0 ? 'border-t border-white/8' : ''}`}
                           >
                             <div className="flex items-start gap-3">
                               <Icon className="mt-1 h-4 w-4 text-white/65" strokeWidth={1.8} />
@@ -603,14 +612,17 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                       })}
                     </div>
 
-                    <div className="px-6 py-5">
-                      <p className="text-sm text-white/62">
+                    <div className="px-6 py-6">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-white/52">
                         {activeFeature.id === 'stock-finder' ? 'Stocks with AI exposure' : 'Feature spotlight'}
                       </p>
-                      <h3 className="mt-3 text-4xl font-semibold leading-tight text-white">
+                      <h3
+                        className="mt-3 text-[38px] font-[350] leading-[1.08] text-white"
+                        style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}
+                      >
                         {activeFeature.detailTitle}
                       </h3>
-                      <p className="mt-3 text-base leading-relaxed text-white/70">
+                      <p className="mt-4 text-[15px] leading-relaxed text-white/68">
                         {activeFeature.detailBody}
                       </p>
                       <div className="mt-5 flex flex-wrap gap-2">
@@ -627,7 +639,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                         type="button"
                         onClick={() => {
                           setIsFeatureMenuOpen(false);
-                          handleGetStarted();
+                          handleCheckoutStart();
                         }}
                         className="mt-7 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/18"
                       >
@@ -639,16 +651,13 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsFeatureMenuOpen(false);
-                jumpToSection('pricing-section');
-              }}
+            <a
+              href="#pricing-section"
+              onClick={() => setIsFeatureMenuOpen(false)}
               className="text-white/70 transition hover:text-white"
             >
               Pricing
-            </button>
+            </a>
             <button
               type="button"
               onClick={() => {
@@ -658,6 +667,13 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               className="text-white/70 transition hover:text-white"
             >
               Updates
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckoutStart}
+              className="text-emerald-300/90 transition hover:text-emerald-200"
+            >
+              Get Started
             </button>
           </div>
         </div>

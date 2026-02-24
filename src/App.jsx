@@ -1059,7 +1059,8 @@ function StratifyAppContent() {
         realized_pl: 0,
       };
 
-  const navigateToPage = (page) => {
+  const navigateToPage = (page, options = {}) => {
+    const search = String(options?.search || '');
     const nextPage = page === 'xray' ? 'dashboard' : page;
     setCurrentPage(nextPage);
 
@@ -1075,14 +1076,28 @@ function StratifyAppContent() {
       nextPath = '/dashboard';
     }
 
-    if (window.location.pathname !== nextPath) {
-      window.history.pushState({ page: nextPage }, '', nextPath);
+    const normalizedSearch = search
+      ? (search.startsWith('?') ? search : `?${search}`)
+      : '';
+    const nextUrl = `${nextPath}${normalizedSearch}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (currentUrl !== nextUrl) {
+      window.history.pushState({ page: nextPage }, '', nextUrl);
     }
   };
 
   const openAuth = () => {
     navigateToPage('auth');
   };
+
+  const openCheckoutAuth = useCallback(() => {
+    if (isAuthenticated) {
+      navigateToPage('dashboard', { search: isProUser ? '' : '?intent=checkout' });
+      return;
+    }
+    navigateToPage('auth', { search: '?intent=checkout' });
+  }, [isAuthenticated, isProUser, navigateToPage]);
 
   const exitToLanding = useCallback(() => {
     setCheckoutError('');
@@ -1250,6 +1265,28 @@ function StratifyAppContent() {
       setIsCheckoutRedirecting(false);
     }
   }, [user?.email, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (currentPage !== 'dashboard') return;
+    if (!isAuthenticated || subscriptionLoading || isProUser || isCheckoutRedirecting) return;
+
+    const url = new URL(window.location.href);
+    const intent = String(url.searchParams.get('intent') || '').toLowerCase();
+    if (intent !== 'checkout') return;
+
+    startCheckout();
+
+    url.searchParams.delete('intent');
+    window.history.replaceState({ page: 'dashboard' }, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [
+    currentPage,
+    isAuthenticated,
+    isCheckoutRedirecting,
+    isProUser,
+    startCheckout,
+    subscriptionLoading,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id || typeof window === 'undefined') return;
@@ -1459,18 +1496,25 @@ function StratifyAppContent() {
       <LandingPage
         onEnter={() => navigateToPage('auth')}
         onSignUp={() => navigateToPage('auth')}
+        onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
         canAccessDashboard={Boolean(isAuthenticated && isProUser)}
       />
     ) : currentPage === 'auth' ? (
       <SignUpPage
-        onSuccess={() => navigateToPage('dashboard')}
+        onSuccess={() => {
+          const search = typeof window !== 'undefined' && window.location.search.includes('intent=checkout')
+            ? '?intent=checkout'
+            : '';
+          navigateToPage('dashboard', { search });
+        }}
         onBackToLanding={() => navigateToPage('landing')}
       />
     ) : !isAuthenticated ? (
       <LandingPage
         onEnter={() => navigateToPage('auth')}
         onSignUp={() => navigateToPage('auth')}
+        onCheckout={openCheckoutAuth}
         onDashboard={() => navigateToPage('dashboard')}
         canAccessDashboard={Boolean(isAuthenticated && isProUser)}
       />
