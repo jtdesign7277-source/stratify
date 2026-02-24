@@ -89,7 +89,7 @@ export default function LandingMarketTape() {
   const scrollingRows = useMemo(() => [...displayRows, ...displayRows], [displayRows]);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/12 bg-[rgba(2,8,14,0.74)] backdrop-blur-md">
+    <div className="relative w-full border-y border-white/12 bg-[rgba(2,8,14,0.74)] backdrop-blur-md">
       <style>{`
         @keyframes landing-market-tape-scroll {
           from { transform: translateX(0); }
@@ -125,4 +125,3 @@ export default function LandingMarketTape() {
     </div>
   );
 }
-

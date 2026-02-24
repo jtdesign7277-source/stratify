@@ -502,7 +502,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
         </div>
       </nav>
 
-      <main className="relative z-10 pb-12">
+      <main className="relative z-10">
         <motion.section {...sectionMotion} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
           <div className="max-w-6xl mx-auto text-center relative">
             <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-emerald-500/12 blur-3xl" />
@@ -522,7 +522,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               <button
                 type="button"
                 onClick={handleGetStarted}
-                className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/16 hover:text-emerald-200 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2 shadow-[0_0_18px_rgba(16,185,129,0.2)]"
+                className="bg-transparent text-emerald-300 hover:text-emerald-200 font-semibold px-2 py-1 transition-colors inline-flex items-center gap-2"
               >
                 {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
