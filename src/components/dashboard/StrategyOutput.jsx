@@ -9,6 +9,7 @@ const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', '
 const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4, 5];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const STRATEGY_FOLDERS_STORAGE_KEY = 'stratify-strategies-folders';
+const TERMINAL_STRATEGY_SAVE_EVENT = 'stratify:terminal-strategy-saved';
 const DEFAULT_SAVE_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY' },
   { id: 'active-strategies', name: 'Active Strategies' },
@@ -16,6 +17,11 @@ const DEFAULT_SAVE_FOLDERS = [
   { id: 'sophia-strategies', name: 'Sophia Strategies' },
   { id: 'archive', name: 'Archive' },
 ];
+const DEFAULT_STORAGE_FOLDERS = DEFAULT_SAVE_FOLDERS.map((folder) => ({
+  ...folder,
+  isExpanded: folder.id !== 'archive',
+  strategies: [],
+}));
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -65,6 +71,126 @@ const loadStrategyFolderOptions = () => {
   } catch {
     return DEFAULT_SAVE_FOLDERS;
   }
+};
+
+const sanitizeStrategyId = (value) => {
+  const id = String(value ?? '').trim();
+  if (!id || id === 'undefined' || id === 'null' || id === 'NaN') return '';
+  return id;
+};
+
+const normalizeFolderStorage = (raw) => {
+  const source = Array.isArray(raw?.folders)
+    ? raw.folders
+    : Array.isArray(raw)
+      ? raw
+      : [];
+
+  const byId = new Map();
+  source.forEach((folder) => {
+    const id = String(folder?.id || '').trim();
+    const name = String(folder?.name || '').trim();
+    if (!id || !name) return;
+    byId.set(id, {
+      id,
+      name,
+      isExpanded: folder?.isExpanded !== false,
+      strategies: Array.isArray(folder?.strategies) ? folder.strategies.filter(Boolean) : [],
+    });
+  });
+
+  const folders = DEFAULT_STORAGE_FOLDERS.map((defaultFolder) => {
+    const existing = byId.get(defaultFolder.id);
+    if (!existing) return { ...defaultFolder, strategies: [] };
+    byId.delete(defaultFolder.id);
+    return {
+      ...defaultFolder,
+      name: existing.name || defaultFolder.name,
+      isExpanded: existing.isExpanded,
+      strategies: existing.strategies,
+    };
+  });
+  byId.forEach((folder) => folders.push(folder));
+
+  const seen = new Set();
+  return {
+    folders: folders.map((folder) => ({
+      ...folder,
+      strategies: folder.strategies.filter((item) => {
+        const id = sanitizeStrategyId(item?.id);
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }),
+    })),
+  };
+};
+
+const upsertStrategyIntoFolderStorage = (strategyPayload, fallbackFolderId = 'stratify') => {
+  if (typeof window === 'undefined' || !strategyPayload || typeof strategyPayload !== 'object') return;
+
+  const strategyId = sanitizeStrategyId(strategyPayload.id);
+  if (!strategyId) return;
+
+  const folderId = String(
+    strategyPayload.folderId || strategyPayload.folder_id || fallbackFolderId || 'stratify'
+  ).trim() || 'stratify';
+
+  const ticker = String(
+    strategyPayload.ticker ||
+      strategyPayload.symbol ||
+      strategyPayload.summary?.ticker ||
+      strategyPayload.symbols?.[0] ||
+      ''
+  )
+    .replace(/^\$/, '')
+    .trim()
+    .toUpperCase();
+
+  const nextEntry = {
+    id: strategyId,
+    name: String(strategyPayload.name || 'Untitled Strategy'),
+    ticker,
+    createdAt: strategyPayload.savedAt || strategyPayload.createdAt || Date.now(),
+    profit: Number(
+      strategyPayload.profit ??
+      strategyPayload.returnPercent ??
+      strategyPayload.returnPct ??
+      strategyPayload.summary?.returnPercent ??
+      strategyPayload.summary?.returnPct ??
+      0
+    ) || 0,
+    isStarred: Boolean(strategyPayload.isStarred),
+    status: String(strategyPayload.status || strategyPayload.runStatus || 'saved').toLowerCase(),
+  };
+
+  try {
+    const currentRaw = localStorage.getItem(STRATEGY_FOLDERS_STORAGE_KEY);
+    const currentParsed = currentRaw ? JSON.parse(currentRaw) : { folders: [] };
+    const normalized = normalizeFolderStorage(currentParsed);
+
+    const folders = normalized.folders.map((folder) => ({
+      ...folder,
+      strategies: folder.strategies.filter((strategy) => sanitizeStrategyId(strategy?.id) !== strategyId),
+    }));
+
+    const targetFolder = folders.find((folder) => folder.id === folderId)
+      || folders.find((folder) => folder.id === 'stratify')
+      || folders[0];
+    if (!targetFolder) return;
+
+    targetFolder.strategies.unshift(nextEntry);
+    localStorage.setItem(STRATEGY_FOLDERS_STORAGE_KEY, JSON.stringify({ folders }));
+  } catch (error) {
+    console.warn('[StrategyOutput] Failed to update folder storage:', error);
+  }
+};
+
+const emitTerminalStrategySave = (strategyPayload) => {
+  if (typeof window === 'undefined' || !strategyPayload) return;
+  try {
+    window.dispatchEvent(new CustomEvent(TERMINAL_STRATEGY_SAVE_EVENT, { detail: strategyPayload }));
+  } catch {}
 };
 
 const normalizeSetupHeading = (line = '') =>
@@ -738,8 +864,7 @@ export default function StrategyOutput({
       setShowEditorSavedNotice(false);
     }, 1500);
 
-    try {
-      await onContentSave?.({
+    const contentPayload = {
         ...s,
         name: normalizedStrategyName,
         raw: finalizedRaw,
@@ -762,7 +887,13 @@ export default function StrategyOutput({
         folderId: resolvedFolderId,
         source: payloadSource,
         updatedAt: Date.now(),
-      });
+      };
+
+    upsertStrategyIntoFolderStorage(contentPayload, resolvedFolderId);
+    emitTerminalStrategySave(contentPayload);
+
+    try {
+      await onContentSave?.(contentPayload);
     } catch (error) {
       console.warn('[StrategyOutput] Content save failed, local copy kept:', error);
     } finally {
@@ -829,6 +960,8 @@ export default function StrategyOutput({
     setSaved(true);
     setSaveStatus('saved');
     setStrategyRaw(normalizedRaw);
+    upsertStrategyIntoFolderStorage(payload, resolvedFolderId);
+    emitTerminalStrategySave(payload);
     onSave?.(payload);
 
     onDeploy?.({
@@ -884,6 +1017,8 @@ export default function StrategyOutput({
     };
 
     // Optimistic UI update so strategy appears in folders immediately.
+    upsertStrategyIntoFolderStorage(payload, resolvedFolderId);
+    emitTerminalStrategySave(payload);
     onSave?.(payload);
     setSaved(true);
     setSaveStatus('saved');
@@ -994,6 +1129,8 @@ export default function StrategyOutput({
 
     // Optimistic UI update so strategy lands in selected folder immediately.
     try {
+      upsertStrategyIntoFolderStorage(payload, resolvedFolderId);
+      emitTerminalStrategySave(payload);
       if (typeof onSaveToSophia === 'function') {
         onSaveToSophia(payload);
       } else if (typeof onSave === 'function') {

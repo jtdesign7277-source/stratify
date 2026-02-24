@@ -20,6 +20,7 @@ const STORAGE_KEY = 'stratify-strategies-folders';
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
 const USER_STATE_FOLDERS_KEY = 'terminal_strategy_folders';
 const FOLDERS_COLLAPSED_KEY = 'terminal_strategy_folders_collapsed';
+const TERMINAL_STRATEGY_SAVE_EVENT = 'stratify:terminal-strategy-saved';
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
@@ -1219,6 +1220,21 @@ const TerminalStrategyWorkspace = ({
       status: normalizeStrategyStatus(derivedStatus || normalized.status || 'saved'),
     };
   }, [safeDeployed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handleTerminalStrategySave = (event) => {
+      const payload = event?.detail;
+      if (!payload || typeof payload !== 'object') return;
+      upsertStrategyIntoFolders(payload);
+    };
+
+    window.addEventListener(TERMINAL_STRATEGY_SAVE_EVENT, handleTerminalStrategySave);
+    return () => {
+      window.removeEventListener(TERMINAL_STRATEGY_SAVE_EVENT, handleTerminalStrategySave);
+    };
+  }, [upsertStrategyIntoFolders]);
 
   const handleStrategyDragStart = useCallback((event, strategyId, fromFolderId) => {
     const payload = {
