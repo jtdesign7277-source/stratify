@@ -250,6 +250,45 @@ const FAQ_ITEMS = [
   },
 ];
 
+const LANDING_COMPARE_ROWS = [
+  { feature: 'Real-time market data', without: '$100+/mo', with: 'Included' },
+  { feature: 'Professional charting', without: '$15-60/mo', with: 'Included' },
+  { feature: 'AI strategy generation', without: '$20+/mo', with: 'Sophia built-in' },
+  { feature: 'Fundamentals research', without: '$50+/mo', with: 'X-Ray included' },
+  { feature: 'Paper trading', without: 'Separate broker', with: 'One-click toggle' },
+];
+
+const LANDING_WORKFLOW_STEPS = [
+  {
+    title: 'Connect Once',
+    description:
+      'One Stratify API key replaces all your separate subscriptions. Alpaca, TradingView, AI, market data - unified.',
+  },
+  {
+    title: 'Build Your Strategy',
+    description:
+      'Tell Sophia your thesis in plain English. She generates executable code with entry/exit rules and risk management.',
+  },
+  {
+    title: 'Paper Test It',
+    description:
+      'Run your strategy against live market data with zero risk. See real P&L without putting capital on the line.',
+  },
+  {
+    title: 'Deploy & Monitor',
+    description:
+      'Go live with one click. Mission Control gives you real-time performance, alerts, and portfolio analytics.',
+  },
+];
+
+const LANDING_INTEGRATIONS = [
+  { name: 'Alpaca', glyph: '◈' },
+  { name: 'Anthropic Claude', glyph: '◌' },
+  { name: 'Twelve Data', glyph: '⚡' },
+  { name: 'TradingView', glyph: '∿' },
+  { name: 'Vercel', glyph: '◯' },
+];
+
 const sectionMotion = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
@@ -279,9 +318,19 @@ const landingStyles = `
   }
 
   @keyframes landing-star-twinkle {
-    0%, 100% { opacity: 0.42; }
-    35% { opacity: 0.72; }
-    70% { opacity: 0.58; }
+    0%, 100% { opacity: 0.12; filter: brightness(0.88); }
+    20% { opacity: 0.48; filter: brightness(1.25); }
+    45% { opacity: 0.86; filter: brightness(1.85); }
+    68% { opacity: 0.3; filter: brightness(1.08); }
+    84% { opacity: 0.62; filter: brightness(1.45); }
+  }
+
+  @keyframes landing-star-flicker {
+    0%, 100% { opacity: 0.06; }
+    24% { opacity: 0.3; }
+    41% { opacity: 0.14; }
+    71% { opacity: 0.4; }
+    88% { opacity: 0.18; }
   }
 
   @keyframes landing-milkyway-drift {
@@ -378,13 +427,33 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           }}
         />
         <div
-          className="absolute inset-0 opacity-70"
+          className="absolute inset-0 opacity-78"
           style={{
             backgroundImage:
               'radial-gradient(rgba(255,255,255,0.36) 0.65px, transparent 0.95px), radial-gradient(rgba(125,211,252,0.28) 0.55px, transparent 0.9px), radial-gradient(rgba(167,243,208,0.24) 0.6px, transparent 0.95px)',
             backgroundSize: '180px 180px, 250px 250px, 320px 320px',
             backgroundPosition: '0 0, 80px 120px, 140px 30px',
-            animation: 'landing-star-twinkle 10s ease-in-out infinite',
+            animation: 'landing-star-twinkle 7.8s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-62"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.4) 0.75px, transparent 1px), radial-gradient(rgba(56,189,248,0.36) 0.65px, transparent 0.95px)',
+            backgroundSize: '220px 220px, 310px 310px',
+            backgroundPosition: '40px 80px, 120px 30px',
+            animation: 'landing-star-twinkle 6.2s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-56"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.52) 0.5px, transparent 0.9px), radial-gradient(rgba(134,239,172,0.44) 0.55px, transparent 0.95px), radial-gradient(rgba(147,197,253,0.45) 0.5px, transparent 0.9px)',
+            backgroundSize: '260px 260px, 340px 340px, 420px 420px',
+            backgroundPosition: '120px 24px, 0 170px, 210px 90px',
+            animation: 'landing-star-flicker 5.6s linear infinite',
           }}
         />
         <div
@@ -508,291 +577,71 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           </div>
         </motion.section>
 
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">The Problem</h2>
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {PROBLEM_CARDS.map((card) => (
-                <div key={card.title} className="bg-white/5 border border-red-500/20 rounded-xl p-4">
-                  <p className="text-white font-medium">{card.title}</p>
-                  <p className="text-red-300 text-sm mt-2">{card.cost}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-8 text-center text-red-400 text-2xl font-bold">Total: $373-784/month</p>
-            <p className="mt-2 text-center text-emerald-500 text-xl">There&apos;s a better way.</p>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-emerald-300/65">Unified Command Layer</p>
-            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">One Platform. One Key.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-gray-400 md:text-base">
-              Swap disconnected subscriptions for a single operating layer built for signal discovery, strategy design,
-              and execution.
-            </p>
-
-            <div className="relative mt-12">
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/12 blur-3xl" />
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10" />
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/15" />
-
-              <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_minmax(380px,500px)_1fr]">
-                <div className="space-y-3 lg:pr-2">
-                  {[
-                    { value: '1', label: 'API Key', tone: 'text-emerald-300' },
-                    { value: '15+', label: 'Connected Services', tone: 'text-cyan-300' },
-                  ].map((stat, index) => (
-                    <div
-                      key={stat.label}
-                      className={`flex items-center justify-between rounded-[999px] border border-white/15 bg-[#04101d]/80 px-5 py-3 backdrop-blur ${
-                        index % 2 === 0 ? 'lg:mr-8' : 'lg:ml-8'
-                      }`}
-                    >
-                      <p className={`text-xl font-semibold ${stat.tone}`}>{stat.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="relative overflow-hidden rounded-[34px] border border-emerald-300/30 bg-[linear-gradient(145deg,rgba(6,15,28,0.98),rgba(3,10,19,0.92))] p-7 shadow-[0_0_50px_rgba(16,185,129,0.18)] md:p-9">
-                  <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(circle at 75% 20%, rgba(56,189,248,0.24) 0%, transparent 36%), radial-gradient(circle at 15% 80%, rgba(16,185,129,0.22) 0%, transparent 42%)' }} />
-                  <div className="pointer-events-none absolute inset-x-8 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-emerald-300/30 to-transparent" />
-
-                  <div className="relative">
-                    <p className="text-[11px] uppercase tracking-[0.34em] text-white/55">Stratify Core</p>
-                    <p className="mt-3 text-3xl font-semibold text-white">{`Stratify • ${PRO_MONTHLY_PRICE_LABEL}`}</p>
-                    <p className="mt-2 text-sm text-emerald-200/85">Institutional • Email for info</p>
-                    <p className="mt-5 max-w-sm text-sm leading-relaxed text-gray-300">
-                      One key unlocks every live module: War Room, Trader, X-Ray, Portfolio, and Sophia AI.
-                    </p>
-                    <a
-                      href="mailto:jeff@stratify-associates.com?subject=Institutional%20Pricing%20Inquiry"
-                      className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/35 bg-emerald-500/12 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100 transition-colors hover:bg-emerald-500/20"
-                    >
-                      Email for pricing
-                      <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.8} />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="space-y-3 lg:pl-2">
-                  {[
-                    { value: '24/7', label: 'AI Monitoring', tone: 'text-cyan-300' },
-                    { value: '87%', label: 'Stack Cost Savings', tone: 'text-emerald-300' },
-                  ].map((stat, index) => (
-                    <div
-                      key={stat.label}
-                      className={`flex items-center justify-between rounded-[999px] border border-white/15 bg-[#04101d]/80 px-5 py-3 backdrop-blur ${
-                        index % 2 === 0 ? 'lg:ml-8' : 'lg:mr-8'
-                      }`}
-                    >
-                      <p className={`text-xl font-semibold ${stat.tone}`}>{stat.value}</p>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300/65">Capability Matrix</p>
-            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">Everything You Need</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-gray-400 md:text-base">
-              Purpose-built modules that connect context, execution, and accountability in a single workflow.
-            </p>
-
-            <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
-              {FEATURE_CARDS.map((feature, index) => {
-                const Icon = feature.icon;
-                const theme = FEATURE_THEMES[index % FEATURE_THEMES.length];
-                const layoutClass = FEATURE_LAYOUT[index % FEATURE_LAYOUT.length];
-                return (
-                  <div
-                    key={feature.title}
-                    className={`group relative overflow-hidden border bg-[linear-gradient(160deg,rgba(5,11,21,0.96),rgba(3,8,16,0.9))] p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_54px_rgba(4,12,23,0.7)] ${theme.edge} ${layoutClass}`}
-                    style={{ borderRadius: theme.radius }}
-                  >
-                    <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${theme.fog}`} />
-                    <div className="pointer-events-none absolute -right-14 -top-14 h-44 w-44 rounded-full bg-white/8 blur-3xl" />
-                    <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-
-                    <div className="relative flex h-full flex-col justify-between">
-                      <div className="flex items-start justify-between gap-4">
-                        <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${theme.orb} ring-1 ring-white/20`}>
-                          <Icon className="h-5 w-5 text-white" strokeWidth={1.7} />
-                        </span>
-                        <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
-                          {feature.signal}
-                        </span>
-                      </div>
-
-                      <div className="mt-10">
-                        <h3 className="text-2xl font-semibold text-white">{feature.title}</h3>
-                        <p className="mt-3 text-sm leading-relaxed text-gray-300">{feature.description}</p>
-                        <p className={`mt-4 text-xs font-semibold uppercase tracking-[0.16em] ${theme.accent}`}>{feature.meta}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Get Started in 5 Minutes</h2>
-
-            <div className="mt-12 relative hidden md:block">
-              <div className="absolute left-[10%] right-[10%] top-5 h-px bg-emerald-500/35" />
-              <div className="grid grid-cols-5 gap-4">
-                {HOW_STEPS.map((step, index) => (
-                  <div key={step.title} className="text-center px-2">
-                    <div className="mx-auto h-10 w-10 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 flex items-center justify-center font-semibold">
-                      {index + 1}
-                    </div>
-                    <h3 className="mt-4 text-white font-semibold text-sm">{step.title}</h3>
-                    <p className="mt-2 text-gray-400 text-xs leading-relaxed">{step.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-10 space-y-4 md:hidden">
-              {HOW_STEPS.map((step, index) => (
-                <div key={step.title} className="relative rounded-xl border border-gray-800 bg-black/30 p-4 pl-14">
-                  {index < HOW_STEPS.length - 1 ? (
-                    <span className="absolute left-[26px] top-10 bottom-[-20px] w-px bg-emerald-500/30" />
-                  ) : null}
-                  <span className="absolute left-3 top-3 h-7 w-7 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-sm font-semibold flex items-center justify-center">
-                    {index + 1}
-                  </span>
-                  <h3 className="text-white font-semibold text-sm">{step.title}</h3>
-                  <p className="mt-1 text-gray-400 text-xs">{step.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6" id="whitepaper-pricing">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Simple Pricing</h2>
-            <div className="mt-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
-              {PRICING_PLANS.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`rounded-2xl border ${plan.borderClass} bg-black/35 p-6 flex flex-col ${
-                    plan.isPopular ? 'xl:-translate-y-2 shadow-[0_0_38px_rgba(16,185,129,0.14)]' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-white font-semibold tracking-wide">{plan.name}</h3>
-                    {plan.isPopular ? (
-                      <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-500 text-black font-semibold">
-                        Most Popular
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-4 text-3xl font-bold text-white">{plan.price}</p>
-                  {plan.yearlyPrice ? <p className="mt-1 text-sm text-gray-500">{plan.yearlyPrice}</p> : null}
-                  <p className="mt-2 text-gray-400 text-sm">{plan.subtitle}</p>
-
-                  <div className="mt-5 space-y-2 flex-1">
-                    {plan.features.map((feature) => (
-                      <p key={feature} className="text-gray-300 text-sm">
-                        {feature}
-                      </p>
-                    ))}
-                  </div>
-
-                  {plan.contactHref ? (
-                    <a
-                      href={plan.contactHref}
-                      className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/18 hover:text-emerald-100"
-                    >
-                      {plan.ctaLabel || 'Email us'}
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleGetStarted}
-                      className="mt-6 w-full rounded-xl border border-gray-700 px-4 py-2.5 text-gray-200 transition-colors hover:border-emerald-500/50 hover:text-white"
-                    >
-                      Get Started
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-4xl mx-auto rounded-2xl border border-gray-800 bg-black/35 p-8">
-            <h2 className="text-white text-3xl font-bold text-center">Your Security, Our Priority</h2>
-            <div className="mt-8 space-y-3">
-              {SECURITY_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.text} className="flex items-center gap-3 rounded-lg border border-gray-800/70 bg-black/30 px-4 py-3">
-                    <Icon className="h-4 w-4 text-emerald-400" strokeWidth={1.5} />
-                    <span className="text-gray-300 text-sm">{item.text}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Questions?</h2>
-            <div className="mt-8 space-y-3">
-              {FAQ_ITEMS.map((faq, index) => {
-                const isOpen = openFaq === index;
-                return (
-                  <div key={faq.question} className="rounded-xl border border-gray-800 bg-black/35 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenFaq((prev) => (prev === index ? -1 : index))}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
-                        isOpen ? 'text-white' : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="font-medium">{faq.question}</span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} strokeWidth={1.5} />
-                    </button>
-                    {isOpen ? <div className="px-4 pb-4 text-sm text-gray-400 leading-relaxed">{faq.answer}</div> : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-28 px-6">
-          <div className="max-w-4xl mx-auto text-center rounded-3xl border border-gray-800 bg-black/30 p-10 md:p-14">
-            <h2 className="text-white text-4xl font-bold">Ready to Trade Smarter?</h2>
-            <p className="mt-4 text-gray-400 text-lg">Get your Stratify API key and take control.</p>
-            <button
-              type="button"
-              onClick={handleGetStarted}
-              className="mt-8 border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-8 py-3 rounded-xl transition-colors"
+        <motion.section {...sectionMotion} className="border-t border-white/8 py-24 px-6">
+          <div className="max-w-5xl mx-auto">
+            <h2
+              className="text-center text-white text-4xl md:text-5xl leading-tight"
+              style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}
             >
-              {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
-            </button>
-            <p className="mt-5 text-sm text-gray-500">
-              <a href="https://stratifymarket.com" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-                stratifymarket.com
-              </a>
+              Stop Paying for Five Platforms
+            </h2>
+            <p className="mt-3 text-center text-gray-400 text-lg md:text-xl">
+              Everything you need, unified under one subscription.
             </p>
+
+            <div className="mt-10 overflow-hidden rounded-3xl border border-white/12 bg-[linear-gradient(155deg,rgba(12,18,34,0.48),rgba(6,10,20,0.28))] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl">
+              <div className="grid grid-cols-3 border-b border-white/10 px-5 py-4 text-[10px] md:text-[11px] uppercase tracking-[0.22em] text-white/45">
+                <p>Feature</p>
+                <p>Without Stratify</p>
+                <p>With Stratify</p>
+              </div>
+              {LANDING_COMPARE_ROWS.map((row) => (
+                <div
+                  key={row.feature}
+                  className="grid grid-cols-3 border-b border-white/6 px-5 py-4 text-sm md:text-base text-gray-300 last:border-b-0"
+                >
+                  <p>{row.feature}</p>
+                  <p className="text-gray-500">{row.without}</p>
+                  <p className="font-semibold text-emerald-400">{`✓ ${row.with}`}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="border-t border-white/8 py-24 px-6">
+          <div className="max-w-6xl mx-auto">
+            <h2
+              className="text-center text-white text-4xl md:text-5xl leading-tight"
+              style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}
+            >
+              How It Works
+            </h2>
+            <p className="mt-3 text-center text-gray-400 text-lg md:text-xl">From idea to execution in minutes, not days.</p>
+
+            <div className="mt-14 grid grid-cols-1 gap-10 md:grid-cols-2 xl:grid-cols-4">
+              {LANDING_WORKFLOW_STEPS.map((step, index) => (
+                <div key={step.title} className="px-1">
+                  <p className="text-5xl font-semibold text-blue-400">{index + 1}</p>
+                  <h3 className="mt-4 text-3xl font-semibold text-white leading-tight">{step.title}</h3>
+                  <p className="mt-3 text-gray-300 text-lg leading-relaxed">{step.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="border-y border-white/8 py-14 px-6">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-center text-[11px] uppercase tracking-[0.3em] text-white/45">Integrated With</p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-9 gap-y-4 text-2xl text-slate-300">
+              {LANDING_INTEGRATIONS.map((item) => (
+                <div key={item.name} className="flex items-center gap-2">
+                  <span className="text-white/45">{item.glyph}</span>
+                  <span>{item.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </motion.section>
 
