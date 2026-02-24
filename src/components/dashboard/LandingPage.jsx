@@ -327,6 +327,10 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
         ))}
       </div>
 
+      <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60">
+        BETA
+      </div>
+
       {/* Top Row (integrated into page, no separate header bar) */}
       <nav className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
         <span className="text-white/95 font-bold text-sm tracking-[0.3em]">STRATIFY</span>
@@ -367,13 +371,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
 
             <p className="text-[11px] uppercase tracking-[0.45em] text-gray-500 mb-8">Market Infrastructure Reimagined</p>
-            <div className="flex flex-col items-center justify-center gap-5 sm:flex-row sm:gap-4">
-              <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-200 shadow-[0_0_22px_rgba(16,185,129,0.22)]">
-                <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
-                Beta
-              </span>
-            </div>
+            <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
             <p className="mt-6 text-amber-500 text-xl italic">One Key. Every Market. Total Control.</p>
             <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-center text-base md:text-lg leading-relaxed">
               The all-in-one trading platform that connects live market data, AI-powered research, social sentiment,
