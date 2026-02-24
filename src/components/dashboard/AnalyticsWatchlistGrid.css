@@ -1,0 +1,227 @@
+.analytics-watchlist-page {
+  background: transparent;
+  color: #dbe7ff;
+}
+
+.analytics-watchlist-shell {
+  min-height: calc(100vh - 210px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(35, 53, 82, 0.92);
+  background: linear-gradient(180deg, rgba(8, 15, 29, 0.93), rgba(5, 11, 22, 0.9));
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 14px 34px rgba(3, 8, 18, 0.42);
+}
+
+.analytics-watchlist-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.analytics-watchlist-kicker {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(138, 162, 200, 0.78);
+}
+
+.analytics-watchlist-title {
+  margin-top: 4px;
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: #f5f9ff;
+}
+
+.analytics-watchlist-subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(179, 201, 234, 0.8);
+}
+
+.analytics-watchlist-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.analytics-inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: rgba(191, 210, 238, 0.9);
+}
+
+.analytics-inline-toggle input {
+  accent-color: #4ea8ff;
+}
+
+.analytics-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(76, 140, 224, 0.45);
+  background: rgba(25, 50, 87, 0.42);
+  color: #cfe6ff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.analytics-refresh-btn:hover {
+  background: rgba(33, 67, 116, 0.48);
+}
+
+.analytics-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.analytics-add-ticker-form {
+  display: flex;
+  gap: 8px;
+}
+
+.analytics-add-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(60, 92, 138, 0.8);
+  border-radius: 11px;
+  background: rgba(10, 22, 40, 0.82);
+  color: #f0f7ff;
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+}
+
+.analytics-add-input:focus {
+  border-color: rgba(91, 173, 255, 0.95);
+}
+
+.analytics-add-input::placeholder {
+  color: rgba(154, 182, 220, 0.7);
+}
+
+.analytics-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(72, 198, 154, 0.68);
+  border-radius: 11px;
+  background: rgba(16, 85, 70, 0.56);
+  color: #dafff4;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.analytics-add-btn:hover {
+  background: rgba(20, 101, 83, 0.66);
+}
+
+.analytics-symbol-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.analytics-symbol-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(52, 92, 148, 0.62);
+  background: rgba(11, 27, 49, 0.72);
+  color: rgba(230, 242, 255, 0.92);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.analytics-symbol-chip:hover {
+  border-color: rgba(80, 145, 230, 0.8);
+}
+
+.analytics-watchlist-error {
+  border: 1px solid rgba(211, 80, 80, 0.68);
+  background: rgba(97, 20, 20, 0.48);
+  color: #ffb9b9;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.analytics-watchlist-grid {
+  flex: 1;
+  min-height: 480px;
+  height: 100%;
+  width: 100%;
+}
+
+.analytics-watchlist-grid .hcg-container {
+  --hcg-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --hcg-font-size: 12px;
+  --hcg-color: #e0edff;
+  --hcg-background: rgba(7, 15, 30, 0.9);
+  --hcg-border-width: 1px;
+  --hcg-border-style: solid;
+  --hcg-border-color: rgba(43, 64, 98, 0.95);
+  --hcg-row-border-width: 1px;
+  --hcg-row-border-color: rgba(31, 48, 77, 0.95);
+  --hcg-header-row-border-width: 1px;
+  --hcg-header-row-border-color: rgba(52, 78, 122, 0.95);
+  --hcg-column-border-width: 1px;
+  --hcg-column-border-color: rgba(31, 48, 77, 0.95);
+  --hcg-header-column-border-width: 1px;
+  --hcg-header-column-border-color: rgba(52, 78, 122, 0.95);
+  --hcg-header-color: rgba(170, 194, 233, 0.95);
+  --hcg-header-background: rgba(15, 29, 50, 0.96);
+  --hcg-horizontal-padding: 10px;
+  --hcg-vertical-padding: 8px;
+  --hcg-header-horizontal-padding: 10px;
+  --hcg-header-vertical-padding: 8px;
+}
+
+.analytics-watchlist-grid .hcg-table {
+  background: rgba(7, 15, 30, 0.9);
+  width: 100%;
+  table-layout: fixed;
+}
+
+.analytics-watchlist-grid .hcg-head-row-content .hcg-header-cell-content {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analytics-watchlist-grid .hcg-credits-container {
+  display: none;
+}
+
+@media (max-width: 920px) {
+  .analytics-watchlist-shell {
+    min-height: calc(100vh - 170px);
+    padding: 12px;
+  }
+
+  .analytics-watchlist-title {
+    font-size: 22px;
+  }
+
+  .analytics-watchlist-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .analytics-add-btn {
+    padding-inline: 12px;
+  }
+}

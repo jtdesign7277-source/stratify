@@ -862,6 +862,73 @@ const extractPremarketMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
   };
 };
 
+const extractAfterHoursMetricsFromQuote = (quote = {}, fallbackPrice = null) => {
+  const previousClose = toNumber(
+    quote?.previous_close
+    ?? quote?.previousClose
+    ?? quote?.prev_close
+    ?? quote?.prevClose
+  );
+
+  const afterHoursPrice = toNumber(
+    quote?.after_hours_price
+    ?? quote?.afterHoursPrice
+    ?? quote?.post_market_price
+    ?? quote?.postMarketPrice
+    ?? quote?.postmarket_price
+    ?? quote?.postmarketPrice
+  );
+
+  let afterHoursChange = toNumber(
+    quote?.after_hours_change
+    ?? quote?.afterHoursChange
+    ?? quote?.post_market_change
+    ?? quote?.postMarketChange
+    ?? quote?.postmarket_change
+    ?? quote?.postmarketChange
+  );
+
+  let afterHoursChangePercent = toNumber(
+    quote?.after_hours_change_percent
+    ?? quote?.afterHoursChangePercent
+    ?? quote?.post_market_change_percent
+    ?? quote?.postMarketChangePercent
+    ?? quote?.postmarket_change_percent
+    ?? quote?.postmarketChangePercent
+  );
+
+  const afterHoursReferencePrice = Number.isFinite(afterHoursPrice)
+    ? afterHoursPrice
+    : toNumber(fallbackPrice);
+
+  if (!Number.isFinite(afterHoursChange) && Number.isFinite(afterHoursReferencePrice) && Number.isFinite(previousClose)) {
+    afterHoursChange = afterHoursReferencePrice - previousClose;
+  }
+
+  if (
+    !Number.isFinite(afterHoursChangePercent)
+    && Number.isFinite(afterHoursChange)
+    && Number.isFinite(previousClose)
+    && previousClose !== 0
+  ) {
+    afterHoursChangePercent = (afterHoursChange / previousClose) * 100;
+  }
+
+  if (
+    !Number.isFinite(afterHoursChange)
+    && Number.isFinite(afterHoursChangePercent)
+    && Number.isFinite(previousClose)
+  ) {
+    afterHoursChange = previousClose * (afterHoursChangePercent / 100);
+  }
+
+  return {
+    afterHoursPrice: Number.isFinite(afterHoursPrice) ? afterHoursPrice : null,
+    afterHoursChange: Number.isFinite(afterHoursChange) ? afterHoursChange : null,
+    afterHoursChangePercent: Number.isFinite(afterHoursChangePercent) ? afterHoursChangePercent : null,
+  };
+};
+
 export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
   const source = Array.isArray(symbols) ? symbols : String(symbols || '').split(',');
   const seen = new Set();
@@ -883,6 +950,7 @@ export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
     const quote = quoteMap[symbol];
     const price = toNumber(quote?.close || quote?.price || quote?.last);
     const preMarketMetrics = extractPremarketMetricsFromQuote(quote, price);
+    const afterHoursMetrics = extractAfterHoursMetricsFromQuote(quote, price);
     return {
       symbol,
       name: quote?.name || symbol,
@@ -891,9 +959,18 @@ export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
       price,
       change: toNumber(quote?.change),
       percentChange: toNumber(quote?.percent_change ?? quote?.percentChange),
+      previousClose: toNumber(
+        quote?.previous_close
+        ?? quote?.previousClose
+        ?? quote?.prev_close
+        ?? quote?.prevClose
+      ),
       preMarketPrice: preMarketMetrics.preMarketPrice,
       preMarketChange: preMarketMetrics.preMarketChange,
       preMarketChangePercent: preMarketMetrics.preMarketChangePercent,
+      afterHoursPrice: afterHoursMetrics.afterHoursPrice,
+      afterHoursChange: afterHoursMetrics.afterHoursChange,
+      afterHoursChangePercent: afterHoursMetrics.afterHoursChangePercent,
       timestamp: quote?.datetime || quote?.timestamp || null,
       raw: quote || null,
     };
