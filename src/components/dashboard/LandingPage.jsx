@@ -37,6 +37,31 @@ const PROBLEM_SCRIPT = [
   'Sophia: Recommendation -> collapse this into one Stratify key.',
 ];
 
+const DESK_PREVIEW_CANDLES = [
+  { body: 32, wickTop: 16, wickBottom: 22, up: true },
+  { body: 42, wickTop: 24, wickBottom: 20, up: false },
+  { body: 28, wickTop: 12, wickBottom: 26, up: true },
+  { body: 48, wickTop: 20, wickBottom: 30, up: false },
+  { body: 36, wickTop: 18, wickBottom: 24, up: true },
+  { body: 20, wickTop: 10, wickBottom: 16, up: true },
+  { body: 54, wickTop: 16, wickBottom: 18, up: false },
+  { body: 30, wickTop: 14, wickBottom: 28, up: true },
+  { body: 40, wickTop: 20, wickBottom: 20, up: false },
+  { body: 34, wickTop: 12, wickBottom: 22, up: true },
+  { body: 46, wickTop: 18, wickBottom: 28, up: false },
+  { body: 24, wickTop: 10, wickBottom: 14, up: true },
+  { body: 38, wickTop: 16, wickBottom: 16, up: true },
+  { body: 44, wickTop: 20, wickBottom: 20, up: false },
+  { body: 26, wickTop: 12, wickBottom: 18, up: true },
+  { body: 40, wickTop: 16, wickBottom: 24, up: true },
+];
+
+const PARTNER_WORDMARKS = [
+  { id: 'ninja', name: 'NinjaTrader' },
+  { id: 'ib', name: 'Interactive Brokers' },
+  { id: 'td', name: 'TD Ameritrade' },
+];
+
 const FEATURE_CARDS = [
   {
     title: 'War Room',
@@ -814,6 +839,116 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
 
         <motion.section {...sectionMotion} className="py-24 px-6">
           <div className="max-w-6xl mx-auto">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300/70">Desk Mode Preview</p>
+            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">Trading View, Rebuilt For Stratify</h2>
+            <p className="mx-auto mt-4 max-w-3xl text-center text-sm text-gray-400 md:text-base">
+              Dark-by-default, context-first charts with live trade journaling and strategy telemetry in one surface.
+            </p>
+
+            <div className="mt-12 grid gap-5 lg:grid-cols-[330px_1fr]">
+              <div className="relative overflow-hidden rounded-[26px] border border-cyan-300/22 bg-[linear-gradient(165deg,rgba(4,10,20,0.95),rgba(3,8,16,0.92))] p-5">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-300/15 blur-2xl" />
+                <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200/80">Live Trade Review</p>
+                <p className="mt-3 text-4xl font-semibold text-emerald-300">$3,611</p>
+                <p className="text-sm text-emerald-200/80">Net P&L +5.15%</p>
+
+                <div className="mt-6 space-y-2">
+                  {[
+                    ['Win Rate', '61.2%'],
+                    ['Profit Factor', '2.4'],
+                    ['Avg Risk', '$284'],
+                    ['Setups Tracked', '18'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                      <span className="text-xs uppercase tracking-[0.14em] text-white/55">{label}</span>
+                      <span className="text-sm font-semibold text-white">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {['Pullback', 'Breakout', 'Momentum', 'AI Review'].map((tag) => (
+                    <span key={tag} className="rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-100/90">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-[30px] border border-emerald-300/20 bg-[linear-gradient(165deg,rgba(5,12,23,0.96),rgba(3,8,16,0.92))] p-5 md:p-6">
+                <div className="pointer-events-none absolute inset-0 opacity-65" style={{ background: 'radial-gradient(circle at 18% 16%, rgba(56,189,248,0.2) 0%, transparent 34%), radial-gradient(circle at 82% 84%, rgba(16,185,129,0.18) 0%, transparent 38%)' }} />
+                <div className="relative flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/55">STRATIFY CHART</p>
+                    <p className="mt-1 text-lg font-semibold text-white">TSLA · 1m</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {['1m', '5m', '15m', '1h'].map((tf, idx) => (
+                      <span
+                        key={tf}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          idx === 0
+                            ? 'border-emerald-300/45 bg-emerald-400/12 text-emerald-100'
+                            : 'border-white/15 bg-white/5 text-white/70'
+                        }`}
+                      >
+                        {tf}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative mt-5 h-[340px] overflow-hidden rounded-[22px] border border-white/10 bg-[#040d18]/88">
+                  <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.09) 1px, transparent 1px)', backgroundSize: '100% 48px, 64px 100%' }} />
+
+                  <svg className="pointer-events-none absolute inset-x-0 bottom-[82px] h-[180px] w-full" viewBox="0 0 1000 180" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="landingPnlFill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(16,185,129,0.38)" />
+                        <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M0,154 C70,130 120,150 180,120 C240,86 290,112 350,80 C410,48 460,86 530,60 C600,34 660,58 730,42 C800,28 860,54 930,24 C960,14 980,10 1000,16 L1000,180 L0,180 Z" fill="url(#landingPnlFill)" />
+                    <path d="M0,154 C70,130 120,150 180,120 C240,86 290,112 350,80 C410,48 460,86 530,60 C600,34 660,58 730,42 C800,28 860,54 930,24 C960,14 980,10 1000,16" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="3" />
+                  </svg>
+
+                  <div className="absolute inset-x-4 bottom-[78px] top-5 flex items-end justify-between gap-1.5">
+                    {DESK_PREVIEW_CANDLES.map((candle, index) => {
+                      const total = candle.body + candle.wickTop + candle.wickBottom;
+                      return (
+                        <div key={`${index}-${candle.body}`} className="relative flex w-3 items-end md:w-4">
+                          <div className="relative w-full" style={{ height: `${total}px` }}>
+                            <span
+                              className={`absolute left-1/2 w-px -translate-x-1/2 ${candle.up ? 'bg-emerald-300/90' : 'bg-rose-300/90'}`}
+                              style={{ top: 0, height: `${total}px` }}
+                            />
+                            <span
+                              className={`absolute left-0 right-0 rounded-[3px] ${candle.up ? 'bg-emerald-300/85' : 'bg-rose-300/85'}`}
+                              style={{ top: `${candle.wickTop}px`, height: `${candle.body}px` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="absolute inset-x-4 bottom-3 flex items-end justify-between gap-1.5">
+                    {DESK_PREVIEW_CANDLES.map((candle, index) => (
+                      <span
+                        key={`vol-${index}`}
+                        className={`inline-block w-3 rounded-t-sm md:w-4 ${candle.up ? 'bg-emerald-300/55' : 'bg-rose-300/55'}`}
+                        style={{ height: `${Math.max(8, Math.floor(candle.body * 0.45))}px` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-24 px-6">
+          <div className="max-w-6xl mx-auto">
             <h2 className="text-white text-3xl font-bold text-center">Get Started in 5 Minutes</h2>
 
             <div className="mt-12 relative hidden md:block">
@@ -971,6 +1106,56 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 stratifymarket.com
               </a>
             </p>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="pb-16 px-6">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-white/55">Execution Partners</p>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {PARTNER_WORDMARKS.map((partner) => (
+                <div
+                  key={partner.id}
+                  className="group rounded-[20px] border border-white/12 bg-[linear-gradient(145deg,rgba(6,11,21,0.86),rgba(3,8,16,0.78))] px-5 py-4 backdrop-blur transition-colors hover:border-cyan-300/28"
+                >
+                  {partner.id === 'ninja' ? (
+                    <div className="flex items-center gap-3">
+                      <svg width="30" height="30" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                        <path d="M9 41c7-16 21-24 36-22" stroke="#7f8794" strokeWidth="5" strokeLinecap="round" />
+                        <path d="M19 48c6-13 18-20 31-18" stroke="#b3212a" strokeWidth="5" strokeLinecap="round" />
+                        <circle cx="48" cy="19" r="6" fill="#b3212a" />
+                      </svg>
+                      <p className="text-2xl font-semibold tracking-[0.08em]">
+                        <span className="text-gray-200">NINJA</span>
+                        <span className="text-[#c5303b]">TRADER</span>
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {partner.id === 'ib' ? (
+                    <div className="flex items-center gap-3">
+                      <svg width="28" height="24" viewBox="0 0 28 24" fill="none" aria-hidden="true">
+                        <path d="M3 20L14 2L25 20H3Z" fill="#d6222b" />
+                        <path d="M11 16L14 11L17 16H11Z" fill="#111827" />
+                      </svg>
+                      <p className="text-[30px] font-semibold tracking-tight leading-none">
+                        <span className="text-[#d6222b]">Interactive</span>
+                        <span className="text-white">Brokers</span>
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {partner.id === 'td' ? (
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-[#39b54a] text-lg font-extrabold text-white">
+                        TD
+                      </span>
+                      <p className="text-[30px] font-semibold tracking-tight leading-none text-[#37b34a]">Ameritrade</p>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           </div>
         </motion.section>
 
