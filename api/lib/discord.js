@@ -7,6 +7,8 @@ const CHANNELS = {
   showYourPnl:   process.env.DISCORD_WEBHOOK_SHOW_YOUR_PNL,
 };
 
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 const toBlob = (file = {}) => {
   const bytes = file?.data;
   if (bytes instanceof Uint8Array || bytes instanceof ArrayBuffer) {
@@ -16,6 +18,49 @@ const toBlob = (file = {}) => {
     return new Blob([bytes], { type: file.contentType || 'text/plain' });
   }
   return null;
+};
+
+const toDiscordText = (value, fallback = '—') => {
+  if (value === null || value === undefined) return fallback;
+  const text = String(value).trim();
+  return text || fallback;
+};
+
+const normalizeDiscordField = (field) => {
+  if (!isPlainObject(field)) return null;
+  return {
+    name: toDiscordText(field.name, 'Details'),
+    value: toDiscordText(field.value, '—'),
+    inline: typeof field.inline === 'boolean' ? field.inline : Boolean(field.inline),
+  };
+};
+
+const normalizeDiscordEmbeds = (embeds) => {
+  const incoming = Array.isArray(embeds)
+    ? embeds
+    : isPlainObject(embeds)
+      ? [embeds]
+      : [];
+
+  return incoming
+    .filter((embed) => isPlainObject(embed))
+    .map((embed) => {
+      const normalized = { ...embed };
+      if (Array.isArray(embed.fields)) {
+        normalized.fields = embed.fields.map(normalizeDiscordField).filter((field) => Boolean(field));
+      } else if (embed.fields !== undefined) {
+        delete normalized.fields;
+      }
+      return normalized;
+    })
+    .filter((embed) => {
+      const hasTitle = typeof embed.title === 'string' && embed.title.trim().length > 0;
+      const hasDescription = typeof embed.description === 'string' && embed.description.trim().length > 0;
+      const hasFields = Array.isArray(embed.fields) && embed.fields.length > 0;
+      const hasFooter = typeof embed.footer?.text === 'string' && embed.footer.text.trim().length > 0;
+      const hasImage = typeof embed.image?.url === 'string' && embed.image.url.trim().length > 0;
+      return hasTitle || hasDescription || hasFields || hasFooter || hasImage;
+    });
 };
 
 export async function postToDiscord(channel, { content, embeds, username, avatarUrl, allowedMentions, files }) {
@@ -30,7 +75,11 @@ export async function postToDiscord(channel, { content, embeds, username, avatar
   };
 
   if (content) payload.content = content;
-  if (embeds) payload.embeds = embeds;
+  const normalizedEmbeds = normalizeDiscordEmbeds(embeds);
+  if ((Array.isArray(embeds) || isPlainObject(embeds)) && normalizedEmbeds.length === 0) {
+    console.warn(`[discord] Dropping invalid embeds payload for channel "${channel}"`);
+  }
+  if (normalizedEmbeds.length > 0) payload.embeds = normalizedEmbeds;
   if (allowedMentions) payload.allowed_mentions = allowedMentions;
 
   const normalizedFiles = Array.isArray(files)
@@ -39,6 +88,14 @@ export async function postToDiscord(channel, { content, embeds, username, avatar
       blob: toBlob(file),
     })).filter((file) => Boolean(file.blob))
     : [];
+
+  console.log('[discord] Outbound webhook payload preview:', {
+    channel,
+    hasContent: Boolean(payload.content),
+    embedsCount: normalizedEmbeds.length,
+    embeds: normalizedEmbeds,
+    filesCount: normalizedFiles.length,
+  });
 
   const useMultipart = normalizedFiles.length > 0;
 

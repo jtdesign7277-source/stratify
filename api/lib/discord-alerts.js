@@ -173,8 +173,10 @@ const normalizeEmbedField = (field) => {
   return { name, value, inline };
 };
 
+const isEmbedObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 const sanitizeDiscordEmbed = (embed) => {
-  if (!embed || typeof embed !== 'object' || Array.isArray(embed)) return null;
+  if (!isEmbedObject(embed)) return null;
 
   const sanitized = {
     color: normalizeEmbedColor(embed.color),
@@ -219,14 +221,14 @@ const sanitizeDiscordEmbed = (embed) => {
   );
 
   if (!hasContent) return null;
-  return sanitized;
+  return isEmbedObject(sanitized) ? sanitized : null;
 };
 
 export const sanitizeDiscordEmbeds = (embeds = []) => {
   if (!Array.isArray(embeds)) return [];
   return embeds
     .map((embed) => sanitizeDiscordEmbed(embed))
-    .filter(Boolean)
+    .filter((embed) => isEmbedObject(embed))
     .slice(0, DISCORD_EMBED_LIMITS.embeds);
 };
 
@@ -950,21 +952,39 @@ export const buildTradeAlertEmbed = (alert = {}, chartImageUrl = null) => {
         || toEmbedText(alert.type, { fallback: 'Trade setup', maxLength: 120 }));
 
   const image = normalizeEmbedImage(chartImageUrl);
+  const safePriceField = (value, fallback = '$0.00') => toEmbedText(formatPrice(value), {
+    fallback,
+    maxLength: DISCORD_EMBED_LIMITS.fieldValue,
+  });
+  const safeVolumeField = (volume, ratio) => toEmbedText(
+    `${formatVolume(volume)} (${ratio.toFixed(2)}x)`,
+    {
+      fallback: '—',
+      maxLength: DISCORD_EMBED_LIMITS.fieldValue,
+    },
+  );
+  const safeKeyLevelsField = (support, resistance) => toEmbedText(
+    `Support ${formatPrice(support)} | Resistance ${formatPrice(resistance)}`,
+    {
+      fallback: 'Support $0.00 | Resistance $0.00',
+      maxLength: DISCORD_EMBED_LIMITS.fieldValue,
+    },
+  );
 
   const rawEmbed = {
     title: `${toEmbedText(alert.emoji, { fallback: '📈', maxLength: 8 })} $${safeSymbol} ${safeLabel}${patternDetails}`,
     description: `**Buy signal:** ${summary}`,
     color: DISCORD_COLOR_BULLISH,
     fields: [
-      { name: 'Entry', value: formatPrice(alert.entry), inline: true },
-      { name: 'Target', value: formatPrice(alert.target), inline: true },
-      { name: 'Stop Loss', value: formatPrice(alert.stopLoss), inline: true },
-      { name: 'Current', value: formatPrice(alert.currentPrice), inline: true },
+      { name: 'Entry', value: safePriceField(alert.entry), inline: true },
+      { name: 'Target', value: safePriceField(alert.target), inline: true },
+      { name: 'Stop Loss', value: safePriceField(alert.stopLoss), inline: true },
+      { name: 'Current', value: safePriceField(alert.currentPrice), inline: true },
       { name: 'Change', value: toPercent(alert.changePercent), inline: true },
-      { name: 'Volume', value: `${formatVolume(alert.volume)} (${safeVolumeRatio.toFixed(2)}x)`, inline: true },
+      { name: 'Volume', value: safeVolumeField(alert.volume, safeVolumeRatio), inline: true },
       {
         name: 'Key Levels',
-        value: `Support ${formatPrice(alert.support)} | Resistance ${formatPrice(alert.resistance)}`,
+        value: safeKeyLevelsField(alert.support, alert.resistance),
       },
       {
         name: 'Setup Notes',
@@ -1230,6 +1250,10 @@ export const runDiscordAlertCycle = async ({
     try {
       const validatedEmbeds = sanitizeDiscordEmbeds(item.embeds);
       logEmbedValidation(`${item.kind}:${item.symbol || 'unknown'}`, item.embeds, validatedEmbeds);
+      console.log(
+        `[discord-alerts] ${item.kind}:${item.symbol || 'unknown'} outbound embeds:`,
+        JSON.stringify(validatedEmbeds, null, 2),
+      );
 
       await postToDiscord(item.channel, {
         content: item.content,
