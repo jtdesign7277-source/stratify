@@ -243,6 +243,8 @@ const createStars = (count = 90) =>
 
 const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
   const [openFaq, setOpenFaq] = useState(0);
+  const [feedbackForm, setFeedbackForm] = useState({ email: '', feedback: '' });
+  const [feedbackStatus, setFeedbackStatus] = useState('idle');
   const stars = useMemo(() => createStars(90), []);
 
   useEffect(() => {
@@ -261,6 +263,44 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
     }
 
     onEnter?.();
+  };
+
+  const handleFeedbackSubmit = async (event) => {
+    event.preventDefault();
+    const email = feedbackForm.email.trim();
+    const feedback = feedbackForm.feedback.trim();
+
+    if (!email || !feedback) {
+      return;
+    }
+
+    setFeedbackStatus('loading');
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Beta Feedback User',
+          email,
+          subject: 'Landing Page Beta Feature Request',
+          message: feedback,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback');
+      }
+
+      setFeedbackForm({ email: '', feedback: '' });
+      setFeedbackStatus('success');
+    } catch (error) {
+      console.error('Beta feedback submit failed:', error);
+      setFeedbackStatus('error');
+    } finally {
+      window.setTimeout(() => {
+        setFeedbackStatus('idle');
+      }, 3500);
+    }
   };
 
   return (
@@ -327,7 +367,13 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
 
             <p className="text-[11px] uppercase tracking-[0.45em] text-gray-500 mb-8">Market Infrastructure Reimagined</p>
-            <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
+            <div className="flex flex-col items-center justify-center gap-5 sm:flex-row sm:gap-4">
+              <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-200 shadow-[0_0_22px_rgba(16,185,129,0.22)]">
+                <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
+                Beta
+              </span>
+            </div>
             <p className="mt-6 text-amber-500 text-xl italic">One Key. Every Market. Total Control.</p>
             <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-center text-base md:text-lg leading-relaxed">
               The all-in-one trading platform that connects live market data, AI-powered research, social sentiment,
@@ -549,6 +595,66 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 );
               })}
             </div>
+          </div>
+        </motion.section>
+
+        <motion.section {...sectionMotion} className="py-24 px-6" id="beta-feedback">
+          <div className="max-w-4xl mx-auto rounded-2xl border border-emerald-500/35 bg-gradient-to-b from-emerald-500/[0.06] to-black/40 p-8 md:p-10 shadow-[0_0_36px_rgba(16,185,129,0.14)]">
+            <p className="inline-flex items-center gap-2 rounded-full border border-emerald-500/45 bg-emerald-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
+              Beta Feedback
+            </p>
+            <h2 className="mt-5 text-white text-3xl font-bold">Feature Requests and Feedback</h2>
+            <p className="mt-4 text-emerald-100/75 text-sm md:text-base leading-relaxed max-w-2xl">
+              We are actively building during beta. Share feature ideas, product feedback, and concerns so we can prioritize what matters most.
+            </p>
+
+            <form onSubmit={handleFeedbackSubmit} className="mt-8 space-y-4">
+              <div>
+                <label htmlFor="beta-feedback-email" className="text-xs uppercase tracking-[0.2em] text-emerald-200/85">
+                  Email
+                </label>
+                <input
+                  id="beta-feedback-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={feedbackForm.email}
+                  onChange={(event) => setFeedbackForm((prev) => ({ ...prev, email: event.target.value }))}
+                  placeholder="you@domain.com"
+                  className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-[#080d0b] px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="beta-feedback-message" className="text-xs uppercase tracking-[0.2em] text-emerald-200/85">
+                  Suggestion / Feedback
+                </label>
+                <textarea
+                  id="beta-feedback-message"
+                  rows={5}
+                  required
+                  value={feedbackForm.feedback}
+                  onChange={(event) => setFeedbackForm((prev) => ({ ...prev, feedback: event.target.value }))}
+                  placeholder="Tell us what you want improved, added, or fixed during beta..."
+                  className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-[#080d0b] px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-y"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="submit"
+                  disabled={feedbackStatus === 'loading'}
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-500/45 bg-emerald-500/15 px-5 py-2.5 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/25 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
+                >
+                  {feedbackStatus === 'loading' ? 'Submitting...' : 'Submit Beta Feedback'}
+                </button>
+                <p className="text-xs text-emerald-100/65">
+                  {feedbackStatus === 'success' ? 'Thanks. Your beta feedback was submitted.' : null}
+                  {feedbackStatus === 'error' ? 'Submission failed. Please try again in a moment.' : null}
+                  {feedbackStatus === 'idle' ? 'This inbox is monitored for beta feature requests and feedback.' : null}
+                </p>
+              </div>
+            </form>
           </div>
         </motion.section>
 
