@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
 import {
-  INSTITUTIONAL_MONTHLY_PRICE_LABEL,
   PRO_MONTHLY_PRICE_LABEL,
 } from '../../lib/billing';
 
@@ -36,31 +35,97 @@ const FEATURE_CARDS = [
     title: 'War Room',
     description: 'Real-time market intelligence with AI web search.',
     icon: Crosshair,
+    signal: 'Signal Intel',
+    meta: 'Live narrative + catalyst feed',
   },
   {
     title: 'Sophia AI',
     description: 'Your personal trading analyst that knows your portfolio.',
     icon: Brain,
+    signal: 'AI Analyst',
+    meta: 'Context-aware strategy reasoning',
   },
   {
     title: 'Strategy Builder',
     description: 'AI-generated strategies with real trade analysis.',
     icon: Code,
+    signal: 'Build Stack',
+    meta: 'Backtest-ready logic blocks',
   },
   {
     title: 'Live Terminal',
     description: 'Professional charts and one-click broker execution.',
     icon: Monitor,
+    signal: 'Execution',
+    meta: 'Direct workflow from signal to order',
   },
   {
     title: 'Smart Alerts',
     description: 'Custom price, volume, and sentiment triggers via email/SMS.',
     icon: Bell,
+    signal: 'Automation',
+    meta: 'Condition-based alerts that stay on',
   },
   {
     title: 'Social Sentiment',
     description: 'X + Reddit monitoring with AI-filtered signals.',
     icon: Globe,
+    signal: 'Sentiment',
+    meta: 'Crowd flow with noise filtered out',
+  },
+];
+
+const FEATURE_LAYOUT = [
+  'xl:col-span-7',
+  'xl:col-span-5',
+  'xl:col-span-4',
+  'xl:col-span-4',
+  'xl:col-span-4',
+  'xl:col-span-12',
+];
+
+const FEATURE_THEMES = [
+  {
+    fog: 'from-emerald-400/22 via-cyan-400/10 to-transparent',
+    orb: 'from-emerald-300/40 via-emerald-400/12 to-transparent',
+    edge: 'border-emerald-300/28',
+    accent: 'text-emerald-200/90',
+    radius: '34px 18px 34px 18px',
+  },
+  {
+    fog: 'from-cyan-400/22 via-sky-400/12 to-transparent',
+    orb: 'from-cyan-300/36 via-cyan-400/14 to-transparent',
+    edge: 'border-cyan-300/30',
+    accent: 'text-cyan-200/90',
+    radius: '20px 34px 20px 34px',
+  },
+  {
+    fog: 'from-indigo-400/20 via-cyan-400/10 to-transparent',
+    orb: 'from-indigo-300/30 via-sky-300/12 to-transparent',
+    edge: 'border-indigo-300/24',
+    accent: 'text-indigo-100/95',
+    radius: '30px 22px 30px 14px',
+  },
+  {
+    fog: 'from-teal-400/20 via-emerald-400/10 to-transparent',
+    orb: 'from-teal-300/32 via-emerald-300/12 to-transparent',
+    edge: 'border-teal-300/26',
+    accent: 'text-teal-100/90',
+    radius: '18px 32px 16px 32px',
+  },
+  {
+    fog: 'from-sky-400/20 via-cyan-400/10 to-transparent',
+    orb: 'from-sky-300/34 via-cyan-300/12 to-transparent',
+    edge: 'border-sky-300/28',
+    accent: 'text-sky-100/90',
+    radius: '30px 20px 34px 20px',
+  },
+  {
+    fog: 'from-green-400/22 via-emerald-400/12 to-transparent',
+    orb: 'from-green-300/36 via-emerald-300/16 to-transparent',
+    edge: 'border-green-300/30',
+    accent: 'text-green-100/90',
+    radius: '34px 24px 34px 24px',
   },
 ];
 
@@ -131,10 +196,12 @@ const PRICING_PLANS = [
   {
     id: 'institutional',
     name: 'INSTITUTIONAL',
-    price: INSTITUTIONAL_MONTHLY_PRICE_LABEL,
+    price: 'Email for info',
     subtitle: 'For teams and firms',
     features: ['Team accounts', 'White-label options', 'Dedicated support', 'Unlimited everything'],
     borderClass: 'border-purple-500/50',
+    ctaLabel: 'Email us',
+    contactHref: 'mailto:jeff@stratify-associates.com?subject=Institutional%20Pricing%20Inquiry',
   },
 ];
 
@@ -331,7 +398,9 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
 
             <p className="text-[11px] uppercase tracking-[0.45em] text-gray-500 mb-8">Market Infrastructure Reimagined</p>
-            <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
+            <h1 className="mx-auto inline-block pl-[0.28em] text-white font-bold text-6xl leading-tight tracking-[0.28em]">
+              STRATIFY
+            </h1>
             <p className="mt-6 text-emerald-500 text-xl italic">One Key. Every Market. Total Control.</p>
             <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-center text-base md:text-lg leading-relaxed">
               The all-in-one trading platform that connects live market data, AI-powered research, social sentiment,
@@ -415,42 +484,118 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
         </motion.section>
 
         <motion.section {...sectionMotion} className="py-24 px-6">
-          <div className="max-w-6xl mx-auto text-center">
-            <h2 className="text-white text-3xl font-bold">One Platform. One Key.</h2>
-            <div className="mt-10 max-w-md mx-auto rounded-2xl border border-emerald-500/50 shadow-[0_0_36px_rgba(16,185,129,0.14)] bg-black/35 p-8">
-              <p className="text-white text-xl font-semibold">{`Stratify - ${PRO_MONTHLY_PRICE_LABEL}`}</p>
-            </div>
-            <p className="mt-4 text-emerald-400">Up to 87% savings with everything connected.</p>
+          <div className="max-w-6xl mx-auto">
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-emerald-300/65">Unified Command Layer</p>
+            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">One Platform. One Key.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-gray-400 md:text-base">
+              Swap disconnected subscriptions for a single operating layer built for signal discovery, strategy design,
+              and execution.
+            </p>
 
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { value: '1', label: 'API Key' },
-                { value: '15+', label: 'Services' },
-                { value: '24/7', label: 'AI Monitoring' },
-              ].map((stat) => (
-                <div key={stat.label} className="rounded-2xl border border-gray-800 bg-black/30 px-5 py-6">
-                  <p className="text-4xl font-bold text-emerald-400">{stat.value}</p>
-                  <p className="mt-2 text-gray-400">{stat.label}</p>
+            <div className="relative mt-12">
+              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/12 blur-3xl" />
+              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10" />
+              <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/15" />
+
+              <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_minmax(380px,500px)_1fr]">
+                <div className="space-y-3 lg:pr-2">
+                  {[
+                    { value: '1', label: 'API Key', tone: 'text-emerald-300' },
+                    { value: '15+', label: 'Connected Services', tone: 'text-cyan-300' },
+                  ].map((stat, index) => (
+                    <div
+                      key={stat.label}
+                      className={`flex items-center justify-between rounded-[999px] border border-white/15 bg-[#04101d]/80 px-5 py-3 backdrop-blur ${
+                        index % 2 === 0 ? 'lg:mr-8' : 'lg:ml-8'
+                      }`}
+                    >
+                      <p className={`text-xl font-semibold ${stat.tone}`}>{stat.value}</p>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                <div className="relative overflow-hidden rounded-[34px] border border-emerald-300/30 bg-[linear-gradient(145deg,rgba(6,15,28,0.98),rgba(3,10,19,0.92))] p-7 shadow-[0_0_50px_rgba(16,185,129,0.18)] md:p-9">
+                  <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: 'radial-gradient(circle at 75% 20%, rgba(56,189,248,0.24) 0%, transparent 36%), radial-gradient(circle at 15% 80%, rgba(16,185,129,0.22) 0%, transparent 42%)' }} />
+                  <div className="pointer-events-none absolute inset-x-8 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-emerald-300/30 to-transparent" />
+
+                  <div className="relative">
+                    <p className="text-[11px] uppercase tracking-[0.34em] text-white/55">Stratify Core</p>
+                    <p className="mt-3 text-3xl font-semibold text-white">{`Stratify • ${PRO_MONTHLY_PRICE_LABEL}`}</p>
+                    <p className="mt-2 text-sm text-emerald-200/85">Institutional • Email for info</p>
+                    <p className="mt-5 max-w-sm text-sm leading-relaxed text-gray-300">
+                      One key unlocks every live module: War Room, Trader, X-Ray, Portfolio, and Sophia AI.
+                    </p>
+                    <a
+                      href="mailto:jeff@stratify-associates.com?subject=Institutional%20Pricing%20Inquiry"
+                      className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/35 bg-emerald-500/12 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100 transition-colors hover:bg-emerald-500/20"
+                    >
+                      Email for pricing
+                      <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="space-y-3 lg:pl-2">
+                  {[
+                    { value: '24/7', label: 'AI Monitoring', tone: 'text-cyan-300' },
+                    { value: '87%', label: 'Stack Cost Savings', tone: 'text-emerald-300' },
+                  ].map((stat, index) => (
+                    <div
+                      key={stat.label}
+                      className={`flex items-center justify-between rounded-[999px] border border-white/15 bg-[#04101d]/80 px-5 py-3 backdrop-blur ${
+                        index % 2 === 0 ? 'lg:ml-8' : 'lg:mr-8'
+                      }`}
+                    >
+                      <p className={`text-xl font-semibold ${stat.tone}`}>{stat.value}</p>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </motion.section>
 
         <motion.section {...sectionMotion} className="py-24 px-6">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-white text-3xl font-bold text-center">Everything You Need</h2>
-            <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {FEATURE_CARDS.map((feature) => {
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.34em] text-cyan-300/65">Capability Matrix</p>
+            <h2 className="mt-4 text-center text-3xl font-bold text-white md:text-4xl">Everything You Need</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-relaxed text-gray-400 md:text-base">
+              Purpose-built modules that connect context, execution, and accountability in a single workflow.
+            </p>
+
+            <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
+              {FEATURE_CARDS.map((feature, index) => {
                 const Icon = feature.icon;
+                const theme = FEATURE_THEMES[index % FEATURE_THEMES.length];
+                const layoutClass = FEATURE_LAYOUT[index % FEATURE_LAYOUT.length];
                 return (
                   <div
                     key={feature.title}
-                    className="bg-black/40 backdrop-blur border border-gray-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all"
+                    className={`group relative overflow-hidden border bg-[linear-gradient(160deg,rgba(5,11,21,0.96),rgba(3,8,16,0.9))] p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_54px_rgba(4,12,23,0.7)] ${theme.edge} ${layoutClass}`}
+                    style={{ borderRadius: theme.radius }}
                   >
-                    <Icon className="h-5 w-5 text-emerald-400" strokeWidth={1.5} />
-                    <h3 className="mt-4 text-white font-semibold">{feature.title}</h3>
-                    <p className="mt-2 text-gray-400 text-sm leading-relaxed">{feature.description}</p>
+                    <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${theme.fog}`} />
+                    <div className="pointer-events-none absolute -right-14 -top-14 h-44 w-44 rounded-full bg-white/8 blur-3xl" />
+                    <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+
+                    <div className="relative flex h-full flex-col justify-between">
+                      <div className="flex items-start justify-between gap-4">
+                        <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${theme.orb} ring-1 ring-white/20`}>
+                          <Icon className="h-5 w-5 text-white" strokeWidth={1.7} />
+                        </span>
+                        <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
+                          {feature.signal}
+                        </span>
+                      </div>
+
+                      <div className="mt-10">
+                        <h3 className="text-2xl font-semibold text-white">{feature.title}</h3>
+                        <p className="mt-3 text-sm leading-relaxed text-gray-300">{feature.description}</p>
+                        <p className={`mt-4 text-xs font-semibold uppercase tracking-[0.16em] ${theme.accent}`}>{feature.meta}</p>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -526,13 +671,22 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                     ))}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleGetStarted}
-                    className="mt-6 w-full rounded-xl border border-gray-700 hover:border-emerald-500/50 text-gray-200 hover:text-white px-4 py-2.5 transition-colors"
-                  >
-                    Get Started
-                  </button>
+                  {plan.contactHref ? (
+                    <a
+                      href={plan.contactHref}
+                      className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/18 hover:text-emerald-100"
+                    >
+                      {plan.ctaLabel || 'Email us'}
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleGetStarted}
+                      className="mt-6 w-full rounded-xl border border-gray-700 px-4 py-2.5 text-gray-200 transition-colors hover:border-emerald-500/50 hover:text-white"
+                    >
+                      Get Started
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
