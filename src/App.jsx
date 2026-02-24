@@ -19,9 +19,12 @@ import {
   readPendingCheckoutSession,
 } from './lib/checkoutSession';
 import {
+  getPreferredProBillingInterval,
+  PRO_BILLING_INTERVAL_YEARLY,
   PRO_MONTHLY_PRICE_LABEL,
   PRO_MONTHLY_PRICE_LABEL_LONG,
-  PRO_STRIPE_PRICE_ID,
+  PRO_YEARLY_STRIPE_PRICE_ID,
+  resolveProCheckoutPriceId,
 } from './lib/billing';
 
 // Cinematic Video Intro Component - "The Drop"
@@ -978,7 +981,6 @@ export class TeslaEMAStrategy extends Strategy {
   );
 };
 
-const PRO_CHECKOUT_PRICE_ID = PRO_STRIPE_PRICE_ID;
 const AUTH_GATE_TIMEOUT_MS = 5000;
 const SUBSCRIPTION_RESTORE_TIMEOUT_MS = 12000;
 
@@ -1199,12 +1201,21 @@ function StratifyAppContent() {
       return;
     }
 
-    if (!PRO_CHECKOUT_PRICE_ID) {
+    const preferredInterval = getPreferredProBillingInterval();
+    const resolvedPriceId = resolveProCheckoutPriceId(preferredInterval);
+
+    if (!resolvedPriceId) {
       setCheckoutError('Missing Stripe price configuration.');
       return;
     }
 
-    setCheckoutError('');
+    if (preferredInterval === PRO_BILLING_INTERVAL_YEARLY && !PRO_YEARLY_STRIPE_PRICE_ID) {
+      setCheckoutError('Yearly checkout is not configured yet. Using monthly for now.');
+    }
+
+    if (!(preferredInterval === PRO_BILLING_INTERVAL_YEARLY && !PRO_YEARLY_STRIPE_PRICE_ID)) {
+      setCheckoutError('');
+    }
     setIsCheckoutRedirecting(true);
 
     try {
@@ -1212,7 +1223,7 @@ function StratifyAppContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId: PRO_CHECKOUT_PRICE_ID,
+          priceId: resolvedPriceId,
           userId: user.id,
           userEmail: user.email,
         }),

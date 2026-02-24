@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
 import { persistPendingCheckoutSession } from '../lib/checkoutSession';
-import { PRO_MONTHLY_PRICE_LABEL } from '../lib/billing';
+import {
+  getPreferredProBillingInterval,
+  PRO_BILLING_INTERVAL_YEARLY,
+  PRO_MONTHLY_PRICE_LABEL,
+  PRO_YEARLY_DISCOUNT_LABEL,
+  PRO_YEARLY_STRIPE_PRICE_ID,
+  resolveProCheckoutPriceId,
+} from '../lib/billing';
 
 export default function UpgradePrompt({
   featureName = 'Premium Feature',
@@ -13,6 +20,12 @@ export default function UpgradePrompt({
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const preferredInterval = getPreferredProBillingInterval();
+  const isYearlySelected = preferredInterval === PRO_BILLING_INTERVAL_YEARLY && Boolean(PRO_YEARLY_STRIPE_PRICE_ID);
+  const checkoutPriceId = priceId || resolveProCheckoutPriceId(preferredInterval);
+  const upgradeCtaLabel = isYearlySelected
+    ? `Upgrade to Pro - Yearly (${PRO_YEARLY_DISCOUNT_LABEL})`
+    : `Upgrade to Pro - ${PRO_MONTHLY_PRICE_LABEL}`;
 
   useEffect(() => {
     let isMounted = true;
@@ -38,7 +51,7 @@ export default function UpgradePrompt({
   }, []);
 
   const handleUpgrade = async () => {
-    if (!priceId) {
+    if (!checkoutPriceId) {
       setError('Missing Stripe price ID.');
       return;
     }
@@ -56,7 +69,7 @@ export default function UpgradePrompt({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId,
+          priceId: checkoutPriceId,
           userId: user.id,
           userEmail: user.email,
         }),
@@ -103,7 +116,7 @@ export default function UpgradePrompt({
             disabled={loading}
             className="inline-flex items-center justify-center rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Redirecting...' : `Upgrade to Pro - ${PRO_MONTHLY_PRICE_LABEL}`}
+            {loading ? 'Redirecting...' : upgradeCtaLabel}
           </button>
           <div className="text-xs text-white/50">Cancel anytime</div>
         </div>

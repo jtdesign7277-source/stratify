@@ -1,22 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
-import { PRO_MONTHLY_PRICE, PRO_MONTHLY_PRICE_LABEL } from '../../lib/billing';
+import {
+  getPreferredProBillingInterval,
+  PRO_BILLING_INTERVAL_MONTHLY,
+  PRO_BILLING_INTERVAL_YEARLY,
+  PRO_MONTHLY_PRICE_LABEL,
+  PRO_YEARLY_DISCOUNT_LABEL,
+  setPreferredProBillingInterval,
+} from '../../lib/billing';
 
-const PRO_YEARLY_PRICE_LABEL = `$${(PRO_MONTHLY_PRICE * 12 * 0.8).toFixed(2)}/year`;
+const MODE_SIGNUP = 'signup';
+const MODE_SIGNIN = 'signin';
+const MODE_FORGOT = 'forgot';
+const MODE_RESET = 'reset';
 
 const SignUpPage = ({ onSuccess, onBackToLanding }) => {
-  const [mode, setMode] = useState('signup');
+  const [mode, setMode] = useState(MODE_SIGNUP);
+  const [billingInterval, setBillingInterval] = useState(() => getPreferredProBillingInterval());
   const [formState, setFormState] = useState({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
+  const [recoveryState, setRecoveryState] = useState({
+    password: '',
+    confirmPassword: '',
+  });
   const [status, setStatus] = useState({ type: '', message: '' });
   const [loading, setLoading] = useState(false);
 
-  const isSignIn = mode === 'signin';
+  const isSignIn = mode === MODE_SIGNIN;
+  const isSignUp = mode === MODE_SIGNUP;
+  const isForgot = mode === MODE_FORGOT;
+  const isReset = mode === MODE_RESET;
+
+  useEffect(() => {
+    setPreferredProBillingInterval(billingInterval);
+  }, [billingInterval]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const search = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    const urlType = String(search.get('type') || hashParams.get('type') || '').toLowerCase();
+
+    if (urlType === 'recovery') {
+      setMode(MODE_RESET);
+      setStatus({ type: '', message: '' });
+    }
+  }, []);
 
   const inputClass =
     'w-full rounded-xl border border-white/15 bg-black/25 px-4 py-2.5 text-sm text-white/90 placeholder:text-white/35 backdrop-blur-sm focus:border-emerald-400/70 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 transition';
@@ -30,6 +65,11 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
     setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleRecoveryChange = (event) => {
+    const { name, value } = event.target;
+    setRecoveryState((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleTabChange = (nextMode) => {
     if (nextMode === mode) return;
     setMode(nextMode);
@@ -41,7 +81,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
     resetStatus();
 
     if (formState.password !== formState.confirmPassword) {
-      setStatus({ type: 'error', message: 'Passwords do not match' });
+      setStatus({ type: 'error', message: 'Passwords do not match.' });
       return;
     }
 
@@ -53,6 +93,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
         options: {
           data: {
             full_name: formState.fullName,
+            preferred_billing_interval: billingInterval,
           },
         },
       });
@@ -76,11 +117,15 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
             { onConflict: 'id' }
           );
         }
-      } catch (profileError) {
+      } catch {
         // Profile setup should never block signup success.
       }
 
-      setStatus({ type: 'success', message: 'Check your email to confirm your account!' });
+      const planLabel = billingInterval === PRO_BILLING_INTERVAL_YEARLY ? 'yearly (20% off)' : 'monthly';
+      setStatus({
+        type: 'success',
+        message: `Check your email to confirm your account. Selected billing: ${planLabel}.`,
+      });
     } catch (submitError) {
       setStatus({
         type: 'error',
@@ -119,6 +164,97 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault();
+    resetStatus();
+
+    if (!formState.email) {
+      setStatus({ type: 'error', message: 'Enter your email first.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined;
+      const { error } = await supabase.auth.resetPasswordForEmail(formState.email, {
+        redirectTo,
+      });
+
+      if (error) {
+        setStatus({ type: 'error', message: error.message || 'Unable to send reset link.' });
+        return;
+      }
+
+      setStatus({
+        type: 'success',
+        message: 'Password reset email sent. Open the link in your email to set a new password.',
+      });
+    } catch (submitError) {
+      setStatus({ type: 'error', message: submitError?.message || 'Unable to send reset link.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (event) => {
+    event.preventDefault();
+    resetStatus();
+
+    if (recoveryState.password !== recoveryState.confirmPassword) {
+      setStatus({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    if (!recoveryState.password || recoveryState.password.length < 8) {
+      setStatus({ type: 'error', message: 'Password must be at least 8 characters.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: recoveryState.password,
+      });
+
+      if (error) {
+        setStatus({ type: 'error', message: error.message || 'Unable to update password.' });
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({ page: 'auth' }, '', '/auth');
+      }
+
+      setRecoveryState({ password: '', confirmPassword: '' });
+      setMode(MODE_SIGNIN);
+      setStatus({ type: 'success', message: 'Password updated. Sign in with your new password.' });
+    } catch (submitError) {
+      setStatus({ type: 'error', message: submitError?.message || 'Unable to update password.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const headingText = isReset
+    ? 'Set a New Password'
+    : isForgot
+      ? 'Reset Password'
+      : isSignIn
+        ? 'Welcome Back'
+        : 'Welcome to Stratify';
+
+  const subheadingText = isReset
+    ? 'Choose a new password for your account.'
+    : isForgot
+      ? 'We will email you a secure reset link.'
+      : isSignIn
+        ? 'Sign in to continue.'
+        : 'Create your account in seconds.';
+
+  const statusClass = status.type === 'error'
+    ? 'border-red-500/40 bg-red-500/10 text-red-300'
+    : 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-transparent text-white">
@@ -259,7 +395,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
         />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-6 py-10">
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-6 py-10">
         <button
           type="button"
           onClick={() => (onBackToLanding ? onBackToLanding() : window.location.assign('/'))}
@@ -268,226 +404,326 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
           Back to landing
         </button>
 
-        <div className="mt-4 rounded-3xl border border-white/20 bg-[#040912]/24 p-6 shadow-[0_0_65px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold">Welcome to Stratify</h1>
-            <p className="mt-1 text-sm text-white/60">
-              {isSignIn ? 'Sign in to continue.' : 'Create your account in seconds.'}
-            </p>
-          </div>
-
-          <div className="mb-6 rounded-2xl border border-white/15 bg-black/20 p-3 backdrop-blur-sm">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Stratify Pro Pricing</p>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">Monthly</p>
-                <p className="mt-1 text-lg font-semibold text-white">{PRO_MONTHLY_PRICE_LABEL}</p>
-              </div>
-              <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/[0.06] px-3 py-2">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200/70">Yearly</p>
-                <p className="mt-1 text-lg font-semibold text-emerald-100">{PRO_YEARLY_PRICE_LABEL}</p>
-                <p className="text-[11px] text-emerald-300/80">20% discount</p>
-              </div>
+        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="rounded-3xl border border-white/20 bg-[#040912]/24 p-6 shadow-[0_0_65px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+            <div className="mb-6">
+              <h1 className="text-2xl font-semibold">{headingText}</h1>
+              <p className="mt-1 text-sm text-white/60">{subheadingText}</p>
             </div>
+
+            <div className="mb-6 flex rounded-2xl border border-white/15 bg-black/20 p-1 text-xs backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => handleTabChange(MODE_SIGNIN)}
+                className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
+                  isSignIn
+                    ? 'border border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.12)]'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange(MODE_SIGNUP)}
+                className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
+                  isSignUp
+                    ? 'border border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.12)]'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {isSignIn && (
+                <motion.form
+                  key="signin"
+                  onSubmit={handleSignIn}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formState.email}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="you@stratify.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formState.password}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange(MODE_FORGOT)}
+                    className="text-xs text-emerald-300/85 transition hover:text-emerald-200"
+                  >
+                    Forgot password?
+                  </button>
+
+                  {status.message ? (
+                    <div className={`rounded-xl border px-3 py-2 text-xs ${statusClass}`}>{status.message}</div>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={actionButtonClass}
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </button>
+                </motion.form>
+              )}
+
+              {isSignUp && (
+                <motion.form
+                  key="signup"
+                  onSubmit={handleSignUp}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={formState.fullName}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Alex Morgan"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formState.email}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="you@stratify.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formState.password}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Confirm Password
+                    </label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={formState.confirmPassword}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+
+                  {status.message ? (
+                    <div className={`rounded-xl border px-3 py-2 text-xs ${statusClass}`}>{status.message}</div>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={actionButtonClass}
+                  >
+                    {loading ? 'Creating account...' : 'Create Account'}
+                  </button>
+                </motion.form>
+              )}
+
+              {isForgot && (
+                <motion.form
+                  key="forgot"
+                  onSubmit={handleForgotPassword}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Account Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formState.email}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="you@stratify.com"
+                      required
+                    />
+                  </div>
+
+                  {status.message ? (
+                    <div className={`rounded-xl border px-3 py-2 text-xs ${statusClass}`}>{status.message}</div>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={actionButtonClass}
+                  >
+                    {loading ? 'Sending reset email...' : 'Send Reset Link'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange(MODE_SIGNIN)}
+                    className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-2.5 text-sm text-white/75 transition hover:text-white"
+                  >
+                    Back to Sign In
+                  </button>
+                </motion.form>
+              )}
+
+              {isReset && (
+                <motion.form
+                  key="reset"
+                  onSubmit={handleResetPassword}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={recoveryState.password}
+                      onChange={handleRecoveryChange}
+                      className={inputClass}
+                      placeholder="Minimum 8 characters"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={recoveryState.confirmPassword}
+                      onChange={handleRecoveryChange}
+                      className={inputClass}
+                      placeholder="Re-enter new password"
+                      required
+                    />
+                  </div>
+
+                  {status.message ? (
+                    <div className={`rounded-xl border px-3 py-2 text-xs ${statusClass}`}>{status.message}</div>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={actionButtonClass}
+                  >
+                    {loading ? 'Saving password...' : 'Save New Password'}
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </div>
 
-          <div className="mb-6 flex rounded-2xl border border-white/15 bg-black/20 p-1 text-xs backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={() => handleTabChange('signin')}
-              className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
-                isSignIn
-                  ? 'border border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.12)]'
-                  : 'text-white/50 hover:text-white'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('signup')}
-              className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
-                !isSignIn
-                  ? 'border border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.12)]'
-                  : 'text-white/50 hover:text-white'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          <aside className="rounded-3xl border border-white/20 bg-[#040912]/24 p-5 shadow-[0_0_45px_rgba(0,0,0,0.48)] backdrop-blur-2xl lg:sticky lg:top-6">
+            <p className="text-[10px] uppercase tracking-[0.26em] text-white/55">Choose billing</p>
+            <h2 className="mt-2 text-lg font-semibold text-white">Stratify Pro</h2>
+            <p className="mt-1 text-xs text-white/60">Select how you want to be billed after signup.</p>
 
-          <AnimatePresence mode="wait">
-            {isSignIn ? (
-              <motion.form
-                key="signin"
-                onSubmit={handleSignIn}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-4"
+            <div className="mt-4 space-y-2">
+              <button
+                type="button"
+                onClick={() => setBillingInterval(PRO_BILLING_INTERVAL_MONTHLY)}
+                className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                  billingInterval === PRO_BILLING_INTERVAL_MONTHLY
+                    ? 'border-emerald-300/40 bg-emerald-500/12 text-emerald-100'
+                    : 'border-white/12 bg-black/25 text-white/80 hover:border-white/25'
+                }`}
               >
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formState.email}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="you@stratify.com"
-                    required
-                  />
-                </div>
+                <div className="text-[10px] uppercase tracking-[0.2em]">Monthly</div>
+                <div className="mt-1 text-base font-semibold">{PRO_MONTHLY_PRICE_LABEL}</div>
+              </button>
 
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formState.password}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-
-                {status.message && status.type === 'error' && (
-                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-                    {status.message}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={actionButtonClass}
-                >
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </button>
-              </motion.form>
-            ) : (
-              <motion.form
-                key="signup"
-                onSubmit={handleSignUp}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-4"
+              <button
+                type="button"
+                onClick={() => setBillingInterval(PRO_BILLING_INTERVAL_YEARLY)}
+                className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                  billingInterval === PRO_BILLING_INTERVAL_YEARLY
+                    ? 'border-emerald-300/40 bg-emerald-500/12 text-emerald-100'
+                    : 'border-white/12 bg-black/25 text-white/80 hover:border-white/25'
+                }`}
               >
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formState.fullName}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="Alex Morgan"
-                    required
-                  />
-                </div>
+                <div className="text-[10px] uppercase tracking-[0.2em]">Yearly</div>
+                <div className="mt-1 text-base font-semibold">{PRO_YEARLY_DISCOUNT_LABEL}</div>
+                <div className="text-xs text-white/65">Billed annually at checkout</div>
+              </button>
+            </div>
 
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formState.email}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="you@stratify.com"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formState.password}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    CONFIRM PASSWORD
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formState.confirmPassword}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-
-                {status.message && status.type === 'success' && (
-                  <>
-                    <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
-                          <svg
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                            className="h-3 w-3"
-                            aria-hidden="true"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.704 5.293a1 1 0 0 1 0 1.414l-7.5 7.5a1 1 0 0 1-1.414 0l-3.5-3.5a1 1 0 1 1 1.414-1.414L8.5 12.086l6.793-6.793a1 1 0 0 1 1.411 0Z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </span>
-                        <span>{status.message}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleTabChange('signin')}
-                      className="rounded-lg border border-emerald-300/40 bg-emerald-500/18 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/26"
-                    >
-                      I confirmed my email — Sign In
-                    </button>
-                  </>
-                )}
-
-                {status.message && status.type === 'error' && (
-                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-                    {status.message}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={actionButtonClass}
-                >
-                  {loading ? 'Creating account...' : 'Create Account'}
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
+            <p className="mt-4 text-[11px] text-white/55">
+              Your selection is saved and used when Stripe checkout opens.
+            </p>
+          </aside>
         </div>
 
         <div className="mt-6 text-center text-xs text-white/60">

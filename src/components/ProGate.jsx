@@ -1,6 +1,5 @@
 import useSubscription from '../hooks/useSubscription';
 import UpgradePrompt from './UpgradePrompt';
-import { PRO_STRIPE_PRICE_ID } from '../lib/billing';
 
 export default function ProGate({ children, featureName, description }) {
   const { isProUser, loading } = useSubscription();
@@ -22,7 +21,6 @@ export default function ProGate({ children, featureName, description }) {
       <UpgradePrompt
         featureName={featureName}
         description={description}
-        priceId={PRO_STRIPE_PRICE_ID}
       />
     </div>
   );
