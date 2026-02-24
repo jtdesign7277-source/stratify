@@ -166,6 +166,7 @@ const BROKER_MODAL_STATE_KEY = 'portfolio-broker-modal-state';
 const BROKER_MODAL_FIELDS_KEY = 'portfolio-broker-modal-fields';
 const LEGACY_BROKER_CONNECT_FORM_KEY = 'broker-connect-form';
 const CONNECT_REQUEST_TIMEOUT_MS = 15000;
+const CONNECT_FLOW_FAILSAFE_MS = 30000;
 const BROKER_KEYS_URLS = {
   alpaca: 'https://app.alpaca.markets/brokerage/api-keys',
   tradier: 'https://developer.tradier.com/user/tokens',
@@ -282,6 +283,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
 
   const handleClose = useCallback(() => {
     clearPersistedState();
+    setConnecting(false);
     setSelectedBroker(null);
     setApiKey('');
     setSecretKey('');
@@ -331,6 +333,13 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
     
     setConnecting(true);
     setConnectError('');
+    let failSafeTimerId = null;
+    let flowSettled = false;
+    failSafeTimerId = window.setTimeout(() => {
+      if (flowSettled) return;
+      setConnecting(false);
+      setConnectError('Connection timed out. Please verify your keys and try again.');
+    }, CONNECT_FLOW_FAILSAFE_MS);
     
     try {
       // Special handling for Kalshi - validate credentials and get balance
@@ -339,7 +348,6 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
         
         if (!result.valid) {
           setConnectError(result.error || 'Invalid credentials');
-          setConnecting(false);
           return;
         }
         
@@ -356,9 +364,16 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           balance: result.balance,
           availableBalance: result.availableBalance,
         });
-        setConnecting(false);
       } else {
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const sessionTimeoutPromise = new Promise((_, reject) => {
+          const timeoutId = window.setTimeout(() => {
+            reject(new Error('Session check timed out. Please refresh and try again.'));
+          }, CONNECT_REQUEST_TIMEOUT_MS);
+          sessionPromise.finally(() => window.clearTimeout(timeoutId));
+        });
+        const sessionResult = await Promise.race([sessionPromise, sessionTimeoutPromise]);
+        const session = sessionResult?.data?.session;
         if (!session?.access_token) {
           throw new Error('Not authenticated. Please sign in and try again.');
         }
@@ -407,7 +422,6 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           account_id: data?.account_id,
           equity: data?.equity,
         });
-        setConnecting(false);
       }
       
       // Clear persisted state on success.
@@ -418,6 +432,11 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
       setIsPaper(true);
     } catch (error) {
       setConnectError(error.message || 'Connection failed');
+    } finally {
+      flowSettled = true;
+      if (failSafeTimerId) {
+        window.clearTimeout(failSafeTimerId);
+      }
       setConnecting(false);
     }
   };

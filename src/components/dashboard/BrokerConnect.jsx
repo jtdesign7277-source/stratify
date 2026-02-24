@@ -142,6 +142,7 @@ const StatusBadge = ({ label, color }) => (
 const BROKER_CONNECT_PAGE_STATE_KEY = 'portfolio-broker-connect-state';
 const BROKER_CONNECT_PAGE_FIELDS_KEY = 'portfolio-broker-connect-fields';
 const CONNECT_REQUEST_TIMEOUT_MS = 15000;
+const CONNECT_FLOW_FAILSAFE_MS = 30000;
 
 const readStoredConnectState = () => {
   try {
@@ -307,12 +308,26 @@ const BrokerConnect = ({ onConnected }) => {
     if (!apiKey || !apiSecret) return;
     setTesting(true);
     setError('');
+    let failSafeTimerId = null;
+    let flowSettled = false;
+    failSafeTimerId = window.setTimeout(() => {
+      if (flowSettled) return;
+      setTesting(false);
+      setError('Connection timed out. Please verify your keys and try again.');
+    }, CONNECT_FLOW_FAILSAFE_MS);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const sessionPromise = supabase.auth.getSession();
+      const sessionTimeoutPromise = new Promise((_, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          reject(new Error('Session check timed out. Please refresh and try again.'));
+        }, CONNECT_REQUEST_TIMEOUT_MS);
+        sessionPromise.finally(() => window.clearTimeout(timeoutId));
+      });
+      const sessionResult = await Promise.race([sessionPromise, sessionTimeoutPromise]);
+      const session = sessionResult?.data?.session;
       if (!session?.access_token) {
         setError('Not authenticated. Please sign in.');
-        setTesting(false);
         return;
       }
 
@@ -346,13 +361,11 @@ const BrokerConnect = ({ onConnected }) => {
       const data = await resp.json();
       if (!resp.ok) {
         setError(data.error || 'Connection failed');
-        setTesting(false);
         return;
       }
 
       clearPersistedConnectState();
       setSuccess(true);
-      setTesting(false);
       if (onConnected) onConnected(data);
 
       // Auto-reload after showing success message
@@ -361,6 +374,11 @@ const BrokerConnect = ({ onConnected }) => {
       }, 2000);
     } catch (err) {
       setError(err.message);
+    } finally {
+      flowSettled = true;
+      if (failSafeTimerId) {
+        window.clearTimeout(failSafeTimerId);
+      }
       setTesting(false);
     }
   };
