@@ -523,7 +523,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 onClick={handleGetStarted}
                 className="bg-transparent text-emerald-300 hover:text-emerald-200 font-semibold px-2 py-1 transition-colors inline-flex items-center gap-2"
               >
-                {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
+                Get Started
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
               </button>
               <a

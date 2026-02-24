@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
+import { PRO_MONTHLY_PRICE, PRO_MONTHLY_PRICE_LABEL } from '../../lib/billing';
+
+const PRO_YEARLY_PRICE_LABEL = `$${(PRO_MONTHLY_PRICE * 12 * 0.8).toFixed(2)}/year`;
 
 const SignUpPage = ({ onSuccess, onBackToLanding }) => {
   const [mode, setMode] = useState('signup');
@@ -120,21 +123,39 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
   return (
     <div className="relative min-h-screen overflow-hidden bg-transparent text-white">
       <style>{`
-        @keyframes auth-galaxy-rotate {
+        @keyframes signup-galaxy-rotate {
           from { transform: translate(-50%, -50%) rotate(0deg); }
           to { transform: translate(-50%, -50%) rotate(360deg); }
         }
-        @keyframes auth-galaxy-pulse {
+        @keyframes signup-galaxy-pulse {
           0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.94); }
           50% { opacity: 0.88; transform: translate(-50%, -50%) scale(1.08); }
         }
-        @keyframes auth-nebula-float {
+        @keyframes signup-nebula-float {
           0%, 100% { transform: translate(-50%, -50%) translateX(0px) translateY(0px) rotate(-16deg) scale(1); }
           50% { transform: translate(-50%, -50%) translateX(12px) translateY(-10px) rotate(-14deg) scale(1.03); }
         }
-        @keyframes auth-starfield-drift {
+        @keyframes signup-starfield-drift {
           from { transform: translateY(0px) scale(1); opacity: 0.6; }
           to { transform: translateY(-22px) scale(1.03); opacity: 0.85; }
+        }
+        @keyframes signup-star-twinkle {
+          0%, 100% { opacity: 0.12; filter: brightness(0.88); }
+          20% { opacity: 0.48; filter: brightness(1.25); }
+          45% { opacity: 0.86; filter: brightness(1.85); }
+          68% { opacity: 0.3; filter: brightness(1.08); }
+          84% { opacity: 0.62; filter: brightness(1.45); }
+        }
+        @keyframes signup-star-flicker {
+          0%, 100% { opacity: 0.06; }
+          24% { opacity: 0.3; }
+          41% { opacity: 0.14; }
+          71% { opacity: 0.4; }
+          88% { opacity: 0.18; }
+        }
+        @keyframes signup-milkyway-drift {
+          0%, 100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.38; }
+          50% { transform: translate(-50%, -50%) rotate(-13deg) scale(1.03); opacity: 0.58; }
         }
       `}</style>
 
@@ -143,48 +164,97 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(circle at 50% 50%, rgba(3, 6, 8, 0.16) 0%, rgba(3, 6, 8, 0.58) 60%, rgba(3, 6, 8, 0.84) 100%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 34%), radial-gradient(circle at 78% 22%, rgba(147, 197, 253, 0.08) 0%, transparent 32%), radial-gradient(circle at 50% 44%, rgba(217, 70, 239, 0.08) 0%, transparent 44%)',
+              'radial-gradient(circle at 50% 50%, rgba(3, 6, 8, 0.12) 0%, rgba(3, 6, 8, 0.54) 60%, rgba(3, 6, 8, 0.82) 100%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.1) 0%, transparent 34%), radial-gradient(circle at 78% 22%, rgba(147, 197, 253, 0.1) 0%, transparent 32%), radial-gradient(circle at 50% 44%, rgba(16, 185, 129, 0.1) 0%, transparent 44%)',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[960px] w-[1420px] rounded-[50%] blur-3xl"
+          className="absolute left-1/2 top-[58%] h-[540px] w-[1700px] rounded-[50%]"
           style={{
             background:
-              'radial-gradient(ellipse at center, rgba(255,255,255,0.26) 0%, rgba(192, 132, 252, 0.20) 18%, rgba(96, 165, 250, 0.18) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
-            animation: 'auth-nebula-float 24s ease-in-out infinite',
+              'linear-gradient(92deg, transparent 8%, rgba(255,255,255,0.2) 23%, rgba(56,189,248,0.24) 43%, rgba(16,185,129,0.2) 56%, rgba(96,165,250,0.18) 71%, transparent 91%), radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, rgba(148,220,255,0.16) 36%, rgba(16,185,129,0.13) 58%, transparent 80%)',
+            filter: 'blur(34px)',
+            mixBlendMode: 'screen',
+            animation: 'signup-milkyway-drift 34s ease-in-out infinite',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[840px] w-[840px] rounded-full opacity-90"
+          className="absolute left-1/2 top-[60%] h-[360px] w-[1140px] rounded-[50%]"
           style={{
             background:
-              'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.16) 0deg 5deg, rgba(196,181,253,0.08) 5deg 15deg, rgba(56,189,248,0.05) 15deg 26deg, rgba(17,24,39,0.02) 26deg 40deg)',
+              'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(167,243,208,0.2) 30%, rgba(125,211,252,0.16) 52%, transparent 78%)',
+            filter: 'blur(30px)',
+            mixBlendMode: 'screen',
+            animation: 'signup-nebula-float 26s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-[62%] h-[960px] w-[1420px] rounded-[50%] blur-3xl"
+          style={{
+            background:
+              'radial-gradient(ellipse at center, rgba(255,255,255,0.28) 0%, rgba(52, 211, 153, 0.22) 18%, rgba(96, 165, 250, 0.2) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
+            animation: 'signup-nebula-float 24s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-[62%] h-[840px] w-[840px] rounded-full opacity-90"
+          style={{
+            background:
+              'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.16) 0deg 5deg, rgba(74,222,128,0.08) 5deg 15deg, rgba(56,189,248,0.05) 15deg 26deg, rgba(17,24,39,0.02) 26deg 40deg)',
             filter: 'blur(13px)',
-            animation: 'auth-galaxy-rotate 90s linear infinite',
+            animation: 'signup-galaxy-rotate 90s linear infinite',
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[420px] w-[420px] rounded-full"
+          className="absolute left-1/2 top-[62%] h-[420px] w-[420px] rounded-full"
           style={{
             background:
-              'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.65) 0%, rgba(191,219,254,0.35) 14%, rgba(167,139,250,0.18) 28%, transparent 64%)',
+              'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.65) 0%, rgba(167,243,208,0.35) 14%, rgba(125,211,252,0.18) 28%, transparent 64%)',
             filter: 'blur(2px)',
-            animation: 'auth-galaxy-pulse 11s ease-in-out infinite',
+            animation: 'signup-galaxy-pulse 11s ease-in-out infinite',
           }}
         />
         <div
-          className="absolute inset-0 opacity-80"
+          className="absolute inset-0 opacity-95"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 10% 18%, rgba(255,255,255,0.92) 0 1px, transparent 1px), radial-gradient(circle at 28% 76%, rgba(255,255,255,0.72) 0 1px, transparent 1px), radial-gradient(circle at 41% 62%, rgba(255,255,255,0.65) 0 1px, transparent 1px), radial-gradient(circle at 58% 22%, rgba(255,255,255,0.72) 0 1px, transparent 1px), radial-gradient(circle at 73% 42%, rgba(255,255,255,0.68) 0 1px, transparent 1px), radial-gradient(circle at 82% 14%, rgba(255,255,255,0.82) 0 1px, transparent 1px), radial-gradient(circle at 90% 78%, rgba(255,255,255,0.68) 0 1px, transparent 1px)',
-            animation: 'auth-starfield-drift 15s ease-in-out infinite alternate',
+              'radial-gradient(circle at 5% 12%, rgba(255,255,255,0.96) 0 1.15px, transparent 1.6px), radial-gradient(circle at 9% 74%, rgba(255,255,255,0.78) 0 1.05px, transparent 1.45px), radial-gradient(circle at 17% 34%, rgba(167,243,208,0.7) 0 1px, transparent 1.4px), radial-gradient(circle at 24% 57%, rgba(255,255,255,0.8) 0 1.1px, transparent 1.5px), radial-gradient(circle at 30% 22%, rgba(125,211,252,0.7) 0 1px, transparent 1.4px), radial-gradient(circle at 37% 80%, rgba(255,255,255,0.75) 0 1.05px, transparent 1.4px), radial-gradient(circle at 44% 63%, rgba(255,255,255,0.7) 0 1px, transparent 1.35px), radial-gradient(circle at 52% 15%, rgba(167,243,208,0.72) 0 1.05px, transparent 1.45px), radial-gradient(circle at 59% 41%, rgba(255,255,255,0.74) 0 1px, transparent 1.35px), radial-gradient(circle at 67% 71%, rgba(125,211,252,0.7) 0 1.05px, transparent 1.45px), radial-gradient(circle at 73% 24%, rgba(255,255,255,0.85) 0 1.1px, transparent 1.5px), radial-gradient(circle at 78% 53%, rgba(255,255,255,0.7) 0 1px, transparent 1.35px), radial-gradient(circle at 84% 12%, rgba(167,243,208,0.72) 0 1px, transparent 1.35px), radial-gradient(circle at 90% 39%, rgba(255,255,255,0.86) 0 1.1px, transparent 1.5px), radial-gradient(circle at 94% 78%, rgba(255,255,255,0.76) 0 1px, transparent 1.35px)',
+            animation: 'signup-starfield-drift 16s ease-in-out infinite alternate',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-78"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.36) 0.65px, transparent 0.95px), radial-gradient(rgba(125,211,252,0.28) 0.55px, transparent 0.9px), radial-gradient(rgba(167,243,208,0.24) 0.6px, transparent 0.95px)',
+            backgroundSize: '180px 180px, 250px 250px, 320px 320px',
+            backgroundPosition: '0 0, 80px 120px, 140px 30px',
+            animation: 'signup-star-twinkle 7.8s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-62"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.4) 0.75px, transparent 1px), radial-gradient(rgba(56,189,248,0.36) 0.65px, transparent 0.95px)',
+            backgroundSize: '220px 220px, 310px 310px',
+            backgroundPosition: '40px 80px, 120px 30px',
+            animation: 'signup-star-twinkle 6.2s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-56"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.52) 0.5px, transparent 0.9px), radial-gradient(rgba(134,239,172,0.44) 0.55px, transparent 0.95px), radial-gradient(rgba(147,197,253,0.45) 0.5px, transparent 0.9px)',
+            backgroundSize: '260px 260px, 340px 340px, 420px 420px',
+            backgroundPosition: '120px 24px, 0 170px, 210px 90px',
+            animation: 'signup-star-flicker 5.6s linear infinite',
           }}
         />
         <div
           className="absolute inset-0"
           style={{
-            background:
-              'linear-gradient(180deg, rgba(3,6,8,0.08) 0%, rgba(3,6,8,0.56) 45%, rgba(3,6,8,0.84) 100%)',
+            background: 'linear-gradient(180deg, rgba(3,6,8,0.04) 0%, rgba(3,6,8,0.5) 45%, rgba(3,6,8,0.8) 100%)',
           }}
         />
       </div>
@@ -206,12 +276,27 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
             </p>
           </div>
 
+          <div className="mb-6 rounded-2xl border border-white/15 bg-black/20 p-3 backdrop-blur-sm">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Stratify Pro Pricing</p>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">Monthly</p>
+                <p className="mt-1 text-lg font-semibold text-white">{PRO_MONTHLY_PRICE_LABEL}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/[0.06] px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200/70">Yearly</p>
+                <p className="mt-1 text-lg font-semibold text-emerald-100">{PRO_YEARLY_PRICE_LABEL}</p>
+                <p className="text-[11px] text-emerald-300/80">20% discount</p>
+              </div>
+            </div>
+          </div>
+
           <div className="mb-6 flex rounded-2xl border border-white/15 bg-black/20 p-1 text-xs backdrop-blur-sm">
             <button
               type="button"
               onClick={() => handleTabChange('signin')}
-                className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
-                  isSignIn
+              className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
+                isSignIn
                   ? 'border border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.12)]'
                   : 'text-white/50 hover:text-white'
               }`}
@@ -221,7 +306,7 @@ const SignUpPage = ({ onSuccess, onBackToLanding }) => {
             <button
               type="button"
               onClick={() => handleTabChange('signup')}
-                className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
+              className={`flex-1 rounded-xl px-3 py-2 font-semibold transition ${
                 !isSignIn
                   ? 'border border-white/20 bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.12)]'
                   : 'text-white/50 hover:text-white'
