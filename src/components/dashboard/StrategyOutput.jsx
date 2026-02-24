@@ -1022,24 +1022,24 @@ export default function StrategyOutput({
           </button>
         </div>
       ) : (
-        <div className="w-[480px] xl:w-[520px] flex-shrink-0 h-full border-l border-[#1f1f1f] bg-[#060d18] p-3 overflow-hidden">
-          <div className="h-full min-h-0">
-            <div className="bg-[#0a1628] rounded-xl border border-gray-700/50 p-2.5 h-full min-h-0 flex flex-col overflow-hidden">
-              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#16213e] rounded-xl border border-white/10 p-2.5 h-full min-h-0 flex flex-col">
+        <div className="w-[420px] xl:w-[448px] flex-shrink-0 h-full border-l border-white/10 bg-black/20 p-2.5 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[430px]">
+            <div className="rounded-xl bg-transparent p-0">
+              <div className="rounded-xl border border-white/12 bg-[linear-gradient(180deg,rgba(7,9,14,0.62),rgba(4,6,10,0.48))] p-2.5 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span role="img" aria-label="Fire">🔥</span>
-                    <span className="text-white font-bold text-[15px] leading-5">KEY TRADE SETUPS IDENTIFIED</span>
+                    <span className="text-white font-bold text-[13px] leading-5 tracking-[0.02em]">KEY TRADE SETUPS IDENTIFIED</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400 text-[15px]">{checkedCount}/6</span>
+                    <span className="text-gray-400 text-[13px]">{checkedCount}/6</span>
                     <button
                       onClick={handleSave}
                       disabled={saveStatus === 'saving'}
-                      className={`rounded-lg px-4 py-1 border transition ${
+                      className={`rounded-lg px-3 py-1 text-sm border transition ${
                         saveStatus === 'saved'
-                          ? 'bg-emerald-600 border-emerald-500 text-white'
-                          : 'border-gray-600 text-white hover:bg-white/10'
+                          ? 'bg-emerald-600/80 border-emerald-500/80 text-white'
+                          : 'border-white/25 text-white hover:bg-white/10'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {saveButtonLabel}
@@ -1047,7 +1047,7 @@ export default function StrategyOutput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 grid-rows-3 gap-1.5 mt-2 flex-1 min-h-0">
+                <div className="grid grid-cols-2 grid-rows-3 gap-1.5 mt-2 min-h-0">
                   {fields.map((f, i) => {
                     const isAllocation = i === 5;
                     const isEditing = editing === i;
@@ -1055,12 +1055,12 @@ export default function StrategyOutput({
                     const allocationValue = ['—', '-', '–'].includes(allocationValueRaw) ? '' : allocationValueRaw;
 
                     return (
-                      <div key={i} className="bg-black/30 rounded-lg p-2 min-h-0 flex items-start gap-2 border border-gray-700/50 overflow-hidden">
+                      <div key={i} className="bg-black/20 rounded-lg p-2 min-h-0 flex items-start gap-2 overflow-hidden">
                         <input
                           type="checkbox"
                           checked={checks[i]}
                           onChange={() => toggleCheck(i)}
-                          className="h-5 w-5 mt-1 rounded border-2 border-gray-500 bg-transparent accent-emerald-500 cursor-pointer shrink-0"
+                          className="h-4 w-4 mt-1 rounded border border-gray-500 bg-transparent accent-emerald-500 cursor-pointer shrink-0"
                           aria-label={`Toggle ${f.label}`}
                         />
 
@@ -1116,14 +1116,14 @@ export default function StrategyOutput({
                   })}
                 </div>
 
-                <div className="mt-2 grid grid-cols-2 gap-2 shrink-0">
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
                       const params = fields.map((f) => `${f.label}: ${withDollarTickers(f.value || '—')}`).join('\n');
                       const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                       onRetest?.(prompt);
                     }}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-[15px] font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition"
+                    className="bg-indigo-600/90 hover:bg-indigo-500 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition"
                   >
                     <span aria-hidden="true">🔄</span>
                     Ask Sophia to Retest
@@ -1132,10 +1132,10 @@ export default function StrategyOutput({
                   <button
                     onClick={handleDeployFromSetups}
                     disabled={!deployReady}
-                    className={`text-[15px] font-medium py-2 rounded-lg border transition ${
+                    className={`text-sm font-medium py-2 rounded-lg border transition ${
                       deployReady
-                        ? 'bg-emerald-500/35 border-emerald-400/70 text-emerald-100 hover:bg-emerald-500/45 shadow-[0_0_18px_rgba(16,185,129,0.35)]'
-                        : 'bg-white/5 border-gray-700 text-gray-400 cursor-not-allowed'
+                        ? 'bg-emerald-500/30 border-emerald-400/60 text-emerald-100 hover:bg-emerald-500/40 shadow-[0_0_14px_rgba(16,185,129,0.25)]'
+                        : 'bg-white/5 border-white/15 text-gray-400 cursor-not-allowed'
                     }`}
                   >
                     Deploy Strategy

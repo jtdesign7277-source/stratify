@@ -15,6 +15,7 @@ import {
   Shield,
 } from 'lucide-react';
 import GlobalMarketsBadge from './GlobalMarketsBadge';
+import LandingMarketTape from './LandingMarketTape';
 import {
   PRO_MONTHLY_PRICE_LABEL,
 } from '../../lib/billing';
@@ -501,7 +502,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
         </div>
       </nav>
 
-      <main className="relative z-10">
+      <main className="relative z-10 pb-12">
         <motion.section {...sectionMotion} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
           <div className="max-w-6xl mx-auto text-center relative">
             <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-emerald-500/12 blur-3xl" />
@@ -521,7 +522,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               <button
                 type="button"
                 onClick={handleGetStarted}
-                className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
+                className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/16 hover:text-emerald-200 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2 shadow-[0_0_18px_rgba(16,185,129,0.2)]"
               >
                 {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
@@ -552,7 +553,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <GlobalMarketsBadge />
 
             {/* Powered By — inline SVGs only, no boxes, no backgrounds */}
-            <div className="mt-20 mb-16 flex flex-col items-center gap-10">
+            <div className="mt-28 mb-10 flex flex-col items-center gap-10">
               <p className="text-xs uppercase tracking-[0.35em] text-gray-500 font-medium">Powered By</p>
               <div className="flex items-center justify-center gap-12 flex-wrap">
                 {/* Stripe — exact wordmark */}
@@ -680,6 +681,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           </div>
         </footer>
       </main>
+      <LandingMarketTape />
     </div>
   );
 };
