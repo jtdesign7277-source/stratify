@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { validateKalshiCredentials, setKalshiCredentials } from '../../lib/kalshi';
+import { supabase } from '../../lib/supabaseClient';
 
 // Broker logos as simple icons
 const BrokerIcon = ({ broker, className = "w-8 h-8" }) => {
@@ -325,7 +326,7 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
   };
 
   const handleConnect = async () => {
-    if (!apiKey || !secretKey) return;
+    if (!selectedBroker?.id || !apiKey || !secretKey) return;
     
     setConnecting(true);
     setConnectError('');
@@ -354,10 +355,32 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           balance: result.balance,
           availableBalance: result.availableBalance,
         });
+        setConnecting(false);
       } else {
-        // For other brokers, simulate connection (TODO: implement each)
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('Not authenticated. Please sign in and try again.');
+        }
+
+        const response = await fetch('/api/broker-connect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            broker: selectedBroker.id,
+            api_key: apiKey.trim(),
+            api_secret: secretKey.trim(),
+            is_paper: isPaper,
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || 'Connection failed');
+        }
+
         onConnect({
           id: selectedBroker.id,
           name: selectedBroker.name,
@@ -365,12 +388,16 @@ export default function BrokerConnectModal({ isOpen, onClose, onConnect, connect
           connectedAt: Date.now(),
           status: 'connected',
           is_paper: isPaper,
+          paperConnected: Boolean(isPaper),
+          liveConnected: Boolean(!isPaper),
+          account_id: data?.account_id,
+          equity: data?.equity,
         });
+        setConnecting(false);
       }
       
       // Clear persisted state on success.
       clearPersistedState();
-      setConnecting(false);
       setSelectedBroker(null);
       setApiKey('');
       setSecretKey('');
