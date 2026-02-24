@@ -29,7 +29,7 @@ export default function KeyStatsTab({ symbol }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+    <div className="flex min-h-0 flex-col gap-3 pb-2">
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard label="Market Cap" value={metric(stats?.market_cap, formatCompactNumber)} tone="accent" />
         <StatCard label="Enterprise Value" value={metric(stats?.enterprise_value, formatCompactNumber)} />

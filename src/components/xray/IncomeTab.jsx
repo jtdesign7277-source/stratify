@@ -13,7 +13,7 @@ export default function IncomeTab({ symbol, period }) {
   const latest = sortByFiscalDate(statements, false)[0] || null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+    <div className="flex min-h-0 flex-col gap-3 pb-2">
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard
           label="Revenue"
@@ -38,7 +38,7 @@ export default function IncomeTab({ symbol, period }) {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-2">
         <WaterfallChart statement={latest} loading={loading} error={error} />
         <RevenueSegmentChart statements={statements} period={period} loading={loading} error={error} />
         <MarginsChart statements={statements} period={period} loading={loading} error={error} />

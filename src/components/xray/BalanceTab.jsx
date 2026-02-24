@@ -20,7 +20,7 @@ export default function BalanceTab({ symbol, period }) {
   const debtToAssets = ratio(latest?.total_liabilities, latest?.total_assets);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+    <div className="flex min-h-0 flex-col gap-3 pb-2">
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <StatCard
           label="Total Assets"
@@ -45,7 +45,7 @@ export default function BalanceTab({ symbol, period }) {
         />
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0">
         <BalanceBarChart statements={statements} period={period} loading={loading} error={error} />
       </div>
     </div>
