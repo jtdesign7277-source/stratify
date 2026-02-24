@@ -192,11 +192,6 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
             onClick={onBackToLanding}
             className="flex items-center gap-2 mb-12 group w-fit fade-up"
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
             <span className="text-white text-lg font-bold tracking-tight">Stratify</span>
           </button>
 
@@ -322,7 +317,7 @@ export default function SignUpPage({ onSuccess, onBackToLanding }) {
 
             {/* Headline */}
             <div className="mb-10">
-              <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 text-blue-400 text-xs font-medium mb-4">
+              <div className="inline-flex items-center gap-2 text-blue-400 text-xs font-medium mb-4">
                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
                 Live Market Data
               </div>
