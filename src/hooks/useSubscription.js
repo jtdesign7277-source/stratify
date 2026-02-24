@@ -4,6 +4,28 @@ import { withTimeout } from '../lib/withTimeout';
 
 const SUBSCRIPTION_CHECK_TIMEOUT_MS = 5000;
 const PRO_STATUSES = new Set(['pro', 'elite', 'active', 'trialing', 'paid']);
+const SUBSCRIPTION_STATUS_CACHE_PREFIX = 'stratify-subscription-status:';
+
+const readCachedSubscriptionStatus = (userId) => {
+  if (!userId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(`${SUBSCRIPTION_STATUS_CACHE_PREFIX}${userId}`);
+    if (!raw) return null;
+    const normalized = String(raw).toLowerCase();
+    return normalized || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedSubscriptionStatus = (userId, status) => {
+  if (!userId || !status || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(`${SUBSCRIPTION_STATUS_CACHE_PREFIX}${userId}`, String(status).toLowerCase());
+  } catch {
+    // ignore cache write failures
+  }
+};
 
 const withSubscriptionTimeout = (promise, operationName) =>
   withTimeout(
@@ -42,11 +64,14 @@ export default function useSubscription(userOverride) {
         throw fetchError;
       }
 
-      setSubscriptionStatus(String(data?.subscription_status ?? 'free').toLowerCase());
+      const normalizedStatus = String(data?.subscription_status ?? 'free').toLowerCase();
+      setSubscriptionStatus(normalizedStatus);
+      writeCachedSubscriptionStatus(userId, normalizedStatus);
     } catch (fetchError) {
       console.error('[Subscription] Failed to fetch subscription status:', fetchError);
       setError(fetchError);
-      setSubscriptionStatus(null);
+      const cachedStatus = readCachedSubscriptionStatus(userId);
+      setSubscriptionStatus(cachedStatus);
     } finally {
       setLoading(false);
     }
@@ -96,6 +121,10 @@ export default function useSubscription(userOverride) {
       setError(null);
       const currentUser = await loadUser();
       if (isMounted) {
+        const cachedStatus = readCachedSubscriptionStatus(currentUser?.id);
+        if (cachedStatus) {
+          setSubscriptionStatus(cachedStatus);
+        }
         await fetchSubscription(currentUser?.id);
       }
     };
@@ -112,6 +141,8 @@ export default function useSubscription(userOverride) {
       if (!isMounted) return;
       const nextUser = session?.user ?? null;
       setUser(nextUser);
+      const cachedStatus = readCachedSubscriptionStatus(nextUser?.id);
+      setSubscriptionStatus(cachedStatus);
       fetchSubscription(nextUser?.id);
     });
 

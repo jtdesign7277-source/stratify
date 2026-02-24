@@ -1101,7 +1101,7 @@ function StratifyAppContent() {
     navigateToPage('landing');
   }, [navigateToPage, signOut]);
 
-  const isCheckingSession = loading || (isAuthenticated && subscriptionLoading);
+  const isCheckingSession = loading || (isAuthenticated && subscriptionLoading && !isProUser);
 
   useEffect(() => {
     if (isCheckingSession) {
@@ -1170,13 +1170,18 @@ function StratifyAppContent() {
       return;
     }
 
+    if (isAuthenticated) {
+      console.error('[AuthGate] Session check timed out for authenticated user. Continuing with existing state.');
+      return;
+    }
+
     console.error('[AuthGate] Redirecting to /auth after session check timeout.');
     setCurrentPage('auth');
 
     if (window.location.pathname !== '/auth') {
       window.history.pushState({ page: 'auth' }, '', '/auth');
     }
-  }, [authGateTimedOut]);
+  }, [authGateTimedOut, isAuthenticated]);
 
   const startCheckout = useCallback(async () => {
     if (!user?.id || !user?.email) {
@@ -1574,7 +1579,7 @@ function StratifyAppContent() {
     isAuthenticated && currentPage !== 'whitepaper' && currentPage !== 'landing' && currentPage !== 'auth';
   const backgroundVariant = isInternalAppPage ? 'app' : 'marketing';
 
-  if (authGateTimedOut) {
+  if (authGateTimedOut && !isAuthenticated) {
     return (
       <SignUpPage
         onSuccess={() => navigateToPage('dashboard')}
