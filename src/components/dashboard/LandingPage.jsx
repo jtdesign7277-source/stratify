@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -125,7 +125,7 @@ const PRICING_PLANS = [
       'Custom layouts',
       'Browser extension',
     ],
-    borderClass: 'border-amber-500',
+    borderClass: 'border-emerald-500',
     isPopular: true,
   },
   {
@@ -191,61 +191,29 @@ const sectionMotion = {
 };
 
 const landingStyles = `
-  .landing-star {
-    position: absolute;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.85);
-    animation: landingStarDrift linear infinite;
+  @keyframes landing-galaxy-rotate {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
   }
 
-  @keyframes landingStarDrift {
-    0% {
-      opacity: 0.15;
-      transform: translate3d(0, 0, 0);
-    }
-    45% {
-      opacity: 0.6;
-    }
-    100% {
-      opacity: 0.1;
-      transform: translate3d(var(--drift-x, 0px), -90px, 0);
-    }
+  @keyframes landing-galaxy-pulse {
+    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.94); }
+    50% { opacity: 0.88; transform: translate(-50%, -50%) scale(1.08); }
   }
 
-  .landing-orb {
-    animation: landingOrbFloat 9s ease-in-out infinite;
+  @keyframes landing-nebula-float {
+    0%, 100% { transform: translate(-50%, -50%) translateX(0px) translateY(0px) rotate(-16deg) scale(1); }
+    50% { transform: translate(-50%, -50%) translateX(12px) translateY(-10px) rotate(-14deg) scale(1.03); }
   }
 
-  @keyframes landingOrbFloat {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-    50% { transform: translate3d(0, -16px, 0) scale(1.03); }
-  }
-
-  .landing-mesh {
-    background:
-      radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.14), transparent 38%),
-      radial-gradient(circle at 80% 25%, rgba(99, 102, 241, 0.12), transparent 42%),
-      radial-gradient(circle at 60% 80%, rgba(16, 185, 129, 0.08), transparent 45%);
+  @keyframes landing-starfield-drift {
+    from { transform: translateY(0px) scale(1); opacity: 0.6; }
+    to { transform: translateY(-22px) scale(1.03); opacity: 0.85; }
   }
 `;
 
-const createStars = (count = 90) =>
-  Array.from({ length: count }, (_, index) => ({
-    id: `landing-star-${index}`,
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    size: Math.random() > 0.75 ? 2 : 1,
-    opacity: 0.2 + Math.random() * 0.75,
-    duration: 60 + Math.random() * 70,
-    delay: -Math.random() * 120,
-    driftX: (Math.random() - 0.5) * 34,
-  }));
-
 const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = false }) => {
   const [openFaq, setOpenFaq] = useState(0);
-  const [feedbackForm, setFeedbackForm] = useState({ email: '', feedback: '' });
-  const [feedbackStatus, setFeedbackStatus] = useState('idle');
-  const stars = useMemo(() => createStars(90), []);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -265,66 +233,58 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
     onEnter?.();
   };
 
-  const handleFeedbackSubmit = async (event) => {
-    event.preventDefault();
-    const email = feedbackForm.email.trim();
-    const feedback = feedbackForm.feedback.trim();
-
-    if (!email || !feedback) {
-      return;
-    }
-
-    setFeedbackStatus('loading');
-    try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'Beta Feedback User',
-          email,
-          subject: 'Landing Page Beta Feature Request',
-          message: feedback,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit feedback');
-      }
-
-      setFeedbackForm({ email: '', feedback: '' });
-      setFeedbackStatus('success');
-    } catch (error) {
-      console.error('Beta feedback submit failed:', error);
-      setFeedbackStatus('error');
-    } finally {
-      window.setTimeout(() => {
-        setFeedbackStatus('idle');
-      }, 3500);
-    }
-  };
-
   return (
-    <div className="relative min-h-screen bg-transparent text-white overflow-x-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-transparent text-white">
       <style>{landingStyles}</style>
 
-      <div className="absolute inset-0 pointer-events-none landing-mesh" />
-      <div className="absolute inset-0 pointer-events-none">
-        {stars.map((star) => (
-          <span
-            key={star.id}
-            className="landing-star"
-            style={{
-              left: `${star.left}%`,
-              top: `${star.top}%`,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animationDuration: `${star.duration}s`,
-              animationDelay: `${star.delay}s`,
-              '--drift-x': `${star.driftX}px`,
-            }}
-          />
-        ))}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 50%, rgba(3, 6, 8, 0.16) 0%, rgba(3, 6, 8, 0.58) 60%, rgba(3, 6, 8, 0.84) 100%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 34%), radial-gradient(circle at 78% 22%, rgba(147, 197, 253, 0.08) 0%, transparent 32%), radial-gradient(circle at 50% 44%, rgba(16, 185, 129, 0.08) 0%, transparent 44%)',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 h-[960px] w-[1420px] rounded-[50%] blur-3xl"
+          style={{
+            background:
+              'radial-gradient(ellipse at center, rgba(255,255,255,0.26) 0%, rgba(52, 211, 153, 0.20) 18%, rgba(96, 165, 250, 0.18) 36%, rgba(14, 24, 43, 0.08) 58%, transparent 74%)',
+            animation: 'landing-nebula-float 24s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 h-[840px] w-[840px] rounded-full opacity-90"
+          style={{
+            background:
+              'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.16) 0deg 5deg, rgba(74,222,128,0.08) 5deg 15deg, rgba(56,189,248,0.05) 15deg 26deg, rgba(17,24,39,0.02) 26deg 40deg)',
+            filter: 'blur(13px)',
+            animation: 'landing-galaxy-rotate 90s linear infinite',
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 h-[420px] w-[420px] rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.65) 0%, rgba(167,243,208,0.35) 14%, rgba(125,211,252,0.18) 28%, transparent 64%)',
+            filter: 'blur(2px)',
+            animation: 'landing-galaxy-pulse 11s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-80"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 10% 18%, rgba(255,255,255,0.92) 0 1px, transparent 1px), radial-gradient(circle at 28% 76%, rgba(255,255,255,0.72) 0 1px, transparent 1px), radial-gradient(circle at 41% 62%, rgba(255,255,255,0.65) 0 1px, transparent 1px), radial-gradient(circle at 58% 22%, rgba(255,255,255,0.72) 0 1px, transparent 1px), radial-gradient(circle at 73% 42%, rgba(255,255,255,0.68) 0 1px, transparent 1px), radial-gradient(circle at 82% 14%, rgba(255,255,255,0.82) 0 1px, transparent 1px), radial-gradient(circle at 90% 78%, rgba(255,255,255,0.68) 0 1px, transparent 1px)',
+            animation: 'landing-starfield-drift 15s ease-in-out infinite alternate',
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(180deg, rgba(3,6,8,0.08) 0%, rgba(3,6,8,0.56) 45%, rgba(3,6,8,0.84) 100%)',
+          }}
+        />
       </div>
 
       <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-400/60">
@@ -356,7 +316,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <button
               type="button"
               onClick={handleGetStarted}
-              className="border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
+              className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
             >
               Sign Up
             </button>
@@ -367,12 +327,12 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
       <main className="relative z-10">
         <motion.section {...sectionMotion} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
           <div className="max-w-6xl mx-auto text-center relative">
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-amber-500/12 blur-3xl landing-orb" />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-emerald-500/12 blur-3xl" />
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
 
             <p className="text-[11px] uppercase tracking-[0.45em] text-gray-500 mb-8">Market Infrastructure Reimagined</p>
             <h1 className="text-white font-bold text-6xl tracking-[0.3em] leading-tight">STRATIFY</h1>
-            <p className="mt-6 text-amber-500 text-xl italic">One Key. Every Market. Total Control.</p>
+            <p className="mt-6 text-emerald-500 text-xl italic">One Key. Every Market. Total Control.</p>
             <p className="mt-6 text-gray-400 max-w-2xl mx-auto text-center text-base md:text-lg leading-relaxed">
               The all-in-one trading platform that connects live market data, AI-powered research, social sentiment,
               broker execution, and personalized alerts into a single interface.
@@ -382,14 +342,14 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               <button
                 type="button"
                 onClick={handleGetStarted}
-                className="border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
+                className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-8 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
               >
                 {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
               </button>
               <a
                 href="/whitepaper"
-                className="border border-gray-700 hover:border-amber-500/50 text-gray-300 px-8 py-3 rounded-xl transition-colors"
+                className="border border-gray-700 hover:border-emerald-500/50 text-gray-300 px-8 py-3 rounded-xl transition-colors"
               >
                 Read White Paper
               </a>
@@ -450,17 +410,17 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               ))}
             </div>
             <p className="mt-8 text-center text-red-400 text-2xl font-bold">Total: $373-784/month</p>
-            <p className="mt-2 text-center text-amber-500 text-xl">There&apos;s a better way.</p>
+            <p className="mt-2 text-center text-emerald-500 text-xl">There&apos;s a better way.</p>
           </div>
         </motion.section>
 
         <motion.section {...sectionMotion} className="py-24 px-6">
           <div className="max-w-6xl mx-auto text-center">
             <h2 className="text-white text-3xl font-bold">One Platform. One Key.</h2>
-            <div className="mt-10 max-w-md mx-auto rounded-2xl border border-amber-500/50 shadow-[0_0_36px_rgba(245,158,11,0.14)] bg-black/35 p-8">
+            <div className="mt-10 max-w-md mx-auto rounded-2xl border border-emerald-500/50 shadow-[0_0_36px_rgba(16,185,129,0.14)] bg-black/35 p-8">
               <p className="text-white text-xl font-semibold">{`Stratify - ${PRO_MONTHLY_PRICE_LABEL}`}</p>
             </div>
-            <p className="mt-4 text-amber-400">Up to 87% savings with everything connected.</p>
+            <p className="mt-4 text-emerald-400">Up to 87% savings with everything connected.</p>
 
             <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
@@ -469,7 +429,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 { value: '24/7', label: 'AI Monitoring' },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-2xl border border-gray-800 bg-black/30 px-5 py-6">
-                  <p className="text-4xl font-bold text-amber-400">{stat.value}</p>
+                  <p className="text-4xl font-bold text-emerald-400">{stat.value}</p>
                   <p className="mt-2 text-gray-400">{stat.label}</p>
                 </div>
               ))}
@@ -486,9 +446,9 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 return (
                   <div
                     key={feature.title}
-                    className="bg-black/40 backdrop-blur border border-gray-800 rounded-2xl p-6 hover:border-amber-500/30 transition-all"
+                    className="bg-black/40 backdrop-blur border border-gray-800 rounded-2xl p-6 hover:border-emerald-500/30 transition-all"
                   >
-                    <Icon className="h-5 w-5 text-amber-400" strokeWidth={1.5} />
+                    <Icon className="h-5 w-5 text-emerald-400" strokeWidth={1.5} />
                     <h3 className="mt-4 text-white font-semibold">{feature.title}</h3>
                     <p className="mt-2 text-gray-400 text-sm leading-relaxed">{feature.description}</p>
                   </div>
@@ -503,11 +463,11 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <h2 className="text-white text-3xl font-bold text-center">Get Started in 5 Minutes</h2>
 
             <div className="mt-12 relative hidden md:block">
-              <div className="absolute left-[10%] right-[10%] top-5 h-px bg-amber-500/35" />
+              <div className="absolute left-[10%] right-[10%] top-5 h-px bg-emerald-500/35" />
               <div className="grid grid-cols-5 gap-4">
                 {HOW_STEPS.map((step, index) => (
                   <div key={step.title} className="text-center px-2">
-                    <div className="mx-auto h-10 w-10 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 flex items-center justify-center font-semibold">
+                    <div className="mx-auto h-10 w-10 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 flex items-center justify-center font-semibold">
                       {index + 1}
                     </div>
                     <h3 className="mt-4 text-white font-semibold text-sm">{step.title}</h3>
@@ -521,9 +481,9 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
               {HOW_STEPS.map((step, index) => (
                 <div key={step.title} className="relative rounded-xl border border-gray-800 bg-black/30 p-4 pl-14">
                   {index < HOW_STEPS.length - 1 ? (
-                    <span className="absolute left-[26px] top-10 bottom-[-20px] w-px bg-amber-500/30" />
+                    <span className="absolute left-[26px] top-10 bottom-[-20px] w-px bg-emerald-500/30" />
                   ) : null}
-                  <span className="absolute left-3 top-3 h-7 w-7 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-sm font-semibold flex items-center justify-center">
+                  <span className="absolute left-3 top-3 h-7 w-7 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-sm font-semibold flex items-center justify-center">
                     {index + 1}
                   </span>
                   <h3 className="text-white font-semibold text-sm">{step.title}</h3>
@@ -542,13 +502,13 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 <div
                   key={plan.id}
                   className={`rounded-2xl border ${plan.borderClass} bg-black/35 p-6 flex flex-col ${
-                    plan.isPopular ? 'xl:-translate-y-2 shadow-[0_0_38px_rgba(245,158,11,0.14)]' : ''
+                    plan.isPopular ? 'xl:-translate-y-2 shadow-[0_0_38px_rgba(16,185,129,0.14)]' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-white font-semibold tracking-wide">{plan.name}</h3>
                     {plan.isPopular ? (
-                      <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-amber-500 text-black font-semibold">
+                      <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-500 text-black font-semibold">
                         Most Popular
                       </span>
                     ) : null}
@@ -569,7 +529,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                   <button
                     type="button"
                     onClick={handleGetStarted}
-                    className="mt-6 w-full rounded-xl border border-gray-700 hover:border-amber-500/50 text-gray-200 hover:text-white px-4 py-2.5 transition-colors"
+                    className="mt-6 w-full rounded-xl border border-gray-700 hover:border-emerald-500/50 text-gray-200 hover:text-white px-4 py-2.5 transition-colors"
                   >
                     Get Started
                   </button>
@@ -587,72 +547,12 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
                 const Icon = item.icon;
                 return (
                   <div key={item.text} className="flex items-center gap-3 rounded-lg border border-gray-800/70 bg-black/30 px-4 py-3">
-                    <Icon className="h-4 w-4 text-amber-400" strokeWidth={1.5} />
+                    <Icon className="h-4 w-4 text-emerald-400" strokeWidth={1.5} />
                     <span className="text-gray-300 text-sm">{item.text}</span>
                   </div>
                 );
               })}
             </div>
-          </div>
-        </motion.section>
-
-        <motion.section {...sectionMotion} className="py-24 px-6" id="beta-feedback">
-          <div className="max-w-4xl mx-auto rounded-2xl border border-emerald-500/35 bg-gradient-to-b from-emerald-500/[0.06] to-black/40 p-8 md:p-10 shadow-[0_0_36px_rgba(16,185,129,0.14)]">
-            <p className="inline-flex items-center gap-2 rounded-full border border-emerald-500/45 bg-emerald-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
-              Beta Feedback
-            </p>
-            <h2 className="mt-5 text-white text-3xl font-bold">Feature Requests and Feedback</h2>
-            <p className="mt-4 text-emerald-100/75 text-sm md:text-base leading-relaxed max-w-2xl">
-              We are actively building during beta. Share feature ideas, product feedback, and concerns so we can prioritize what matters most.
-            </p>
-
-            <form onSubmit={handleFeedbackSubmit} className="mt-8 space-y-4">
-              <div>
-                <label htmlFor="beta-feedback-email" className="text-xs uppercase tracking-[0.2em] text-emerald-200/85">
-                  Email
-                </label>
-                <input
-                  id="beta-feedback-email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={feedbackForm.email}
-                  onChange={(event) => setFeedbackForm((prev) => ({ ...prev, email: event.target.value }))}
-                  placeholder="you@domain.com"
-                  className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-[#080d0b] px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="beta-feedback-message" className="text-xs uppercase tracking-[0.2em] text-emerald-200/85">
-                  Suggestion / Feedback
-                </label>
-                <textarea
-                  id="beta-feedback-message"
-                  rows={5}
-                  required
-                  value={feedbackForm.feedback}
-                  onChange={(event) => setFeedbackForm((prev) => ({ ...prev, feedback: event.target.value }))}
-                  placeholder="Tell us what you want improved, added, or fixed during beta..."
-                  className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-[#080d0b] px-4 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-y"
-                />
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="submit"
-                  disabled={feedbackStatus === 'loading'}
-                  className="inline-flex items-center justify-center rounded-lg border border-emerald-500/45 bg-emerald-500/15 px-5 py-2.5 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/25 hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
-                >
-                  {feedbackStatus === 'loading' ? 'Submitting...' : 'Submit Beta Feedback'}
-                </button>
-                <p className="text-xs text-emerald-100/65">
-                  {feedbackStatus === 'success' ? 'Thanks. Your beta feedback was submitted.' : null}
-                  {feedbackStatus === 'error' ? 'Submission failed. Please try again in a moment.' : null}
-                  {feedbackStatus === 'idle' ? 'This inbox is monitored for beta feature requests and feedback.' : null}
-                </p>
-              </div>
-            </form>
           </div>
         </motion.section>
 
@@ -689,12 +589,12 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
             <button
               type="button"
               onClick={handleGetStarted}
-              className="mt-8 border border-amber-500/20 bg-amber-500/5 text-amber-400/80 hover:bg-amber-500/10 hover:text-amber-400 font-semibold px-8 py-3 rounded-xl transition-colors"
+              className="mt-8 border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-8 py-3 rounded-xl transition-colors"
             >
               {`Get Started — ${PRO_MONTHLY_PRICE_LABEL}`}
             </button>
             <p className="mt-5 text-sm text-gray-500">
-              <a href="https://stratifymarket.com" className="text-amber-400 hover:text-amber-300 transition-colors">
+              <a href="https://stratifymarket.com" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 stratifymarket.com
               </a>
             </p>
@@ -705,13 +605,13 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, canAccessDashboard = fals
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-500">
             <p>© {new Date().getFullYear()} Stratify. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <a href="/whitepaper" className="hover:text-amber-300 transition-colors">
+              <a href="/whitepaper" className="hover:text-emerald-300 transition-colors">
                 White Paper
               </a>
-              <a href="/privacy" className="hover:text-amber-300 transition-colors">
+              <a href="/privacy" className="hover:text-emerald-300 transition-colors">
                 Privacy
               </a>
-              <a href="/terms" className="hover:text-amber-300 transition-colors">
+              <a href="/terms" className="hover:text-emerald-300 transition-colors">
                 Terms
               </a>
             </div>
