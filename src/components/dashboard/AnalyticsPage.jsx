@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Grid from '@highcharts/grid-lite';
-import { LayoutGrid, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { getExtendedHoursStatus } from '../../lib/marketHours';
 import '@highcharts/grid-lite/css/grid.css';
 import './AnalyticsWatchlistGrid.css';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
-const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
-const TWELVE_DATA_API_KEY = import.meta.env.VITE_TWELVE_DATA_API_KEY;
 const MAX_SYMBOLS = 120;
 const QUOTE_POLL_INTERVAL_MS = 20000;
 const DEFAULT_SYMBOLS = [
@@ -38,14 +35,6 @@ const toNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
-
-const escapeHtml = (value) =>
-  String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 
 const formatPrice = (value) => {
   const number = toNumber(value);
@@ -114,24 +103,31 @@ const deriveExtendedMetric = (quote = {}, sessionStatus = null) => {
 
   const buildMetric = (prefix, fallbackLivePrice = null) => {
     let extPrice = toNumber(quote?.[`${prefix}Price`]);
-    let extChange = toNumber(quote?.[`${prefix}Change`]);
-    let extPercent = toNumber(quote?.[`${prefix}ChangePercent`]);
+    const storedExtChange = toNumber(quote?.[`${prefix}Change`]);
+    const storedExtPercent = toNumber(quote?.[`${prefix}ChangePercent`]);
+    let extChange = storedExtChange;
+    let extPercent = storedExtPercent;
 
     if (!Number.isFinite(extPrice) && Number.isFinite(fallbackLivePrice)) {
       extPrice = fallbackLivePrice;
     }
 
-    if (!Number.isFinite(extChange) && Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
+    // Always recompute from latest extended-session price when possible so values tick live.
+    if (Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
       extChange = extPrice - previousClose;
-    }
-
-    if (
-      !Number.isFinite(extPercent)
-      && Number.isFinite(extChange)
-      && Number.isFinite(previousClose)
-      && previousClose !== 0
-    ) {
-      extPercent = (extChange / previousClose) * 100;
+      extPercent = previousClose !== 0 ? (extChange / previousClose) * 100 : null;
+    } else {
+      if (!Number.isFinite(extChange) && Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
+        extChange = extPrice - previousClose;
+      }
+      if (
+        !Number.isFinite(extPercent)
+        && Number.isFinite(extChange)
+        && Number.isFinite(previousClose)
+        && previousClose !== 0
+      ) {
+        extPercent = (extChange / previousClose) * 100;
+      }
     }
 
     return {
@@ -180,21 +176,13 @@ const extractInputSymbols = (value) =>
     .map((item) => normalizeSymbol(item))
     .filter(Boolean);
 
-const buildSymbolBadge = (symbol) => {
-  const label = escapeHtml(String(symbol).slice(0, 3));
-  const hash = [...String(symbol)].reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const hue = hash % 360;
-  const badgeColor = `hsl(${hue}, 64%, 42%)`;
-  return `<span class="watchlist-symbol-cell"><span class="watchlist-symbol-badge" style="background:${badgeColor}">${label}</span><span class="watchlist-symbol-text">${escapeHtml(symbol)}</span></span>`;
-};
-
 const buildExtCell = (metric) => {
   const directionClass = getDirectionClass(metric?.percent);
   if (!Number.isFinite(toNumber(metric?.percent))) {
     return '<span class="watchlist-value watchlist-value-neutral">--</span>';
   }
 
-  return `<span class="watchlist-value ${directionClass}">${escapeHtml(metric.label)} ${formatSignedPercent(metric.percent)}</span>`;
+  return `<span class="watchlist-value ${directionClass}">${metric.label} ${formatSignedPercent(metric.percent)}</span>`;
 };
 
 function generateWatchlistColumns(rows) {
@@ -222,7 +210,6 @@ function generateWatchlistColumns(rows) {
 export default function AnalyticsPage() {
   const [symbols, setSymbols] = useState(loadStoredSymbols);
   const [quotesBySymbol, setQuotesBySymbol] = useState({});
-  const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -231,7 +218,6 @@ export default function AnalyticsPage() {
   const [isFetchingQuotes, setIsFetchingQuotes] = useState(false);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const gridRef = useRef(null);
-  const addInputRef = useRef(null);
   const searchWrapRef = useRef(null);
 
   useEffect(() => {
@@ -344,65 +330,93 @@ export default function AnalyticsPage() {
   }, [fetchQuotes]);
 
   useEffect(() => {
-    if (!TWELVE_DATA_API_KEY || symbols.length === 0) return undefined;
+    if (symbols.length === 0) return undefined;
 
     let socket = null;
     let reconnectTimer = null;
     let closedManually = false;
 
-    const connect = () => {
-      socket = new WebSocket(`${TWELVE_DATA_WS_URL}?apikey=${encodeURIComponent(TWELVE_DATA_API_KEY)}`);
-
-      socket.onopen = () => {
-        socket?.send(JSON.stringify({ action: 'subscribe', params: { symbols } }));
-      };
-
-      socket.onmessage = (event) => {
-        let payload;
-        try {
-          payload = JSON.parse(event.data);
-        } catch {
-          return;
+    const connect = async () => {
+      try {
+        const response = await fetch(`/api/lse/ws-config?symbols=${encodeURIComponent(symbols.join(','))}`, {
+          cache: 'no-store',
+        });
+        const payload = await response.json().catch(() => ({}));
+        const websocketUrl = String(payload?.websocketUrl || '').trim();
+        if (!response.ok || !websocketUrl) {
+          throw new Error(payload?.error || 'Missing Twelve Data websocket URL');
         }
 
-        const isPriceEvent = payload?.event === 'price' || payload?.symbol;
-        if (!isPriceEvent) return;
+        socket = new WebSocket(websocketUrl);
 
-        const symbol = normalizeSymbol(payload?.symbol);
-        const livePrice = toNumber(payload?.price ?? payload?.close ?? payload?.last);
-        if (!symbol || !Number.isFinite(livePrice)) return;
+        socket.onopen = () => {
+          socket?.send(JSON.stringify({ action: 'subscribe', params: { symbols } }));
+        };
 
-        setQuotesBySymbol((previous) => {
-          const current = previous[symbol];
-          if (!current) return previous;
-
-          const sessionStatus = getExtendedHoursStatus();
-          const next = {
-            ...current,
-            price: livePrice,
-            timestamp: payload?.timestamp || payload?.datetime || new Date().toISOString(),
-          };
-
-          if (sessionStatus === 'pre-market') {
-            next.preMarketPrice = livePrice;
+        socket.onmessage = (event) => {
+          let messagePayload;
+          try {
+            messagePayload = JSON.parse(event.data);
+          } catch {
+            return;
           }
 
-          if (sessionStatus === 'post-market') {
-            next.afterHoursPrice = livePrice;
-          }
+          const isPriceEvent = messagePayload?.event === 'price' || messagePayload?.symbol;
+          if (!isPriceEvent) return;
 
-          const derived = deriveMainChangeAndPercent(next);
-          next.change = derived.change;
-          next.percentChange = derived.percent;
+          const symbol = normalizeSymbol(messagePayload?.symbol);
+          const livePrice = toNumber(messagePayload?.price ?? messagePayload?.close ?? messagePayload?.last);
+          if (!symbol || !Number.isFinite(livePrice)) return;
 
-          return {
-            ...previous,
-            [symbol]: next,
-          };
-        });
-      };
+          setQuotesBySymbol((previous) => {
+            const current = previous[symbol];
+            if (!current) return previous;
 
-      socket.onclose = () => {
+            const sessionStatus = getExtendedHoursStatus();
+            const previousClose = toNumber(current.previousClose);
+            const next = {
+              ...current,
+              price: livePrice,
+              change: toNumber(messagePayload?.change ?? current.change),
+              percentChange: toNumber(messagePayload?.percent_change ?? messagePayload?.percentChange ?? current.percentChange),
+              volume: toNumber(messagePayload?.volume ?? messagePayload?.day_volume ?? current.volume),
+              timestamp: messagePayload?.timestamp || messagePayload?.datetime || new Date().toISOString(),
+            };
+
+            if (sessionStatus === 'pre-market') {
+              next.preMarketPrice = livePrice;
+              if (Number.isFinite(previousClose)) {
+                const preChange = livePrice - previousClose;
+                next.preMarketChange = preChange;
+                next.preMarketChangePercent = previousClose !== 0 ? (preChange / previousClose) * 100 : null;
+              }
+            }
+
+            if (sessionStatus === 'post-market') {
+              next.afterHoursPrice = livePrice;
+              if (Number.isFinite(previousClose)) {
+                const postChange = livePrice - previousClose;
+                next.afterHoursChange = postChange;
+                next.afterHoursChangePercent = previousClose !== 0 ? (postChange / previousClose) * 100 : null;
+              }
+            }
+
+            const derived = deriveMainChangeAndPercent(next);
+            next.change = derived.change;
+            next.percentChange = derived.percent;
+
+            return {
+              ...previous,
+              [symbol]: next,
+            };
+          });
+        };
+
+        socket.onclose = () => {
+          if (closedManually) return;
+          reconnectTimer = window.setTimeout(connect, 3000);
+        };
+      } catch {
         if (closedManually) return;
         reconnectTimer = window.setTimeout(connect, 3000);
       };
@@ -473,7 +487,7 @@ export default function AnalyticsPage() {
       const directionClass = getDirectionClass(mainMetric.percent ?? mainMetric.change);
 
       return {
-        symbol: buildSymbolBadge(symbol),
+        symbol: `<span class="watchlist-symbol-text">${symbol}</span>`,
         last: `<span class="watchlist-value ${directionClass}">${formatPrice(quote.price)}</span>`,
         chg: `<span class="watchlist-value ${directionClass}">${formatSigned(mainMetric.change)}</span>`,
         chgPercent: `<span class="watchlist-value ${directionClass}">${formatSignedPercent(mainMetric.percent)}</span>`,
@@ -545,12 +559,15 @@ export default function AnalyticsPage() {
     });
   }, []);
 
-  const handleAddFromInput = (event) => {
+  const handleSubmitSearch = (event) => {
     event.preventDefault();
-    const nextSymbols = extractInputSymbols(inputValue);
+    const pickedResult = searchResults[0]?.symbol;
+    const nextSymbols = pickedResult ? [pickedResult] : extractInputSymbols(searchQuery);
     if (nextSymbols.length === 0) return;
     addSymbols(nextSymbols);
-    setInputValue('');
+    setSearchQuery('');
+    setSearchOpen(false);
+    setSearchResults([]);
   };
 
   const handlePickSearch = (symbol) => {
@@ -565,49 +582,19 @@ export default function AnalyticsPage() {
       <div className="watchlist-grid-shell">
         <header className="watchlist-grid-header">
           <h1 className="watchlist-grid-title">Watchlist</h1>
-          <div className="watchlist-grid-header-actions">
-            <button
-              type="button"
-              className="watchlist-grid-icon-btn"
-              onClick={() => addInputRef.current?.focus()}
-              title="Add ticker"
-            >
-              <Plus size={18} />
-            </button>
-            <button type="button" className="watchlist-grid-icon-btn" title="Layout">
-              <LayoutGrid size={18} />
-            </button>
-            <button type="button" className="watchlist-grid-icon-btn" title="More">
-              <MoreHorizontal size={18} />
-            </button>
-          </div>
         </header>
 
-        <div className="watchlist-grid-controls">
-          <form className="watchlist-grid-add-form" onSubmit={handleAddFromInput}>
-            <input
-              ref={addInputRef}
-              className="watchlist-grid-input"
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              placeholder="Add ticker(s), e.g. TSLA, AMD"
-            />
-            <button type="submit" className="watchlist-grid-add-btn">
-              Add
-            </button>
-          </form>
-
+        <form className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
           <div className="watchlist-grid-search" ref={searchWrapRef}>
-            <Search className="watchlist-grid-search-icon" size={15} />
             <input
-              className="watchlist-grid-input watchlist-grid-search-input"
+              className="watchlist-grid-input watchlist-grid-single-input"
               value={searchQuery}
               onChange={(event) => {
                 setSearchOpen(true);
                 setSearchQuery(event.target.value);
               }}
               onFocus={() => setSearchOpen(true)}
-              placeholder="Search symbol"
+              placeholder="Search and add ticker (press Enter)"
             />
             {searchOpen && (searchQuery.trim() || searchLoading) && (
               <div className="watchlist-grid-search-results">
@@ -631,7 +618,7 @@ export default function AnalyticsPage() {
               </div>
             )}
           </div>
-        </div>
+        </form>
 
         {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
         {isFetchingQuotes && <div className="watchlist-grid-status">Syncing live quotes...</div>}

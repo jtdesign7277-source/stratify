@@ -19,8 +19,8 @@
 .watchlist-grid-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 10px;
   padding: 14px 16px 10px;
 }
 
@@ -33,40 +33,9 @@
   letter-spacing: -0.02em;
 }
 
-.watchlist-grid-header-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.watchlist-grid-icon-btn {
-  border: 1px solid rgba(74, 95, 129, 0.62);
-  background: rgba(14, 20, 33, 0.86);
-  color: rgba(230, 240, 255, 0.94);
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.watchlist-grid-icon-btn:hover {
-  background: rgba(19, 30, 46, 0.96);
-}
-
 .watchlist-grid-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   padding: 0 16px 10px;
-}
-
-.watchlist-grid-add-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: min(460px, 100%);
 }
 
 .watchlist-grid-input {
@@ -90,39 +59,14 @@
   border-color: rgba(85, 175, 238, 0.9);
 }
 
-.watchlist-grid-add-btn {
-  border: 1px solid rgba(56, 178, 129, 0.8);
-  border-radius: 8px;
-  background: rgba(22, 91, 67, 0.6);
-  color: #dcfff0;
-  height: 36px;
-  min-width: 68px;
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.watchlist-grid-add-btn:hover {
-  background: rgba(24, 105, 77, 0.7);
-}
-
 .watchlist-grid-search {
   position: relative;
-  width: min(340px, 100%);
-  margin-left: auto;
+  width: min(600px, 100%);
+  margin: 0;
 }
 
-.watchlist-grid-search-icon {
-  position: absolute;
-  left: 11px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: rgba(200, 218, 241, 0.68);
-  pointer-events: none;
-}
-
-.watchlist-grid-search-input {
-  padding-left: 32px;
+.watchlist-grid-single-input {
+  padding-left: 12px;
 }
 
 .watchlist-grid-search-results {
@@ -266,26 +210,6 @@
   color: rgba(235, 242, 255, 0.86);
 }
 
-.watchlist-symbol-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.watchlist-symbol-badge {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
-}
-
 .watchlist-symbol-text {
   font-size: 16px;
   letter-spacing: 0.01em;
@@ -298,12 +222,11 @@
   }
 
   .watchlist-grid-controls {
-    flex-wrap: wrap;
+    display: block;
   }
 
   .watchlist-grid-search {
     width: 100%;
-    margin-left: 0;
   }
 
   .watchlist-grid-container .hcg-container {
