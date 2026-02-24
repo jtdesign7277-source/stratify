@@ -98,44 +98,64 @@ const deriveMainChangeAndPercent = (quote = {}) => {
   };
 };
 
+const getReferencePrice = (priceValue, changeValue, percentValue) => {
+  const price = toNumber(priceValue);
+  const change = toNumber(changeValue);
+  const percent = toNumber(percentValue);
+
+  if (Number.isFinite(price) && Number.isFinite(change)) {
+    return price - change;
+  }
+
+  if (Number.isFinite(price) && Number.isFinite(percent) && percent !== -100) {
+    return price / (1 + (percent / 100));
+  }
+
+  return null;
+};
+
 const deriveExtendedMetric = (quote = {}, sessionStatus = null, marketStatus = '') => {
   const previousClose = toNumber(quote?.previousClose);
   const livePrice = toNumber(quote?.price);
   const mainMetric = deriveMainChangeAndPercent(quote);
 
-  const buildMetric = (prefix, fallbackLivePrice = null) => {
+  const buildMetric = (prefix, options = {}) => {
+    const fallbackLivePrice = toNumber(options?.fallbackLivePrice);
+    const fallbackReferencePrice = toNumber(options?.fallbackReferencePrice);
     let extPrice = toNumber(quote?.[`${prefix}Price`]);
     let extChange = toNumber(quote?.[`${prefix}Change`]);
     let extPercent = toNumber(quote?.[`${prefix}ChangePercent`]);
+    let referencePrice = toNumber(quote?.[`${prefix}ReferencePrice`]);
 
     if (!Number.isFinite(extPrice) && Number.isFinite(fallbackLivePrice)) {
       extPrice = fallbackLivePrice;
     }
 
-    if (Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
-      extChange = extPrice - previousClose;
-      extPercent = previousClose !== 0 ? (extChange / previousClose) * 100 : null;
-    } else {
-      if (!Number.isFinite(extChange) && Number.isFinite(extPrice) && Number.isFinite(previousClose)) {
-        extChange = extPrice - previousClose;
-      }
-      if (!Number.isFinite(extPercent) && Number.isFinite(extChange) && Number.isFinite(previousClose) && previousClose !== 0) {
-        extPercent = (extChange / previousClose) * 100;
-      }
+    if (!Number.isFinite(referencePrice) && Number.isFinite(fallbackReferencePrice)) {
+      referencePrice = fallbackReferencePrice;
     }
 
-    if (!Number.isFinite(extChange)) {
-      extChange = toNumber(quote?.change);
+    if (!Number.isFinite(referencePrice)) {
+      referencePrice = getReferencePrice(extPrice, extChange, extPercent);
     }
 
-    if (!Number.isFinite(extPercent)) {
-      extPercent = toNumber(quote?.percentChange);
+    if (!Number.isFinite(extChange) && Number.isFinite(extPrice) && Number.isFinite(referencePrice)) {
+      extChange = extPrice - referencePrice;
+    }
+
+    if (!Number.isFinite(extPercent) && Number.isFinite(extChange) && Number.isFinite(referencePrice) && referencePrice !== 0) {
+      extPercent = (extChange / referencePrice) * 100;
+    }
+
+    if (!Number.isFinite(extChange) && Number.isFinite(extPercent) && Number.isFinite(referencePrice)) {
+      extChange = referencePrice * (extPercent / 100);
     }
 
     return {
       price: Number.isFinite(extPrice) ? extPrice : null,
       change: Number.isFinite(extChange) ? extChange : null,
       percent: Number.isFinite(extPercent) ? extPercent : null,
+      referencePrice: Number.isFinite(referencePrice) ? referencePrice : null,
     };
   };
 
@@ -158,14 +178,6 @@ const deriveExtendedMetric = (quote = {}, sessionStatus = null, marketStatus = '
     };
   };
 
-  if (sessionStatus === 'pre-market' || marketStatus === 'Pre-Market') {
-    return deriveFromLive('Pre');
-  }
-
-  if (sessionStatus === 'post-market' || marketStatus === 'After Hours') {
-    return deriveFromLive('Post');
-  }
-
   if (marketStatus === 'Open') {
     return {
       label: 'Live',
@@ -175,8 +187,28 @@ const deriveExtendedMetric = (quote = {}, sessionStatus = null, marketStatus = '
     };
   }
 
-  const pre = buildMetric('preMarket');
-  const post = buildMetric('afterHours');
+  const pre = buildMetric('preMarket', {
+    fallbackLivePrice: sessionStatus === 'pre-market' ? livePrice : null,
+    fallbackReferencePrice: previousClose,
+  });
+  const post = buildMetric('afterHours', {
+    fallbackLivePrice: sessionStatus === 'post-market' ? livePrice : null,
+    fallbackReferencePrice: toNumber(quote?.afterHoursReferencePrice),
+  });
+
+  if (sessionStatus === 'pre-market' || marketStatus === 'Pre-Market') {
+    if (Number.isFinite(pre.percent) || Number.isFinite(pre.change)) {
+      return { label: 'Pre', ...pre };
+    }
+    return deriveFromLive('Pre');
+  }
+
+  if (sessionStatus === 'post-market' || marketStatus === 'After Hours') {
+    if (Number.isFinite(post.percent) || Number.isFinite(post.change)) {
+      return { label: 'Post', ...post };
+    }
+    return { label: 'Post', price: null, change: null, percent: null };
+  }
 
   if (Number.isFinite(post.percent) || Number.isFinite(post.change)) {
     return { label: 'Post', ...post };
@@ -405,6 +437,33 @@ export default function AnalyticsPage() {
           parsedPreviousClose = parsedPrice / (1 + (parsedPercent / 100));
         }
 
+        const parsedPreMarketPrice = toNumber(row?.preMarketPrice ?? raw?.pre_market_price ?? raw?.premarket_price);
+        const parsedPreMarketChange = toNumber(row?.preMarketChange ?? raw?.pre_market_change ?? raw?.premarket_change);
+        const parsedPreMarketChangePercent = toNumber(
+          row?.preMarketChangePercent
+          ?? raw?.pre_market_change_percent
+          ?? raw?.premarket_change_percent
+        );
+        const parsedAfterHoursPrice = toNumber(row?.afterHoursPrice ?? raw?.after_hours_price ?? raw?.post_market_price);
+        const parsedAfterHoursChange = toNumber(row?.afterHoursChange ?? raw?.after_hours_change ?? raw?.post_market_change);
+        const parsedAfterHoursChangePercent = toNumber(
+          row?.afterHoursChangePercent
+          ?? raw?.after_hours_change_percent
+          ?? raw?.post_market_change_percent
+        );
+
+        const parsedPreMarketReferencePrice = getReferencePrice(
+          parsedPreMarketPrice,
+          parsedPreMarketChange,
+          parsedPreMarketChangePercent
+        ) ?? parsedPreviousClose;
+
+        const parsedAfterHoursReferencePrice = getReferencePrice(
+          parsedAfterHoursPrice,
+          parsedAfterHoursChange,
+          parsedAfterHoursChangePercent
+        );
+
         next[symbol] = {
           symbol,
           name: String(row?.name || raw?.name || symbol).trim(),
@@ -412,20 +471,14 @@ export default function AnalyticsPage() {
           change: parsedChange,
           percentChange: parsedPercent,
           previousClose: parsedPreviousClose,
-          preMarketPrice: toNumber(row?.preMarketPrice ?? raw?.pre_market_price ?? raw?.premarket_price),
-          preMarketChange: toNumber(row?.preMarketChange ?? raw?.pre_market_change ?? raw?.premarket_change),
-          preMarketChangePercent: toNumber(
-            row?.preMarketChangePercent
-            ?? raw?.pre_market_change_percent
-            ?? raw?.premarket_change_percent
-          ),
-          afterHoursPrice: toNumber(row?.afterHoursPrice ?? raw?.after_hours_price ?? raw?.post_market_price),
-          afterHoursChange: toNumber(row?.afterHoursChange ?? raw?.after_hours_change ?? raw?.post_market_change),
-          afterHoursChangePercent: toNumber(
-            row?.afterHoursChangePercent
-            ?? raw?.after_hours_change_percent
-            ?? raw?.post_market_change_percent
-          ),
+          preMarketPrice: parsedPreMarketPrice,
+          preMarketChange: parsedPreMarketChange,
+          preMarketChangePercent: parsedPreMarketChangePercent,
+          preMarketReferencePrice: parsedPreMarketReferencePrice,
+          afterHoursPrice: parsedAfterHoursPrice,
+          afterHoursChange: parsedAfterHoursChange,
+          afterHoursChangePercent: parsedAfterHoursChangePercent,
+          afterHoursReferencePrice: parsedAfterHoursReferencePrice,
           volume: toNumber(row?.volume ?? raw?.volume ?? raw?.day_volume),
           timestamp: row?.timestamp || raw?.datetime || raw?.timestamp || null,
         };
@@ -496,6 +549,20 @@ export default function AnalyticsPage() {
         const isPreMarket = sessionStatus === 'pre-market' || marketStatus === 'Pre-Market';
         const isPostMarket = sessionStatus === 'post-market' || marketStatus === 'After Hours';
 
+        let preMarketReferencePrice = toNumber(current.preMarketReferencePrice);
+        if (!Number.isFinite(preMarketReferencePrice) && Number.isFinite(previousClose)) {
+          preMarketReferencePrice = previousClose;
+        }
+
+        let afterHoursReferencePrice = toNumber(current.afterHoursReferencePrice);
+        if (!Number.isFinite(afterHoursReferencePrice)) {
+          afterHoursReferencePrice = getReferencePrice(
+            current.afterHoursPrice,
+            current.afterHoursChange,
+            current.afterHoursChangePercent
+          );
+        }
+
         const next = {
           ...current,
           price: livePrice,
@@ -511,10 +578,13 @@ export default function AnalyticsPage() {
 
         if (isPreMarket) {
           next.preMarketPrice = livePrice;
-          if (Number.isFinite(previousClose)) {
-            const preChange = livePrice - previousClose;
+          if (Number.isFinite(preMarketReferencePrice)) {
+            const preChange = livePrice - preMarketReferencePrice;
             next.preMarketChange = preChange;
-            next.preMarketChangePercent = previousClose !== 0 ? (preChange / previousClose) * 100 : null;
+            next.preMarketChangePercent = preMarketReferencePrice !== 0
+              ? (preChange / preMarketReferencePrice) * 100
+              : null;
+            next.preMarketReferencePrice = preMarketReferencePrice;
           } else {
             next.preMarketChange = next.change;
             next.preMarketChangePercent = next.percentChange;
@@ -522,11 +592,18 @@ export default function AnalyticsPage() {
         }
 
         if (isPostMarket) {
+          if (!Number.isFinite(afterHoursReferencePrice)) {
+            afterHoursReferencePrice = livePrice;
+          }
+
           next.afterHoursPrice = livePrice;
-          if (Number.isFinite(previousClose)) {
-            const postChange = livePrice - previousClose;
+          if (Number.isFinite(afterHoursReferencePrice)) {
+            const postChange = livePrice - afterHoursReferencePrice;
             next.afterHoursChange = postChange;
-            next.afterHoursChangePercent = previousClose !== 0 ? (postChange / previousClose) * 100 : null;
+            next.afterHoursChangePercent = afterHoursReferencePrice !== 0
+              ? (postChange / afterHoursReferencePrice) * 100
+              : null;
+            next.afterHoursReferencePrice = afterHoursReferencePrice;
           } else {
             next.afterHoursChange = next.change;
             next.afterHoursChangePercent = next.percentChange;
@@ -736,10 +813,6 @@ export default function AnalyticsPage() {
   return (
     <div className="watchlist-grid-page">
       <div className="watchlist-grid-shell">
-        <header className="watchlist-grid-header">
-          <h1 className="watchlist-grid-title">Watchlist</h1>
-        </header>
-
         <form className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
           <div className="watchlist-grid-search" ref={searchWrapRef}>
             <input
