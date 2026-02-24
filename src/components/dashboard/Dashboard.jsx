@@ -1930,17 +1930,27 @@ export default function Dashboard({
               strategy={sophiaStrategy}
               onSave={(strategy) => {
                 const normalizedContent = ensureRealTradeAnalysisSection(strategy?.raw || '');
+                const strategyFolderId = String(strategy?.folderId || '').trim() || 'sophia-strategies';
+                const strategyFolderName = String(strategy?.folder || '').trim()
+                  || (strategyFolderId === 'sophia-strategies' ? 'sophia' : 'stratify');
                 const toSave = {
                   id: strategy.id || ('sophia-' + Date.now()),
-                  name: strategy.name,
+                  name: strategy.name || 'Sophia Strategy',
                   code: strategy.code || '',
                   content: normalizedContent,
                   summary: { ...strategy, raw: normalizedContent },
                   ticker: strategy.ticker || '',
-                  type: 'sophia',
-                  source: 'sophia',
-                  folder: 'sophia',
-                  folderId: 'sophia-strategies',
+                  type: strategy.type || 'sophia',
+                  source: strategy.source || 'sophia',
+                  folder: strategyFolderName,
+                  folderId: strategyFolderId,
+                  entry: strategy.entry || '',
+                  volume: strategy.volume || '',
+                  trend: strategy.trend || '',
+                  riskReward: strategy.riskReward || '',
+                  stopLoss: strategy.stopLoss || '',
+                  allocation: strategy.allocation || '',
+                  keyTradeSetups: strategy.keyTradeSetups || {},
                   deployed: false,
                   savedAt: Date.now(),
                 };
@@ -1957,6 +1967,9 @@ export default function Dashboard({
               }}
               onSaveToSophia={(strategy) => {
                 const normalizedContent = ensureRealTradeAnalysisSection(strategy?.raw || '');
+                const strategyFolderId = String(strategy?.folderId || '').trim() || 'sophia-strategies';
+                const strategyFolderName = String(strategy?.folder || '').trim()
+                  || (strategyFolderId === 'sophia-strategies' ? 'sophia' : 'stratify');
                 const savedStrategy = {
                   id: strategy.id || ('sophia-' + Date.now()),
                   name: strategy.name || 'Sophia Strategy',
@@ -1974,10 +1987,10 @@ export default function Dashboard({
                   value: strategy.value || '',
                   profit_return_data: strategy.profit_return_data || null,
                   date: strategy.date || new Date().toISOString(),
-                  type: 'sophia',
-                  source: 'sophia',
-                  folder: 'sophia',
-                  folderId: 'sophia-strategies',
+                  type: strategy.type || 'sophia',
+                  source: strategy.source || 'sophia',
+                  folder: strategyFolderName,
+                  folderId: strategyFolderId,
                   status: 'saved',
                   deployed: false,
                   savedAt: strategy.savedAt || Date.now(),
@@ -2013,6 +2026,7 @@ export default function Dashboard({
                 handleDeployStrategy(toDeploy, true);
               }}
               onBack={() => setActiveTab('terminal')}
+              onOpenFolders={() => setActiveTab('terminal')}
               onRetest={(prompt) => {
                 setSophiaWizardPrompt(prompt);
               }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronsLeft, Pencil, Save as SaveIcon } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, Pencil, Save as SaveIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatTickersAsHtml, normalizeTickerSymbol, tokenizeTickerText, withDollarTickers } from '../../lib/tickerStyling';
 
@@ -8,6 +8,14 @@ const FIELD_KEYS = ['entry', 'volume', 'trend', 'riskReward', 'stopLoss', 'alloc
 const CENTER_SETUP_LABELS = ['Entry Signal', 'Volume', 'Trend', 'Risk/Reward', 'Stop Loss', '$ Allocation'];
 const CENTER_SETUP_FIELD_INDEXES = [0, 1, 2, 3, 4, 5];
 const SAVED_STRATEGIES_FALLBACK_KEY = 'stratify-saved-strategies-fallback';
+const STRATEGY_FOLDERS_STORAGE_KEY = 'stratify-strategies-folders';
+const DEFAULT_SAVE_FOLDERS = [
+  { id: 'stratify', name: 'STRATIFY' },
+  { id: 'active-strategies', name: 'Active Strategies' },
+  { id: 'favorites', name: 'Favorites' },
+  { id: 'sophia-strategies', name: 'Sophia Strategies' },
+  { id: 'archive', name: 'Archive' },
+];
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -25,6 +33,38 @@ const REAL_TRADE_ANALYSIS_TEMPLATE = [
 const formatTickerWithDollar = (ticker) => {
   const clean = normalizeTickerSymbol(ticker);
   return clean ? `$${clean}` : '';
+};
+
+const normalizeFolderOptions = (rawFolders = []) => {
+  if (!Array.isArray(rawFolders)) return DEFAULT_SAVE_FOLDERS;
+
+  const options = rawFolders
+    .map((folder, index) => {
+      const id = String(folder?.id || '').trim();
+      const name = String(folder?.name || '').trim();
+      if (!id || !name) return null;
+      return { id, name, sort: index };
+    })
+    .filter(Boolean);
+
+  if (options.length === 0) return DEFAULT_SAVE_FOLDERS;
+
+  options.sort((a, b) => a.sort - b.sort);
+  return options.map(({ id, name }) => ({ id, name }));
+};
+
+const loadStrategyFolderOptions = () => {
+  if (typeof window === 'undefined') return DEFAULT_SAVE_FOLDERS;
+
+  try {
+    const raw = localStorage.getItem(STRATEGY_FOLDERS_STORAGE_KEY);
+    if (!raw) return DEFAULT_SAVE_FOLDERS;
+    const parsed = JSON.parse(raw);
+    const source = Array.isArray(parsed?.folders) ? parsed.folders : Array.isArray(parsed) ? parsed : [];
+    return normalizeFolderOptions(source);
+  } catch {
+    return DEFAULT_SAVE_FOLDERS;
+  }
 };
 
 const normalizeSetupHeading = (line = '') =>
@@ -335,9 +375,12 @@ export default function StrategyOutput({
   onSaveToSophia,
   onDeploy,
   onBack,
+  onOpenFolders,
   onRetest,
   onContentSave,
   showSaveToSophiaButton = false,
+  availableFolders = null,
+  currentFolderId = '',
 }) {
   const s = strategy || {};
   const storageKey = `stratify-activation-${s.id || s.generatedAt || s.name || 'default'}`;
@@ -345,6 +388,47 @@ export default function StrategyOutput({
     () => FIELD_KEYS.map((key) => (s?.[key] != null ? String(s[key]) : '')),
     [s.entry, s.volume, s.trend, s.riskReward, s.stopLoss, s.allocation],
   );
+  const fallbackStrategyName = useMemo(() => {
+    const rawName = String(s.name || '').trim();
+    return rawName || 'Strategy';
+  }, [s.name]);
+
+  const resolvePreferredFolderId = (folders) => {
+    const folderIds = new Set((folders || []).map((folder) => String(folder.id || '').trim()).filter(Boolean));
+    const candidates = [
+      String(currentFolderId || '').trim(),
+      String(s.folderId || s.folder_id || '').trim(),
+    ].filter(Boolean);
+
+    if (String(s.folder || '').trim().toLowerCase() === 'sophia') {
+      candidates.push('sophia-strategies');
+    }
+
+    candidates.push('stratify');
+
+    for (const candidate of candidates) {
+      if (folderIds.has(candidate)) return candidate;
+    }
+    return (folders || [])[0]?.id || 'stratify';
+  };
+
+  const [saveFolderOptions, setSaveFolderOptions] = useState(() => {
+    const fromProps = normalizeFolderOptions(availableFolders);
+    if (Array.isArray(availableFolders) && availableFolders.length > 0) {
+      return fromProps;
+    }
+    return loadStrategyFolderOptions();
+  });
+  const [saveFolderId, setSaveFolderId] = useState(() => {
+    const fromProps = normalizeFolderOptions(availableFolders);
+    const baseFolders = Array.isArray(availableFolders) && availableFolders.length > 0
+      ? fromProps
+      : loadStrategyFolderOptions();
+    return resolvePreferredFolderId(baseFolders);
+  });
+  const [strategyName, setStrategyName] = useState(fallbackStrategyName);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [strategyNameDraft, setStrategyNameDraft] = useState(fallbackStrategyName);
 
   // Key Trade Setups checkboxes
   const [checks, setChecks] = useState(Array(6).fill(false));
@@ -365,8 +449,59 @@ export default function StrategyOutput({
   const [showEditorSavedNotice, setShowEditorSavedNotice] = useState(false);
   const [isSavingToSophia, setIsSavingToSophia] = useState(false);
   const [savedToSophia, setSavedToSophia] = useState(Boolean(s.savedToSophia));
+  const strategyNameInputRef = useRef(null);
   const editorTextareaRef = useRef(null);
   const editorSavedNoticeTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const nextOptions = Array.isArray(availableFolders) && availableFolders.length > 0
+      ? normalizeFolderOptions(availableFolders)
+      : loadStrategyFolderOptions();
+
+    setSaveFolderOptions(nextOptions);
+    setSaveFolderId((prev) => {
+      const current = String(prev || '').trim();
+      if (nextOptions.some((folder) => folder.id === current)) return current;
+      return resolvePreferredFolderId(nextOptions);
+    });
+  }, [availableFolders, currentFolderId, s.folderId, s.folder_id, s.folder]);
+
+  useEffect(() => {
+    if (Array.isArray(availableFolders) && availableFolders.length > 0) return undefined;
+    if (typeof window === 'undefined') return undefined;
+
+    const syncFromStorage = () => {
+      const nextOptions = loadStrategyFolderOptions();
+      setSaveFolderOptions(nextOptions);
+      setSaveFolderId((prev) => {
+        const current = String(prev || '').trim();
+        if (nextOptions.some((folder) => folder.id === current)) return current;
+        return resolvePreferredFolderId(nextOptions);
+      });
+    };
+
+    const handleStorage = (event) => {
+      if (event?.key && event.key !== STRATEGY_FOLDERS_STORAGE_KEY) return;
+      syncFromStorage();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', syncFromStorage);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', syncFromStorage);
+    };
+  }, [availableFolders, currentFolderId, s.folderId, s.folder_id, s.folder]);
+
+  useEffect(() => {
+    if (!isEditingName) return;
+    const timeoutId = setTimeout(() => {
+      strategyNameInputRef.current?.focus();
+      strategyNameInputRef.current?.select();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [isEditingName]);
 
   // Load from localStorage
   useEffect(() => {
@@ -375,6 +510,8 @@ export default function StrategyOutput({
     let nextChecks = fallbackChecks;
     let nextSaved = false;
     let nextStrategyRaw = String(s.raw || '');
+    let nextStrategyName = fallbackStrategyName;
+    let nextFolderId = resolvePreferredFolderId(saveFolderOptions);
 
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey));
@@ -388,6 +525,12 @@ export default function StrategyOutput({
         if (stored.checks) nextChecks = stored.checks;
         if (stored.saved) nextSaved = stored.saved;
         if (typeof stored.editedRaw === 'string') nextStrategyRaw = stored.editedRaw;
+        if (typeof stored.strategyName === 'string' && stored.strategyName.trim()) {
+          nextStrategyName = stored.strategyName.trim();
+        }
+        if (typeof stored.folderId === 'string' && stored.folderId.trim()) {
+          nextFolderId = stored.folderId.trim();
+        }
       }
     } catch {}
 
@@ -407,9 +550,17 @@ export default function StrategyOutput({
     setIsSavingEditor(false);
     setIsSavingToSophia(false);
     setSavedToSophia(Boolean(s.savedToSophia));
+    setStrategyName(nextStrategyName);
+    setStrategyNameDraft(nextStrategyName);
+    setIsEditingName(false);
+    setSaveFolderId(
+      saveFolderOptions.some((folder) => folder.id === nextFolderId)
+        ? nextFolderId
+        : resolvePreferredFolderId(saveFolderOptions)
+    );
     setEditing(null);
     setEditValue('');
-  }, [storageKey, defaultFieldValues, s.raw, s.savedToSophia]);
+  }, [storageKey, defaultFieldValues, fallbackStrategyName, s.raw, s.savedToSophia, saveFolderOptions]);
 
   // Save to localStorage
   useEffect(() => {
@@ -419,8 +570,10 @@ export default function StrategyOutput({
       allocation: fieldValues[5],
       saved,
       editedRaw: strategyRaw,
+      strategyName,
+      folderId: saveFolderId,
     }));
-  }, [checks, fieldValues, saved, strategyRaw, storageKey]);
+  }, [checks, fieldValues, saved, strategyRaw, strategyName, saveFolderId, storageKey]);
 
   useEffect(() => () => {
     if (editorSavedNoticeTimeoutRef.current) {
@@ -499,6 +652,35 @@ export default function StrategyOutput({
     label,
     value: activeFieldValues[i] || '',
   }));
+  const normalizedStrategyName = String(strategyName || '').trim() || 'Strategy';
+  const resolvedFolderId = saveFolderOptions.some((folder) => folder.id === saveFolderId)
+    ? saveFolderId
+    : resolvePreferredFolderId(saveFolderOptions);
+  const selectedFolderName =
+    saveFolderOptions.find((folder) => folder.id === resolvedFolderId)?.name || 'STRATIFY';
+  const payloadFolderName =
+    resolvedFolderId === 'sophia-strategies' ? 'sophia' : selectedFolderName;
+  const payloadSource =
+    resolvedFolderId === 'sophia-strategies'
+      ? 'sophia'
+      : (String(s.source || '').trim() || 'terminal');
+
+  const startNameEdit = () => {
+    setStrategyNameDraft(normalizedStrategyName);
+    setIsEditingName(true);
+  };
+
+  const cancelNameEdit = () => {
+    setStrategyNameDraft(normalizedStrategyName);
+    setIsEditingName(false);
+  };
+
+  const commitNameEdit = () => {
+    const nextName = String(strategyNameDraft || '').trim() || 'Strategy';
+    setStrategyName(nextName);
+    setStrategyNameDraft(nextName);
+    setIsEditingName(false);
+  };
 
   const updateEditorValue = (nextValue) => {
     const normalized = String(nextValue ?? '');
@@ -559,6 +741,7 @@ export default function StrategyOutput({
     try {
       await onContentSave?.({
         ...s,
+        name: normalizedStrategyName,
         raw: finalizedRaw,
         content: finalizedRaw,
         entry: nextValues[0],
@@ -575,6 +758,9 @@ export default function StrategyOutput({
           stopLoss: nextValues[4],
           allocation: nextValues[5] || '',
         },
+        folder: payloadFolderName,
+        folderId: resolvedFolderId,
+        source: payloadSource,
         updatedAt: Date.now(),
       });
     } catch (error) {
@@ -616,6 +802,7 @@ export default function StrategyOutput({
     const savedAt = Date.now();
     const payload = {
       ...s,
+      name: normalizedStrategyName,
       raw: normalizedRaw,
       content: normalizedRaw,
       entry: activeFieldValues[0] || '',
@@ -632,6 +819,9 @@ export default function StrategyOutput({
         stopLoss: activeFieldValues[4] || '',
         allocation: activeFieldValues[5] || '',
       },
+      folder: payloadFolderName,
+      folderId: resolvedFolderId,
+      source: payloadSource,
       checks,
       savedAt,
     };
@@ -656,6 +846,7 @@ export default function StrategyOutput({
     setSaveStatus('saving');
     const payload = {
       ...s,
+      name: normalizedStrategyName,
       raw: normalizedRaw,
       content: normalizedRaw,
       entry: activeFieldValues[0],
@@ -672,6 +863,9 @@ export default function StrategyOutput({
         stopLoss: activeFieldValues[4],
         allocation: activeFieldValues[5],
       },
+      folder: payloadFolderName,
+      folderId: resolvedFolderId,
+      source: payloadSource,
       checks,
       savedAt: Date.now(),
     };
@@ -765,12 +959,12 @@ export default function StrategyOutput({
     const payload = {
       ...s,
       id: sophiaId,
-      name: s.name || 'Sophia Strategy',
+      name: normalizedStrategyName,
       ticker: normalizedTicker,
       type: 'sophia',
-      source: 'sophia',
-      folder: 'sophia',
-      folderId: 'sophia-strategies',
+      source: payloadSource,
+      folder: payloadFolderName,
+      folderId: resolvedFolderId,
       status: 'saved',
       savedAt,
       savedToSophia: true,
@@ -828,9 +1022,9 @@ export default function StrategyOutput({
           .from('strategies')
           .insert({
             ...baseInsert,
-            folder: 'sophia',
-            folder_id: 'sophia-strategies',
-            source: 'sophia',
+            folder: payload.folder,
+            folder_id: payload.folderId,
+            source: payload.source,
           });
 
         if (withFolderAttempt.error) {
@@ -851,8 +1045,8 @@ export default function StrategyOutput({
                 rules: {
                   date: savedAtIso,
                   status: 'saved',
-                  folder: 'sophia',
-                  folder_id: 'sophia-strategies',
+                  folder: payload.folder,
+                  folder_id: payload.folderId,
                   key_trade_setups: payload.keyTradeSetups,
                 },
                 backtest_results: performanceData,
@@ -890,7 +1084,7 @@ export default function StrategyOutput({
       <div className="flex-1 min-h-0 overflow-y-auto px-8 py-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={onBack}
               className="inline-flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-sm"
@@ -898,7 +1092,62 @@ export default function StrategyOutput({
               <span aria-hidden="true">←</span>
               <span>Back</span>
             </button>
-            <h1 className="text-white text-xl font-bold">{renderTickerText(s.name || 'Strategy', 'strategy-title')}</h1>
+            {typeof onOpenFolders === 'function' && (
+              <button
+                type="button"
+                onClick={onOpenFolders}
+                className="inline-flex items-center justify-center rounded-md border border-zinc-700/80 bg-zinc-900/40 p-1.5 text-zinc-400 transition-colors hover:text-cyan-300 hover:border-cyan-400/60"
+                title="Open strategy folders"
+                aria-label="Open strategy folders"
+              >
+                <ChevronsRight className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            )}
+            <div className="flex items-center gap-2 min-w-0">
+              {isEditingName ? (
+                <>
+                  <input
+                    ref={strategyNameInputRef}
+                    value={strategyNameDraft}
+                    onChange={(event) => setStrategyNameDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') commitNameEdit();
+                      if (event.key === 'Escape') cancelNameEdit();
+                    }}
+                    onBlur={commitNameEdit}
+                    className="min-w-[220px] max-w-[420px] rounded-md border border-cyan-400/50 bg-black/40 px-2.5 py-1.5 text-white text-lg font-semibold outline-none focus:border-cyan-300"
+                    aria-label="Edit strategy name"
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={cancelNameEdit}
+                    className="text-xs text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={startNameEdit}
+                    className="min-w-0 text-left"
+                    title="Rename strategy"
+                  >
+                    <h1 className="truncate text-white text-xl font-bold">{renderTickerText(normalizedStrategyName, 'strategy-title')}</h1>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={startNameEdit}
+                    className="text-zinc-500 hover:text-cyan-300 transition-colors"
+                    aria-label="Rename strategy"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  </button>
+                </>
+              )}
+            </div>
             {s.ticker && (
               <span className="text-xs font-mono px-2 py-0.5 border border-emerald-500/40 text-emerald-400 rounded">
                 {displayTicker}
@@ -1003,10 +1252,10 @@ export default function StrategyOutput({
                 <SaveIcon className="h-4 w-4" strokeWidth={1.6} />
                 <span>
                   {savedToSophia
-                    ? '✓ Saved to Sophia Strategies'
+                    ? `✓ Saved to ${selectedFolderName}`
                     : isSavingToSophia
-                      ? 'Saving to Sophia Strategies...'
-                      : '💾 Save to Sophia Strategies'}
+                      ? `Saving to ${selectedFolderName}...`
+                      : `💾 Save to ${selectedFolderName}`}
                 </span>
               </button>
             )}
@@ -1033,6 +1282,19 @@ export default function StrategyOutput({
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 text-[13px]">{checkedCount}/6</span>
+                    <select
+                      value={resolvedFolderId}
+                      onChange={(event) => setSaveFolderId(event.target.value)}
+                      className="max-w-[160px] rounded-lg border border-cyan-500/30 bg-[#06101b]/80 px-2 py-1 text-[12px] text-cyan-200 outline-none focus:border-cyan-400"
+                      aria-label="Save strategy folder"
+                      title={`Save to ${selectedFolderName}`}
+                    >
+                      {saveFolderOptions.map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       onClick={handleSave}
                       disabled={saveStatus === 'saving'}
@@ -1120,7 +1382,7 @@ export default function StrategyOutput({
                   <button
                     onClick={() => {
                       const params = fields.map((f) => `${f.label}: ${withDollarTickers(f.value || '—')}`).join('\n');
-                      const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${s.name || 'Strategy'}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
+                      const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${normalizedStrategyName}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                       onRetest?.(prompt);
                     }}
                     className="bg-indigo-600/90 hover:bg-indigo-500 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition"

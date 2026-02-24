@@ -312,6 +312,9 @@ const mergeFoldersWithStrategies = (prevFolders, strategies, deployedStrategies)
   const folderIndexById = new Map(mergedFolders.map((folder, index) => [folder.id, index]));
 
   const resolveFolderId = (strategy) => {
+    const explicitFolderId = String(strategy?.folderId || strategy?.folder_id || '').trim();
+    if (explicitFolderId && folderIndexById.has(explicitFolderId)) return explicitFolderId;
+
     const status = deriveStatus(strategy, deployedIds);
     if (isActiveFolderStatus(status)) return 'active-strategies';
     if (isSophiaStrategy(strategy)) return 'sophia-strategies';
@@ -848,6 +851,16 @@ const TerminalStrategyWorkspace = ({
     return toOutputStrategy(fallback || null);
   }, [allStrategies, selectedStrategyId, strategySourceMap]);
 
+  const selectedStrategyFolderId = useMemo(() => {
+    const targetId = String(selectedStrategyId || '').trim();
+    if (!targetId) return '';
+
+    const folderMatch = folders.find((folder) =>
+      Array.isArray(folder?.strategies) && folder.strategies.some((strategy) => String(strategy?.id || '') === targetId)
+    );
+    return folderMatch?.id || '';
+  }, [folders, selectedStrategyId]);
+
   const toggleFolderExpanded = (folderId) => {
     setFolders((prev) =>
       prev.map((folder) =>
@@ -1362,22 +1375,31 @@ const TerminalStrategyWorkspace = ({
               onBack={() => setSelectedStrategyId(null)}
               onSave={(strategy) => {
                 onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
+                if (strategy?.folderId) {
+                  moveStrategyToFolder(strategy.id || selectedStrategy.id, strategy.folderId);
+                }
               }}
               onContentSave={(strategy) => {
                 onSaveStrategy?.((prev) => upsertStrategy(prev, strategy));
+                if (strategy?.folderId) {
+                  moveStrategyToFolder(strategy.id || selectedStrategy.id, strategy.folderId);
+                }
               }}
               onDeploy={(activation) => {
                 onDeployStrategy?.({
                   ...selectedStrategy,
                   ...activation,
                   id: selectedStrategy.id || `terminal-${Date.now()}`,
-                  name: selectedStrategy.name || 'Terminal Strategy',
+                  name: activation?.name || selectedStrategy.name || 'Terminal Strategy',
                   ticker: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
                   symbol: selectedStrategy.ticker || String(activation?.symbol || '').replace(/^\$/, ''),
                   content: selectedStrategy.content || selectedStrategy.raw || '',
                   summary: selectedStrategy.summary || {},
                 });
               }}
+              onOpenFolders={() => setFoldersCollapsed(false)}
+              availableFolders={folders.map((folder) => ({ id: folder.id, name: folder.name }))}
+              currentFolderId={selectedStrategyFolderId}
               onRetest={(prompt) => {
                 onRetestStrategy?.(prompt);
               }}
