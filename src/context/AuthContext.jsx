@@ -4,7 +4,7 @@ import { initNewUser } from '../lib/initNewUser';
 import { withTimeout } from '../lib/withTimeout';
 
 const AuthContext = createContext(null);
-const SESSION_CHECK_TIMEOUT_MS = 5000;
+const SESSION_CHECK_TIMEOUT_MS = 12000;
 
 const withSessionTimeout = (promise, operationName) =>
   withTimeout(
@@ -22,30 +22,6 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let isMounted = true;
 
-    const clearStaleSession = async () => {
-      try {
-        const { error } = await withSessionTimeout(
-          supabase.auth.signOut({ scope: 'local' }),
-          'Local session clear'
-        );
-
-        if (error) {
-          throw error;
-        }
-      } catch (localError) {
-        console.error('[Auth] Local session clear failed, retrying with full sign-out:', localError);
-
-        try {
-          const { error } = await withSessionTimeout(supabase.auth.signOut(), 'Full sign-out');
-          if (error) {
-            throw error;
-          }
-        } catch (signOutError) {
-          console.error('[Auth] Failed to clear stale session after session check failure:', signOutError);
-        }
-      }
-    };
-
     const loadSession = async () => {
       try {
         const { data, error } = await withSessionTimeout(
@@ -61,24 +37,22 @@ export const AuthProvider = ({ children }) => {
         setSession(data?.session ?? null);
         setUser(data?.session?.user ?? null);
       } catch (error) {
-        console.error('[Auth] Session check failed. Continuing as logged out:', error);
-        if (isMounted) {
-          setSession(null);
-          setUser(null);
-        }
-        void clearStaleSession();
+        // Do not force-sign-out on transient failures or timeouts.
+        // onAuthStateChange and subsequent checks can still recover the existing session.
+        console.error('[Auth] Session check failed. Preserving current auth state:', error);
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
-    loadSession();
-
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!isMounted) return;
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
       setLoading(false);
     });
+
+    loadSession();
 
     return () => {
       isMounted = false;

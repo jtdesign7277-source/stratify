@@ -1019,6 +1019,16 @@ function StratifyAppContent() {
   const attemptedSubscriptionRestoreRef = useRef(new Set());
   const authCheckStartedAtRef = useRef(null);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const host = String(window.location.hostname || '').toLowerCase();
+    if (host !== 'stratify.associates' && host !== 'www.stratify.associates') return;
+
+    const nextUrl = `https://stratifymarket.com${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(nextUrl);
+  }, []);
+
   const marketData = useMarketData();
   const alpaca = useAlpacaData();
 
