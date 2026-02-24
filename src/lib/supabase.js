@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const VITE_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-export const VITE_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const cleanEnv = (value) => (typeof value === 'string' ? value.trim() : '');
+
+export const VITE_SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
+export const VITE_SUPABASE_ANON_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export const hasSupabaseEnv = Boolean(VITE_SUPABASE_URL && VITE_SUPABASE_ANON_KEY);
 
