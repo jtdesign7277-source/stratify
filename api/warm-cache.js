@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   if (!redis) {
     return res.status(500).json({
       error: 'Missing Redis credentials',
-      requiredEnv: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+      requiredEnv: ['KV_REST_API_URL', 'KV_REST_API_TOKEN'],
     });
   }
 
