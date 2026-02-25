@@ -36,7 +36,7 @@
 
 .watchlist-grid-controls {
   display: block;
-  padding: 18px 16px 8px;
+  padding: 24px 16px 12px;
 }
 
 .watchlist-grid-input {
@@ -62,7 +62,7 @@
 
 .watchlist-grid-search {
   position: relative;
-  width: min(540px, 50%);
+  width: min(360px, 35%);
   max-width: 100%;
   margin: 0;
 }

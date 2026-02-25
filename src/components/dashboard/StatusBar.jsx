@@ -367,85 +367,66 @@ export default function StatusBar({
           <div className={`w-2 h-2 rounded-full ${status.color} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
           <button
             onClick={handleOpenNewsletter}
-            className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
+            className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
               hasUnreadNewsletter
-                ? 'text-emerald-200 bg-[rgba(16,185,129,0.15)] border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.3)]'
-                : 'text-emerald-300 hover:text-emerald-200 bg-[rgba(16,185,129,0.08)] border-[rgba(16,185,129,0.2)]'
+                ? 'text-emerald-400/80'
+                : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
             Newsletter
             {hasUnreadNewsletter && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 pointer-events-none" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pointer-events-none" />
             )}
           </button>
           <button
             onClick={handleOpenMarketIntel}
-            className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
+            className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
               hasUnreadIntel
-                ? 'text-blue-200 border-blue-400/45 bg-[rgba(59,130,246,0.14)] shadow-[0_0_16px_rgba(59,130,246,0.3)]'
-                : 'text-blue-400 hover:text-blue-300 bg-[rgba(59,130,246,0.08)] border-[rgba(59,130,246,0.25)]'
+                ? 'text-blue-400/80'
+                : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            <Radio className="w-3 h-3" />
             Market Intel
             {hasUnreadIntel && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 pointer-events-none" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 pointer-events-none" />
             )}
           </button>
-          <div className="relative">
-            <div className={`flex items-center rounded-full border backdrop-blur-md transition-all ${
-              hasNewInsight
-                ? 'border-amber-400/40 bg-[rgba(245,158,11,0.15)] shadow-[0_0_16px_rgba(245,158,11,0.3)]'
-                : sophiaPlaying
-                  ? 'border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                  : 'border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)]'
-            }`}>
-              {/* Play/Stop side */}
-              <button
-                onClick={handlePlaySophia}
-                disabled={sophiaLoading}
-                className={`flex items-center justify-center w-7 h-7 rounded-l-full transition-colors ${
-                  sophiaPlaying
-                    ? 'text-emerald-300 hover:text-emerald-200'
-                    : sophiaLoading
-                      ? 'text-zinc-500 cursor-wait'
-                      : 'text-amber-400 hover:text-amber-200'
-                }`}
-                title={sophiaPlaying ? 'Stop Sophia' : 'Listen to Sophia'}
-              >
-                {sophiaLoading ? (
-                  <Volume2 className="w-3 h-3 animate-pulse" />
-                ) : sophiaPlaying ? (
-                  <Square className="w-2.5 h-2.5 fill-current" />
-                ) : (
-                  <Play className="w-3 h-3 fill-current" />
-                )}
-              </button>
-
-              {/* Divider */}
-              <div className="w-px h-4 bg-amber-400/20" />
-
-              {/* Sophia name — opens dropdown */}
-              <button
-                onClick={() => setCopilotOpen((prev) => !prev)}
-                className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-r-full text-xs font-semibold transition-colors ${
-                  copilotOpen
-                    ? 'text-amber-300'
-                    : hasNewInsight
-                      ? 'text-amber-200'
-                      : 'text-amber-400 hover:text-amber-200'
-                }`}
-              >
-                <Zap className="w-3 h-3" />
-                Sophia
-                {hasNewInsight && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 pointer-events-none" />
-                )}
-              </button>
-            </div>
+          <div className="relative flex items-center gap-2">
+            <button
+              onClick={handlePlaySophia}
+              disabled={sophiaLoading}
+              className={`flex items-center justify-center w-6 h-6 transition-colors ${
+                sophiaPlaying
+                  ? 'text-emerald-400/80 hover:text-emerald-300'
+                  : sophiaLoading
+                    ? 'text-gray-600 cursor-wait'
+                    : 'text-gray-400 hover:text-gray-300'
+              }`}
+              title={sophiaPlaying ? 'Stop Sophia' : 'Listen to Sophia'}
+            >
+              {sophiaLoading ? (
+                <Volume2 className="w-3 h-3 animate-pulse" />
+              ) : sophiaPlaying ? (
+                <Square className="w-2.5 h-2.5 fill-current" />
+              ) : (
+                <Play className="w-3 h-3 fill-current" />
+              )}
+            </button>
+            <button
+              onClick={() => setCopilotOpen((prev) => !prev)}
+              className={`relative text-xs font-medium transition-all flex items-center gap-1.5 px-2.5 py-1 ${
+                copilotOpen
+                  ? 'text-amber-300'
+                  : hasNewInsight
+                    ? 'text-amber-400/80'
+                    : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Sophia
+              {hasNewInsight && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 pointer-events-none" />
+              )}
+            </button>
             {copilotOpen && (
               <SophiaCopilot onClose={() => setCopilotOpen(false)} />
             )}
