@@ -767,7 +767,7 @@ export default function AnalyticsPage() {
             ${buildDeleteCell(symbol)}
           </span>
         `,
-        last: `<span class="watchlist-value ${directionClass}">${formatPrice(quote.price)}</span>`,
+        last: `<span class="watchlist-value watchlist-value-neutral">${formatPrice(quote.price)}</span>`,
         chg: `<span class="watchlist-value ${directionClass}">${formatSigned(mainMetric.change)}</span>`,
         chgPercent: `<span class="watchlist-value ${directionClass}">${formatSignedPercent(mainMetric.percent)}</span>`,
         vol: `<span class="watchlist-value watchlist-value-neutral">${formatVolume(quote.volume)}</span>`,
