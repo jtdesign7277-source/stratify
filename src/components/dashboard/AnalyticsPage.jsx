@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as Grid from '@highcharts/grid-lite';
 import { getExtendedHoursStatus, getMarketStatus } from '../../lib/marketHours';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
-import '@highcharts/grid-lite/css/grid.css';
+import SimpleWatchlistTable from './SimpleWatchlistTable';
 import './AnalyticsWatchlistGrid.css';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
@@ -313,7 +312,6 @@ export default function AnalyticsPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [fetchError, setFetchError] = useState('');
-  const gridRef = useRef(null);
   const searchWrapRef = useRef(null);
 
   useEffect(() => {
@@ -776,7 +774,7 @@ export default function AnalyticsPage() {
     };
   }, [searchQuery]);
 
-  const gridRows = useMemo(() => {
+  const tableRows = useMemo(() => {
     const sessionStatus = getExtendedHoursStatus();
     const marketStatus = getMarketStatus();
 
@@ -785,101 +783,17 @@ export default function AnalyticsPage() {
       const quote = quotesBySymbol[symbol] || { symbol, name: symbol };
       const mainMetric = deriveMainChangeAndPercent(quote);
       const extMetric = deriveExtendedMetric(quote, sessionStatus, marketStatus);
-      const extMode = extDisplayModeBySymbol[symbol] === 'dollar' ? 'dollar' : 'percent';
-      const directionClass = getDirectionClass(mainMetric.percent ?? mainMetric.change);
 
       return {
-        symbol: `
-          <span class="watchlist-symbol-cell">
-            <span class="watchlist-symbol-text">${symbol}</span>
-            ${buildDeleteCell(symbol)}
-          </span>
-        `,
-        last: `<span class="watchlist-value watchlist-value-neutral">${formatPrice(quote.price)}</span>`,
-        chg: `<span class="watchlist-value ${directionClass}">${formatSigned(mainMetric.change)}</span>`,
-        chgPercent: `<span class="watchlist-value ${directionClass}">${formatSignedPercent(mainMetric.percent)}</span>`,
-        vol: `<span class="watchlist-value watchlist-value-neutral">${formatVolume(quote.volume)}</span>`,
-        ext: buildExtCell(symbol, extMetric, extMode),
+        symbol,
+        price: quote.price,
+        change: mainMetric.change,
+        changePercent: mainMetric.percent,
+        volume: quote.volume,
+        extChangePercent: extMetric.percent,
       };
     });
-  }, [extDisplayModeBySymbol, quotesBySymbol, symbols]);
-
-  const dataTable = useMemo(
-    () => ({
-      columns: generateWatchlistColumns(gridRows),
-    }),
-    [gridRows]
-  );
-
-  useEffect(() => {
-    if (gridRef.current) return undefined;
-
-    const grid = Grid.grid('analytics-watchlist-grid', {
-      dataTable,
-      rendering: {
-        rows: {
-          minVisibleRows: 18,
-        },
-      },
-      pagination: {
-        enabled: false,
-      },
-      columns: [
-        { id: 'Symbol', width: 280 },
-        { id: 'Last', width: 170 },
-        { id: 'Chg', width: 160 },
-        { id: 'ChgPercent', title: 'Chg%', width: 170 },
-        { id: 'Vol', width: 170 },
-        { id: 'Ext', width: 170 },
-      ],
-    });
-
-    gridRef.current = grid;
-
-    return () => {
-      if (gridRef.current) {
-        gridRef.current.destroy();
-        gridRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!gridRef.current) return;
-    try {
-      gridRef.current.update({ dataTable });
-    } catch {
-      if (gridRef.current) {
-        gridRef.current.destroy();
-        gridRef.current = null;
-      }
-      gridRef.current = Grid.grid('analytics-watchlist-grid', {
-        dataTable,
-        rendering: {
-          rows: {
-            virtualization: false,
-          },
-        },
-        header: {
-          enabled: true,
-        },
-        columnDefaults: {
-          sorting: false,
-        },
-        pagination: {
-          enabled: false,
-        },
-        columns: [
-          { id: 'Symbol', width: 280, sorting: false },
-          { id: 'Last', width: 170, sorting: false },
-          { id: 'Chg', width: 160, sorting: false },
-          { id: 'ChgPercent', title: 'Chg%', width: 170, sorting: false },
-          { id: 'Vol', width: 170, sorting: false },
-          { id: 'Ext', width: 170, sorting: false },
-        ],
-      });
-    }
-  }, [dataTable]);
+  }, [quotesBySymbol, symbols]);
 
   const addSymbols = useCallback((items = []) => {
     const normalized = items.map((item) => normalizeSymbol(item)).filter(Boolean);
@@ -958,7 +872,9 @@ export default function AnalyticsPage() {
         </form>
 
         {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
-        <div id="analytics-watchlist-grid" className="watchlist-grid-container watchlist-scrollable overflow-y-auto" />
+        <div className="px-4 pb-4">
+          <SimpleWatchlistTable rows={tableRows} />
+        </div>
       </div>
     </div>
   );
