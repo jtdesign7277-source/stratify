@@ -29,6 +29,10 @@
     {
       "path": "/api/cron/warm-warroom?batch=transcripts2",
       "schedule": "10 13,21 * * 1-5"
+    },
+    {
+      "path": "/api/trends",
+      "schedule": "*/10 13-21 * * 1-5"
     }
   ]
 }
