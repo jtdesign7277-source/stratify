@@ -1587,7 +1587,15 @@ const TerminalStrategyWorkspace = ({
             <SophiaThinkingState onOpenBuilder={onOpenBuilder} />
           </div>
         ) : (
-          <div className="flex-1 min-h-0 bg-transparent" />
+          <div className="flex-1 min-h-0 bg-transparent flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => onOpenBuilder?.()}
+              className="text-sm text-white/40 hover:text-white/70 transition-colors"
+            >
+              Click to build a strategy
+            </button>
+          </div>
         )}
       </div>
     </div>
