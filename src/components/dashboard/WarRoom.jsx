@@ -198,13 +198,22 @@ const renderIntelBody = (content, keyPrefix) => {
   return lines.map((line, index) => {
     const trimmed = line.trim();
     if (!trimmed) {
-      return <div key={`${keyPrefix}-space-${index}`} className="h-2" />;
+      return <div key={`${keyPrefix}-space-${index}`} className="h-3" />;
     }
 
-    if (/^#{1,6}\s+/.test(trimmed)) {
-      const heading = trimmed.replace(/^#{1,6}\s+/, '');
+    if (/^#{1,2}\s+/.test(trimmed)) {
+      const heading = trimmed.replace(/^#{1,2}\s+/, '');
       return (
-        <h4 key={`${keyPrefix}-heading-${index}`} className="text-white font-semibold leading-relaxed mt-1">
+        <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-bold text-lg leading-relaxed mt-3 mb-1">
+          {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
+        </h3>
+      );
+    }
+
+    if (/^#{3,6}\s+/.test(trimmed)) {
+      const heading = trimmed.replace(/^#{3,6}\s+/, '');
+      return (
+        <h4 key={`${keyPrefix}-heading-${index}`} className="text-white font-semibold text-base leading-relaxed mt-2 mb-0.5">
           {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
         </h4>
       );
@@ -213,8 +222,8 @@ const renderIntelBody = (content, keyPrefix) => {
     if (/^[-*•]\s+/.test(trimmed)) {
       const bulletText = trimmed.replace(/^[-*•]\s+/, '');
       return (
-        <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2 text-gray-300 leading-relaxed">
-          <span className="text-gray-500">•</span>
+        <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2 text-[15px] text-gray-300 leading-relaxed">
+          <span className="text-gray-500 mt-0.5">•</span>
           <span>{renderInlineText(bulletText, `${keyPrefix}-bullet-text-${index}`)}</span>
         </div>
       );
@@ -222,14 +231,14 @@ const renderIntelBody = (content, keyPrefix) => {
 
     if (/^\d+\.\s+/.test(trimmed)) {
       return (
-        <div key={`${keyPrefix}-numbered-${index}`} className="text-gray-300 leading-relaxed">
+        <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
           {renderInlineText(trimmed, `${keyPrefix}-numbered-text-${index}`)}
         </div>
       );
     }
 
     return (
-      <p key={`${keyPrefix}-line-${index}`} className="text-gray-300 leading-relaxed">
+      <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
         {renderInlineText(trimmed, `${keyPrefix}-line-text-${index}`)}
       </p>
     );
@@ -609,7 +618,7 @@ export default function WarRoom({ onClose }) {
               <h1 className="text-white font-bold text-xl tracking-[0.2em] uppercase">War Room</h1>
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             </div>
-            <p className="text-gray-500 text-xs uppercase tracking-wide mt-1">Deep Market Intelligence</p>
+            <p className="text-gray-500 text-sm uppercase tracking-wide mt-1">Deep Market Intelligence</p>
           </div>
 
           {onClose ? (
@@ -631,7 +640,7 @@ export default function WarRoom({ onClose }) {
               type="button"
               onClick={() => runScan(scan.query, scan.label)}
               disabled={isLoading}
-              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-amber-500/50 rounded-lg px-3 py-2 text-sm text-gray-400 hover:text-amber-400 transition-all hover:shadow-[0_0_10px_rgba(245,158,11,0.15)] disabled:opacity-40"
+              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-amber-500/50 rounded-lg px-4 py-2.5 text-base text-gray-400 hover:text-amber-400 transition-all hover:shadow-[0_0_10px_rgba(245,158,11,0.15)] disabled:opacity-40"
             >
               {scan.label}
             </button>
@@ -694,12 +703,12 @@ export default function WarRoom({ onClose }) {
                     value={transcriptSymbol}
                     onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
                     placeholder="Enter ticker (AAPL, NVDA, TSLA...)"
-                    className="flex-1 rounded-lg border border-gray-700 bg-black/40 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
+                    className="flex-1 rounded-lg border border-gray-700 bg-black/40 px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
                   />
                   <button
                     type="submit"
                     disabled={transcriptLoading || !transcriptSymbol.trim()}
-                    className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:opacity-45"
+                    className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-5 py-2.5 text-base font-semibold transition-all disabled:opacity-45"
                   >
                     {transcriptLoading ? 'Loading...' : 'Get Transcript'}
                   </button>
@@ -713,7 +722,7 @@ export default function WarRoom({ onClose }) {
                     type="button"
                     onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
                     disabled={transcriptLoading}
-                    className="rounded-lg border border-gray-800 px-2.5 py-1 text-xs text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
+                    className="rounded-lg border border-gray-800 px-3 py-1.5 text-sm text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
                   >
                     ${sym}
                   </button>
@@ -742,15 +751,15 @@ export default function WarRoom({ onClose }) {
               {transcriptData && (
                 <article className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
+                    <h3 className="text-lg font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
                     <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">Transcript</span>
                   </div>
-                  <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap"
+                  <div className="text-[15px] text-gray-300 leading-relaxed whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{ __html: transcriptData.content
-                      .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-lg font-bold mt-4 mb-2">$1</h2>')
-                      .replace(/^### (.+)$/gm, '<h3 class="text-white text-base font-semibold mt-3 mb-1">$1</h3>')
+                      .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-xl font-bold mt-5 mb-2">$1</h2>')
+                      .replace(/^### (.+)$/gm, '<h3 class="text-white text-lg font-semibold mt-4 mb-1">$1</h3>')
                       .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                      .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1"><span class="text-amber-500/60">•</span><span>$1</span></div>')
+                      .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-amber-500/60 mt-0.5">•</span><span>$1</span></div>')
                       .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
                     }}
                   />
@@ -764,7 +773,7 @@ export default function WarRoom({ onClose }) {
                             href={src.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-amber-400/80 hover:text-amber-300 transition-colors"
+                            className="inline-flex items-center gap-1 text-sm text-amber-400/80 hover:text-amber-300 transition-colors"
                           >
                             <Link2 className="h-3 w-3" strokeWidth={1.5} />
                             {(src.title || src.url).slice(0, 60)}
@@ -965,7 +974,7 @@ export default function WarRoom({ onClose }) {
                                   href={source.url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-blue-400/60 text-xs hover:text-blue-300 underline decoration-blue-400/30"
+                                  className="text-blue-400/60 text-sm hover:text-blue-300 underline decoration-blue-400/30"
                                 >
                                   {source.title || `Source ${index + 1}`}
                                 </a>
@@ -1022,12 +1031,12 @@ export default function WarRoom({ onClose }) {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-white font-semibold">{card.title}</h3>
-                        <p className="text-gray-600 text-xs mt-1">{formatTimestamp(card.createdAt)}</p>
+                        <h3 className="text-white font-semibold text-lg">{card.title}</h3>
+                        <p className="text-gray-600 text-sm mt-1">{formatTimestamp(card.createdAt)}</p>
                       </div>
 
-                      <span className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
-                        Claude Intel
+                      <span className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/20 rounded-full px-2.5 py-0.5">
+                        {card.sourceLabel || 'Claude Intel'}
                       </span>
                     </div>
 
@@ -1124,7 +1133,7 @@ export default function WarRoom({ onClose }) {
                               href={source.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-blue-400/60 text-xs hover:text-blue-300 underline decoration-blue-400/30"
+                              className="text-blue-400/60 text-sm hover:text-blue-300 underline decoration-blue-400/30"
                             >
                               {source.title || `Source ${index + 1}`}
                             </a>
