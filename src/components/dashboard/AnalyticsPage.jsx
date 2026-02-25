@@ -599,7 +599,11 @@ export default function AnalyticsPage() {
 
         const next = {
           ...current,
-          price: livePrice,
+          // During pre-market/post-market, freeze Last price at previous close
+          // Only update preMarketPrice or afterHoursPrice for the Ext column
+          price: (isPreMarket || isPostMarket) && Number.isFinite(previousClose)
+            ? previousClose
+            : livePrice,
           change: Number.isFinite(nextChange) ? nextChange : toNumber(current.change),
           percentChange: Number.isFinite(nextPercent) ? nextPercent : toNumber(current.percentChange),
           volume: toNumber(update?.volume ?? current.volume),
