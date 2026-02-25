@@ -424,11 +424,11 @@ function parseMarkdown(raw) {
   lines.forEach((line) => {
     const trimmed = line.trim();
 
-    // 💰 total result line — render as a highlighted banner
+    // 💰 total result line — render as plain bold text
     if (/^#{1,3}\s*💰/.test(trimmed)) {
       const text = trimmed.replace(/^#{1,3}\s*/, '');
       const isNeg = text.includes('-');
-      html.push(`<div class="my-3 px-3 py-2 rounded-lg border ${isNeg ? 'border-red-500/30 bg-red-500/10' : 'border-emerald-500/30 bg-emerald-500/10'}"><span class="text-base font-bold font-mono ${isNeg ? 'text-red-400' : 'text-emerald-400'}">${formatInline(text)}</span></div>`);
+      html.push(`<p class="my-3 text-base font-bold font-mono ${isNeg ? 'text-red-400' : 'text-emerald-400'}">${formatInline(text)}</p>`);
       return;
     }
 
