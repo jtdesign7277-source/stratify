@@ -501,11 +501,13 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchQuotes();
-    const timer = window.setInterval(fetchQuotes, QUOTE_POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    // Disabled auto-refresh to prevent scroll jumping
+    // const timer = window.setInterval(fetchQuotes, QUOTE_POLL_INTERVAL_MS);
+    // return () => window.clearInterval(timer);
   }, [fetchQuotes]);
 
-  useEffect(() => {
+  // DISABLED: WebSocket live updates cause scroll jumping
+  /* useEffect(() => {
     if (symbols.length === 0) return undefined;
     const unsubscribeQuotes = subscribeTwelveDataQuotes(symbols, (update) => {
       const symbol = normalizeSymbol(update?.symbol);
@@ -700,7 +702,7 @@ export default function AnalyticsPage() {
       unsubscribeQuotes?.();
       unsubscribeStatus?.();
     };
-  }, [symbols]);
+  }, [symbols]); */
 
   useEffect(() => {
     if (!searchQuery.trim()) {
