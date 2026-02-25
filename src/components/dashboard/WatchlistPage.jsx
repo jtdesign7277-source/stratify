@@ -1309,13 +1309,14 @@ const WatchlistPage = ({
                   quote?.extended_percent_change
                   ?? quote?.extendedPercentChange
                 );
-                const preMarketChange = toNumber(
+                const isRegularSession = quote?.marketSession === 'regular';
+                const preMarketChange = isRegularSession ? null : toNumber(
                   quote?.extended_change
                   ?? quote?.extendedChange
                   ?? quote?.preMarketChange
                   ?? quote?.pre_market_change
                 );
-                const preMarketChangePercent = toNumber(
+                const preMarketChangePercent = isRegularSession ? null : toNumber(
                   quote?.extended_percent_change
                   ?? quote?.extendedPercentChange
                   ?? quote?.preMarketChangePercent
@@ -1328,7 +1329,6 @@ const WatchlistPage = ({
                     : Number.isFinite(extendedChange)
                       ? extendedChange
                       : preMarketChange;
-                const isRegularSession = quote?.marketSession === 'regular';
                 const dayDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.day || 'percent';
                 const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.preMarket || 'percent';
                 const rowActive = selectedTicker === item.symbol;
