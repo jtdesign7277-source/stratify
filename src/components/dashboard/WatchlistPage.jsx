@@ -457,23 +457,21 @@ const WatchlistPage = ({
     setLoading(true);
 
     try {
-      const response = await fetch('/api/watchlist/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols: activeSymbols }),
-      });
-      const payload = await response.json().catch(() => ({}));
+      const params = new URLSearchParams({ symbols: activeSymbols.join(',') });
+      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => []);
 
       if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to load watchlist quotes');
+        throw new Error('Failed to load watchlist quotes');
       }
 
       const map = {};
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const rows = Array.isArray(payload) ? payload : [];
 
       rows.forEach((row) => {
         const symbol = normalizeSymbol(row?.symbol);
         if (!symbol) return;
+        const percentChange = toNumber(row?.changePercent ?? row?.percentChange);
 
         map[symbol] = {
           ...row,
@@ -484,11 +482,12 @@ const WatchlistPage = ({
             ? (toNumber(row?.price) ?? 0) - toNumber(row?.change)
             : (
               Number.isFinite(toNumber(row?.price))
-              && Number.isFinite(toNumber(row?.percentChange))
-              && toNumber(row?.percentChange) !== -100
-                ? (toNumber(row?.price) / (1 + (toNumber(row?.percentChange) / 100)))
+              && Number.isFinite(percentChange)
+              && percentChange !== -100
+                ? (toNumber(row?.price) / (1 + (percentChange / 100)))
                 : null
             ),
+          percentChange,
           source: 'rest',
         };
       });

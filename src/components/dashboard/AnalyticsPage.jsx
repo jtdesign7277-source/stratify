@@ -394,18 +394,15 @@ export default function AnalyticsPage() {
     setFetchError('');
 
     try {
-      const response = await fetch('/api/watchlist/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols }),
-      });
+      const params = new URLSearchParams({ symbols: symbols.join(',') });
+      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
 
-      const payload = await response.json().catch(() => ({}));
+      const payload = await response.json().catch(() => []);
       if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to load watchlist quotes');
+        throw new Error('Failed to load watchlist quotes');
       }
 
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const rows = Array.isArray(payload) ? payload : [];
       const next = {};
 
       rows.forEach((row) => {
@@ -415,7 +412,9 @@ export default function AnalyticsPage() {
         const raw = row?.raw && typeof row.raw === 'object' ? row.raw : {};
         const parsedPrice = toNumber(row?.price ?? raw?.close ?? raw?.price ?? raw?.last);
         const parsedChange = toNumber(row?.change ?? raw?.change);
-        const parsedPercent = toNumber(row?.percentChange ?? raw?.percent_change ?? raw?.percentChange);
+        const parsedPercent = toNumber(
+          row?.changePercent ?? row?.percentChange ?? raw?.percent_change ?? raw?.percentChange
+        );
         let parsedPreviousClose = toNumber(
           row?.previousClose
           ?? raw?.previous_close

@@ -9,7 +9,6 @@ import useTradingMode from '../../hooks/useTradingMode';
 import { fetchAccount, placeOrder } from '../../services/alpacaService';
 
 const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
-const TWELVE_DATA_SYMBOL_SEARCH_URL = 'https://api.twelvedata.com/symbol_search';
 const CHART_CANDLES_ENDPOINT = '/api/chart/candles';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
@@ -1359,11 +1358,6 @@ export default function TraderPage({
     setSearchResults(fallbackMatches);
     setIsSearchDropdownOpen(true);
 
-    if (!apiKey) {
-      setIsSearchLoading(false);
-      return undefined;
-    }
-
     const requestId = searchRequestRef.current + 1;
     searchRequestRef.current = requestId;
     const controller = new AbortController();
@@ -1372,28 +1366,29 @@ export default function TraderPage({
       try {
         setIsSearchLoading(true);
 
-        const params = new URLSearchParams({
-          symbol: query,
-          outputsize: String(MAX_SYMBOL_SEARCH_RESULTS),
-          apikey: apiKey,
-        });
-
-        const response = await fetch(`${TWELVE_DATA_SYMBOL_SEARCH_URL}?${params.toString()}`, {
+        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`, {
           cache: 'no-store',
           signal: controller.signal,
         });
-        const payload = await response.json().catch(() => ({}));
+        const payload = await response.json().catch(() => []);
 
         if (controller.signal.aborted || searchRequestRef.current !== requestId) return;
-        if (!response.ok || payload?.status === 'error') return;
 
-        const apiMatches = Array.isArray(payload?.data)
-          ? payload.data.map((item) => ({
-              symbol: item?.symbol,
-              exchange: item?.exchange || item?.mic_code || item?.exchange_timezone,
-              name: item?.instrument_name || item?.name || item?.description,
-            }))
-          : [];
+        if (!response.ok) {
+          setSearchResults(fallbackMatches);
+          return;
+        }
+
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        const apiMatches = rows.map((item) => ({
+          symbol: item?.symbol,
+          exchange: item?.exchange || item?.mic_code || item?.exchange_timezone,
+          name: item?.instrument_name || item?.name || item?.description,
+        }));
 
         const mergedResults = buildSearchResults(
           [...apiMatches, ...MARKET_SYMBOLS],
@@ -1417,7 +1412,7 @@ export default function TraderPage({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [activeMarketExchanges, apiKey, symbolInput, watchlist]);
+  }, [activeMarketExchanges, symbolInput, watchlist]);
 
   const selectedQuote = selectedSymbol ? quotesBySymbol[selectedSymbol] : null;
   const selectedQuoteIsPlaceholder = selectedQuote?.isPlaceholder === true;
@@ -1488,16 +1483,12 @@ export default function TraderPage({
     if (symbols.length === 0) return;
 
     try {
-      const response = await fetch('/api/watchlist/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols }),
-        cache: 'no-store',
-      });
-      const payload = await response.json().catch(() => ({}));
+      const params = new URLSearchParams({ symbols: symbols.join(',') });
+      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => []);
       if (!response.ok) return;
 
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const rows = Array.isArray(payload) ? payload : [];
       const updates = rows
         .map((row) => {
           const symbol = normalizeSymbol(row?.symbol);
@@ -1512,10 +1503,12 @@ export default function TraderPage({
             previous_close: raw?.previous_close,
             price,
             change: row?.change,
-            changePercent: row?.percentChange,
+            changePercent: row?.changePercent ?? row?.percentChange,
           });
           const rawChange = toNumber(row?.change);
-          const rawPercent = toNumber(row?.percentChange ?? raw?.percent_change ?? raw?.percentChange);
+          const rawPercent = toNumber(
+            row?.changePercent ?? row?.percentChange ?? raw?.percent_change ?? raw?.percentChange
+          );
           const change = Number.isFinite(rawChange)
             ? rawChange
             : Number.isFinite(previousClose)
@@ -1558,7 +1551,7 @@ export default function TraderPage({
             preMarketChangePercent: derivedPreMarketChangePercent,
             previousClose: Number.isFinite(previousClose) ? previousClose : null,
             isMarketOpen: parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
-            timestamp: row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
+            timestamp: row?.tradeTimestamp || row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
             name: String(row?.name || raw?.name || raw?.instrument_name || raw?.display_name || '').trim() || undefined,
             exchange: String(row?.exchange || raw?.exchange || '').trim() || undefined,
             source: 'rest',

@@ -39,36 +39,35 @@ export default function useTwelveData({ symbols = [], labelsBySymbol = {} } = {}
     if (targetSymbols.length === 0) return;
     setLoadingQuotes(true);
     try {
-      const response = await fetch(`/api/lse/quotes?symbols=${encodeURIComponent(targetSymbols.join(','))}`, {
+      const params = new URLSearchParams({ symbols: targetSymbols.join(',') });
+      const response = await fetch(`/api/stocks?${params.toString()}`, {
         cache: 'no-store',
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || 'Failed to fetch LSE quotes');
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error('Failed to fetch quotes');
 
       const next = {};
-      (payload?.data || []).forEach((item) => {
-        const requestedSymbol = normalizeSymbol(item?.requestedSymbol);
-        const streamSymbol = normalizeSymbol(item?.streamSymbol || item?.symbol);
-        const keySymbol = requestedSymbol || baseSymbol(streamSymbol);
+      (Array.isArray(payload) ? payload : []).forEach((item) => {
+        const keySymbol = normalizeSymbol(item?.symbol);
         if (!keySymbol) return;
 
         next[keySymbol] = {
           symbol: keySymbol,
-          streamSymbol,
+          streamSymbol: keySymbol,
           name: item?.name || labelsBySymbol[keySymbol] || keySymbol,
-          exchange: item?.exchange || '',
-          currency: item?.currency || '',
+          exchange: item?.exchange || 'NASDAQ',
+          currency: item?.currency || 'USD',
           price: toNumber(item?.price),
           change: toNumber(item?.change),
-          percentChange: toNumber(item?.percentChange),
-          timestamp: item?.timestamp || null,
+          percentChange: toNumber(item?.changePercent ?? item?.percentChange),
+          timestamp: item?.tradeTimestamp || item?.timestamp || null,
           source: 'rest',
         };
       });
       setQuotes((prev) => ({ ...prev, ...next }));
       setError(null);
     } catch (loadError) {
-      setError(loadError?.message || 'Failed to load LSE quotes');
+      setError(loadError?.message || 'Failed to load quotes');
     } finally {
       setLoadingQuotes(false);
     }

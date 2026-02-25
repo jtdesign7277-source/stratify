@@ -125,22 +125,17 @@ export const useMarketData = () => {
       setLoading(true);
 
       try {
-        const [quotesResponse, barsResponse] = await Promise.all([
-          fetch(`${API_BASE}/api/stocks/quotes`, { signal: controller.signal }),
-          fetch(`${API_BASE}/api/stocks/bars`, { signal: controller.signal }),
-        ]);
+        const response = await fetch(`${API_BASE}/api/stocks`, { signal: controller.signal });
 
-        if (!quotesResponse.ok || !barsResponse.ok) {
+        if (!response.ok) {
           throw new Error('Failed to load market data.');
         }
 
-        const [quotes, bars] = await Promise.all([
-          quotesResponse.json(),
-          barsResponse.json(),
-        ]);
+        const stocks = await response.json();
 
         if (!isCancelled) {
-          setPrices(buildInitialMap(quotes, bars));
+          // /api/stocks already returns merged snapshot fields (price + bar fields).
+          setPrices(buildInitialMap(stocks, stocks));
         }
       } catch (error) {
         if (!isCancelled) {
@@ -238,4 +233,3 @@ export const useMarketData = () => {
     connected,
   };
 };
-

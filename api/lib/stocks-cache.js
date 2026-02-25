@@ -14,6 +14,7 @@ export const WATCHLIST_SYMBOLS = [
 ];
 
 let redisClient = null;
+let redisDisabled = false;
 
 const toNumber = (value) => {
   const numeric = typeof value === 'number' ? value : Number(value);
@@ -57,13 +58,22 @@ export function getAlpacaCredentials() {
 }
 
 export function getRedisClient() {
+  if (redisDisabled) return null;
+
   const url = process.env.KV_REST_API_URL;
   const token = process.env.KV_REST_API_TOKEN;
 
   if (!url || !token) return null;
 
   if (!redisClient) {
-    redisClient = new Redis({ url, token });
+    try {
+      redisClient = new Redis({ url, token });
+    } catch (error) {
+      redisDisabled = true;
+      redisClient = null;
+      console.error('[stocks-cache] Redis init failed, falling back to direct Alpaca:', error);
+      return null;
+    }
   }
 
   return redisClient;

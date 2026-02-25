@@ -24,6 +24,8 @@ function unwrapPipelineResult(value) {
   return value;
 }
 
+const STOCK_SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
+
 export default async function handler(req, res) {
   setHeaders(res);
 
@@ -40,12 +42,20 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Missing Alpaca API credentials' });
   }
 
-  const symbols = normalizeSymbols(req.query?.symbols, WATCHLIST_SYMBOLS, 200);
+  const symbols = normalizeSymbols(req.query?.symbols, WATCHLIST_SYMBOLS, 200)
+    .filter((symbol) => STOCK_SYMBOL_PATTERN.test(symbol));
   if (symbols.length === 0) {
-    return res.status(400).json({ error: 'Missing symbols' });
+    // Return an empty array instead of 400 so callers can fail soft.
+    return res.status(200).json([]);
   }
 
-  const redis = getRedisClient();
+  let redis = null;
+  try {
+    redis = getRedisClient();
+  } catch (error) {
+    console.error('[stocks] Redis unavailable, falling back to direct Alpaca:', error);
+    redis = null;
+  }
   const cachedBarsBySymbol = new Map();
   const fetchedBarsBySymbol = new Map();
 
@@ -81,8 +91,29 @@ export default async function handler(req, res) {
 
   try {
     if (missingSymbols.length > 0) {
-      const snapshots = await fetchSnapshotsFromAlpaca(missingSymbols, credentials);
-      const fetchedBars = mapSnapshotsToBars(snapshots, missingSymbols);
+      let fetchedBars = [];
+      try {
+        const snapshots = await fetchSnapshotsFromAlpaca(missingSymbols, credentials);
+        fetchedBars = mapSnapshotsToBars(snapshots, missingSymbols);
+      } catch (error) {
+        // Alpaca returns 400 when one or more symbols are invalid; retry one-by-one.
+        if (Number(error?.status) === 400 && missingSymbols.length > 1) {
+          const retryBars = [];
+          for (const symbol of missingSymbols) {
+            try {
+              const snapshots = await fetchSnapshotsFromAlpaca([symbol], credentials);
+              retryBars.push(...mapSnapshotsToBars(snapshots, [symbol]));
+            } catch (singleError) {
+              if (Number(singleError?.status) >= 500) {
+                console.error(`[stocks] failed retry snapshot for ${symbol}:`, singleError);
+              }
+            }
+          }
+          fetchedBars = retryBars;
+        } else {
+          throw error;
+        }
+      }
 
       fetchedBars.forEach((bar) => {
         fetchedBarsBySymbol.set(bar.symbol, bar);
@@ -108,6 +139,13 @@ export default async function handler(req, res) {
     return res.status(200).json(bars);
   } catch (error) {
     const status = Number(error?.status) || 500;
+    if (status === 400) {
+      const partialBars = symbols
+        .map((symbol) => cachedBarsBySymbol.get(symbol) || fetchedBarsBySymbol.get(symbol))
+        .filter(Boolean);
+      return res.status(200).json(partialBars);
+    }
+
     if (status >= 500) {
       console.error('[stocks] handler error:', error);
     }

@@ -89,21 +89,45 @@ Highcharts.setOptions({
   },
 });
 
-// Fetch historical OHLCV from Twelve Data REST
+// Fetch historical OHLCV from internal bars endpoint
 async function fetchHistorical(symbol, interval = '1day', outputsize = 200) {
-  const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&apikey=${TWELVE_DATA_KEY}&format=JSON`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status === 'error') throw new Error(data.message || 'Twelve Data error');
+  const timeframeByInterval = {
+    '1min': '1Min',
+    '5min': '5Min',
+    '15min': '15Min',
+    '1h': '1Hour',
+    '4h': '1Hour',
+    '1day': '1Day',
+    '1week': '1Week',
+  };
+  const params = new URLSearchParams({
+    symbol,
+    timeframe: timeframeByInterval[interval] || '1Day',
+    limit: String(outputsize),
+  });
+  const res = await fetch(`/api/bars?${params.toString()}`, { cache: 'no-store' });
+  const data = await res.json().catch(() => []);
+  if (!res.ok) {
+    const message = typeof data?.error === 'string' ? data.error : `Bars request failed (${res.status})`;
+    throw new Error(message);
+  }
 
-  const values = (data.values || []).reverse(); // oldest first
+  const values = Array.isArray(data) ? data : [];
   const ohlc = [];
   const volume = [];
 
   for (const v of values) {
-    const ts = new Date(v.datetime).getTime();
-    ohlc.push([ts, +v.open, +v.high, +v.low, +v.close]);
-    volume.push([ts, +v.volume]);
+    const ts = Number(v?.time) * 1000;
+    const open = Number(v?.open);
+    const high = Number(v?.high);
+    const low = Number(v?.low);
+    const close = Number(v?.close);
+    const vol = Number(v?.volume ?? 0);
+    if (!Number.isFinite(ts) || !Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+      continue;
+    }
+    ohlc.push([ts, open, high, low, close]);
+    volume.push([ts, Number.isFinite(vol) ? vol : 0]);
   }
 
   return { ohlc, volume };

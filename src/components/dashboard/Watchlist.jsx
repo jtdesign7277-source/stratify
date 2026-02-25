@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TOP_CRYPTO_BY_MARKET_CAP } from '../../data/cryptoTop20';
-import { API_URL } from '../../config';
 
 const CRYPTO_API_BASE = 'https://api.crypto.com/exchange/v1/public/get-tickers';
 
@@ -118,7 +117,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
         setStockLoading(true);
         try {
                 const query = symbolList && symbolList.length > 0 ? `?symbols=${encodeURIComponent(symbolList.join(','))}` : '';
-                const res = await fetch(`${API_URL}/api/public/quotes${query}`);
+                const res = await fetch(`/api/stocks${query}`);
                 if (!res.ok) {
                           throw new Error(`Failed to fetch stock snapshots: ${res.status}`);
                 }

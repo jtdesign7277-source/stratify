@@ -1008,21 +1008,19 @@ export default function Dashboard({
     const normalized = String(symbol).trim().toUpperCase();
     if (!normalized) return null;
 
-    const endpoints = [
-      `${API_URL}/api/public/quote/${encodeURIComponent(normalized)}`,
-      `/api/quote-twelve?symbol=${encodeURIComponent(normalized)}`,
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint);
-        if (!response.ok) continue;
-        const data = await response.json();
-        const price = extractQuotePrice(data);
-        if (price !== null) return { ...data, price };
-      } catch {
-        // Ignore endpoint failure and keep trying.
-      }
+    try {
+      const params = new URLSearchParams({ symbols: normalized });
+      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      if (!response.ok) return null;
+      const rows = await response.json().catch(() => []);
+      const quote = Array.isArray(rows)
+        ? rows.find((row) => String(row?.symbol || '').toUpperCase() === normalized)
+        : null;
+      if (!quote) return null;
+      const price = extractQuotePrice(quote);
+      if (price !== null) return { ...quote, price };
+    } catch {
+      // Keep graceful null fallback.
     }
 
     return null;
@@ -1033,10 +1031,10 @@ export default function Dashboard({
     if (uniqueSymbols.length === 0) return {};
 
     try {
-      const query = encodeURIComponent(uniqueSymbols.join(','));
-      const response = await fetch(`${API_URL}/api/public/quotes?symbols=${query}`);
+      const params = new URLSearchParams({ symbols: uniqueSymbols.join(',') });
+      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
       if (response.ok) {
-        const snapshots = await response.json();
+        const snapshots = await response.json().catch(() => []);
         if (Array.isArray(snapshots)) {
           return snapshots.reduce((acc, snapshot) => {
             const symbol = String(snapshot?.symbol || '').toUpperCase();

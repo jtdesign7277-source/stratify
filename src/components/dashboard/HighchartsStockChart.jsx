@@ -18,7 +18,6 @@ initModule(AnnotationsAdvanced);
 initModule(StockTools);
 
 const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
-const TD_REST_BASE = 'https://api.twelvedata.com';
 const TD_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 
 const toTimestampMs = (value) => {
@@ -126,23 +125,37 @@ const DRAWING_TOOLS = [
   { label: 'Clear All', icon: '✕', type: 'clearAll' },
 ];
 
-async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500, apiKey = '') {
-  const directUrl = `${TD_REST_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}&apikey=${encodeURIComponent(apiKey)}&format=JSON&order=ASC&prepost=true`;
-  const fallbackUrl = `/api/lse/timeseries?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${encodeURIComponent(outputsize)}`;
-  const res = await fetch(apiKey ? directUrl : fallbackUrl, { cache: 'no-store' });
-  const data = await res.json();
+async function fetchHistoricalData(symbol, interval = '1day', outputsize = 500) {
+  const timeframeByInterval = {
+    '1min': '1Min',
+    '5min': '5Min',
+    '15min': '15Min',
+    '30min': '15Min',
+    '1h': '1Hour',
+    '4h': '1Hour',
+    '1day': '1Day',
+    '1week': '1Week',
+    '1month': '1Week',
+  };
+  const params = new URLSearchParams({
+    symbol,
+    timeframe: timeframeByInterval[interval] || '1Day',
+    limit: String(outputsize),
+  });
+  const res = await fetch(`/api/bars?${params.toString()}`, { cache: 'no-store' });
+  const data = await res.json().catch(() => []);
 
-  if (!res.ok || data?.status === 'error' || data?.error) {
-    console.error('Twelve Data error:', data?.message || data?.error || `request failed (${res.status})`);
+  if (!res.ok || !Array.isArray(data)) {
+    console.error('Bars error:', data?.message || data?.error || `request failed (${res.status})`);
     return { ohlc: [], volume: [] };
   }
 
   const ohlc = [];
   const volume = [];
 
-  if (data.values && Array.isArray(data.values)) {
-    data.values.forEach((bar) => {
-      const ts = toTimestampMs(bar.datetime || bar.timestamp || bar.time);
+  if (Array.isArray(data)) {
+    data.forEach((bar) => {
+      const ts = toTimestampMs(bar.time);
       const o = parseFloat(bar.open);
       const h = parseFloat(bar.high);
       const l = parseFloat(bar.low);
@@ -325,7 +338,7 @@ export default function HighchartsStockChart({
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const { ohlc, volume } = await fetchHistoricalData(symbol, interval, 500, TD_API_KEY);
+      const { ohlc, volume } = await fetchHistoricalData(symbol, interval, 500);
       if (ohlc.length === 0) { setSeriesSeed({ ohlc: [], volume: [] }); setError('No data for $' + symbol); setLoading(false); return; }
       const last = ohlc[ohlc.length - 1];
       const prev = ohlc.length > 1 ? ohlc[ohlc.length - 2] : last;

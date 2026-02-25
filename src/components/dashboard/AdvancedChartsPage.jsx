@@ -278,22 +278,20 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
       try {
         setQuoteStatus({ state: 'loading', message: '' });
         const normalizedTicker = String(ticker || '').trim().toUpperCase().replace(/^\$/, '');
-        const response = await fetch(
-          `/api/lse/quotes?symbols=${encodeURIComponent(normalizedTicker)}`,
-          { cache: 'no-store' }
-        );
-        const data = await response.json();
+        const params = new URLSearchParams({ symbols: normalizedTicker });
+        const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+        const data = await response.json().catch(() => []);
         if (!response.ok) {
-          throw new Error(data?.error || 'Failed to fetch quote');
+          throw new Error('Failed to fetch quote');
         }
-        const rows = Array.isArray(data?.data) ? data.data : [];
+        const rows = Array.isArray(data) ? data : [];
         const row =
           rows.find((item) => String(item?.symbol || '').toUpperCase() === normalizedTicker) ||
           rows[0] ||
           null;
         const price = Number(row?.price ?? row?.last ?? row?.close);
         const change = Number(row?.change);
-        const percentChange = Number(row?.percentChange ?? row?.percent_change);
+        const percentChange = Number(row?.changePercent ?? row?.percentChange ?? row?.percent_change);
         if (!cancelled) {
           setQuote((previous) => ({
             ...(previous || {}),

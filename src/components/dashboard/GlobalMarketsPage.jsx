@@ -172,21 +172,27 @@ const GlobalMarketsPage = () => {
 
     try {
       const params = new URLSearchParams({
-        market: marketId,
         symbols: symbols.join(','),
       });
-      const response = await fetch(`/api/global-markets/quotes?${params.toString()}`, { cache: 'no-store' });
-      const payload = await response.json().catch(() => ({}));
+      const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => []);
 
       if (!response.ok) {
-        throw new Error(payload?.error || `Failed to load ${marketId.toUpperCase()} quotes`);
+        throw new Error(`Failed to load ${marketId.toUpperCase()} quotes`);
       }
 
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const rows = Array.isArray(payload) ? payload : [];
       const quoteMap = rows.reduce((acc, row) => {
-        const symbol = normalizeSymbol(row?.requestedSymbol || row?.symbol || row?.streamSymbol);
+        const symbol = normalizeSymbol(row?.symbol);
         if (!symbol) return acc;
-        acc[symbol] = row;
+        acc[symbol] = {
+          ...row,
+          requestedSymbol: symbol,
+          streamSymbol: symbol,
+          percentChange: Number.isFinite(Number(row?.changePercent))
+            ? Number(row?.changePercent)
+            : Number(row?.percentChange),
+        };
         return acc;
       }, {});
 

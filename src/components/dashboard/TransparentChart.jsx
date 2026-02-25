@@ -8,9 +8,6 @@ const initModule = (mod) => {
 };
 initModule(IndicatorsAll);
 
-const TD_API_KEY = import.meta.env.VITE_TWELVE_DATA_APIKEY || import.meta.env.VITE_TWELVEDATA_API_KEY || '';
-const TD_REST = 'https://api.twelvedata.com';
-
 const INTERVALS = [
   { label: '1m', value: '1min' },
   { label: '5m', value: '5min' },
@@ -55,14 +52,29 @@ const toMs = (v) => {
 };
 
 async function fetchData(symbol, interval, outputsize = 500) {
-  const url = `${TD_REST}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&outputsize=${outputsize}&apikey=${encodeURIComponent(TD_API_KEY)}&format=JSON&order=ASC&prepost=true`;
-  const res = await fetch(url, { cache: 'no-store' });
-  const data = await res.json();
-  if (!res.ok || data?.status === 'error') return { ohlc: [], volume: [] };
+  const timeframeByInterval = {
+    '1min': '1Min',
+    '5min': '5Min',
+    '15min': '15Min',
+    '1h': '1Hour',
+    '1day': '1Day',
+    '1month': '1Week',
+  };
+  const params = new URLSearchParams({
+    symbol,
+    timeframe: timeframeByInterval[interval] || '1Day',
+    limit: String(outputsize),
+  });
+  const res = await fetch(`/api/bars?${params.toString()}`, { cache: 'no-store' });
+  const data = await res.json().catch(() => []);
+  if (!res.ok || !Array.isArray(data)) return { ohlc: [], volume: [] };
   const ohlc = [], volume = [];
-  (data.values || []).forEach((bar) => {
-    const ts = toMs(bar.datetime || bar.timestamp);
-    const o = parseFloat(bar.open), h = parseFloat(bar.high), l = parseFloat(bar.low), c = parseFloat(bar.close);
+  data.forEach((bar) => {
+    const ts = toMs(bar.time);
+    const o = parseFloat(bar.open);
+    const h = parseFloat(bar.high);
+    const l = parseFloat(bar.low);
+    const c = parseFloat(bar.close);
     const v = parseInt(bar.volume, 10) || 0;
     if (!Number.isFinite(ts) || [o,h,l,c].some(x => !Number.isFinite(x))) return;
     ohlc.push([ts, o, h, l, c]);
