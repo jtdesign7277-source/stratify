@@ -18,6 +18,7 @@
     "@highcharts/react": "^4.2.1",
     "@monaco-editor/react": "^4.7.0",
     "@sentry/react": "^10.39.0",
+    "@upstash/redis": "^1.0.0",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
     "canvas-confetti": "^1.9.3",
