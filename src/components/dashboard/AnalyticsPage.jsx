@@ -952,7 +952,7 @@ export default function AnalyticsPage() {
         </form>
 
         {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
-        <div id="analytics-watchlist-grid" className="watchlist-grid-container" />
+        <div id="analytics-watchlist-grid" className="watchlist-grid-container watchlist-scrollable overflow-y-auto" />
       </div>
     </div>
   );

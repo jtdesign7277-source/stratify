@@ -145,8 +145,10 @@
 .watchlist-grid-container {
   flex: 1;
   min-height: 420px;
+  max-height: calc(100dvh - 160px);
   border-top: 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   background: transparent;
 }
 
