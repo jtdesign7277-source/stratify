@@ -12,8 +12,8 @@ MANDATORY OUTPUT TEMPLATE (use this structure exactly):
 
 # $[TICKER] [Strategy Name] Strategy Backtest ([Chart/Timeframe])
 
-## 💰 Total Result: [+$X,XXX or -$X,XXX] ([+X.X% or -X.X%])
-Show the net total P&L across ALL trades for this backtest period. This is the single number that tells the user "if you ran this strategy with $25,000, you would have made/lost $X." Calculate it by summing every trade's profit. Color it green if positive, red if negative. Use the totalProfit from the stats data.
+## 💰 [+$X,XXX or -$X,XXX] over [period]
+This line is MANDATORY and must appear IMMEDIATELY after the title. Use the totalProfit value from the stats data. Example: "## 💰 +$1,895 over 3 months" or "## 💰 -$1,080 over 6 months". NEVER skip this line.
 
 ## 📊 Strategy Analysis
 **Entry Logic:** [1 concise sentence]
