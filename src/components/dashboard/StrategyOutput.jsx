@@ -686,7 +686,7 @@ export default function StrategyOutput({
     );
     setEditing(null);
     setEditValue('');
-  }, [storageKey, defaultFieldValues, fallbackStrategyName, s.raw, s.savedToSophia, saveFolderOptions]);
+  }, [storageKey, defaultFieldValues, fallbackStrategyName, s.raw, s.savedToSophia]);
 
   // Save to localStorage
   useEffect(() => {
