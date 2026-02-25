@@ -626,14 +626,11 @@ export default function WarRoom({ onClose }) {
     <div className={`h-full w-full bg-transparent relative overflow-hidden ${isGlitching ? 'warroom-glitch' : ''}`}>
       <style>{warRoomStyles}</style>
 
-      <div className="relative z-10 h-full flex flex-col gap-4 px-5 py-4 overflow-hidden">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-white font-bold text-xl tracking-[0.2em] uppercase">War Room</h1>
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            </div>
-            <p className="text-gray-500 text-sm uppercase tracking-wide mt-1">Deep Market Intelligence</p>
+      <div className="relative z-10 h-full flex flex-col gap-2 px-5 py-3 overflow-hidden">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h1 className="text-white font-bold text-base tracking-[0.2em] uppercase">Deep Market Intelligence</h1>
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           </div>
 
           {onClose ? (
@@ -641,21 +638,21 @@ export default function WarRoom({ onClose }) {
               type="button"
               onClick={onClose}
               className="rounded-lg border border-gray-800 bg-black/40 px-2 py-1 text-gray-400 hover:text-white hover:border-gray-700 transition-colors"
-              aria-label="Close War Room"
+              aria-label="Close"
             >
               <X className="h-4 w-4" strokeWidth={1.5} />
             </button>
           ) : null}
         </header>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {QUICK_SCANS.map((scan) => (
             <button
               key={scan.label}
               type="button"
               onClick={() => runScan(scan.query, scan.label)}
               disabled={isLoading}
-              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-amber-500/50 rounded-lg px-4 py-2.5 text-base text-gray-400 hover:text-amber-400 transition-all hover:shadow-[0_0_10px_rgba(245,158,11,0.15)] disabled:opacity-40"
+              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-amber-500/50 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-amber-400 transition-all hover:shadow-[0_0_10px_rgba(245,158,11,0.15)] disabled:opacity-40"
             >
               {scan.label}
             </button>
@@ -664,25 +661,25 @@ export default function WarRoom({ onClose }) {
 
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600" strokeWidth={1.5} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-600" strokeWidth={1.5} />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Initiate deep scan..."
-              className="w-full bg-black/60 border border-gray-800 focus:border-amber-500/50 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 outline-none transition-colors"
+              className="w-full bg-black/60 border border-gray-800 focus:border-amber-500/50 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-600 outline-none transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="scan-button-pulse bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-xl px-5 py-3 text-sm font-semibold tracking-wide uppercase transition-all disabled:opacity-45"
+            className="scan-button-pulse bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-4 py-2 text-xs font-semibold tracking-wide uppercase transition-all disabled:opacity-45"
           >
             {isLoading ? 'Scanning...' : 'Scan'}
           </button>
         </form>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {['live', 'saved', 'transcripts'].map((view) => {
             const labels = { live: 'Live Feed', saved: `Saved Intel (${allSavedCount})`, transcripts: 'Transcripts' };
             return (
@@ -690,7 +687,7 @@ export default function WarRoom({ onClose }) {
                 key={view}
                 type="button"
                 onClick={() => setActiveView(view)}
-                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                className={`rounded-lg px-2.5 py-1 text-xs transition-colors ${
                   activeView === view
                     ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
                     : 'border border-gray-800 text-gray-400 hover:text-white'
@@ -704,65 +701,61 @@ export default function WarRoom({ onClose }) {
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeView === 'transcripts' ? (
-            <div className="h-full flex flex-col gap-3">
+            <div className="h-full flex flex-col gap-2">
               {/* Search bar + ticker buttons */}
-              <div className="shrink-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      fetchTranscript(transcriptSymbol);
-                    }}
-                    className="flex items-center gap-2 flex-1"
+              <div className="shrink-0 flex items-center gap-2 flex-wrap">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    fetchTranscript(transcriptSymbol);
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <input
+                    type="text"
+                    value={transcriptSymbol}
+                    onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
+                    placeholder="Ticker..."
+                    className="w-28 rounded-lg border border-gray-700 bg-black/40 px-3 py-1.5 text-sm text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={transcriptLoading || !transcriptSymbol.trim()}
+                    className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-45"
                   >
-                    <input
-                      type="text"
-                      value={transcriptSymbol}
-                      onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
-                      placeholder="Enter ticker (AAPL, NVDA, TSLA...)"
-                      className="flex-1 rounded-lg border border-gray-700 bg-black/40 px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
-                    />
-                    <button
-                      type="submit"
-                      disabled={transcriptLoading || !transcriptSymbol.trim()}
-                      className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-5 py-2.5 text-base font-semibold transition-all disabled:opacity-45"
-                    >
-                      {transcriptLoading ? 'Loading...' : 'Get Transcript'}
-                    </button>
-                  </form>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'].map((sym) => (
-                    <button
-                      key={sym}
-                      type="button"
-                      onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
-                      disabled={transcriptLoading}
-                      className="rounded-lg border border-gray-800 px-3 py-1.5 text-sm text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
-                    >
-                      ${sym}
-                    </button>
-                  ))}
-                </div>
+                    {transcriptLoading ? 'Loading...' : 'Search'}
+                  </button>
+                </form>
+                <div className="h-4 w-px bg-gray-800" />
+                {['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'].map((sym) => (
+                  <button
+                    key={sym}
+                    type="button"
+                    onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
+                    disabled={transcriptLoading}
+                    className="rounded border border-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
+                  >
+                    ${sym}
+                  </button>
+                ))}
               </div>
 
               {transcriptError && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{transcriptError}</div>
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{transcriptError}</div>
               )}
 
               {transcriptLoading && !transcriptData && (
-                <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
-                  <span className="text-amber-300 text-sm animate-pulse">Fetching earnings transcript...</span>
+                <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" strokeWidth={1.5} />
+                  <span className="text-amber-300 text-xs animate-pulse">Fetching earnings transcript...</span>
                 </div>
               )}
 
               {!transcriptData && !transcriptLoading && !transcriptError && (
                 <div className="flex-1 flex items-center justify-center">
-                  <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
-                    <Search className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
-                    <h3 className="text-white font-semibold">Earnings Call Transcripts & SEC Filings</h3>
-                    <p className="text-sm text-gray-500 mt-1">Enter a ticker or click a company above to view their latest earnings call and SEC filings side by side.</p>
+                  <div className="text-center">
+                    <Search className="h-5 w-5 text-amber-400/60 mx-auto mb-2" strokeWidth={1.5} />
+                    <p className="text-xs text-gray-500">Select a ticker above to view earnings call & SEC filings</p>
                   </div>
                 </div>
               )}
