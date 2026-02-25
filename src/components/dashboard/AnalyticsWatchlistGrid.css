@@ -6,15 +6,24 @@
   background: transparent;
 }
 
+.watchlist-grid-page ::-webkit-scrollbar {
+  display: none;
+}
+
+.watchlist-grid-page {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .watchlist-grid-shell {
-  height: 100%;
+  height: auto;
   min-height: calc(100vh - 198px);
   border: 0;
   border-radius: 0;
   background: transparent;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .watchlist-grid-header {
@@ -146,7 +155,7 @@
   flex: 1;
   min-height: 420px;
   border-top: 0;
-  overflow: auto;
+  overflow: visible;
   background: transparent;
 }
 

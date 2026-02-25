@@ -819,7 +819,9 @@ export default function AnalyticsPage() {
       dataTable,
       rendering: {
         rows: {
-          minVisibleRows: 18,
+          virtualization: {
+            enabled: false,
+          },
         },
       },
       pagination: {
@@ -858,7 +860,9 @@ export default function AnalyticsPage() {
         dataTable,
         rendering: {
           rows: {
-            minVisibleRows: 18,
+            virtualization: {
+              enabled: false,
+            },
           },
         },
         pagination: {
