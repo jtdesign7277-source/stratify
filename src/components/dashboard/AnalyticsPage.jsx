@@ -857,7 +857,7 @@ export default function AnalyticsPage() {
         dataTable,
         rendering: {
           rows: {
-            minVisibleRows: 18,
+            virtualization: false,
           },
         },
         pagination: {
