@@ -654,10 +654,7 @@ const TerminalStrategyWorkspace = ({
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [deletingStrategyId, setDeletingStrategyId] = useState(null);
-  const [foldersCollapsed, setFoldersCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(FOLDERS_COLLAPSED_KEY) === '1';
-  });
+  const [foldersCollapsed, setFoldersCollapsed] = useState(false);
   const [foldersLoaded, setFoldersLoaded] = useState(false);
   const [draggingStrategyId, setDraggingStrategyId] = useState(null);
   const [dragOverFolderId, setDragOverFolderId] = useState(null);
@@ -1590,21 +1587,7 @@ const TerminalStrategyWorkspace = ({
             <SophiaThinkingState onOpenBuilder={onOpenBuilder} />
           </div>
         ) : (
-          <div className="flex-1 min-h-0 flex items-center justify-center px-8 bg-transparent">
-            <div className="text-center max-w-lg">
-              <h2 className="text-2xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
-              <p className="mt-2 text-sm text-white/55">
-                Choose a strategy from the folder list to review analysis, key trade setups, and activation details.
-              </p>
-              <button
-                type="button"
-                onClick={() => onOpenBuilder?.()}
-                className="mt-5 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
-              >
-                Build Strategy
-              </button>
-            </div>
-          </div>
+          <div className="flex-1 min-h-0 bg-transparent" />
         )}
       </div>
     </div>
