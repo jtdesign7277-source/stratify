@@ -24,7 +24,6 @@ const TERMINAL_STRATEGY_SAVE_EVENT = 'stratify:terminal-strategy-saved';
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
-  { id: 'active-strategies', name: 'Active Strategies', isExpanded: true, strategies: [] },
   { id: 'favorites', name: 'Favorites', isExpanded: true, strategies: [] },
   { id: 'sophia-strategies', name: 'Sophia Strategies', isExpanded: true, strategies: [] },
   { id: 'archive', name: 'Archive', isExpanded: false, strategies: [] },
@@ -293,6 +292,16 @@ const ensureDefaultFolders = (folders) => {
     };
   });
 
+  // Migrate legacy active-strategies folder: move its strategies into stratify
+  const legacyActive = byId.get('active-strategies');
+  if (legacyActive) {
+    byId.delete('active-strategies');
+    const stratifyFolder = merged.find((f) => f.id === 'stratify');
+    if (stratifyFolder) {
+      stratifyFolder.strategies = [...stratifyFolder.strategies, ...legacyActive.strategies];
+    }
+  }
+
   byId.forEach((folder) => merged.push(folder));
 
   const seenStrategyIds = new Set();
@@ -413,7 +422,6 @@ const mergeFoldersWithStrategies = (prevFolders, strategies, deployedStrategies)
       if (folderIndexById.has(previousFolderId)) return previousFolderId;
     }
 
-    if (isActiveFolderStatus(status) && folderIndexById.has('active-strategies')) return 'active-strategies';
     if (isSophiaStrategy(strategy) && folderIndexById.has('sophia-strategies')) return 'sophia-strategies';
     if (strategy?.isStarred && folderIndexById.has('favorites')) return 'favorites';
     if (strategy?.archived && folderIndexById.has('archive')) return 'archive';
@@ -458,7 +466,6 @@ const uniqueStrategiesFromFolders = (folders) => {
 
 const folderIconClass = (folderId) => {
   if (folderId === 'favorites') return 'text-amber-300';
-  if (folderId === 'active-strategies') return 'text-emerald-300';
   if (folderId === 'sophia-strategies') return 'text-emerald-400';
   if (folderId === 'archive') return 'text-zinc-400';
   if (folderId === 'stratify') return 'text-emerald-400';
@@ -887,6 +894,11 @@ const TerminalStrategyWorkspace = ({
 
   const allStrategies = useMemo(() => uniqueStrategiesFromFolders(folders), [folders]);
 
+  const activeStrategyCount = useMemo(
+    () => allStrategies.filter((s) => isActiveFolderStatus(normalizeStrategyStatus(s.status))).length,
+    [allStrategies]
+  );
+
   useEffect(() => {
     if (!selectedStrategyId) {
       if (missingSelectionTimerRef.current) {
@@ -1181,8 +1193,6 @@ const TerminalStrategyWorkspace = ({
       let targetFolderId = '';
       if (requestedFolderId && next.some((folder) => folder.id === requestedFolderId)) {
         targetFolderId = requestedFolderId;
-      } else if (isActiveFolderStatus(derivedStatus) && next.some((folder) => folder.id === 'active-strategies')) {
-        targetFolderId = 'active-strategies';
       } else if (isSophiaStrategy(normalizedStrategy) && next.some((folder) => folder.id === 'sophia-strategies')) {
         targetFolderId = 'sophia-strategies';
       } else if (normalizedStrategy.isStarred && next.some((folder) => folder.id === 'favorites')) {
@@ -1364,6 +1374,11 @@ const TerminalStrategyWorkspace = ({
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'none' }}>
+              <div className="mb-3 flex items-center gap-2 px-2">
+                <span className="text-sm font-semibold text-white/80">Active</span>
+                <span className="text-sm font-bold text-blue-400">{activeStrategyCount}</span>
+              </div>
+
               {folders.map((folder) => {
                 const hasStrategies = folder.strategies.length > 0;
 

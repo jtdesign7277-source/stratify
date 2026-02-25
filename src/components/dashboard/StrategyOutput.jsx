@@ -12,7 +12,6 @@ const STRATEGY_FOLDERS_STORAGE_KEY = 'stratify-strategies-folders';
 const TERMINAL_STRATEGY_SAVE_EVENT = 'stratify:terminal-strategy-saved';
 const DEFAULT_SAVE_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY' },
-  { id: 'active-strategies', name: 'Active Strategies' },
   { id: 'favorites', name: 'Favorites' },
   { id: 'sophia-strategies', name: 'Sophia Strategies' },
   { id: 'archive', name: 'Archive' },

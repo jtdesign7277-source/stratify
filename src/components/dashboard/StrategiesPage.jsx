@@ -19,7 +19,6 @@ const STORAGE_KEY = 'stratify-strategies-folders';
 
 const DEFAULT_FOLDERS = [
   { id: 'stratify', name: 'STRATIFY', isExpanded: true, strategies: [] },
-  { id: 'active-strategies', name: 'Active Strategies', isExpanded: true, strategies: [] },
   { id: 'favorites', name: 'Favorites', isExpanded: true, strategies: [] },
   { id: 'sophia-strategies', name: 'Sophia Strategies', isExpanded: true, strategies: [] },
   { id: 'archive', name: 'Archive', isExpanded: false, strategies: [] },
@@ -278,7 +277,6 @@ const mergeFoldersWithStrategies = (prevFolders, strategies, deployedStrategies)
 
   const resolveFolderId = (strategy) => {
     const status = deriveStatus(strategy, deployedIds);
-    if (LIVE_STATUSES.has(status)) return 'active-strategies';
     if (isSophiaStrategy(strategy)) return 'sophia-strategies';
     if (strategy?.isStarred) return 'favorites';
     if (strategy?.archived) return 'archive';
@@ -347,7 +345,6 @@ const getStatusClassName = (status) => {
 
 const folderIconClass = (folderId) => {
   if (folderId === 'favorites') return 'text-amber-300';
-  if (folderId === 'active-strategies') return 'text-emerald-300';
   if (folderId === 'sophia-strategies') return 'text-emerald-400';
   if (folderId === 'archive') return 'text-zinc-400';
   if (folderId === 'stratify') return 'text-emerald-400';
