@@ -388,6 +388,17 @@ function extractPerformanceData(strategy = {}) {
   };
 }
 
+function extractTotalPnL(strategy = {}) {
+  const raw = String(strategy.raw || strategy.content || '');
+  // Match the 💰 headline: "## 💰 +$1,903.27 over 3 months" or "## 💰 -$1,080 over 6 months"
+  const moneyBagMatch = raw.match(/💰\s*[:\-]?\s*([+-]?\$[\d,]+(?:\.\d+)?)/);
+  if (moneyBagMatch) return moneyBagMatch[1];
+  // Fallback: match "Total Profit: $X" or "Total Result: +$X"
+  const totalMatch = raw.match(/(?:total\s+(?:profit|result|p&l|pnl))\s*[:\-]\s*([+-]?\$[\d,]+(?:\.\d+)?)/i);
+  if (totalMatch) return totalMatch[1];
+  return null;
+}
+
 function parseMarkdown(raw) {
   if (!raw) return '';
   const lines = raw.split('\n');
@@ -766,6 +777,7 @@ export default function StrategyOutput({
     [strategyRaw, s.raw],
   );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
+  const totalPnL = useMemo(() => extractTotalPnL(s), [s.raw, s.content]);
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
   const editorSetupValues = useMemo(
     () => ensureKeyTradeSetupsSection(editorValue, fieldValues).values,
@@ -1312,6 +1324,11 @@ export default function StrategyOutput({
             {s.ticker && (
               <span className="text-xs font-mono px-2 py-0.5 border border-emerald-500/40 text-emerald-400 rounded">
                 {displayTicker}
+              </span>
+            )}
+            {totalPnL && (
+              <span className={`text-sm font-bold font-mono ${totalPnL.includes('-') ? 'text-red-400' : 'text-emerald-400'}`}>
+                {totalPnL}
               </span>
             )}
           </div>
