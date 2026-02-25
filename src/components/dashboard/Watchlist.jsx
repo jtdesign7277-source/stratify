@@ -270,7 +270,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                   const resolvedMarketSession = isCrypto ? null : (quote.marketSession || localMarketSession);
                   const extendedHoursPrice = isCrypto ? null : quote.extendedHoursPrice;
                   const extendedHoursChangePercent = isCrypto ? null : quote.extendedHoursChangePercent;
-                  const showExtendedHours = !isCrypto && (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'post_market') && Number.isFinite(extendedHoursPrice);
+                  const showExtendedHours = !isCrypto && (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'post_market' || resolvedMarketSession === 'pre' || resolvedMarketSession === 'after') && Number.isFinite(extendedHoursPrice);
                   const extendedHoursPercentLabel = formatSignedPercent(extendedHoursChangePercent);
                   const extendedHoursLabel = resolvedMarketSession === 'pre_market' ? 'Pre' : 'AH';
                   const showDollarValue = extendedHoursToggle[stock.symbol];
@@ -305,7 +305,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                                                                                                               <span>{change >= 0 ? '+' : ''}{Number(changePercentDisplay || 0).toFixed(2)}%</span>span>
                                                                                         </div>div>
                                                                                   )}
-                                                                {showExtendedHours && (
+                                                                {showExtendedHours ? (
                                                                                       <div 
                                                                                                                 className={`mt-1 text-xs ${getChangeColor(extendedHoursChangePercent || 0)} cursor-pointer hover:opacity-70 transition-opacity`}
                                                                                                                 onClick={(e) => {
@@ -319,6 +319,8 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                                                                                                               >
                                                                                                               <span className="text-amber-400">🌙</span>span> {extendedHoursLabel}: ${formatStockPrice(extendedHoursPrice)} {showDollarValue ? `$${extendedHoursDollarChange}` : (extendedHoursPercentLabel || '')}
                                                                                         </div>div>
+                                                                                  ) : (
+                                                                                      <div className="mt-1 text-xs text-zinc-500">--</div>
                                                                                   )}
                                                               </>>
                                                             )}
