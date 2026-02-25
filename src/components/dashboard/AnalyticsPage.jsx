@@ -711,8 +711,37 @@ export default function AnalyticsPage() {
 
     let active = true;
     const controller = new AbortController();
-    const query = searchQuery.trim();
+    const query = searchQuery.trim().toUpperCase();
     setSearchLoading(true);
+
+    const CRYPTO_SYMBOLS = [
+      { symbol: 'BTC/USD', name: 'Bitcoin', exchange: 'Crypto' },
+      { symbol: 'ETH/USD', name: 'Ethereum', exchange: 'Crypto' },
+      { symbol: 'SOL/USD', name: 'Solana', exchange: 'Crypto' },
+      { symbol: 'XRP/USD', name: 'Ripple', exchange: 'Crypto' },
+      { symbol: 'BNB/USD', name: 'Binance Coin', exchange: 'Crypto' },
+      { symbol: 'ADA/USD', name: 'Cardano', exchange: 'Crypto' },
+      { symbol: 'DOGE/USD', name: 'Dogecoin', exchange: 'Crypto' },
+      { symbol: 'AVAX/USD', name: 'Avalanche', exchange: 'Crypto' },
+      { symbol: 'DOT/USD', name: 'Polkadot', exchange: 'Crypto' },
+      { symbol: 'MATIC/USD', name: 'Polygon', exchange: 'Crypto' },
+      { symbol: 'LINK/USD', name: 'Chainlink', exchange: 'Crypto' },
+      { symbol: 'UNI/USD', name: 'Uniswap', exchange: 'Crypto' },
+      { symbol: 'ATOM/USD', name: 'Cosmos', exchange: 'Crypto' },
+      { symbol: 'LTC/USD', name: 'Litecoin', exchange: 'Crypto' },
+      { symbol: 'BCH/USD', name: 'Bitcoin Cash', exchange: 'Crypto' },
+      { symbol: 'XLM/USD', name: 'Stellar', exchange: 'Crypto' },
+      { symbol: 'ALGO/USD', name: 'Algorand', exchange: 'Crypto' },
+      { symbol: 'VET/USD', name: 'VeChain', exchange: 'Crypto' },
+      { symbol: 'ICP/USD', name: 'Internet Computer', exchange: 'Crypto' },
+      { symbol: 'FIL/USD', name: 'Filecoin', exchange: 'Crypto' },
+    ];
+
+    const cryptoMatches = CRYPTO_SYMBOLS.filter(
+      (crypto) =>
+        crypto.symbol.includes(query) ||
+        crypto.name.toUpperCase().includes(query)
+    );
 
     const timer = window.setTimeout(async () => {
       try {
@@ -722,19 +751,19 @@ export default function AnalyticsPage() {
         const payload = await response.json().catch(() => ({}));
         if (!active) return;
 
-        const list = Array.isArray(payload?.results) ? payload.results : [];
-        setSearchResults(
-          list
-            .map((item) => ({
-              symbol: normalizeSymbol(item?.symbol),
-              name: String(item?.name || '').trim(),
-              exchange: String(item?.exchange || '').trim(),
-            }))
-            .filter((item) => item.symbol)
-        );
+        const stockList = Array.isArray(payload?.results) ? payload.results : [];
+        const stockResults = stockList
+          .map((item) => ({
+            symbol: normalizeSymbol(item?.symbol),
+            name: String(item?.name || '').trim(),
+            exchange: String(item?.exchange || '').trim(),
+          }))
+          .filter((item) => item.symbol);
+
+        setSearchResults([...cryptoMatches, ...stockResults]);
       } catch (error) {
         if (error?.name !== 'AbortError' && active) {
-          setSearchResults([]);
+          setSearchResults(cryptoMatches);
         }
       } finally {
         if (active) setSearchLoading(false);
