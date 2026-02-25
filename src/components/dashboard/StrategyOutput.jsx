@@ -1443,6 +1443,18 @@ export default function StrategyOutput({
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 text-[13px]">{checkedCount}/6</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allChecked = checks.every(Boolean);
+                        setSaveStatus('idle');
+                        setSaved(false);
+                        setChecks(Array(6).fill(!allChecked));
+                      }}
+                      className="text-[11px] text-zinc-400 hover:text-cyan-300 transition-colors"
+                    >
+                      {checks.every(Boolean) ? 'Deselect All' : 'Select All'}
+                    </button>
                     <select
                       value={resolvedFolderId}
                       onChange={(event) => setSaveFolderId(event.target.value)}
