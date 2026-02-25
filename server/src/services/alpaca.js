@@ -547,8 +547,9 @@ export function startAlpacaStream(onQuote, onBar) {
     }
   };
 
-  pollCryptoQuotes();
-  setInterval(pollCryptoQuotes, 10000);
+  console.log('Crypto quote polling disabled');
+  // pollCryptoQuotes();
+  // setInterval(pollCryptoQuotes, 10000);
 }
 
 // ==================== TRADE EXECUTION ====================

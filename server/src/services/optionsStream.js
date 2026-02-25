@@ -305,7 +305,9 @@ function scheduleReconnect() {
 export function startOptionsStream(onAlert) {
   alertCallback = onAlert || null;
   checkDailyReset();
-  connect();
+  connected = false;
+  console.log('[OptionsStream] Disabled — skipping Alpaca options WebSocket connection');
+  // connect();
 }
 
 export function isOptionsStreamConnected() {
