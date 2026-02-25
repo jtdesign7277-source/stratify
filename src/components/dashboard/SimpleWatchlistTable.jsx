@@ -23,10 +23,12 @@ const formatSignedPercent = (value) => {
   return `${sign}${num.toFixed(2)}%`;
 };
 
-const formatVolume = (value) => {
+const formatVolume = (value, symbol) => {
+  const isCryptoPair = typeof symbol === 'string' && symbol.includes('/');
   if (value === null || value === undefined) return '--';
   const num = Number(value);
   if (!Number.isFinite(num)) return '--';
+  if (isCryptoPair && num === 0) return '--';
   if (Math.abs(num) >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
   if (Math.abs(num) >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
   if (Math.abs(num) >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
@@ -64,7 +66,7 @@ export default function SimpleWatchlistTable({ rows }) {
               <td className={`py-2.5 px-3 text-right text-base font-medium ${getColorClass(row.changePercent)}`}>
                 {formatSignedPercent(row.changePercent)}
               </td>
-              <td className="py-2.5 px-3 text-right text-base text-gray-300">{formatVolume(row.volume)}</td>
+              <td className="py-2.5 px-3 text-right text-base text-gray-300">{formatVolume(row.volume, row.symbol)}</td>
               <td className={`py-2.5 px-3 text-right text-base font-medium ${getColorClass(row.extChangePercent)}`}>
                 {formatSignedPercent(row.extChangePercent)}
               </td>
