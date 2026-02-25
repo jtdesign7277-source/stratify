@@ -390,13 +390,28 @@ function extractPerformanceData(strategy = {}) {
 
 function extractTotalPnL(strategy = {}) {
   const raw = String(strategy.raw || strategy.content || '');
-  // Match the 💰 headline: "## 💰 +$1,903.27 over 3 months" or "## 💰 -$1,080 over 6 months"
   const moneyBagMatch = raw.match(/💰\s*[:\-]?\s*([+-]?\$[\d,]+(?:\.\d+)?)/);
   if (moneyBagMatch) return moneyBagMatch[1];
-  // Fallback: match "Total Profit: $X" or "Total Result: +$X"
   const totalMatch = raw.match(/(?:total\s+(?:profit|result|p&l|pnl))\s*[:\-]\s*([+-]?\$[\d,]+(?:\.\d+)?)/i);
   if (totalMatch) return totalMatch[1];
   return null;
+}
+
+function extractPerformanceSummary(strategy = {}) {
+  const raw = String(strategy.raw || strategy.content || '');
+  const grab = (pattern) => {
+    const m = raw.match(pattern);
+    return m ? m[1].trim() : null;
+  };
+  const totalProfit = grab(/total\s+profit\s*[:\-]\s*([+-]?\$?[\d,]+(?:\.\d+)?)/i);
+  const totalTrades = grab(/total\s+trades\s*[:\-]\s*(\d+)/i);
+  const winRate = grab(/win\s+rate\s*[:\-]\s*([\d.]+%?)/i);
+  const avgWin = grab(/avg\s+win\s*[:\-]\s*([+-]?\$?[\d,]+(?:\.\d+)?)/i);
+  const avgLoss = grab(/avg\s+loss\s*[:\-]\s*([+-]?\$?[\d,]+(?:\.\d+)?)/i);
+  const riskReward = grab(/risk\s*\/?\s*reward\s*[:\-]\s*([\d.]+)/i);
+  const maxDrawdown = grab(/max\s+drawdown\s*[:\-]\s*([+-]?\$?[\d,]+(?:\.\d+)?)/i);
+  if (!totalProfit && !totalTrades) return null;
+  return { totalProfit, totalTrades, winRate, avgWin, avgLoss, riskReward, maxDrawdown };
 }
 
 function parseMarkdown(raw) {
@@ -778,6 +793,7 @@ export default function StrategyOutput({
   );
   const displayTicker = formatTickerWithDollar(s.ticker) || '—';
   const totalPnL = useMemo(() => extractTotalPnL(s), [s.raw, s.content]);
+  const perfSummary = useMemo(() => extractPerformanceSummary(s), [s.raw, s.content]);
   const saveButtonLabel = saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : 'Save';
   const editorSetupValues = useMemo(
     () => ensureKeyTradeSetupsSection(editorValue, fieldValues).values,
@@ -1369,6 +1385,55 @@ export default function StrategyOutput({
             )}
           </div>
         </div>
+
+        {perfSummary && !isEditingStrategyText && (
+          <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {perfSummary.totalProfit && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Total P&L</div>
+                <div className={`text-sm font-bold font-mono ${perfSummary.totalProfit.includes('-') ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {perfSummary.totalProfit}
+                </div>
+              </div>
+            )}
+            {perfSummary.totalTrades && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Trades</div>
+                <div className="text-sm font-bold font-mono text-white/90">{perfSummary.totalTrades}</div>
+              </div>
+            )}
+            {perfSummary.winRate && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Win Rate</div>
+                <div className="text-sm font-bold font-mono text-white/90">{perfSummary.winRate}</div>
+              </div>
+            )}
+            {perfSummary.avgWin && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Avg Win</div>
+                <div className="text-sm font-bold font-mono text-emerald-400">{perfSummary.avgWin}</div>
+              </div>
+            )}
+            {perfSummary.avgLoss && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Avg Loss</div>
+                <div className="text-sm font-bold font-mono text-red-400">{perfSummary.avgLoss}</div>
+              </div>
+            )}
+            {perfSummary.riskReward && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Risk/Reward</div>
+                <div className="text-sm font-bold font-mono text-white/90">{perfSummary.riskReward}</div>
+              </div>
+            )}
+            {perfSummary.maxDrawdown && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Max Drawdown</div>
+                <div className="text-sm font-bold font-mono text-red-400">{perfSummary.maxDrawdown}</div>
+              </div>
+            )}
+          </div>
+        )}
 
         {showEditorSavedNotice && !isEditingStrategyText && (
           <div className="mb-3 text-sm font-medium text-emerald-400">Saved!</div>
