@@ -24,7 +24,7 @@ function unwrapPipelineResult(value) {
   return value;
 }
 
-const STOCK_SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
+const STOCK_SYMBOL_PATTERN = /^[A-Z][A-Z0-9./-]{0,14}$/;
 
 export default async function handler(req, res) {
   setHeaders(res);
