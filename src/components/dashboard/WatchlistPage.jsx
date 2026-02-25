@@ -1322,13 +1322,13 @@ const WatchlistPage = ({
                   ?? quote?.preMarketChangePercent
                   ?? quote?.pre_market_change_percent
                 );
-                const preMarketReferenceChange = Number.isFinite(preMarketChangePercent)
+                const preMarketReferenceChange = isRegularSession ? null : (Number.isFinite(preMarketChangePercent)
                   ? preMarketChangePercent
                   : Number.isFinite(extendedChangePercent)
                     ? extendedChangePercent
                     : Number.isFinite(extendedChange)
                       ? extendedChange
-                      : preMarketChange;
+                      : preMarketChange);
                 const dayDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.day || 'percent';
                 const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.preMarket || 'percent';
                 const rowActive = selectedTicker === item.symbol;
