@@ -169,224 +169,47 @@ const TICKERS = [
   { symbol: "SOL", name: "Solana" },
 ];
 
-const TIMEFRAMES = ["5m", "15m", "1H", "4H", "1D"];
 const PERIODS = ["1M", "3M", "6M", "1Y"];
 
-// ── Fetch Real Historical Data from Alpaca via Vercel API ──────
-const fetchHistoricalBars = async (ticker, period, timeframe) => {
-  const url = `/api/history?symbol=${ticker}&timeframe=${timeframe}&period=${period}`;
-  const res = await fetch(url);
+// Map template IDs to /api/backtest strategy names
+const TEMPLATE_TO_STRATEGY = {
+  momentum: "ema_crossover",
+  "rsi-bounce": "rsi",
+  "macd-cross": "macd",
+  "mean-reversion": "rsi",
+  breakout: "breakout",
+  scalper: "macd",
+};
+
+const TEMPLATE_PARAMS = {
+  momentum: { shortEmaPeriod: 9, longEmaPeriod: 20 },
+  "rsi-bounce": { rsiPeriod: 14, entryThreshold: 30, exitThreshold: 55 },
+  "macd-cross": {},
+  "mean-reversion": { rsiPeriod: 14, entryThreshold: 35, exitThreshold: 65 },
+  breakout: { breakoutPeriod: 20 },
+  scalper: {},
+};
+
+const PERIOD_TO_MONTHS = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 };
+
+// ── Fetch Real Backtest from Twelve Data via /api/backtest ─────
+const fetchBacktest = async (ticker, templateId, period, capital) => {
+  const strategy = TEMPLATE_TO_STRATEGY[templateId] || "rsi";
+  const months = PERIOD_TO_MONTHS[period] || 3;
+  const params = { ...(TEMPLATE_PARAMS[templateId] || {}), positionSize: capital, stopLoss: 3 };
+
+  const res = await fetch("/api/backtest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbol: ticker, strategy, months, interval: "1day", params }),
+  });
+
   if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(errText || `API ${res.status}`);
-  }
-  const data = await res.json();
-  if (!data.bars || data.bars.length === 0) {
-    throw new Error("No bars returned");
-  }
-  return {
-    source: "alpaca",
-    bars: data.bars.map((b) => ({
-      date: b.date,
-      timestamp: b.timestamp || new Date(b.date).getTime(),
-      open: +b.open,
-      high: +b.high,
-      low: +b.low,
-      close: +b.close,
-      volume: b.volume || 0,
-    })),
-  };
-};
-
-// ── Indicator Calculations ─────────────────────────────────────
-const calcEMA = (prices, period) => {
-  const ema = [prices[0]];
-  const k = 2 / (period + 1);
-  for (let i = 1; i < prices.length; i++) ema.push(prices[i] * k + ema[i - 1] * (1 - k));
-  return ema;
-};
-
-const calcRSI = (prices, period = 14) => {
-  const rsi = new Array(prices.length).fill(50);
-  for (let i = period; i < prices.length; i++) {
-    let g = 0, l = 0;
-    for (let j = i - period; j < i; j++) {
-      const d = prices[j + 1] - prices[j];
-      d > 0 ? (g += d) : (l -= d);
-    }
-    const rs = l === 0 ? 100 : g / l;
-    rsi[i] = +(100 - 100 / (1 + rs)).toFixed(2);
-  }
-  return rsi;
-};
-
-// ── Strategy Simulator ─────────────────────────────────────────
-const runBacktest = (strategyId, data, capital) => {
-  const closes = data.map((d) => d.close);
-  const rsi = calcRSI(closes);
-  const ema20 = calcEMA(closes, 20);
-  const ema12 = calcEMA(closes, 12);
-  const ema26 = calcEMA(closes, 26);
-  const macd = ema12.map((v, i) => v - ema26[i]);
-  const signal = calcEMA(macd, 9);
-
-  const trades = [];
-  const equity = [capital];
-  let pos = null;
-  let cash = capital;
-
-  const buy = (i, shares) => {
-    pos = { shares, entry: closes[i], entryIdx: i };
-    cash -= shares * closes[i];
-    trades.push({ type: "BUY", index: i, price: closes[i], shares, date: data[i].date });
-  };
-
-  const sell = (i) => {
-    if (!pos) return;
-    const pnl = (closes[i] - pos.entry) * pos.shares;
-    cash += pos.shares * closes[i];
-    trades.push({ type: "SELL", index: i, price: closes[i], shares: pos.shares, pnl: +pnl.toFixed(2), date: data[i].date });
-    pos = null;
-  };
-
-  const startIdx = 30; // warmup
-  for (let i = startIdx; i < closes.length; i++) {
-    // Strategy logic
-    switch (strategyId) {
-      case "momentum":
-        if (!pos && closes[i] > ema20[i] && closes[i - 1] <= ema20[i - 1]) {
-          buy(i, Math.floor(cash / closes[i]));
-        } else if (pos && closes[i] < ema20[i] && closes[i - 1] >= ema20[i - 1]) {
-          sell(i);
-        }
-        break;
-
-      case "rsi-bounce":
-        if (!pos && rsi[i] < 30) buy(i, Math.floor(cash / closes[i]));
-        else if (pos && rsi[i] > 55) sell(i);
-        break;
-
-      case "macd-cross":
-        if (!pos && macd[i] > signal[i] && macd[i - 1] <= signal[i - 1]) {
-          buy(i, Math.floor(cash / closes[i]));
-        } else if (pos && macd[i] < signal[i] && macd[i - 1] >= signal[i - 1]) {
-          sell(i);
-        }
-        break;
-
-      case "mean-reversion":
-        if (!pos && rsi[i] < 35 && rsi[i - 1] >= 35) buy(i, Math.floor(cash / closes[i]));
-        else if (pos && rsi[i] > 65) sell(i);
-        break;
-
-      case "breakout": {
-        const lookback = closes.slice(Math.max(0, i - 140), i); // 20 days * 7h
-        const high20 = Math.max(...lookback);
-        const avgVol = data.slice(Math.max(0, i - 70), i).reduce((a, d) => a + d.volume, 0) / 70;
-        if (!pos && closes[i] > high20 && data[i].volume > avgVol * 1.5) {
-          buy(i, Math.floor(cash / closes[i]));
-        } else if (pos && closes[i] < pos.entry * 0.96) {
-          sell(i);
-        } else if (pos && closes[i] > pos.entry * 1.08) {
-          sell(i);
-        }
-        break;
-      }
-
-      case "scalper": {
-        const rsi7 = calcRSI(closes.slice(0, i + 1), 7);
-        const r7 = rsi7[rsi7.length - 1];
-        if (!pos && r7 < 25 && macd[i] - signal[i] > 0) {
-          buy(i, Math.floor(cash / closes[i]));
-        } else if (pos) {
-          const pctChange = (closes[i] - pos.entry) / pos.entry;
-          if (pctChange > 0.015 || pctChange < -0.008) sell(i);
-        }
-        break;
-      }
-    }
-
-    const val = pos ? pos.shares * closes[i] + cash : cash;
-    equity.push(+val.toFixed(2));
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Backtest failed (${res.status})`);
   }
 
-  // Fill warmup period
-  while (equity.length < closes.length) equity.unshift(capital);
-
-  // Close any open position at end
-  if (pos) sell(closes.length - 1);
-
-  // Stats
-  const finalEquity = equity[equity.length - 1];
-  const pnl = finalEquity - capital;
-  const pctReturn = ((pnl / capital) * 100).toFixed(1);
-  const sells = trades.filter((t) => t.type === "SELL");
-  const wins = sells.filter((t) => t.pnl > 0).length;
-  const winRate = sells.length > 0 ? ((wins / sells.length) * 100).toFixed(0) : "—";
-  let peak = capital, maxDD = 0;
-  equity.forEach((v) => { if (v > peak) peak = v; const dd = ((peak - v) / peak) * 100; if (dd > maxDD) maxDD = dd; });
-  const returns = [];
-  for (let i = 1; i < equity.length; i++) returns.push((equity[i] - equity[i - 1]) / equity[i - 1]);
-  const avgRet = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const stdRet = Math.sqrt(returns.reduce((a, b) => a + (b - avgRet) ** 2, 0) / returns.length);
-  const sharpe = stdRet > 0 ? ((avgRet / stdRet) * Math.sqrt(252 * 7)).toFixed(2) : "—";
-  const bestTrade = sells.length > 0 ? Math.max(...sells.map((t) => t.pnl)) : 0;
-  const worstTrade = sells.length > 0 ? Math.min(...sells.map((t) => t.pnl)) : 0;
-  const avgTrade = sells.length > 0 ? sells.reduce((a, t) => a + t.pnl, 0) / sells.length : 0;
-
-  // Build round-trip trade pairs for detailed log
-  const roundTrips = [];
-  for (let i = 0; i < trades.length; i++) {
-    if (trades[i].type === "BUY") {
-      const entry = trades[i];
-      const exit = trades[i + 1]?.type === "SELL" ? trades[i + 1] : null;
-      if (exit) {
-        const pnlDollar = exit.pnl;
-        const pnlPct = ((exit.price - entry.price) / entry.price * 100);
-        const openValue = entry.shares * entry.price;
-        const closeValue = entry.shares * exit.price;
-        // Duration in ms
-        const entryTime = new Date(entry.date).getTime();
-        const exitTime = new Date(exit.date).getTime();
-        const durationMs = exitTime - entryTime;
-        const durationHrs = Math.floor(durationMs / (1000 * 60 * 60));
-        const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-        let durationStr = "";
-        if (durationHrs >= 24) {
-          const days = Math.floor(durationHrs / 24);
-          const hrs = durationHrs % 24;
-          durationStr = `${days}d ${hrs}h`;
-        } else {
-          durationStr = `${durationHrs}h ${durationMins}m`;
-        }
-
-        roundTrips.push({
-          id: roundTrips.length + 1,
-          type: "LONG",
-          entryDate: entry.date,
-          exitDate: exit.date,
-          entryPrice: entry.price,
-          exitPrice: exit.price,
-          shares: entry.shares,
-          openValue: +openValue.toFixed(2),
-          closeValue: +closeValue.toFixed(2),
-          pnl: pnlDollar,
-          pnlPct: +pnlPct.toFixed(2),
-          duration: durationStr,
-          entryIdx: entry.index,
-          exitIdx: exit.index,
-        });
-        i++; // skip the SELL since we consumed it
-      }
-    }
-  }
-
-  return {
-    trades, roundTrips, equity, pnl, pctReturn, finalEquity, winRate,
-    maxDD: maxDD.toFixed(1), sharpe, totalTrades: sells.length,
-    wins, losses: sells.length - wins, bestTrade, worstTrade, avgTrade,
-    rsi, ema20, macd, signal,
-  };
+  return res.json();
 };
 
 // ── Chart Component ────────────────────────────────────────────
@@ -663,7 +486,6 @@ const TemplatesGallery = ({ onSelect }) => (
 // ── Strategy Detail View ───────────────────────────────────────
 const StrategyDetail = ({ template, onBack, onActivate }) => {
   const [ticker, setTicker] = useState("TSLA");
-  const [timeframe, setTimeframe] = useState("1H");
   const [period, setPeriod] = useState("6M");
   const [capital, setCapital] = useState(100000);
   const [isRunning, setIsRunning] = useState(true);
@@ -672,34 +494,103 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
   const [data, setData] = useState([]);
   const [dataSource, setDataSource] = useState("loading");
   const [fetchError, setFetchError] = useState(null);
+  const [backtestResult, setBacktestResult] = useState(null);
 
-  // Fetch real data when params change
+  // Fetch candles + backtest when params change
   useEffect(() => {
     let cancelled = false;
     setIsRunning(true);
     setFetchError(null);
     setDataSource("loading");
+    setBacktestResult(null);
 
-    fetchHistoricalBars(ticker, period, timeframe).then((result) => {
+    const months = PERIOD_TO_MONTHS[period] || 3;
+    const candleCount = months * 22; // ~22 trading days per month
+
+    Promise.all([
+      fetch(`/api/chart/candles?symbol=${ticker}&interval=1day&outputsize=${candleCount}`).then((r) => r.json()),
+      fetchBacktest(ticker, template.id, period, capital),
+    ]).then(([candleData, btResult]) => {
       if (cancelled) return;
-      setData(result.bars);
-      setDataSource(result.source);
+      const bars = (candleData?.values || []).map((b) => ({
+        date: b.datetime,
+        timestamp: new Date(b.datetime).getTime(),
+        open: +b.open,
+        high: +b.high,
+        low: +b.low,
+        close: +b.close,
+        volume: b.volume || 0,
+      }));
+      setData(bars);
+      setBacktestResult(btResult);
+      setDataSource("twelvedata");
       setIsRunning(false);
     }).catch((err) => {
       if (cancelled) return;
-      setFetchError(`Could not fetch data for $${ticker} (${timeframe}, ${period})`);
+      setFetchError(`Could not fetch data for $${ticker} (${period})`);
       setData([]);
+      setBacktestResult(null);
       setDataSource("error");
       setIsRunning(false);
     });
 
     return () => { cancelled = true; };
-  }, [ticker, period, timeframe]);
+  }, [ticker, period, template.id, capital]);
 
+  // Adapt backtest result into the shape the chart/stats expect
   const result = useMemo(() => {
-    if (data.length === 0) return null;
-    return runBacktest(template.id, data, capital);
-  }, [template.id, data, capital]);
+    if (!backtestResult || data.length === 0) return null;
+    const bt = backtestResult;
+    const s = bt.stats;
+
+    // Build equity curve from trades
+    const equity = [capital];
+    let cumPnl = 0;
+    const tradeExitDates = new Map();
+    for (const t of bt.trades) {
+      cumPnl += t.profit;
+      tradeExitDates.set(t.exitDate, cumPnl);
+    }
+    let runningPnl = 0;
+    for (let i = 1; i < data.length; i++) {
+      const dateStr = data[i].date?.split("T")[0] || data[i].date;
+      if (tradeExitDates.has(dateStr)) runningPnl = tradeExitDates.get(dateStr);
+      equity.push(+(capital + runningPnl).toFixed(2));
+    }
+
+    // Map backtest trades to chart format
+    const trades = [];
+    for (const t of bt.trades) {
+      const entryIdx = data.findIndex((d) => (d.date?.split("T")[0] || d.date) === t.entryDate);
+      const exitIdx = data.findIndex((d) => (d.date?.split("T")[0] || d.date) === t.exitDate);
+      if (entryIdx >= 0) trades.push({ type: "BUY", index: entryIdx, price: t.entryPrice, shares: t.shares, date: t.entryDate });
+      if (exitIdx >= 0) trades.push({ type: "SELL", index: exitIdx, price: t.exitPrice, shares: t.shares, pnl: t.profit, date: t.exitDate });
+    }
+
+    // Build round trips
+    const roundTrips = bt.trades.map((t, i) => ({
+      id: i + 1, type: "LONG", entryDate: t.entryDate, exitDate: t.exitDate,
+      entryPrice: t.entryPrice, exitPrice: t.exitPrice, shares: t.shares,
+      openValue: +(t.shares * t.entryPrice).toFixed(2),
+      closeValue: +(t.shares * t.exitPrice).toFixed(2),
+      pnl: t.profit, pnlPct: t.returnPct, duration: `${t.holdingDays}d`,
+    }));
+
+    const finalEquity = equity[equity.length - 1];
+    const pnl = s.totalProfit;
+    const pctReturn = capital > 0 ? ((pnl / capital) * 100).toFixed(1) : "0";
+    let peak = capital, maxDD = 0;
+    equity.forEach((v) => { if (v > peak) peak = v; const dd = ((peak - v) / peak) * 100; if (dd > maxDD) maxDD = dd; });
+
+    return {
+      trades, roundTrips, equity, pnl, pctReturn, finalEquity,
+      winRate: s.winRate, maxDD: maxDD.toFixed(1), sharpe: "—",
+      totalTrades: s.totalTrades, wins: s.winners, losses: s.losers,
+      bestTrade: s.totalTrades > 0 ? Math.max(...bt.trades.map((t) => t.profit)) : 0,
+      worstTrade: s.totalTrades > 0 ? Math.min(...bt.trades.map((t) => t.profit)) : 0,
+      avgTrade: s.totalTrades > 0 ? +(s.totalProfit / s.totalTrades).toFixed(2) : 0,
+    };
+  }, [backtestResult, data, capital]);
 
   const fmt = (v) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
 
@@ -716,7 +607,7 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
       templateId: template.id,
       ticker,
       symbol: ticker,
-      timeframe,
+      timeframe: "1D",
       period,
       capital,
       backtestAmount: capital,
@@ -806,7 +697,6 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
             return found ? `$${found.symbol}` : opt;
           }}
         />
-        <Dropdown value={timeframe} options={TIMEFRAMES} onChange={setTimeframe} width="w-20" />
         <Dropdown value={period} options={PERIODS} onChange={setPeriod} width="w-20" />
 
         <div className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm bg-white/[0.03] border border-white/[0.06] backdrop-blur">
@@ -832,15 +722,15 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
 
         <div className="ml-auto flex items-center gap-2 text-xs tabular-nums" style={{ fontFamily: "monospace" }}>
           <span className="px-1.5 py-0.5 rounded" style={{
-            background: dataSource === "alpaca" ? "#16a34a15" : dataSource === "error" ? "#ef444415" : "#3b82f615",
-            color: dataSource === "alpaca" ? "#34d399" : dataSource === "error" ? "#f87171" : "#60a5fa",
-            border: `1px solid ${dataSource === "alpaca" ? "#16a34a30" : dataSource === "error" ? "#ef444430" : "#3b82f630"}`,
+            background: dataSource === "twelvedata" ? "#16a34a15" : dataSource === "error" ? "#ef444415" : "#3b82f615",
+            color: dataSource === "twelvedata" ? "#34d399" : dataSource === "error" ? "#f87171" : "#60a5fa",
+            border: `1px solid ${dataSource === "twelvedata" ? "#16a34a30" : dataSource === "error" ? "#ef444430" : "#3b82f630"}`,
           }}>
-            {dataSource === "alpaca" ? "ALPACA" : dataSource === "error" ? "ERROR" : "LOADING"}
+            {dataSource === "twelvedata" ? "TWELVE DATA" : dataSource === "error" ? "ERROR" : "LOADING"}
           </span>
           <span style={{ color: "rgba(255,255,255,0.25)" }}>{data.length.toLocaleString()} candles</span>
           <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>{timeframe} × {period}</span>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>1D × {period}</span>
         </div>
       </div>
 
@@ -854,7 +744,7 @@ const StrategyDetail = ({ template, onBack, onActivate }) => {
               <div className="text-center">
                 <div className="w-6 h-6 mx-auto mb-2 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${template.color} transparent ${template.color} ${template.color}` }} />
                 <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  {fetchError || "Fetching historical data from Alpaca..."}
+                  {fetchError || "Running backtest with Twelve Data..."}
                 </span>
               </div>
             </div>

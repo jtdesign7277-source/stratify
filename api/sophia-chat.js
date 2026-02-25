@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-
-const BACKEND_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
+import { fetchTwelveData } from './lib/twelvedata.js';
 
 const SOPHIA_MEGA_SYSTEM_PROMPT = `
 You are Sophia, Stratify's AI trading strategist.
 Always write concise, trader-focused strategy responses in markdown, not JSON and not code.
 Always prefix stock tickers with $ (example: $SPY, $NVDA).
-When live market context is provided, use it directly.
+When real backtest results are provided, use the EXACT numbers from the data — never invent trades or statistics.
 You MUST end every single strategy response with the "🔥 Key Trade Setups" section using the exact bullet format shown below.
 
 MANDATORY OUTPUT TEMPLATE (use this structure exactly):
@@ -18,25 +17,26 @@ MANDATORY OUTPUT TEMPLATE (use this structure exactly):
 **Profit Target:** [value] | **Stop Loss:** [value]
 **Risk/Reward Ratio:** [value]
 
-## ⚡ Real Trade Analysis (1M Lookback)
+## ⚡ Real Trade Analysis ([period] Lookback)
 **Key Setups Identified:**
-**🏆 Winner - [YYYY-MM-DD] [Setup Name]:**
-- **Entry:** [price/time/reason]
-- **Exit:** [price/result]
-- **Shares:** [count]
-- **Profit:** [value] ✅
+[For each trade from the backtest data, format as:]
+**🏆 Winner - [entryDate] [entryReason]:** (if profit > 0)
+- **Entry:** $[entryPrice] — [entryReason]
+- **Exit:** $[exitPrice] — [exitReason]
+- **Shares:** [shares]
+- **Profit:** $[profit] ([returnPct]%) ✅
 
-**🏆 Winner - [YYYY-MM-DD] [Setup Name]:**
-- **Entry:** [price/time/reason]
-- **Exit:** [price/result]
-- **Shares:** [count]
-- **Profit:** [value] ✅
+**📉 Loss - [entryDate] [entryReason]:** (if profit <= 0)
+- **Entry:** $[entryPrice] — [entryReason]
+- **Exit:** $[exitPrice] — [exitReason]
+- **Shares:** [shares]
+- **Loss:** $[profit] ([returnPct]%) ❌
 
-**📉 Loss - [YYYY-MM-DD] [Setup Name]:**
-- **Entry:** [price/time/reason]
-- **Exit:** [price/result]
-- **Shares:** [count]
-- **Loss:** [value] ❌
+## 📈 Performance Summary
+- **Total Trades:** [totalTrades] | **Win Rate:** [winRate]%
+- **Total Profit:** $[totalProfit]
+- **Avg Win:** $[avgWin] | **Avg Loss:** $[avgLoss]
+- **Risk/Reward:** [riskReward] | **Max Drawdown:** $[maxDrawdown]
 
 🔥 Key Trade Setups
 ● Entry Signal: [value]
@@ -47,9 +47,10 @@ MANDATORY OUTPUT TEMPLATE (use this structure exactly):
 ● $ Allocation: [value]
 
 LENGTH RULES:
-- Keep total response tight: about half normal length (target 180-280 words).
+- Keep total response tight: about half normal length (target 180-350 words).
 - No extra sections, no long explanations, no fluff.
 - Be direct and readable.
+- USE THE REAL BACKTEST DATA PROVIDED. Do NOT make up trades or numbers.
 `.trim();
 
 const SOPHIA_CACHED_SYSTEM_MESSAGE = [
@@ -75,69 +76,263 @@ function extractTickers(text) {
   return [...tickers];
 }
 
-function detectPeriod(text) {
+function detectMonths(text) {
   const lower = text.toLowerCase();
-  if (lower.includes('1 month') || lower.includes('one month') || lower.includes('last month')) return '1mo';
-  if (/(?:2|two)\s*month/i.test(lower)) return '2mo';
-  if (/(?:6|six)\s*month|half\s*year/i.test(lower)) return '6mo';
-  if (/(?:1|one|last)\s*year|12\s*month|twelve\s*month/i.test(lower)) return '1y';
-  return '3mo';
+  if (lower.includes('1 month') || lower.includes('one month') || lower.includes('last month')) return 1;
+  if (/(?:2|two)\s*month/i.test(lower)) return 2;
+  if (/(?:6|six)\s*month|half\s*year/i.test(lower)) return 6;
+  if (/(?:1|one|last)\s*year|12\s*month|twelve\s*month/i.test(lower)) return 12;
+  return 3;
 }
 
-async function fetchSnapshot(symbol) {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/stocks/${encodeURIComponent(symbol)}`);
-    if (!res.ok) return `${symbol}: snapshot unavailable`;
-    const d = await res.json();
-    return `${symbol} CURRENT: Price $${d.price || d.askPrice || 0}, Open $${d.open || 0}, High $${d.high || 0}, Low $${d.low || 0}, Volume ${d.volume || 0}, PrevClose $${d.prevClose || 0}, Change ${(d.changePercent || d.change || 0)}%`;
-  } catch { return `${symbol}: snapshot unavailable`; }
+function detectStrategy(text) {
+  const lower = text.toLowerCase();
+  if (/\brsi\b/.test(lower)) return 'rsi';
+  if (/\bmacd\b/.test(lower)) return 'macd';
+  if (/\bbollinger\b/.test(lower) || /\bbb\s*band/i.test(lower)) return 'bollinger';
+  if (/\bema\b.*\bcross/i.test(lower) || /\bcrossover\b/.test(lower) || /\bmomentum\b/.test(lower)) return 'ema_crossover';
+  if (/\bbreakout\b/.test(lower)) return 'breakout';
+  if (/\bmean\s*reversion\b/.test(lower) || /\bbounce\b/.test(lower) || /\boversold\b/.test(lower)) return 'rsi';
+  if (/\bscalp/i.test(lower)) return 'macd';
+  return 'rsi';
 }
 
-async function fetchHistory(symbol, period) {
+function isBacktestRequest(text) {
+  const lower = text.toLowerCase();
+  return /backtest|strategy|test.*strat|run.*strat|build.*strat|trade.*strat|analyze.*strat/i.test(lower) ||
+    /\brsi\b|\bmacd\b|\bbollinger\b|\bema\b|\bbreakout\b|\bmomentum\b|\bmean.reversion\b/i.test(lower);
+}
+
+async function runRealBacktest(symbol, strategy, months, params = {}) {
+  // Import and call the backtest handler logic directly server-side
+  const { fetchTwelveData: fetchTD } = await import('./lib/twelvedata.js');
+
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const interval = '1day';
+  const stopLossPct = (Number(params.stopLoss) || 3) / 100;
+  const positionSize = Number(params.positionSize) || 25000;
+
+  const toNumber = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const round = (v, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
+  const daysBetween = (a, b) => Math.round(Math.abs(new Date(b) - new Date(a)) / 86400000);
+
+  // Fetch OHLCV
+  const ohlcvPayload = await fetchTD('time_series', {
+    symbol, interval, start_date: startDateStr, outputsize: 5000, order: 'ASC', dp: 4,
+  });
+  const bars = (ohlcvPayload?.values || [])
+    .map((b) => ({ datetime: b.datetime, open: toNumber(b.open), high: toNumber(b.high), low: toNumber(b.low), close: toNumber(b.close), volume: toNumber(b.volume) }))
+    .filter((b) => b.datetime && b.close != null);
+
+  if (bars.length === 0) return null;
+
+  // Fetch indicator
+  let indicatorEndpoint, indicatorParams, indicatorFields;
+  switch (strategy) {
+    case 'rsi':
+      indicatorEndpoint = 'rsi';
+      indicatorParams = { time_period: params.rsiPeriod || 14 };
+      indicatorFields = ['rsi'];
+      break;
+    case 'macd':
+      indicatorEndpoint = 'macd';
+      indicatorParams = { fast_period: params.fastPeriod || 12, slow_period: params.slowPeriod || 26, signal_period: params.signalPeriod || 9 };
+      indicatorFields = ['macd', 'macd_signal', 'macd_hist'];
+      break;
+    case 'bollinger':
+      indicatorEndpoint = 'bbands';
+      indicatorParams = { time_period: params.bbPeriod || 20, sd: params.bbStdDev || 2 };
+      indicatorFields = ['lower_band', 'middle_band', 'upper_band'];
+      break;
+    case 'ema_crossover': {
+      const shortP = params.shortEmaPeriod || 9;
+      const longP = params.longEmaPeriod || 21;
+      const [shortData, longData] = await Promise.all([
+        fetchTD('ema', { symbol, interval, start_date: startDateStr, outputsize: 5000, order: 'ASC', dp: 4, time_period: shortP }),
+        fetchTD('ema', { symbol, interval, start_date: startDateStr, outputsize: 5000, order: 'ASC', dp: 4, time_period: longP }),
+      ]);
+      const shortMap = new Map((shortData?.values || []).map((r) => [r.datetime, r]));
+      const longMap = new Map((longData?.values || []).map((r) => [r.datetime, r]));
+      const merged = bars.map((b) => ({
+        ...b,
+        ema_short: toNumber((shortMap.get(b.datetime) || {}).ema),
+        ema_long: toNumber((longMap.get(b.datetime) || {}).ema),
+      }));
+
+      let prevShort = null, prevLong = null;
+      const shouldBuy = (bar) => {
+        const s = bar.ema_short, l = bar.ema_long;
+        if (s == null || l == null) { prevShort = s; prevLong = l; return null; }
+        const sig = (prevShort != null && prevLong != null && prevShort <= prevLong && s > l)
+          ? `EMA ${shortP} crossed above EMA ${longP}` : null;
+        prevShort = s; prevLong = l;
+        return sig;
+      };
+      const shouldSell = (bar) => {
+        const s = bar.ema_short, l = bar.ema_long;
+        if (s == null || l == null) return null;
+        return s < l ? `EMA ${shortP} below EMA ${longP}` : null;
+      };
+
+      return runEngine(merged, shouldBuy, shouldSell, stopLossPct, positionSize, symbol, strategy, months, startDateStr);
+    }
+    case 'breakout': {
+      const lookback = params.breakoutPeriod || 20;
+      const shouldBuy = (bar, i) => {
+        if (i < lookback) return null;
+        let highest = -Infinity;
+        for (let j = i - lookback; j < i; j++) if (bars[j].high > highest) highest = bars[j].high;
+        return bar.close > highest ? `Price broke above ${lookback}-day high $${round(highest, 2)}` : null;
+      };
+      const shouldSell = (bar, i) => {
+        if (i < lookback) return null;
+        let lowest = Infinity;
+        for (let j = i - lookback; j < i; j++) if (bars[j].low < lowest) lowest = bars[j].low;
+        return bar.close < lowest ? `Price broke below ${lookback}-day low $${round(lowest, 2)}` : null;
+      };
+      return runEngine(bars, shouldBuy, shouldSell, stopLossPct, positionSize, symbol, strategy, months, startDateStr);
+    }
+    default:
+      indicatorEndpoint = 'rsi';
+      indicatorParams = { time_period: 14 };
+      indicatorFields = ['rsi'];
+  }
+
+  // Fetch single indicator and merge
+  const indPayload = await fetchTD(indicatorEndpoint, {
+    symbol, interval, start_date: startDateStr, outputsize: 5000, order: 'ASC', dp: 4, ...indicatorParams,
+  });
+  const indMap = new Map((indPayload?.values || []).map((r) => [r.datetime, r]));
+  const merged = bars.map((b) => {
+    const ind = indMap.get(b.datetime) || {};
+    const row = { ...b };
+    for (const f of indicatorFields) row[f] = toNumber(ind[f]);
+    return row;
+  });
+
+  // Build strategy signals
+  let shouldBuy, shouldSell;
+  switch (strategy) {
+    case 'rsi': {
+      const entry = params.entryThreshold || 30;
+      const exit = params.exitThreshold || 70;
+      shouldBuy = (bar) => bar.rsi != null && bar.rsi < entry ? `RSI ${round(bar.rsi, 1)} < ${entry}` : null;
+      shouldSell = (bar) => bar.rsi != null && bar.rsi > exit ? `RSI ${round(bar.rsi, 1)} > ${exit}` : null;
+      break;
+    }
+    case 'macd': {
+      let prevHist = null;
+      shouldBuy = (bar) => {
+        const h = bar.macd_hist;
+        if (h == null) { prevHist = h; return null; }
+        const sig = (prevHist != null && prevHist <= 0 && h > 0) ? `MACD histogram crossed above zero` : null;
+        prevHist = h;
+        return sig;
+      };
+      shouldSell = (bar) => bar.macd_hist != null && bar.macd_hist < 0 ? `MACD histogram below zero` : null;
+      break;
+    }
+    case 'bollinger':
+      shouldBuy = (bar) => bar.lower_band != null && bar.close <= bar.lower_band ? `Price at lower Bollinger band` : null;
+      shouldSell = (bar) => bar.middle_band != null && bar.close >= bar.middle_band ? `Price reached middle Bollinger band` : null;
+      break;
+    default:
+      shouldBuy = () => null;
+      shouldSell = () => null;
+  }
+
+  return runEngine(merged, shouldBuy, shouldSell, stopLossPct, positionSize, symbol, strategy, months, startDateStr);
+
+  function runEngine(data, buyFn, sellFn, slPct, posSize, sym, strat, mo, startStr) {
+    const trades = [];
+    let position = null;
+
+    for (let i = 0; i < data.length; i++) {
+      const bar = data[i];
+      if (bar.close == null) continue;
+
+      if (!position) {
+        const reason = buyFn(bar, i);
+        if (reason) {
+          const shares = Math.floor(posSize / bar.close);
+          if (shares > 0) position = { entryDate: bar.datetime, entryPrice: bar.close, entryReason: reason, shares };
+        }
+        continue;
+      }
+
+      const dd = (bar.low - position.entryPrice) / position.entryPrice;
+      if (dd <= -slPct) {
+        const exitPrice = round(position.entryPrice * (1 - slPct), 4);
+        trades.push({
+          type: 'long', entryDate: position.entryDate, entryPrice: position.entryPrice,
+          entryReason: position.entryReason, exitDate: bar.datetime, exitPrice,
+          exitReason: `Stop loss triggered (-${round(slPct * 100, 1)}%)`,
+          shares: position.shares,
+          profit: round((exitPrice - position.entryPrice) * position.shares, 2),
+          returnPct: round(((exitPrice - position.entryPrice) / position.entryPrice) * 100, 2),
+          holdingDays: daysBetween(position.entryDate, bar.datetime),
+        });
+        position = null;
+        continue;
+      }
+
+      const sellReason = sellFn(bar, i);
+      if (sellReason) {
+        trades.push({
+          type: 'long', entryDate: position.entryDate, entryPrice: position.entryPrice,
+          entryReason: position.entryReason, exitDate: bar.datetime, exitPrice: bar.close,
+          exitReason: sellReason, shares: position.shares,
+          profit: round((bar.close - position.entryPrice) * position.shares, 2),
+          returnPct: round(((bar.close - position.entryPrice) / position.entryPrice) * 100, 2),
+          holdingDays: daysBetween(position.entryDate, bar.datetime),
+        });
+        position = null;
+      }
+    }
+
+    if (position && data.length > 0) {
+      const last = data[data.length - 1];
+      trades.push({
+        type: 'long', entryDate: position.entryDate, entryPrice: position.entryPrice,
+        entryReason: position.entryReason, exitDate: last.datetime, exitPrice: last.close,
+        exitReason: 'Position closed at end of period', shares: position.shares,
+        profit: round((last.close - position.entryPrice) * position.shares, 2),
+        returnPct: round(((last.close - position.entryPrice) / position.entryPrice) * 100, 2),
+        holdingDays: daysBetween(position.entryDate, last.datetime),
+      });
+    }
+
+    const totalTrades = trades.length;
+    const winners = trades.filter((t) => t.profit > 0);
+    const losers = trades.filter((t) => t.profit <= 0);
+    const totalProfit = round(trades.reduce((s, t) => s + t.profit, 0), 2);
+    const winRate = totalTrades > 0 ? round((winners.length / totalTrades) * 100, 1) : 0;
+    const avgWin = winners.length > 0 ? round(winners.reduce((s, t) => s + t.profit, 0) / winners.length, 2) : 0;
+    const avgLoss = losers.length > 0 ? round(losers.reduce((s, t) => s + t.profit, 0) / losers.length, 2) : 0;
+    const riskReward = avgLoss !== 0 ? round(Math.abs(avgWin / avgLoss), 2) : 0;
+    let peak = 0, cum = 0, maxDD = 0;
+    for (const t of trades) { cum += t.profit; if (cum > peak) peak = cum; const d = peak - cum; if (d > maxDD) maxDD = d; }
+
+    return {
+      symbol: sym, strategy: strat,
+      period: { months: mo, startDate: startStr, endDate: data[data.length - 1]?.datetime, totalBars: data.length },
+      trades,
+      stats: { totalTrades, winners: winners.length, losers: losers.length, winRate, totalProfit, avgWin, avgLoss, riskReward, maxDrawdown: round(maxDD, 2) },
+    };
+  }
+}
+
+async function fetchQuote(symbol) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/stocks/${encodeURIComponent(symbol)}/history?period=${period}`);
-    if (!res.ok) return '';
-    const data = await res.json();
-    const bars = data.bars || [];
-    if (bars.length === 0) return '';
-
-    const closes = bars.map(b => b.close);
-    const highs = bars.map(b => b.high);
-    const lows = bars.map(b => b.low);
-    const volumes = bars.map(b => b.volume);
-    const periodHigh = Math.max(...highs);
-    const periodLow = Math.min(...lows);
-    const avgVolume = Math.round(volumes.reduce((a, b) => a + b, 0) / volumes.length);
-    const startPrice = closes[0];
-    const endPrice = closes[closes.length - 1];
-    const periodReturn = ((endPrice - startPrice) / startPrice * 100).toFixed(2);
-
-    const dailyMoves = bars.slice(1).map((b, i) => ({
-      date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
-      prevClose: bars[i].close,
-      change: ((b.close - bars[i].close) / bars[i].close * 100),
-      intraday: ((b.high - b.low) / b.low * 100),
-    }));
-
-    const topGainers = [...dailyMoves].sort((a, b) => b.change - a.change).slice(0, 5);
-    const topLosers = [...dailyMoves].sort((a, b) => a.change - b.change).slice(0, 5);
-
-    let result = `\n${symbol} HISTORICAL (${period}, ${bars.length} trading days):\n`;
-    result += `Period: ${bars[0].date} to ${bars[bars.length - 1].date}\n`;
-    result += `Period Return: ${periodReturn}% ($${startPrice.toFixed(2)} → $${endPrice.toFixed(2)})\n`;
-    result += `Period High: $${periodHigh.toFixed(2)} | Period Low: $${periodLow.toFixed(2)} | Avg Volume: ${avgVolume.toLocaleString()}\n`;
-
-    result += `\nTOP 5 BEST DAYS:\n`;
-    for (const d of topGainers) result += `  ${d.date}: +${d.change.toFixed(2)}% (O:$${d.open.toFixed(2)} H:$${d.high.toFixed(2)} L:$${d.low.toFixed(2)} C:$${d.close.toFixed(2)} Vol:${d.volume.toLocaleString()})\n`;
-
-    result += `\nTOP 5 WORST DAYS:\n`;
-    for (const d of topLosers) result += `  ${d.date}: ${d.change.toFixed(2)}% (O:$${d.open.toFixed(2)} H:$${d.high.toFixed(2)} L:$${d.low.toFixed(2)} C:$${d.close.toFixed(2)} Vol:${d.volume.toLocaleString()})\n`;
-
-    result += `\nFULL DAILY BARS (date,open,high,low,close,volume):\n`;
-    for (const b of bars) result += `${b.date},${b.open},${b.high},${b.low},${b.close},${b.volume}\n`;
-
-    return result;
-  } catch { return ''; }
+    const payload = await fetchTwelveData('quote', { symbol });
+    const price = Number(payload?.close || payload?.price || 0);
+    const change = Number(payload?.percent_change || 0);
+    return `${symbol} CURRENT: Price $${price.toFixed(2)}, Change ${change.toFixed(2)}%`;
+  } catch {
+    return `${symbol}: quote unavailable`;
+  }
 }
 
 export default async function handler(req, res) {
@@ -177,25 +372,63 @@ export default async function handler(req, res) {
     ...incomingMessages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
   ];
 
-  // Extract tickers and fetch market data
+  // Extract tickers and detect intent
   const allText = messages.map(m => m.content).join(' ');
   const tickers = extractTickers(allText);
-  const period = detectPeriod(allText);
+  const months = detectMonths(allText);
   let marketContext = '';
+
   if (tickers.length > 0) {
-    const dataPromises = tickers.slice(0, 3).map(async (t) => {
-      const snapshot = await fetchSnapshot(t);
-      const history = await fetchHistory(t, period);
-      return snapshot + history;
-    });
-    const results = await Promise.all(dataPromises);
-    marketContext = `\n\n## LIVE ALPACA MARKET DATA (REAL — use this data in your response)\n${results.join('\n')}`;
+    const primaryTicker = tickers[0];
+    const latestUserMsg = allText;
+
+    if (isBacktestRequest(latestUserMsg)) {
+      // Run real backtest with Twelve Data
+      const strategy = detectStrategy(latestUserMsg);
+      try {
+        const result = await runRealBacktest(primaryTicker, strategy, months);
+        if (result) {
+          marketContext = `\n\n## REAL BACKTEST RESULTS (from Twelve Data — use these EXACT numbers)\n`;
+          marketContext += `Symbol: $${result.symbol} | Strategy: ${result.strategy} | Period: ${result.period.months} months (${result.period.startDate} to ${result.period.endDate})\n`;
+          marketContext += `Total Bars: ${result.period.totalBars}\n\n`;
+          marketContext += `### Trades:\n`;
+          for (const t of result.trades) {
+            const icon = t.profit > 0 ? '🏆 WIN' : '📉 LOSS';
+            marketContext += `${icon}: Entry ${t.entryDate} @ $${t.entryPrice} (${t.entryReason}) → Exit ${t.exitDate} @ $${t.exitPrice} (${t.exitReason}) | Shares: ${t.shares} | P&L: $${t.profit} (${t.returnPct}%) | Held: ${t.holdingDays} days\n`;
+          }
+          marketContext += `\n### Stats:\n`;
+          marketContext += `Total Trades: ${result.stats.totalTrades} | Winners: ${result.stats.winners} | Losers: ${result.stats.losers} | Win Rate: ${result.stats.winRate}%\n`;
+          marketContext += `Total Profit: $${result.stats.totalProfit} | Avg Win: $${result.stats.avgWin} | Avg Loss: $${result.stats.avgLoss}\n`;
+          marketContext += `Risk/Reward: ${result.stats.riskReward} | Max Drawdown: $${result.stats.maxDrawdown}\n`;
+        }
+      } catch (err) {
+        console.error('[Sophia] Backtest failed:', err.message);
+      }
+
+      // Also fetch additional ticker quotes for context
+      for (const t of tickers.slice(0, 3)) {
+        try {
+          const quote = await fetchQuote(t);
+          marketContext += `\n${quote}`;
+        } catch {}
+      }
+    } else {
+      // Non-backtest request — just fetch live quotes
+      for (const t of tickers.slice(0, 3)) {
+        try {
+          const quote = await fetchQuote(t);
+          marketContext += `\n${quote}`;
+        } catch {}
+      }
+      if (marketContext) marketContext = `\n\n## LIVE MARKET DATA (from Twelve Data)\n${marketContext}`;
+    }
   }
+
   const requestMessages = [...messages];
   if (marketContext) {
     requestMessages.push({
       role: 'user',
-      content: `Live Alpaca market context for this request:\n${marketContext}`,
+      content: `Real market data for this request:\n${marketContext}`,
     });
   }
 
