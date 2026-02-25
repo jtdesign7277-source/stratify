@@ -369,36 +369,30 @@ export default function StatusBar({
             onClick={handleOpenNewsletter}
             className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
               hasUnreadNewsletter
-                ? 'text-emerald-200 bg-[rgba(16,185,129,0.15)] border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.3)] animate-pulse'
+                ? 'text-emerald-200 bg-[rgba(16,185,129,0.15)] border-emerald-400/40 shadow-[0_0_16px_rgba(16,185,129,0.3)]'
                 : 'text-emerald-300 hover:text-emerald-200 bg-[rgba(16,185,129,0.08)] border-[rgba(16,185,129,0.2)]'
             }`}
           >
-            <svg className={`w-3 h-3 ${hasUnreadNewsletter ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Newsletter
             {hasUnreadNewsletter && (
-              <>
-                <span className="absolute -inset-0.5 rounded-full border border-emerald-400/35 animate-pulse pointer-events-none" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse pointer-events-none" />
-              </>
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 pointer-events-none" />
             )}
           </button>
           <button
             onClick={handleOpenMarketIntel}
             className={`relative text-xs font-semibold transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md ${
               hasUnreadIntel
-                ? 'text-blue-200 border-blue-400/45 bg-[rgba(59,130,246,0.14)] shadow-[0_0_16px_rgba(59,130,246,0.3)] animate-pulse'
+                ? 'text-blue-200 border-blue-400/45 bg-[rgba(59,130,246,0.14)] shadow-[0_0_16px_rgba(59,130,246,0.3)]'
                 : 'text-blue-400 hover:text-blue-300 bg-[rgba(59,130,246,0.08)] border-[rgba(59,130,246,0.25)]'
             }`}
           >
-            <Radio className={`w-3 h-3 ${hasUnreadIntel ? 'animate-pulse' : ''}`} />
+            <Radio className="w-3 h-3" />
             Market Intel
             {hasUnreadIntel && (
-              <>
-                <span className="absolute -inset-0.5 rounded-full border border-blue-400/35 animate-pulse pointer-events-none" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse pointer-events-none" />
-              </>
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 pointer-events-none" />
             )}
           </button>
           <div className="relative">
@@ -441,14 +435,14 @@ export default function StatusBar({
                   copilotOpen
                     ? 'text-amber-300'
                     : hasNewInsight
-                      ? 'text-amber-200 animate-pulse'
+                      ? 'text-amber-200'
                       : 'text-amber-400 hover:text-amber-200'
                 }`}
               >
-                <Zap className={`w-3 h-3 ${hasNewInsight ? 'animate-pulse' : ''}`} />
+                <Zap className="w-3 h-3" />
                 Sophia
                 {hasNewInsight && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse pointer-events-none" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 pointer-events-none" />
                 )}
               </button>
             </div>
