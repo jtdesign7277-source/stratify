@@ -589,6 +589,8 @@ export default function Dashboard({
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [watchlistQuotesBySymbol, setWatchlistQuotesBySymbol] = useState({});
+  const [watchlistQuotesLoading, setWatchlistQuotesLoading] = useState(false);
 
   const [pinnedGames, setPinnedGames] = useState(() => {
     try {
@@ -605,6 +607,63 @@ export default function Dashboard({
   useEffect(() => {
     localStorage.setItem('stratify-pinned-games', JSON.stringify(pinnedGames));
   }, [pinnedGames]);
+
+  const watchlistSymbols = useMemo(() => {
+    const unique = new Set();
+    (Array.isArray(watchlist) ? watchlist : []).forEach((item) => {
+      const symbol = typeof item === 'string' ? item : item?.symbol;
+      const normalized = String(symbol || '').trim().toUpperCase();
+      if (normalized) unique.add(normalized);
+    });
+    return [...unique];
+  }, [watchlist]);
+
+  useEffect(() => {
+    if (watchlistSymbols.length === 0) {
+      setWatchlistQuotesBySymbol({});
+      setWatchlistQuotesLoading(false);
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const fetchWatchlistQuotes = async () => {
+      if (isMounted) setWatchlistQuotesLoading(true);
+
+      try {
+        const params = new URLSearchParams({ symbols: watchlistSymbols.join(',') });
+        const response = await fetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch watchlist quotes: ${response.status}`);
+        }
+
+        const payload = await response.json().catch(() => []);
+        if (!isMounted) return;
+
+        const quotes = Array.isArray(payload) ? payload : [];
+        const nextMap = quotes.reduce((acc, quote) => {
+          const symbol = String(quote?.symbol || '').trim().toUpperCase();
+          if (!symbol) return acc;
+          acc[symbol] = quote;
+          return acc;
+        }, {});
+
+        setWatchlistQuotesBySymbol(nextMap);
+      } catch (error) {
+        console.error('[Dashboard] Watchlist quote batch fetch failed:', error);
+      } finally {
+        if (isMounted) setWatchlistQuotesLoading(false);
+      }
+    };
+
+    fetchWatchlistQuotes();
+    const interval = setInterval(fetchWatchlistQuotes, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [watchlistSymbols]);
   
   // Handle dropping a ticker onto a pill slot
   const handleTickerDrop = (symbol, slotIndex) => {
@@ -1810,6 +1869,8 @@ export default function Dashboard({
         <TickerPill
           key={`ticker-pill-${slot}`}
           symbol={tickerSymbol}
+          quote={watchlistQuotesBySymbol[tickerSymbol]}
+          loading={watchlistQuotesLoading}
           onRemove={handleRemoveMiniTicker}
         />
       );
