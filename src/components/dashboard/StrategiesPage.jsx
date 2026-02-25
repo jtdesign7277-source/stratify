@@ -686,9 +686,6 @@ const StrategiesPage = ({
     const strategy = folder?.strategies.find((item) => String(item.id) === String(strategyId));
     if (!strategy) return;
 
-    const confirmed = window.confirm(`Delete strategy "${strategy.name}"?`);
-    if (!confirmed) return;
-
     setFolders((prev) =>
       prev.map((item) =>
         item.id === folderId
