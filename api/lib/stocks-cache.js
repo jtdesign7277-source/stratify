@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
 
-const ALPACA_DATA_URL = 'https://data.alpaca.markets';
+const TWELVE_DATA_QUOTES_URL = 'https://api.twelvedata.com/quotes';
 const CACHE_PREFIX = 'stocks:price';
 
 export const CACHE_TTL_SECONDS = 90;
@@ -19,6 +19,12 @@ let redisDisabled = false;
 const toNumber = (value) => {
   const numeric = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+};
+
+const toQuoteNumber = (value) => {
+  if (value == null) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  return toNumber(value);
 };
 
 const toNumberOrZero = (value) => toNumber(value) ?? 0;
@@ -45,16 +51,9 @@ export function normalizeSymbols(value, fallback = WATCHLIST_SYMBOLS, limit = 20
   return symbols;
 }
 
-export function getAlpacaCredentials() {
-  const key = (process.env.ALPACA_API_KEY || process.env.APCA_API_KEY_ID || '').trim();
-  const secret = (
-    process.env.ALPACA_SECRET_KEY ||
-    process.env.ALPACA_API_SECRET ||
-    process.env.APCA_API_SECRET_KEY ||
-    ''
-  ).trim();
-
-  return { key, secret };
+export function getTwelveDataApiKey() {
+  const apiKey = (process.env.TWELVEDATA_API_KEY || '').trim();
+  return { apiKey };
 }
 
 export function getRedisClient() {
@@ -71,7 +70,7 @@ export function getRedisClient() {
     } catch (error) {
       redisDisabled = true;
       redisClient = null;
-      console.error('[stocks-cache] Redis init failed, falling back to direct Alpaca:', error);
+      console.error('[stocks-cache] Redis init failed, falling back to direct Twelve Data:', error);
       return null;
     }
   }
@@ -103,38 +102,126 @@ export function parseCachedBar(rawValue) {
   return { ...parsed, symbol };
 }
 
-export async function fetchSnapshotsFromAlpaca(symbols, creds = getAlpacaCredentials()) {
+function parseTwelveDataBatchQuotes(payload) {
+  const quoteMap = {};
+  if (!payload || typeof payload !== 'object') return quoteMap;
+
+  if (Array.isArray(payload?.data)) {
+    payload.data.forEach((quote) => {
+      const symbol = normalizeSymbol(quote?.symbol);
+      if (symbol) quoteMap[symbol] = quote;
+    });
+    return quoteMap;
+  }
+
+  const isSingleQuoteShape = payload?.symbol || payload?.close || payload?.price || payload?.last;
+  if (isSingleQuoteShape) {
+    const symbol = normalizeSymbol(payload?.symbol);
+    if (symbol) quoteMap[symbol] = payload;
+    return quoteMap;
+  }
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (['status', 'code', 'message', 'meta'].includes(String(key))) return;
+    if (!value || typeof value !== 'object') return;
+    const symbol = normalizeSymbol(value?.symbol || key);
+    if (symbol) quoteMap[symbol] = value;
+  });
+
+  return quoteMap;
+}
+
+function hasQuoteSnapshotData(quote) {
+  const fields = [
+    quote?.close,
+    quote?.price,
+    quote?.last,
+    quote?.open,
+    quote?.high,
+    quote?.low,
+    quote?.volume,
+    quote?.previous_close,
+    quote?.previousClose,
+    quote?.prev_close,
+    quote?.prevClose,
+  ];
+
+  return fields.some((value) => toQuoteNumber(value) != null);
+}
+
+function mapQuoteToSnapshot(quote) {
+  const latestPrice = toQuoteNumber(quote?.close ?? quote?.price ?? quote?.last);
+  const tradeTimestamp = quote?.datetime || quote?.timestamp || null;
+
+  return {
+    latestTrade: {
+      p: latestPrice,
+      t: tradeTimestamp,
+    },
+    dailyBar: {
+      o: toQuoteNumber(quote?.open),
+      h: toQuoteNumber(quote?.high),
+      l: toQuoteNumber(quote?.low),
+      c: latestPrice,
+      v: toQuoteNumber(quote?.volume),
+      t: tradeTimestamp,
+    },
+    prevDailyBar: {
+      c: toQuoteNumber(
+        quote?.previous_close
+        ?? quote?.previousClose
+        ?? quote?.prev_close
+        ?? quote?.prevClose
+      ),
+    },
+  };
+}
+
+export async function fetchSnapshotsFromTwelveData(symbols, creds = getTwelveDataApiKey()) {
   if (!Array.isArray(symbols) || symbols.length === 0) return {};
 
-  if (!creds.key || !creds.secret) {
-    const error = new Error('Missing Alpaca API credentials');
+  const apiKey = String(creds?.apiKey || '').trim();
+  if (!apiKey) {
+    const error = new Error('Missing Twelve Data API key');
     error.status = 500;
     throw error;
   }
 
   const params = new URLSearchParams({
-    symbols: symbols.join(','),
-    feed: 'sip',
+    symbol: symbols.join(','),
+    apikey: apiKey,
   });
 
-  const response = await fetch(`${ALPACA_DATA_URL}/v2/stocks/snapshots?${params.toString()}`, {
-    headers: {
-      'APCA-API-KEY-ID': creds.key,
-      'APCA-API-SECRET-KEY': creds.secret,
-      Accept: 'application/json',
-    },
+  const response = await fetch(`${TWELVE_DATA_QUOTES_URL}?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
   });
+  const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const detail = await response.text();
-    const error = new Error(`Alpaca API error: ${response.status}`);
+    const error = new Error(`Twelve Data API error: ${response.status}`);
     error.status = response.status;
-    error.detail = detail;
+    error.detail = payload;
     throw error;
   }
 
-  const payload = await response.json();
-  return payload && typeof payload === 'object' ? payload : {};
+  if (payload?.status === 'error') {
+    const error = new Error(payload?.message || 'Twelve Data error');
+    error.status = Number(payload?.code) || 502;
+    error.detail = payload;
+    throw error;
+  }
+
+  const quoteMap = parseTwelveDataBatchQuotes(payload);
+  const snapshots = {};
+
+  for (const symbol of symbols) {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    const quote = quoteMap[normalizedSymbol];
+    if (!quote || typeof quote !== 'object' || !hasQuoteSnapshotData(quote)) continue;
+    snapshots[normalizedSymbol] = mapQuoteToSnapshot(quote);
+  }
+
+  return snapshots;
 }
 
 function getMarketSessionState() {

@@ -1,8 +1,8 @@
 import {
   CACHE_TTL_SECONDS,
   WATCHLIST_SYMBOLS,
-  fetchSnapshotsFromAlpaca,
-  getAlpacaCredentials,
+  fetchSnapshotsFromTwelveData,
+  getTwelveDataApiKey,
   getRedisClient,
   getStockCacheKey,
   mapSnapshotsToBars,
@@ -37,9 +37,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const credentials = getAlpacaCredentials();
-  if (!credentials.key || !credentials.secret) {
-    return res.status(500).json({ error: 'Missing Alpaca API credentials' });
+  const credentials = getTwelveDataApiKey();
+  if (!credentials.apiKey) {
+    return res.status(500).json({ error: 'Missing TWELVEDATA_API_KEY' });
   }
 
   const symbols = normalizeSymbols(req.query?.symbols, WATCHLIST_SYMBOLS, 200)
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
   try {
     redis = getRedisClient();
   } catch (error) {
-    console.error('[stocks] Redis unavailable, falling back to direct Alpaca:', error);
+    console.error('[stocks] Redis unavailable, falling back to direct Twelve Data:', error);
     redis = null;
   }
   const cachedBarsBySymbol = new Map();
@@ -91,29 +91,8 @@ export default async function handler(req, res) {
 
   try {
     if (missingSymbols.length > 0) {
-      let fetchedBars = [];
-      try {
-        const snapshots = await fetchSnapshotsFromAlpaca(missingSymbols, credentials);
-        fetchedBars = mapSnapshotsToBars(snapshots, missingSymbols);
-      } catch (error) {
-        // Alpaca returns 400 when one or more symbols are invalid; retry one-by-one.
-        if (Number(error?.status) === 400 && missingSymbols.length > 1) {
-          const retryBars = [];
-          for (const symbol of missingSymbols) {
-            try {
-              const snapshots = await fetchSnapshotsFromAlpaca([symbol], credentials);
-              retryBars.push(...mapSnapshotsToBars(snapshots, [symbol]));
-            } catch (singleError) {
-              if (Number(singleError?.status) >= 500) {
-                console.error(`[stocks] failed retry snapshot for ${symbol}:`, singleError);
-              }
-            }
-          }
-          fetchedBars = retryBars;
-        } else {
-          throw error;
-        }
-      }
+      const snapshots = await fetchSnapshotsFromTwelveData(missingSymbols, credentials);
+      const fetchedBars = mapSnapshotsToBars(snapshots, missingSymbols);
 
       fetchedBars.forEach((bar) => {
         fetchedBarsBySymbol.set(bar.symbol, bar);

@@ -1,8 +1,8 @@
 import {
   CACHE_TTL_SECONDS,
   WATCHLIST_SYMBOLS,
-  fetchSnapshotsFromAlpaca,
-  getAlpacaCredentials,
+  fetchSnapshotsFromTwelveData,
+  getTwelveDataApiKey,
   getRedisClient,
   getStockCacheKey,
   mapSnapshotsToBars,
@@ -31,9 +31,9 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const credentials = getAlpacaCredentials();
-  if (!credentials.key || !credentials.secret) {
-    return res.status(500).json({ error: 'Missing Alpaca API credentials' });
+  const credentials = getTwelveDataApiKey();
+  if (!credentials.apiKey) {
+    return res.status(500).json({ error: 'Missing TWELVEDATA_API_KEY' });
   }
 
   const redis = getRedisClient();
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const snapshots = await fetchSnapshotsFromAlpaca(WATCHLIST_SYMBOLS, credentials);
+    const snapshots = await fetchSnapshotsFromTwelveData(WATCHLIST_SYMBOLS, credentials);
     const bars = mapSnapshotsToBars(snapshots, WATCHLIST_SYMBOLS);
 
     if (bars.length > 0) {
