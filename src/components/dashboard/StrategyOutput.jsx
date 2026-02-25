@@ -1543,24 +1543,32 @@ export default function StrategyOutput({
                     <span role="img" aria-label="Fire">🔥</span>
                     <span className="text-white font-bold text-[13px] leading-5 tracking-[0.02em]">KEY TRADE SETUPS IDENTIFIED</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-gray-400 text-[13px]">{checkedCount}/6</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allChecked = checks.every(Boolean);
-                        setSaveStatus('idle');
-                        setSaved(false);
-                        setChecks(Array(6).fill(!allChecked));
-                      }}
-                      className="text-[11px] text-zinc-400 hover:text-cyan-300 transition-colors"
-                    >
-                      {checks.every(Boolean) ? 'Deselect All' : 'Select All'}
-                    </button>
+                  <span className="text-gray-400 text-[13px]">{checkedCount}/6</span>
+                </div>
+
+                {/* Tab bar: Select All | Folder dropdown + Save */}
+                <div className="flex items-center gap-1 mt-2 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allChecked = checks.every(Boolean);
+                      setSaveStatus('idle');
+                      setSaved(false);
+                      setChecks(Array(6).fill(!allChecked));
+                    }}
+                    className={`px-3 py-1.5 text-[12px] font-semibold tracking-wide rounded-t-lg border border-b-0 transition ${
+                      checks.every(Boolean)
+                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                        : 'bg-white/5 border-white/15 text-zinc-300 hover:bg-white/10 hover:text-cyan-300'
+                    }`}
+                  >
+                    {checks.every(Boolean) ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <div className="flex items-center gap-2 ml-auto">
                     <select
                       value={resolvedFolderId}
                       onChange={(event) => setSaveFolderId(event.target.value)}
-                      className="max-w-[160px] rounded-lg border border-cyan-500/30 bg-[#06101b]/80 px-2 py-1 text-[12px] text-cyan-200 outline-none focus:border-cyan-400"
+                      className="max-w-[160px] rounded-t-lg border border-b-0 border-cyan-500/30 bg-[#06101b]/80 px-2 py-1.5 text-[12px] text-cyan-200 outline-none focus:border-cyan-400"
                       aria-label="Save strategy folder"
                       title={`Save to ${selectedFolderName}`}
                     >
@@ -1573,7 +1581,7 @@ export default function StrategyOutput({
                     <button
                       onClick={handleSave}
                       disabled={saveStatus === 'saving'}
-                      className={`rounded-lg px-3 py-1 text-sm border transition ${
+                      className={`rounded-t-lg px-3 py-1.5 text-[12px] font-semibold border border-b-0 transition ${
                         saveStatus === 'saved'
                           ? 'bg-emerald-600/80 border-emerald-500/80 text-white'
                           : 'border-white/25 text-white hover:bg-white/10'
