@@ -1,4 +1,4 @@
-import { getCachedScan, setCachedScan } from '../lib/warroom-cache.js';
+import { getCachedScan, setCachedScan, getCachedTranscript, setCachedTranscript } from '../lib/warroom-cache.js';
 
 const QUICK_SCANS = [
   {
@@ -27,6 +27,31 @@ const QUICK_SCANS = [
   },
 ];
 
+const TRANSCRIPT_TICKERS = ['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'];
+
+const TRANSCRIPT_SYSTEM = [
+  'You are a financial transcript analyst. Search the web for the most recent earnings call transcript for the requested company.',
+  'Return the transcript content in this exact format:',
+  '',
+  '## [Company Name] ($SYMBOL) — Q[X] [YEAR] Earnings Call',
+  '**Date:** [date of the call]',
+  '**Participants:** [CEO name, CFO name, other key executives]',
+  '',
+  '### Key Highlights',
+  '- [3-5 bullet points of the most important takeaways]',
+  '',
+  '### Management Commentary',
+  '[Summarize the key quotes and commentary from executives, organized by topic. Include direct quotes where possible.]',
+  '',
+  '### Q&A Highlights',
+  '[Summarize the most important analyst questions and management responses]',
+  '',
+  '### Guidance',
+  '[Revenue guidance, EPS guidance, and any forward-looking statements]',
+  '',
+  'Be thorough and data-driven. Include specific numbers, percentages, and dollar amounts mentioned in the call.',
+].join('\n');
+
 function extractSources(contentBlocks) {
   const sources = [];
   const seen = new Set();
@@ -43,7 +68,7 @@ function extractSources(contentBlocks) {
   return sources;
 }
 
-async function fetchScan(query) {
+async function callClaude(system, userMessage) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -55,8 +80,8 @@ async function fetchScan(query) {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.',
-      messages: [{ role: 'user', content: query }],
+      system,
+      messages: [{ role: 'user', content: userMessage }],
     }),
   });
 
@@ -72,39 +97,61 @@ async function fetchScan(query) {
 }
 
 export default async function handler(req, res) {
-  // Auth check for cron
   const authHeader = req.headers.authorization;
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const warmed = [];
-  const failed = [];
+  const results = [];
 
-  // Process scans sequentially to avoid rate limits
+  // Warm quick scans
   for (const scan of QUICK_SCANS) {
     try {
-      // Check if already cached and fresh
       const existing = await getCachedScan(scan.label);
       if (existing) {
-        warmed.push({ label: scan.label, status: 'already-cached' });
+        results.push({ type: 'scan', label: scan.label, status: 'cached' });
         continue;
       }
-
-      const result = await fetchScan(scan.query);
-      await setCachedScan(scan.label, result);
-      warmed.push({ label: scan.label, status: 'warmed' });
-    } catch (error) {
-      failed.push({ label: scan.label, error: error.message });
-      console.error(`[warm-warroom] Failed to warm "${scan.label}":`, error);
+      const data = await callClaude(
+        'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.',
+        scan.query
+      );
+      await setCachedScan(scan.label, data);
+      results.push({ type: 'scan', label: scan.label, status: 'warmed' });
+    } catch (err) {
+      results.push({ type: 'scan', label: scan.label, status: 'failed', error: err.message });
     }
   }
 
+  // Warm transcripts for major tickers
+  for (const symbol of TRANSCRIPT_TICKERS) {
+    try {
+      const existing = await getCachedTranscript(symbol);
+      if (existing) {
+        results.push({ type: 'transcript', symbol, status: 'cached' });
+        continue;
+      }
+      const data = await callClaude(
+        TRANSCRIPT_SYSTEM,
+        `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.`
+      );
+      await setCachedTranscript(symbol, { symbol, ...data });
+      results.push({ type: 'transcript', symbol, status: 'warmed' });
+    } catch (err) {
+      results.push({ type: 'transcript', symbol, status: 'failed', error: err.message });
+    }
+  }
+
+  const warmed = results.filter(r => r.status === 'warmed').length;
+  const cached = results.filter(r => r.status === 'cached').length;
+  const failed = results.filter(r => r.status === 'failed').length;
+
   return res.status(200).json({
     success: true,
-    warmed: warmed.length,
-    failed: failed.length,
-    details: [...warmed, ...failed],
+    warmed,
+    cached,
+    failed,
+    details: results,
     timestamp: new Date().toISOString(),
   });
 }

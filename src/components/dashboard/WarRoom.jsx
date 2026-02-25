@@ -258,6 +258,8 @@ export default function WarRoom({ onClose }) {
   const [transcriptData, setTranscriptData] = useState(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [transcriptError, setTranscriptError] = useState('');
+  const [secFilings, setSecFilings] = useState(null);
+  const [secLoading, setSecLoading] = useState(false);
   const [toast, setToast] = useState('');
 
   const [saveMenu, setSaveMenu] = useState({ cardId: null, showNewFolder: false, newFolderName: '' });
@@ -589,17 +591,30 @@ export default function WarRoom({ onClose }) {
     if (!trimmed || transcriptLoading) return;
     setTranscriptError('');
     setTranscriptData(null);
+    setSecFilings(null);
     setTranscriptLoading(true);
-    try {
-      const res = await fetch(`/api/earnings-transcript?symbol=${encodeURIComponent(trimmed)}`);
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload?.error || `Request failed (${res.status})`);
-      setTranscriptData({ symbol: trimmed, content: payload.content, sources: payload.sources || [] });
-    } catch (err) {
-      setTranscriptError(err?.message || 'Failed to fetch transcript');
-    } finally {
-      setTranscriptLoading(false);
-    }
+    setSecLoading(true);
+
+    // Fetch transcript and SEC filings in parallel
+    const transcriptPromise = fetch(`/api/earnings-transcript?symbol=${encodeURIComponent(trimmed)}`)
+      .then(async (res) => {
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload?.error || `Request failed (${res.status})`);
+        setTranscriptData({ symbol: trimmed, content: payload.content, sources: payload.sources || [], fromCache: payload.fromCache });
+      })
+      .catch((err) => setTranscriptError(err?.message || 'Failed to fetch transcript'))
+      .finally(() => setTranscriptLoading(false));
+
+    const secPromise = fetch(`/api/sec-filings?symbol=${encodeURIComponent(trimmed)}`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const payload = await res.json().catch(() => null);
+        if (payload?.filings) setSecFilings(payload);
+      })
+      .catch(() => {})
+      .finally(() => setSecLoading(false));
+
+    await Promise.allSettled([transcriptPromise, secPromise]);
   };
 
   const allSavedCount = useMemo(
@@ -782,6 +797,49 @@ export default function WarRoom({ onClose }) {
                       </div>
                     </div>
                   )}
+                </article>
+              )}
+
+              {/* SEC Filings */}
+              {secLoading && (
+                <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-4 flex items-center gap-3">
+                  <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
+                  <span className="text-blue-300 text-sm">Loading SEC filings...</span>
+                </div>
+              )}
+
+              {secFilings && secFilings.filings.length > 0 && (
+                <article className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">SEC Filings — {secFilings.companyName}</h3>
+                    <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
+                  </div>
+                  <div className="space-y-2">
+                    {secFilings.filings.map((filing, i) => (
+                      <a
+                        key={i}
+                        href={filing.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded ${
+                            filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                            filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                            'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          }`}>
+                            {filing.form}
+                          </span>
+                          <div>
+                            <p className="text-[15px] text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
+                            <p className="text-sm text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ending ${filing.reportDate}` : ''}</p>
+                          </div>
+                        </div>
+                        <Link2 className="h-4 w-4 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
+                      </a>
+                    ))}
+                  </div>
                 </article>
               )}
             </div>
