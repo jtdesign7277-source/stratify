@@ -260,6 +260,7 @@ export default function WarRoom({ onClose }) {
   const [transcriptError, setTranscriptError] = useState('');
   const [secFilings, setSecFilings] = useState(null);
   const [secLoading, setSecLoading] = useState(false);
+  const [selectedFiling, setSelectedFiling] = useState(null);
   const [toast, setToast] = useState('');
 
   const [saveMenu, setSaveMenu] = useState({ cardId: null, showNewFolder: false, newFolderName: '' });
@@ -592,6 +593,7 @@ export default function WarRoom({ onClose }) {
     setTranscriptError('');
     setTranscriptData(null);
     setSecFilings(null);
+    setSelectedFiling(null);
     setTranscriptLoading(true);
     setSecLoading(true);
 
@@ -704,51 +706,53 @@ export default function WarRoom({ onClose }) {
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeView === 'transcripts' ? (
-            <div className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
-              <div className="flex items-center gap-2">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    fetchTranscript(transcriptSymbol);
-                  }}
-                  className="flex items-center gap-2 flex-1"
-                >
-                  <input
-                    type="text"
-                    value={transcriptSymbol}
-                    onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
-                    placeholder="Enter ticker (AAPL, NVDA, TSLA...)"
-                    className="flex-1 rounded-lg border border-gray-700 bg-black/40 px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
-                  />
-                  <button
-                    type="submit"
-                    disabled={transcriptLoading || !transcriptSymbol.trim()}
-                    className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-5 py-2.5 text-base font-semibold transition-all disabled:opacity-45"
+            <div className="h-full flex flex-col gap-3">
+              {/* Search bar + ticker buttons */}
+              <div className="shrink-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      fetchTranscript(transcriptSymbol);
+                    }}
+                    className="flex items-center gap-2 flex-1"
                   >
-                    {transcriptLoading ? 'Loading...' : 'Get Transcript'}
-                  </button>
-                </form>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'].map((sym) => (
-                  <button
-                    key={sym}
-                    type="button"
-                    onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
-                    disabled={transcriptLoading}
-                    className="rounded-lg border border-gray-800 px-3 py-1.5 text-sm text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
-                  >
-                    ${sym}
-                  </button>
-                ))}
+                    <input
+                      type="text"
+                      value={transcriptSymbol}
+                      onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
+                      placeholder="Enter ticker (AAPL, NVDA, TSLA...)"
+                      className="flex-1 rounded-lg border border-gray-700 bg-black/40 px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
+                    />
+                    <button
+                      type="submit"
+                      disabled={transcriptLoading || !transcriptSymbol.trim()}
+                      className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-5 py-2.5 text-base font-semibold transition-all disabled:opacity-45"
+                    >
+                      {transcriptLoading ? 'Loading...' : 'Get Transcript'}
+                    </button>
+                  </form>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'].map((sym) => (
+                    <button
+                      key={sym}
+                      type="button"
+                      onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
+                      disabled={transcriptLoading}
+                      className="rounded-lg border border-gray-800 px-3 py-1.5 text-sm text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
+                    >
+                      ${sym}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {transcriptError && (
                 <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{transcriptError}</div>
               )}
 
-              {transcriptLoading && (
+              {transcriptLoading && !transcriptData && (
                 <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
                   <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
                   <span className="text-amber-300 text-sm animate-pulse">Fetching earnings transcript...</span>
@@ -756,91 +760,159 @@ export default function WarRoom({ onClose }) {
               )}
 
               {!transcriptData && !transcriptLoading && !transcriptError && (
-                <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
-                  <Search className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
-                  <h3 className="text-white font-semibold">Earnings Call Transcripts</h3>
-                  <p className="text-sm text-gray-500 mt-1">Enter a ticker or click a company above to view their latest earnings call summary.</p>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
+                    <Search className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
+                    <h3 className="text-white font-semibold">Earnings Call Transcripts & SEC Filings</h3>
+                    <p className="text-sm text-gray-500 mt-1">Enter a ticker or click a company above to view their latest earnings call and SEC filings side by side.</p>
+                  </div>
                 </div>
               )}
 
-              {transcriptData && (
-                <article className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
-                    <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">Transcript</span>
-                  </div>
-                  <div className="text-[15px] text-gray-300 leading-relaxed whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: transcriptData.content
-                      .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-xl font-bold mt-5 mb-2">$1</h2>')
-                      .replace(/^### (.+)$/gm, '<h3 class="text-white text-lg font-semibold mt-4 mb-1">$1</h3>')
-                      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                      .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-amber-500/60 mt-0.5">•</span><span>$1</span></div>')
-                      .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
-                    }}
-                  />
-                  {transcriptData.sources?.length > 0 && (
-                    <div className="pt-3 border-t border-gray-800/50">
-                      <span className="text-[10px] uppercase tracking-wider text-gray-500 block mb-1.5">Sources</span>
-                      <div className="flex flex-wrap gap-2">
-                        {transcriptData.sources.map((src, i) => (
-                          <a
-                            key={i}
-                            href={src.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-amber-400/80 hover:text-amber-300 transition-colors"
-                          >
-                            <Link2 className="h-3 w-3" strokeWidth={1.5} />
-                            {(src.title || src.url).slice(0, 60)}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </article>
-              )}
-
-              {/* SEC Filings */}
-              {secLoading && (
-                <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-4 flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
-                  <span className="text-blue-300 text-sm">Loading SEC filings...</span>
-                </div>
-              )}
-
-              {secFilings && secFilings.filings.length > 0 && (
-                <article className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">SEC Filings — {secFilings.companyName}</h3>
-                    <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
-                  </div>
-                  <div className="space-y-2">
-                    {secFilings.filings.map((filing, i) => (
-                      <a
-                        key={i}
-                        href={filing.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded ${
-                            filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-                            filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
-                            'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          }`}>
-                            {filing.form}
+              {/* Split screen: Transcript left, SEC filings / viewer right */}
+              {(transcriptData || secFilings) && (
+                <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
+                  {/* Left: Earnings Transcript */}
+                  <div className="min-h-0 overflow-y-auto scrollbar-hide rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm p-5">
+                    {transcriptData ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
+                          <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            {transcriptData.fromCache ? 'Cached' : 'Transcript'}
                           </span>
-                          <div>
-                            <p className="text-[15px] text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
-                            <p className="text-sm text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ending ${filing.reportDate}` : ''}</p>
+                        </div>
+                        <div className="text-[15px] text-gray-300 leading-relaxed whitespace-pre-wrap"
+                          dangerouslySetInnerHTML={{ __html: transcriptData.content
+                            .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-xl font-bold mt-5 mb-2">$1</h2>')
+                            .replace(/^### (.+)$/gm, '<h3 class="text-white text-lg font-semibold mt-4 mb-1">$1</h3>')
+                            .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                            .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-amber-500/60 mt-0.5">•</span><span>$1</span></div>')
+                            .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
+                          }}
+                        />
+                        {transcriptData.sources?.length > 0 && (
+                          <div className="pt-3 border-t border-gray-800/50">
+                            <span className="text-[10px] uppercase tracking-wider text-gray-500 block mb-1.5">Sources</span>
+                            <div className="flex flex-wrap gap-2">
+                              {transcriptData.sources.map((src, i) => (
+                                <a
+                                  key={i}
+                                  href={src.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-sm text-amber-400/80 hover:text-amber-300 transition-colors"
+                                >
+                                  <Link2 className="h-3 w-3" strokeWidth={1.5} />
+                                  {(src.title || src.url).slice(0, 60)}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-5 w-5 text-amber-400 animate-spin" strokeWidth={1.5} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: SEC Filings list or selected filing viewer */}
+                  <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
+                    {selectedFiling ? (
+                      <>
+                        <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-gray-800/50">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`text-xs font-bold font-mono px-1.5 py-0.5 rounded ${
+                              selectedFiling.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400' :
+                              selectedFiling.form === '10-Q' ? 'bg-blue-500/15 text-blue-400' :
+                              'bg-amber-500/15 text-amber-400'
+                            }`}>
+                              {selectedFiling.form}
+                            </span>
+                            <span className="text-sm text-white truncate">{selectedFiling.description || selectedFiling.form}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <a
+                              href={selectedFiling.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                              Open in SEC
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFiling(null)}
+                              className="text-gray-500 hover:text-white transition-colors"
+                            >
+                              <X className="h-4 w-4" strokeWidth={1.5} />
+                            </button>
                           </div>
                         </div>
-                        <Link2 className="h-4 w-4 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
-                      </a>
-                    ))}
+                        <iframe
+                          src={selectedFiling.url}
+                          title={`${selectedFiling.form} Filing`}
+                          className="flex-1 w-full bg-white"
+                          sandbox="allow-same-origin allow-scripts"
+                        />
+                      </>
+                    ) : (
+                      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-white">
+                            SEC Filings{secFilings?.companyName ? ` — ${secFilings.companyName}` : ''}
+                          </h3>
+                          <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
+                        </div>
+
+                        {secLoading && (
+                          <div className="flex items-center gap-3 py-4">
+                            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
+                            <span className="text-blue-300 text-sm">Loading SEC filings...</span>
+                          </div>
+                        )}
+
+                        {secFilings && secFilings.filings.length > 0 && (
+                          <div className="space-y-2">
+                            {secFilings.filings.map((filing, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setSelectedFiling(filing)}
+                                className="w-full text-left flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded ${
+                                    filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                    filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                                    'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                  }`}>
+                                    {filing.form}
+                                  </span>
+                                  <div>
+                                    <p className="text-[15px] text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
+                                    <p className="text-sm text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ending ${filing.reportDate}` : ''}</p>
+                                  </div>
+                                </div>
+                                <Link2 className="h-4 w-4 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {secFilings && secFilings.filings.length === 0 && !secLoading && (
+                          <p className="text-sm text-gray-500 py-4">No recent 10-K, 10-Q, or 8-K filings found.</p>
+                        )}
+
+                        {!secFilings && !secLoading && (
+                          <p className="text-sm text-gray-500 py-4">SEC filings will appear here when you search a ticker.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </article>
+                </div>
               )}
             </div>
           ) : activeView === 'saved' ? (
