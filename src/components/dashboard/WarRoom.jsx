@@ -592,7 +592,6 @@ export default function WarRoom({ onClose }) {
     setTranscriptError('');
     setTranscriptData(null);
     setSecFilings(null);
-    setSelectedFiling(null);
     setTranscriptLoading(true);
     setSecLoading(true);
 
