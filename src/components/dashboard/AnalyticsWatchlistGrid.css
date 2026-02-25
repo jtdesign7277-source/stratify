@@ -34,9 +34,13 @@
   justify-content: space-between;
   gap: 12px;
   padding: 0 16px;
+  position: relative;
 }
 
 .watchlist-collapse-btn {
+  position: absolute;
+  top: 24px;
+  right: 16px;
   flex-shrink: 0;
   width: 28px;
   height: 28px;
@@ -49,6 +53,7 @@
   color: rgba(176, 195, 224, 0.75);
   cursor: pointer;
   transition: all 150ms ease;
+  z-index: 100;
 }
 
 .watchlist-collapse-btn:hover {
@@ -58,28 +63,32 @@
 }
 
 .watchlist-expand-btn {
-  width: 100%;
-  height: 100vh;
+  position: fixed;
+  top: 24px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border: 0;
-  border-right: 1px solid rgba(54, 72, 100, 0.4);
-  background: rgba(6, 10, 17, 0.3);
-  color: rgba(176, 195, 224, 0.6);
+  gap: 4px;
+  border: 1px solid rgba(93, 126, 175, 0.35);
+  border-radius: 6px;
+  background: rgba(20, 32, 50, 0.5);
+  color: rgba(176, 195, 224, 0.75);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   transition: all 150ms ease;
+  z-index: 100;
 }
 
 .watchlist-expand-btn:hover {
-  background: rgba(10, 16, 26, 0.6);
-  border-color: rgba(93, 126, 175, 0.5);
-  color: rgba(200, 215, 235, 0.85);
+  background: rgba(25, 38, 58, 0.8);
+  border-color: rgba(93, 126, 175, 0.6);
+  color: rgba(200, 215, 235, 0.95);
 }
 
 /* Small view - hide all columns except Symbol and ChgPercent */
@@ -119,7 +128,7 @@
 .watchlist-grid-controls {
   flex: 1;
   min-width: 0;
-  padding: 24px 0 12px 0;
+  padding: 24px 48px 12px 0;
 }
 
 .watchlist-grid-input {
