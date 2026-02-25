@@ -2173,7 +2173,7 @@ export default function Dashboard({
               <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
             </div>
           ) : null}
-          {activeTab === 'terminal' && (
+          <div className={activeTab === 'terminal' ? 'h-full w-full' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}
@@ -2185,7 +2185,7 @@ export default function Dashboard({
               onClearStrategies={handleClearAllStrategies}
               isSophiaThinking={isSophiaThinking}
             />
-          )}
+          </div>
           {activeTab === 'more' && <MoreInfoPage />}
         </div>
         
