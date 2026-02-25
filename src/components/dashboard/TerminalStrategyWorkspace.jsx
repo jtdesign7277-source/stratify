@@ -1008,9 +1008,6 @@ const TerminalStrategyWorkspace = ({
     if (!targetId) return;
     if (PROTECTED_FOLDER_IDS.has(targetId)) return;
 
-    const confirmed =
-      typeof window === 'undefined' ? true : window.confirm('Delete this folder? Strategies will be moved to Archive.');
-    if (!confirmed) return;
 
     setFolders((prev) => {
       const folderToDelete = prev.find((folder) => folder.id === targetId);
@@ -1055,9 +1052,6 @@ const TerminalStrategyWorkspace = ({
       allStrategies.find((strategy) => sanitizeStrategyId(strategy.id) === targetId) ||
       null;
 
-    const confirmed =
-      typeof window === 'undefined' ? true : window.confirm('Delete this strategy?');
-    if (!confirmed) return;
 
     setDeletingStrategyId(targetId);
 
