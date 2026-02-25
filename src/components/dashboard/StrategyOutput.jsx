@@ -724,11 +724,17 @@ export default function StrategyOutput({
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
 
-  const toggleCheck = (i) => setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
+  const toggleCheck = (i) => {
+    setSaveStatus('idle');
+    setSaved(false);
+    setChecks((p) => p.map((v, j) => (j === i ? !v : v)));
+  };
 
   const updateFieldValue = (index, value, options = {}) => {
     const { syncEditor = false } = options;
     const normalizedValue = withDollarTickers(String(value ?? '').trim());
+    setSaveStatus('idle');
+    setSaved(false);
     setFieldValues((prev) => {
       const next = [...prev];
       next[index] = normalizedValue;
@@ -803,6 +809,10 @@ export default function StrategyOutput({
 
   const commitNameEdit = () => {
     const nextName = String(strategyNameDraft || '').trim() || 'Strategy';
+    if (nextName !== strategyName) {
+      setSaveStatus('idle');
+      setSaved(false);
+    }
     setStrategyName(nextName);
     setStrategyNameDraft(nextName);
     setIsEditingName(false);
@@ -811,6 +821,8 @@ export default function StrategyOutput({
   const updateEditorValue = (nextValue) => {
     const normalized = String(nextValue ?? '');
     setEditorValue(normalized);
+    setSaveStatus('idle');
+    setSaved(false);
     setIsEditorModified(normalized !== String(strategyRaw || ''));
     setShowEditorSavedNotice(false);
   };
@@ -1283,6 +1295,18 @@ export default function StrategyOutput({
                   >
                     <Pencil className="h-3.5 w-3.5" strokeWidth={1.7} />
                   </button>
+                  {saveStatus !== 'saved' && (
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saveStatus === 'saving'}
+                      className="text-zinc-500 hover:text-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Save strategy"
+                      title="Save strategy"
+                    >
+                      <SaveIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </button>
+                  )}
                 </>
               )}
             </div>
