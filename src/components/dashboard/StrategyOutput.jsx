@@ -424,8 +424,13 @@ function parseMarkdown(raw) {
   lines.forEach((line) => {
     const trimmed = line.trim();
 
-    // Skip 💰 total result line (shown in stats grid)
-    if (/^#{1,3}\s*💰/.test(trimmed)) return;
+    // 💰 total result line — render as a highlighted banner
+    if (/^#{1,3}\s*💰/.test(trimmed)) {
+      const text = trimmed.replace(/^#{1,3}\s*/, '');
+      const isNeg = text.includes('-');
+      html.push(`<div class="my-3 px-3 py-2 rounded-lg border ${isNeg ? 'border-red-500/30 bg-red-500/10' : 'border-emerald-500/30 bg-emerald-500/10'}"><span class="text-base font-bold font-mono ${isNeg ? 'text-red-400' : 'text-emerald-400'}">${formatInline(text)}</span></div>`);
+      return;
+    }
 
     // Skip Performance Summary section (shown in stats grid)
     if (inPerformanceSummary) {
@@ -493,8 +498,13 @@ function parseMarkdown(raw) {
       if (separatorIndex >= 0) {
         const label = content.slice(0, separatorIndex).trim();
         const value = content.slice(separatorIndex + 1).trim() || '—';
+        // Highlight only dollar amounts, percentages, and key numbers in green
+        const styledValue = value.replace(
+          /([+-]?\$[\d,]+(?:\.\d+)?|[\d.]+%|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b)/g,
+          '<span class="text-emerald-400 font-semibold">$1</span>'
+        );
         html.push(
-          `<div class="mb-6 flex gap-2 ml-2"><span class="text-emerald-400 mt-0.5">●</span><p class="text-sm leading-relaxed whitespace-normal break-words"><strong class="text-white font-semibold">${formatInline(label)}:</strong> <span class="text-emerald-400">${formatInline(value)}</span></p></div>`
+          `<div class="mb-6 flex gap-2 ml-2"><span class="text-emerald-400 mt-0.5">●</span><p class="text-sm leading-relaxed whitespace-normal break-words"><strong class="text-white font-semibold">${formatInline(label)}:</strong> <span class="text-white/80">${styledValue}</span></p></div>`
         );
         return;
       }

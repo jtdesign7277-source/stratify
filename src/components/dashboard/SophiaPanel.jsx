@@ -208,6 +208,9 @@ const SophiaPanel = ({
 
   useEffect(() => {
     if (wizardPrompt && !isLoading) {
+      // Expand the panel and switch to sophia tab so the user sees the response
+      setPanelState((prev) => (prev === 'closed' ? 'large' : prev));
+      setActiveTab('sophia');
       sendMessage(wizardPrompt);
       onWizardPromptConsumed && onWizardPromptConsumed();
     }
