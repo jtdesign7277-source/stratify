@@ -867,7 +867,7 @@ export default function DataTable({ activeTab, alpacaData, strategies = [], demo
               <th key={col.key} onClick={() => handleSort(col.key)} className={`px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-[#2A2A2A] ${themeClasses.textMuted} ${col.align === 'right' ? 'text-right' : 'text-left'}`}>
                 <div className={`flex items-center gap-1 ${col.align === 'right' ? 'justify-end' : ''}`}>
                   {col.label}
-                  {sortColumn === col.key && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={sortDirection === 'asc' ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} /></svg>}
+                  
                 </div>
               </th>
             ))}
