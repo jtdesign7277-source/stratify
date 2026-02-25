@@ -71,11 +71,29 @@ const setFeedTimestamp = () => {
 };
 const isFeedFresh = () => Date.now() - getFeedTimestamp() < CACHE_TTL_MS;
 
+const fetchCachedScan = async (label) => {
+  try {
+    const res = await fetch(`/api/warroom?label=${encodeURIComponent(label)}`);
+    if (!res.ok) return null;
+    const payload = await res.json().catch(() => null);
+    if (!payload?.content) return null;
+    return normalizeIntelItem({
+      id: `warroom-cached-${label.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+      title: label,
+      query: '',
+      content: String(payload.content || ''),
+      sources: payload.sources || [],
+      sourceLabel: payload.fromCache ? 'Cached Intel' : 'Claude Intel',
+      createdAt: new Date().toISOString(),
+    });
+  } catch { return null; }
+};
+
 const fetchSingleScan = async (query, title) => {
   const response = await fetch('/api/warroom', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, cacheLabel: title }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) return null;
@@ -85,7 +103,7 @@ const fetchSingleScan = async (query, title) => {
     query,
     content: String(payload?.content || ''),
     sources: payload?.sources || [],
-    sourceLabel: 'Claude Intel',
+    sourceLabel: payload?.fromCache ? 'Cached Intel' : 'Claude Intel',
     createdAt: new Date().toISOString(),
   });
 };
@@ -270,39 +288,38 @@ export default function WarRoom({ onClose }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-prefetch disabled - loads on demand only for instant War Room open
-  // useEffect(() => {
-  //   const cachedFeed = getWarRoomFeed();
-  //   if (cachedFeed.length > 0 && isFeedFresh()) return; // fresh cache, skip
+  // Auto-load cached scans from Redis on mount for instant War Room data
+  useEffect(() => {
+    const cachedFeed = getWarRoomFeed();
+    if (cachedFeed.length > 0 && isFeedFresh()) return; // fresh local cache, skip
 
-  //   let cancelled = false;
-  //   setPrefetching(true);
+    let cancelled = false;
+    setPrefetching(true);
 
-  //   const prefetch = async () => {
-  //     const results = await Promise.allSettled(
-  //       PREFETCH_SCANS.map((scan) => fetchSingleScan(scan.query, scan.label))
-  //     );
-  //     if (cancelled) return;
+    const prefetch = async () => {
+      const results = await Promise.allSettled(
+        PREFETCH_SCANS.map((scan) => fetchCachedScan(scan.label))
+      );
+      if (cancelled) return;
 
-  //     const newCards = results
-  //       .filter((r) => r.status === 'fulfilled' && r.value?.content)
-  //       .map((r) => r.value);
+      const newCards = results
+        .filter((r) => r.status === 'fulfilled' && r.value?.content)
+        .map((r) => r.value);
 
-  //     if (newCards.length > 0) {
-  //       setIntelFeed((prev) => {
-  //         // Merge new cards at front, dedup by title
-  //         const existingTitles = new Set(prev.map((c) => c.title));
-  //         const unique = newCards.filter((c) => !existingTitles.has(c.title));
-  //         return [...unique, ...prev].slice(0, 50);
-  //       });
-  //       setFeedTimestamp();
-  //     }
-  //     setPrefetching(false);
-  //   };
+      if (newCards.length > 0) {
+        setIntelFeed((prev) => {
+          const existingTitles = new Set(prev.map((c) => c.title));
+          const unique = newCards.filter((c) => !existingTitles.has(c.title));
+          return [...unique, ...prev].slice(0, 50);
+        });
+        setFeedTimestamp();
+      }
+      setPrefetching(false);
+    };
 
-  //   prefetch();
-  //   return () => { cancelled = true; };
-  // }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    prefetch();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setWarRoomFeed(intelFeed);
@@ -524,7 +541,7 @@ export default function WarRoom({ onClose }) {
       const response = await fetch('/api/warroom', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: trimmedQuery }),
+        body: JSON.stringify({ query: trimmedQuery, cacheLabel: titleOverride || '' }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -538,7 +555,7 @@ export default function WarRoom({ onClose }) {
         query: trimmedQuery,
         content: String(payload?.content || 'No market intel returned.'),
         sources: toSourceLinks(payload?.sources || []),
-        sourceLabel: 'Claude Intel',
+        sourceLabel: payload?.fromCache ? 'Cached Intel' : 'Claude Intel',
         createdAt: new Date().toISOString(),
       });
 

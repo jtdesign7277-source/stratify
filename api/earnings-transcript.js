@@ -1,3 +1,5 @@
+import { getCachedTranscript, setCachedTranscript } from './lib/warroom-cache.js';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -8,6 +10,12 @@ export default async function handler(req, res) {
 
   const symbol = String(req.query.symbol || '').trim().toUpperCase();
   if (!symbol) return res.status(400).json({ error: 'Missing symbol' });
+
+  // Check Redis cache first — transcripts cached for 4 hours
+  const cached = await getCachedTranscript(symbol);
+  if (cached) {
+    return res.status(200).json({ ...cached, fromCache: true });
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
@@ -74,7 +82,12 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ symbol, content, sources });
+    const result = { symbol, content, sources };
+
+    // Cache for 4 hours
+    setCachedTranscript(symbol, result).catch(() => {});
+
+    return res.status(200).json(result);
   } catch (error) {
     console.error('Earnings transcript error:', error);
     return res.status(500).json({ error: 'Internal server error' });
