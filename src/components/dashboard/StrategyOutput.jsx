@@ -1362,11 +1362,6 @@ export default function StrategyOutput({
                 {displayTicker}
               </span>
             )}
-            {totalPnL && (
-              <span className={`text-sm font-bold font-mono ${totalPnL.includes('-') ? 'text-red-400' : 'text-emerald-400'}`}>
-                {totalPnL}
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-3 text-zinc-500 text-xs">
             <span>{new Date().toLocaleDateString()}</span>
@@ -1406,50 +1401,38 @@ export default function StrategyOutput({
           </div>
         </div>
 
-        {perfSummary && !isEditingStrategyText && (
-          <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-            {perfSummary.totalProfit && (
+        {(perfSummary || totalPnL) && !isEditingStrategyText && (
+          <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {(perfSummary?.totalProfit || totalPnL) && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wider text-white/40">Total P&L</div>
-                <div className={`text-sm font-bold font-mono ${perfSummary.totalProfit.includes('-') ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {perfSummary.totalProfit}
+                <div className="text-[10px] uppercase tracking-wider text-white/40">Total</div>
+                <div className={`text-sm font-bold font-mono ${(perfSummary?.totalProfit || totalPnL || '').includes('-') ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {perfSummary?.totalProfit || totalPnL}
                 </div>
               </div>
             )}
-            {perfSummary.totalTrades && (
+            {perfSummary?.totalTrades && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wider text-white/40">Trades</div>
                 <div className="text-sm font-bold font-mono text-white/90">{perfSummary.totalTrades}</div>
               </div>
             )}
-            {perfSummary.winRate && (
+            {perfSummary?.winRate && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wider text-white/40">Win Rate</div>
                 <div className="text-sm font-bold font-mono text-white/90">{perfSummary.winRate}</div>
               </div>
             )}
-            {perfSummary.avgWin && (
+            {perfSummary?.avgWin && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wider text-white/40">Avg Win</div>
                 <div className="text-sm font-bold font-mono text-emerald-400">{perfSummary.avgWin}</div>
               </div>
             )}
-            {perfSummary.avgLoss && (
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wider text-white/40">Avg Loss</div>
-                <div className="text-sm font-bold font-mono text-red-400">{perfSummary.avgLoss}</div>
-              </div>
-            )}
-            {perfSummary.riskReward && (
+            {perfSummary?.riskReward && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wider text-white/40">Risk/Reward</div>
                 <div className="text-sm font-bold font-mono text-white/90">{perfSummary.riskReward}</div>
-              </div>
-            )}
-            {perfSummary.maxDrawdown && (
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wider text-white/40">Max Drawdown</div>
-                <div className="text-sm font-bold font-mono text-red-400">{perfSummary.maxDrawdown}</div>
               </div>
             )}
           </div>
