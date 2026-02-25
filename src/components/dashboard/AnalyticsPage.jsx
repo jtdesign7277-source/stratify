@@ -258,9 +258,9 @@ const buildExtCell = (symbol, metric, mode = 'percent') => {
       type="button"
       class="watchlist-ext-btn watchlist-value ${directionClass}"
       data-symbol="${symbol}"
-      title="Toggle Ext between % and $"
+      title="Click to toggle % / $"
     >
-      ${metric.label} ${renderedValue}
+      ${renderedValue}
     </button>
   `;
 };
