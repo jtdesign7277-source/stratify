@@ -419,9 +419,24 @@ function parseMarkdown(raw) {
   const lines = raw.split('\n');
   const html = [];
   let inKeyTradeSetups = false;
+  let inPerformanceSummary = false;
 
   lines.forEach((line) => {
     const trimmed = line.trim();
+
+    // Skip 💰 total result line (shown in stats grid)
+    if (/^#{1,3}\s*💰/.test(trimmed)) return;
+
+    // Skip Performance Summary section (shown in stats grid)
+    if (inPerformanceSummary) {
+      // Exit when we hit the next heading or Key Trade Setups
+      if (/^#{1,3}\s/.test(trimmed) || isKeyTradeSetupsHeading(trimmed)) {
+        inPerformanceSummary = false;
+        // Fall through to process this line normally
+      } else {
+        return; // skip this line
+      }
+    }
 
     // Horizontal rules
     if (/^[-*_]{3,}$/.test(trimmed)) {
@@ -433,6 +448,11 @@ function parseMarkdown(raw) {
     // H2
     if (line.startsWith('## ')) {
       const heading = line.slice(3).trim();
+      if (/performance\s+summary/i.test(heading)) {
+        inPerformanceSummary = true;
+        inKeyTradeSetups = false;
+        return;
+      }
       if (isKeyTradeSetupsHeading(heading)) {
         inKeyTradeSetups = true;
         html.push('<h2 class="text-emerald-400 text-lg font-bold mt-8 mb-4">🔥 Key Trade Setups Identified</h2>');
