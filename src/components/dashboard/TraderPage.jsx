@@ -283,21 +283,27 @@ const extractPremarketQuoteMetrics = (payload, fallbackPrice = null, fallbackPre
     : toNumber(fallbackPreviousClose);
 
   const preMarketPrice = toNumber(
-    payload?.pre_market_price
+    payload?.extended_price
+    ?? payload?.extendedPrice
+    ?? payload?.pre_market_price
     ?? payload?.preMarketPrice
     ?? payload?.premarket_price
     ?? payload?.premarketPrice
   );
 
   let preMarketChange = toNumber(
-    payload?.pre_market_change
+    payload?.extended_change
+    ?? payload?.extendedChange
+    ?? payload?.pre_market_change
     ?? payload?.preMarketChange
     ?? payload?.premarket_change
     ?? payload?.premarketChange
   );
 
   let preMarketChangePercent = toNumber(
-    payload?.pre_market_change_percent
+    payload?.extended_percent_change
+    ?? payload?.extendedPercentChange
+    ?? payload?.pre_market_change_percent
     ?? payload?.preMarketChangePercent
     ?? payload?.premarket_change_percent
     ?? payload?.premarketChangePercent
@@ -456,6 +462,14 @@ const buildPlaceholderQuoteFromCache = (symbol, cacheEntry, fallbackName = '') =
     preMarketPrice: null,
     preMarketChange: null,
     preMarketChangePercent: null,
+    extended_price: null,
+    extended_change: null,
+    extended_percent_change: null,
+    is_extended_hours: null,
+    extendedPrice: null,
+    extendedChange: null,
+    extendedPercentChange: null,
+    isExtendedHours: null,
     previousClose,
     timestamp,
     source: 'cache',
@@ -1523,6 +1537,24 @@ export default function TraderPage({
           const rowPreMarketPrice = toNumber(row?.preMarketPrice);
           const rowPreMarketChange = toNumber(row?.preMarketChange);
           const rowPreMarketChangePercent = toNumber(row?.preMarketChangePercent);
+          const rowExtendedPrice = toNumber(
+            row?.extended_price
+            ?? row?.extendedPrice
+            ?? raw?.extended_price
+            ?? raw?.extendedPrice
+          );
+          const rowExtendedChange = toNumber(
+            row?.extended_change
+            ?? row?.extendedChange
+            ?? raw?.extended_change
+            ?? raw?.extendedChange
+          );
+          const rowExtendedChangePercent = toNumber(
+            row?.extended_percent_change
+            ?? row?.extendedPercentChange
+            ?? raw?.extended_percent_change
+            ?? raw?.extendedPercentChange
+          );
           const derivedPreMarketChange = Number.isFinite(rowPreMarketChange)
             ? rowPreMarketChange
             : Number.isFinite(preMarketMetrics.preMarketChange)
@@ -1540,6 +1572,29 @@ export default function TraderPage({
             : Number.isFinite(preMarketMetrics.preMarketPrice)
               ? preMarketMetrics.preMarketPrice
               : null;
+          const derivedExtendedChange = Number.isFinite(rowExtendedChange)
+            ? rowExtendedChange
+            : Number.isFinite(preMarketMetrics.preMarketChange)
+              ? preMarketMetrics.preMarketChange
+              : null;
+          const derivedExtendedChangePercent = Number.isFinite(rowExtendedChangePercent)
+            ? rowExtendedChangePercent
+            : Number.isFinite(preMarketMetrics.preMarketChangePercent)
+              ? preMarketMetrics.preMarketChangePercent
+              : Number.isFinite(derivedExtendedChange) && Number.isFinite(previousClose) && previousClose !== 0
+                ? (derivedExtendedChange / previousClose) * 100
+                : null;
+          const derivedExtendedPrice = Number.isFinite(rowExtendedPrice)
+            ? rowExtendedPrice
+            : Number.isFinite(preMarketMetrics.preMarketPrice)
+              ? preMarketMetrics.preMarketPrice
+              : null;
+          const derivedIsExtendedHours = parseMarketOpen(
+            row?.is_extended_hours
+            ?? row?.isExtendedHours
+            ?? raw?.is_extended_hours
+            ?? raw?.isExtendedHours
+          );
 
           return {
             symbol,
@@ -1549,6 +1604,14 @@ export default function TraderPage({
             preMarketPrice: derivedPreMarketPrice,
             preMarketChange: derivedPreMarketChange,
             preMarketChangePercent: derivedPreMarketChangePercent,
+            extended_price: derivedExtendedPrice,
+            extended_change: derivedExtendedChange,
+            extended_percent_change: derivedExtendedChangePercent,
+            is_extended_hours: derivedIsExtendedHours,
+            extendedPrice: derivedExtendedPrice,
+            extendedChange: derivedExtendedChange,
+            extendedPercentChange: derivedExtendedChangePercent,
+            isExtendedHours: derivedIsExtendedHours,
             previousClose: Number.isFinite(previousClose) ? previousClose : null,
             isMarketOpen: parseMarketOpen(row?.isMarketOpen ?? raw?.is_market_open),
             timestamp: row?.tradeTimestamp || row?.timestamp || raw?.timestamp || raw?.datetime || Date.now(),
@@ -1965,6 +2028,12 @@ export default function TraderPage({
 
       const rawChange = toNumber(payload?.change);
       const rawPercent = toNumber(payload?.percent_change ?? payload?.percentChange);
+      const rawExtendedChange = toNumber(payload?.extended_change ?? payload?.extendedChange);
+      const rawExtendedPercentChange = toNumber(
+        payload?.extended_percent_change ?? payload?.extendedPercentChange
+      );
+      const rawExtendedPrice = toNumber(payload?.extended_price ?? payload?.extendedPrice);
+      const rawIsExtendedHours = parseMarketOpen(payload?.is_extended_hours ?? payload?.isExtendedHours);
       const currentExtendedHoursStatus = getExtendedHoursStatus();
       const inPreMarketSession = currentExtendedHoursStatus === 'pre-market';
       const inPostMarketSession = currentExtendedHoursStatus === 'post-market';
@@ -2034,6 +2103,26 @@ export default function TraderPage({
           : inPreMarketSession
             ? price
             : toNumber(previousQuote?.preMarketPrice);
+        const derivedExtendedChange = Number.isFinite(rawExtendedChange)
+          ? rawExtendedChange
+          : Number.isFinite(preMarketMetrics.preMarketChange)
+            ? preMarketMetrics.preMarketChange
+            : toNumber(previousQuote?.extended_change ?? previousQuote?.extendedChange ?? previousQuote?.preMarketChange);
+        const derivedExtendedChangePercent = Number.isFinite(rawExtendedPercentChange)
+          ? rawExtendedPercentChange
+          : Number.isFinite(preMarketMetrics.preMarketChangePercent)
+            ? preMarketMetrics.preMarketChangePercent
+            : Number.isFinite(derivedExtendedChange) && Number.isFinite(previousClose) && previousClose !== 0
+              ? (derivedExtendedChange / previousClose) * 100
+              : toNumber(previousQuote?.extended_percent_change ?? previousQuote?.extendedPercentChange ?? previousQuote?.preMarketChangePercent);
+        const derivedExtendedPrice = Number.isFinite(rawExtendedPrice)
+          ? rawExtendedPrice
+          : Number.isFinite(preMarketMetrics.preMarketPrice)
+            ? preMarketMetrics.preMarketPrice
+            : toNumber(previousQuote?.extended_price ?? previousQuote?.extendedPrice ?? previousQuote?.preMarketPrice);
+        const derivedIsExtendedHours = rawIsExtendedHours !== null
+          ? rawIsExtendedHours
+          : parseMarketOpen(previousQuote?.is_extended_hours ?? previousQuote?.isExtendedHours);
 
         return {
           ...previous,
@@ -2046,6 +2135,14 @@ export default function TraderPage({
             preMarketPrice: derivedPreMarketPrice,
             preMarketChange: derivedPreMarketChange,
             preMarketChangePercent: derivedPreMarketChangePercent,
+            extended_price: derivedExtendedPrice,
+            extended_change: derivedExtendedChange,
+            extended_percent_change: derivedExtendedChangePercent,
+            is_extended_hours: derivedIsExtendedHours,
+            extendedPrice: derivedExtendedPrice,
+            extendedChange: derivedExtendedChange,
+            extendedPercentChange: derivedExtendedChangePercent,
+            isExtendedHours: derivedIsExtendedHours,
             previousClose: Number.isFinite(previousClose)
               ? previousClose
               : toNumber(previousQuote?.previousClose),
@@ -2534,9 +2631,17 @@ export default function TraderPage({
                               const price = toNumber(quote?.price);
                               const dayChange = toNumber(quote?.change);
                               const dayChangePercent = toNumber(quote?.changePercent);
-                              const preMarketChange = toNumber(quote?.preMarketChange ?? quote?.pre_market_change);
-                              const preMarketChangePercent = toNumber(
-                                quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
+                              const extendedChange = toNumber(
+                                quote?.extended_change
+                                ?? quote?.extendedChange
+                                ?? quote?.preMarketChange
+                                ?? quote?.pre_market_change
+                              );
+                              const extendedChangePercent = toNumber(
+                                quote?.extended_percent_change
+                                ?? quote?.extendedPercentChange
+                                ?? quote?.preMarketChangePercent
+                                ?? quote?.pre_market_change_percent
                               );
                               const previousClose = resolvePreviousCloseFromQuote(quote);
                               const liveDollarChange = Number.isFinite(dayChange)
@@ -2557,11 +2662,12 @@ export default function TraderPage({
                                   : extendedHoursStatus === 'post-market'
                                     ? 'post-market'
                                     : 'live';
-                              const secondaryDollarChange = secondarySession === 'pre-market'
-                                ? (Number.isFinite(preMarketChange) ? preMarketChange : liveDollarChange)
+                              const usesExtendedMetric = secondarySession === 'pre-market' || secondarySession === 'post-market';
+                              const secondaryDollarChange = usesExtendedMetric
+                                ? (Number.isFinite(extendedChange) ? extendedChange : liveDollarChange)
                                 : liveDollarChange;
-                              const secondaryPercentChange = secondarySession === 'pre-market'
-                                ? (Number.isFinite(preMarketChangePercent) ? preMarketChangePercent : livePercentChange)
+                              const secondaryPercentChange = usesExtendedMetric
+                                ? (Number.isFinite(extendedChangePercent) ? extendedChangePercent : livePercentChange)
                                 : livePercentChange;
                               const secondaryReferenceChange = Number.isFinite(secondaryPercentChange)
                                 ? secondaryPercentChange
@@ -2576,7 +2682,7 @@ export default function TraderPage({
                               const isPlaceholder = quote?.isPlaceholder === true;
                               const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
                               const isPriceLoading = valueLoading.price === true;
-                              const isPrimaryLoading = secondarySession === 'pre-market'
+                              const isPrimaryLoading = usesExtendedMetric
                                 ? valueLoading.preMarket === true
                                 : valueLoading.day === true;
                               const companyName = String(

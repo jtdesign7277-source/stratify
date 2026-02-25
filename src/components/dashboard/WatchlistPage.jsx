@@ -514,6 +514,15 @@ const WatchlistPage = ({
     const unsubscribeQuotes = subscribeTwelveDataQuotes(activeSymbols, (update) => {
       const symbol = normalizeSymbol(update?.symbol);
       if (!symbol) return;
+      const streamExtendedChange = toNumber(update?.raw?.extended_change ?? update?.raw?.extendedChange);
+      const streamExtendedPercentChange = toNumber(
+        update?.raw?.extended_percent_change ?? update?.raw?.extendedPercentChange
+      );
+      const streamExtendedPrice = toNumber(update?.raw?.extended_price ?? update?.raw?.extendedPrice);
+      const streamIsExtendedHoursRaw = update?.raw?.is_extended_hours ?? update?.raw?.isExtendedHours;
+      const streamIsExtendedHours = typeof streamIsExtendedHoursRaw === 'boolean'
+        ? streamIsExtendedHoursRaw
+        : streamIsExtendedHoursRaw === 1 || String(streamIsExtendedHoursRaw || '').trim().toLowerCase() === 'true';
 
       setQuotesBySymbol((previous) => {
         const current = previous[symbol] || {};
@@ -556,6 +565,18 @@ const WatchlistPage = ({
               : Number.isFinite(derivedPercent)
                 ? derivedPercent
                 : current?.percentChange ?? null,
+            extended_change: Number.isFinite(streamExtendedChange)
+              ? streamExtendedChange
+              : toNumber(current?.extended_change ?? current?.extendedChange),
+            extended_percent_change: Number.isFinite(streamExtendedPercentChange)
+              ? streamExtendedPercentChange
+              : toNumber(current?.extended_percent_change ?? current?.extendedPercentChange),
+            extended_price: Number.isFinite(streamExtendedPrice)
+              ? streamExtendedPrice
+              : toNumber(current?.extended_price ?? current?.extendedPrice),
+            is_extended_hours: streamIsExtendedHoursRaw === undefined || streamIsExtendedHoursRaw === null
+              ? current?.is_extended_hours ?? current?.isExtendedHours ?? null
+              : streamIsExtendedHours,
             dayBaselinePrice: baseline,
             timestamp: update?.timestamp || new Date().toISOString(),
             source: 'ws',
@@ -1280,13 +1301,33 @@ const WatchlistPage = ({
                 const dayChange = toNumber(quote?.change);
                 const dayChangePercent = toNumber(quote?.percentChange);
                 const dayReferenceChange = Number.isFinite(dayChangePercent) ? dayChangePercent : dayChange;
-                const preMarketChange = toNumber(quote?.preMarketChange ?? quote?.pre_market_change);
+                const extendedChange = toNumber(
+                  quote?.extended_change
+                  ?? quote?.extendedChange
+                );
+                const extendedChangePercent = toNumber(
+                  quote?.extended_percent_change
+                  ?? quote?.extendedPercentChange
+                );
+                const preMarketChange = toNumber(
+                  quote?.extended_change
+                  ?? quote?.extendedChange
+                  ?? quote?.preMarketChange
+                  ?? quote?.pre_market_change
+                );
                 const preMarketChangePercent = toNumber(
-                  quote?.preMarketChangePercent ?? quote?.pre_market_change_percent
+                  quote?.extended_percent_change
+                  ?? quote?.extendedPercentChange
+                  ?? quote?.preMarketChangePercent
+                  ?? quote?.pre_market_change_percent
                 );
                 const preMarketReferenceChange = Number.isFinite(preMarketChangePercent)
                   ? preMarketChangePercent
-                  : preMarketChange;
+                  : Number.isFinite(extendedChangePercent)
+                    ? extendedChangePercent
+                    : Number.isFinite(extendedChange)
+                      ? extendedChange
+                      : preMarketChange;
                 const dayDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.day || 'percent';
                 const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.preMarket || 'percent';
                 const rowActive = selectedTicker === item.symbol;

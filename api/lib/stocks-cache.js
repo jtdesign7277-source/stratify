@@ -27,6 +27,21 @@ const toQuoteNumber = (value) => {
   return toNumber(value);
 };
 
+const toBoolean = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  if (typeof value !== 'string') return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on', 'open'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'n', 'off', 'closed'].includes(normalized)) return false;
+  return null;
+};
+
 const toNumberOrZero = (value) => toNumber(value) ?? 0;
 
 const round2 = (value) => Number((toNumber(value) ?? 0).toFixed(2));
@@ -161,6 +176,46 @@ function hasQuoteSnapshotData(quote) {
 function mapQuoteToSnapshot(quote) {
   const latestPrice = toQuoteNumber(quote?.close ?? quote?.price ?? quote?.last);
   const tradeTimestamp = quote?.datetime || quote?.timestamp || null;
+  const extendedPrice = toQuoteNumber(
+    quote?.extended_price
+    ?? quote?.extendedPrice
+    ?? quote?.pre_market_price
+    ?? quote?.preMarketPrice
+    ?? quote?.premarket_price
+    ?? quote?.premarketPrice
+    ?? quote?.after_hours_price
+    ?? quote?.afterHoursPrice
+    ?? quote?.post_market_price
+    ?? quote?.postMarketPrice
+  );
+  const extendedChange = toQuoteNumber(
+    quote?.extended_change
+    ?? quote?.extendedChange
+    ?? quote?.pre_market_change
+    ?? quote?.preMarketChange
+    ?? quote?.premarket_change
+    ?? quote?.premarketChange
+    ?? quote?.after_hours_change
+    ?? quote?.afterHoursChange
+    ?? quote?.post_market_change
+    ?? quote?.postMarketChange
+  );
+  const extendedPercentChange = toQuoteNumber(
+    quote?.extended_percent_change
+    ?? quote?.extendedPercentChange
+    ?? quote?.pre_market_change_percent
+    ?? quote?.preMarketChangePercent
+    ?? quote?.premarket_change_percent
+    ?? quote?.premarketChangePercent
+    ?? quote?.after_hours_change_percent
+    ?? quote?.afterHoursChangePercent
+    ?? quote?.post_market_change_percent
+    ?? quote?.postMarketChangePercent
+  );
+  const isExtendedHours = toBoolean(
+    quote?.is_extended_hours
+    ?? quote?.isExtendedHours
+  );
 
   return {
     latestTrade: {
@@ -183,6 +238,12 @@ function mapQuoteToSnapshot(quote) {
         ?? quote?.prevClose
       ),
     },
+    extendedQuote: {
+      price: extendedPrice,
+      change: extendedChange,
+      percentChange: extendedPercentChange,
+      isExtendedHours,
+    },
   };
 }
 
@@ -203,7 +264,7 @@ export async function fetchSnapshotsFromTwelveData(symbols, creds = getTwelveDat
 
   const params = new URLSearchParams({
     symbol: symbols.join(','),
-    extended_hours: '1',
+    prepost: 'true',
     apikey: apiKey,
   });
 
@@ -347,10 +408,15 @@ function buildBar(symbol, snapshot, sessionState) {
   const latest = snapshot?.latestTrade || {};
   const daily = snapshot?.dailyBar || {};
   const prevDaily = snapshot?.prevDailyBar || {};
+  const extended = snapshot?.extendedQuote || {};
 
   const latestPrice = toNumberOrZero(latest.p);
   const dailyClose = toNumberOrZero(daily.c);
   const prevClose = resolvePrevClose(symbol, latest, daily, prevDaily);
+  const extendedChange = toQuoteNumber(extended?.change);
+  const extendedPercentChange = toQuoteNumber(extended?.percentChange);
+  const extendedPrice = toQuoteNumber(extended?.price);
+  const isExtendedHours = toBoolean(extended?.isExtendedHours);
 
   let preMarketPrice = null;
   let preMarketChange = null;
@@ -411,6 +477,14 @@ function buildBar(symbol, snapshot, sessionState) {
     afterHoursPrice: afterHoursPrice == null ? null : round2(afterHoursPrice),
     afterHoursChange: afterHoursChange == null ? null : round2(afterHoursChange),
     afterHoursChangePercent: afterHoursChangePercent == null ? null : round2(afterHoursChangePercent),
+    extended_change: extendedChange == null ? null : round2(extendedChange),
+    extended_percent_change: extendedPercentChange == null ? null : round2(extendedPercentChange),
+    extended_price: extendedPrice == null ? null : round2(extendedPrice),
+    is_extended_hours: isExtendedHours,
+    extendedChange: extendedChange == null ? null : round2(extendedChange),
+    extendedPercentChange: extendedPercentChange == null ? null : round2(extendedPercentChange),
+    extendedPrice: extendedPrice == null ? null : round2(extendedPrice),
+    isExtendedHours: isExtendedHours,
     marketSession: sessionState.marketSession,
   };
 }
