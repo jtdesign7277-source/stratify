@@ -1328,6 +1328,7 @@ const WatchlistPage = ({
                     : Number.isFinite(extendedChange)
                       ? extendedChange
                       : preMarketChange;
+                const isRegularSession = quote?.marketSession === 'regular';
                 const dayDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.day || 'percent';
                 const preMarketDisplayMode = watchlistChangeDisplayModeBySymbol[item.symbol]?.preMarket || 'percent';
                 const rowActive = selectedTicker === item.symbol;
@@ -1387,11 +1388,13 @@ const WatchlistPage = ({
                           title="Premarket change (% / $)"
                           className={`block w-full text-right text-[11px] font-medium transition-opacity hover:opacity-80 ${getWatchlistChangeToneClass(preMarketReferenceChange)}`}
                         >
-                          {`Pre ${formatWatchlistChangeValue({
-                            mode: preMarketDisplayMode,
-                            percentValue: preMarketChangePercent,
-                            dollarValue: preMarketChange,
-                          })}`}
+                          {`Pre ${isRegularSession
+                            ? '--'
+                            : formatWatchlistChangeValue({
+                              mode: preMarketDisplayMode,
+                              percentValue: preMarketChangePercent,
+                              dollarValue: preMarketChange,
+                            })}`}
                         </button>
                       </div>
 
