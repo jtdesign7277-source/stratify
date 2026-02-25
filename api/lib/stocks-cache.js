@@ -203,6 +203,7 @@ export async function fetchSnapshotsFromTwelveData(symbols, creds = getTwelveDat
 
   const params = new URLSearchParams({
     symbol: symbols.join(','),
+    extended_hours: '1',
     apikey: apiKey,
   });
 
