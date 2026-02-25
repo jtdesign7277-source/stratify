@@ -39,7 +39,10 @@ export default async function handler(req, res) {
 
   const credentials = getTwelveDataApiKey();
   if (!credentials.apiKey) {
-    return res.status(500).json({ error: 'Missing TWELVEDATA_API_KEY' });
+    console.error('[stocks] Twelve Data API key is missing. Proceeding in fail-open mode (cache-only data may be returned).', {
+      checkedEnvVars: ['TWELVEDATA_API_KEY', 'TWELVE_DATA_API_KEY'],
+      keySource: credentials?.source || null,
+    });
   }
 
   const symbols = normalizeSymbols(req.query?.symbols, WATCHLIST_SYMBOLS, 200)
@@ -58,6 +61,30 @@ export default async function handler(req, res) {
   }
   const cachedBarsBySymbol = new Map();
   const fetchedBarsBySymbol = new Map();
+  const mergeFetchedBars = (bars) => {
+    bars.forEach((bar) => {
+      fetchedBarsBySymbol.set(bar.symbol, bar);
+    });
+  };
+  const getCombinedBars = () => symbols
+    .map((symbol) => cachedBarsBySymbol.get(symbol) || fetchedBarsBySymbol.get(symbol))
+    .filter(Boolean);
+
+  const fetchDirectBarsWithoutRedis = async (reason, targetSymbols = symbols) => {
+    try {
+      const snapshots = await fetchSnapshotsFromTwelveData(targetSymbols, credentials);
+      return mapSnapshotsToBars(snapshots, targetSymbols);
+    } catch (error) {
+      console.error(`[stocks] Direct Twelve Data fail-open fetch failed (${reason}).`, {
+        message: error?.message,
+        status: error?.status,
+        detail: error?.detail,
+        symbolsCount: targetSymbols.length,
+        symbols: targetSymbols.slice(0, 25),
+      });
+      return [];
+    }
+  };
 
   let missingSymbols = [...symbols];
 
@@ -84,54 +111,54 @@ export default async function handler(req, res) {
 
       missingSymbols = nextMissing;
     } catch (error) {
-      console.error('[stocks] Redis read failed:', error);
+      console.error('[stocks] Redis read failed. Falling back to direct Twelve Data without cache.', error);
       missingSymbols = [...symbols];
     }
   }
 
   try {
     if (missingSymbols.length > 0) {
-      const snapshots = await fetchSnapshotsFromTwelveData(missingSymbols, credentials);
-      const fetchedBars = mapSnapshotsToBars(snapshots, missingSymbols);
+      try {
+        const snapshots = await fetchSnapshotsFromTwelveData(missingSymbols, credentials);
+        const fetchedBars = mapSnapshotsToBars(snapshots, missingSymbols);
+        mergeFetchedBars(fetchedBars);
 
-      fetchedBars.forEach((bar) => {
-        fetchedBarsBySymbol.set(bar.symbol, bar);
-      });
-
-      if (redis && fetchedBars.length > 0) {
-        try {
-          const writePipeline = redis.pipeline();
-          fetchedBars.forEach((bar) => {
-            writePipeline.set(getStockCacheKey(bar.symbol), bar, { ex: CACHE_TTL_SECONDS });
-          });
-          await writePipeline.exec();
-        } catch (error) {
-          console.error('[stocks] Redis write failed:', error);
+        if (redis && fetchedBars.length > 0) {
+          try {
+            const writePipeline = redis.pipeline();
+            fetchedBars.forEach((bar) => {
+              writePipeline.set(getStockCacheKey(bar.symbol), bar, { ex: CACHE_TTL_SECONDS });
+            });
+            await writePipeline.exec();
+          } catch (error) {
+            console.error('[stocks] Redis write failed (data still returned from Twelve Data):', error);
+          }
         }
+      } catch (error) {
+        console.error('[stocks] Primary fetch from Twelve Data failed. Retrying direct fail-open fetch without Redis.', {
+          message: error?.message,
+          status: error?.status,
+          detail: error?.detail,
+          symbolsCount: missingSymbols.length,
+          symbols: missingSymbols.slice(0, 25),
+        });
+        const fallbackBars = await fetchDirectBarsWithoutRedis('primary-fetch-failed', symbols);
+        mergeFetchedBars(fallbackBars);
       }
     }
 
-    const bars = symbols
-      .map((symbol) => cachedBarsBySymbol.get(symbol) || fetchedBarsBySymbol.get(symbol))
-      .filter(Boolean);
-
-    return res.status(200).json(bars);
+    return res.status(200).json(getCombinedBars());
   } catch (error) {
-    const status = Number(error?.status) || 500;
-    if (status === 400) {
-      const partialBars = symbols
-        .map((symbol) => cachedBarsBySymbol.get(symbol) || fetchedBarsBySymbol.get(symbol))
-        .filter(Boolean);
-      return res.status(200).json(partialBars);
-    }
-
-    if (status >= 500) {
-      console.error('[stocks] handler error:', error);
-    }
-
-    return res.status(status).json({
-      error: error?.message || 'Failed to fetch stocks',
-      detail: error?.detail || undefined,
+    console.error('[stocks] Unexpected handler error. Returning fail-open response instead of 500.', {
+      message: error?.message,
+      status: error?.status,
+      detail: error?.detail,
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
     });
+
+    const fallbackBars = await fetchDirectBarsWithoutRedis('unexpected-handler-error', symbols);
+    mergeFetchedBars(fallbackBars);
+    return res.status(200).json(getCombinedBars());
   }
 }

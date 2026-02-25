@@ -52,8 +52,17 @@ export function normalizeSymbols(value, fallback = WATCHLIST_SYMBOLS, limit = 20
 }
 
 export function getTwelveDataApiKey() {
-  const apiKey = (process.env.TWELVEDATA_API_KEY || '').trim();
-  return { apiKey };
+  const primaryApiKey = (process.env.TWELVEDATA_API_KEY || '').trim();
+  if (primaryApiKey) {
+    return { apiKey: primaryApiKey, source: 'TWELVEDATA_API_KEY' };
+  }
+
+  const fallbackApiKey = (process.env.TWELVE_DATA_API_KEY || '').trim();
+  if (fallbackApiKey) {
+    return { apiKey: fallbackApiKey, source: 'TWELVE_DATA_API_KEY' };
+  }
+
+  return { apiKey: '', source: null };
 }
 
 export function getRedisClient() {
@@ -184,6 +193,11 @@ export async function fetchSnapshotsFromTwelveData(symbols, creds = getTwelveDat
   if (!apiKey) {
     const error = new Error('Missing Twelve Data API key');
     error.status = 500;
+    console.error('[stocks-cache] Twelve Data request skipped because API key is missing.', {
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
+      keySource: creds?.source || null,
+    });
     throw error;
   }
 
@@ -192,15 +206,58 @@ export async function fetchSnapshotsFromTwelveData(symbols, creds = getTwelveDat
     apikey: apiKey,
   });
 
-  const response = await fetch(`${TWELVE_DATA_QUOTES_URL}?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
-  });
-  const payload = await response.json().catch(() => ({}));
+  let response;
+  try {
+    response = await fetch(`${TWELVE_DATA_QUOTES_URL}?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+  } catch (error) {
+    console.error('[stocks-cache] Twelve Data network request failed.', {
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
+      message: error?.message,
+    });
+    throw error;
+  }
+
+  let payload = {};
+  let rawPayload = '';
+  try {
+    rawPayload = await response.text();
+  } catch (error) {
+    console.error('[stocks-cache] Failed to read Twelve Data response body.', {
+      status: response.status,
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
+      message: error?.message,
+    });
+  }
+
+  if (rawPayload) {
+    try {
+      payload = JSON.parse(rawPayload);
+    } catch (error) {
+      console.error('[stocks-cache] Failed to parse Twelve Data response JSON.', {
+        status: response.status,
+        symbolsCount: symbols.length,
+        symbols: symbols.slice(0, 25),
+        message: error?.message,
+        rawSample: rawPayload.slice(0, 500),
+      });
+      payload = {};
+    }
+  }
 
   if (!response.ok) {
     const error = new Error(`Twelve Data API error: ${response.status}`);
     error.status = response.status;
     error.detail = payload;
+    console.error('[stocks-cache] Twelve Data non-OK response.', {
+      status: response.status,
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
+      detail: payload,
+    });
     throw error;
   }
 
@@ -208,10 +265,24 @@ export async function fetchSnapshotsFromTwelveData(symbols, creds = getTwelveDat
     const error = new Error(payload?.message || 'Twelve Data error');
     error.status = Number(payload?.code) || 502;
     error.detail = payload;
+    console.error('[stocks-cache] Twelve Data payload reported an error.', {
+      status: error.status,
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
+      detail: payload,
+    });
     throw error;
   }
 
   const quoteMap = parseTwelveDataBatchQuotes(payload);
+  if (Object.keys(quoteMap).length === 0 && symbols.length > 0) {
+    const payloadKeys = payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 25) : [];
+    console.error('[stocks-cache] Twelve Data payload produced an empty quote map.', {
+      symbolsCount: symbols.length,
+      symbols: symbols.slice(0, 25),
+      payloadKeys,
+    });
+  }
   const snapshots = {};
 
   for (const symbol of symbols) {
