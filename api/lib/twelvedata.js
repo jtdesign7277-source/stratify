@@ -803,21 +803,24 @@ const parseBatchQuotePayload = (payload) => {
 
 const extractPremarketMetricsFromQuote = (quote = {}) => {
   const preMarketPrice = toNumber(
-    quote?.pre_market_price
+    quote?.extended_price
+    ?? quote?.pre_market_price
     ?? quote?.preMarketPrice
     ?? quote?.premarket_price
     ?? quote?.premarketPrice
   );
 
   let preMarketChange = toNumber(
-    quote?.pre_market_change
+    quote?.extended_change
+    ?? quote?.pre_market_change
     ?? quote?.preMarketChange
     ?? quote?.premarket_change
     ?? quote?.premarketChange
   );
 
   let preMarketChangePercent = toNumber(
-    quote?.pre_market_change_percent
+    quote?.extended_percent_change
+    ?? quote?.pre_market_change_percent
     ?? quote?.preMarketChangePercent
     ?? quote?.premarket_change_percent
     ?? quote?.premarketChangePercent
@@ -852,7 +855,8 @@ const extractPremarketMetricsFromQuote = (quote = {}) => {
 
 const extractAfterHoursMetricsFromQuote = (quote = {}) => {
   const afterHoursPrice = toNumber(
-    quote?.after_hours_price
+    quote?.extended_price
+    ?? quote?.after_hours_price
     ?? quote?.afterHoursPrice
     ?? quote?.post_market_price
     ?? quote?.postMarketPrice
@@ -861,7 +865,8 @@ const extractAfterHoursMetricsFromQuote = (quote = {}) => {
   );
 
   let afterHoursChange = toNumber(
-    quote?.after_hours_change
+    quote?.extended_change
+    ?? quote?.after_hours_change
     ?? quote?.afterHoursChange
     ?? quote?.post_market_change
     ?? quote?.postMarketChange
@@ -870,7 +875,8 @@ const extractAfterHoursMetricsFromQuote = (quote = {}) => {
   );
 
   let afterHoursChangePercent = toNumber(
-    quote?.after_hours_change_percent
+    quote?.extended_percent_change
+    ?? quote?.after_hours_change_percent
     ?? quote?.afterHoursChangePercent
     ?? quote?.post_market_change_percent
     ?? quote?.postMarketChangePercent
@@ -919,7 +925,7 @@ export const fetchWatchlistBatchQuotes = async (symbols, limit = 120) => {
 
   if (normalized.length === 0) return [];
 
-  const payload = await requestTwelveData('/quote', { symbol: normalized.join(',') });
+  const payload = await requestTwelveData('/quote', { symbol: normalized.join(','), prepost: 'true' });
   const quoteMap = parseBatchQuotePayload(payload);
 
   return normalized.map((symbol) => {
