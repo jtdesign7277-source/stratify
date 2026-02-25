@@ -6,8 +6,26 @@ import '@highcharts/grid-lite/css/grid.css';
 import './AnalyticsWatchlistGrid.css';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
+const PANEL_STATE_KEY = 'stratify-watchlist-panel-state';
 const MAX_SYMBOLS = 120;
 const QUOTE_POLL_INTERVAL_MS = 5000;
+
+const PANEL_STATES = ['open', 'small', 'closed'];
+
+const loadPanelState = () => {
+  if (typeof window === 'undefined') return 'open';
+  try {
+    const saved = localStorage.getItem(PANEL_STATE_KEY);
+    return PANEL_STATES.includes(saved) ? saved : 'open';
+  } catch {
+    return 'open';
+  }
+};
+
+const getNextPanelState = (current) => {
+  const index = PANEL_STATES.indexOf(current);
+  return PANEL_STATES[(index + 1) % PANEL_STATES.length];
+};
 const DEFAULT_SYMBOLS = [
   'TSLA',
   'NVDA',
@@ -313,6 +331,7 @@ export default function AnalyticsPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [fetchError, setFetchError] = useState('');
+  const [panelState, setPanelState] = useState(loadPanelState);
   const gridRef = useRef(null);
   const searchWrapRef = useRef(null);
 
@@ -320,6 +339,11 @@ export default function AnalyticsPage() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(symbols));
   }, [symbols]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(PANEL_STATE_KEY, panelState);
+  }, [panelState]);
 
   useEffect(() => {
     if (!searchOpen) return undefined;
@@ -917,48 +941,81 @@ export default function AnalyticsPage() {
     setSearchResults([]);
   };
 
-  return (
-    <div className="watchlist-grid-page">
-      <div className="watchlist-grid-shell">
-        <form className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
-          <div className="watchlist-grid-search" ref={searchWrapRef}>
-            <input
-              className="watchlist-grid-input watchlist-grid-single-input"
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchOpen(true);
-                setSearchQuery(event.target.value);
-              }}
-              onFocus={() => setSearchOpen(true)}
-              placeholder="Search and add ticker (press Enter)"
-            />
-            {searchOpen && (searchQuery.trim() || searchLoading) && (
-              <div className="watchlist-grid-search-results">
-                {searchLoading ? (
-                  <div className="watchlist-grid-search-empty">Searching...</div>
-                ) : searchResults.length === 0 ? (
-                  <div className="watchlist-grid-search-empty">No results</div>
-                ) : (
-                  searchResults.slice(0, 10).map((item) => (
-                    <button
-                      key={`${item.symbol}-${item.exchange}`}
-                      type="button"
-                      className="watchlist-grid-search-item"
-                      onClick={() => handlePickSearch(item.symbol)}
-                    >
-                      <span className="watchlist-grid-search-symbol">{item.symbol}</span>
-                      <span className="watchlist-grid-search-name">{item.name || item.exchange || ''}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </form>
+  const cyclePanelState = () => {
+    setPanelState((prev) => getNextPanelState(prev));
+  };
 
-        {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
-        <div id="analytics-watchlist-grid" className="watchlist-grid-container" />
-      </div>
+  return (
+    <div className={`watchlist-grid-page watchlist-panel-${panelState}`}>
+      {panelState !== 'closed' && (
+        <div className="watchlist-grid-shell">
+          <div className="watchlist-grid-header-bar">
+            {panelState === 'open' && (
+              <form className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
+                <div className="watchlist-grid-search" ref={searchWrapRef}>
+                  <input
+                    className="watchlist-grid-input watchlist-grid-single-input"
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setSearchOpen(true);
+                      setSearchQuery(event.target.value);
+                    }}
+                    onFocus={() => setSearchOpen(true)}
+                    placeholder="Search and add ticker (press Enter)"
+                  />
+                  {searchOpen && (searchQuery.trim() || searchLoading) && (
+                    <div className="watchlist-grid-search-results">
+                      {searchLoading ? (
+                        <div className="watchlist-grid-search-empty">Searching...</div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="watchlist-grid-search-empty">No results</div>
+                      ) : (
+                        searchResults.slice(0, 10).map((item) => (
+                          <button
+                            key={`${item.symbol}-${item.exchange}`}
+                            type="button"
+                            className="watchlist-grid-search-item"
+                            onClick={() => handlePickSearch(item.symbol)}
+                          >
+                            <span className="watchlist-grid-search-symbol">{item.symbol}</span>
+                            <span className="watchlist-grid-search-name">{item.name || item.exchange || ''}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </form>
+            )}
+            <button
+              type="button"
+              onClick={cyclePanelState}
+              className="watchlist-collapse-btn"
+              title="Collapse watchlist"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          </div>
+
+          {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
+          <div id="analytics-watchlist-grid" className="watchlist-grid-container" />
+        </div>
+      )}
+      {panelState === 'closed' && (
+        <button
+          type="button"
+          onClick={cyclePanelState}
+          className="watchlist-expand-btn"
+          title="Expand watchlist"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          <span>WL</span>
+        </button>
+      )}
     </div>
   );
 }

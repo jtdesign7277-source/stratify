@@ -4,6 +4,7 @@
   padding: 0;
   color: #eef4ff;
   background: transparent;
+  transition: width 300ms ease;
 }
 
 .watchlist-grid-page ::-webkit-scrollbar {
@@ -13,6 +14,78 @@
 .watchlist-grid-page {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.watchlist-panel-open {
+  width: 100%;
+}
+
+.watchlist-panel-small {
+  width: 420px;
+}
+
+.watchlist-panel-closed {
+  width: 48px;
+}
+
+.watchlist-grid-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.watchlist-collapse-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(93, 126, 175, 0.35);
+  background: rgba(20, 32, 50, 0.5);
+  border-radius: 6px;
+  color: rgba(176, 195, 224, 0.75);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.watchlist-collapse-btn:hover {
+  border-color: rgba(93, 126, 175, 0.6);
+  background: rgba(25, 38, 58, 0.8);
+  color: rgba(200, 215, 235, 0.95);
+}
+
+.watchlist-expand-btn {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-right: 1px solid rgba(54, 72, 100, 0.4);
+  background: rgba(6, 10, 17, 0.3);
+  color: rgba(176, 195, 224, 0.6);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  transition: all 150ms ease;
+}
+
+.watchlist-expand-btn:hover {
+  background: rgba(10, 16, 26, 0.6);
+  border-color: rgba(93, 126, 175, 0.5);
+  color: rgba(200, 215, 235, 0.85);
+}
+
+/* Small view - hide all columns except Symbol and ChgPercent */
+.watchlist-panel-small .hcg-header-cell:not(:nth-child(1)):not(:nth-child(4)),
+.watchlist-panel-small .hcg-cell:not(:nth-child(1)):not(:nth-child(4)) {
+  display: none !important;
 }
 
 .watchlist-grid-shell {
@@ -44,8 +117,9 @@
 }
 
 .watchlist-grid-controls {
-  display: block;
-  padding: 24px 16px 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 24px 0 12px 0;
 }
 
 .watchlist-grid-input {
