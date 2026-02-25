@@ -227,6 +227,10 @@ export default function WarRoom({ onClose }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isGlitching, setIsGlitching] = useState(true);
+  const [transcriptSymbol, setTranscriptSymbol] = useState('');
+  const [transcriptData, setTranscriptData] = useState(null);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState('');
   const [toast, setToast] = useState('');
 
   const [saveMenu, setSaveMenu] = useState({ cardId: null, showNewFolder: false, newFolderName: '' });
@@ -554,6 +558,24 @@ export default function WarRoom({ onClose }) {
     runScan(query);
   };
 
+  const fetchTranscript = async (symbol) => {
+    const trimmed = String(symbol || '').trim().toUpperCase().replace(/^\$/, '');
+    if (!trimmed || transcriptLoading) return;
+    setTranscriptError('');
+    setTranscriptData(null);
+    setTranscriptLoading(true);
+    try {
+      const res = await fetch(`/api/earnings-transcript?symbol=${encodeURIComponent(trimmed)}`);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || `Request failed (${res.status})`);
+      setTranscriptData({ symbol: trimmed, content: payload.content, sources: payload.sources || [] });
+    } catch (err) {
+      setTranscriptError(err?.message || 'Failed to fetch transcript');
+    } finally {
+      setTranscriptLoading(false);
+    }
+  };
+
   const allSavedCount = useMemo(
     () => folders.reduce((count, folder) => count + folder.items.length, 0),
     [folders]
@@ -620,32 +642,124 @@ export default function WarRoom({ onClose }) {
         </form>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveView('live')}
-            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              activeView === 'live'
-                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
-                : 'border border-gray-800 text-gray-400 hover:text-white'
-            }`}
-          >
-            Live Feed
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('saved')}
-            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              activeView === 'saved'
-                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
-                : 'border border-gray-800 text-gray-400 hover:text-white'
-            }`}
-          >
-            Saved Intel ({allSavedCount})
-          </button>
+          {['live', 'saved', 'transcripts'].map((view) => {
+            const labels = { live: 'Live Feed', saved: `Saved Intel (${allSavedCount})`, transcripts: 'Transcripts' };
+            return (
+              <button
+                key={view}
+                type="button"
+                onClick={() => setActiveView(view)}
+                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                  activeView === view
+                    ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
+                    : 'border border-gray-800 text-gray-400 hover:text-white'
+                }`}
+              >
+                {labels[view]}
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
-          {activeView === 'saved' ? (
+          {activeView === 'transcripts' ? (
+            <div className="h-full overflow-y-auto scrollbar-hide space-y-4 pr-1">
+              <div className="flex items-center gap-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    fetchTranscript(transcriptSymbol);
+                  }}
+                  className="flex items-center gap-2 flex-1"
+                >
+                  <input
+                    type="text"
+                    value={transcriptSymbol}
+                    onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
+                    placeholder="Enter ticker (AAPL, NVDA, TSLA...)"
+                    className="flex-1 rounded-lg border border-gray-700 bg-black/40 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={transcriptLoading || !transcriptSymbol.trim()}
+                    className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:opacity-45"
+                  >
+                    {transcriptLoading ? 'Loading...' : 'Get Transcript'}
+                  </button>
+                </form>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'].map((sym) => (
+                  <button
+                    key={sym}
+                    type="button"
+                    onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
+                    disabled={transcriptLoading}
+                    className="rounded-lg border border-gray-800 px-2.5 py-1 text-xs text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
+                  >
+                    ${sym}
+                  </button>
+                ))}
+              </div>
+
+              {transcriptError && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{transcriptError}</div>
+              )}
+
+              {transcriptLoading && (
+                <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
+                  <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
+                  <span className="text-amber-300 text-sm animate-pulse">Fetching earnings transcript...</span>
+                </div>
+              )}
+
+              {!transcriptData && !transcriptLoading && !transcriptError && (
+                <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
+                  <Search className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
+                  <h3 className="text-white font-semibold">Earnings Call Transcripts</h3>
+                  <p className="text-sm text-gray-500 mt-1">Enter a ticker or click a company above to view their latest earnings call summary.</p>
+                </div>
+              )}
+
+              {transcriptData && (
+                <article className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
+                    <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">Transcript</span>
+                  </div>
+                  <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: transcriptData.content
+                      .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-lg font-bold mt-4 mb-2">$1</h2>')
+                      .replace(/^### (.+)$/gm, '<h3 class="text-white text-base font-semibold mt-3 mb-1">$1</h3>')
+                      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                      .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1"><span class="text-amber-500/60">•</span><span>$1</span></div>')
+                      .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
+                    }}
+                  />
+                  {transcriptData.sources?.length > 0 && (
+                    <div className="pt-3 border-t border-gray-800/50">
+                      <span className="text-[10px] uppercase tracking-wider text-gray-500 block mb-1.5">Sources</span>
+                      <div className="flex flex-wrap gap-2">
+                        {transcriptData.sources.map((src, i) => (
+                          <a
+                            key={i}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-amber-400/80 hover:text-amber-300 transition-colors"
+                          >
+                            <Link2 className="h-3 w-3" strokeWidth={1.5} />
+                            {(src.title || src.url).slice(0, 60)}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              )}
+            </div>
+          ) : activeView === 'saved' ? (
             <div className="h-full min-h-0 grid grid-cols-[220px_minmax(0,1fr)] gap-3">
               <div className="rounded-xl border border-gray-800/60 bg-black/30 p-3 min-h-0 overflow-y-auto scrollbar-hide">
                 <div className="flex items-center justify-between mb-2">

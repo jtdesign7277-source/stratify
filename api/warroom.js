@@ -26,18 +26,32 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       console.error('Anthropic API error:', data);
       return res.status(500).json({ error: 'API request failed', details: data });
     }
 
-    const content = data.content
+    const content = (data.content || [])
       .filter(block => block.type === 'text')
       .map(block => block.text)
       .join('\n');
 
-    return res.status(200).json({ content, raw: data.content });
+    // Extract sources from web search result blocks
+    const sources = [];
+    const seen = new Set();
+    for (const block of data.content || []) {
+      if (block.type === 'web_search_tool_result') {
+        for (const result of block.content || []) {
+          if (result.type === 'web_search_result' && result.url && !seen.has(result.url)) {
+            seen.add(result.url);
+            sources.push({ title: result.title || result.url, url: result.url });
+          }
+        }
+      }
+    }
+
+    return res.status(200).json({ content, sources, raw: data.content });
   } catch (error) {
     console.error('War Room error:', error);
     return res.status(500).json({ error: 'Internal server error' });
