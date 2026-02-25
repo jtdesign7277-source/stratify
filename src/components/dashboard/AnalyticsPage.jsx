@@ -860,16 +860,22 @@ export default function AnalyticsPage() {
             virtualization: false,
           },
         },
+        header: {
+          enabled: true,
+        },
+        columnDefaults: {
+          sorting: false,
+        },
         pagination: {
           enabled: false,
         },
         columns: [
-          { id: 'Symbol', width: 280 },
-          { id: 'Last', width: 170 },
-          { id: 'Chg', width: 160 },
-          { id: 'ChgPercent', title: 'Chg%', width: 170 },
-          { id: 'Vol', width: 170 },
-          { id: 'Ext', width: 170 },
+          { id: 'Symbol', width: 280, sorting: false },
+          { id: 'Last', width: 170, sorting: false },
+          { id: 'Chg', width: 160, sorting: false },
+          { id: 'ChgPercent', title: 'Chg%', width: 170, sorting: false },
+          { id: 'Vol', width: 170, sorting: false },
+          { id: 'Ext', width: 170, sorting: false },
         ],
       });
     }

@@ -203,6 +203,17 @@
   display: none;
 }
 
+/* Hide column sort buttons/arrows */
+.watchlist-grid-container .hcg-header-cell button,
+.watchlist-grid-container .hcg-header-cell-sorting-indicator {
+  display: none !important;
+}
+
+.watchlist-grid-container .hcg-header-cell {
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
 .watchlist-value {
   display: inline-flex;
   align-items: center;
