@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
 
-const TWELVE_DATA_QUOTES_URL = 'https://api.twelvedata.com/quotes';
+const TWELVE_DATA_QUOTES_URL = 'https://api.twelvedata.com/quote';
 const CACHE_PREFIX = 'stocks:price';
 
 export const CACHE_TTL_SECONDS = 90;
