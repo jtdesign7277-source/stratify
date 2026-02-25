@@ -260,7 +260,6 @@ export default function WarRoom({ onClose }) {
   const [transcriptError, setTranscriptError] = useState('');
   const [secFilings, setSecFilings] = useState(null);
   const [secLoading, setSecLoading] = useState(false);
-  const [selectedFiling, setSelectedFiling] = useState(null);
   const [toast, setToast] = useState('');
 
   const [saveMenu, setSaveMenu] = useState({ cardId: null, showNewFolder: false, newFolderName: '' });
@@ -818,47 +817,8 @@ export default function WarRoom({ onClose }) {
                     )}
                   </div>
 
-                  {/* Right: SEC Filings list or selected filing viewer */}
+                  {/* Right: SEC Filings list */}
                   <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
-                    {selectedFiling ? (
-                      <>
-                        <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-gray-800/50">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={`text-xs font-bold font-mono px-1.5 py-0.5 rounded ${
-                              selectedFiling.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400' :
-                              selectedFiling.form === '10-Q' ? 'bg-blue-500/15 text-blue-400' :
-                              'bg-amber-500/15 text-amber-400'
-                            }`}>
-                              {selectedFiling.form}
-                            </span>
-                            <span className="text-sm text-white truncate">{selectedFiling.description || selectedFiling.form}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <a
-                              href={selectedFiling.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                            >
-                              Open in SEC
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedFiling(null)}
-                              className="text-gray-500 hover:text-white transition-colors"
-                            >
-                              <X className="h-4 w-4" strokeWidth={1.5} />
-                            </button>
-                          </div>
-                        </div>
-                        <iframe
-                          src={selectedFiling.url}
-                          title={`${selectedFiling.form} Filing`}
-                          className="flex-1 w-full bg-white"
-                          sandbox="allow-same-origin allow-scripts"
-                        />
-                      </>
-                    ) : (
                       <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-white">
@@ -877,11 +837,12 @@ export default function WarRoom({ onClose }) {
                         {secFilings && secFilings.filings.length > 0 && (
                           <div className="space-y-2">
                             {secFilings.filings.map((filing, i) => (
-                              <button
+                              <a
                                 key={i}
-                                type="button"
-                                onClick={() => setSelectedFiling(filing)}
-                                className="w-full text-left flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
+                                href={filing.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
                               >
                                 <div className="flex items-center gap-3">
                                   <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded ${
@@ -897,7 +858,7 @@ export default function WarRoom({ onClose }) {
                                   </div>
                                 </div>
                                 <Link2 className="h-4 w-4 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
-                              </button>
+                              </a>
                             ))}
                           </div>
                         )}
@@ -910,7 +871,6 @@ export default function WarRoom({ onClose }) {
                           <p className="text-sm text-gray-500 py-4">SEC filings will appear here when you search a ticker.</p>
                         )}
                       </div>
-                    )}
                   </div>
                 </div>
               )}
