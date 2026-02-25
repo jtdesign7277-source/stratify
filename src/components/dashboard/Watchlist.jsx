@@ -272,7 +272,7 @@ export default function Watchlist({ stocks = [], onRemove, onViewChart, themeCla
                   const extendedHoursChangePercent = isCrypto ? null : quote.extendedHoursChangePercent;
                   const showExtendedHours = !isCrypto && (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'post_market' || resolvedMarketSession === 'pre' || resolvedMarketSession === 'after') && Number.isFinite(extendedHoursPrice);
                   const extendedHoursPercentLabel = formatSignedPercent(extendedHoursChangePercent);
-                  const extendedHoursLabel = resolvedMarketSession === 'pre_market' ? 'Pre' : 'AH';
+                  const extendedHoursLabel = (resolvedMarketSession === 'pre_market' || resolvedMarketSession === 'pre') ? 'Pre' : 'AH';
                   const showDollarValue = extendedHoursToggle[stock.symbol];
                   const extendedHoursDollarChange = extendedHoursPrice && extendedHoursChangePercent ? (extendedHoursPrice * (extendedHoursChangePercent / 100)).toFixed(2) : 0;
           
