@@ -29,6 +29,8 @@ const QUICK_SCANS = [
 
 const TRANSCRIPT_TICKERS = ['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'];
 
+const SCAN_SYSTEM = 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.';
+
 const TRANSCRIPT_SYSTEM = [
   'You are a financial transcript analyst. Search the web for the most recent earnings call transcript for the requested company.',
   'Return the transcript content in this exact format:',
@@ -96,49 +98,74 @@ async function callClaude(system, userMessage) {
   return { content, sources: extractSources(data.content) };
 }
 
+// Run tasks in parallel batches to stay within time limits
+async function runBatch(tasks, concurrency = 3) {
+  const results = [];
+  for (let i = 0; i < tasks.length; i += concurrency) {
+    const batch = tasks.slice(i, i + concurrency);
+    const batchResults = await Promise.allSettled(batch.map(fn => fn()));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization;
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // batch=scans | batch=transcripts | batch=transcripts2 | (default: scans only)
+  const batch = String(req.query.batch || 'scans').toLowerCase();
   const results = [];
 
-  // Warm quick scans
-  for (const scan of QUICK_SCANS) {
-    try {
+  if (batch === 'scans') {
+    // Warm quick scans — 6 items, run 3 at a time (~2 batches, ~100s total)
+    const tasks = QUICK_SCANS.map((scan) => async () => {
       const existing = await getCachedScan(scan.label);
-      if (existing) {
-        results.push({ type: 'scan', label: scan.label, status: 'cached' });
-        continue;
-      }
-      const data = await callClaude(
-        'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.',
-        scan.query
-      );
+      if (existing) return { type: 'scan', label: scan.label, status: 'cached' };
+      const data = await callClaude(SCAN_SYSTEM, scan.query);
       await setCachedScan(scan.label, data);
-      results.push({ type: 'scan', label: scan.label, status: 'warmed' });
-    } catch (err) {
-      results.push({ type: 'scan', label: scan.label, status: 'failed', error: err.message });
+      return { type: 'scan', label: scan.label, status: 'warmed' };
+    });
+
+    const batchResults = await runBatch(tasks, 3);
+    for (const r of batchResults) {
+      results.push(r.status === 'fulfilled' ? r.value : { status: 'failed', error: r.reason?.message });
     }
   }
 
-  // Warm transcripts for major tickers
-  for (const symbol of TRANSCRIPT_TICKERS) {
-    try {
+  if (batch === 'transcripts') {
+    // First 5 tickers in parallel (3 at a time)
+    const tickers = TRANSCRIPT_TICKERS.slice(0, 5);
+    const tasks = tickers.map((symbol) => async () => {
       const existing = await getCachedTranscript(symbol);
-      if (existing) {
-        results.push({ type: 'transcript', symbol, status: 'cached' });
-        continue;
-      }
-      const data = await callClaude(
-        TRANSCRIPT_SYSTEM,
-        `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.`
-      );
+      if (existing) return { type: 'transcript', symbol, status: 'cached' };
+      const data = await callClaude(TRANSCRIPT_SYSTEM, `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.`);
       await setCachedTranscript(symbol, { symbol, ...data });
-      results.push({ type: 'transcript', symbol, status: 'warmed' });
-    } catch (err) {
-      results.push({ type: 'transcript', symbol, status: 'failed', error: err.message });
+      return { type: 'transcript', symbol, status: 'warmed' };
+    });
+
+    const batchResults = await runBatch(tasks, 3);
+    for (const r of batchResults) {
+      results.push(r.status === 'fulfilled' ? r.value : { status: 'failed', error: r.reason?.message });
+    }
+  }
+
+  if (batch === 'transcripts2') {
+    // Remaining 4 tickers
+    const tickers = TRANSCRIPT_TICKERS.slice(5);
+    const tasks = tickers.map((symbol) => async () => {
+      const existing = await getCachedTranscript(symbol);
+      if (existing) return { type: 'transcript', symbol, status: 'cached' };
+      const data = await callClaude(TRANSCRIPT_SYSTEM, `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.`);
+      await setCachedTranscript(symbol, { symbol, ...data });
+      return { type: 'transcript', symbol, status: 'warmed' };
+    });
+
+    const batchResults = await runBatch(tasks, 3);
+    for (const r of batchResults) {
+      results.push(r.status === 'fulfilled' ? r.value : { status: 'failed', error: r.reason?.message });
     }
   }
 
@@ -148,6 +175,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     success: true,
+    batch,
     warmed,
     cached,
     failed,
