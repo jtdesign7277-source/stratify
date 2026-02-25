@@ -261,6 +261,10 @@ export default function WarRoom({ onClose }) {
   const [secFilings, setSecFilings] = useState(null);
   const [secLoading, setSecLoading] = useState(false);
   const [toast, setToast] = useState('');
+  const [clipText, setClipText] = useState('');
+  const [clipFolderId, setClipFolderId] = useState(null);
+  const [showClipSave, setShowClipSave] = useState(false);
+  const [newFolderInput, setNewFolderInput] = useState('');
 
   const [saveMenu, setSaveMenu] = useState({ cardId: null, showNewFolder: false, newFolderName: '' });
   const [moveMenu, setMoveMenu] = useState({ cardId: null, folderId: null, showNewFolder: false, newFolderName: '' });
@@ -581,9 +585,37 @@ export default function WarRoom({ onClose }) {
     }
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    runScan(query);
+  const handleSaveSelection = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    let text = sel.toString().trim();
+    if (!text) return;
+    // Limit to ~10 lines
+    const lines = text.split('\n').slice(0, 10);
+    text = lines.join('\n');
+    if (text.length > 1000) text = text.slice(0, 1000) + '...';
+    setClipText(text);
+    setClipFolderId(folders[0]?.id || null);
+    setShowClipSave(true);
+    sel.removeAllRanges();
+  };
+
+  const confirmClipSave = () => {
+    if (!clipText.trim()) return;
+    const targetFolderId = clipFolderId || folders[0]?.id || 'Custom';
+    const item = normalizeIntelItem({
+      id: `clip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: clipText.split('\n')[0].slice(0, 60) || 'Saved Clip',
+      content: clipText,
+      sources: [],
+      sourceLabel: 'Saved Clip',
+      createdAt: new Date().toISOString(),
+    });
+    const next = saveWarRoomIntel(item, targetFolderId);
+    setSavedState(next);
+    setShowClipSave(false);
+    setClipText('');
+    showToast('Intel saved');
   };
 
   const fetchTranscript = async (symbol) => {
@@ -659,29 +691,9 @@ export default function WarRoom({ onClose }) {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-600" strokeWidth={1.5} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Initiate deep scan..."
-              className="w-full bg-black/60 border border-gray-800 focus:border-amber-500/50 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-600 outline-none transition-colors"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading || !query.trim()}
-            className="scan-button-pulse bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-4 py-2 text-xs font-semibold tracking-wide uppercase transition-all disabled:opacity-45"
-          >
-            {isLoading ? 'Scanning...' : 'Scan'}
-          </button>
-        </form>
-
         <div className="flex items-center gap-1.5">
-          {['live', 'saved', 'transcripts'].map((view) => {
-            const labels = { live: 'Live Feed', saved: `Saved Intel (${allSavedCount})`, transcripts: 'Transcripts' };
+          {['live', 'saved', 'folders', 'transcripts'].map((view) => {
+            const labels = { live: 'Live Feed', saved: 'Saved Intel', folders: `Folders (${folders.length})`, transcripts: 'Transcripts' };
             return (
               <button
                 key={view}
@@ -868,26 +880,81 @@ export default function WarRoom({ onClose }) {
               )}
             </div>
           ) : activeView === 'saved' ? (
+            <div className="h-full min-h-0 flex flex-col gap-2">
+              <p className="text-xs text-gray-500">Highlight text on any intel card, then click "Save Selection" to clip it.</p>
+              <button
+                type="button"
+                onClick={handleSaveSelection}
+                className="self-start rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
+              >
+                Save Selection
+              </button>
+
+              {showClipSave && (
+                <div className="rounded-lg border border-amber-500/30 bg-black/60 p-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500">Preview (max 10 lines)</p>
+                  <pre className="text-sm text-white/80 whitespace-pre-wrap max-h-40 overflow-y-auto">{clipText}</pre>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={clipFolderId || ''}
+                      onChange={(e) => setClipFolderId(e.target.value)}
+                      className="rounded border border-gray-700 bg-black/40 px-2 py-1.5 text-xs text-white outline-none"
+                    >
+                      {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={confirmClipSave}
+                      className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20"
+                    >
+                      Save to Folder
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowClipSave(false); setClipText(''); }}
+                      className="text-xs text-gray-500 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-2 mt-1">
+                {allSavedCount === 0 ? (
+                  <p className="text-sm text-gray-600 py-4">No saved intel yet. Highlight text on any card and click Save Selection.</p>
+                ) : (
+                  folders.flatMap(folder =>
+                    folder.items.map(card => (
+                      <div key={card.id} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-amber-400/60 mb-1">{folder.name} · {formatTimestamp(card.savedAt || card.createdAt)}</p>
+                            <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-6">{card.content || card.title}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { handleRemoveSavedIntel(folder.id, card.id); }}
+                            className="text-gray-600 hover:text-red-400 transition-colors shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )
+                )}
+              </div>
+            </div>
+          ) : activeView === 'folders' ? (
             <div className="h-full min-h-0 grid grid-cols-[220px_minmax(0,1fr)] gap-3">
+              {/* Folder list */}
               <div className="rounded-xl border border-gray-800/60 bg-black/30 p-3 min-h-0 overflow-y-auto scrollbar-hide">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-white">Saved Intel</h3>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const name = window.prompt('New folder name');
-                      if (!name) return;
-                      const folder = handleCreateFolderOnly(name);
-                      if (folder?.name) showToast(`Folder created: ${folder.name}`);
-                    }}
-                    className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    New Folder
-                  </button>
+                  <h3 className="text-xs font-semibold text-white uppercase tracking-wider">Folders</h3>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 mb-3">
                   {folders.map((folder) => {
                     const isSelected = folder.id === selectedFolder?.id;
                     return (
@@ -909,164 +976,79 @@ export default function WarRoom({ onClose }) {
                         onTouchStart={(event) => handleFolderTouchStart(event, folder.id)}
                         onTouchEnd={clearFolderLongPress}
                         onTouchCancel={clearFolderLongPress}
-                        className={`w-full text-gray-400 text-sm py-1.5 px-2 cursor-pointer hover:text-white transition-colors text-left flex items-center justify-between ${
-                          isSelected ? 'text-white' : ''
+                        className={`w-full text-sm py-1.5 px-2 cursor-pointer hover:text-white transition-colors text-left flex items-center justify-between rounded ${
+                          isSelected ? 'text-white bg-white/[0.04]' : 'text-gray-400'
                         }`}
                       >
                         <span className="truncate">{folder.name}</span>
-                        <span className="text-xs text-gray-600">{folder.items.length}</span>
+                        <span className="text-[10px] text-gray-600">{folder.items.length}</span>
                       </button>
                     );
                   })}
                 </div>
+
+                <div className="border-t border-gray-800/50 pt-2 space-y-1.5">
+                  <input
+                    value={newFolderInput}
+                    onChange={(e) => setNewFolderInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newFolderInput.trim()) {
+                        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const name = newFolderInput.trim().includes('/') || newFolderInput.trim().match(/^\d/)
+                          ? newFolderInput.trim()
+                          : `${today} — ${newFolderInput.trim()}`;
+                        const folder = handleCreateFolderOnly(name);
+                        if (folder?.name) { showToast(`Folder: ${folder.name}`); setNewFolderInput(''); }
+                      }
+                    }}
+                    placeholder="New folder name..."
+                    className="w-full rounded border border-gray-700 bg-black/40 px-2 py-1.5 text-xs text-white placeholder:text-gray-600 outline-none focus:border-amber-500/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newFolderInput.trim()) return;
+                      const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      const name = newFolderInput.trim().includes('/') || newFolderInput.trim().match(/^\d/)
+                        ? newFolderInput.trim()
+                        : `${today} — ${newFolderInput.trim()}`;
+                      const folder = handleCreateFolderOnly(name);
+                      if (folder?.name) { showToast(`Folder: ${folder.name}`); setNewFolderInput(''); }
+                    }}
+                    className="w-full rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-400 hover:bg-amber-500/15 transition-colors"
+                  >
+                    Create Folder
+                  </button>
+                </div>
               </div>
 
-              <div className="rounded-xl border border-gray-800/60 bg-black/25 p-3 min-h-0 overflow-y-auto scrollbar-hide space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-white font-semibold text-sm">{selectedFolder?.name || 'Folder'}</h3>
-                    <p className="text-xs text-gray-600">{savedItems.length} saved items</p>
-                  </div>
+              {/* Folder contents */}
+              <div className="rounded-xl border border-gray-800/60 bg-black/25 p-3 min-h-0 overflow-y-auto scrollbar-hide space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-white font-semibold text-sm">{selectedFolder?.name || 'Select a folder'}</h3>
+                  <span className="text-[10px] text-gray-600">{savedItems.length} items</span>
                 </div>
 
                 {savedItems.length === 0 ? (
-                  <div className="rounded-lg border border-gray-800/70 bg-black/40 px-3 py-3 text-sm text-gray-500">
-                    No intel saved in this folder yet.
-                  </div>
+                  <p className="text-sm text-gray-600 py-3">No saved intel in this folder.</p>
                 ) : (
-                  savedItems.map((card) => {
-                    const sources = toSourceLinks(card.sources || []);
-                    const moveMenuOpen = moveMenu.cardId === card.id && moveMenu.folderId === selectedFolder?.id;
-
-                    return (
-                      <article
-                        key={`saved-${card.id}`}
-                        className="relative bg-black/40 backdrop-blur-sm border border-gray-800/50 border-l-2 border-l-amber-500/30 rounded-xl p-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className="text-white font-semibold">{card.title}</h3>
-                            <p className="text-gray-600 text-xs mt-1">
-                              Saved {formatTimestamp(card.savedAt || card.createdAt)}
-                            </p>
-                          </div>
-
-                          <div className="relative flex items-center gap-2">
-                            <button
-                              type="button"
-                              data-move-trigger
-                              onClick={() =>
-                                setMoveMenu((prev) =>
-                                  prev.cardId === card.id && prev.folderId === selectedFolder?.id
-                                    ? { cardId: null, folderId: null, showNewFolder: false, newFolderName: '' }
-                                    : {
-                                        cardId: card.id,
-                                        folderId: selectedFolder?.id || null,
-                                        showNewFolder: false,
-                                        newFolderName: '',
-                                      }
-                                )
-                              }
-                              className="text-gray-600 hover:text-amber-400 transition-colors"
-                              title="Move to folder"
-                            >
-                              <FolderInput className="h-4 w-4" strokeWidth={1.5} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSavedIntel(selectedFolder?.id, card.id)}
-                              className="text-gray-600 hover:text-red-400 transition-colors"
-                              title="Remove"
-                            >
-                              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-                            </button>
-
-                            {moveMenuOpen ? (
-                              <div
-                                data-move-popover
-                                className="absolute right-0 top-6 z-30 w-56 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-2"
-                              >
-                                <div className="text-[11px] uppercase tracking-wide text-gray-500 px-2 py-1">Move to folder</div>
-                                <div className="max-h-44 overflow-y-auto scrollbar-hide">
-                                  {folders.map((folder) => (
-                                    <button
-                                      key={`move-${card.id}-${folder.id}`}
-                                      type="button"
-                                      onClick={() => handleMoveToFolder(card, selectedFolder?.id, folder.id)}
-                                      className="w-full text-left rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
-                                    >
-                                      {folder.name}
-                                    </button>
-                                  ))}
-                                </div>
-
-                                <div className="mt-1 border-t border-gray-700/60 pt-1">
-                                  {!moveMenu.showNewFolder ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setMoveMenu((prev) => ({ ...prev, showNewFolder: true, newFolderName: '' }))
-                                      }
-                                      className="w-full text-left rounded px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/10 transition-colors"
-                                    >
-                                      + New Folder
-                                    </button>
-                                  ) : (
-                                    <div className="px-2 py-1.5 space-y-1.5">
-                                      <input
-                                        value={moveMenu.newFolderName}
-                                        onChange={(event) =>
-                                          setMoveMenu((prev) => ({ ...prev, newFolderName: event.target.value }))
-                                        }
-                                        placeholder="Folder name"
-                                        className="w-full rounded border border-gray-700 bg-black/40 px-2 py-1.5 text-sm text-white placeholder:text-gray-600 outline-none"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const created = handleCreateFolderOnly(moveMenu.newFolderName);
-                                          if (created?.id) {
-                                            handleMoveToFolder(card, selectedFolder?.id, created.id);
-                                          }
-                                        }}
-                                        className="w-full rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/15"
-                                      >
-                                        Create Folder
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
+                  savedItems.map((card) => (
+                    <div key={`folder-${card.id}`} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-500 mb-1">{formatTimestamp(card.savedAt || card.createdAt)}</p>
+                          <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-6">{card.content || card.title}</p>
                         </div>
-
-                        <div className="mt-3 space-y-1">{renderIntelBody(card.content, `saved-${card.id}`)}</div>
-
-                        {sources.length > 0 ? (
-                          <div className="mt-4 pt-3 border-t border-gray-800/70">
-                            <div className="flex items-center gap-1.5 text-blue-400/60 text-xs mb-2">
-                              <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                              <span>Sources</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {sources.map((source, index) => (
-                                <a
-                                  key={`${card.id}-saved-source-${index}`}
-                                  href={source.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-blue-400/60 text-sm hover:text-blue-300 underline decoration-blue-400/30"
-                                >
-                                  {source.title || `Source ${index + 1}`}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </article>
-                    );
-                  })
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSavedIntel(selectedFolder?.id, card.id)}
+                          className="text-gray-600 hover:text-red-400 transition-colors shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

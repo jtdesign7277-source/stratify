@@ -45,7 +45,7 @@ function RedditItem({ post, color = 'orange' }) {
       rel="noopener noreferrer"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`block px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] ${border} transition-all group`}
+      className={`block px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] ${border} transition-all group`}
     >
       <div className="flex items-start gap-2.5">
         <div className="flex flex-col items-center min-w-[32px]">
@@ -74,7 +74,7 @@ function XItem({ topic }) {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/15 transition-all"
+      className="px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/15 transition-all"
     >
       <div className="flex items-start gap-2.5">
         <XLogo className="w-3.5 h-3.5 text-white/50 shrink-0 mt-0.5" />
@@ -99,7 +99,7 @@ function HNItem({ story }) {
       rel="noopener noreferrer"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="block px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-amber-500/30 transition-all group"
+      className="block px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-amber-500/30 transition-all group"
     >
       <div className="flex items-start gap-2.5">
         <div className="flex flex-col items-center min-w-[32px]">
@@ -128,7 +128,7 @@ function NewsItem({ article }) {
       rel="noopener noreferrer"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="block px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-blue-500/30 transition-all group"
+      className="block px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-blue-500/30 transition-all group"
     >
       <div className="flex items-start gap-2.5">
         <div className="flex-1 min-w-0">
@@ -234,19 +234,19 @@ export default function TrendScanner() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-5 gap-5 h-full">
             {SECTIONS.map(({ key, label, color }) => {
               const items = trends?.[key];
               if (!items || items.length === 0) return (
                 <div key={key} className="min-w-0">
-                  <h2 className={`text-xs font-semibold ${color} mb-2 uppercase tracking-wider`}>{label}</h2>
-                  <p className="text-[10px] text-white/25">No data</p>
+                  <h2 className={`text-sm font-bold ${color} mb-3 uppercase tracking-wider`}>{label}</h2>
+                  <p className="text-xs text-white/25">No data</p>
                 </div>
               );
               return (
-                <div key={key} className="min-w-0">
-                  <h2 className={`text-xs font-semibold ${color} mb-2 uppercase tracking-wider`}>{label}</h2>
-                  <div className="space-y-2">
+                <div key={key} className="min-w-0 flex flex-col">
+                  <h2 className={`text-sm font-bold ${color} mb-3 uppercase tracking-wider`}>{label}</h2>
+                  <div className="space-y-3 flex-1">
                     {renderSection(key, items)}
                   </div>
                 </div>

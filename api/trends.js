@@ -16,31 +16,7 @@ function getRedis() {
   } catch { return null; }
 }
 
-// ─── Reddit ───
-async function fetchReddit(subreddit, limit = 3) {
-  try {
-    const res = await fetch(`https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit + 5}&raw_json=1`, {
-      headers: { 'User-Agent': 'Stratify/1.0' },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data?.data?.children || [])
-      .filter(c => c.data && !c.data.stickied)
-      .slice(0, limit)
-      .map(c => ({
-        id: c.data.id,
-        title: c.data.title,
-        url: c.data.url?.startsWith('http') ? c.data.url : `https://reddit.com${c.data.permalink}`,
-        score: c.data.score || 0,
-        comments: c.data.num_comments || 0,
-        subreddit: c.data.subreddit_name_prefixed || `r/${subreddit}`,
-        flair: c.data.link_flair_text || null,
-        created: (c.data.created_utc || 0) * 1000,
-      }));
-  } catch { return []; }
-}
-
-// ─── Hacker News ───
+// ─── Hacker News (reliable, free, no auth) ───
 async function fetchHackerNews(limit = 3) {
   try {
     const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
@@ -63,7 +39,7 @@ async function fetchHackerNews(limit = 3) {
   } catch { return []; }
 }
 
-// ─── Financial News (Alpaca) ───
+// ─── Financial News (Alpaca — reliable) ───
 async function fetchFinancialNews(limit = 3) {
   const apiKey = (process.env.ALPACA_API_KEY || '').trim();
   const apiSecret = (process.env.ALPACA_SECRET_KEY || '').trim();
@@ -85,25 +61,33 @@ async function fetchFinancialNews(limit = 3) {
   } catch { return []; }
 }
 
-// ─── X / Twitter trending (via Grok) ───
-async function fetchXTrending(limit = 3) {
+// ─── Grok: Reddit + WSB + X trending in one call ───
+async function fetchSocialTrending() {
   const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) return { reddit: [], wsb: [], x: [] };
   try {
     const res = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'grok-3-mini-fast',
-        temperature: 0.2,
-        max_tokens: 600,
+        temperature: 0.3,
+        max_tokens: 1200,
         messages: [
-          { role: 'system', content: `Return exactly ${limit} currently trending finance/market topics on X/Twitter. JSON only: {"items":[{"topic":"...","description":"...","category":"stocks|crypto|economy|earnings","engagement":"high|medium"}]}` },
-          { role: 'user', content: 'Return JSON now.' },
+          {
+            role: 'system',
+            content: `You are a social media trend aggregator. Return the 3 hottest current posts/topics from each of these sources: Reddit r/stocks, Reddit r/wallstreetbets, and X/Twitter finance. Return JSON ONLY in this exact format:
+{"reddit":[{"title":"...","subreddit":"r/stocks","score":1234,"url":"https://reddit.com/..."}],"wsb":[{"title":"...","subreddit":"r/wallstreetbets","score":5678,"url":"https://reddit.com/..."}],"x":[{"topic":"...","description":"...","category":"stocks|crypto|economy|earnings","engagement":"high|medium"}]}
+Each array must have exactly 3 items. Use real current trending posts and topics. Do not make up fake URLs — use https://reddit.com/r/stocks and https://reddit.com/r/wallstreetbets as base URLs if you cannot find exact links.`,
+          },
+          { role: 'user', content: 'Return the JSON now with the 3 hottest items per source.' },
         ],
       }),
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error('Grok social trending error:', res.status);
+      return { reddit: [], wsb: [], x: [] };
+    }
     const data = await res.json();
     const text = typeof data?.choices?.[0]?.message?.content === 'string' ? data.choices[0].message.content : '';
     let parsed = null;
@@ -111,16 +95,36 @@ async function fetchXTrending(limit = 3) {
       const m = text.match(/\{[\s\S]*\}/);
       if (m) try { parsed = JSON.parse(m[0]); } catch {}
     }
-    const items = Array.isArray(parsed) ? parsed : parsed?.items;
-    if (!Array.isArray(items)) return [];
-    return items.slice(0, limit).map((t, i) => ({
+    if (!parsed) return { reddit: [], wsb: [], x: [] };
+
+    const mapReddit = (items, sub) => (Array.isArray(items) ? items : []).slice(0, 3).map((p, i) => ({
+      id: `${sub}-${Date.now()}-${i}`,
+      title: p.title || '',
+      url: p.url || `https://reddit.com/r/${sub}`,
+      score: p.score || 0,
+      comments: p.comments || 0,
+      subreddit: p.subreddit || `r/${sub}`,
+      flair: p.flair || null,
+      created: Date.now(),
+    }));
+
+    const mapX = (items) => (Array.isArray(items) ? items : []).slice(0, 3).map((t, i) => ({
       id: `x-${Date.now()}-${i}`,
       topic: t.topic || '',
       description: t.description || '',
       category: t.category || 'stocks',
       engagement: t.engagement || 'medium',
     }));
-  } catch { return []; }
+
+    return {
+      reddit: mapReddit(parsed.reddit, 'stocks'),
+      wsb: mapReddit(parsed.wsb, 'wallstreetbets'),
+      x: mapX(parsed.x),
+    };
+  } catch (err) {
+    console.error('Grok social trending fetch error:', err);
+    return { reddit: [], wsb: [], x: [] };
+  }
 }
 
 export default async function handler(req, res) {
@@ -142,19 +146,17 @@ export default async function handler(req, res) {
     } catch {}
   }
 
-  // Fetch all sources in parallel — 3 items each
-  const [reddit, wsb, x, hackerNews, news] = await Promise.all([
-    fetchReddit('stocks', 3),
-    fetchReddit('wallstreetbets', 3),
-    fetchXTrending(3),
+  // Fetch all sources in parallel
+  const [social, hackerNews, news] = await Promise.all([
+    fetchSocialTrending(),
     fetchHackerNews(3),
     fetchFinancialNews(3),
   ]);
 
   const payload = {
-    reddit,
-    wsb,
-    x,
+    reddit: social.reddit,
+    wsb: social.wsb,
+    x: social.x,
     hackerNews,
     news,
     fetchedAt: new Date().toISOString(),
