@@ -1,4 +1,4 @@
-import { getCachedScan, setCachedScan, getCachedTranscript, setCachedTranscript } from '../lib/warroom-cache.js';
+import { getCachedScan, setCachedScan, getCachedTranscript, setCachedTranscript, flushTranscriptCache } from '../lib/warroom-cache.js';
 
 const QUICK_SCANS = [
   {
@@ -31,28 +31,38 @@ const TRANSCRIPT_TICKERS = ['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MS
 
 const SCAN_SYSTEM = 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.';
 
-const TRANSCRIPT_SYSTEM = [
-  'You are a financial transcript analyst. Search the web for the most recent earnings call transcript for the requested company.',
-  'Return the transcript content in this exact format:',
-  '',
-  '## [Company Name] ($SYMBOL) — Q[X] [YEAR] Earnings Call',
-  '**Date:** [date of the call]',
-  '**Participants:** [CEO name, CFO name, other key executives]',
-  '',
-  '### Key Highlights',
-  '- [3-5 bullet points of the most important takeaways]',
-  '',
-  '### Management Commentary',
-  '[Summarize the key quotes and commentary from executives, organized by topic. Include direct quotes where possible.]',
-  '',
-  '### Q&A Highlights',
-  '[Summarize the most important analyst questions and management responses]',
-  '',
-  '### Guidance',
-  '[Revenue guidance, EPS guidance, and any forward-looking statements]',
-  '',
-  'Be thorough and data-driven. Include specific numbers, percentages, and dollar amounts mentioned in the call.',
-].join('\n');
+function getTranscriptSystem() {
+  const today = new Date().toISOString().split('T')[0];
+  return [
+    `You are a financial transcript analyst. Today's date is ${today}.`,
+    '',
+    'CRITICAL RULES:',
+    `- Only report earnings calls that have ALREADY happened on or before ${today}.`,
+    '- NEVER fabricate or guess an earnings call that has not occurred yet.',
+    '- If the most recent call you find is from a previous quarter, report that one — do not invent a newer one.',
+    '- Search the web to verify the actual date of the most recent earnings call.',
+    '',
+    'Return the transcript content in this exact format:',
+    '',
+    '## [Company Name] ($SYMBOL) — Q[X] FY[YEAR] Earnings Call',
+    '**Date:** [actual date the call took place]',
+    '**Participants:** [CEO name, CFO name, other key executives]',
+    '',
+    '### Key Highlights',
+    '- [3-5 bullet points of the most important takeaways]',
+    '',
+    '### Management Commentary',
+    '[Summarize the key quotes and commentary from executives, organized by topic. Include direct quotes where possible.]',
+    '',
+    '### Q&A Highlights',
+    '[Summarize the most important analyst questions and management responses]',
+    '',
+    '### Guidance',
+    '[Revenue guidance, EPS guidance, and any forward-looking statements]',
+    '',
+    'Be thorough and data-driven. Include specific numbers, percentages, and dollar amounts mentioned in the call.',
+  ].join('\n');
+}
 
 function extractSources(contentBlocks) {
   const sources = [];
@@ -115,9 +125,14 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // batch=scans | batch=transcripts | batch=transcripts2 | (default: scans only)
+  // batch=scans | batch=transcripts | batch=transcripts2 | batch=flush-transcripts
   const batch = String(req.query.batch || 'scans').toLowerCase();
   const results = [];
+
+  if (batch === 'flush-transcripts') {
+    const flushed = await flushTranscriptCache(TRANSCRIPT_TICKERS);
+    return res.status(200).json({ success: true, batch, flushed, timestamp: new Date().toISOString() });
+  }
 
   if (batch === 'scans') {
     // Warm quick scans — 6 items, run 3 at a time (~2 batches, ~100s total)
@@ -141,7 +156,8 @@ export default async function handler(req, res) {
     const tasks = tickers.map((symbol) => async () => {
       const existing = await getCachedTranscript(symbol);
       if (existing) return { type: 'transcript', symbol, status: 'cached' };
-      const data = await callClaude(TRANSCRIPT_SYSTEM, `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.`);
+      const today = new Date().toISOString().split('T')[0];
+      const data = await callClaude(getTranscriptSystem(), `Today is ${today}. Search the web and find the most recent earnings call transcript for ${symbol} that has ALREADY taken place. Provide a detailed summary.`);
       await setCachedTranscript(symbol, { symbol, ...data });
       return { type: 'transcript', symbol, status: 'warmed' };
     });
@@ -158,7 +174,8 @@ export default async function handler(req, res) {
     const tasks = tickers.map((symbol) => async () => {
       const existing = await getCachedTranscript(symbol);
       if (existing) return { type: 'transcript', symbol, status: 'cached' };
-      const data = await callClaude(TRANSCRIPT_SYSTEM, `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.`);
+      const today = new Date().toISOString().split('T')[0];
+      const data = await callClaude(getTranscriptSystem(), `Today is ${today}. Search the web and find the most recent earnings call transcript for ${symbol} that has ALREADY taken place. Provide a detailed summary.`);
       await setCachedTranscript(symbol, { symbol, ...data });
       return { type: 'transcript', symbol, status: 'warmed' };
     });

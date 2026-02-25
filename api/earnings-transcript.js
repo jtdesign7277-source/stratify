@@ -20,6 +20,8 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
+  const today = new Date().toISOString().split('T')[0];
+
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -33,11 +35,18 @@ export default async function handler(req, res) {
         max_tokens: 4096,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: [
-          'You are a financial transcript analyst. Search the web for the most recent earnings call transcript for the requested company.',
+          `You are a financial transcript analyst. Today's date is ${today}.`,
+          '',
+          'CRITICAL RULES:',
+          `- Only report earnings calls that have ALREADY happened on or before ${today}.`,
+          '- NEVER fabricate or guess an earnings call that has not occurred yet.',
+          '- If the most recent call you find is from a previous quarter, report that one — do not invent a newer one.',
+          '- Search the web to verify the actual date of the most recent earnings call.',
+          '',
           'Return the transcript content in this exact format:',
           '',
-          '## [Company Name] ($SYMBOL) — Q[X] [YEAR] Earnings Call',
-          '**Date:** [date of the call]',
+          '## [Company Name] ($SYMBOL) — Q[X] FY[YEAR] Earnings Call',
+          '**Date:** [actual date the call took place]',
           '**Participants:** [CEO name, CFO name, other key executives]',
           '',
           '### Key Highlights',
@@ -54,7 +63,7 @@ export default async function handler(req, res) {
           '',
           'Be thorough and data-driven. Include specific numbers, percentages, and dollar amounts mentioned in the call.',
         ].join('\n'),
-        messages: [{ role: 'user', content: `Find the most recent earnings call transcript for ${symbol} and provide a detailed summary.` }],
+        messages: [{ role: 'user', content: `Today is ${today}. Search the web and find the most recent earnings call transcript for ${symbol} that has ALREADY taken place. Provide a detailed summary.` }],
       }),
     });
 

@@ -82,6 +82,19 @@ export async function setCachedTranscript(symbol, data) {
   }
 }
 
+export async function flushTranscriptCache(symbols) {
+  const redis = getRedisClient();
+  if (!redis) return 0;
+  try {
+    const pipeline = redis.pipeline();
+    for (const symbol of symbols) {
+      pipeline.del(transcriptCacheKey(symbol.toUpperCase()));
+    }
+    const results = await pipeline.exec();
+    return results.filter(r => r === 1).length;
+  } catch { return 0; }
+}
+
 export async function getAllCachedScans(labels) {
   const redis = getRedisClient();
   if (!redis) return {};
