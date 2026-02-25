@@ -1269,7 +1269,7 @@ const WatchlistPage = ({
 
             <div
               className="watchlist-scrollable min-h-0 flex-1 overflow-y-auto"
-              style={{ maxHeight: 'calc(100dvh - 160px)' }}
+              style={{overflowY: 'auto', maxHeight: 'calc(100vh - 200px)'}}
             >
               {loading && visibleWatchlist.length === 0 ? (
                 <div className="px-3 py-5 text-sm text-gray-400">Loading watchlist...</div>
