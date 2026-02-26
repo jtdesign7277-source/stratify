@@ -1065,7 +1065,7 @@ export default function WarRoom({ onClose }) {
                       const isEditing = editingItem?.id === card.id && editingItem?.folderId === folder.id;
                       return (
                       <div key={card.id} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-xs text-amber-400/60 mb-1">
                               {folder.name} · {formatTimestamp(card.savedAt || card.createdAt)}
@@ -1083,26 +1083,26 @@ export default function WarRoom({ onClose }) {
                               <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-6">{card.content || card.title}</p>
                             )}
                           </div>
-                          <div className="flex flex-col gap-1.5 shrink-0">
+                          <div className="flex flex-col gap-2 shrink-0">
                             {isEditing ? (
                               <>
-                                <button type="button" onClick={saveEdit} className="text-emerald-500 hover:text-emerald-400 transition-colors" title="Save">
-                                  <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                                <button type="button" onClick={saveEdit} className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors" title="Save">
+                                  <Check className="h-5 w-5" strokeWidth={2} />
                                 </button>
-                                <button type="button" onClick={cancelEdit} className="text-gray-600 hover:text-white transition-colors" title="Cancel">
-                                  <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                <button type="button" onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Cancel">
+                                  <X className="h-5 w-5" strokeWidth={1.5} />
                                 </button>
                               </>
                             ) : (
                               <>
-                                <button type="button" onClick={() => startEditing(card, folder.id)} className="text-gray-600 hover:text-amber-400 transition-colors" title="Edit">
-                                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors" title="Edit">
+                                  <Pencil className="h-5 w-5" strokeWidth={1.5} />
                                 </button>
-                                <button type="button" onClick={() => postToX(card.content || card.title)} className="text-gray-600 hover:text-white transition-colors" title="Post to X">
-                                  <Share className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
+                                  <Share className="h-5 w-5" strokeWidth={1.5} />
                                 </button>
-                                <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="text-gray-600 hover:text-red-400 transition-colors" title="Delete">
-                                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                                  <Trash2 className="h-5 w-5" strokeWidth={1.5} />
                                 </button>
                               </>
                             )}
@@ -1116,145 +1116,124 @@ export default function WarRoom({ onClose }) {
               </div>
             </div>
           ) : activeView === 'folders' ? (
-            <div className="h-full min-h-0 grid grid-cols-[220px_minmax(0,1fr)] gap-3">
-              {/* Folder list */}
-              <div className="rounded-xl border border-gray-800/60 bg-black/30 p-3 min-h-0 overflow-y-auto scrollbar-hide">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold text-white uppercase tracking-wider">Folders</h3>
-                </div>
-
-                <div className="space-y-1 mb-3">
-                  {folders.map((folder) => {
-                    const isSelected = folder.id === selectedFolder?.id;
-                    return (
-                      <div
-                        key={folder.id}
-                        className={`group flex items-center gap-1 rounded ${
-                          isSelected ? 'bg-white/[0.04]' : ''
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFolderId(folder.id)}
-                          className={`flex-1 min-w-0 text-sm py-1.5 px-2 cursor-pointer hover:text-white transition-colors text-left flex items-center justify-between ${
-                            isSelected ? 'text-white' : 'text-gray-400'
-                          }`}
-                        >
-                          <span className="truncate">{folder.name}</span>
-                          <span className="text-[10px] text-gray-600">{folder.items.length}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteFolder(folder.id);
-                          }}
-                          className="shrink-0 p-1 text-gray-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                          title={`Delete ${folder.name}`}
-                        >
-                          <Trash2 className="h-3 w-3" strokeWidth={1.5} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="border-t border-gray-800/50 pt-2 space-y-1.5">
-                  <input
-                    value={newFolderInput}
-                    onChange={(e) => setNewFolderInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newFolderInput.trim()) {
-                        const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        const name = newFolderInput.trim().includes('/') || newFolderInput.trim().match(/^\d/)
-                          ? newFolderInput.trim()
-                          : `${today} — ${newFolderInput.trim()}`;
-                        const folder = handleCreateFolderOnly(name);
-                        if (folder?.name) { showToast(`Folder: ${folder.name}`); setNewFolderInput(''); }
-                      }
-                    }}
-                    placeholder="New folder name..."
-                    className="w-full rounded border border-gray-700 bg-black/40 px-2 py-1.5 text-xs text-white placeholder:text-gray-600 outline-none focus:border-amber-500/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!newFolderInput.trim()) return;
+            <div className="h-full min-h-0 flex flex-col gap-3">
+              {/* Create folder row */}
+              <div className="shrink-0 flex items-center gap-2">
+                <input
+                  value={newFolderInput}
+                  onChange={(e) => setNewFolderInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newFolderInput.trim()) {
                       const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       const name = newFolderInput.trim().includes('/') || newFolderInput.trim().match(/^\d/)
                         ? newFolderInput.trim()
                         : `${today} — ${newFolderInput.trim()}`;
                       const folder = handleCreateFolderOnly(name);
                       if (folder?.name) { showToast(`Folder: ${folder.name}`); setNewFolderInput(''); }
-                    }}
-                    className="w-full rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-400 hover:bg-amber-500/15 transition-colors"
-                  >
-                    Create Folder
-                  </button>
-                </div>
+                    }
+                  }}
+                  placeholder="New folder name..."
+                  className="w-56 rounded-lg border border-gray-700 bg-black/40 px-3 py-1.5 text-xs text-white placeholder:text-gray-600 outline-none focus:border-amber-500/40"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newFolderInput.trim()) return;
+                    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const name = newFolderInput.trim().includes('/') || newFolderInput.trim().match(/^\d/)
+                      ? newFolderInput.trim()
+                      : `${today} — ${newFolderInput.trim()}`;
+                    const folder = handleCreateFolderOnly(name);
+                    if (folder?.name) { showToast(`Folder: ${folder.name}`); setNewFolderInput(''); }
+                  }}
+                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400 hover:bg-amber-500/15 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5 inline -mt-0.5 mr-1" strokeWidth={2} />
+                  Create
+                </button>
               </div>
 
-              {/* Folder contents */}
-              <div className="rounded-xl border border-gray-800/60 bg-black/25 p-3 min-h-0 overflow-y-auto scrollbar-hide space-y-2">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-white font-semibold text-sm">{selectedFolder?.name || 'Select a folder'}</h3>
-                  <span className="text-[10px] text-gray-600">{savedItems.length} items</span>
-                </div>
-
-                {savedItems.length === 0 ? (
-                  <p className="text-sm text-gray-600 py-3">No saved intel in this folder.</p>
-                ) : (
-                  savedItems.map((card) => {
-                    const isEditing = editingItem?.id === card.id && editingItem?.folderId === selectedFolder?.id;
-                    return (
-                    <div key={`folder-${card.id}`} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-gray-500 mb-1">
-                            {formatTimestamp(card.savedAt || card.createdAt)}
-                            {card.editedAt && <span className="text-gray-600 ml-1">(edited)</span>}
-                          </p>
-                          {isEditing ? (
-                            <textarea
-                              value={editingItem.content}
-                              onChange={(e) => setEditingItem(prev => ({ ...prev, content: e.target.value }))}
-                              className="w-full rounded border border-amber-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 placeholder:text-gray-600 outline-none focus:border-amber-500/50 resize-y min-h-[80px]"
-                              rows={Math.min(12, (editingItem.content?.split('\n').length || 3) + 1)}
-                              autoFocus
-                            />
-                          ) : (
-                            <p className="text-sm text-white/80 whitespace-pre-wrap">{card.content || card.title}</p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1.5 shrink-0">
-                          {isEditing ? (
-                            <>
-                              <button type="button" onClick={saveEdit} className="text-emerald-500 hover:text-emerald-400 transition-colors" title="Save changes">
-                                <Check className="h-3.5 w-3.5" strokeWidth={2} />
-                              </button>
-                              <button type="button" onClick={cancelEdit} className="text-gray-600 hover:text-white transition-colors" title="Cancel">
-                                <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button type="button" onClick={() => startEditing(card, selectedFolder?.id)} className="text-gray-600 hover:text-amber-400 transition-colors" title="Edit">
-                                <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-                              </button>
-                              <button type="button" onClick={() => postToX(card.content || card.title)} className="text-gray-600 hover:text-white transition-colors" title="Post to X">
-                                <Share className="h-3.5 w-3.5" strokeWidth={1.5} />
-                              </button>
-                              <button type="button" onClick={() => handleRemoveSavedIntel(selectedFolder?.id, card.id)} className="text-gray-600 hover:text-red-400 transition-colors" title="Delete">
-                                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                              </button>
-                            </>
-                          )}
+              {/* Multi-column folder grid */}
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+                <div className="grid grid-cols-3 gap-3">
+                  {folders.map((folder) => (
+                    <div key={folder.id} className="rounded-xl border border-gray-800/60 bg-black/30 p-3 flex flex-col min-h-0">
+                      {/* Folder header */}
+                      <div className="flex items-center justify-between mb-2 shrink-0">
+                        <h3 className="text-sm font-semibold text-white truncate">{folder.name}</h3>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-gray-500">{folder.items.length}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFolder(folder.id)}
+                            className="p-0.5 text-gray-500 hover:text-red-400 transition-colors"
+                            title={`Delete ${folder.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                          </button>
                         </div>
                       </div>
+
+                      {/* Folder items */}
+                      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-2">
+                        {folder.items.length === 0 ? (
+                          <p className="text-xs text-gray-600 py-2">Empty</p>
+                        ) : (
+                          folder.items.map((card) => {
+                            const isEditing = editingItem?.id === card.id && editingItem?.folderId === folder.id;
+                            return (
+                              <div key={`folder-${card.id}`} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] text-gray-500 mb-1">
+                                      {formatTimestamp(card.savedAt || card.createdAt)}
+                                      {card.editedAt && <span className="text-gray-600 ml-1">(edited)</span>}
+                                    </p>
+                                    {isEditing ? (
+                                      <textarea
+                                        value={editingItem.content}
+                                        onChange={(e) => setEditingItem(prev => ({ ...prev, content: e.target.value }))}
+                                        className="w-full rounded border border-amber-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-amber-500/50 resize-y min-h-[80px]"
+                                        rows={Math.min(8, (editingItem.content?.split('\n').length || 3) + 1)}
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-5">{card.content || card.title}</p>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-2 shrink-0">
+                                    {isEditing ? (
+                                      <>
+                                        <button type="button" onClick={saveEdit} className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors" title="Save changes">
+                                          <Check className="h-5 w-5" strokeWidth={2} />
+                                        </button>
+                                        <button type="button" onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Cancel">
+                                          <X className="h-5 w-5" strokeWidth={1.5} />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors" title="Edit">
+                                          <Pencil className="h-5 w-5" strokeWidth={1.5} />
+                                        </button>
+                                        <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
+                                          <Share className="h-5 w-5" strokeWidth={1.5} />
+                                        </button>
+                                        <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                                          <Trash2 className="h-5 w-5" strokeWidth={1.5} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                    );
-                  })
-                )}
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
