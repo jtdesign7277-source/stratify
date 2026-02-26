@@ -2,8 +2,10 @@ import { Redis } from '@upstash/redis';
 
 export const config = { maxDuration: 15 };
 
-const CACHE_PREFIX = 'community:price';
-const CACHE_TTL = 10; // seconds
+const TWELVE_DATA_QUOTE_URL = 'https://api.twelvedata.com/quote';
+const CACHE_KEY_PREFIX = 'price';
+const CACHE_TTL_SECONDS = 10;
+const MAX_SYMBOLS = 80;
 
 let redisClient = null;
 let redisDisabled = false;
@@ -36,9 +38,96 @@ function getApiKey() {
 
 const toNumber = (value) => {
   if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const normalizeSymbol = (value) => String(value || '').trim().toUpperCase();
+
+const normalizeSymbolKey = (value) => {
+  const raw = normalizeSymbol(value);
+  if (!raw) return '';
+  if (raw.includes(':')) return raw.split(':').pop();
+  return raw;
+};
+
+const unwrapPipelineResult = (value) => (
+  value && typeof value === 'object' && 'result' in value ? value.result : value
+);
+
+const buildCacheKey = (symbol) => `${CACHE_KEY_PREFIX}:${symbol}`;
+
+const emptyQuoteRow = (symbol) => ({
+  symbol,
+  price: null,
+  change: null,
+  percentChange: null,
+  changePercent: null,
+  volume: null,
+  timestamp: null,
+});
+
+const toQuoteRow = (symbol, quote = {}) => {
+  const percentChange = toNumber(quote?.percent_change ?? quote?.percentChange ?? quote?.changePercent);
+  return {
+    symbol,
+    price: toNumber(quote?.close ?? quote?.price ?? quote?.last),
+    change: toNumber(quote?.change),
+    percentChange,
+    changePercent: percentChange,
+    volume: toNumber(quote?.volume),
+    timestamp: quote?.timestamp ?? quote?.datetime ?? null,
+  };
+};
+
+const parseCachedRow = (raw, fallbackSymbol) => {
+  if (!raw) return null;
+
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  const symbol = normalizeSymbolKey(parsed?.symbol || fallbackSymbol);
+  if (!symbol) return null;
+  return toQuoteRow(symbol, parsed);
+};
+
+async function fetchTwelveDataQuotePayload(symbols, apiKey) {
+  if (!Array.isArray(symbols) || symbols.length === 0) return {};
+  const params = new URLSearchParams({
+    symbol: symbols.join(','),
+    apikey: apiKey,
+  });
+
+  const response = await fetch(`${TWELVE_DATA_QUOTE_URL}?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(payload?.message || `Twelve Data request failed (${response.status})`);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  if (payload?.status === 'error') {
+    const error = new Error(payload?.message || 'Twelve Data error');
+    error.status = Number(payload?.code) || 502;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -52,135 +141,128 @@ export default async function handler(req, res) {
   const { symbols } = req.query;
   if (!symbols) return res.status(400).json({ error: 'symbols query parameter required' });
 
-  const symbolList = String(symbols)
-    .split(',')
-    .map((s) => s.trim().toUpperCase())
-    .filter(Boolean)
-    .slice(0, 30);
+  const symbolList = [...new Set(
+    String(symbols)
+      .split(',')
+      .map((value) => normalizeSymbolKey(value))
+      .filter(Boolean)
+  )].slice(0, MAX_SYMBOLS);
 
   if (symbolList.length === 0) return res.status(400).json({ error: 'No valid symbols provided' });
 
   const redis = getRedisClient();
-  const results = [];
+  const quoteBySymbol = new Map();
   const cacheMisses = [];
 
-  // Check Redis cache for each symbol
   if (redis) {
     try {
       const pipeline = redis.pipeline();
       for (const sym of symbolList) {
-        pipeline.get(`${CACHE_PREFIX}:${sym}`);
+        pipeline.get(buildCacheKey(sym));
       }
-      const cached = await pipeline.exec();
+      const cachedRows = await pipeline.exec();
 
       for (let i = 0; i < symbolList.length; i++) {
-        const raw = cached[i];
-        if (raw) {
-          try {
-            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            results.push(parsed);
-          } catch {
-            cacheMisses.push(symbolList[i]);
-          }
-        } else {
-          cacheMisses.push(symbolList[i]);
-        }
+        const symbol = symbolList[i];
+        const cachedValue = unwrapPipelineResult(cachedRows?.[i]);
+        const parsedRow = parseCachedRow(cachedValue, symbol);
+        if (parsedRow) quoteBySymbol.set(symbol, parsedRow);
+        else cacheMisses.push(symbol);
       }
     } catch (error) {
       console.error('[community/market-data] Redis read error:', error);
-      // Fall through to fetch all symbols
-      cacheMisses.push(...symbolList.filter((s) => !results.find((r) => r.symbol === s)));
+      cacheMisses.push(...symbolList.filter((symbol) => !quoteBySymbol.has(symbol)));
     }
   } else {
     cacheMisses.push(...symbolList);
   }
 
-  // Fetch missing symbols from Twelve Data
   if (cacheMisses.length > 0) {
     const apiKey = getApiKey();
     if (!apiKey) {
-      // Return whatever we have from cache, plus empty entries for misses
       for (const sym of cacheMisses) {
-        results.push({ symbol: sym, price: null, change: null, changePercent: null, volume: null });
+        if (!quoteBySymbol.has(sym)) quoteBySymbol.set(sym, emptyQuoteRow(sym));
       }
-      return res.status(200).json({ data: sortByRequest(results, symbolList) });
+      return res.status(200).json({ data: sortByRequest(quoteBySymbol, symbolList) });
     }
 
+    const quotePayloadBySymbol = {};
+
     try {
-      const url = `https://api.twelvedata.com/quote?symbol=${cacheMisses.join(',')}&apikey=${apiKey}`;
-      const response = await fetch(url, { headers: { Accept: 'application/json' } });
-      const payload = await response.json().catch(() => ({}));
-
-      const quoteMap = parseQuotePayload(payload, cacheMisses);
-      const toCache = [];
-
-      for (const sym of cacheMisses) {
-        const quote = quoteMap[sym];
-        const row = {
-          symbol: sym,
-          price: toNumber(quote?.close || quote?.price || quote?.last),
-          change: toNumber(quote?.change),
-          changePercent: toNumber(quote?.percent_change ?? quote?.percentChange),
-          volume: toNumber(quote?.volume),
-        };
-        results.push(row);
-        toCache.push(row);
-      }
-
-      // Cache results in Redis
-      if (redis && toCache.length > 0) {
-        try {
-          const pipeline = redis.pipeline();
-          for (const row of toCache) {
-            pipeline.set(`${CACHE_PREFIX}:${row.symbol}`, JSON.stringify(row), { ex: CACHE_TTL });
-          }
-          await pipeline.exec();
-        } catch (error) {
-          console.error('[community/market-data] Redis write error:', error);
-        }
-      }
+      const batchPayload = await fetchTwelveDataQuotePayload(cacheMisses, apiKey);
+      Object.assign(quotePayloadBySymbol, parseQuotePayload(batchPayload, cacheMisses));
     } catch (error) {
-      console.error('[community/market-data] Twelve Data fetch error:', error);
-      // Return empty entries for symbols we couldn't fetch
-      for (const sym of cacheMisses) {
-        if (!results.find((r) => r.symbol === sym)) {
-          results.push({ symbol: sym, price: null, change: null, changePercent: null, volume: null });
+      console.error('[community/market-data] Twelve Data batch fetch error:', error);
+    }
+
+    const unresolvedSymbols = cacheMisses.filter((symbol) => !quotePayloadBySymbol[symbol]);
+    if (unresolvedSymbols.length > 0) {
+      const singleResults = await Promise.all(
+        unresolvedSymbols.map(async (symbol) => {
+          try {
+            const payload = await fetchTwelveDataQuotePayload([symbol], apiKey);
+            return parseQuotePayload(payload, [symbol])[symbol] || null;
+          } catch (error) {
+            console.error('[community/market-data] Twelve Data single-symbol fetch error:', symbol, error);
+            return null;
+          }
+        })
+      );
+
+      unresolvedSymbols.forEach((symbol, idx) => {
+        if (singleResults[idx]) quotePayloadBySymbol[symbol] = singleResults[idx];
+      });
+    }
+
+    const rowsToCache = [];
+    for (const symbol of cacheMisses) {
+      const row = quotePayloadBySymbol[symbol]
+        ? toQuoteRow(symbol, quotePayloadBySymbol[symbol])
+        : emptyQuoteRow(symbol);
+      quoteBySymbol.set(symbol, row);
+      rowsToCache.push(row);
+    }
+
+    if (redis && rowsToCache.length > 0) {
+      try {
+        const pipeline = redis.pipeline();
+        for (const row of rowsToCache) {
+          pipeline.set(buildCacheKey(row.symbol), JSON.stringify(row), { ex: CACHE_TTL_SECONDS });
         }
+        await pipeline.exec();
+      } catch (error) {
+        console.error('[community/market-data] Redis write error:', error);
       }
     }
   }
 
-  return res.status(200).json({ data: sortByRequest(results, symbolList) });
+  return res.status(200).json({ data: sortByRequest(quoteBySymbol, symbolList) });
 }
 
 function parseQuotePayload(payload, symbols) {
   const quoteMap = {};
   if (!payload || typeof payload !== 'object') return quoteMap;
 
-  // Single symbol response
   if (symbols.length === 1) {
     const sym = symbols[0];
-    if (payload?.symbol || payload?.close || payload?.price) {
+    if (payload?.symbol || payload?.close || payload?.price || payload?.last) {
+      const normalizedPayloadSymbol = normalizeSymbolKey(payload?.symbol || sym);
+      if (normalizedPayloadSymbol) quoteMap[normalizedPayloadSymbol] = payload;
       quoteMap[sym] = payload;
     }
     return quoteMap;
   }
 
-  // Multi-symbol response: Twelve Data returns { AAPL: {...}, MSFT: {...} }
   for (const [key, value] of Object.entries(payload)) {
     if (!value || typeof value !== 'object') continue;
     if (['status', 'code', 'message'].includes(key)) continue;
-    const sym = String(value?.symbol || key).trim().toUpperCase();
+    const sym = normalizeSymbolKey(value?.symbol || key);
     if (sym) quoteMap[sym] = value;
   }
 
   return quoteMap;
 }
 
-function sortByRequest(results, symbolList) {
-  const map = new Map();
-  for (const row of results) {
-    map.set(row.symbol, row);
-  }
-  return symbolList.map((sym) => map.get(sym)).filter(Boolean);
+function sortByRequest(quoteBySymbol, symbolList) {
+  return symbolList.map((symbol) => quoteBySymbol.get(symbol) || emptyQuoteRow(symbol));
 }

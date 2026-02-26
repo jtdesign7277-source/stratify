@@ -2895,12 +2895,24 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return [...set].map(normalizeSymbolKey).filter(Boolean).slice(0, 48);
   }, [posts]);
 
-  const refreshQuotes = useCallback(async () => {
-    if (trackedSymbols.length === 0) return;
+  const previousTrackedSymbolsRef = useRef([]);
+
+  const refreshQuotesFromCache = useCallback(async (symbols) => {
+    const targetSymbols = [...new Set(
+      (Array.isArray(symbols) ? symbols : [symbols]).map(normalizeSymbolKey).filter(Boolean)
+    )];
+    if (targetSymbols.length === 0) return;
 
     try {
-      const params = new URLSearchParams({ symbols: trackedSymbols.join(',') });
-      const payload = await cachedFetch(`/api/stocks?${params.toString()}`, { cache: 'no-store' }, 24_000);
+      const params = new URLSearchParams({ symbols: targetSymbols.join(',') });
+      const response = await fetch(`/api/community/market-data?${params.toString()}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+
+      const payload = await response.json().catch(() => ({}));
       const rows = Array.isArray(payload)
         ? payload
         : Array.isArray(payload?.data)
@@ -2911,18 +2923,23 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         setQuoteMap((prev) => mergeQuotesFromPayload(rows, prev));
       }
     } catch {
-      // keep websocket data if REST bootstrap fails
+      // keep websocket data if cache bootstrap fails
     }
-  }, [trackedSymbols]);
-
-  const debouncedQuoteRefresh = useMemo(() => createDebouncedFn(() => {
-    void refreshQuotes();
-  }, 120), [refreshQuotes]);
+  }, []);
 
   useEffect(() => {
-    debouncedQuoteRefresh.call();
-    return () => debouncedQuoteRefresh.cancel();
-  }, [trackedSymbols, debouncedQuoteRefresh]);
+    if (trackedSymbols.length === 0) return;
+
+    const previousSymbols = previousTrackedSymbolsRef.current;
+    const previousSet = new Set(previousSymbols);
+    const addedSymbols = trackedSymbols.filter((symbol) => !previousSet.has(symbol));
+    const symbolsToBootstrap = previousSymbols.length === 0
+      ? trackedSymbols
+      : (addedSymbols.length > 0 ? addedSymbols : trackedSymbols);
+
+    previousTrackedSymbolsRef.current = trackedSymbols;
+    void refreshQuotesFromCache(symbolsToBootstrap);
+  }, [trackedSymbols, refreshQuotesFromCache]);
 
   useEffect(() => {
     if (trackedSymbols.length === 0) return undefined;
