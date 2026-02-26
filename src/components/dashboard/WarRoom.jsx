@@ -64,7 +64,7 @@ const QUICK_SCANS = [
   },
 ];
 
-const PREFETCH_SCANS = QUICK_SCANS.slice(0, 3); // Market Movers, Earnings Intel, $SPY Analysis
+const PREFETCH_SCANS = QUICK_SCANS; // Prefetch all 6 scans from Redis on mount
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const FEED_TIMESTAMP_KEY = 'stratify-war-room-feed-ts';
 
@@ -393,6 +393,22 @@ export default function WarRoom({ onClose }) {
         });
         setFeedTimestamp();
       }
+
+      // If any scans were missing from cache, warm them in background
+      const missedScans = PREFETCH_SCANS.filter((scan, i) => {
+        const r = results[i];
+        return r.status !== 'fulfilled' || !r.value?.content;
+      });
+      if (missedScans.length > 0) {
+        missedScans.forEach((scan) => {
+          fetch('/api/warroom', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: scan.query, cacheLabel: scan.label }),
+          }).catch(() => {});
+        });
+      }
+
       setPrefetching(false);
     };
 
@@ -1012,7 +1028,7 @@ export default function WarRoom({ onClose }) {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {['live', 'saved', 'folders'].map((view) => {
+          {['live', 'folders'].map((view) => {
             const isActive = activeView === view;
             return (
               <button

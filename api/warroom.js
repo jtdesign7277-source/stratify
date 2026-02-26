@@ -78,17 +78,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing query' });
   }
 
-  // If a cache label is provided, check cache first
+  // If a cache label is provided, check cache first — return instantly
   if (cacheLabel) {
     const cached = await getCachedScan(cacheLabel);
     if (cached) {
-      // Return cached result immediately, refresh in background
-      res.status(200).json({ ...cached, fromCache: true });
-      // Fire-and-forget background refresh
-      fetchFromClaude(query)
-        .then((fresh) => setCachedScan(cacheLabel, fresh))
-        .catch((err) => console.error('[warroom] Background refresh failed:', err));
-      return;
+      return res.status(200).json({ ...cached, fromCache: true });
     }
   }
 
