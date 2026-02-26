@@ -475,6 +475,17 @@ const COMMUNITY_PAGE_STYLES = `
   .community-pulse {
     animation: communityPulse 3.6s ease-in-out infinite;
   }
+
+  .community-feed-header {
+    --community-left-bleed: 0px;
+  }
+
+  @media (min-width: 1024px) {
+    .community-feed-header {
+      margin-left: calc(var(--community-left-bleed) * -1);
+      width: calc(100% + var(--community-left-bleed));
+    }
+  }
 `;
 
 const SLIP_EMOJI_PRESETS = ['🚀', '💰', '🔥', '📈', '💯', '✅', '⚡', '🧠'];
@@ -1955,12 +1966,14 @@ const FeedHeader = ({
   onSearch,
   onOpenComposer,
   leftCollapsed,
+  dashboardSidebarWidth = 0,
 }) => {
+  const leftBleed = (leftCollapsed ? 68 : 220) + (Number(dashboardSidebarWidth) || 0);
+
   return (
     <div
-      className={`sticky top-0 z-20 border-b-2 border-blue-500 bg-[#0d1117] py-3 ${
-        leftCollapsed ? 'lg:-ml-[68px] lg:w-[calc(100%+68px)]' : 'lg:-ml-[220px] lg:w-[calc(100%+220px)]'
-      }`}
+      className="community-feed-header sticky top-0 z-20 border-b-2 border-blue-500 bg-[#0d1117] py-3"
+      style={{ '--community-left-bleed': `${leftBleed}px` }}
     >
       <div className="w-full px-3 flex items-center gap-2 bg-[#0d1117]">
         <div className="w-[92px] flex-shrink-0" aria-hidden />
@@ -2349,7 +2362,7 @@ const RightSidebar = ({
 };
 
 // ─── Main Community Page ──────────────────────────────────
-const CommunityPage = ({ tradeHistory = [] }) => {
+const CommunityPage = ({ tradeHistory = [], dashboardSidebarWidth = 0 }) => {
   const [posts, setPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2835,6 +2848,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                 onSearch={setSearch}
                 onOpenComposer={() => openComposer('post')}
                 leftCollapsed={leftCollapsed}
+                dashboardSidebarWidth={dashboardSidebarWidth}
               />
 
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
