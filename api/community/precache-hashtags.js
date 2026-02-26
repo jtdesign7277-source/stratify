@@ -2,9 +2,10 @@ import { Redis } from '@upstash/redis';
 
 export const config = { maxDuration: 30 };
 
-const MAX_RESULTS = 8;
-const CACHE_TTL_SECONDS = 60 * 60;
 const CACHE_PREFIX = 'hashtag_web';
+const CACHE_TTL_SECONDS = 60 * 60;
+const MAX_RESULTS = 8;
+const HASHTAGS = ['Earnings', 'Momentum', 'Macro', 'Options', 'Sentiment'];
 
 let redisClient = null;
 let redisDisabled = false;
@@ -23,25 +24,17 @@ function getRedisClient() {
   } catch (error) {
     redisDisabled = true;
     redisClient = null;
-    console.error('[community/hashtag-search] Redis init failed:', error);
+    console.error('[community/precache-hashtags] Redis init failed:', error);
     return null;
   }
 }
 
-function normalizeHashtag(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  const cleaned = raw.replace(/\s+/g, '').replace(/^#+/, '');
-  if (!cleaned) return '';
-  return `#${cleaned}`;
-}
-
 function normalizeHashtagKey(value) {
-  return normalizeHashtag(value).toLowerCase().replace(/^#/, '');
+  return String(value || '').trim().toLowerCase().replace(/^#/, '');
 }
 
-function getHashtagCacheKey(value) {
-  const key = normalizeHashtagKey(value);
+function buildCacheKey(hashtag) {
+  const key = normalizeHashtagKey(hashtag);
   return key ? `${CACHE_PREFIX}:${key}` : '';
 }
 
@@ -123,19 +116,11 @@ function normalizeItems(rows = []) {
     .slice(0, MAX_RESULTS);
 }
 
-function parseCachedHashtagItems(cached) {
-  if (cached === null || cached === undefined) return null;
-
-  try {
-    const parsed = typeof cached === 'string' ? JSON.parse(cached) : cached;
-    if (Array.isArray(parsed)) return normalizeItems(parsed);
-    if (Array.isArray(parsed?.items)) return normalizeItems(parsed.items);
-    if (Array.isArray(parsed?.data)) return normalizeItems(parsed.data);
-  } catch (error) {
-    console.error('[community/hashtag-search] Cached payload parse failed:', error);
-  }
-
-  return null;
+function parseHashtagSearchPayload(payload) {
+  const assistantText = String(payload?.choices?.[0]?.message?.content || '').trim();
+  const parsed = tryParseJsonArray(assistantText);
+  if (Array.isArray(parsed)) return normalizeItems(parsed);
+  return [];
 }
 
 async function callGrokHashtagSearch(hashtag) {
@@ -154,11 +139,11 @@ async function callGrokHashtagSearch(hashtag) {
       messages: [
         {
           role: 'system',
-          content: `You are a financial news aggregator. Today is ${today}. Return ONLY a JSON array, no markdown, no backticks.`,
+          content: `You are a financial news aggregator. Today is ${today}. Search the web for the latest news. Return ONLY a JSON array, no markdown, no backticks.`,
         },
         {
           role: 'user',
-          content: `Find 8 current trending discussions about ${hashtag} in financial markets. Return JSON array: [{ "headline": string, "summary": string (1-2 sentences), "source": string, "relatedTickers": [string] }]`,
+          content: `Find 8 current trending discussions about ${hashtag} in financial markets right now in 2026. Return JSON array: [{ "headline": string, "summary": string (1-2 sentences), "source": string, "relatedTickers": [string] }]`,
         },
       ],
       temperature: 0.7,
@@ -173,13 +158,6 @@ async function callGrokHashtagSearch(hashtag) {
   return response.json();
 }
 
-function parseHashtagSearchPayload(payload) {
-  const assistantText = String(payload?.choices?.[0]?.message?.content || '').trim();
-  const parsed = tryParseJsonArray(assistantText);
-  if (Array.isArray(parsed)) return normalizeItems(parsed);
-  return [];
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -191,63 +169,43 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const rawHashtag = req.body?.hashtag || req.body?.tag || req.query?.hashtag || req.query?.tag;
-  const hashtag = normalizeHashtag(rawHashtag);
-  if (!hashtag) {
-    return res.status(400).json({ error: 'Missing hashtag' });
+  const redis = getRedisClient();
+  if (!redis) {
+    return res.status(500).json({
+      success: false,
+      error: 'Redis is not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.',
+    });
   }
 
-  const redis = getRedisClient();
-  const cacheKey = getHashtagCacheKey(hashtag);
+  const results = {};
 
-  if (redis && cacheKey) {
+  for (const tag of HASHTAGS) {
+    const cacheKey = buildCacheKey(tag);
+    if (!cacheKey) {
+      results[tag] = 'error: invalid hashtag';
+      continue;
+    }
+
     try {
       const cached = await redis.get(cacheKey);
-      const cachedItems = parseCachedHashtagItems(cached);
-      if (Array.isArray(cachedItems)) {
-        res.setHeader('X-Cache', 'HIT');
-        return res.status(200).json({
-          hashtag,
-          items: cachedItems,
-          data: cachedItems,
-          source: 'cache',
-          cached: true,
-          generatedAt: new Date().toISOString(),
-        });
+      if (cached) {
+        results[tag] = 'already cached';
+        continue;
       }
     } catch (error) {
-      console.error('[community/hashtag-search] Redis read failed:', error);
+      results[tag] = `error: ${String(error?.message || 'Redis read failed')}`;
+      continue;
+    }
+
+    try {
+      const payload = await callGrokHashtagSearch(tag);
+      const items = parseHashtagSearchPayload(payload);
+      await redis.set(cacheKey, JSON.stringify(items), { ex: CACHE_TTL_SECONDS });
+      results[tag] = `cached ${items.length} items`;
+    } catch (error) {
+      results[tag] = `error: ${String(error?.message || 'Hashtag pre-cache failed')}`;
     }
   }
 
-  try {
-    const payload = await callGrokHashtagSearch(hashtag);
-    const items = parseHashtagSearchPayload(payload);
-
-    if (redis && cacheKey) {
-      try {
-        await redis.set(cacheKey, JSON.stringify(items), { ex: CACHE_TTL_SECONDS });
-      } catch (error) {
-        console.error('[community/hashtag-search] Redis write failed:', error);
-      }
-    }
-
-    res.setHeader('X-Cache', 'MISS');
-    return res.status(200).json({
-      hashtag,
-      items,
-      data: items,
-      source: 'api',
-      cached: false,
-      generatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    return res.status(502).json({
-      error: String(error?.message || 'Hashtag web search failed'),
-      items: [],
-      data: [],
-      hashtag,
-      cached: false,
-    });
-  }
+  return res.status(200).json({ success: true, results });
 }

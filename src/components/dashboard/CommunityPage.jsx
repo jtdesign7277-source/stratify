@@ -4802,6 +4802,10 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, [fetchPosts]);
 
   useEffect(() => {
+    void fetch('/api/community/precache-hashtags').catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const channel = supabase
       .channel('community-feed-rebuild-v2')
       .on(
@@ -5253,6 +5257,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, []);
 
   const activeFeedFilter = filter;
+  const activeFeedTag = normalizeFeedHashtag(activeFeedFilter);
 
   const filteredPosts = useMemo(() => (
     activeFeedFilter
@@ -5270,10 +5275,21 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   ), [activeFeedFilter, posts]);
 
   const shouldShowWebFallback = Boolean(activeFeedFilter) && filteredPosts.length < HASHTAG_WEB_MIN_VISIBLE_POSTS;
+  const hasActiveHashtagWebResults = shouldShowWebFallback
+    && Boolean(activeFeedTag)
+    && hashtagWebTag === activeFeedTag
+    && hashtagWebResults.length > 0;
+  const activeHashtagWebResults = hasActiveHashtagWebResults ? hashtagWebResults : [];
+  const activeHashtagWebError = hashtagWebTag === activeFeedTag ? hashtagWebError : '';
+  const isHashtagWebPending = shouldShowWebFallback
+    && Boolean(activeFeedTag)
+    && (hashtagWebLoading || hashtagWebTag !== activeFeedTag);
+  const shouldShowNoPostsMessage = filteredPosts.length === 0
+    && (!shouldShowWebFallback || (!isHashtagWebPending && !hasActiveHashtagWebResults));
 
   useEffect(() => {
     let cancelled = false;
-    const tag = normalizeFeedHashtag(activeFeedFilter);
+    const tag = activeFeedTag;
 
     if (!tag || filteredPosts.length >= HASHTAG_WEB_MIN_VISIBLE_POSTS) {
       setHashtagWebTag(tag);
@@ -5334,7 +5350,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return () => {
       cancelled = true;
     };
-  }, [activeFeedFilter, filteredPosts.length]);
+  }, [activeFeedTag, filteredPosts.length]);
 
   const openComposer = (type = 'general') => {
     setComposerInitialType(type);
@@ -5508,7 +5524,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                           </>
                         ) : (
                           <>
-                            {filteredPosts.length === 0 ? (
+                            {shouldShowNoPostsMessage ? (
                               <div
                                 className={activeFeedFilter ? 'h-full flex items-center justify-center text-sm' : (hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm')}
                                 style={{ color: T.muted, borderColor: !activeFeedFilter && hasAiSearchCards ? T.border : 'transparent', backgroundColor: !activeFeedFilter && hasAiSearchCards ? T.card : 'transparent' }}
@@ -5538,7 +5554,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                   Trending on the web
                                 </div>
 
-                                {hashtagWebLoading ? (
+                                {isHashtagWebPending ? (
                                   <div className="space-y-2">
                                     {Array.from({ length: 3 }).map((_, idx) => (
                                       <div
@@ -5556,9 +5572,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                       </div>
                                     ))}
                                   </div>
-                                ) : hashtagWebResults.length > 0 ? (
+                                ) : hasActiveHashtagWebResults ? (
                                   <div className="space-y-2">
-                                    {hashtagWebResults.map((result, idx) => (
+                                    {activeHashtagWebResults.map((result, idx) => (
                                       <div
                                         key={`hashtag-web-result-${idx}-${result.headline.slice(0, 24)}`}
                                         className="rounded-xl border border-white/6 bg-white/3 p-3"
@@ -5580,7 +5596,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                   </div>
                                 ) : (
                                   <div className="rounded-lg border border-white/6 bg-white/3 px-3 py-2 text-xs text-[#7d8590]">
-                                    {hashtagWebError || `No additional web discussions found for #${hashtagWebTag || normalizeFeedHashtag(activeFeedFilter)}.`}
+                                    {activeHashtagWebError || `No additional web discussions found for #${hashtagWebTag || activeFeedTag}.`}
                                   </div>
                                 )}
                               </div>
