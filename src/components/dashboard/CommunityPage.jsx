@@ -104,6 +104,13 @@ const extractTickers = (text) => {
   return matches ? [...new Set(matches.map((t) => t.replace('$', '')))] : [];
 };
 
+const extractHashtags = (text) => {
+  const matches = String(text || '').match(/#[A-Za-z][A-Za-z0-9_-]*/g);
+  return matches
+    ? [...new Set(matches.map((tag) => String(tag || '').trim().toLowerCase().replace(/^#/, '')).filter(Boolean))]
+    : [];
+};
+
 const highlightTickers = (text) => {
   return text.replace(
     /\$([A-Z]{1,6})/g,
@@ -718,14 +725,16 @@ const postMatchesFeedHashtag = (post, hashtag) => {
   const normalizedTag = normalizeFeedHashtag(hashtag);
   if (!normalizedTag) return true;
 
-  const content = String(post?.content || '').toLowerCase();
-  if (content.includes(`#${normalizedTag}`)) return true;
+  const hashtagNeedle = `#${normalizedTag}`;
+  const textFields = [post?.content, post?.body, post?.text]
+    .map((value) => String(value || '').toLowerCase())
+    .filter(Boolean);
+  if (textFields.some((value) => value.includes(hashtagNeedle))) return true;
 
-  const mentions = [
-    ...(Array.isArray(post?.mentioned_tickers) ? post.mentioned_tickers : []),
-    ...(Array.isArray(post?.ticker_mentions) ? post.ticker_mentions : []),
-  ];
-  return mentions.some((entry) => normalizeFeedHashtag(entry) === normalizedTag);
+  const hashtags = Array.isArray(post?.hashtags) ? post.hashtags : [];
+  if (hashtags.some((entry) => normalizeFeedHashtag(entry) === normalizedTag)) return true;
+
+  return normalizeFeedHashtag(post?.post_type) === normalizedTag;
 };
 
 const LEFT_RAIL_ITEMS = [
@@ -900,6 +909,25 @@ const COMMUNITY_PAGE_STYLES = `
     min-height: 56px !important;
     padding-bottom: 16px !important;
     overflow: visible !important;
+  }
+
+  .community-minimal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+
+  .community-minimal-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .community-minimal-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+  }
+
+  .community-minimal-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
   }
 `;
 
@@ -1308,12 +1336,27 @@ const generateMockFeed = () => {
 
     const likesCount = (index % 17) + Math.floor(index / 2);
     const repliesCount = index % 6;
+    const forcedHashtag = index < FEED_HASHTAGS.length ? FEED_HASHTAGS[index] : null;
+    const shouldAppendHashtags = Boolean(forcedHashtag) || Math.random() < 0.55;
+
+    if (shouldAppendHashtags) {
+      const primaryTag = forcedHashtag || FEED_HASHTAGS[Math.floor(Math.random() * FEED_HASHTAGS.length)];
+      const secondaryPool = FEED_HASHTAGS.filter((tag) => tag !== primaryTag);
+      const secondaryTag = secondaryPool.length > 0 && Math.random() < 0.38
+        ? secondaryPool[Math.floor(Math.random() * secondaryPool.length)]
+        : null;
+      const appendedTags = [primaryTag, secondaryTag].filter(Boolean);
+      content = `${content} ${appendedTags.join(' ')}`.trim();
+    }
+
+    const hashtags = extractHashtags(content);
 
     return {
       id: `mock-post-${index + 1}`,
       user_id: `mock-user-${author.id}`,
       author_name: author.name,
       content,
+      hashtags,
       image_url: null,
       ticker_mentions: extractTickers(content),
       post_type: postType,
@@ -2870,12 +2913,14 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
   const [replies, setReplies] = useState([]);
   const [replyContent, setReplyContent] = useState('');
   const [replying, setReplying] = useState(false);
+  const [localRepliesCount, setLocalRepliesCount] = useState(toFiniteNumber(post?.replies_count ?? post?.comments_count, 0));
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const isMock = Boolean(post?.is_mock);
   const resolvedDisplayName = String(
     displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader'
   ).trim() || 'Trader';
+  const resolvedReplyAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(resolvedDisplayName)}`;
 
   const initialReactions = useMemo(() => {
     if (Array.isArray(post?.reaction_summary)) return post.reaction_summary;
@@ -2939,88 +2984,139 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
           ...reply,
           reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
         }));
-        setReplies(sortByCreatedAtAsc(mockReplies));
+        const sorted = sortByCreatedAtAsc(mockReplies);
+        setReplies(sorted);
+        setLocalRepliesCount((prev) => Math.max(prev, sorted.length));
         return;
       }
 
-      const { data, error } = await supabase
-        .from('community_posts')
-        .select('*, community_reactions(emoji, user_id), profiles:user_id(id, display_name, avatar_url, email)')
-        .or(`parent_id.eq.${post.id},parent_post_id.eq.${post.id}`)
+      let { data, error } = await supabase
+        .from('community_replies')
+        .select('*')
+        .eq('post_id', post.id)
         .order('created_at', { ascending: true });
+
+      if (error) {
+        const fallback = await supabase
+          .from('community_posts')
+          .select('*, community_reactions(emoji, user_id), profiles:user_id(id, display_name, avatar_url, email)')
+          .or(`parent_id.eq.${post.id},parent_post_id.eq.${post.id}`)
+          .order('created_at', { ascending: true });
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) throw error;
 
-      const mapped = (data || []).map((reply) => ({
-        ...reply,
-        reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
-      }));
-      setReplies(sortByCreatedAtAsc(mapped));
+      const mapped = (data || []).map((reply) => {
+        const authorName = String(reply?.author_name || reply?.author || '').trim() || 'Trader';
+        const replyAvatar = String(
+          reply?.avatar_url
+          || reply?.metadata?.bot_avatar_url
+          || reply?.metadata?.avatar_url
+          || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(authorName)}`
+        ).trim();
+
+        return {
+          ...reply,
+          author_name: authorName,
+          avatar_url: replyAvatar,
+          profiles: reply?.profiles
+            ? {
+              ...reply.profiles,
+              display_name: reply.profiles.display_name || authorName,
+              avatar_url: reply.profiles.avatar_url || replyAvatar,
+            }
+            : {
+              id: reply?.user_id || `reply-profile-${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+              display_name: authorName,
+              avatar_url: replyAvatar,
+              avatar_color: null,
+              email: null,
+            },
+          reaction_summary: buildReactionSummary(reply.community_reactions || [], currentUser?.id),
+        };
+      });
+      const sorted = sortByCreatedAtAsc(mapped);
+      setReplies(sorted);
+      setLocalRepliesCount((prev) => Math.max(prev, sorted.length));
     } catch {
-      setReplies([]);
+      // keep existing replies in local state if fetch fails
     } finally {
       setLoadingReplies(false);
     }
   };
 
   const submitReply = async () => {
-    if (!currentUser?.id || !replyContent.trim() || replying) return;
+    if (replying) return;
     const trimmed = replyContent.trim();
+    if (!trimmed) return;
+    const createdAt = new Date().toISOString();
+    const localReplyId = Date.now();
+    const localReply = {
+      id: localReplyId,
+      author: resolvedDisplayName,
+      author_name: resolvedDisplayName,
+      avatar: resolvedReplyAvatar,
+      avatar_url: resolvedReplyAvatar,
+      content: trimmed,
+      timestamp: 'just now',
+      created_at: createdAt,
+      user_id: currentUser?.id || `guest-${localReplyId}`,
+      profiles: {
+        id: currentUser?.id || `guest-${localReplyId}`,
+        display_name: resolvedDisplayName,
+        avatar_url: resolvedReplyAvatar,
+        avatar_color: currentUser?.avatar_color || null,
+        email: currentUser?.email || null,
+      },
+      community_reactions: [],
+      reaction_summary: [],
+      is_mock: isMock || !currentUser?.id,
+    };
+
+    setReplies((prev) => sortByCreatedAtAsc([...prev, localReply]));
+    setReplyContent('');
+    setShowReplies(true);
+    setLocalRepliesCount((prev) => prev + 1);
+
     setReplying(true);
 
     try {
       if (isMock) {
-        const syntheticReply = {
-          id: `mock-reply-${post.id}-${Date.now()}`,
-          user_id: currentUser.id,
-          author_name: resolvedDisplayName,
-          content: trimmed,
-          created_at: new Date().toISOString(),
-          profiles: {
-            id: currentUser.id,
-            display_name: resolvedDisplayName,
-            avatar_url: currentUser.avatar_url,
-            avatar_color: currentUser.avatar_color || null,
-            email: currentUser.email,
-          },
-          community_reactions: [],
-          reaction_summary: [],
-          is_mock: true,
-        };
-        setReplies((prev) => sortByCreatedAtAsc([...prev, syntheticReply]));
-        setReplyContent('');
-        setShowReplies(true);
         return;
       }
 
       const { data: inserted, error } = await supabase
-        .from('community_posts')
+        .from('community_replies')
         .insert({
-          user_id: currentUser.id,
+          post_id: post.id,
           author_name: resolvedDisplayName,
           content: trimmed,
-          parent_id: post.id,
-          parent_post_id: post.id,
-          ticker_mentions: extractTickers(trimmed),
+          created_at: createdAt,
         })
-        .select('*, community_reactions(emoji, user_id), profiles:user_id(id, display_name, avatar_url, email)')
+        .select('*')
         .single();
 
       if (error) throw error;
 
-      const mapped = {
+      const persistedReply = {
+        ...localReply,
         ...inserted,
-        author_name: resolvedDisplayName,
-        profiles: inserted?.profiles
-          ? { ...inserted.profiles, display_name: resolvedDisplayName }
-          : inserted?.profiles,
-        reaction_summary: buildReactionSummary(inserted.community_reactions || [], currentUser?.id),
+        id: inserted?.id || localReplyId,
+        author_name: String(inserted?.author_name || resolvedDisplayName).trim() || resolvedDisplayName,
+        avatar: localReply.avatar,
+        avatar_url: localReply.avatar_url,
+        content: String(inserted?.content || trimmed),
+        created_at: inserted?.created_at || createdAt,
+        timestamp: 'just now',
       };
-      setReplies((prev) => sortByCreatedAtAsc([...prev, mapped]));
-      setReplyContent('');
-      setShowReplies(true);
+
+      setReplies((prev) => sortByCreatedAtAsc(prev.map((row) => (
+        row.id === localReplyId ? persistedReply : row
+      ))));
     } catch {
-      // ignore transient reply failures to avoid blocking feed interaction
+      // optimistic reply already shown; keep local state if persistence fails
     } finally {
       setReplying(false);
     }
@@ -3044,9 +3140,7 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
   const isOwner = currentUser?.id && currentUser.id === post.user_id;
   const profileForRender = isOwner ? { ...profile, display_name: resolvedDisplayName } : profile;
   const postAuthorLabel = profileForRender?.display_name || post.author_name || profileForRender?.email?.split('@')[0] || 'Trader';
-  const repliesCount = replies.length > 0
-    ? replies.length
-    : toFiniteNumber(post?.replies_count ?? post?.comments_count, 0);
+  const repliesCount = Math.max(localRepliesCount, replies.length);
   const normalizedPostType = sanitizePostType(post?.post_type);
 
   return (
@@ -3210,9 +3304,9 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
                   <div className="space-y-2">
                     {replies.map((reply) => {
                       const replyProfile = {
-                        id: reply?.profiles?.id || reply?.user_id || reply?.id || reply?.author_name || null,
-                        display_name: reply?.profiles?.display_name || reply.author_name,
-                        avatar_url: reply?.profiles?.avatar_url || reply?.metadata?.bot_avatar_url || reply?.metadata?.avatar_url || reply?.avatar_url || null,
+                        id: reply?.profiles?.id || reply?.user_id || reply?.id || reply?.author_name || reply?.author || null,
+                        display_name: reply?.profiles?.display_name || reply.author_name || reply.author,
+                        avatar_url: reply?.profiles?.avatar_url || reply?.metadata?.bot_avatar_url || reply?.metadata?.avatar_url || reply?.avatar_url || reply?.avatar || null,
                         avatar_color: reply?.profiles?.avatar_color || reply?.avatar_color || reply?.metadata?.bot_avatar_color || reply?.metadata?.avatar_color || null,
                         email: reply?.profiles?.email || null,
                       };
@@ -3226,9 +3320,9 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 text-xs">
                               <span className="font-medium" style={{ color: T.text }}>
-                                {replyProfileForRender.display_name || reply.author_name || 'Trader'}
+                                {replyProfileForRender.display_name || reply.author_name || reply.author || 'Trader'}
                               </span>
-                              <span style={{ color: T.muted }}>{timeAgo(reply.created_at)}</span>
+                              <span style={{ color: T.muted }}>{reply?.timestamp || timeAgo(reply.created_at)}</span>
                             </div>
                             <div className="mt-0.5 text-xs break-words" style={{ color: T.text }} dangerouslySetInnerHTML={{ __html: highlightTickers(reply.content || '') }} />
                             <ReactionBar
@@ -3245,14 +3339,17 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
                   </div>
                 )}
 
-                {currentUser?.id && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <UserAvatar user={currentUser} size={24} initialsClassName="text-xs" />
+                <div className="mt-3 flex items-center gap-2">
+                    <UserAvatar user={{
+                      ...(currentUser || {}),
+                      display_name: resolvedDisplayName,
+                      avatar_url: resolvedReplyAvatar,
+                    }} size={24} initialsClassName="text-xs" />
                     <input
                       value={replyContent}
                       onChange={(event) => setReplyContent(event.target.value)}
                       onKeyDown={(event) => {
-                        if (event.key !== 'Enter') return;
+                        if (event.key !== 'Enter' || event.shiftKey) return;
                         event.preventDefault();
                         void submitReply();
                       }}
@@ -3270,7 +3367,6 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
                       {replying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     </button>
                   </div>
-                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -4135,7 +4231,6 @@ const RightSidebar = ({ quoteMap }) => {
 
     if (sectionId === 'watchlist') {
       const hasWatchlistQuery = String(watchlistQuery || '').trim().length > 0;
-      const shouldConstrainWatchlistHeight = watchlistRows.length > 15;
 
       return (
         <DraggableSidebarSection
@@ -4151,7 +4246,7 @@ const RightSidebar = ({ quoteMap }) => {
           onDragStateChange={setDraggingSectionId}
         >
           <div className="flex flex-col gap-2">
-            <div className="relative flex-shrink-0">
+            <div className="relative flex-shrink-0 sticky top-0 z-10" style={{ backgroundColor: 'rgba(13,17,23,0.9)' }}>
               <input
                 type="text"
                 value={watchlistQuery}
@@ -4201,7 +4296,7 @@ const RightSidebar = ({ quoteMap }) => {
               </AnimatePresence>
             </div>
 
-            <div className={`space-y-1.5 pr-0.5 ${shouldConstrainWatchlistHeight ? 'max-h-[600px] overflow-y-auto' : ''}`.trim()}>
+            <div className="space-y-1.5 pr-0.5 max-h-[350px] overflow-y-auto scroll-smooth community-minimal-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {watchlistRows.length === 0 ? (
                 <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
                   Search above to add symbols.
@@ -5234,8 +5329,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                           </>
                         ) : filteredPosts.length === 0 ? (
                           <div
-                            className={hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm'}
-                            style={{ color: T.muted, borderColor: hasAiSearchCards ? T.border : 'transparent', backgroundColor: hasAiSearchCards ? T.card : 'transparent' }}
+                            className={filter ? 'h-full flex items-center justify-center text-sm' : (hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm')}
+                            style={{ color: T.muted, borderColor: !filter && hasAiSearchCards ? T.border : 'transparent', backgroundColor: !filter && hasAiSearchCards ? T.card : 'transparent' }}
                           >
                             No posts match this filter.
                           </div>
