@@ -15,6 +15,7 @@ import LightweightChart from './LightweightChart';
 // import HighchartsStockChart from './HighchartsStockChart';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import useTradingMode from '../../hooks/useTradingMode';
+import TickerHoverCard from '../shared/TickerHoverCard';
 
 const MAX_SYMBOLS = 120;
 
@@ -1357,7 +1358,9 @@ const WatchlistPage = ({
                       <GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
                     </span>
                     <div className="min-w-0 flex-1 pr-1">
-                      <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>${item.symbol}</div>
+                      <TickerHoverCard symbol={item.symbol}>
+                        <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-semibold text-white`}>${item.symbol}</div>
+                      </TickerHoverCard>
                       <div className="truncate text-[11px] text-gray-500">{item.name || labelMap[item.symbol] || item.symbol}</div>
                     </div>
 

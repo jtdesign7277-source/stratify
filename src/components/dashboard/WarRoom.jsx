@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import TickerHoverCard from '../shared/TickerHoverCard';
 import {
   createSavedIntelFolder,
   deleteSavedIntelFolder,
@@ -1085,15 +1086,16 @@ export default function WarRoom({ onClose }) {
                 </form>
                 <div className="h-4 w-px bg-gray-800" />
                 {['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'].map((sym) => (
-                  <button
-                    key={sym}
-                    type="button"
-                    onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
-                    disabled={transcriptLoading}
-                    className="rounded border border-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-blue-300 hover:border-blue-500/30 transition-colors disabled:opacity-45"
-                  >
-                    ${sym}
-                  </button>
+                  <TickerHoverCard key={sym} symbol={sym}>
+                    <button
+                      type="button"
+                      onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
+                      disabled={transcriptLoading}
+                      className="rounded border border-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-blue-300 hover:border-blue-500/30 transition-colors disabled:opacity-45"
+                    >
+                      ${sym}
+                    </button>
+                  </TickerHoverCard>
                 ))}
               </div>
 
