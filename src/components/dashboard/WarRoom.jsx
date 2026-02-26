@@ -840,15 +840,23 @@ export default function WarRoom({ onClose }) {
       .catch(() => {})
       .finally(() => setSecLoading(false));
 
+    const extractData = (val) => {
+      if (!val) return [];
+      // Endpoints return { source, data: [...] } or raw array
+      if (Array.isArray(val)) return val;
+      if (Array.isArray(val.data)) return val.data;
+      return [];
+    };
+
     const financialsPromise = Promise.allSettled([
       fetch(`/api/xray/balance-sheet?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
       fetch(`/api/xray/income-statement?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
       fetch(`/api/xray/cash-flow?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
     ]).then(([bs, is, cf]) => {
       setFinancials({
-        balanceSheet: bs.status === 'fulfilled' && Array.isArray(bs.value) ? bs.value : [],
-        incomeStatement: is.status === 'fulfilled' && Array.isArray(is.value) ? is.value : [],
-        cashFlow: cf.status === 'fulfilled' && Array.isArray(cf.value) ? cf.value : [],
+        balanceSheet: extractData(bs.status === 'fulfilled' ? bs.value : null),
+        incomeStatement: extractData(is.status === 'fulfilled' ? is.value : null),
+        cashFlow: extractData(cf.status === 'fulfilled' ? cf.value : null),
       });
     }).catch(() => {}).finally(() => setFinancialsLoading(false));
 

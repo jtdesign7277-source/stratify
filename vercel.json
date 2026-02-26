@@ -24,11 +24,11 @@
     },
     {
       "path": "/api/cron/warm-warroom?batch=transcripts",
-      "schedule": "5 13,21 * * 1-5"
+      "schedule": "5 13,17,21 * * 1-5"
     },
     {
       "path": "/api/cron/warm-warroom?batch=transcripts2",
-      "schedule": "10 13,21 * * 1-5"
+      "schedule": "10 13,17,21 * * 1-5"
     },
     {
       "path": "/api/trends",
