@@ -11,7 +11,7 @@ export default function GlobalMarketsBadge() {
         <span className="mx-2 text-gray-600">·</span>
         <span className="inline-flex items-center gap-1 text-gray-300">
           <span className="text-[18px] leading-none">🇬🇧</span>
-          <span>London Stock Exchange</span>
+          <span>London</span>
         </span>
         <span className="mx-2 text-gray-600">·</span>
         <span className="inline-flex items-center gap-1 text-gray-300">

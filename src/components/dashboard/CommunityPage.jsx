@@ -2074,7 +2074,7 @@ const PostComposerModal = ({
   const canAutofillSlip = postType === 'pnl' && selectedTrade;
   const hasComposerText = Boolean(content.trim());
   const hasAiRewriteTone = Boolean(selectedRewriteStyleOption || selectedRewritePersonalityOption);
-  const canOpenAiRewrite = hasComposerText && !isAiRewriteLoading;
+  const canOpenAiRewrite = !isAiRewriteLoading;
   const canRunAiRewrite = hasComposerText && hasAiRewriteTone && !isAiRewriteLoading;
   const canRetryAiRewrite = Boolean(
     !isAiRewriteLoading
@@ -2177,7 +2177,7 @@ const PostComposerModal = ({
     setHasAiRewriteResult(false);
 
     try {
-      const response = await fetch('/api/community/ai-rewrite.js', {
+      const response = await fetch('/api/community/ai-rewrite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2479,7 +2479,7 @@ const PostComposerModal = ({
                       onClick={() => {
                         if (!canOpenAiRewrite) return;
                         setAiRewriteError('');
-                        setShowAiRewritePanel((openState) => !openState);
+                        setShowAiRewritePanel(true);
                       }}
                       disabled={!canOpenAiRewrite}
                       className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full border border-white/20 text-white font-bold text-xs tracking-wide shadow-[0_0_20px_rgba(102,126,234,0.5),0_0_40px_rgba(245,87,108,0.3),0_0_60px_rgba(79,172,254,0.2)] transition-all duration-300 ${canOpenAiRewrite ? 'hover:shadow-[0_0_30px_rgba(102,126,234,0.7),0_0_50px_rgba(245,87,108,0.4)] hover:scale-110 hover:brightness-110' : 'opacity-45 cursor-not-allowed'}`}
