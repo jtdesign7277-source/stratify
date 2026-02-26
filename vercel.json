@@ -20,7 +20,7 @@
     },
     {
       "path": "/api/cron/warm-warroom?batch=scans",
-      "schedule": "0 13,15,17,19,21 * * 1-5"
+      "schedule": "0 13,14,15,16,17,18,19,20,21 * * 1-5"
     },
     {
       "path": "/api/cron/warm-warroom?batch=transcripts",

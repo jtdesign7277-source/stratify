@@ -3,7 +3,7 @@ import { Redis } from '@upstash/redis';
 const WARROOM_CACHE_PREFIX = 'warroom:scan';
 const TRANSCRIPT_CACHE_PREFIX = 'warroom:transcript';
 
-export const SCAN_TTL_SECONDS = 30 * 60; // 30 minutes
+export const SCAN_TTL_SECONDS = 2 * 60 * 60; // 2 hours (matches cron interval)
 export const TRANSCRIPT_TTL_SECONDS = 12 * 60 * 60; // 12 hours
 
 let redisClient = null;

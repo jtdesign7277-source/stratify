@@ -1,5 +1,7 @@
 import { getCachedScan, setCachedScan } from './lib/warroom-cache.js';
 
+export const config = { maxDuration: 60 };
+
 function extractSources(contentBlocks) {
   const sources = [];
   const seen = new Set();

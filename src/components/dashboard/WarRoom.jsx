@@ -73,7 +73,9 @@ const isFeedFresh = () => Date.now() - getFeedTimestamp() < CACHE_TTL_MS;
 
 const fetchCachedScan = async (label) => {
   try {
-    const res = await fetch(`/api/warroom?label=${encodeURIComponent(label)}`);
+    const res = await fetch(`/api/warroom?label=${encodeURIComponent(label)}`, {
+      signal: AbortSignal.timeout(15000),
+    });
     if (!res.ok) return null;
     const payload = await res.json().catch(() => null);
     if (!payload?.content) return null;
@@ -193,56 +195,57 @@ const renderInlineText = (text, keyPrefix) => {
   });
 };
 
+const renderLine = (line, index, keyPrefix) => {
+  const trimmed = line.trim();
+  if (!trimmed) return <div key={`${keyPrefix}-space-${index}`} className="h-3" />;
+
+  if (/^#{1,2}\s+/.test(trimmed)) {
+    const heading = trimmed.replace(/^#{1,2}\s+/, '');
+    return (
+      <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-bold text-lg leading-relaxed mt-3 mb-1">
+        {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
+      </h3>
+    );
+  }
+
+  if (/^#{3,6}\s+/.test(trimmed)) {
+    const heading = trimmed.replace(/^#{3,6}\s+/, '');
+    return (
+      <h4 key={`${keyPrefix}-heading-${index}`} className="text-white font-semibold text-base leading-relaxed mt-2 mb-0.5">
+        {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
+      </h4>
+    );
+  }
+
+  if (/^[-*•]\s+/.test(trimmed)) {
+    const bulletText = trimmed.replace(/^[-*•]\s+/, '');
+    return (
+      <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2 text-[15px] text-gray-300 leading-relaxed">
+        <span className="text-gray-500 mt-0.5">•</span>
+        <span>{renderInlineText(bulletText, `${keyPrefix}-bullet-text-${index}`)}</span>
+      </div>
+    );
+  }
+
+  if (/^\d+\.\s+/.test(trimmed)) {
+    return (
+      <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
+        {renderInlineText(trimmed, `${keyPrefix}-numbered-text-${index}`)}
+      </div>
+    );
+  }
+
+  return (
+    <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
+      {renderInlineText(trimmed, `${keyPrefix}-line-text-${index}`)}
+    </p>
+  );
+};
+
+// Split content into sections at headings, no save buttons (used in saved/folders views)
 const renderIntelBody = (content, keyPrefix) => {
   const lines = String(content || '').split('\n');
-  return lines.map((line, index) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      return <div key={`${keyPrefix}-space-${index}`} className="h-3" />;
-    }
-
-    if (/^#{1,2}\s+/.test(trimmed)) {
-      const heading = trimmed.replace(/^#{1,2}\s+/, '');
-      return (
-        <h3 key={`${keyPrefix}-heading-${index}`} className="text-white font-bold text-lg leading-relaxed mt-3 mb-1">
-          {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
-        </h3>
-      );
-    }
-
-    if (/^#{3,6}\s+/.test(trimmed)) {
-      const heading = trimmed.replace(/^#{3,6}\s+/, '');
-      return (
-        <h4 key={`${keyPrefix}-heading-${index}`} className="text-white font-semibold text-base leading-relaxed mt-2 mb-0.5">
-          {renderInlineText(heading, `${keyPrefix}-heading-text-${index}`)}
-        </h4>
-      );
-    }
-
-    if (/^[-*•]\s+/.test(trimmed)) {
-      const bulletText = trimmed.replace(/^[-*•]\s+/, '');
-      return (
-        <div key={`${keyPrefix}-bullet-${index}`} className="flex items-start gap-2 text-[15px] text-gray-300 leading-relaxed">
-          <span className="text-gray-500 mt-0.5">•</span>
-          <span>{renderInlineText(bulletText, `${keyPrefix}-bullet-text-${index}`)}</span>
-        </div>
-      );
-    }
-
-    if (/^\d+\.\s+/.test(trimmed)) {
-      return (
-        <div key={`${keyPrefix}-numbered-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
-          {renderInlineText(trimmed, `${keyPrefix}-numbered-text-${index}`)}
-        </div>
-      );
-    }
-
-    return (
-      <p key={`${keyPrefix}-line-${index}`} className="text-[15px] text-gray-300 leading-relaxed">
-        {renderInlineText(trimmed, `${keyPrefix}-line-text-${index}`)}
-      </p>
-    );
-  });
+  return lines.map((line, index) => renderLine(line, index, keyPrefix));
 };
 
 export default function WarRoom({ onClose }) {
@@ -297,6 +300,25 @@ export default function WarRoom({ onClose }) {
   };
 
   const [prefetching, setPrefetching] = useState(false);
+
+  const [sectionSaveMenu, setSectionSaveMenu] = useState(null); // { sectionKey, text }
+
+  const DEFAULT_FOLDER_NAMES = ['Market Movers', 'Earnings Intel', '$SPY Analysis', 'Fed & Macro', 'Sector Rotation', 'Crypto Pulse'];
+
+  // Ensure the 6 default folders exist on mount
+  useEffect(() => {
+    let state = getSavedIntelState();
+    const existing = new Set((state.folders || []).map(f => f.name));
+    let changed = false;
+    for (const name of DEFAULT_FOLDER_NAMES) {
+      if (!existing.has(name)) {
+        const result = createSavedIntelFolder(name);
+        state = result.state;
+        changed = true;
+      }
+    }
+    if (changed) setSavedState(state);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const timer = setTimeout(() => setIsGlitching(false), 200);
@@ -390,6 +412,9 @@ export default function WarRoom({ onClose }) {
       if (!inFolderContext) {
         setFolderContextMenu(null);
       }
+      // Close section save menu on outside click
+      const inSectionSave = Boolean(target.closest('[data-section-save]'));
+      if (!inSectionSave) setSectionSaveMenu(null);
     };
 
     window.addEventListener('storage', onStorage);
@@ -552,11 +577,15 @@ export default function WarRoom({ onClose }) {
     setError('');
     setIsLoading(true);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 65000); // 65s timeout
+
     try {
       const response = await fetch('/api/warroom', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: trimmedQuery, cacheLabel: titleOverride || '' }),
+        signal: controller.signal,
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -579,10 +608,32 @@ export default function WarRoom({ onClose }) {
       setQuery('');
       setActiveView('live');
     } catch (scanError) {
-      setError(scanError?.message || 'Scan failed. Try again.');
+      const msg = scanError?.name === 'AbortError'
+        ? 'Scan timed out. Try again — cached results load faster.'
+        : (scanError?.message || 'Scan failed. Try again.');
+      setError(msg);
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
+  };
+
+  const handleSaveSection = (sectionText, folderId) => {
+    if (!sectionText?.trim() || !folderId) return;
+    const lines = sectionText.trim().split('\n').slice(0, 10);
+    const text = lines.join('\n').slice(0, 1000);
+    const item = normalizeIntelItem({
+      id: `clip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: text.split('\n')[0].replace(/^#{1,6}\s+/, '').slice(0, 60) || 'Saved Intel',
+      content: text,
+      sources: [],
+      sourceLabel: 'Saved Clip',
+      createdAt: new Date().toISOString(),
+    });
+    const next = saveWarRoomIntel(item, folderId);
+    setSavedState(next);
+    setSectionSaveMenu(null);
+    showToast('Saved to folder');
   };
 
   const handleSaveSelection = () => {
@@ -616,6 +667,63 @@ export default function WarRoom({ onClose }) {
     setShowClipSave(false);
     setClipText('');
     showToast('Intel saved');
+  };
+
+  // Split intel content at headings, render save buttons between sections
+  const renderIntelBodyWithSave = (content, keyPrefix) => {
+    const lines = String(content || '').split('\n');
+    // Split into sections at ## or ### headings
+    const sections = [];
+    let current = { lines: [], raw: '' };
+    for (const line of lines) {
+      if (/^#{1,3}\s+/.test(line.trim()) && current.lines.length > 0) {
+        sections.push(current);
+        current = { lines: [], raw: '' };
+      }
+      current.lines.push(line);
+      current.raw += (current.raw ? '\n' : '') + line;
+    }
+    if (current.lines.length > 0) sections.push(current);
+
+    return sections.map((section, si) => {
+      const sectionKey = `${keyPrefix}-sec-${si}`;
+      const menuOpen = sectionSaveMenu === sectionKey;
+      return (
+        <div key={sectionKey}>
+          <div className="space-y-1">
+            {section.lines.map((line, li) => renderLine(line, li, `${sectionKey}-l`))}
+          </div>
+          {/* Purple divider + save button */}
+          <div className="relative flex items-center gap-2 my-3">
+            <div className="flex-1 h-px bg-purple-500/30" />
+            <div className="relative" data-section-save>
+              <button
+                type="button"
+                onClick={() => setSectionSaveMenu(menuOpen ? null : sectionKey)}
+                className="text-[10px] uppercase tracking-wider text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded px-2 py-0.5 transition-colors"
+              >
+                Save to Folder
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-6 z-40 w-48 rounded-lg border border-gray-700 bg-[#0a0f14] shadow-xl p-1.5">
+                  {folders.map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => handleSaveSection(section.raw, f.id)}
+                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-purple-500/10 hover:text-white transition-colors"
+                    >
+                      {f.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 h-px bg-purple-500/30" />
+          </div>
+        </div>
+      );
+    });
   };
 
   const fetchTranscript = async (symbol) => {
@@ -1182,7 +1290,7 @@ export default function WarRoom({ onClose }) {
                       ) : null}
                     </div>
 
-                    <div className="mt-3 space-y-1">{renderIntelBody(card.content, `feed-${card.id}`)}</div>
+                    <div className="mt-3 space-y-1">{renderIntelBodyWithSave(card.content, `feed-${card.id}`)}</div>
 
                     {sources.length > 0 ? (
                       <div className="mt-4 pt-3 border-t border-gray-800/70">
