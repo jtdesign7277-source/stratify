@@ -112,45 +112,51 @@ export default async function handler(req, res) {
   }
 
   const redis = getRedisClient();
-  if (!redis) {
-    return res.status(500).json({ error: 'Redis is required for AI rewrite cache and rate limits' });
-  }
-
   const cacheKey = makeCacheKey({ text, style, personality });
 
-  try {
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      const rewritten = String(
-        typeof cached === 'string'
-          ? cached
-          : cached?.rewritten || ''
-      ).trim();
-      if (rewritten) {
-        res.setHeader('X-Cache', 'HIT');
-        return res.status(200).json({ rewritten, cached: true });
+  if (redis) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        const rewritten = String(
+          typeof cached === 'string'
+            ? cached
+            : cached?.rewritten || ''
+        ).trim();
+        if (rewritten) {
+          res.setHeader('X-Cache', 'HIT');
+          return res.status(200).json({ rewritten, cached: true });
+        }
       }
+    } catch (error) {
+      console.error('[community/ai-rewrite] Redis read error:', error);
     }
-  } catch (error) {
-    console.error('[community/ai-rewrite] Redis read error:', error);
   }
 
   try {
-    const { allowed, count } = await checkRateLimit(redis);
-    if (!allowed) {
-      return res.status(429).json({
-        error: 'Rate limit exceeded. Please try again shortly.',
-        count,
-        limit: RATE_LIMIT_PER_MINUTE,
-      });
+    if (redis) {
+      try {
+        const { allowed, count } = await checkRateLimit(redis);
+        if (!allowed) {
+          return res.status(429).json({
+            error: 'Rate limit exceeded. Please try again shortly.',
+            count,
+            limit: RATE_LIMIT_PER_MINUTE,
+          });
+        }
+      } catch (error) {
+        console.error('[community/ai-rewrite] Redis rate-limit error:', error);
+      }
     }
 
     const rewritten = await callClaudeRewrite({ text, style, personality, apiKey });
 
-    try {
-      await redis.set(cacheKey, rewritten, { ex: CACHE_TTL_SECONDS });
-    } catch (error) {
-      console.error('[community/ai-rewrite] Redis write error:', error);
+    if (redis) {
+      try {
+        await redis.set(cacheKey, rewritten, { ex: CACHE_TTL_SECONDS });
+      } catch (error) {
+        console.error('[community/ai-rewrite] Redis write error:', error);
+      }
     }
 
     res.setHeader('X-Cache', 'MISS');
