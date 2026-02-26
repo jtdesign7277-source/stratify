@@ -1863,7 +1863,7 @@ const ChatInputBar = ({
   }, [addHashtagToMessage, removeHashtagFromMessage]);
 
   const send = async () => {
-    const trimmed = normalizeAiSearchQuery(message);
+    const trimmed = searchMode ? normalizeAiSearchQuery(message) : String(message || '').trim();
     if (!trimmed) return;
     const ok = searchMode
       ? await onSearch?.(trimmed)
@@ -1893,12 +1893,26 @@ const ChatInputBar = ({
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, [onModeChange]);
 
+  const openAiRewriteComposer = useCallback(() => {
+    if (searchMode) return;
+    const draft = String(message || '');
+    if (!draft.trim()) return;
+
+    onOpenComposer?.('general', {
+      prefilledText: draft,
+      openAiRewritePanel: true,
+    });
+
+    setMessage('');
+    setSuggestions([]);
+    setActiveSuggestion(0);
+    setDebouncedMessage('');
+    setSelectedHashtags([]);
+    setShowEmojiPicker(false);
+  }, [message, onOpenComposer, searchMode]);
+
   const handlePrimaryAction = () => {
-    if (searchMode) {
-      void send();
-      return;
-    }
-    onOpenComposer?.();
+    void send();
   };
 
   const handleKeyDown = (event) => {
@@ -1934,7 +1948,8 @@ const ChatInputBar = ({
       ? 'Connecting live tape...'
       : 'Live tape offline';
   const canUseInput = searchMode || Boolean(currentUser?.id);
-  const canOpenComposer = Boolean(currentUser?.id);
+  const hasMessage = Boolean(String(message || '').trim());
+  const canUseAiRewriteTransfer = !searchMode && canUseInput && hasMessage;
   const suggestionOpen = searchMode
     ? searchSuggestions.length > 0
     : Boolean(tickerQuery);
@@ -2039,51 +2054,71 @@ const ChatInputBar = ({
                 </div>
               ) : null}
 
-              <div className="relative ml-auto flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShowEmojiPicker((open) => !open)}
-                  className="inline-flex items-center justify-center transition-colors"
-                  style={{ color: T.muted }}
-                  title="Insert emoji"
-                >
-                  <SmilePlus size={16} strokeWidth={1.5} className="h-4 w-4" />
-                </button>
+              <div className="ml-auto flex items-center gap-2">
+                {!searchMode ? (
+                  <button
+                    type="button"
+                    onClick={openAiRewriteComposer}
+                    disabled={!canUseAiRewriteTransfer}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 text-white font-bold text-xs shadow-[0_0_12px_rgba(102,126,234,0.4)] transition-all duration-300 ${canUseAiRewriteTransfer ? 'hover:scale-105 hover:shadow-[0_0_20px_rgba(102,126,234,0.6)]' : 'opacity-40 pointer-events-none'}`}
+                    style={{
+                      background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #667eea)',
+                      backgroundSize: '400% 400%',
+                      animation: 'premiumShimmer 6s ease infinite',
+                    }}
+                    title="Open AI rewrite in composer"
+                  >
+                    <Wand2 strokeWidth={2} className="w-3.5 h-3.5 text-white" />
+                    <span className="text-white">AI Rewrite</span>
+                  </button>
+                ) : null}
 
-                <AnimatePresence initial={false}>
-                  {showEmojiPicker && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={OVERLAY_PANEL_TRANSITION}
-                    >
-                      <EmojiPicker
-                        align="right"
-                        onClose={() => setShowEmojiPicker(false)}
-                        onSelect={(emoji) => {
-                          setMessage((prev) => `${prev}${emoji}`);
-                          setShowEmojiPicker(false);
-                          window.requestAnimationFrame(() => inputRef.current?.focus());
-                        }}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker((open) => !open)}
+                    className="inline-flex items-center justify-center transition-colors"
+                    style={{ color: T.muted }}
+                    title="Insert emoji"
+                  >
+                    <SmilePlus size={16} strokeWidth={1.5} className="h-4 w-4" />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {showEmojiPicker && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        transition={OVERLAY_PANEL_TRANSITION}
+                      >
+                        <EmojiPicker
+                          align="right"
+                          onClose={() => setShowEmojiPicker(false)}
+                          onSelect={(emoji) => {
+                            setMessage((prev) => `${prev}${emoji}`);
+                            setShowEmojiPicker(false);
+                            window.requestAnimationFrame(() => inputRef.current?.focus());
+                          }}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
                 <button
                   type="button"
                   onClick={handlePrimaryAction}
-                  disabled={searchMode ? (!canUseInput || !message.trim()) : !canOpenComposer}
+                  disabled={!canUseInput || !hasMessage}
                   className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
-                  title={searchMode ? 'Run AI search' : 'Open community composer'}
+                  title={searchMode ? 'Run AI search' : 'Publish quick post'}
                 >
                   {searchMode ? (
                     <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
                   ) : (
                     <Send size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
                   )}
-                  <span>{searchMode ? 'Enter' : 'New Post'}</span>
+                  <span>{searchMode ? 'Enter' : 'Post'}</span>
                 </button>
               </div>
             </div>
@@ -2254,6 +2289,9 @@ const PostComposerModal = ({
   closedTrades = [],
   submitting = false,
   initialPostType = 'general',
+  prefilledText = '',
+  openAiRewritePanelOnOpen = false,
+  onConsumePrefilledText,
   onSubmit,
 }) => {
   const [content, setContent] = useState('');
@@ -2275,28 +2313,46 @@ const PostComposerModal = ({
   const [rewriteResultVersion, setRewriteResultVersion] = useState(0);
   const fileRef = useRef(null);
   const textareaRef = useRef(null);
+  const hasInitializedOnOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasInitializedOnOpenRef.current = false;
+      return;
+    }
+    if (hasInitializedOnOpenRef.current) return;
+    hasInitializedOnOpenRef.current = true;
+
+    const draftPrefill = String(prefilledText || '');
+    const hasDraftPrefill = Boolean(draftPrefill.trim());
+
     setPostType(sanitizePostType(initialPostType));
     setSelectedTradeId(closedTrades[0]?.id || '');
     setSelectedSlipEmojis([]);
-    setContent('');
+    setContent(hasDraftPrefill ? draftPrefill : '');
     setImageFile(null);
     setImagePreview('');
     setShowEmojiPicker(false);
-    setShowAiRewritePanel(false);
+    setShowAiRewritePanel(hasDraftPrefill && openAiRewritePanelOnOpen);
     setSelectedRewriteStyle('');
     setSelectedRewritePersonality('');
     setSelectedRewriteHashtags([]);
     setIsAiRewriteLoading(false);
     setAiRewriteError('');
-    setOriginalDraft('');
+    setOriginalDraft(hasDraftPrefill ? draftPrefill : '');
     setHasAiRewriteResult(false);
     setLastAiRewriteConfig({ styleId: '', personalityId: '' });
     setRewriteResultVersion(0);
     if (fileRef.current) fileRef.current.value = '';
-  }, [open, initialPostType, closedTrades]);
+    if (hasDraftPrefill) onConsumePrefilledText?.();
+  }, [
+    open,
+    initialPostType,
+    closedTrades,
+    prefilledText,
+    openAiRewritePanelOnOpen,
+    onConsumePrefilledText,
+  ]);
 
   useEffect(() => {
     if (!imagePreview) return undefined;
@@ -4609,6 +4665,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSubmitting, setComposerSubmitting] = useState(false);
   const [composerInitialType, setComposerInitialType] = useState('general');
+  const [composerPrefilledText, setComposerPrefilledText] = useState('');
+  const [composerOpenRewritePanel, setComposerOpenRewritePanel] = useState(false);
   const [quoteMap, setQuoteMap] = useState({});
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [aiSearchResults, setAiSearchResults] = useState([]);
@@ -5589,8 +5647,24 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     };
   }, [activeFeedTag, activeHashtagCacheEntry, filteredPosts.length]);
 
-  const openComposer = (type = 'general') => {
+  const consumeComposerPrefill = useCallback(() => {
+    setComposerPrefilledText('');
+    setComposerOpenRewritePanel(false);
+  }, []);
+
+  const closeComposer = useCallback(() => {
+    setComposerOpen(false);
+    consumeComposerPrefill();
+  }, [consumeComposerPrefill]);
+
+  const openComposer = (type = 'general', options = {}) => {
+    const draftPrefill = String(options?.prefilledText || '');
+    const shouldOpenRewritePanel = Boolean(
+      options?.openAiRewritePanel && draftPrefill.trim(),
+    );
     setComposerInitialType(type);
+    setComposerPrefilledText(draftPrefill);
+    setComposerOpenRewritePanel(shouldOpenRewritePanel);
     setComposerOpen(true);
   };
   const hasAiSearchCards = aiSearchPending.length > 0 || aiSearchResults.length > 0;
@@ -5856,7 +5930,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         streamStatus={streamStatus}
                         searchMode={searchMode}
                         onModeChange={handleSearchModeChange}
-                        onOpenComposer={() => openComposer('general')}
+                        onOpenComposer={openComposer}
                         onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
                         onSearch={runAiSearch}
                       />
@@ -5874,13 +5948,16 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
       <PostComposerModal
         open={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        onClose={closeComposer}
         currentUser={currentUser}
         currentUserAvatarUrl={activeAvatarUrl}
         displayName={activeDisplayName}
         closedTrades={closedTrades}
         submitting={composerSubmitting}
         initialPostType={composerInitialType}
+        prefilledText={composerPrefilledText}
+        openAiRewritePanelOnOpen={composerOpenRewritePanel}
+        onConsumePrefilledText={consumeComposerPrefill}
         onSubmit={createPost}
       />
 
