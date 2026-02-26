@@ -1069,38 +1069,30 @@ const ChatInputBar = ({
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         className="relative"
       >
-        <div className="relative flex items-end gap-2">
-          <div className="relative flex-1">
-            <SuggestionPopover
-              open={suggestionOpen}
-              mode={searchMode ? 'search' : 'post'}
-              loading={searchMode ? false : suggestionsLoading}
-              suggestions={suggestionRows}
-              activeIndex={activeSuggestion}
-              onPick={applySuggestion}
-            />
+        <div className="relative">
+          <SuggestionPopover
+            open={suggestionOpen}
+            mode={searchMode ? 'search' : 'post'}
+            loading={searchMode ? false : suggestionsLoading}
+            suggestions={suggestionRows}
+            activeIndex={activeSuggestion}
+            onPick={applySuggestion}
+          />
 
-            <div
-              className="flex items-start gap-2 rounded-2xl border py-3 px-4"
-              style={{
-                backgroundColor: '#151b23',
-                borderColor: 'rgba(255,255,255,0.06)',
-              }}
-            >
-              <button
-                type="button"
-                onClick={onOpenComposer}
-                className="h-7 w-7 rounded-lg transition-colors hover:bg-white/5"
-                style={{ color: T.muted }}
-                title="Open composer"
-              >
-                <Plus size={13} className="mx-auto" />
-              </button>
+          <div
+            className="rounded-xl border px-3.5 pt-3 pb-2.5 min-h-[98px]"
+            style={{
+              backgroundColor: '#151b23',
+              borderColor: 'rgba(255,255,255,0.06)',
+            }}
+          >
+            <div className="flex items-start gap-2.5">
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
-                className="h-7 w-7 rounded-lg transition-colors"
+                className="h-7 w-7 flex-shrink-0 rounded-full border transition-colors"
                 style={{
+                  borderColor: T.border,
                   color: searchMode ? T.blue : T.muted,
                   backgroundColor: searchMode ? 'rgba(88,166,255,0.14)' : 'transparent',
                 }}
@@ -1116,55 +1108,71 @@ const ChatInputBar = ({
                 onKeyDown={handleKeyDown}
                 rows={1}
                 placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
-                className="w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
+                className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
                 style={{ color: T.text }}
                 disabled={!canUseInput}
               />
             </div>
-          </div>
 
-          <div className="relative flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onOpenComposer}
-              className="h-9 px-3 rounded-2xl border text-xs font-medium transition-colors"
-              style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
-              title="Open composer"
-            >
-              Compose
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEmojiPicker((open) => !open)}
-              className="h-9 w-9 rounded-2xl border transition-colors"
-              style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.8)' }}
-              title="Insert emoji"
-            >
-              <SmilePlus size={14} className="mx-auto" />
-            </button>
+            <div className="mt-2.5 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={onOpenComposer}
+                className="h-7 w-7 rounded-full border transition-colors hover:bg-white/5"
+                style={{ borderColor: T.border, color: T.muted }}
+                title="Open composer"
+              >
+                <Plus size={12} className="mx-auto" />
+              </button>
 
-            {showEmojiPicker && (
-              <EmojiPicker
-                align="right"
-                onClose={() => setShowEmojiPicker(false)}
-                onSelect={(emoji) => {
-                  setMessage((prev) => `${prev}${emoji}`);
-                  setShowEmojiPicker(false);
-                  window.requestAnimationFrame(() => inputRef.current?.focus());
-                }}
-              />
-            )}
+              <div className="relative flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onOpenComposer}
+                  className="h-8 px-3 rounded-full border text-xs font-medium transition-colors"
+                  style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
+                  title="Open composer"
+                >
+                  Compose
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((open) => !open)}
+                  className="h-8 w-8 rounded-full border transition-colors"
+                  style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.8)' }}
+                  title="Insert emoji"
+                >
+                  <SmilePlus size={13} className="mx-auto" />
+                </button>
 
-            <button
-              type="button"
-              onClick={() => void send()}
-              disabled={!canUseInput || !message.trim()}
-              className="h-9 w-9 rounded-2xl text-black disabled:opacity-45 transition-all"
-              style={{ backgroundColor: T.blue }}
-              title={searchMode ? 'Run AI search' : 'Send quick post'}
-            >
-              {searchMode ? <Search size={14} strokeWidth={1.5} className="mx-auto" /> : <Send size={14} className="mx-auto" />}
-            </button>
+                {showEmojiPicker && (
+                  <EmojiPicker
+                    align="right"
+                    onClose={() => setShowEmojiPicker(false)}
+                    onSelect={(emoji) => {
+                      setMessage((prev) => `${prev}${emoji}`);
+                      setShowEmojiPicker(false);
+                      window.requestAnimationFrame(() => inputRef.current?.focus());
+                    }}
+                  />
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => void send()}
+                  disabled={!canUseInput || !message.trim()}
+                  className="h-8 w-8 rounded-full border disabled:opacity-45 transition-all"
+                  style={{
+                    borderColor: T.border,
+                    color: canUseInput && message.trim() ? T.text : T.muted,
+                    backgroundColor: canUseInput && message.trim() ? 'rgba(88,166,255,0.14)' : 'transparent',
+                  }}
+                  title={searchMode ? 'Run AI search' : 'Send quick post'}
+                >
+                  <ArrowUp size={13} className="mx-auto" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
