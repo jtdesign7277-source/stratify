@@ -36,6 +36,11 @@ const PROFILE_AVATAR_SEEDS_PER_STYLE = 24;
 const PROFILE_AVATAR_BACKGROUND_COLORS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';
 const PROFILE_AVATAR_FALLBACK_COLOR = '#58a6ff';
 const QUICK_POST_HASHTAGS = ['#earnings', '#momentum', '#macro', '#options', '#sentiment'];
+const USER_AVATAR_SEED_STORAGE_KEY = 'stratify_user_avatar_seed';
+const USER_AVATAR_URL_STORAGE_KEY = 'stratify_user_avatar_url';
+const DISPLAY_NAME_STORAGE_KEY = 'stratify_display_name';
+const HASHTAG_WEB_CACHE_STORAGE_KEY = 'stratify_hashtag_cache';
+const HASHTAG_WEB_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
 const buildProfileAvatarUrl = (style, seed) => (
   `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=128&radius=50&backgroundType=gradientLinear&backgroundColor=${PROFILE_AVATAR_BACKGROUND_COLORS}`
@@ -73,6 +78,32 @@ const getAvatarSeed = (user) => (
     || 'stratify-user'
   ).trim()
 );
+
+const buildCurrentUserAvatarUrl = (seed) => (
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(String(seed || 'Anonymous').trim() || 'Anonymous')}`
+);
+
+const readCurrentUserAvatar = (fallbackSeed = 'Anonymous') => {
+  const safeFallbackSeed = String(fallbackSeed || 'Anonymous').trim() || 'Anonymous';
+  if (typeof window === 'undefined') {
+    return { seed: safeFallbackSeed, url: buildCurrentUserAvatarUrl(safeFallbackSeed) };
+  }
+
+  let storedSeed = '';
+  let storedDisplayName = '';
+  let storedUrl = '';
+  try {
+    storedSeed = String(window.localStorage.getItem(USER_AVATAR_SEED_STORAGE_KEY) || '').trim();
+    storedDisplayName = String(window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || '').trim();
+    storedUrl = String(window.localStorage.getItem(USER_AVATAR_URL_STORAGE_KEY) || '').trim();
+  } catch {
+    // localStorage sync is best effort only
+  }
+
+  const seed = storedSeed || storedDisplayName || safeFallbackSeed;
+  const url = storedUrl || buildCurrentUserAvatarUrl(seed);
+  return { seed, url };
+};
 
 const getResolvedAvatarUrl = (user) => {
   const rawAvatarUrl = String(user?.avatar_url || '').trim();
@@ -718,8 +749,6 @@ const BASE_STREAM_STATUS = {
 };
 
 const FEED_HASHTAGS = ['#Earnings', '#Momentum', '#Macro', '#Options', '#Sentiment'];
-const HASHTAG_WEB_CACHE_BUCKET_MS = 30 * 60 * 1000;
-const HASHTAG_WEB_CACHE_PREFIX = 'hashtag_web';
 const HASHTAG_WEB_MIN_VISIBLE_POSTS = 3;
 const HASHTAG_WEB_MAX_RESULTS = 5;
 
@@ -768,38 +797,6 @@ const getBotHashtagContextLine = (tag, symbol, index) => {
   return String(template || '').trim();
 };
 
-const getHashtagWebCacheKey = (tag, now = Date.now()) => {
-  const normalizedTag = normalizeFeedHashtag(tag);
-  if (!normalizedTag) return '';
-  const bucket = Math.floor(now / HASHTAG_WEB_CACHE_BUCKET_MS);
-  return `${HASHTAG_WEB_CACHE_PREFIX}_${normalizedTag}_${bucket}`;
-};
-
-const readHashtagWebCache = (tag) => {
-  if (typeof window === 'undefined') return null;
-  const key = getHashtagWebCacheKey(tag);
-  if (!key) return null;
-
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]');
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const writeHashtagWebCache = (tag, rows = []) => {
-  if (typeof window === 'undefined') return;
-  const key = getHashtagWebCacheKey(tag);
-  if (!key) return;
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(Array.isArray(rows) ? rows : []));
-  } catch {
-    // best effort local cache only
-  }
-};
-
 const normalizeHashtagWebTickers = (rows = []) => {
   const seen = new Set();
   return (Array.isArray(rows) ? rows : [])
@@ -831,6 +828,45 @@ const normalizeHashtagWebResults = (rows = []) => {
       return true;
     })
     .slice(0, HASHTAG_WEB_MAX_RESULTS);
+};
+
+const readStoredHashtagWebCache = () => {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const saved = window.localStorage.getItem(HASHTAG_WEB_CACHE_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : {};
+    const valid = {};
+    const now = Date.now();
+
+    Object.keys(parsed || {}).forEach((rawKey) => {
+      const key = normalizeFeedHashtag(rawKey);
+      if (!key) return;
+
+      const entry = parsed?.[rawKey];
+      const timestamp = Number(entry?.timestamp);
+      if (!Number.isFinite(timestamp)) return;
+      if (now - timestamp >= HASHTAG_WEB_CACHE_TTL_MS) return;
+
+      valid[key] = {
+        data: normalizeHashtagWebResults(entry?.data || []),
+        timestamp,
+      };
+    });
+
+    return valid;
+  } catch {
+    return {};
+  }
+};
+
+const persistHashtagWebCache = (cache = {}) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(HASHTAG_WEB_CACHE_STORAGE_KEY, JSON.stringify(cache || {}));
+  } catch {
+    // localStorage sync is best effort only
+  }
 };
 
 const LEFT_RAIL_ITEMS = [
@@ -1599,6 +1635,7 @@ const SuggestionPopover = ({
 
 const ChatInputBar = ({
   currentUser,
+  currentUserAvatarUrl,
   trackedSymbols,
   quoteMap,
   streamStatus,
@@ -1853,6 +1890,12 @@ const ChatInputBar = ({
     ? 'Enter to search, Shift+Enter for newline'
     : 'Enter to send, Shift+Enter for newline';
   const contextualStatus = statusText;
+  const chatAvatarSeed = String(currentUser?.display_name || currentUser?.email || 'Anonymous Trader').trim() || 'Anonymous Trader';
+  const chatAvatarUrl = String(
+    currentUserAvatarUrl
+    || currentUser?.avatar_url
+    || buildCurrentUserAvatarUrl(chatAvatarSeed)
+  ).trim();
 
   return (
     <div className="max-w-3xl mx-auto w-full">
@@ -1880,6 +1923,17 @@ const ChatInputBar = ({
             }}
           >
             <div className="flex flex-1 items-start gap-2.5 px-3.5 pt-3">
+              <div className="mt-0.5 flex-shrink-0">
+                <UserAvatar
+                  user={{
+                    ...(currentUser || {}),
+                    display_name: chatAvatarSeed,
+                    avatar_url: chatAvatarUrl,
+                  }}
+                  size={32}
+                  initialsClassName="text-xs"
+                />
+              </div>
               <div className="mt-0.5 flex-shrink-0 flex items-center gap-1">
                 <button
                   type="button"
@@ -2142,6 +2196,7 @@ const PostComposerModal = ({
   open,
   onClose,
   currentUser,
+  currentUserAvatarUrl,
   displayName,
   closedTrades = [],
   submitting = false,
@@ -2214,6 +2269,11 @@ const PostComposerModal = ({
   const composerDisplayName = String(
     displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Guest Trader'
   ).trim() || 'Guest Trader';
+  const composerAvatarUrl = String(
+    currentUserAvatarUrl
+    || currentUser?.avatar_url
+    || buildCurrentUserAvatarUrl(composerDisplayName)
+  ).trim();
 
   const canAutofillSlip = postType === 'pnl' && selectedTrade;
   const hasComposerText = Boolean(content.trim());
@@ -2842,8 +2902,17 @@ const PostComposerModal = ({
               className="px-4 py-3 border-t flex items-center justify-between"
               style={{ borderColor: T.border }}
             >
-              <div className="text-xs" style={{ color: T.text }}>
-                Posting as {composerDisplayName}
+              <div className="inline-flex items-center gap-2 text-xs" style={{ color: T.text }}>
+                <UserAvatar
+                  user={{
+                    ...(currentUser || {}),
+                    display_name: composerDisplayName,
+                    avatar_url: composerAvatarUrl,
+                  }}
+                  size={24}
+                  initialsClassName="text-[10px]"
+                />
+                <span>Posting as {composerDisplayName}</span>
               </div>
 
               <button
@@ -3007,7 +3076,7 @@ const ReactionBar = ({
   );
 };
 
-const PostCard = ({ post, currentUser, onDelete, displayName }) => {
+const PostCard = ({ post, currentUser, currentUserAvatarUrl, onDelete, displayName }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(toFiniteNumber(post.likes_count ?? post.likes, 0));
   const [showReplies, setShowReplies] = useState(false);
@@ -3021,7 +3090,11 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
   const resolvedDisplayName = String(
     displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader'
   ).trim() || 'Trader';
-  const resolvedReplyAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(resolvedDisplayName)}`;
+  const resolvedReplyAvatar = String(
+    currentUserAvatarUrl
+    || currentUser?.avatar_url
+    || buildCurrentUserAvatarUrl(resolvedDisplayName)
+  ).trim();
 
   const initialReactions = useMemo(() => {
     if (Array.isArray(post?.reaction_summary)) return post.reaction_summary;
@@ -3239,7 +3312,9 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
   };
 
   const isOwner = currentUser?.id && currentUser.id === post.user_id;
-  const profileForRender = isOwner ? { ...profile, display_name: resolvedDisplayName } : profile;
+  const profileForRender = isOwner
+    ? { ...profile, display_name: resolvedDisplayName, avatar_url: resolvedReplyAvatar }
+    : profile;
   const postAuthorLabel = profileForRender?.display_name || post.author_name || profileForRender?.email?.split('@')[0] || 'Trader';
   const repliesCount = Math.max(localRepliesCount, replies.length);
   const normalizedPostType = sanitizePostType(post?.post_type);
@@ -3413,7 +3488,7 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
                       };
                       const isCurrentUserReply = currentUser?.id && reply?.user_id === currentUser.id;
                       const replyProfileForRender = isCurrentUserReply
-                        ? { ...replyProfile, display_name: resolvedDisplayName }
+                        ? { ...replyProfile, display_name: resolvedDisplayName, avatar_url: resolvedReplyAvatar }
                         : replyProfile;
                       return (
                         <div key={reply.id} className="flex gap-2">
@@ -3486,6 +3561,7 @@ const LeftRail = ({
   onTogglePriceAlert,
   onDeletePriceAlert,
   currentUser,
+  avatarUrl,
   displayName,
   isEditingName,
   editName,
@@ -3495,8 +3571,8 @@ const LeftRail = ({
 }) => {
   const [feedsOpen, setFeedsOpen] = useState(true);
   const [priceAlertsOpen, setPriceAlertsOpen] = useState(true);
-  const profileAvatarSeed = displayName || '';
-  const profileAvatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profileAvatarSeed)}`;
+  const profileAvatarSeed = displayName || 'Anonymous Trader';
+  const profileAvatarUrl = String(avatarUrl || buildCurrentUserAvatarUrl(profileAvatarSeed)).trim();
   const profileUser = currentUser ? {
     ...currentUser,
     display_name: displayName || currentUser.display_name,
@@ -4482,6 +4558,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [hashtagWebLoading, setHashtagWebLoading] = useState(false);
   const [hashtagWebTag, setHashtagWebTag] = useState('');
   const [hashtagWebError, setHashtagWebError] = useState('');
+  const [hashtagWebCache, setHashtagWebCache] = useState(() => readStoredHashtagWebCache());
   const [priceAlerts, setPriceAlerts] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -4499,16 +4576,23 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [displayName, setDisplayName] = useState(() => {
     if (typeof window === 'undefined') return 'Anonymous Trader';
     try {
-      return window.localStorage.getItem('stratify_display_name') || 'Anonymous Trader';
+      return window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || 'Anonymous Trader';
     } catch {
       return 'Anonymous Trader';
     }
   });
+  const [currentUserAvatar, setCurrentUserAvatar] = useState(() => readCurrentUserAvatar('Anonymous Trader'));
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const activeDisplayName = String(
     displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Anonymous Trader'
   ).trim().slice(0, 24) || 'Anonymous Trader';
+  const activeAvatarSeed = String(
+    currentUserAvatar?.seed || activeDisplayName || 'Anonymous Trader'
+  ).trim() || 'Anonymous Trader';
+  const activeAvatarUrl = String(
+    currentUserAvatar?.url || buildCurrentUserAvatarUrl(activeAvatarSeed)
+  ).trim() || buildCurrentUserAvatarUrl(activeAvatarSeed);
   const priceAlertPopoverRef = useRef(null);
   const alertToastTimersRef = useRef(new Map());
 
@@ -4617,13 +4701,35 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, []);
 
   useEffect(() => {
+    persistHashtagWebCache(hashtagWebCache);
+  }, [hashtagWebCache]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const syncAvatarFromStorage = () => {
+      const nextAvatar = readCurrentUserAvatar(activeDisplayName);
+      setCurrentUserAvatar((prev) => {
+        if (prev?.seed === nextAvatar.seed && prev?.url === nextAvatar.url) return prev;
+        return nextAvatar;
+      });
+    };
+
+    syncAvatarFromStorage();
+    window.addEventListener('storage', syncAvatarFromStorage);
+    return () => {
+      window.removeEventListener('storage', syncAvatarFromStorage);
+    };
+  }, [activeDisplayName]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const getUser = async () => {
       let localDisplayName = '';
       if (typeof window !== 'undefined') {
         try {
-          localDisplayName = String(window.localStorage.getItem('stratify_display_name') || '').trim().slice(0, 24);
+          localDisplayName = String(window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || '').trim().slice(0, 24);
           if (localDisplayName) setDisplayName(localDisplayName);
         } catch {
           localDisplayName = '';
@@ -4663,19 +4769,30 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         setDisplayName(resolvedDisplayName);
         if (typeof window !== 'undefined') {
           try {
-            if (remoteDisplayName) {
-              window.localStorage.setItem('stratify_display_name', resolvedDisplayName);
+            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, resolvedDisplayName);
+            const existingAvatarSeed = String(window.localStorage.getItem(USER_AVATAR_SEED_STORAGE_KEY) || '').trim();
+            if (!existingAvatarSeed) {
+              window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, resolvedDisplayName);
+            }
+
+            const existingAvatarUrl = String(window.localStorage.getItem(USER_AVATAR_URL_STORAGE_KEY) || '').trim();
+            const remoteAvatarUrl = String(profile?.avatar_url || user.user_metadata?.avatar_url || '').trim();
+            if (!existingAvatarUrl && remoteAvatarUrl) {
+              window.localStorage.setItem(USER_AVATAR_URL_STORAGE_KEY, remoteAvatarUrl);
             }
           } catch {
             // localStorage sync is best effort only
           }
         }
 
+        const resolvedAvatar = readCurrentUserAvatar(resolvedDisplayName);
+        setCurrentUserAvatar(resolvedAvatar);
+
         setCurrentUser({
           id: user.id,
           email: user.email,
           display_name: resolvedDisplayName,
-          avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url,
+          avatar_url: resolvedAvatar.url,
           avatar_color: user.user_metadata?.avatar_color || null,
         });
       } catch {
@@ -4693,10 +4810,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   useEffect(() => {
     setCurrentUser((prev) => {
       if (!prev) return prev;
-      if (String(prev.display_name || '').trim() === activeDisplayName) return prev;
-      return { ...prev, display_name: activeDisplayName };
+      const sameDisplayName = String(prev.display_name || '').trim() === activeDisplayName;
+      const sameAvatarUrl = String(prev.avatar_url || '').trim() === activeAvatarUrl;
+      if (sameDisplayName && sameAvatarUrl) return prev;
+      return { ...prev, display_name: activeDisplayName, avatar_url: activeAvatarUrl };
     });
-  }, [activeDisplayName]);
+  }, [activeAvatarUrl, activeDisplayName]);
 
   const handleSaveName = useCallback(async () => {
     const trimmedInput = String(editName || '').trim();
@@ -4711,10 +4830,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setIsEditingName(false);
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.setItem('stratify_display_name', trimmedName);
+        window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, trimmedName);
+        window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, trimmedName);
       } catch {
         // localStorage sync is best effort only
       }
+      window.dispatchEvent(new Event('storage'));
     }
 
     try {
@@ -4800,10 +4921,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   useEffect(() => {
     void fetchPosts();
   }, [fetchPosts]);
-
-  useEffect(() => {
-    void fetch('/api/community/precache-hashtags').catch(() => {});
-  }, []);
 
   useEffect(() => {
     const channel = supabase
@@ -5028,7 +5145,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         profiles: {
           id: 'local-user',
           display_name: 'Guest Trader',
-          avatar_url: null,
+          avatar_url: activeAvatarUrl,
           avatar_color: null,
           email: null,
         },
@@ -5081,7 +5198,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         profiles: {
           id: currentUser.id,
           display_name: activeDisplayName,
-          avatar_url: currentUser.avatar_url,
+          avatar_url: activeAvatarUrl,
           avatar_color: currentUser.avatar_color || null,
           email: currentUser.email,
         },
@@ -5107,7 +5224,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         profiles: {
           id: currentUser.id,
           display_name: activeDisplayName,
-          avatar_url: currentUser.avatar_url,
+          avatar_url: activeAvatarUrl,
           avatar_color: currentUser.avatar_color || null,
           email: currentUser.email,
         },
@@ -5119,7 +5236,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     } finally {
       setComposerSubmitting(false);
     }
-  }, [activeDisplayName, currentUser, prependPost]);
+  }, [activeAvatarUrl, activeDisplayName, currentUser, prependPost]);
 
   const handleDeletePost = async (postId, isMock) => {
     const confirmed = window.confirm('Delete this post?');
@@ -5275,6 +5392,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   ), [activeFeedFilter, posts]);
 
   const shouldShowWebFallback = Boolean(activeFeedFilter) && filteredPosts.length < HASHTAG_WEB_MIN_VISIBLE_POSTS;
+  const activeHashtagCacheEntry = activeFeedTag ? hashtagWebCache[activeFeedTag] : null;
+  const hasCachedHashtagWebEntry = Boolean(activeHashtagCacheEntry);
   const hasActiveHashtagWebResults = shouldShowWebFallback
     && Boolean(activeFeedTag)
     && hashtagWebTag === activeFeedTag
@@ -5283,7 +5402,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const activeHashtagWebError = hashtagWebTag === activeFeedTag ? hashtagWebError : '';
   const isHashtagWebPending = shouldShowWebFallback
     && Boolean(activeFeedTag)
-    && (hashtagWebLoading || hashtagWebTag !== activeFeedTag);
+    && hashtagWebLoading
+    && hashtagWebTag === activeFeedTag
+    && !hasCachedHashtagWebEntry;
+  const shouldShowSearchingWebMessage = shouldShowWebFallback
+    && isHashtagWebPending
+    && !hasCachedHashtagWebEntry;
   const shouldShowNoPostsMessage = filteredPosts.length === 0
     && (!shouldShowWebFallback || (!isHashtagWebPending && !hasActiveHashtagWebResults));
 
@@ -5302,11 +5426,23 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setHashtagWebTag(tag);
     setHashtagWebError('');
 
-    const cached = normalizeHashtagWebResults(readHashtagWebCache(tag) || []);
-    if (cached.length > 0) {
-      setHashtagWebResults(cached);
+    const cachedTimestamp = Number(activeHashtagCacheEntry?.timestamp);
+    const isCachedFresh = Number.isFinite(cachedTimestamp)
+      && (Date.now() - cachedTimestamp < HASHTAG_WEB_CACHE_TTL_MS);
+    if (isCachedFresh) {
+      setHashtagWebResults(normalizeHashtagWebResults(activeHashtagCacheEntry?.data || []));
       setHashtagWebLoading(false);
       return undefined;
+    }
+
+    if (activeHashtagCacheEntry && !isCachedFresh) {
+      setHashtagWebCache((prev) => {
+        if (!prev?.[tag]) return prev;
+        const next = { ...prev };
+        delete next[tag];
+        persistHashtagWebCache(next);
+        return next;
+      });
     }
 
     setHashtagWebResults([]);
@@ -5335,7 +5471,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         if (cancelled) return;
 
         setHashtagWebResults(rows);
-        writeHashtagWebCache(tag, rows);
+        setHashtagWebCache((prev) => {
+          const updated = { ...prev, [tag]: { data: rows, timestamp: Date.now() } };
+          persistHashtagWebCache(updated);
+          return updated;
+        });
       } catch (fetchError) {
         if (cancelled) return;
         setHashtagWebResults([]);
@@ -5350,7 +5490,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return () => {
       cancelled = true;
     };
-  }, [activeFeedTag, filteredPosts.length]);
+  }, [activeFeedTag, activeHashtagCacheEntry, filteredPosts.length]);
 
   const openComposer = (type = 'general') => {
     setComposerInitialType(type);
@@ -5386,6 +5526,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               onTogglePriceAlert={togglePriceAlert}
               onDeletePriceAlert={deletePriceAlert}
               currentUser={currentUser}
+              avatarUrl={activeAvatarUrl}
               displayName={activeDisplayName}
               isEditingName={isEditingName}
               editName={editName}
@@ -5538,6 +5679,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                                     key={post.id}
                                     post={post}
                                     currentUser={currentUser}
+                                    currentUserAvatarUrl={activeAvatarUrl}
                                     onDelete={handleDeletePost}
                                     displayName={activeDisplayName}
                                   />
@@ -5547,9 +5689,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
                             {shouldShowWebFallback ? (
                               <div className="mt-3 border-t border-white/6 pt-3 space-y-2">
-                                <div className="text-xs text-[#7d8590]">
-                                  Searching the web for more...
-                                </div>
+                                {shouldShowSearchingWebMessage ? (
+                                  <div className="text-xs text-[#7d8590]">
+                                    Searching the web for more...
+                                  </div>
+                                ) : null}
                                 <div className="text-xs text-[#7d8590] uppercase tracking-wider">
                                   Trending on the web
                                 </div>
@@ -5609,6 +5753,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     <div className="px-3 pb-3 pt-3">
                       <ChatInputBar
                         currentUser={currentUser}
+                        currentUserAvatarUrl={activeAvatarUrl}
                         trackedSymbols={trackedSymbols}
                         quoteMap={quoteMap}
                         streamStatus={streamStatus}
@@ -5632,6 +5777,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         open={composerOpen}
         onClose={() => setComposerOpen(false)}
         currentUser={currentUser}
+        currentUserAvatarUrl={activeAvatarUrl}
         displayName={activeDisplayName}
         closedTrades={closedTrades}
         submitting={composerSubmitting}

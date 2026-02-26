@@ -52,6 +52,65 @@ const PLANS = {
   free: { name: 'Free', price: 0, color: 'gray', features: ['$100K Paper Money', '3 Active Strategies', '10 Backtests/mo', '50 AI Queries'] },
   pro: { name: 'Pro', price: 19.99, color: 'cyan', badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', features: ['Unlimited Strategies', '500 Backtests/mo', '1000 AI Queries', 'Arbitrage Scanner'] },
 };
+const USER_AVATAR_SEED_STORAGE_KEY = 'stratify_user_avatar_seed';
+const USER_AVATAR_URL_STORAGE_KEY = 'stratify_user_avatar_url';
+const DISPLAY_NAME_STORAGE_KEY = 'stratify_display_name';
+const DEFAULT_AVATAR_SEED = 'Anonymous';
+
+const buildUnifiedAvatarUrl = (seed) =>
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(String(seed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED)}`;
+
+const readStoredDisplayName = () => {
+  if (typeof window === 'undefined') return '';
+  try {
+    return String(window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const readStoredAvatarSeed = (fallbackSeed = DEFAULT_AVATAR_SEED) => {
+  if (typeof window === 'undefined') return String(fallbackSeed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED;
+  try {
+    const storedSeed = String(window.localStorage.getItem(USER_AVATAR_SEED_STORAGE_KEY) || '').trim();
+    const storedDisplayName = readStoredDisplayName();
+    return storedSeed || storedDisplayName || String(fallbackSeed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED;
+  } catch {
+    return String(fallbackSeed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED;
+  }
+};
+
+const readStoredAvatarUrl = () => {
+  if (typeof window === 'undefined') return '';
+  try {
+    return String(window.localStorage.getItem(USER_AVATAR_URL_STORAGE_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const syncAvatarStorage = ({ seed, url } = {}) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const nextSeed = String(seed || '').trim();
+    if (nextSeed) {
+      window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, nextSeed);
+    }
+
+    if (url !== undefined) {
+      const nextUrl = String(url || '').trim();
+      if (nextUrl) {
+        window.localStorage.setItem(USER_AVATAR_URL_STORAGE_KEY, nextUrl);
+      } else {
+        window.localStorage.removeItem(USER_AVATAR_URL_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // localStorage sync is best effort only
+  }
+
+  window.dispatchEvent(new Event('storage'));
+};
 
 // ============== SUB-COMPONENTS ==============
 
@@ -449,7 +508,29 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
   const handleSave = () => {
     setSaving(true);
     setTimeout(() => {
-      setUser({ ...user, name, email });
+      const trimmedName = String(name || '').trim();
+      const resolvedName = trimmedName || user.name;
+      const avatarSeed = readStoredAvatarSeed(resolvedName || DEFAULT_AVATAR_SEED);
+      const currentAvatar = String(user.avatar || '').trim();
+      const hasCustomAvatar = Boolean(currentAvatar) && currentAvatar !== 'brain' && !/dicebear\.com\/7\.x\/adventurer\/svg/i.test(currentAvatar);
+      const nextAvatar = hasCustomAvatar ? currentAvatar : buildUnifiedAvatarUrl(avatarSeed);
+
+      if (typeof window !== 'undefined' && resolvedName) {
+        try {
+          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, resolvedName);
+        } catch {
+          // localStorage sync is best effort only
+        }
+      }
+
+      setUser({
+        ...user,
+        name: resolvedName,
+        email,
+        initials: (resolvedName.charAt(0) || user.initials || 'U').toUpperCase(),
+        avatar: nextAvatar,
+      });
+      syncAvatarStorage({ seed: avatarSeed });
       setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -598,7 +679,18 @@ function AccountView({ onClose, user, setUser, onRemoveAvatar, onTriggerAvatarPi
 // ============== MAIN SETTINGS PAGE ==============
 export default function SettingsPage({ themeClasses, onClose }) {
   const [activeView, setActiveView] = useState('main');
-  const [user, setUser] = useState(MOCK_USER);
+  const [user, setUser] = useState(() => {
+    const storedDisplayName = readStoredDisplayName();
+    const seed = readStoredAvatarSeed(storedDisplayName || MOCK_USER.name);
+    const storedAvatarUrl = readStoredAvatarUrl();
+    const resolvedName = storedDisplayName || MOCK_USER.name;
+    return {
+      ...MOCK_USER,
+      name: resolvedName,
+      initials: (resolvedName.charAt(0) || MOCK_USER.initials || 'U').toUpperCase(),
+      avatar: storedAvatarUrl || buildUnifiedAvatarUrl(seed),
+    };
+  });
   const [stats] = useState(MOCK_STATS);
   const [brokers] = useState(MOCK_BROKERS);
   const [activity] = useState(MOCK_ACTIVITY);
@@ -637,7 +729,10 @@ export default function SettingsPage({ themeClasses, onClose }) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setUser((prev) => ({ ...prev, avatar: reader.result }));
+        const nextAvatarUrl = reader.result;
+        const avatarSeed = readStoredAvatarSeed(user.name || DEFAULT_AVATAR_SEED);
+        setUser((prev) => ({ ...prev, avatar: nextAvatarUrl }));
+        syncAvatarStorage({ seed: avatarSeed, url: nextAvatarUrl });
       } else {
         setAvatarError('Could not process the image. Please try another file.');
       }
@@ -653,7 +748,9 @@ export default function SettingsPage({ themeClasses, onClose }) {
   };
 
   const handleRemoveAvatar = () => {
-    setUser((prev) => ({ ...prev, avatar: null }));
+    const avatarSeed = readStoredAvatarSeed(user.name || DEFAULT_AVATAR_SEED);
+    setUser((prev) => ({ ...prev, avatar: buildUnifiedAvatarUrl(avatarSeed) }));
+    syncAvatarStorage({ seed: avatarSeed, url: '' });
     setAvatarError('');
   };
 

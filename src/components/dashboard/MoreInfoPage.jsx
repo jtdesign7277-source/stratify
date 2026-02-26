@@ -53,9 +53,77 @@ const AVATAR_STYLES = [
 
 const AVATAR_SEEDS_PER_STYLE = 24;
 const AVATAR_BACKGROUND_COLORS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';
+const USER_AVATAR_SEED_STORAGE_KEY = 'stratify_user_avatar_seed';
+const USER_AVATAR_URL_STORAGE_KEY = 'stratify_user_avatar_url';
+const DISPLAY_NAME_STORAGE_KEY = 'stratify_display_name';
+const DEFAULT_AVATAR_SEED = 'Anonymous';
 
 const buildAvatarUrl = (style, seed) =>
   `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=128&radius=50&backgroundType=gradientLinear&backgroundColor=${AVATAR_BACKGROUND_COLORS}`;
+
+const buildUnifiedAvatarUrl = (seed) =>
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(String(seed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED)}`;
+
+const readStoredAvatarSeed = (fallbackSeed = DEFAULT_AVATAR_SEED) => {
+  if (typeof window === 'undefined') return String(fallbackSeed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED;
+  try {
+    const storedSeed = String(window.localStorage.getItem(USER_AVATAR_SEED_STORAGE_KEY) || '').trim();
+    const storedDisplayName = String(window.localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || '').trim();
+    return storedSeed || storedDisplayName || String(fallbackSeed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED;
+  } catch {
+    return String(fallbackSeed || DEFAULT_AVATAR_SEED).trim() || DEFAULT_AVATAR_SEED;
+  }
+};
+
+const readStoredAvatarUrl = () => {
+  if (typeof window === 'undefined') return '';
+  try {
+    return String(window.localStorage.getItem(USER_AVATAR_URL_STORAGE_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const resolveAvatarUrlFromStorage = (fallbackSeed = DEFAULT_AVATAR_SEED) => {
+  const storedAvatarUrl = readStoredAvatarUrl();
+  if (storedAvatarUrl) return storedAvatarUrl;
+  return buildUnifiedAvatarUrl(readStoredAvatarSeed(fallbackSeed));
+};
+
+const extractSeedFromAvatarUrl = (url) => {
+  const rawUrl = String(url || '').trim();
+  if (!rawUrl) return '';
+  try {
+    const parsedUrl = new URL(rawUrl);
+    return String(parsedUrl.searchParams.get('seed') || '').trim();
+  } catch {
+    const match = rawUrl.match(/[?&]seed=([^&]+)/i);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+};
+
+const syncAvatarStorage = ({ seed, url } = {}) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const nextSeed = String(seed || '').trim();
+    if (nextSeed) {
+      window.localStorage.setItem(USER_AVATAR_SEED_STORAGE_KEY, nextSeed);
+    }
+
+    if (url !== undefined) {
+      const nextUrl = String(url || '').trim();
+      if (nextUrl) {
+        window.localStorage.setItem(USER_AVATAR_URL_STORAGE_KEY, nextUrl);
+      } else {
+        window.localStorage.removeItem(USER_AVATAR_URL_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // localStorage sync is best effort only
+  }
+
+  window.dispatchEvent(new Event('storage'));
+};
 
 const avatarOptionsByStyle = AVATAR_STYLES.filter((style) => style.id !== 'all').reduce((acc, style) => {
   acc[style.id] = Array.from(
@@ -93,7 +161,7 @@ export default function MoreInfoPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editStatus, setEditStatus] = useState(null);
-  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(() => resolveAvatarUrlFromStorage(DEFAULT_AVATAR_SEED));
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [activeAvatarStyle, setActiveAvatarStyle] = useState('all');
   const [avatarStatus, setAvatarStatus] = useState(null);
@@ -108,6 +176,13 @@ export default function MoreInfoPage() {
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
+  const avatarSeedFallback = String(
+    fullName
+    || user?.user_metadata?.full_name
+    || (email ? email.split('@')[0] : '')
+    || displayName
+    || DEFAULT_AVATAR_SEED
+  ).trim() || DEFAULT_AVATAR_SEED;
   const truncatedId = user?.id ? `${user.id.slice(0, 8)}...${user.id.slice(-4)}` : '—';
   const accountBadge = isProUser
     ? {
@@ -166,12 +241,18 @@ export default function MoreInfoPage() {
   };
 
   useEffect(() => {
+    syncAvatarStorage({ seed: avatarSeedFallback });
+
     if (!user?.id) {
-      setAvatarUrl(null);
+      setAvatarUrl(resolveAvatarUrlFromStorage(avatarSeedFallback));
       return;
     }
+
     let isMounted = true;
     const loadAvatar = async () => {
+      const localAvatarUrl = resolveAvatarUrlFromStorage(avatarSeedFallback);
+      if (isMounted) setAvatarUrl(localAvatarUrl);
+
       const { data, error } = await supabase
         .from('profiles')
         .select('avatar_url')
@@ -179,14 +260,21 @@ export default function MoreInfoPage() {
         .single();
       if (!isMounted) return;
       if (!error) {
-        setAvatarUrl(data?.avatar_url ?? null);
+        const remoteAvatarUrl = String(data?.avatar_url || '').trim();
+        if (remoteAvatarUrl) {
+          const remoteSeed = extractSeedFromAvatarUrl(remoteAvatarUrl) || avatarSeedFallback;
+          syncAvatarStorage({ seed: remoteSeed, url: remoteAvatarUrl });
+          setAvatarUrl(remoteAvatarUrl);
+        } else {
+          setAvatarUrl(resolveAvatarUrlFromStorage(avatarSeedFallback));
+        }
       }
     };
     loadAvatar();
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [avatarSeedFallback, user?.id]);
 
   const handleAvatarSelect = async (selectedUrl) => {
     setAvatarStatus('saving');
@@ -202,6 +290,8 @@ export default function MoreInfoPage() {
       .eq('id', currentUser.id);
     if (!error) {
       setAvatarUrl(selectedUrl);
+      const selectedSeed = extractSeedFromAvatarUrl(selectedUrl) || avatarSeedFallback;
+      syncAvatarStorage({ seed: selectedSeed, url: selectedUrl });
       setAvatarStatus(null);
     } else {
       setAvatarStatus('error');
