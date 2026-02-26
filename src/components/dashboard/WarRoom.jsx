@@ -995,19 +995,26 @@ export default function WarRoom({ onClose }) {
 
         <div className="flex items-center gap-1.5">
           {['live', 'saved', 'folders'].map((view) => {
-            const labels = { live: 'Live Feed', saved: 'Saved Intel', folders: `Folders (${folders.length})` };
+            const isActive = activeView === view;
             return (
               <button
                 key={view}
                 type="button"
                 onClick={() => setActiveView(view)}
-                className={`rounded-lg px-2.5 py-1 text-xs transition-colors ${
-                  activeView === view
+                className={`rounded-lg px-2.5 py-1 text-xs transition-colors flex items-center gap-1.5 ${
+                  isActive
                     ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
                     : 'border border-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
-                {labels[view]}
+                {view === 'live' && 'Live Feed'}
+                {view === 'saved' && 'Saved Intel'}
+                {view === 'folders' && (
+                  <>
+                    <XLogo className="h-3.5 w-3.5" />
+                    Share & Connect
+                  </>
+                )}
               </button>
             );
           })}
