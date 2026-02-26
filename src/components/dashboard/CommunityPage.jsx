@@ -837,6 +837,12 @@ const COMMUNITY_PAGE_STYLES = `
   .community-pulse {
     animation: communityPulse 3.6s ease-in-out infinite;
   }
+
+  #dashboard-topbar-ticker-tape-widget {
+    min-height: 56px !important;
+    padding-bottom: 16px !important;
+    overflow: visible !important;
+  }
 `;
 
 const SLIP_EMOJI_PRESETS = ['🚀', '💰', '🔥', '📈', '💯', '✅', '⚡', '🧠'];
@@ -1611,14 +1617,13 @@ const ChatInputBar = ({
           />
 
           <div
-            className="rounded-xl border px-3.5 pt-3 pb-3 min-h-[98px]"
+            className="rounded-xl border min-h-[98px] flex flex-col"
             style={{
               backgroundColor: '#151b23',
               borderColor: 'rgba(255,255,255,0.06)',
             }}
           >
-            <div className="flex items-start gap-2.5">
-              <UserAvatar user={currentUser || { display_name: 'Guest Trader' }} size={32} initialsClassName="text-xs" />
+            <div className="flex flex-1 items-start gap-2.5 px-3.5 pt-3">
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
@@ -1638,32 +1643,32 @@ const ChatInputBar = ({
                 onKeyDown={handleKeyDown}
                 rows={1}
                 placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
-                className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
+                className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[56px] max-h-32"
                 style={{ color: T.text }}
                 disabled={!canUseInput}
               />
             </div>
 
-            <div className="flex flex-wrap gap-2 px-3 py-1.5">
-              {QUICK_POST_HASHTAGS.map((hashtag) => {
-                const active = selectedHashtags.includes(hashtag);
-                return (
-                  <button
-                    key={hashtag}
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => toggleHashtag(hashtag)}
-                    className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
-                    title={hashtag}
-                  >
-                    {hashtag}
-                  </button>
-                );
-              })}
-            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <div className="flex items-center gap-1.5">
+                {QUICK_POST_HASHTAGS.map((hashtag) => {
+                  const active = selectedHashtags.includes(hashtag);
+                  return (
+                    <button
+                      key={hashtag}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => toggleHashtag(hashtag)}
+                      className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                      title={hashtag}
+                    >
+                      {hashtag}
+                    </button>
+                  );
+                })}
+              </div>
 
-            <div className="mt-2.5 flex items-center justify-end">
-              <div className="relative flex items-center gap-1.5">
+              <div className="relative ml-auto flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={onOpenComposer}

@@ -157,7 +157,7 @@ const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
 const TOPBAR_COLLAPSE_STORAGE_KEY = 'stratify-topbar-collapsed';
-const TOPBAR_COLLAPSED_HEIGHT = 36;
+const TOPBAR_COLLAPSED_HEIGHT = 56;
 const COMMUNITY_WATCHLIST_V3_STORAGE_KEY = 'stratify-community-watchlist-v3';
 const TOPBAR_TICKER_TAPE_CONTAINER_ID = 'dashboard-topbar-ticker-tape-widget';
 const TOPBAR_TICKER_TAPE_SCRIPT_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
@@ -449,7 +449,7 @@ const TopBarTickerTapeWidget = ({ symbols }) => {
     <div
       id={TOPBAR_TICKER_TAPE_CONTAINER_ID}
       ref={containerRef}
-      className="tradingview-widget-container h-full w-full bg-transparent"
+      className="tradingview-widget-container h-full w-full bg-transparent overflow-visible"
     />
   );
 };
@@ -2061,7 +2061,7 @@ export default function Dashboard({
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
       <motion.div
-        className="relative z-20 overflow-hidden"
+        className="relative z-20 overflow-visible"
         initial={false}
         animate={{ height: isTopBarCollapsed ? TOPBAR_COLLAPSED_HEIGHT : 'auto' }}
         transition={{ height: TOPBAR_ANIMATION }}
@@ -2103,10 +2103,10 @@ export default function Dashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: TOPBAR_ANIMATION.ease }}
-              className="absolute inset-x-0 top-0 h-9 border-b border-[rgba(255,255,255,0.06)] bg-transparent"
+              className="absolute inset-x-0 top-0 h-[56px] border-b border-[rgba(255,255,255,0.06)] bg-transparent"
             >
               <div className="relative h-full w-full">
-                <div className="h-full pr-28 pb-[2px]">
+                <div className="h-full pr-28 pb-4 box-border">
                   <TopBarTickerTapeWidget symbols={topBarTickerTapeSymbols} />
                 </div>
 
