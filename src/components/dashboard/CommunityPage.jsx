@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
@@ -10,7 +10,7 @@ import {
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowUp, ArrowDown, PanelLeftClose, PanelRightClose, Sparkles,
   Plus,
-  Hash, Activity, Trophy, Eye,
+  Hash, Activity, Trophy, Eye, EyeOff, GripVertical,
 } from 'lucide-react';
 
 // ─── Theme Constants ─────────────────────────────────────
@@ -326,6 +326,43 @@ const TRENDING_SUMMARY_EVERY_MS = 30000;
 const TRENDING_SUMMARY_DURATION_MS = 10000;
 const TRENDING_FLASH_MS = 1200;
 const TRENDING_MAX_ROWS = 140;
+const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
+const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
+const DEFAULT_SIDEBAR_SECTION_ORDER = ['market-pulse', 'watch-movers', 'trending-slips'];
+const SIDEBAR_SECTION_ID_SET = new Set(DEFAULT_SIDEBAR_SECTION_ORDER);
+const SIDEBAR_SECTION_LABELS = {
+  'market-pulse': 'Market Pulse',
+  'watch-movers': 'Watch Movers',
+  'trending-slips': 'Trending Slips',
+};
+
+const normalizeSidebarSectionOrder = (rawOrder = []) => {
+  const seen = new Set();
+  const normalized = [];
+
+  (Array.isArray(rawOrder) ? rawOrder : []).forEach((value) => {
+    const id = String(value || '');
+    if (!SIDEBAR_SECTION_ID_SET.has(id) || seen.has(id)) return;
+    seen.add(id);
+    normalized.push(id);
+  });
+
+  DEFAULT_SIDEBAR_SECTION_ORDER.forEach((id) => {
+    if (!seen.has(id)) normalized.push(id);
+  });
+
+  return normalized;
+};
+
+const normalizeSidebarSectionVisibility = (rawVisibility = {}) => (
+  DEFAULT_SIDEBAR_SECTION_ORDER.reduce((acc, sectionId) => {
+    const nextValue = rawVisibility && typeof rawVisibility === 'object'
+      ? rawVisibility[sectionId]
+      : undefined;
+    acc[sectionId] = nextValue === undefined ? true : Boolean(nextValue);
+    return acc;
+  }, {})
+);
 
 const normalizeTrendingSnapshotPayload = (row) => {
   if (!row || typeof row !== 'object') return null;
@@ -2570,37 +2607,127 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
   );
 };
 
-const SidebarSection = ({ title, icon: Icon, open, onToggle, children, subtitle, headerAction = null }) => (
-  <div className="rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
-    <div className="px-3 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: T.border }}>
-      <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
-        <div className="text-xs uppercase tracking-[0.14em] inline-flex items-center gap-1.5" style={{ color: T.muted }}>
-          <Icon size={12} />
-          {title}
+const SidebarSection = ({
+  title,
+  icon: Icon,
+  open,
+  onToggle,
+  onToggleVisibility,
+  children,
+  subtitle,
+  headerAction = null,
+  onDragHandlePointerDown,
+  isDragging = false,
+}) => {
+  const VisibilityIcon = onToggleVisibility ? Eye : EyeOff;
+
+  return (
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
+      <div className="px-3 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: T.border }}>
+        <div className="inline-flex items-center gap-2 min-w-0 flex-1">
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              if (!onDragHandlePointerDown) return;
+              event.preventDefault();
+              onDragHandlePointerDown(event);
+            }}
+            className={`h-6 w-6 rounded-md inline-flex items-center justify-center transition-colors hover:bg-white/5 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            style={{ color: '#7d8590' }}
+            title="Drag to reorder"
+            aria-label={`Drag ${title}`}
+          >
+            <GripVertical size={16} strokeWidth={1.5} className="h-4 w-4" />
+          </button>
+
+          <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
+            <div className="text-xs uppercase tracking-[0.14em] inline-flex items-center gap-1.5" style={{ color: T.muted }}>
+              <Icon size={12} />
+              {title}
+            </div>
+            {subtitle ? <div className="text-[11px]" style={{ color: T.muted }}>{subtitle}</div> : null}
+          </button>
         </div>
-        {subtitle ? <div className="text-[11px]" style={{ color: T.muted }}>{subtitle}</div> : null}
-      </button>
-      <div className="inline-flex items-center gap-1.5">
-        {headerAction}
-        <button type="button" onClick={onToggle} className="h-6 w-6 rounded-md inline-flex items-center justify-center" style={{ color: T.muted }}>
-          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-        </button>
+
+        <div className="inline-flex items-center gap-1.5">
+          {headerAction}
+          {onToggleVisibility ? (
+            <button
+              type="button"
+              onClick={onToggleVisibility}
+              className="h-6 w-6 rounded-md inline-flex items-center justify-center hover:bg-white/5"
+              style={{ color: T.muted }}
+              title="Hide section"
+              aria-label={`Hide ${title}`}
+            >
+              <VisibilityIcon size={14} strokeWidth={1.5} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onToggle}
+            className="h-6 w-6 rounded-md inline-flex items-center justify-center"
+            style={{ color: T.muted }}
+            title={open ? 'Collapse section' : 'Expand section'}
+            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          >
+            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </button>
+        </div>
       </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-3">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden"
-        >
-          <div className="p-3">{children}</div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </div>
-);
+  );
+};
+
+const DraggableSidebarSection = ({
+  sectionId,
+  isDragging,
+  onDragStateChange,
+  children,
+  ...sectionProps
+}) => {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      as="div"
+      value={sectionId}
+      dragListener={false}
+      dragControls={dragControls}
+      layout
+      whileDrag={{
+        scale: 1.02,
+        boxShadow: '0 0 12px rgba(59,130,246,0.3)',
+        zIndex: 30,
+      }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
+      className="list-none"
+      style={{ position: 'relative' }}
+      onDragStart={() => onDragStateChange(sectionId)}
+      onDragEnd={() => onDragStateChange(null)}
+    >
+      <SidebarSection
+        {...sectionProps}
+        isDragging={isDragging}
+        onDragHandlePointerDown={(event) => dragControls.start(event)}
+      >
+        {children}
+      </SidebarSection>
+    </Reorder.Item>
+  );
+};
 
 const RightSidebar = ({
   hidden,
@@ -2614,10 +2741,16 @@ const RightSidebar = ({
   onSelectSnapshot,
 }) => {
   const [openSections, setOpenSections] = useState({
-    pulse: true,
-    movers: true,
-    trend: true,
+    'market-pulse': true,
+    'watch-movers': true,
+    'trending-slips': true,
   });
+  const [sectionOrder, setSectionOrder] = useState(DEFAULT_SIDEBAR_SECTION_ORDER);
+  const [sectionVisibility, setSectionVisibility] = useState(
+    normalizeSidebarSectionVisibility(),
+  );
+  const [layoutPrefsHydrated, setLayoutPrefsHydrated] = useState(false);
+  const [draggingSectionId, setDraggingSectionId] = useState(null);
   const [trendPageIndex, setTrendPageIndex] = useState(0);
   const [trendMode, setTrendMode] = useState('live');
   const [trendFlashById, setTrendFlashById] = useState({});
@@ -2641,6 +2774,48 @@ const RightSidebar = ({
   const activeLiveRows = pagedLiveRows[trendPageIndex] || [];
   const summaryWins = topWins.slice(0, 3);
   const summaryLosses = topLosses.slice(0, 3);
+  const visibleSectionOrder = useMemo(
+    () => sectionOrder.filter((sectionId) => sectionVisibility[sectionId]),
+    [sectionOrder, sectionVisibility],
+  );
+  const hiddenSectionOrder = useMemo(
+    () => sectionOrder.filter((sectionId) => !sectionVisibility[sectionId]),
+    [sectionOrder, sectionVisibility],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const savedOrderRaw = window.localStorage.getItem(SIDEBAR_ORDER_STORAGE_KEY);
+      if (savedOrderRaw) {
+        setSectionOrder(normalizeSidebarSectionOrder(JSON.parse(savedOrderRaw)));
+      }
+    } catch {
+      setSectionOrder(DEFAULT_SIDEBAR_SECTION_ORDER);
+    }
+
+    try {
+      const savedVisibilityRaw = window.localStorage.getItem(SIDEBAR_VISIBILITY_STORAGE_KEY);
+      if (savedVisibilityRaw) {
+        setSectionVisibility(normalizeSidebarSectionVisibility(JSON.parse(savedVisibilityRaw)));
+      }
+    } catch {
+      setSectionVisibility(normalizeSidebarSectionVisibility());
+    }
+
+    setLayoutPrefsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!layoutPrefsHydrated || typeof window === 'undefined') return;
+    window.localStorage.setItem(SIDEBAR_ORDER_STORAGE_KEY, JSON.stringify(sectionOrder));
+  }, [layoutPrefsHydrated, sectionOrder]);
+
+  useEffect(() => {
+    if (!layoutPrefsHydrated || typeof window === 'undefined') return;
+    window.localStorage.setItem(SIDEBAR_VISIBILITY_STORAGE_KEY, JSON.stringify(sectionVisibility));
+  }, [layoutPrefsHydrated, sectionVisibility]);
 
   useEffect(() => {
     setTrendPageIndex((prev) => {
@@ -2650,7 +2825,7 @@ const RightSidebar = ({
   }, [pagedLiveRows.length]);
 
   useEffect(() => {
-    if (!openSections.trend || trendMode !== 'live') return undefined;
+    if (!openSections['trending-slips'] || trendMode !== 'live') return undefined;
     if (pagedLiveRows.length <= 1) return undefined;
 
     const timer = setInterval(() => {
@@ -2658,10 +2833,10 @@ const RightSidebar = ({
     }, TRENDING_ROTATE_MS);
 
     return () => clearInterval(timer);
-  }, [openSections.trend, trendMode, pagedLiveRows.length]);
+  }, [openSections['trending-slips'], trendMode, pagedLiveRows.length]);
 
   useEffect(() => {
-    if (!openSections.trend) {
+    if (!openSections['trending-slips']) {
       setTrendMode('live');
       return undefined;
     }
@@ -2678,7 +2853,7 @@ const RightSidebar = ({
       clearInterval(cycleTimer);
       if (holdTimer) clearTimeout(holdTimer);
     };
-  }, [openSections.trend]);
+  }, [openSections['trending-slips']]);
 
   useEffect(() => {
     const previousIds = previousTrendingIdsRef.current;
@@ -2749,6 +2924,41 @@ const RightSidebar = ({
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+  const toggleSectionVisibility = (sectionId) => {
+    setSectionVisibility((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  };
+  const handleSectionReorder = (nextVisibleOrder) => {
+    setSectionOrder((prevOrder) => {
+      const normalizedPrevOrder = normalizeSidebarSectionOrder(prevOrder);
+      const visibleSet = new Set(
+        normalizedPrevOrder.filter((sectionId) => sectionVisibility[sectionId]),
+      );
+      const cleanedVisibleOrder = [];
+
+      (Array.isArray(nextVisibleOrder) ? nextVisibleOrder : []).forEach((sectionId) => {
+        const id = String(sectionId || '');
+        if (!visibleSet.has(id) || cleanedVisibleOrder.includes(id)) return;
+        cleanedVisibleOrder.push(id);
+      });
+
+      normalizedPrevOrder.forEach((sectionId) => {
+        if (visibleSet.has(sectionId) && !cleanedVisibleOrder.includes(sectionId)) {
+          cleanedVisibleOrder.push(sectionId);
+        }
+      });
+
+      let visibleIndex = 0;
+      return normalizedPrevOrder.map((sectionId) => {
+        if (!sectionVisibility[sectionId]) return sectionId;
+        const nextSectionId = cleanedVisibleOrder[visibleIndex];
+        visibleIndex += 1;
+        return nextSectionId || sectionId;
+      });
+    });
+  };
 
   const renderQuoteRow = (symbol, label = symbol) => {
     const quote = quoteMap?.[normalizeSymbolKey(symbol)] || null;
@@ -2775,20 +2985,20 @@ const RightSidebar = ({
     );
   };
 
-  return (
-    <motion.aside
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.22 }}
-      className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
-    >
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
-        <SidebarSection
+  const renderDraggableSection = (sectionId) => {
+    if (sectionId === 'market-pulse') {
+      return (
+        <DraggableSidebarSection
+          key={sectionId}
+          sectionId={sectionId}
           title="Market Pulse"
           subtitle={streamStatus?.connected ? 'Streaming live prices' : streamStatus?.connecting ? 'Connecting stream' : 'Fallback mode'}
           icon={Activity}
-          open={openSections.pulse}
-          onToggle={() => toggleSection('pulse')}
+          open={openSections['market-pulse']}
+          onToggle={() => toggleSection('market-pulse')}
+          onToggleVisibility={() => toggleSectionVisibility('market-pulse')}
+          isDragging={draggingSectionId === sectionId}
+          onDragStateChange={setDraggingSectionId}
           headerAction={(
             <button
               type="button"
@@ -2796,6 +3006,7 @@ const RightSidebar = ({
               className="h-6 w-6 rounded-md border inline-flex items-center justify-center"
               style={{ borderColor: T.border, color: '#3fb950' }}
               title="Hide sidebar"
+              aria-label="Hide sidebar"
             >
               <PanelRightClose size={12} />
             </button>
@@ -2804,26 +3015,44 @@ const RightSidebar = ({
           <div className="space-y-2">
             {INDEX_SYMBOLS.map((item) => renderQuoteRow(item.symbol, item.label))}
           </div>
-        </SidebarSection>
+        </DraggableSidebarSection>
+      );
+    }
 
-        <SidebarSection
+    if (sectionId === 'watch-movers') {
+      return (
+        <DraggableSidebarSection
+          key={sectionId}
+          sectionId={sectionId}
           title="Watch Movers"
           subtitle="Symbols active in current feed"
           icon={Eye}
-          open={openSections.movers}
-          onToggle={() => toggleSection('movers')}
+          open={openSections['watch-movers']}
+          onToggle={() => toggleSection('watch-movers')}
+          onToggleVisibility={() => toggleSectionVisibility('watch-movers')}
+          isDragging={draggingSectionId === sectionId}
+          onDragStateChange={setDraggingSectionId}
         >
           <div className="space-y-2 max-h-52 overflow-y-auto">
             {trackedSymbols.slice(0, 12).map((symbol) => renderQuoteRow(symbol, symbol))}
           </div>
-        </SidebarSection>
+        </DraggableSidebarSection>
+      );
+    }
 
-        <SidebarSection
+    if (sectionId === 'trending-slips') {
+      return (
+        <DraggableSidebarSection
+          key={sectionId}
+          sectionId={sectionId}
           title="Trending Slips"
           subtitle={trendMode === 'summary' ? 'Top wins and losses (today)' : 'Live slip board · rotates every 5s'}
           icon={Trophy}
-          open={openSections.trend}
-          onToggle={() => toggleSection('trend')}
+          open={openSections['trending-slips']}
+          onToggle={() => toggleSection('trending-slips')}
+          onToggleVisibility={() => toggleSectionVisibility('trending-slips')}
+          isDragging={draggingSectionId === sectionId}
+          onDragStateChange={setDraggingSectionId}
         >
           <AnimatePresence mode="wait" initial={false}>
             {trendMode === 'summary' ? (
@@ -2934,7 +3163,74 @@ const RightSidebar = ({
               </motion.div>
             )}
           </AnimatePresence>
-        </SidebarSection>
+        </DraggableSidebarSection>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <motion.aside
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.22 }}
+      className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
+    >
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
+        {!sectionVisibility['market-pulse'] ? (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="h-6 w-6 rounded-md border inline-flex items-center justify-center"
+              style={{ borderColor: T.border, color: '#3fb950' }}
+              title="Hide sidebar"
+              aria-label="Hide sidebar"
+            >
+              <PanelRightClose size={12} />
+            </button>
+          </div>
+        ) : null}
+
+        {hiddenSectionOrder.length > 0 ? (
+          <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
+            <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: T.muted }}>
+              Hidden Sections
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {hiddenSectionOrder.map((sectionId) => (
+                <button
+                  key={`show-section-${sectionId}`}
+                  type="button"
+                  onClick={() => toggleSectionVisibility(sectionId)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs border hover:bg-white/5"
+                  style={{ borderColor: T.border, color: T.muted }}
+                  title={`Show ${SIDEBAR_SECTION_LABELS[sectionId] || sectionId}`}
+                >
+                  <EyeOff size={12} strokeWidth={1.5} />
+                  <span>{SIDEBAR_SECTION_LABELS[sectionId] || sectionId}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {visibleSectionOrder.length === 0 ? (
+          <div className="rounded-xl border px-3 py-4 text-xs" style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.68)' }}>
+            All sidebar sections are hidden.
+          </div>
+        ) : (
+          <Reorder.Group
+            as="div"
+            axis="y"
+            values={visibleSectionOrder}
+            onReorder={handleSectionReorder}
+            className="space-y-3"
+          >
+            {visibleSectionOrder.map((sectionId) => renderDraggableSection(sectionId))}
+          </Reorder.Group>
+        )}
       </div>
     </motion.aside>
   );
