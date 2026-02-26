@@ -9,7 +9,7 @@ import {
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowUp, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
-  Plus,
+  Plus, Wand2,
   Activity, EyeOff, GripVertical,
 } from 'lucide-react';
 
@@ -846,6 +846,46 @@ const COMMUNITY_PAGE_STYLES = `
 `;
 
 const SLIP_EMOJI_PRESETS = ['🚀', '💰', '🔥', '📈', '💯', '✅', '⚡', '🧠'];
+
+const AI_REWRITE_STYLE_OPTIONS = [
+  { id: 'sharpen', label: 'Sharpen', prompt: 'tighten and make concise' },
+  { id: 'professional', label: 'Professional', prompt: 'formal, institutional tone' },
+  { id: 'casual', label: 'Casual', prompt: 'relaxed trader slang' },
+  { id: 'add-context', label: 'Add Context', prompt: 'Claude adds relevant market data' },
+];
+
+const AI_REWRITE_PERSONALITY_OPTIONS = [
+  { id: 'confident', label: 'Confident', prompt: 'bold, high conviction, alpha energy' },
+  { id: 'big-brain', label: 'Big Brain', prompt: 'analytical, high IQ, data-driven' },
+  { id: 'hyped', label: 'Hyped', prompt: 'excited, bullish energy, exclamation points' },
+  { id: 'angry', label: 'Angry', prompt: 'frustrated, pissed off, blunt and aggressive' },
+  { id: 'chill', label: 'Chill', prompt: 'laid back, zen, unbothered' },
+  { id: 'sarcastic', label: 'Sarcastic', prompt: 'witty, dry humor, sharp' },
+  { id: 'motivational', label: 'Motivational', prompt: 'inspiring, rally the troops energy' },
+  { id: 'degen', label: 'Degen', prompt: 'full WSB degen mode, YOLO energy' },
+];
+
+const AI_REWRITE_ACTION_ROW_VARIANTS = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.03,
+    },
+  },
+};
+
+const AI_REWRITE_ACTION_ITEM_VARIANTS = {
+  hidden: { opacity: 0, y: 3 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.18,
+      ease: 'easeOut',
+    },
+  },
+};
 
 const normalizeSymbolKey = (value) => {
   const raw = String(value || '').trim().toUpperCase().replace(/^\$+/, '');
@@ -1897,7 +1937,17 @@ const PostComposerModal = ({
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAiRewritePanel, setShowAiRewritePanel] = useState(false);
+  const [selectedRewriteStyle, setSelectedRewriteStyle] = useState('');
+  const [selectedRewritePersonality, setSelectedRewritePersonality] = useState('');
+  const [isAiRewriteLoading, setIsAiRewriteLoading] = useState(false);
+  const [aiRewriteError, setAiRewriteError] = useState('');
+  const [originalDraft, setOriginalDraft] = useState('');
+  const [hasAiRewriteResult, setHasAiRewriteResult] = useState(false);
+  const [lastAiRewriteConfig, setLastAiRewriteConfig] = useState({ styleId: '', personalityId: '' });
+  const [rewriteResultVersion, setRewriteResultVersion] = useState(0);
   const fileRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -1908,6 +1958,15 @@ const PostComposerModal = ({
     setImageFile(null);
     setImagePreview('');
     setShowEmojiPicker(false);
+    setShowAiRewritePanel(false);
+    setSelectedRewriteStyle('');
+    setSelectedRewritePersonality('');
+    setIsAiRewriteLoading(false);
+    setAiRewriteError('');
+    setOriginalDraft('');
+    setHasAiRewriteResult(false);
+    setLastAiRewriteConfig({ styleId: '', personalityId: '' });
+    setRewriteResultVersion(0);
     if (fileRef.current) fileRef.current.value = '';
   }, [open, initialPostType, closedTrades]);
 
@@ -1924,8 +1983,25 @@ const PostComposerModal = ({
     () => closedTrades.find((trade) => String(trade.id) === String(selectedTradeId)) || null,
     [closedTrades, selectedTradeId],
   );
+  const selectedRewriteStyleOption = useMemo(
+    () => AI_REWRITE_STYLE_OPTIONS.find((option) => option.id === selectedRewriteStyle) || null,
+    [selectedRewriteStyle],
+  );
+  const selectedRewritePersonalityOption = useMemo(
+    () => AI_REWRITE_PERSONALITY_OPTIONS.find((option) => option.id === selectedRewritePersonality) || null,
+    [selectedRewritePersonality],
+  );
 
   const canAutofillSlip = postType === 'pnl' && selectedTrade;
+  const hasComposerText = Boolean(content.trim());
+  const hasAiRewriteTone = Boolean(selectedRewriteStyleOption || selectedRewritePersonalityOption);
+  const canOpenAiRewrite = hasComposerText && !isAiRewriteLoading;
+  const canRunAiRewrite = hasComposerText && hasAiRewriteTone && !isAiRewriteLoading;
+  const canRetryAiRewrite = Boolean(
+    !isAiRewriteLoading
+    && (lastAiRewriteConfig.styleId || lastAiRewriteConfig.personalityId)
+    && (originalDraft || content.trim())
+  );
 
   const toggleSlipEmoji = (emoji) => {
     setSelectedSlipEmojis((prev) => (
@@ -1960,6 +2036,57 @@ const PostComposerModal = ({
     }
     setImagePreview('');
     if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const runAiRewrite = async ({
+    sourceText = content,
+    styleId = selectedRewriteStyle,
+    personalityId = selectedRewritePersonality,
+    preserveOriginal = false,
+  } = {}) => {
+    const textValue = String(sourceText || '').trim();
+    const styleOption = AI_REWRITE_STYLE_OPTIONS.find((option) => option.id === styleId) || null;
+    const personalityOption = AI_REWRITE_PERSONALITY_OPTIONS.find((option) => option.id === personalityId) || null;
+    if (!textValue || (!styleOption && !personalityOption)) return;
+
+    const baseOriginal = String(preserveOriginal ? (originalDraft || textValue) : textValue).trim();
+    if (!preserveOriginal || !originalDraft) {
+      setOriginalDraft(baseOriginal);
+    }
+
+    setAiRewriteError('');
+    setIsAiRewriteLoading(true);
+    setHasAiRewriteResult(false);
+
+    try {
+      const response = await fetch('/api/community/ai-rewrite.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textValue,
+          style: styleOption ? `${styleOption.label} - ${styleOption.prompt}` : '',
+          personality: personalityOption ? `${personalityOption.label} - ${personalityOption.prompt}` : '',
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || 'AI rewrite failed'));
+      }
+
+      const rewritten = String(payload?.rewritten || '').trim();
+      if (!rewritten) throw new Error('AI rewrite returned empty content.');
+
+      setContent(rewritten);
+      setLastAiRewriteConfig({ styleId, personalityId });
+      setHasAiRewriteResult(true);
+      setRewriteResultVersion((version) => version + 1);
+    } catch (error) {
+      setAiRewriteError(String(error?.message || 'AI rewrite failed. Try again.'));
+      setHasAiRewriteResult(false);
+    } finally {
+      setIsAiRewriteLoading(false);
+    }
   };
 
   const submit = async () => {
@@ -2124,18 +2251,59 @@ const PostComposerModal = ({
               )}
 
               <motion.div {...modalSectionMotion(3)} className="relative">
-                <textarea
-                  value={content}
-                  onChange={(event) => setContent(event.target.value)}
-                  placeholder="Share your setup, thesis, or execution notes..."
-                  rows={6}
-                  className="w-full rounded-xl border px-3 py-2.5 resize-none outline-none text-sm leading-6"
-                  style={{
-                    borderColor: T.border,
-                    backgroundColor: 'rgba(13,17,23,0.66)',
-                    color: T.text,
-                  }}
-                />
+                <motion.div
+                  key={`composer-rewrite-result-${rewriteResultVersion}`}
+                  initial={rewriteResultVersion > 0 ? { opacity: 0 } : false}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="relative"
+                >
+                  <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                    placeholder="Share your setup, thesis, or execution notes..."
+                    rows={6}
+                    disabled={isAiRewriteLoading}
+                    className="w-full rounded-xl border px-3 py-2.5 resize-none outline-none text-sm leading-6 disabled:opacity-100"
+                    style={{
+                      borderColor: T.border,
+                      backgroundColor: 'rgba(13,17,23,0.66)',
+                      color: isAiRewriteLoading ? 'transparent' : T.text,
+                      caretColor: isAiRewriteLoading ? 'transparent' : T.text,
+                    }}
+                  />
+
+                  <AnimatePresence initial={false}>
+                    {isAiRewriteLoading && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 pointer-events-none rounded-xl px-3 py-3"
+                      >
+                        <div className="space-y-2.5">
+                          {['92%', '78%', '66%'].map((width, index) => (
+                            <div
+                              key={`rewrite-loading-line-${index}`}
+                              className="relative h-[10px] overflow-hidden rounded-md animate-pulse"
+                              style={{ width, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                            >
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)',
+                                  animation: 'shimmer 1.2s linear infinite',
+                                  animationDelay: `${index * 0.12}s`,
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
 
                 <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5">
@@ -2186,6 +2354,20 @@ const PostComposerModal = ({
                         )}
                       </AnimatePresence>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!canOpenAiRewrite) return;
+                        setAiRewriteError('');
+                        setShowAiRewritePanel((openState) => !openState);
+                      }}
+                      disabled={!canOpenAiRewrite}
+                      className={`flex items-center gap-1.5 text-xs text-[#7d8590] hover:text-[#58a6ff] cursor-pointer transition-all duration-150 ${!canOpenAiRewrite ? 'opacity-40 cursor-not-allowed hover:text-[#7d8590]' : ''}`}
+                    >
+                      <Wand2 strokeWidth={1.5} className="w-4 h-4" />
+                      <span>AI Rewrite</span>
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-1.5">
@@ -2202,6 +2384,155 @@ const PostComposerModal = ({
                     ))}
                   </div>
                 </div>
+
+                <AnimatePresence initial={false}>
+                  {showAiRewritePanel && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      className="mt-2 overflow-hidden"
+                    >
+                      <div className="relative bg-[#151b23] border border-white/6 rounded-xl p-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowAiRewritePanel(false)}
+                          className="absolute top-2 right-2 inline-flex items-center justify-center text-[#7d8590] hover:text-[#e6edf3] transition-colors"
+                          aria-label="Close AI rewrite panel"
+                        >
+                          <X size={13} strokeWidth={1.5} />
+                        </button>
+
+                        <div className="text-xs text-[#7d8590] mb-2">Choose a vibe:</div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-xs text-[#7d8590] mb-1">Style:</div>
+                            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                              {AI_REWRITE_STYLE_OPTIONS.map((option) => {
+                                const selected = selectedRewriteStyle === option.id;
+                                return (
+                                  <button
+                                    key={`rewrite-style-${option.id}`}
+                                    type="button"
+                                    onClick={() => setSelectedRewriteStyle(selected ? '' : option.id)}
+                                    className={`flex-shrink-0 whitespace-nowrap bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#7d8590] cursor-pointer hover:bg-white/10 transition-all duration-150 ${selected ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                                    title={`${option.label} - ${option.prompt}`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-[#7d8590] mb-1">Personality:</div>
+                            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                              {AI_REWRITE_PERSONALITY_OPTIONS.map((option) => {
+                                const selected = selectedRewritePersonality === option.id;
+                                return (
+                                  <button
+                                    key={`rewrite-personality-${option.id}`}
+                                    type="button"
+                                    onClick={() => setSelectedRewritePersonality(selected ? '' : option.id)}
+                                    className={`flex-shrink-0 whitespace-nowrap bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#7d8590] cursor-pointer hover:bg-white/10 transition-all duration-150 ${selected ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                                    title={`${option.label} - ${option.prompt}`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => void runAiRewrite()}
+                          disabled={!canRunAiRewrite}
+                          className="mt-3 inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium text-xs px-4 py-1.5 rounded-lg hover:bg-[#79b8ff] transition-all disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-[#58a6ff]"
+                        >
+                          <Wand2 strokeWidth={1.5} className="h-3.5 w-3.5" />
+                          Rewrite
+                        </button>
+
+                        {aiRewriteError ? (
+                          <div className="mt-2 text-xs text-[#f85149]">{aiRewriteError}</div>
+                        ) : null}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence initial={false}>
+                  {hasAiRewriteResult && !isAiRewriteLoading && (
+                    <motion.div
+                      variants={AI_REWRITE_ACTION_ROW_VARIANTS}
+                      initial="hidden"
+                      animate="show"
+                      exit="hidden"
+                      className="flex items-center gap-4 mt-2 text-xs"
+                    >
+                      <motion.button
+                        type="button"
+                        variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
+                        onClick={() => {
+                          setShowAiRewritePanel(false);
+                          setHasAiRewriteResult(false);
+                          setAiRewriteError('');
+                        }}
+                        className="text-xs text-[#3fb950] hover:text-[#56d364] cursor-pointer transition-colors"
+                      >
+                        Accept
+                      </motion.button>
+
+                      <motion.button
+                        type="button"
+                        variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
+                        onClick={() => {
+                          setShowAiRewritePanel(false);
+                          setHasAiRewriteResult(false);
+                          setAiRewriteError('');
+                          window.requestAnimationFrame(() => textareaRef.current?.focus());
+                        }}
+                        className="text-xs text-[#58a6ff] hover:text-[#79b8ff] cursor-pointer transition-colors"
+                      >
+                        Edit
+                      </motion.button>
+
+                      <motion.button
+                        type="button"
+                        variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
+                        onClick={() => {
+                          if (originalDraft) setContent(originalDraft);
+                          setShowAiRewritePanel(false);
+                          setHasAiRewriteResult(false);
+                          setAiRewriteError('');
+                        }}
+                        className="text-xs text-[#f85149] hover:text-[#ff7b72] cursor-pointer transition-colors"
+                      >
+                        Undo
+                      </motion.button>
+
+                      <motion.button
+                        type="button"
+                        variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
+                        onClick={() => void runAiRewrite({
+                          sourceText: originalDraft || content,
+                          styleId: lastAiRewriteConfig.styleId || selectedRewriteStyle,
+                          personalityId: lastAiRewriteConfig.personalityId || selectedRewritePersonality,
+                          preserveOriginal: true,
+                        })}
+                        disabled={!canRetryAiRewrite}
+                        className={`text-xs text-[#7d8590] hover:text-[#e6edf3] transition-colors ${canRetryAiRewrite ? 'cursor-pointer' : 'cursor-not-allowed opacity-45 hover:text-[#7d8590]'}`}
+                      >
+                        Retry
+                      </motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {imagePreview && (
                   <div className="mt-3 relative inline-block">
@@ -2231,7 +2562,7 @@ const PostComposerModal = ({
               <button
                 type="button"
                 onClick={() => void submit()}
-                disabled={submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
+                disabled={isAiRewriteLoading || submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
                 className="h-9 px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-45"
                 style={{ backgroundColor: T.blue, color: '#08111f' }}
               >
