@@ -1527,16 +1527,16 @@ export default function StrategyOutput({
           </button>
         </div>
       ) : (
-        <div className="w-[420px] xl:w-[448px] flex-shrink-0 h-full border-l border-white/10 bg-black/20 p-2.5 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[430px]">
+        <div className="w-[300px] xl:w-[320px] flex-shrink-0 h-full border-l border-white/10 bg-black/20 p-2 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[280px]">
             <div className="rounded-xl bg-transparent p-0">
-              <div className="rounded-xl border border-white/12 bg-[linear-gradient(180deg,rgba(7,9,14,0.62),rgba(4,6,10,0.48))] p-2.5 backdrop-blur-sm">
+              <div className="rounded-xl border border-white/12 bg-[linear-gradient(180deg,rgba(7,9,14,0.62),rgba(4,6,10,0.48))] p-2 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span role="img" aria-label="Fire">🔥</span>
-                    <span className="text-white font-bold text-[13px] leading-5 tracking-[0.02em]">KEY TRADE SETUPS IDENTIFIED</span>
+                    <span className="text-white font-bold text-[12px] leading-5 tracking-[0.02em]">KEY TRADE SETUPS IDENTIFIED</span>
                   </div>
-                  <span className="text-gray-400 text-[13px]">{checkedCount}/6</span>
+                  <span className="text-gray-400 text-[12px]">{checkedCount}/6</span>
                 </div>
 
                 {/* Tab bar: Select All | Folders | Save */}
@@ -1594,7 +1594,7 @@ export default function StrategyOutput({
                     const allocationValue = ['—', '-', '–'].includes(allocationValueRaw) ? '' : allocationValueRaw;
 
                     return (
-                      <div key={i} className="bg-black/20 rounded-lg p-2 min-h-0 flex items-start gap-2 overflow-hidden">
+                      <div key={i} className="bg-black/20 rounded-lg px-3 py-2 min-h-0 flex items-start gap-2 overflow-hidden">
                         <input
                           type="checkbox"
                           checked={checks[i]}
@@ -1605,7 +1605,7 @@ export default function StrategyOutput({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">{f.label}</p>
+                            <p className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider">{f.label}</p>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1629,7 +1629,7 @@ export default function StrategyOutput({
                                   updateFieldValue(i, cleaned ? `$${cleaned}` : '');
                                 }}
                                 placeholder="Enter amount..."
-                                className="bg-transparent border border-blue-400/50 rounded pl-5 pr-2 py-1 text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:border-blue-300"
+                                className="bg-transparent border border-blue-400/50 rounded pl-5 pr-2 py-1 text-white placeholder-gray-500 w-full text-xs focus:outline-none focus:border-blue-300"
                               />
                             </div>
                           ) : isEditing ? (
@@ -1642,10 +1642,10 @@ export default function StrategyOutput({
                                 if (e.key === 'Enter') commitEdit(i);
                                 if (e.key === 'Escape') setEditing(null);
                               }}
-                              className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-blue-300 text-sm focus:outline-none focus:border-blue-300"
+                              className="mt-1 w-full bg-transparent border border-white/30 rounded px-2 py-1 text-blue-300 text-xs focus:outline-none focus:border-blue-300"
                             />
                           ) : (
-                            <p className="text-white text-[14px] mt-1 whitespace-normal break-words leading-[1.35]">
+                            <p className="text-white text-xs mt-1 whitespace-normal break-words leading-[1.35]">
                               {renderTickerText(f.value || '—', `key-setup-${i}`)}
                             </p>
                           )}
@@ -1655,14 +1655,14 @@ export default function StrategyOutput({
                   })}
                 </div>
 
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="mt-2 grid grid-cols-1 gap-2">
                   <button
                     onClick={() => {
                       const params = fields.map((f) => `${f.label}: ${withDollarTickers(f.value || '—')}`).join('\n');
                       const prompt = `Retest this strategy with updated parameters:\n\nTicker: ${displayTicker === '—' ? '$UNKNOWN' : displayTicker}\nStrategy: ${normalizedStrategyName}\n${params}\n\nPlease regenerate the full backtest analysis with these parameters.`;
                       onRetest?.(prompt);
                     }}
-                    className="bg-indigo-600/90 hover:bg-indigo-500 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition"
+                    className="bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition"
                   >
                     <span aria-hidden="true">🔄</span>
                     Ask Sophia to Retest
@@ -1671,7 +1671,7 @@ export default function StrategyOutput({
                   <button
                     onClick={handleDeployFromSetups}
                     disabled={!deployReady}
-                    className={`text-sm font-medium py-2 rounded-lg border transition ${
+                    className={`text-xs font-medium py-2 rounded-lg border transition ${
                       deployReady
                         ? 'bg-emerald-500/30 border-emerald-400/60 text-emerald-100 hover:bg-emerald-500/40 shadow-[0_0_14px_rgba(16,185,129,0.25)]'
                         : 'bg-white/5 border-white/15 text-gray-400 cursor-not-allowed'

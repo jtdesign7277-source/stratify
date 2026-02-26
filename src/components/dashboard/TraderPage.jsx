@@ -13,6 +13,7 @@ const TWELVE_DATA_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const CHART_CANDLES_ENDPOINT = '/api/chart/candles';
 
 const WATCHLIST_STORAGE_KEY = 'stratify-trader-watchlist';
+const WATCHLIST_ORDER_STORAGE_KEY = 'watchlist_order';
 const WATCHLIST_COLLAPSED_STORAGE_KEY = 'stratify-trader-watchlist-collapsed';
 const ACTIVE_MARKET_STORAGE_KEY = 'stratify-trader-active-market';
 const CHART_TIMEFRAME_STORAGE_KEY = 'stratify-trader-chart-timeframe';
@@ -635,11 +636,25 @@ const getBucketTimeForTimeframe = (timeSeconds, timeframeId) => {
 const loadInitialWatchlist = () => {
   if (typeof window === 'undefined') return [...DEFAULT_WATCHLIST];
   try {
-    const saved = JSON.parse(localStorage.getItem(WATCHLIST_STORAGE_KEY) || '[]');
-    if (!Array.isArray(saved)) return [...DEFAULT_WATCHLIST];
-    const normalized = saved.map(normalizeSymbol).filter(Boolean);
-    const unique = [...new Set(normalized)];
-    return unique.length > 0 ? unique : [...DEFAULT_WATCHLIST];
+    const savedWatchlist = JSON.parse(localStorage.getItem(WATCHLIST_STORAGE_KEY) || '[]');
+    const normalizedWatchlist = Array.isArray(savedWatchlist)
+      ? [...new Set(savedWatchlist.map(normalizeSymbol).filter(Boolean))]
+      : [];
+
+    const baseWatchlist = normalizedWatchlist.length > 0 ? normalizedWatchlist : [...DEFAULT_WATCHLIST];
+
+    const savedOrder = JSON.parse(localStorage.getItem(WATCHLIST_ORDER_STORAGE_KEY) || '[]');
+    const normalizedOrder = Array.isArray(savedOrder)
+      ? [...new Set(savedOrder.map(normalizeSymbol).filter(Boolean))]
+      : [];
+
+    if (normalizedOrder.length === 0) return baseWatchlist;
+
+    const baseSet = new Set(baseWatchlist);
+    const ordered = normalizedOrder.filter((symbol) => baseSet.has(symbol));
+    const orderedSet = new Set(ordered);
+    const remainder = baseWatchlist.filter((symbol) => !orderedSet.has(symbol));
+    return [...ordered, ...remainder];
   } catch {
     return [...DEFAULT_WATCHLIST];
   }
@@ -1124,6 +1139,7 @@ export default function TraderPage({
   const [watchlistChangeDisplayModeBySymbol, setWatchlistChangeDisplayModeBySymbol] = useState({});
   const [activeDragTicker, setActiveDragTicker] = useState('');
   const [dragPreviewScale, setDragPreviewScale] = useState(1);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
   const [watchlistNamesBySymbol, setWatchlistNamesBySymbol] = useState(() =>
     initialWatchlist.reduce((accumulator, symbol) => {
       const normalized = normalizeSymbol(symbol);
@@ -1353,7 +1369,9 @@ export default function TraderPage({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
+    const serializedWatchlist = JSON.stringify(watchlist);
+    localStorage.setItem(WATCHLIST_STORAGE_KEY, serializedWatchlist);
+    localStorage.setItem(WATCHLIST_ORDER_STORAGE_KEY, serializedWatchlist);
   }, [watchlist]);
 
   useEffect(() => {
@@ -2439,6 +2457,7 @@ export default function TraderPage({
     dragPositionYRef.current = null;
     setActiveDragTicker('');
     setDragPreviewScale(1);
+    setDragOverIndex(null);
   }, []);
 
   const updateDragPreviewScale = useCallback((draggableId) => {
@@ -2470,6 +2489,7 @@ export default function TraderPage({
 
     setActiveDragTicker(draggableId);
     setDragPreviewScale(1);
+    setDragOverIndex(null);
     dragPositionYRef.current = null;
 
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -2487,6 +2507,8 @@ export default function TraderPage({
     if (!draggableId) return;
 
     setActiveDragTicker((previous) => (previous === draggableId ? previous : draggableId));
+    const nextDropIndex = Number.isInteger(update?.destination?.index) ? update.destination.index : null;
+    setDragOverIndex(nextDropIndex);
     updateDragPreviewScale(draggableId);
   }, [updateDragPreviewScale]);
 
@@ -2533,6 +2555,11 @@ export default function TraderPage({
       const [removed] = reordered.splice(sourceIndex, 1);
       if (!removed) return previous;
       reordered.splice(destIndex, 0, removed);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(WATCHLIST_ORDER_STORAGE_KEY, JSON.stringify(reordered));
+        } catch {}
+      }
       return reordered;
     });
   }, [onPinToTop, resetDragPreview]);
@@ -2738,6 +2765,10 @@ export default function TraderPage({
                               const companyName = String(
                                 quote?.name || watchlistNamesBySymbol[symbol] || MARKET_NAME_BY_SYMBOL[symbol] || symbol
                               ).trim();
+                              const isDropTarget = Number.isInteger(dragOverIndex)
+                                && dragOverIndex === index
+                                && Boolean(activeDragTicker)
+                                && activeDragTicker !== symbol;
 
                               return (
                                 <Draggable key={symbol} draggableId={symbol} index={index}>
@@ -2749,22 +2780,21 @@ export default function TraderPage({
                                       whileHover={{ scale: 1.01 }}
                                       whileTap={{ scale: 0.99 }}
                                       transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
-                                      draggable="true"
-                                      onDragStart={(event) => {
-                                        event.dataTransfer.setData('text/plain', symbol);
-                                        event.dataTransfer.effectAllowed = 'copy';
-                                      }}
                                       className={`group relative flex items-center justify-between cursor-pointer transition-all transition-transform duration-150 border-b border-[#1f1f1f]/30 ${
                                         isSelected ? 'bg-emerald-500/5 border-l border-l-emerald-500/30' : 'hover:bg-white/5'
                                       } px-4 py-3 ${
-                                        snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40' : ''
+                                        snapshot.isDragging ? 'bg-[#1a1a1a] shadow-lg ring-1 ring-emerald-500/40 opacity-50' : ''
+                                      } ${
+                                        isDropTarget ? 'border-t-2 border-[#58a6ff] bg-[#58a6ff]/10' : ''
                                       }`}
                                       style={getDragPreviewStyle(provided.draggableProps.style, snapshot.isDragging, symbol)}
                                       onClick={() => setSelectedSymbol(symbol)}
                                     >
                                       <div
                                         {...provided.dragHandleProps}
-                                        className="mr-2 text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing"
+                                        className={`mr-2 text-gray-600 hover:text-gray-400 ${
+                                          snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                                        }`}
                                       >
                                         <GripVertical className="w-4 h-4" />
                                       </div>

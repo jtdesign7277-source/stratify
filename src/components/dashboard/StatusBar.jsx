@@ -340,6 +340,7 @@ export default function StatusBar({
   };
 
   const status = statusConfig[connectionStatus] || statusConfig.disconnected;
+  const showMarketStatusBadge = countdownState.mode !== 'close';
 
   const handleOpenNewsletter = () => {
     const viewedTimestamp = latestNewsletterTimestamp || Date.now();
@@ -434,7 +435,7 @@ export default function StatusBar({
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <MarketStatusIndicator compact />
+        {showMarketStatusBadge && <MarketStatusIndicator compact />}
         <AnimatePresence mode="wait" initial={false}>
           {countdownState.mode === 'normal' ? (
             <motion.span
