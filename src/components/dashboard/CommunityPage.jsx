@@ -2015,7 +2015,7 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-2'} flex-col py-3 border-r border-white/5`}
+      className={`hidden lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:z-30 lg:flex ${collapsed ? 'w-[68px] items-center' : 'w-[220px]'} h-screen flex-col py-0 overflow-y-auto border-r-2 border-blue-500 rounded-none`}
       style={{
         backgroundColor: '#080d13',
         marginLeft: 0,
@@ -2815,8 +2815,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           </div>
         ) : null}
 
-        <div className="flex-1 min-h-0 py-3 pr-4 pl-0">
-          <div className="h-full flex gap-3 min-h-0">
+        <div className="flex-1 min-h-0 py-0 pr-4 pl-0">
+          <div className={`h-full flex min-h-0 ${leftCollapsed ? 'lg:pl-[68px]' : 'lg:pl-[220px]'}`}>
             <LeftRail
               collapsed={leftCollapsed}
               onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
