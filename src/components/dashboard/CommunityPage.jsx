@@ -26,7 +26,8 @@ const T = {
   blue: '#58a6ff',
 };
 
-const DEFAULT_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'BTC/USD', 'ETH/USD', 'SPY', 'QQQ'];
+const MARKET_MOVER_SYMBOLS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'META', 'AMZN', 'AMD', 'GOOGL'];
+const DEFAULT_TICKERS = [...MARKET_MOVER_SYMBOLS, 'BTC/USD', 'ETH/USD', 'SPY', 'QQQ'];
 const INDEX_SYMBOLS = [
   { symbol: 'ES=F', label: 'S&P Futures', short: 'ES' },
   { symbol: 'NQ=F', label: 'NASDAQ', short: 'NQ' },
@@ -211,6 +212,8 @@ const toFiniteNumber = (value, fallback = 0) => {
 };
 
 const toMaybeFiniteNumber = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
@@ -839,9 +842,9 @@ const COMMUNITY_PAGE_STYLES = `
 const SLIP_EMOJI_PRESETS = ['🚀', '💰', '🔥', '📈', '💯', '✅', '⚡', '🧠'];
 
 const normalizeSymbolKey = (value) => {
-  const raw = String(value || '').trim().toUpperCase();
+  const raw = String(value || '').trim().toUpperCase().replace(/^\$+/, '');
   if (!raw) return '';
-  if (raw.includes(':')) return raw.split(':').pop();
+  if (raw.includes(':')) return raw.split(':').pop().replace(/^\$+/, '');
   return raw;
 };
 
@@ -888,6 +891,7 @@ const mergeQuotesFromPayload = (rows = [], previous = {}) => {
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const symbol = normalizeSymbolKey(row?.symbol);
     if (!symbol) return;
+    const existing = next[symbol] || {};
     const price = toMaybeFiniteNumber(row?.price ?? row?.last ?? row?.close);
     const percentChange = toMaybeFiniteNumber(
       row?.dayChangePercent
@@ -896,25 +900,188 @@ const mergeQuotesFromPayload = (rows = [], previous = {}) => {
       ?? row?.changePercent
       ?? row?.percent_change
     );
-    const change = toMaybeFiniteNumber(row?.change);
+    const rawChange = toMaybeFiniteNumber(row?.change);
     const previousClose = toMaybeFiniteNumber(row?.previousClose ?? row?.previous_close);
+    const existingPrice = toMaybeFiniteNumber(existing?.price ?? existing?.last ?? existing?.close);
+    const existingPercent = toMaybeFiniteNumber(
+      existing?.dayChangePercent
+      ?? existing?.day_change_percent
+      ?? existing?.percentChange
+      ?? existing?.percent_change
+    );
+    const baselineFromExistingPercent = (
+      Number.isFinite(existingPrice)
+      && Number.isFinite(existingPercent)
+      && existingPercent !== -100
+    )
+      ? existingPrice / (1 + (existingPercent / 100))
+      : null;
+    const baselineFromChange = (
+      Number.isFinite(price)
+      && Number.isFinite(rawChange)
+    )
+      ? price - rawChange
+      : null;
+    const baselineFromPercent = (
+      Number.isFinite(price)
+      && Number.isFinite(percentChange)
+      && percentChange !== -100
+    )
+      ? price / (1 + (percentChange / 100))
+      : null;
+    const baseline = (
+      previousClose
+      ?? baselineFromChange
+      ?? baselineFromPercent
+      ?? toMaybeFiniteNumber(existing?.dayBaselinePrice)
+      ?? toMaybeFiniteNumber(existing?.previousClose ?? existing?.previous_close)
+      ?? baselineFromExistingPercent
+    );
+    const derivedChange = (
+      Number.isFinite(rawChange)
+        ? rawChange
+        : (
+          Number.isFinite(price)
+          && Number.isFinite(baseline)
+        )
+          ? price - baseline
+          : toMaybeFiniteNumber(existing?.change)
+    );
+    const derivedPercent = (
+      Number.isFinite(percentChange)
+        ? percentChange
+        : (
+          Number.isFinite(price)
+          && Number.isFinite(baseline)
+          && baseline !== 0
+        )
+          ? ((price - baseline) / baseline) * 100
+          : toMaybeFiniteNumber(
+            existing?.dayChangePercent
+            ?? existing?.day_change_percent
+            ?? existing?.percentChange
+            ?? existing?.percent_change
+          )
+    );
+
     next[symbol] = {
-      ...next[symbol],
+      ...existing,
       symbol,
-      name: row?.name || next[symbol]?.name || symbol,
-      exchange: row?.exchange || next[symbol]?.exchange || null,
-      price: price ?? next[symbol]?.price ?? null,
-      percentChange: percentChange ?? next[symbol]?.percentChange ?? null,
-      percent_change: percentChange ?? next[symbol]?.percent_change ?? null,
-      dayChangePercent: percentChange ?? next[symbol]?.dayChangePercent ?? null,
-      change: change ?? next[symbol]?.change ?? null,
-      previousClose: previousClose ?? next[symbol]?.previousClose ?? null,
-      previous_close: previousClose ?? next[symbol]?.previous_close ?? null,
+      name: row?.name || existing?.name || symbol,
+      exchange: row?.exchange || existing?.exchange || null,
+      price: price ?? existing?.price ?? null,
+      percentChange: derivedPercent,
+      percent_change: derivedPercent,
+      dayChangePercent: derivedPercent,
+      day_change_percent: derivedPercent,
+      change: derivedChange,
+      previousClose: baseline ?? existing?.previousClose ?? null,
+      previous_close: baseline ?? existing?.previous_close ?? null,
+      dayBaselinePrice: baseline ?? existing?.dayBaselinePrice ?? null,
       timestamp: row?.timestamp || row?.datetime || new Date().toISOString(),
       source: 'rest',
     };
   });
   return next;
+};
+
+const mergeStreamQuote = (existingQuote = {}, update = {}, symbol = '') => {
+  const nextPrice = toMaybeFiniteNumber(update?.price ?? update?.last ?? update?.close);
+  const rawPercent = toMaybeFiniteNumber(
+    update?.dayChangePercent
+    ?? update?.day_change_percent
+    ?? update?.percentChange
+    ?? update?.percent_change
+    ?? update?.raw?.dayChangePercent
+    ?? update?.raw?.day_change_percent
+    ?? update?.raw?.percentChange
+    ?? update?.raw?.percent_change
+  );
+  const rawChange = toMaybeFiniteNumber(update?.change ?? update?.raw?.change);
+  const streamPreviousClose = toMaybeFiniteNumber(
+    update?.raw?.previousClose
+    ?? update?.raw?.previous_close
+    ?? update?.previousClose
+    ?? update?.previous_close
+  );
+  const existingPrice = toMaybeFiniteNumber(existingQuote?.price ?? existingQuote?.last ?? existingQuote?.close);
+  const existingPercent = toMaybeFiniteNumber(
+    existingQuote?.dayChangePercent
+    ?? existingQuote?.day_change_percent
+    ?? existingQuote?.percentChange
+    ?? existingQuote?.percent_change
+  );
+  const baselineFromExistingPercent = (
+    Number.isFinite(existingPrice)
+    && Number.isFinite(existingPercent)
+    && existingPercent !== -100
+  )
+    ? existingPrice / (1 + (existingPercent / 100))
+    : null;
+
+  const baselineFromExisting = (
+    toMaybeFiniteNumber(existingQuote?.dayBaselinePrice)
+    ?? toMaybeFiniteNumber(existingQuote?.previousClose ?? existingQuote?.previous_close)
+    ?? baselineFromExistingPercent
+  );
+  const baselineFromChange = (
+    Number.isFinite(nextPrice)
+    && Number.isFinite(rawChange)
+  )
+    ? nextPrice - rawChange
+    : null;
+  const baselineFromPercent = (
+    Number.isFinite(nextPrice)
+    && Number.isFinite(rawPercent)
+    && rawPercent !== -100
+  )
+    ? nextPrice / (1 + (rawPercent / 100))
+    : null;
+  const baseline = streamPreviousClose ?? baselineFromExisting ?? baselineFromChange ?? baselineFromPercent;
+
+  const derivedChange = (
+    Number.isFinite(rawChange)
+      ? rawChange
+      : (
+        Number.isFinite(nextPrice)
+        && Number.isFinite(baseline)
+      )
+        ? nextPrice - baseline
+        : toMaybeFiniteNumber(existingQuote?.change)
+  );
+  const derivedPercent = (
+    Number.isFinite(rawPercent)
+      ? rawPercent
+      : (
+        Number.isFinite(nextPrice)
+        && Number.isFinite(baseline)
+        && baseline !== 0
+      )
+        ? ((nextPrice - baseline) / baseline) * 100
+        : toMaybeFiniteNumber(
+          existingQuote?.dayChangePercent
+          ?? existingQuote?.day_change_percent
+          ?? existingQuote?.percentChange
+          ?? existingQuote?.percent_change
+        )
+  );
+
+  return {
+    ...existingQuote,
+    symbol,
+    name: existingQuote?.name || symbol,
+    price: Number.isFinite(nextPrice) ? nextPrice : existingQuote?.price ?? null,
+    change: derivedChange,
+    percentChange: derivedPercent,
+    percent_change: derivedPercent,
+    dayChangePercent: derivedPercent,
+    day_change_percent: derivedPercent,
+    previousClose: baseline ?? existingQuote?.previousClose ?? null,
+    previous_close: baseline ?? existingQuote?.previous_close ?? null,
+    dayBaselinePrice: baseline ?? existingQuote?.dayBaselinePrice ?? null,
+    timestamp: update?.timestamp || new Date().toISOString(),
+    source: 'ws',
+  };
 };
 
 const mentionSymbolsFromPosts = (rows = []) => {
@@ -2968,6 +3135,12 @@ const RightSidebar = ({
     () => sectionOrder.filter((sectionId) => !sectionVisibility[sectionId]),
     [sectionOrder, sectionVisibility],
   );
+  const marketMoverSymbols = useMemo(
+    () => MARKET_MOVER_SYMBOLS
+      .map(normalizeSymbolKey)
+      .filter((symbol) => trackedSymbols.includes(symbol)),
+    [trackedSymbols],
+  );
   const watchlistSymbols = useMemo(
     () => watchlistRows.map((row) => row.symbol).filter(Boolean),
     [watchlistRows],
@@ -3074,41 +3247,27 @@ const RightSidebar = ({
 
   useEffect(() => {
     if (watchlistSymbols.length === 0) return undefined;
+    console.log('[CommunityPage][Watchlist] Subscribing Twelve Data symbols:', watchlistSymbols);
 
     const unsubscribeQuotes = subscribeTwelveDataQuotes(watchlistSymbols, (update) => {
       const symbol = normalizeSymbolKey(update?.symbol);
       if (!symbol) return;
+      console.log('[CommunityPage][Watchlist] WS price update:', {
+        symbol,
+        price: update?.price,
+        dayChangePercent: update?.dayChangePercent ?? update?.percentChange ?? null,
+      });
 
       setWatchlistQuoteMap((prev) => {
-        const existing = prev[symbol] || {};
-        const nextPrice = toMaybeFiniteNumber(update?.price);
-        const nextPercent = toMaybeFiniteNumber(
-          update?.dayChangePercent
-          ?? update?.day_change_percent
-          ?? update?.percentChange
-          ?? update?.percent_change
-        );
-        const nextChange = toMaybeFiniteNumber(update?.change);
-
         return {
           ...prev,
-          [symbol]: {
-            ...existing,
-            symbol,
-            name: existing?.name || symbol,
-            price: nextPrice ?? existing?.price ?? null,
-            percentChange: nextPercent ?? existing?.percentChange ?? null,
-            percent_change: nextPercent ?? existing?.percent_change ?? null,
-            dayChangePercent: nextPercent ?? existing?.dayChangePercent ?? null,
-            change: nextChange ?? existing?.change ?? null,
-            timestamp: update?.timestamp || new Date().toISOString(),
-            source: 'ws',
-          },
+          [symbol]: mergeStreamQuote(prev[symbol] || {}, update, symbol),
         };
       });
     });
 
     return () => {
+      console.log('[CommunityPage][Watchlist] Unsubscribing Twelve Data symbols:', watchlistSymbols);
       unsubscribeQuotes?.();
     };
   }, [watchlistSymbols]);
@@ -3520,7 +3679,7 @@ const RightSidebar = ({
           onDragStateChange={setDraggingSectionId}
         >
           <div className="space-y-2 max-h-52 overflow-y-auto">
-            {trackedSymbols
+            {marketMoverSymbols
               .filter((symbol) => !isFuturesSymbol(symbol))
               .slice(0, 12)
               .map((symbol) => renderQuoteRow(symbol, symbol))}
@@ -4100,7 +4259,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, [currentUser?.id, prependPost]);
 
   const trackedSymbols = useMemo(() => {
-    const set = new Set([...DEFAULT_TICKERS, ...INDEX_SYMBOLS.map((item) => item.symbol)]);
+    const set = new Set([
+      ...DEFAULT_TICKERS,
+      ...MARKET_MOVER_SYMBOLS,
+      ...INDEX_SYMBOLS.map((item) => item.symbol),
+    ]);
     mentionSymbolsFromPosts(posts).forEach((symbol) => set.add(symbol));
     return [...set].map(normalizeSymbolKey).filter(Boolean).slice(0, 48);
   }, [posts]);
@@ -4153,45 +4316,32 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
   useEffect(() => {
     if (trackedSymbols.length === 0) return undefined;
+    console.log('[CommunityPage] Subscribing Twelve Data symbols:', trackedSymbols);
 
     const unsubscribeQuotes = subscribeTwelveDataQuotes(trackedSymbols, (update) => {
       const symbol = normalizeSymbolKey(update?.symbol);
       if (!symbol) return;
+      console.log('[CommunityPage] WS price update received:', {
+        symbol,
+        price: update?.price,
+        dayChangePercent: update?.dayChangePercent ?? update?.percentChange ?? null,
+      });
 
       setQuoteMap((prev) => {
-        const existing = prev[symbol] || {};
-        const nextPrice = toMaybeFiniteNumber(update?.price);
-        const nextPercent = toMaybeFiniteNumber(
-          update?.dayChangePercent
-          ?? update?.day_change_percent
-          ?? update?.percentChange
-          ?? update?.percent_change
-        );
-        const nextChange = toMaybeFiniteNumber(update?.change);
-
         return {
           ...prev,
-          [symbol]: {
-            ...existing,
-            symbol,
-            name: existing?.name || symbol,
-            price: nextPrice ?? existing?.price ?? null,
-            percentChange: nextPercent ?? existing?.percentChange ?? null,
-            percent_change: nextPercent ?? existing?.percent_change ?? null,
-            dayChangePercent: nextPercent ?? existing?.dayChangePercent ?? null,
-            change: nextChange ?? existing?.change ?? null,
-            timestamp: update?.timestamp || new Date().toISOString(),
-            source: 'ws',
-          },
+          [symbol]: mergeStreamQuote(prev[symbol] || {}, update, symbol),
         };
       });
     });
 
     const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
+      console.log('[CommunityPage] Twelve Data stream status:', status);
       setStreamStatus(status || BASE_STREAM_STATUS);
     });
 
     return () => {
+      console.log('[CommunityPage] Unsubscribing Twelve Data symbols:', trackedSymbols);
       unsubscribeQuotes?.();
       unsubscribeStatus?.();
     };
