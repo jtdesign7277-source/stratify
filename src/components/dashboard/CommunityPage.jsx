@@ -1401,17 +1401,7 @@ const ChatInputBar = ({
               />
             </div>
 
-            <div className="mt-2.5 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={onOpenComposer}
-                className="h-7 w-7 rounded-full border transition-colors hover:bg-white/5"
-                style={{ borderColor: T.border, color: T.muted }}
-                title="Open composer"
-              >
-                <Plus size={12} className="mx-auto" />
-              </button>
-
+            <div className="mt-2.5 flex items-center justify-end">
               <div className="relative flex items-center gap-1.5">
                 <button
                   type="button"
@@ -1420,7 +1410,7 @@ const ChatInputBar = ({
                   style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
                   title="Open composer"
                 >
-                  Compose
+                  New Post
                 </button>
                 <button
                   type="button"
