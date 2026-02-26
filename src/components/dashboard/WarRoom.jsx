@@ -91,7 +91,7 @@ const fetchCachedScan = async (label) => {
       query: '',
       content: String(payload.content || ''),
       sources: payload.sources || [],
-      sourceLabel: payload.fromCache ? 'Cached Intel' : 'Claude Intel',
+      sourceLabel: 'Claude Intel',
       createdAt: new Date().toISOString(),
     });
   } catch { return null; }
@@ -111,7 +111,7 @@ const fetchSingleScan = async (query, title) => {
     query,
     content: String(payload?.content || ''),
     sources: payload?.sources || [],
-    sourceLabel: payload?.fromCache ? 'Cached Intel' : 'Claude Intel',
+    sourceLabel: 'Claude Intel',
     createdAt: new Date().toISOString(),
   });
 };
@@ -792,7 +792,7 @@ export default function WarRoom({ onClose }) {
           query: trimmedQuery,
           content: String(payload?.content || 'No market intel returned.'),
           sources: toSourceLinks(payload?.sources || []),
-          sourceLabel: payload?.fromCache ? 'Cached Intel' : 'Claude Intel',
+          sourceLabel: 'Claude Intel',
           createdAt: new Date().toISOString(),
         });
 
@@ -890,14 +890,14 @@ export default function WarRoom({ onClose }) {
           <div className="space-y-1">
             {section.lines.map((line, li) => renderLine(line, li, `${sectionKey}-l`))}
           </div>
-          {/* Purple divider + save button */}
+          {/* Accent divider + save button */}
           <div className="relative flex items-center gap-2 my-3">
-            <div className="flex-1 h-px bg-purple-500/30" />
+            <div className="flex-1 h-px bg-[#58a6ff]/30" />
             <div className="relative" data-section-save>
               <button
                 type="button"
                 onClick={() => setSectionSaveMenu(menuOpen ? null : sectionKey)}
-                className="text-[10px] uppercase tracking-wider text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded px-2 py-0.5 transition-colors"
+                className="text-[10px] uppercase tracking-wider text-[#58a6ff] hover:text-[#79b8ff] bg-[#58a6ff]/10 border border-[#58a6ff]/25 rounded px-2 py-0.5 transition-colors"
               >
                 Save to Folder
               </button>
@@ -908,7 +908,7 @@ export default function WarRoom({ onClose }) {
                       key={f.id}
                       type="button"
                       onClick={() => handleSaveSection(section.raw, f.id)}
-                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-purple-500/10 hover:text-white transition-colors"
+                      className="w-full text-left rounded px-2 py-1.5 text-xs text-gray-300 hover:bg-[#58a6ff]/10 hover:text-white transition-colors"
                     >
                       {f.name}
                     </button>
@@ -916,7 +916,7 @@ export default function WarRoom({ onClose }) {
                 </div>
               )}
             </div>
-            <div className="flex-1 h-px bg-purple-500/30" />
+            <div className="flex-1 h-px bg-[#58a6ff]/30" />
           </div>
         </div>
       );
@@ -1716,7 +1716,7 @@ export default function WarRoom({ onClose }) {
                 return (
                   <article
                     key={card.id}
-                    className="relative bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(147,51,234,0.1)] transition-all"
+                    className="relative bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-5 hover:border-[#58a6ff]/30 hover:shadow-[0_0_20px_rgba(88,166,255,0.1)] transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -1725,7 +1725,7 @@ export default function WarRoom({ onClose }) {
                       </div>
 
                       <span className="text-blue-400 text-sm bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-0.5">
-                        {card.sourceLabel || 'Claude Intel'}
+                        {String(card.sourceLabel || '').toLowerCase().includes('cache') ? 'Claude Intel' : (card.sourceLabel || 'Claude Intel')}
                       </span>
                     </div>
 

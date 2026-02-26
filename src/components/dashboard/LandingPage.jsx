@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
   Ban,
@@ -329,11 +329,38 @@ const FEATURE_NAV_ITEMS = [
   },
 ];
 
-const sectionMotion = {
-  initial: { opacity: 0, y: 24 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.25 },
-  transition: { duration: 0.55, ease: 'easeOut' },
+const pageTransition = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const getSectionTransition = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + index * 0.05, duration: 0.3 },
+});
+
+const getListItemTransition = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+
+const modalBackdropTransition = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 },
+};
+
+const modalPanelTransition = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
+  transition: { type: 'spring', stiffness: 300, damping: 25 },
 };
 
 const landingStyles = `
@@ -444,7 +471,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-transparent text-white">
+    <motion.div {...pageTransition} className="relative min-h-screen overflow-hidden bg-transparent text-white">
       <style>{landingStyles}</style>
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -555,9 +582,12 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
       <nav className="relative z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
         <div className="hidden md:flex items-center gap-7 text-sm text-white/75">
             <div className="relative" ref={featureMenuRef}>
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setIsFeatureMenuOpen((open) => !open)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="inline-flex items-center gap-1.5 text-white/85 transition hover:text-white"
                 aria-expanded={isFeatureMenuOpen}
                 aria-haspopup="dialog"
@@ -567,72 +597,91 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
                   className={`h-4 w-4 transition-transform ${isFeatureMenuOpen ? 'rotate-180' : 'rotate-0'}`}
                   strokeWidth={1.8}
                 />
-              </button>
+              </motion.button>
 
-              {isFeatureMenuOpen && (
-                <div className="group/featurepanel absolute left-[-120px] top-full mt-3 w-[min(88vw,560px)] overflow-hidden rounded-2xl border border-cyan-300/10 bg-[rgba(5,10,24,0.62)] shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-colors hover:border-cyan-300/55">
-                  <div className="max-h-[74vh] overflow-y-auto">
-                    <div className="border-b border-transparent transition-colors group-hover/featurepanel:border-cyan-300/25">
-                      {FEATURE_NAV_ITEMS.map((item, index) => {
-                        const isActive = activeFeatureId === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setActiveFeatureId(item.id)}
-                            className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'} ${index > 0 ? 'border-t border-transparent group-hover/featurepanel:border-cyan-300/20' : ''}`}
+              <AnimatePresence>
+                {isFeatureMenuOpen && (
+                  <>
+                    <motion.div
+                      {...modalBackdropTransition}
+                      className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+                      onClick={() => setIsFeatureMenuOpen(false)}
+                    />
+                    <motion.div
+                      {...modalPanelTransition}
+                      className="group/featurepanel absolute left-[-120px] top-full z-40 mt-3 w-[min(88vw,560px)] overflow-hidden rounded-2xl border border-white/8 bg-[rgba(5,10,24,0.62)] shadow-[0_18px_60px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-colors hover:border-cyan-300/55"
+                    >
+                      <div className="max-h-[74vh] overflow-y-auto">
+                        <div className="border-b border-transparent transition-colors group-hover/featurepanel:border-cyan-300/25">
+                          {FEATURE_NAV_ITEMS.map((item, index) => {
+                            const isActive = activeFeatureId === item.id;
+                            return (
+                              <motion.button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setActiveFeatureId(item.id)}
+                                {...getListItemTransition(index)}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                transition={interactiveTransition}
+                                className={`w-full px-5 py-4 text-left transition ${isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'} ${index > 0 ? 'border-t border-transparent group-hover/featurepanel:border-cyan-300/20' : ''}`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-base font-medium leading-none text-white">{item.title}</p>
+                                    {item.badge ? (
+                                      <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-200/80">
+                                        {item.badge}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-1 text-sm text-white/50">{item.description}</p>
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="px-6 py-6 border-t border-transparent transition-colors group-hover/featurepanel:border-cyan-300/20">
+                          <p className="text-[11px] uppercase tracking-[0.24em] text-white/52">
+                            {activeFeature.id === 'stock-finder' ? 'Stocks with AI exposure' : 'Feature spotlight'}
+                          </p>
+                          <h3
+                            className="mt-3 text-[38px] font-[350] leading-[1.08] text-white"
+                            style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}
                           >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-base font-medium leading-none text-white">{item.title}</p>
-                                {item.badge ? (
-                                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-200/80">
-                                    {item.badge}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <p className="mt-1 text-sm text-white/50">{item.description}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="px-6 py-6 border-t border-transparent transition-colors group-hover/featurepanel:border-cyan-300/20">
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-white/52">
-                        {activeFeature.id === 'stock-finder' ? 'Stocks with AI exposure' : 'Feature spotlight'}
-                      </p>
-                      <h3
-                        className="mt-3 text-[38px] font-[350] leading-[1.08] text-white"
-                        style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}
-                      >
-                        {activeFeature.detailTitle}
-                      </h3>
-                      <p className="mt-4 text-[15px] leading-relaxed text-white/68">
-                        {activeFeature.detailBody}
-                      </p>
-                      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs uppercase tracking-[0.14em] text-white/60">
-                        {activeFeature.chips.map((chip, index) => (
-                          <span key={`${activeFeature.id}-${chip}`} className="inline-flex items-center gap-3">
-                            {index > 0 ? <span className="text-cyan-200/55">·</span> : null}
-                            <span>{chip}</span>
-                          </span>
-                        ))}
+                            {activeFeature.detailTitle}
+                          </h3>
+                          <p className="mt-4 text-[15px] leading-relaxed text-white/68">
+                            {activeFeature.detailBody}
+                          </p>
+                          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs uppercase tracking-[0.14em] text-white/60">
+                            {activeFeature.chips.map((chip, index) => (
+                              <span key={`${activeFeature.id}-${chip}`} className="inline-flex items-center gap-3">
+                                {index > 0 ? <span className="text-cyan-200/55">·</span> : null}
+                                <span>{chip}</span>
+                              </span>
+                            ))}
+                          </div>
+                          <motion.button
+                            type="button"
+                            onClick={() => {
+                              setIsFeatureMenuOpen(false);
+                              handleCheckoutStart();
+                            }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={interactiveTransition}
+                            className="mt-7 text-sm font-medium tracking-[0.1em] text-cyan-200/90 transition hover:text-cyan-100"
+                          >
+                            {activeFeature.cta}
+                          </motion.button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsFeatureMenuOpen(false);
-                          handleCheckoutStart();
-                        }}
-                        className="mt-7 text-sm font-medium tracking-[0.1em] text-cyan-200/90 transition hover:text-cyan-100"
-                      >
-                        {activeFeature.cta}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
             <a
@@ -642,23 +691,29 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
             >
               Pricing
             </a>
-            <button
+            <motion.button
               type="button"
               onClick={() => {
                 setIsFeatureMenuOpen(false);
                 jumpToSection('updates-section');
               }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="text-white/70 transition hover:text-white"
             >
               Updates
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
               onClick={handleCheckoutStart}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="text-emerald-300/90 transition hover:text-emerald-200"
             >
               Get Started
-            </button>
+            </motion.button>
         </div>
 
         <div className="flex items-center gap-4">
@@ -672,27 +727,33 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
             <svg width="20" height="16" viewBox="0 0 71 55" fill="currentColor"><path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1C20.3 1.3 15.4 2.8 10.9 4.9c0 0-.1 0-.1.1C1.6 18.7-.9 32.1.3 45.4v.2c6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .2-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.7-3.8-1.6-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.7-.6 1.1-.9.1-.1.1-.1.2-.1 11.6 5.3 24.2 5.3 35.7 0h.2c.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 2-5.6 2.7-.1.1-.2.2-.1.3 1.1 2.1 2.3 4.1 3.6 5.9.1.1.2.1.2.1 5.8-1.8 11.6-4.5 17.7-9 0 0 .1-.1.1-.2 1.5-15.6-2.5-29.1-10.7-41.1 0 0 0 0-.1-.1z"/></svg>
           </a>
           {canAccessDashboard ? (
-            <button
+            <motion.button
               type="button"
               onClick={onDashboard || onEnter}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="text-white hover:text-gray-300 text-sm font-semibold transition-colors"
             >
               Dashboard
-            </button>
+            </motion.button>
           ) : (
-            <button
+            <motion.button
               type="button"
               onClick={handleGetStarted}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="border border-emerald-500/20 bg-emerald-500/5 text-emerald-400/80 hover:bg-emerald-500/10 hover:text-emerald-400 font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
             >
               Sign Up
-            </button>
+            </motion.button>
           )}
         </div>
       </nav>
 
       <main className="relative z-10">
-        <motion.section {...sectionMotion} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
+        <motion.section {...getSectionTransition(0)} className="pt-28 pb-28 md:pt-32 md:pb-32 px-6">
           <div className="max-w-6xl mx-auto text-center relative">
             <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-emerald-500/12 blur-3xl" />
             <div className="pointer-events-none absolute left-1/2 top-[45%] -translate-x-1/2 w-[620px] h-[260px] rounded-full bg-indigo-500/10 blur-3xl" />
@@ -708,20 +769,26 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
+              <motion.button
                 type="button"
                 onClick={handleGetStarted}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="bg-transparent text-emerald-300 hover:text-emerald-200 font-semibold px-2 py-1 transition-colors inline-flex items-center gap-2"
               >
                 Get Started
                 <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
-              </button>
-              <a
+              </motion.button>
+              <motion.a
                 href="/whitepaper"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="border border-gray-700 hover:border-emerald-500/50 text-gray-300 px-8 py-3 rounded-xl transition-colors"
               >
                 Read White Paper
-              </a>
+              </motion.a>
             </div>
 
             {/* Discord Community CTA */}
@@ -767,7 +834,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
           </div>
         </motion.section>
 
-        <motion.section id="pricing-section" {...sectionMotion} className="border-t border-white/8 py-24 px-6">
+        <motion.section id="pricing-section" {...getSectionTransition(1)} className="border-t border-white/8 py-24 px-6">
           <div className="max-w-5xl mx-auto">
             <h2
               className="text-center text-white text-4xl md:text-5xl leading-tight"
@@ -785,21 +852,22 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
                 <p>Without Stratify</p>
                 <p>With Stratify</p>
               </div>
-              {LANDING_COMPARE_ROWS.map((row) => (
-                <div
+              {LANDING_COMPARE_ROWS.map((row, index) => (
+                <motion.div
                   key={row.feature}
+                  {...getListItemTransition(index)}
                   className="grid grid-cols-3 border-b border-white/6 px-5 py-4 text-sm md:text-base text-gray-300 last:border-b-0"
                 >
                   <p>{row.feature}</p>
                   <p className="text-gray-500">{row.without}</p>
                   <p className="font-semibold text-emerald-400">{`✓ ${row.with}`}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
         </motion.section>
 
-        <motion.section id="updates-section" {...sectionMotion} className="border-t border-white/8 py-24 px-6">
+        <motion.section id="updates-section" {...getSectionTransition(2)} className="border-t border-white/8 py-24 px-6">
           <div className="max-w-6xl mx-auto">
             <h2
               className="text-center text-white text-4xl md:text-5xl leading-tight"
@@ -811,25 +879,25 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
 
             <div className="mt-14 grid grid-cols-1 gap-10 md:grid-cols-2 xl:grid-cols-4">
               {LANDING_WORKFLOW_STEPS.map((step, index) => (
-                <div key={step.title} className="px-1">
+                <motion.div key={step.title} {...getListItemTransition(index)} className="px-1">
                   <p className="text-5xl font-semibold text-blue-400">{index + 1}</p>
                   <h3 className="mt-4 text-3xl font-semibold text-white leading-tight">{step.title}</h3>
                   <p className="mt-3 text-gray-300 text-lg leading-relaxed">{step.description}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
         </motion.section>
 
-        <motion.section {...sectionMotion} className="border-y border-white/8 py-14 px-6">
+        <motion.section {...getSectionTransition(3)} className="border-y border-white/8 py-14 px-6">
           <div className="max-w-6xl mx-auto">
             <p className="text-center text-[11px] uppercase tracking-[0.3em] text-white/45">Integrated With</p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-x-9 gap-y-4 text-2xl text-slate-300">
-              {LANDING_INTEGRATIONS.map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
+              {LANDING_INTEGRATIONS.map((item, index) => (
+                <motion.div key={item.name} {...getListItemTransition(index)} className="flex items-center gap-2">
                   <span className="text-white/45">{item.glyph}</span>
                   <span>{item.name}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -870,7 +938,7 @@ const LandingPage = ({ onEnter, onSignUp, onDashboard, onCheckout, canAccessDash
           </div>
         </footer>
       </main>
-    </div>
+    </motion.div>
   );
 };
 

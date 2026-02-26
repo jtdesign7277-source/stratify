@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRightLeft,
   ChevronRight,
@@ -359,6 +360,40 @@ const renderFolderIcon = (folderId) => {
     return <Zap className={`h-4 w-4 ${folderIconClass(folderId)}`} strokeWidth={1.8} />;
   }
   return <Folder className={`h-4 w-4 ${folderIconClass(folderId)}`} strokeWidth={1.8} />;
+};
+
+const pageTransition = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const getSectionTransition = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + index * 0.05, duration: 0.3 },
+});
+
+const getListItemTransition = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+
+const modalBackdropTransition = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 },
+};
+
+const modalPanelTransition = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
+  transition: { type: 'spring', stiffness: 300, damping: 25 },
 };
 
 const StrategiesPage = ({
@@ -873,19 +908,22 @@ const StrategiesPage = ({
 
   if (selectedTemplate) {
     return (
-      <div className="flex h-full flex-1 flex-col overflow-hidden bg-[#0b0b0b]">
+      <motion.div {...pageTransition} className="flex h-full flex-1 flex-col overflow-hidden bg-[#0b0b0b]">
         <StrategyTemplateFlow
           initialTemplate={selectedTemplate}
           onBack={() => setSelectedTemplate(null)}
           onActivateStrategy={onActivateTemplate}
         />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex h-full flex-1 flex-col overflow-hidden bg-[#0b0b0b]">
-      <div className="shrink-0 border-b border-zinc-800 px-6 pb-5 pt-6">
+    <motion.div {...pageTransition} className="flex h-full flex-1 flex-col overflow-hidden bg-[#0b0b0b]">
+      <motion.div
+        {...getSectionTransition(0)}
+        className="shrink-0 border-b border-zinc-800 bg-black/20 px-6 pb-5 pt-6 shadow-lg shadow-black/30"
+      >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">My Strategies</h1>
@@ -909,19 +947,26 @@ const StrategiesPage = ({
               />
             </div>
 
-            <button
+            <motion.button
               type="button"
               onClick={() => setShowNewFolder((prev) => !prev)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2.5 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/15"
             >
               <FolderPlus className="h-4 w-4" strokeWidth={1.8} />
               New Folder
-            </button>
+            </motion.button>
           </div>
         </div>
 
-        {showNewFolder && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/50 px-3 py-3">
+        <AnimatePresence>
+          {showNewFolder && (
+          <motion.div
+            {...modalPanelTransition}
+            className="mt-4 flex items-center gap-2 rounded-xl border border-white/8 bg-zinc-900/50 px-3 py-3 shadow-lg shadow-black/30"
+          >
             <Folder className="h-5 w-5 text-emerald-300" strokeWidth={1.8} />
             <input
               type="text"
@@ -938,57 +983,71 @@ const StrategiesPage = ({
               className="flex-1 bg-transparent text-base text-white placeholder:text-white/35 outline-none"
               autoFocus
             />
-            <button
+            <motion.button
               type="button"
               onClick={createFolder}
               disabled={!newFolderName.trim()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-3 py-1.5 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Create
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
               onClick={() => {
                 setShowNewFolder(false);
                 setNewFolderName('');
               }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="rounded-md p-1 text-white/40 transition-colors hover:text-white/70"
             >
               <X className="h-4 w-4" strokeWidth={1.8} />
-            </button>
-          </div>
-        )}
-      </div>
+            </motion.button>
+          </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'none' }}>
+      <motion.div {...getSectionTransition(1)} className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'none' }}>
         {allStrategies.length === 0 && (
-          <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-zinc-700 bg-zinc-900/45 px-5 py-4">
+          <motion.div
+            {...getSectionTransition(2)}
+            className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-zinc-900/45 px-5 py-4 shadow-lg shadow-black/30"
+          >
             <div className="text-base text-white/75">
               No strategies yet. Create your first strategy to get started.
             </div>
-            <button
+            <motion.button
               type="button"
               onClick={() => setActiveTab?.('builder')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
             >
               Strategy Builder
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         )}
 
         <div className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-white/35">
           Folders
         </div>
 
-        {folderViews.map((folder) => {
+        {folderViews.map((folder, folderIndex) => {
           const isFolderEditing =
             editing?.type === 'folder' && editing.folderId === folder.id;
           const isDropTarget = dropFolderId === folder.id;
           const hasMatches = folder.filteredStrategies.length > 0;
 
           return (
-            <div
+            <motion.div
               key={folder.id}
+              {...getListItemTransition(folderIndex)}
               className="mb-2"
               onDragOver={(event) => {
                 event.preventDefault();
@@ -1003,11 +1062,14 @@ const StrategiesPage = ({
                 setDropFolderId(null);
               }}
             >
-              <div
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                transition={interactiveTransition}
                 className={`group flex items-center gap-2 rounded-xl border px-3 py-2 transition-colors ${
                   isDropTarget
-                    ? 'border-emerald-500/45 bg-emerald-500/10'
-                    : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
+                    ? 'border-emerald-500/45 bg-emerald-500/10 shadow-lg shadow-black/30'
+                    : 'border-white/5 hover:border-zinc-700 hover:bg-zinc-900/40 shadow-lg shadow-black/20'
                 }`}
                 onContextMenu={(event) =>
                   openContextMenu(event, { type: 'folder', folderId: folder.id })
@@ -1058,16 +1120,19 @@ const StrategiesPage = ({
                   {folder.strategies.length}
                 </span>
 
-                <button
+                <motion.button
                   type="button"
                   onClick={(event) =>
                     openContextMenuFromButton(event, { type: 'folder', folderId: folder.id })
                   }
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
                   className="rounded-md p-1 text-white/0 transition-colors group-hover:text-white/55 hover:text-white"
                 >
                   <MoreVertical className="h-4 w-4" strokeWidth={1.8} />
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
 
               <div
                 className={`grid transition-all duration-300 ease-out ${
@@ -1077,7 +1142,7 @@ const StrategiesPage = ({
                 <div className="overflow-hidden">
                   <div className="ml-8 border-l border-zinc-800 pl-3">
                     {hasMatches &&
-                      folder.filteredStrategies.map((strategy) => {
+                      folder.filteredStrategies.map((strategy, strategyIndex) => {
                         const isSelected = selectedStrategyId === String(strategy.id);
                         const isStrategyEditing =
                           editing?.type === 'strategy' &&
@@ -1087,8 +1152,12 @@ const StrategiesPage = ({
                         const isLive = LIVE_STATUSES.has(String(strategy.status || '').toLowerCase());
 
                         return (
-                          <div
+                          <motion.div
                             key={strategy.id}
+                            {...getListItemTransition(strategyIndex)}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            transition={interactiveTransition}
                             draggable
                             onDragStart={(event) => {
                               setDraggedStrategyId(String(strategy.id));
@@ -1108,17 +1177,20 @@ const StrategiesPage = ({
                             }
                             className={`group/item my-1 rounded-xl border px-3 py-2.5 transition-colors ${
                               isSelected
-                                ? 'border-emerald-500/45 bg-emerald-500/12'
-                                : 'border-transparent hover:border-zinc-700 hover:bg-zinc-900/40'
+                                ? 'border-emerald-500/45 bg-emerald-500/12 shadow-lg shadow-black/30'
+                                : 'border-white/5 hover:border-zinc-700 hover:bg-zinc-900/40 shadow-lg shadow-black/20'
                             }`}
                           >
                             <div className="flex items-start gap-2">
-                              <button
+                              <motion.button
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   toggleStrategyStar(folder.id, strategy.id);
                                 }}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                transition={interactiveTransition}
                                 className="mt-0.5 rounded-md p-1 text-white/30 transition-colors hover:text-amber-300"
                               >
                                 <Star
@@ -1129,7 +1201,7 @@ const StrategiesPage = ({
                                   }`}
                                   strokeWidth={1.8}
                                 />
-                              </button>
+                              </motion.button>
 
                               <div className="min-w-0 flex-1">
                                 {isStrategyEditing ? (
@@ -1193,24 +1265,30 @@ const StrategiesPage = ({
                               </div>
 
                               <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/item:opacity-100">
-                                <button
+                                <motion.button
                                   type="button"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     onEditStrategy?.(toStrategyPayload(strategy));
                                   }}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  transition={interactiveTransition}
                                   className="rounded-md p-1 text-white/40 transition-colors hover:text-emerald-300"
                                   title="Edit"
                                 >
                                   <Edit3 className="h-4 w-4" strokeWidth={1.8} />
-                                </button>
+                                </motion.button>
 
-                                <button
+                                <motion.button
                                   type="button"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     onDeployStrategy?.(toStrategyPayload(strategy), true);
                                   }}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  transition={interactiveTransition}
                                   className={`rounded-md p-1 transition-colors ${
                                     isLive
                                       ? 'text-emerald-300'
@@ -1219,21 +1297,24 @@ const StrategiesPage = ({
                                   title="Activate"
                                 >
                                   <Play className="h-4 w-4" strokeWidth={1.8} />
-                                </button>
+                                </motion.button>
 
-                                <button
+                                <motion.button
                                   type="button"
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     deleteStrategy(folder.id, strategy.id);
                                   }}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  transition={interactiveTransition}
                                   className="rounded-md p-1 text-white/40 transition-colors hover:text-rose-300"
                                   title="Delete"
                                 >
                                   <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                                </button>
+                                </motion.button>
 
-                                <button
+                                <motion.button
                                   type="button"
                                   onClick={(event) =>
                                     openContextMenuFromButton(event, {
@@ -1242,14 +1323,17 @@ const StrategiesPage = ({
                                       strategyId: String(strategy.id),
                                     })
                                   }
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  transition={interactiveTransition}
                                   className="rounded-md p-1 text-white/45 transition-colors hover:text-white/90"
                                   title="More"
                                 >
                                   <MoreVertical className="h-4 w-4" strokeWidth={1.8} />
-                                </button>
+                                </motion.button>
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
 
@@ -1261,13 +1345,16 @@ const StrategiesPage = ({
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
 
-      </div>
+      </motion.div>
 
-      <div className="shrink-0 border-t border-zinc-800 px-6 py-3">
+      <motion.div
+        {...getSectionTransition(2)}
+        className="shrink-0 border-t border-zinc-800 bg-black/20 px-6 py-3 shadow-lg shadow-black/30"
+      >
         <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
           <span className="text-white/45">{allStrategies.length} strategies</span>
           <div className="flex items-center gap-4 text-white/45">
@@ -1285,69 +1372,97 @@ const StrategiesPage = ({
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          className="fixed z-[120] min-w-[230px] rounded-xl border border-zinc-700 bg-[#121212]/95 p-1.5 shadow-2xl backdrop-blur"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          {contextMenuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => handleContextAction(item.key)}
-                disabled={item.disabled}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  item.disabled
-                    ? 'cursor-not-allowed text-white/25'
-                    : item.danger
-                    ? 'text-rose-300 hover:bg-rose-500/10'
-                    : 'text-white/80 hover:bg-white/5'
-                }`}
-              >
-                <Icon className="h-4 w-4" strokeWidth={1.8} />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <AnimatePresence>
+        {contextMenu && (
+          <>
+            <motion.div
+              {...modalBackdropTransition}
+              className="fixed inset-0 z-[118] bg-black/60 backdrop-blur-sm"
+              onClick={() => setContextMenu(null)}
+            />
+            <motion.div
+              ref={contextMenuRef}
+              {...modalPanelTransition}
+              className="fixed z-[120] min-w-[230px] rounded-xl border border-white/8 bg-[#121212]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              {contextMenuItems.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <motion.button
+                    key={item.key}
+                    type="button"
+                    onClick={() => handleContextAction(item.key)}
+                    disabled={item.disabled}
+                    {...getListItemTransition(index)}
+                    whileHover={{ scale: item.disabled ? 1 : 1.02 }}
+                    whileTap={{ scale: item.disabled ? 1 : 0.98 }}
+                    transition={interactiveTransition}
+                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                      item.disabled
+                        ? 'cursor-not-allowed text-white/25'
+                        : item.danger
+                        ? 'text-rose-300 hover:bg-rose-500/10'
+                        : 'text-white/80 hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.8} />
+                    {item.label}
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-      {movePicker && (
-        <div
-          ref={movePickerRef}
-          className="fixed z-[125] min-w-[220px] rounded-xl border border-zinc-700 bg-[#121212]/95 p-1.5 shadow-2xl backdrop-blur"
-          style={{ left: movePicker.x, top: movePicker.y }}
-        >
-          <div className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/35">
-            Move to folder
-          </div>
-          {folders.map((folder) => {
-            const isSameFolder = movePicker.sourceFolderId === folder.id;
-            return (
-              <button
-                key={folder.id}
-                type="button"
-                disabled={isSameFolder}
-                onClick={() => submitMovePicker(folder.id)}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  isSameFolder
-                    ? 'cursor-not-allowed text-white/25'
-                    : 'text-white/80 hover:bg-white/5'
-                }`}
-              >
-                {renderFolderIcon(folder.id)}
-                <span className="truncate">{folder.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {movePicker && (
+          <>
+            <motion.div
+              {...modalBackdropTransition}
+              className="fixed inset-0 z-[123] bg-black/60 backdrop-blur-sm"
+              onClick={() => setMovePicker(null)}
+            />
+            <motion.div
+              ref={movePickerRef}
+              {...modalPanelTransition}
+              className="fixed z-[125] min-w-[220px] rounded-xl border border-white/8 bg-[#121212]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur"
+              style={{ left: movePicker.x, top: movePicker.y }}
+            >
+              <div className="px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white/35">
+                Move to folder
+              </div>
+              {folders.map((folder, index) => {
+                const isSameFolder = movePicker.sourceFolderId === folder.id;
+                return (
+                  <motion.button
+                    key={folder.id}
+                    type="button"
+                    disabled={isSameFolder}
+                    onClick={() => submitMovePicker(folder.id)}
+                    {...getListItemTransition(index)}
+                    whileHover={{ scale: isSameFolder ? 1 : 1.02 }}
+                    whileTap={{ scale: isSameFolder ? 1 : 0.98 }}
+                    transition={interactiveTransition}
+                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                      isSameFolder
+                        ? 'cursor-not-allowed text-white/25'
+                        : 'text-white/80 hover:bg-white/5'
+                    }`}
+                  >
+                    {renderFolderIcon(folder.id)}
+                    <span className="truncate">{folder.name}</span>
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
