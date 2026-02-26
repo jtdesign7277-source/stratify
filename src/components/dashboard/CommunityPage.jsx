@@ -329,23 +329,36 @@ const TRENDING_MAX_ROWS = 140;
 const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
 const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
 const WATCHLIST_STORAGE_KEY = 'stratify-community-watchlist';
-const DEFAULT_SIDEBAR_SECTION_ORDER = ['market-pulse', 'watch-movers', 'trending-slips', 'watchlist'];
+const TODAYS_NEWS_REFRESH_MS = 10 * 60 * 1000;
+const TODAYS_NEWS_CLIENT_CACHE_MS = 20 * 1000;
+const TODAYS_NEWS_MAX_ROWS = 8;
+const DEFAULT_SIDEBAR_SECTION_ORDER = ['market-pulse', 'market-movers', 'trending', 'todays-news', 'watchlist'];
+const LEGACY_SIDEBAR_SECTION_ID_MAP = {
+  'watch-movers': 'market-movers',
+  'trending-slips': 'trending',
+};
 const SIDEBAR_SECTION_ID_SET = new Set(DEFAULT_SIDEBAR_SECTION_ORDER);
 const SIDEBAR_SECTION_LABELS = {
   'market-pulse': 'Market Pulse',
-  'watch-movers': 'Market Movers',
-  'trending-slips': 'Trending',
+  'market-movers': 'Market Movers',
+  trending: 'Trending',
+  'todays-news': 'Today\'s News',
   watchlist: 'Watchlist',
 };
 const WATCHLIST_MAX_ROWS = 24;
 const WATCHLIST_SEARCH_LIMIT = 10;
+const TODAYS_NEWS_SOURCE_COLORS = ['#58a6ff', '#3fb950', '#f778ba', '#d29922', '#a371f7', '#f85149', '#79c0ff'];
+
+const normalizeSidebarSectionId = (value) => (
+  LEGACY_SIDEBAR_SECTION_ID_MAP[String(value || '')] || String(value || '')
+);
 
 const normalizeSidebarSectionOrder = (rawOrder = []) => {
   const seen = new Set();
   const normalized = [];
 
   (Array.isArray(rawOrder) ? rawOrder : []).forEach((value) => {
-    const id = String(value || '');
+    const id = normalizeSidebarSectionId(value);
     if (!SIDEBAR_SECTION_ID_SET.has(id) || seen.has(id)) return;
     seen.add(id);
     normalized.push(id);
@@ -360,13 +373,117 @@ const normalizeSidebarSectionOrder = (rawOrder = []) => {
 
 const normalizeSidebarSectionVisibility = (rawVisibility = {}) => (
   DEFAULT_SIDEBAR_SECTION_ORDER.reduce((acc, sectionId) => {
+    const legacySectionId = Object.entries(LEGACY_SIDEBAR_SECTION_ID_MAP)
+      .find(([, mapped]) => mapped === sectionId)?.[0];
+
     const nextValue = rawVisibility && typeof rawVisibility === 'object'
       ? rawVisibility[sectionId]
       : undefined;
-    acc[sectionId] = nextValue === undefined ? true : Boolean(nextValue);
+    const legacyValue = rawVisibility && typeof rawVisibility === 'object' && legacySectionId
+      ? rawVisibility[legacySectionId]
+      : undefined;
+
+    if (nextValue !== undefined) {
+      acc[sectionId] = Boolean(nextValue);
+      return acc;
+    }
+
+    if (legacyValue !== undefined) {
+      acc[sectionId] = Boolean(legacyValue);
+      return acc;
+    }
+
+    acc[sectionId] = true;
     return acc;
   }, {})
 );
+
+const normalizeTodaysNewsCategory = (value) => {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === 'markets' || raw === 'market') return 'Markets';
+  if (raw === 'crypto') return 'Crypto';
+  if (raw === 'politics' || raw === 'policy') return 'Politics';
+  if (raw === 'earnings') return 'Earnings';
+  return 'News';
+};
+
+const normalizeTodaysNewsPostCount = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return `${Math.round(value).toLocaleString('en-US')} posts`;
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) return '0 posts';
+  if (/\bposts?\b/i.test(raw)) return raw;
+
+  const digits = raw.replace(/[^\d]/g, '');
+  if (!digits) return raw;
+
+  const parsed = Number(digits);
+  if (!Number.isFinite(parsed)) return raw;
+  return `${parsed.toLocaleString('en-US')} posts`;
+};
+
+const normalizeTodaysNewsSources = (rows = []) => {
+  const seen = new Set();
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => String(row?.name || row || '').trim())
+    .filter(Boolean)
+    .filter((name) => {
+      const key = name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 4)
+    .map((name, idx) => ({
+      name,
+      initial: name.charAt(0).toUpperCase() || '?',
+      color: TODAYS_NEWS_SOURCE_COLORS[idx % TODAYS_NEWS_SOURCE_COLORS.length],
+    }));
+};
+
+const normalizeTodaysNewsRows = (payload) => {
+  const rows = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+
+  const deduped = new Map();
+  rows.forEach((row, idx) => {
+    if (!row || typeof row !== 'object') return;
+    const headline = String(row?.headline || row?.title || '').replace(/\s+/g, ' ').trim();
+    if (!headline) return;
+
+    const key = headline.toLowerCase();
+    if (deduped.has(key)) return;
+
+    deduped.set(key, {
+      id: String(row?.id || `todays-news-${idx}-${headline.slice(0, 24)}`).trim(),
+      headline,
+      sources: normalizeTodaysNewsSources(row?.sources || row?.sourceNames || row?.source_names || []),
+      category: normalizeTodaysNewsCategory(row?.category),
+      postCount: normalizeTodaysNewsPostCount(row?.postCount ?? row?.post_count ?? row?.posts),
+      summary: String(row?.summary || '').trim(),
+      trendingLabel: String(row?.trendingLabel || row?.trending_label || 'Trending now').trim() || 'Trending now',
+      url: /^https?:\/\//i.test(String(row?.url || row?.link || '').trim())
+        ? String(row?.url || row?.link || '').trim()
+        : '',
+    });
+  });
+
+  return [...deduped.values()].slice(0, TODAYS_NEWS_MAX_ROWS);
+};
+
+const formatUpdatedMinutesAgo = (value, now = Date.now()) => {
+  const timestamp = Number.isFinite(value) ? value : Date.parse(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return 'Updated just now';
+  const minutes = Math.max(0, Math.floor((now - timestamp) / 60000));
+  return minutes <= 0 ? 'Updated just now' : `Updated ${minutes} min ago`;
+};
 
 const normalizeTrendingSnapshotPayload = (row) => {
   if (!row || typeof row !== 'object') return null;
@@ -2655,10 +2772,11 @@ const SidebarSection = ({
   onToggleVisibility,
   children,
   subtitle,
+  headerMeta,
   onDragHandlePointerDown,
   isDragging = false,
 }) => {
-  const VisibilityIcon = onToggleVisibility ? Eye : EyeOff;
+  const VisibilityIcon = onToggleVisibility ? X : EyeOff;
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
@@ -2682,7 +2800,12 @@ const SidebarSection = ({
           <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
             <div className="text-xs uppercase tracking-[0.14em] inline-flex items-center gap-1.5" style={{ color: T.muted }}>
               <Icon size={12} />
-              {title}
+              <span>{title}</span>
+              {headerMeta ? (
+                <span className="normal-case tracking-normal text-xs" style={{ color: T.muted }}>
+                  {headerMeta}
+                </span>
+              ) : null}
             </div>
             {subtitle ? <div className="text-[11px]" style={{ color: T.muted }}>{subtitle}</div> : null}
           </button>
@@ -2778,8 +2901,9 @@ const RightSidebar = ({
 }) => {
   const [openSections, setOpenSections] = useState({
     'market-pulse': true,
-    'watch-movers': true,
-    'trending-slips': true,
+    'market-movers': true,
+    trending: true,
+    'todays-news': true,
     watchlist: true,
   });
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SIDEBAR_SECTION_ORDER);
@@ -2796,6 +2920,10 @@ const RightSidebar = ({
   const [watchlistResults, setWatchlistResults] = useState([]);
   const [watchlistSearchLoading, setWatchlistSearchLoading] = useState(false);
   const [watchlistQuoteMap, setWatchlistQuoteMap] = useState({});
+  const [todaysNewsRows, setTodaysNewsRows] = useState([]);
+  const [todaysNewsLoading, setTodaysNewsLoading] = useState(true);
+  const [todaysNewsUpdatedAt, setTodaysNewsUpdatedAt] = useState(null);
+  const [todaysNewsClockTick, setTodaysNewsClockTick] = useState(Date.now());
   const previousTrendingIdsRef = useRef([]);
   const trendFlashTimersRef = useRef(new Map());
   const watchlistHydratedRef = useRef(false);
@@ -2819,6 +2947,10 @@ const RightSidebar = ({
   const activeLiveRows = pagedLiveRows[trendPageIndex] || [];
   const summaryWins = topWins.slice(0, 3);
   const summaryLosses = topLosses.slice(0, 3);
+  const todaysNewsUpdatedLabel = useMemo(
+    () => formatUpdatedMinutesAgo(todaysNewsUpdatedAt, todaysNewsClockTick),
+    [todaysNewsUpdatedAt, todaysNewsClockTick],
+  );
   const visibleSectionOrder = useMemo(
     () => sectionOrder.filter((sectionId) => sectionVisibility[sectionId]),
     [sectionOrder, sectionVisibility],
@@ -3041,6 +3173,66 @@ const RightSidebar = ({
   }, [watchlistQuery]);
 
   useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchTodaysNews = async ({ silent = false } = {}) => {
+      if (!silent) setTodaysNewsLoading(true);
+
+      const endpoints = ['/api/community/todays-news', '/api/community/todays-news.js'];
+      for (const endpoint of endpoints) {
+        try {
+          const payload = await cachedFetch(
+            endpoint,
+            { cache: 'no-store', signal: controller.signal },
+            TODAYS_NEWS_CLIENT_CACHE_MS,
+          );
+          if (cancelled) return;
+
+          const rows = normalizeTodaysNewsRows(payload?.data || payload);
+          if (rows.length === 0) continue;
+
+          setTodaysNewsRows(rows);
+          setTodaysNewsUpdatedAt(
+            payload?.generatedAt
+              || payload?.updatedAt
+              || payload?.generated_at
+              || new Date().toISOString(),
+          );
+          setTodaysNewsClockTick(Date.now());
+          setTodaysNewsLoading(false);
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+        }
+      }
+
+      if (!cancelled) {
+        setTodaysNewsLoading(false);
+      }
+    };
+
+    void fetchTodaysNews();
+    const refreshTimer = setInterval(() => {
+      void fetchTodaysNews({ silent: true });
+    }, TODAYS_NEWS_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearInterval(refreshTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTodaysNewsClockTick(Date.now());
+    }, 60 * 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     setTrendPageIndex((prev) => {
       if (pagedLiveRows.length === 0) return 0;
       return prev >= pagedLiveRows.length ? 0 : prev;
@@ -3048,7 +3240,7 @@ const RightSidebar = ({
   }, [pagedLiveRows.length]);
 
   useEffect(() => {
-    if (!openSections['trending-slips'] || trendMode !== 'live') return undefined;
+    if (!openSections.trending || trendMode !== 'live') return undefined;
     if (pagedLiveRows.length <= 1) return undefined;
 
     const timer = setInterval(() => {
@@ -3056,10 +3248,10 @@ const RightSidebar = ({
     }, TRENDING_ROTATE_MS);
 
     return () => clearInterval(timer);
-  }, [openSections['trending-slips'], trendMode, pagedLiveRows.length]);
+  }, [openSections.trending, trendMode, pagedLiveRows.length]);
 
   useEffect(() => {
-    if (!openSections['trending-slips']) {
+    if (!openSections.trending) {
       setTrendMode('live');
       return undefined;
     }
@@ -3076,7 +3268,7 @@ const RightSidebar = ({
       clearInterval(cycleTimer);
       if (holdTimer) clearTimeout(holdTimer);
     };
-  }, [openSections['trending-slips']]);
+  }, [openSections.trending]);
 
   useEffect(() => {
     const previousIds = previousTrendingIdsRef.current;
@@ -3225,6 +3417,43 @@ const RightSidebar = ({
     );
   };
 
+  const renderTodaysNewsSourceIcons = (sources = []) => (
+    <div className="inline-flex items-center gap-1">
+      {(Array.isArray(sources) ? sources : []).slice(0, 3).map((source, idx) => {
+        const sourceName = String(source?.name || '').trim();
+        const initial = String(source?.initial || sourceName.charAt(0) || '?').toUpperCase();
+        const color = source?.color || TODAYS_NEWS_SOURCE_COLORS[idx % TODAYS_NEWS_SOURCE_COLORS.length];
+
+        return (
+          <span
+            key={`todays-news-source-${sourceName || idx}`}
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold text-[#0d1117]"
+            style={{ backgroundColor: color }}
+            title={sourceName}
+          >
+            {initial}
+          </span>
+        );
+      })}
+    </div>
+  );
+
+  const renderTodaysNewsSkeletonRows = () => (
+    <div className="divide-y divide-white/5">
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <div key={`todays-news-skeleton-${idx}`} className="py-3 px-2 space-y-1.5">
+          <ShimmerLine w="95%" h={13} />
+          <ShimmerLine w="72%" h={11} />
+          <div className="flex items-center gap-2 pt-1">
+            <ShimmerLine w={16} h={16} rounded={999} />
+            <ShimmerLine w={16} h={16} rounded={999} />
+            <ShimmerLine w="30%" h={10} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   const renderDraggableSection = (sectionId) => {
     if (sectionId === 'market-pulse') {
       return (
@@ -3247,7 +3476,7 @@ const RightSidebar = ({
       );
     }
 
-    if (sectionId === 'watch-movers') {
+    if (sectionId === 'market-movers') {
       return (
         <DraggableSidebarSection
           key={sectionId}
@@ -3255,9 +3484,9 @@ const RightSidebar = ({
           title="Market Movers"
           subtitle="Top movers today"
           icon={Eye}
-          open={openSections['watch-movers']}
-          onToggle={() => toggleSection('watch-movers')}
-          onToggleVisibility={() => toggleSectionVisibility('watch-movers')}
+          open={openSections['market-movers']}
+          onToggle={() => toggleSection('market-movers')}
+          onToggleVisibility={() => toggleSectionVisibility('market-movers')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
         >
@@ -3268,7 +3497,7 @@ const RightSidebar = ({
       );
     }
 
-    if (sectionId === 'trending-slips') {
+    if (sectionId === 'trending') {
       return (
         <DraggableSidebarSection
           key={sectionId}
@@ -3276,9 +3505,9 @@ const RightSidebar = ({
           title="Trending"
           subtitle="What the community is watching"
           icon={Trophy}
-          open={openSections['trending-slips']}
-          onToggle={() => toggleSection('trending-slips')}
-          onToggleVisibility={() => toggleSectionVisibility('trending-slips')}
+          open={openSections.trending}
+          onToggle={() => toggleSection('trending')}
+          onToggleVisibility={() => toggleSectionVisibility('trending')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
         >
@@ -3391,6 +3620,65 @@ const RightSidebar = ({
               </motion.div>
             )}
           </AnimatePresence>
+        </DraggableSidebarSection>
+      );
+    }
+
+    if (sectionId === 'todays-news') {
+      return (
+        <DraggableSidebarSection
+          key={sectionId}
+          sectionId={sectionId}
+          title="TODAY'S NEWS"
+          subtitle="Trending on X and the web"
+          icon={(iconProps) => <Newspaper {...iconProps} strokeWidth={1.5} />}
+          headerMeta={todaysNewsUpdatedLabel}
+          open={openSections['todays-news']}
+          onToggle={() => toggleSection('todays-news')}
+          onToggleVisibility={() => toggleSectionVisibility('todays-news')}
+          isDragging={draggingSectionId === sectionId}
+          onDragStateChange={setDraggingSectionId}
+        >
+          {todaysNewsLoading && todaysNewsRows.length === 0 ? (
+            renderTodaysNewsSkeletonRows()
+          ) : todaysNewsRows.length === 0 ? (
+            <div className="py-2 px-2 text-xs" style={{ color: T.muted }}>
+              No trending stories available right now.
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {todaysNewsRows.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    if (item.url) {
+                      window.open(item.url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="w-full py-3 px-2 text-left hover:bg-white/[0.03] transition-colors"
+                >
+                  <div
+                    className="text-sm font-semibold text-[#e6edf3]"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {item.headline}
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2 flex-wrap min-w-0">
+                    {renderTodaysNewsSourceIcons(item.sources)}
+                    <span className="text-xs text-[#58a6ff]">{item.trendingLabel || 'Trending now'}</span>
+                    <span className="text-xs text-[#7d8590]">{item.category}</span>
+                    <span className="text-xs text-[#7d8590]">{item.postCount}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </DraggableSidebarSection>
       );
     }
