@@ -3296,14 +3296,17 @@ const LeftRail = ({
   handleSaveName,
 }) => {
   const [feedsOpen, setFeedsOpen] = useState(true);
+  const profileAvatarSeed = displayName || '';
+  const profileAvatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profileAvatarSeed)}`;
   const profileUser = currentUser ? {
     ...currentUser,
     display_name: displayName || currentUser.display_name,
+    avatar_url: profileAvatarUrl,
   } : {
     id: 'guest-user',
     display_name: displayName || 'Anonymous Trader',
     email: null,
-    avatar_url: null,
+    avatar_url: profileAvatarUrl,
     avatar_color: null,
   };
 
@@ -3312,7 +3315,7 @@ const LeftRail = ({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className={`hidden lg:flex lg:flex-shrink-0 ${collapsed ? 'w-[68px] items-center' : 'w-[220px]'} h-full flex-col py-0 pb-10 overflow-y-auto border-r-2 border-[#58a6ff] rounded-none`}
+      className={`hidden lg:flex lg:flex-shrink-0 ${collapsed ? 'w-[68px] items-center overflow-hidden' : 'w-[220px] overflow-y-auto'} h-full flex-col py-0 pb-10 border-r-2 border-[#58a6ff] rounded-none transition-all duration-200`}
       style={{
         backgroundColor: '#080d13',
       }}
@@ -3327,25 +3330,10 @@ const LeftRail = ({
         {collapsed ? <PanelRightClose size={15} /> : <PanelLeftClose size={15} />}
       </button>
 
-      {collapsed ? (
-        <div className="w-full space-y-0.5 px-1 pt-2">
-          {FEED_HASHTAGS.map((hashtag) => {
-            const active = filter === hashtag;
-            return (
-              <div
-                key={hashtag}
-                onClick={() => onFilter(active ? null : hashtag)}
-                className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-150${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
-              >
-                {hashtag}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
+      {!collapsed && (
         <>
           <div className="flex items-center gap-3 px-4 py-4 mb-3 border-b border-white/6">
-            <img src={'https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(displayName)} className="w-10 h-10 rounded-full bg-white/10" alt={displayName} />
+            <img src={profileAvatarUrl} className="w-10 h-10 rounded-full bg-white/10" alt={displayName || 'Community Profile'} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 {isEditingName ? (
@@ -3360,14 +3348,14 @@ const LeftRail = ({
                   />
                 ) : (
                   <>
-                    <span className="text-sm font-medium text-[#e6edf3] truncate">{displayName}</span>
+                    <span className="text-sm font-medium text-[#e6edf3] truncate transition-all duration-200">{displayName}</span>
                     <button type="button" onClick={() => { setEditName(displayName); setIsEditingName(true); }} className="text-[#7d8590] hover:text-[#58a6ff] transition">
                       <Pencil className="w-3 h-3" strokeWidth={1.5} />
                     </button>
                   </>
                 )}
               </div>
-              <span className="text-xs text-[#7d8590]">Community Profile</span>
+              <span className="text-xs text-[#7d8590] transition-all duration-200">Community Profile</span>
             </div>
           </div>
 
@@ -3377,7 +3365,7 @@ const LeftRail = ({
               onClick={() => setFeedsOpen((prev) => !prev)}
               className="w-full px-3 pt-4 pb-1 inline-flex items-center justify-between"
             >
-              <span className="text-[11px] uppercase tracking-widest text-[#7d8590]">FEEDS</span>
+              <span className="text-[11px] uppercase tracking-widest text-[#7d8590] transition-all duration-200">FEEDS</span>
               {feedsOpen ? <ChevronDown size={14} style={{ color: T.muted }} /> : <ChevronRight size={14} style={{ color: T.muted }} />}
             </button>
 
@@ -3396,7 +3384,7 @@ const LeftRail = ({
                         <div
                           key={hashtag}
                           onClick={() => onFilter(active ? null : hashtag)}
-                          className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-150${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
+                          className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-200${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
                         >
                           {hashtag}
                         </div>
@@ -3409,7 +3397,7 @@ const LeftRail = ({
           </div>
 
           <div className="w-full border-t border-white/5 py-3">
-            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-widest" style={{ color: T.muted }}>COMMUNITY LANES</div>
+            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-widest transition-all duration-200" style={{ color: T.muted }}>COMMUNITY LANES</div>
             <div className="space-y-0.5">
               {LEFT_RAIL_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -3422,7 +3410,7 @@ const LeftRail = ({
                   >
                     <span className="inline-flex items-center gap-3">
                       <Icon className="h-4 w-4 text-[#7d8590]" strokeWidth={1.5} />
-                      <span className="text-sm">{item.label}</span>
+                      <span className="text-sm transition-all duration-200">{item.label}</span>
                     </span>
                   </button>
                 );
