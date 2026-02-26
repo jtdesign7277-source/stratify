@@ -2306,7 +2306,7 @@ const RightSidebar = ({
 };
 
 // ─── Main Community Page ──────────────────────────────────
-const CommunityPage = ({ tradeHistory = [] }) => {
+const CommunityPage = ({ tradeHistory = [], topBarCollapsed = false }) => {
   const [posts, setPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2769,17 +2769,24 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       }} />
 
       <motion.div className="relative z-10 h-full flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <FeedHeader
-          filter={filter}
-          onFilter={setFilter}
-          search={search}
-          onSearch={setSearch}
-          onOpenComposer={() => openComposer('post')}
-          onToggleLeft={() => setLeftCollapsed((prev) => !prev)}
-          leftCollapsed={leftCollapsed}
-          onToggleRight={() => setRightCollapsed((prev) => !prev)}
-          rightCollapsed={rightCollapsed}
-        />
+        <motion.div
+          initial={false}
+          animate={{ height: topBarCollapsed ? 0 : 'auto', opacity: topBarCollapsed ? 0 : 1 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          className={`overflow-hidden ${topBarCollapsed ? 'pointer-events-none' : ''}`}
+        >
+          <FeedHeader
+            filter={filter}
+            onFilter={setFilter}
+            search={search}
+            onSearch={setSearch}
+            onOpenComposer={() => openComposer('post')}
+            onToggleLeft={() => setLeftCollapsed((prev) => !prev)}
+            leftCollapsed={leftCollapsed}
+            onToggleRight={() => setRightCollapsed((prev) => !prev)}
+            rightCollapsed={rightCollapsed}
+          />
+        </motion.div>
 
         {error ? (
           <div className="px-4 pt-2">

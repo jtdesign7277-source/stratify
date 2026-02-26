@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { X } from 'lucide-react';
+import { ChevronUp, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
 import useWatchlistSync from '../../hooks/useWatchlistSync';
 import useStrategySync from '../../hooks/useStrategySync';
@@ -155,6 +156,13 @@ const PAPER_TRADING_BALANCE = 100000;
 const MIN_STRATEGY_ALLOCATION = 100;
 const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
+const TOPBAR_COLLAPSE_STORAGE_KEY = 'stratify-topbar-collapsed';
+const TOPBAR_COLLAPSED_HEIGHT = 32;
+const TOPBAR_ANIMATION = {
+  duration: 0.3,
+  ease: [0.4, 0, 0.2, 1],
+};
+const TOPBAR_COMPACT_SYMBOLS = ['TSLA', 'COIN'];
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -296,6 +304,24 @@ const formatCurrency = (value = 0) => {
     maximumFractionDigits: 2,
   })}`;
 };
+
+const resolveCompactQuote = (quote) => {
+  const price = toNumberOrNull(
+    quote?.price
+    ?? quote?.close
+    ?? quote?.last
+    ?? quote?.latestPrice
+  );
+  const changePercent = toNumberOrNull(
+    quote?.changePercent
+    ?? quote?.percentChange
+    ?? quote?.percent_change
+  );
+  return { price, changePercent };
+};
+
+const formatCompactPrice = (value) => (value === null ? '--' : `$${value.toFixed(2)}`);
+const formatCompactPercent = (value) => (value === null ? '--' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`);
 
 const resolveBacktestAmount = (strategy) => {
   const candidates = [
@@ -523,12 +549,35 @@ export default function Dashboard({
   const [theme, setTheme] = useState(savedState?.theme ?? 'dark');
   const [paperTradingBalance, setPaperTradingBalance] = useState(savedState?.paperTradingBalance ?? PAPER_TRADING_BALANCE);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [isTopBarCollapsed, setIsTopBarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(TOPBAR_COLLAPSE_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [topBarStatusTick, setTopBarStatusTick] = useState(() => Date.now());
 
   useEffect(() => {
     if (activeTab === 'builder' || activeTab === 'strategies') {
       setActiveTab('terminal');
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TOPBAR_COLLAPSE_STORAGE_KEY, isTopBarCollapsed ? 'true' : 'false');
+    } catch {
+      // no-op
+    }
+  }, [isTopBarCollapsed]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTopBarStatusTick(Date.now());
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'crypto') {
@@ -615,6 +664,7 @@ export default function Dashboard({
       const normalized = String(symbol || '').trim().toUpperCase();
       if (normalized) unique.add(normalized);
     });
+    TOPBAR_COMPACT_SYMBOLS.forEach((symbol) => unique.add(symbol));
     return [...unique];
   }, [watchlist]);
 
@@ -1880,31 +1930,117 @@ export default function Dashboard({
     }
   });
 
+  const compactMarketStatus = useMemo(() => {
+    const status = getMarketStatus(new Date(topBarStatusTick));
+    const isOpen = status === 'Open';
+    return {
+      isOpen,
+      label: isOpen ? 'Market Open' : 'Market Closed',
+    };
+  }, [topBarStatusTick]);
+
+  const compactTopBarQuotes = useMemo(() => (
+    TOPBAR_COMPACT_SYMBOLS.map((symbol) => {
+      const quote = watchlistQuotesBySymbol[symbol] || null;
+      const { price, changePercent } = resolveCompactQuote(quote);
+      return { symbol, price, changePercent };
+    })
+  ), [watchlistQuotesBySymbol]);
+
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
       <EarningsAlert watchlist={watchlist} onAddToWatchlist={addToWatchlist} />
-      <TopMetricsBar 
-        alpacaData={alpacaData} 
-        onAddToWatchlist={addToWatchlist} 
-        theme={theme} 
-        themeClasses={themeClasses} 
-        onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
-        onLegendClick={() => setActiveTab('legend')}
-        connectedBrokers={connectedBrokers}
-        miniPills={miniPillSlots}
-        onTickerDrop={handleTickerDrop}
-        onGameDrop={handleGameDrop}
-        deployedStrategies={deployedStrategies}
-        hasConnectedBroker={hasConnectedBroker}
-        isPaperTradingMode={isPaperTradingMode}
-        paperTradingBalance={isPaperTradingMode ? normalizedPaperTradingBalance : null}
-        paperMetrics={isPaperTradingMode ? {
-          dailyPnl: totalTopBarDailyPnL,
-          buyingPower: availablePaperBalance,
-          unrealizedPnl: totalTopBarUnrealizedPnL,
-        } : null}
-      />
-      <LiveAlertsTicker watchlist={watchlist} />
+      <motion.div
+        className="relative z-20 overflow-hidden"
+        initial={false}
+        animate={{ height: isTopBarCollapsed ? TOPBAR_COLLAPSED_HEIGHT : 'auto' }}
+        transition={{ height: TOPBAR_ANIMATION }}
+      >
+        <motion.div
+          className={isTopBarCollapsed ? 'pointer-events-none' : ''}
+          animate={{ opacity: isTopBarCollapsed ? 0 : 1 }}
+          transition={{ duration: 0.2, ease: TOPBAR_ANIMATION.ease }}
+        >
+          <TopMetricsBar
+            alpacaData={alpacaData}
+            onAddToWatchlist={addToWatchlist}
+            theme={theme}
+            themeClasses={themeClasses}
+            onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            onLegendClick={() => setActiveTab('legend')}
+            connectedBrokers={connectedBrokers}
+            miniPills={miniPillSlots}
+            onTickerDrop={handleTickerDrop}
+            onGameDrop={handleGameDrop}
+            deployedStrategies={deployedStrategies}
+            hasConnectedBroker={hasConnectedBroker}
+            isPaperTradingMode={isPaperTradingMode}
+            paperTradingBalance={isPaperTradingMode ? normalizedPaperTradingBalance : null}
+            paperMetrics={isPaperTradingMode ? {
+              dailyPnl: totalTopBarDailyPnL,
+              buyingPower: availablePaperBalance,
+              unrealizedPnl: totalTopBarUnrealizedPnL,
+            } : null}
+          />
+          <LiveAlertsTicker watchlist={watchlist} />
+        </motion.div>
+
+        <AnimatePresence initial={false}>
+          {isTopBarCollapsed && (
+            <motion.div
+              key="collapsed-topbar"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: TOPBAR_ANIMATION.ease }}
+              className="absolute inset-x-0 top-0 h-8 border-b border-[rgba(255,255,255,0.06)] bg-[#0d1117]"
+            >
+              <div className="h-full pl-3 pr-10 flex items-center gap-3 text-[11px]">
+                <div className="inline-flex items-center gap-1.5 text-white/85 whitespace-nowrap">
+                  <span className={`h-1.5 w-1.5 rounded-full ${compactMarketStatus.isOpen ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  <span className="font-medium">{compactMarketStatus.label}</span>
+                </div>
+
+                {compactTopBarQuotes.map((item) => {
+                  const isPositive = item.changePercent === null ? null : item.changePercent >= 0;
+                  const changeClass = isPositive === null
+                    ? 'text-white/55'
+                    : isPositive
+                      ? 'text-emerald-400'
+                      : 'text-red-400';
+
+                  return (
+                    <div key={item.symbol} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="font-semibold text-white/85">{item.symbol}</span>
+                      <span className="font-mono text-white/80">{formatCompactPrice(item.price)}</span>
+                      <span className={`font-mono ${changeClass}`}>{formatCompactPercent(item.changePercent)}</span>
+                    </div>
+                  );
+                })}
+
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#2a2a3d] bg-[#151c29] ml-auto">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.55)]" />
+                  <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-white/85">Live</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.button
+          type="button"
+          onClick={() => setIsTopBarCollapsed((prev) => !prev)}
+          aria-label={isTopBarCollapsed ? 'Expand top header' : 'Collapse top header'}
+          title={isTopBarCollapsed ? 'Expand top header' : 'Collapse top header'}
+          className={`absolute right-2 z-30 text-white/55 hover:text-white transition-colors ${
+            isTopBarCollapsed ? 'top-1.5' : 'bottom-1'
+          }`}
+          animate={{ rotate: isTopBarCollapsed ? 180 : 0 }}
+          transition={TOPBAR_ANIMATION}
+        >
+          <ChevronUp className="h-4 w-4" strokeWidth={1.5} />
+        </motion.button>
+      </motion.div>
       <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           expanded={sidebarExpanded}
@@ -1940,7 +2076,7 @@ export default function Dashboard({
           {activeTab === 'trade' && (
             <AppErrorBoundary>
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading community page...</div>}>
-                <CommunityPage tradeHistory={trades} />
+                <CommunityPage tradeHistory={trades} topBarCollapsed={isTopBarCollapsed} />
               </Suspense>
             </AppErrorBoundary>
           )}
