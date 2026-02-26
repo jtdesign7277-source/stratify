@@ -475,17 +475,6 @@ const COMMUNITY_PAGE_STYLES = `
   .community-pulse {
     animation: communityPulse 3.6s ease-in-out infinite;
   }
-
-  .community-feed-header {
-    --community-left-bleed: 0px;
-  }
-
-  @media (min-width: 1024px) {
-    .community-feed-header {
-      margin-left: calc(var(--community-left-bleed) * -1);
-      width: calc(100% + var(--community-left-bleed));
-    }
-  }
 `;
 
 const SLIP_EMOJI_PRESETS = ['🚀', '💰', '🔥', '📈', '💯', '✅', '⚡', '🧠'];
@@ -1965,16 +1954,9 @@ const FeedHeader = ({
   search,
   onSearch,
   onOpenComposer,
-  leftCollapsed,
-  dashboardSidebarWidth = 0,
 }) => {
-  const leftBleed = (leftCollapsed ? 68 : 220) + (Number(dashboardSidebarWidth) || 0);
-
   return (
-    <div
-      className="community-feed-header sticky top-0 z-20 border-b-2 border-blue-500 bg-[#0d1117] py-3"
-      style={{ '--community-left-bleed': `${leftBleed}px` }}
-    >
+    <div className="sticky top-0 z-20 border-b-2 border-blue-500 bg-[#0d1117] py-3">
       <div className="w-full px-3 flex items-center gap-2 bg-[#0d1117]">
         <div className="w-[92px] flex-shrink-0" aria-hidden />
 
@@ -2033,10 +2015,9 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className={`hidden lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:z-30 lg:flex ${collapsed ? 'w-[68px] items-center' : 'w-[220px]'} h-screen flex-col py-0 overflow-y-auto border-r-2 border-blue-500 rounded-none`}
+      className={`hidden lg:flex lg:flex-shrink-0 ${collapsed ? 'w-[68px] items-center' : 'w-[220px]'} h-full flex-col py-0 pb-10 overflow-y-auto border-r-2 border-blue-500 rounded-none`}
       style={{
         backgroundColor: '#080d13',
-        marginLeft: 0,
       }}
     >
       <button
@@ -2362,7 +2343,7 @@ const RightSidebar = ({
 };
 
 // ─── Main Community Page ──────────────────────────────────
-const CommunityPage = ({ tradeHistory = [], dashboardSidebarWidth = 0 }) => {
+const CommunityPage = ({ tradeHistory = [] }) => {
   const [posts, setPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2834,7 +2815,7 @@ const CommunityPage = ({ tradeHistory = [], dashboardSidebarWidth = 0 }) => {
         ) : null}
 
         <div className="flex-1 min-h-0 py-0 pr-0 pl-0">
-          <div className={`h-full flex min-h-0 ${leftCollapsed ? 'lg:pl-[68px]' : 'lg:pl-[220px]'}`}>
+          <div className="h-full flex min-h-0">
             <LeftRail
               collapsed={leftCollapsed}
               onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
@@ -2847,8 +2828,6 @@ const CommunityPage = ({ tradeHistory = [], dashboardSidebarWidth = 0 }) => {
                 search={search}
                 onSearch={setSearch}
                 onOpenComposer={() => openComposer('post')}
-                leftCollapsed={leftCollapsed}
-                dashboardSidebarWidth={dashboardSidebarWidth}
               />
 
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
