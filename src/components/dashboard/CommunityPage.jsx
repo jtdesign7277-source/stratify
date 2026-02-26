@@ -1954,10 +1954,15 @@ const FeedHeader = ({
   search,
   onSearch,
   onOpenComposer,
+  leftCollapsed,
 }) => {
   return (
-    <div className="sticky top-0 z-20 h-10 border-b bg-[#0d1117]" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-      <div className="h-full w-full px-3 flex items-center gap-2 bg-[#0d1117]">
+    <div
+      className={`sticky top-0 z-20 border-b-2 border-blue-500 bg-[#0d1117] py-3 ${
+        leftCollapsed ? 'lg:-ml-[68px] lg:w-[calc(100%+68px)]' : 'lg:-ml-[220px] lg:w-[calc(100%+220px)]'
+      }`}
+    >
+      <div className="w-full px-3 flex items-center gap-2 bg-[#0d1117]">
         <div className="w-[92px] flex-shrink-0" aria-hidden />
 
         <div className="flex-1 min-w-0 px-1">
@@ -2815,7 +2820,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           </div>
         ) : null}
 
-        <div className="flex-1 min-h-0 py-0 pr-4 pl-0">
+        <div className="flex-1 min-h-0 py-0 pr-0 pl-0">
           <div className={`h-full flex min-h-0 ${leftCollapsed ? 'lg:pl-[68px]' : 'lg:pl-[220px]'}`}>
             <LeftRail
               collapsed={leftCollapsed}
@@ -2824,14 +2829,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               onFilter={setFilter}
             />
 
-            <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
               <FeedHeader
                 search={search}
                 onSearch={setSearch}
                 onOpenComposer={() => openComposer('post')}
+                leftCollapsed={leftCollapsed}
               />
 
-              <div className="flex-1 min-h-0 flex gap-3 pt-3">
+              <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
                 <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
                   <div className="flex-1 min-h-0 overflow-y-auto px-3">
                     {loading ? (
