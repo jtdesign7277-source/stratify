@@ -158,11 +158,33 @@ const API_URL = 'https://stratify-backend-production-3ebd.up.railway.app';
 const HIDDEN_TABS = new Set(['predictions']);
 const TOPBAR_COLLAPSE_STORAGE_KEY = 'stratify-topbar-collapsed';
 const TOPBAR_COLLAPSED_HEIGHT = 32;
+const COMMUNITY_WATCHLIST_V3_STORAGE_KEY = 'stratify-community-watchlist-v3';
+const TOPBAR_TICKER_TAPE_CONTAINER_ID = 'dashboard-topbar-ticker-tape-widget';
+const TOPBAR_TICKER_TAPE_SCRIPT_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
+const TOPBAR_TICKER_TAPE_MAX_SYMBOLS = 24;
 const TOPBAR_ANIMATION = {
   duration: 0.3,
   ease: [0.4, 0, 0.2, 1],
 };
-const TOPBAR_COMPACT_SYMBOLS = ['TSLA', 'COIN'];
+const TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS = [
+  { proName: 'NASDAQ:TSLA', title: 'Tesla' },
+  { proName: 'NASDAQ:AAPL', title: 'Apple' },
+  { proName: 'NASDAQ:NVDA', title: 'NVIDIA' },
+  { proName: 'NASDAQ:MSFT', title: 'Microsoft' },
+  { proName: 'NASDAQ:META', title: 'Meta' },
+  { proName: 'NASDAQ:AMZN', title: 'Amazon' },
+  { proName: 'NASDAQ:GOOGL', title: 'Google' },
+  { proName: 'NASDAQ:AMD', title: 'AMD' },
+  { proName: 'COINBASE:BTCUSD', title: 'Bitcoin' },
+  { proName: 'COINBASE:ETHUSD', title: 'Ethereum' },
+  { proName: 'AMEX:SPY', title: 'SPY' },
+  { proName: 'NASDAQ:QQQ', title: 'QQQ' },
+  { proName: 'COINBASE:SOLUSD', title: 'Solana' },
+  { proName: 'NASDAQ:COIN', title: 'Coinbase' },
+];
+const KNOWN_CRYPTO_BASE_SYMBOLS = new Set([
+  'BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT', 'LINK', 'LTC', 'BCH', 'MATIC',
+]);
 const REAL_TRADE_ANALYSIS_REGEX = /real\s+trade\s+analysis/i;
 const KEY_SETUPS_IDENTIFIED_REGEX = /key[\w\s\[\]-]*setups\s+identified/i;
 const REAL_TRADE_ANALYSIS_TEMPLATE = [
@@ -305,23 +327,132 @@ const formatCurrency = (value = 0) => {
   })}`;
 };
 
-const resolveCompactQuote = (quote) => {
-  const price = toNumberOrNull(
-    quote?.price
-    ?? quote?.close
-    ?? quote?.last
-    ?? quote?.latestPrice
-  );
-  const changePercent = toNumberOrNull(
-    quote?.changePercent
-    ?? quote?.percentChange
-    ?? quote?.percent_change
-  );
-  return { price, changePercent };
+const normalizeTickerTapeSymbolInput = (value) => String(value || '')
+  .trim()
+  .toUpperCase()
+  .replace(/^\$+/, '')
+  .replace(/\s+/g, '');
+
+const mapToTradingViewProName = (rawSymbol) => {
+  const normalized = normalizeTickerTapeSymbolInput(rawSymbol);
+  if (!normalized) return '';
+
+  if (normalized.includes(':')) return normalized;
+
+  if (/^[A-Z0-9]+(?:\/|-|_)USD$/.test(normalized)) {
+    const base = normalized.split(/\/|-|_/)[0];
+    return base ? `COINBASE:${base}USD` : '';
+  }
+
+  if (normalized.endsWith('USD') && KNOWN_CRYPTO_BASE_SYMBOLS.has(normalized.slice(0, -3))) {
+    return `COINBASE:${normalized}`;
+  }
+
+  if (KNOWN_CRYPTO_BASE_SYMBOLS.has(normalized)) {
+    return `COINBASE:${normalized}USD`;
+  }
+
+  if (/^[A-Z][A-Z0-9.-]{0,14}$/.test(normalized)) {
+    return `NASDAQ:${normalized}`;
+  }
+
+  return '';
 };
 
-const formatCompactPrice = (value) => (value === null ? '--' : `$${value.toFixed(2)}`);
-const formatCompactPercent = (value) => (value === null ? '--' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`);
+const extractTickerTapeWatchlistRows = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+  if (Array.isArray(payload.watchlist)) return payload.watchlist;
+  if (Array.isArray(payload.rows)) return payload.rows;
+  if (Array.isArray(payload.symbols)) return payload.symbols;
+  if (Array.isArray(payload.data)) return payload.data;
+  return [];
+};
+
+const buildTopBarTickerTapeSymbols = () => {
+  if (typeof window === 'undefined') return TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS;
+
+  try {
+    const savedRaw = window.localStorage.getItem(COMMUNITY_WATCHLIST_V3_STORAGE_KEY);
+    if (!savedRaw) return TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS;
+
+    const parsed = JSON.parse(savedRaw);
+    const rows = extractTickerTapeWatchlistRows(parsed);
+    if (rows.length === 0) return TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS;
+
+    const seen = new Set();
+    const symbols = [];
+
+    rows.forEach((row) => {
+      const rawSymbol = typeof row === 'string'
+        ? row
+        : row?.proName || row?.tvSymbol || row?.symbol || row?.ticker || row?.code;
+      const proName = mapToTradingViewProName(rawSymbol);
+      if (!proName || seen.has(proName)) return;
+
+      seen.add(proName);
+      const resolvedTitle = typeof row === 'string'
+        ? rawSymbol
+        : row?.title || row?.name || row?.label || row?.instrumentName || rawSymbol;
+
+      symbols.push({
+        proName,
+        title: String(resolvedTitle || proName.split(':').pop() || proName).trim(),
+      });
+    });
+
+    return symbols.length > 0
+      ? symbols.slice(0, TOPBAR_TICKER_TAPE_MAX_SYMBOLS)
+      : TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS;
+  } catch {
+    return TOPBAR_TICKER_TAPE_DEFAULT_SYMBOLS;
+  }
+};
+
+const TopBarTickerTapeWidget = ({ symbols }) => {
+  const containerRef = useRef(null);
+  const configJson = useMemo(() => JSON.stringify({
+    symbols,
+    showSymbolLogo: true,
+    isTransparent: true,
+    displayMode: 'adaptive',
+    colorTheme: 'dark',
+    locale: 'en',
+  }), [symbols]);
+
+  useEffect(() => {
+    if (!containerRef.current) return undefined;
+
+    const container = containerRef.current;
+    container.innerHTML = '';
+
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    widgetDiv.style.width = '100%';
+    widgetDiv.style.height = '100%';
+
+    const script = document.createElement('script');
+    script.src = TOPBAR_TICKER_TAPE_SCRIPT_SRC;
+    script.async = true;
+    script.type = 'text/javascript';
+    script.innerHTML = configJson;
+
+    container.appendChild(widgetDiv);
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, [configJson]);
+
+  return (
+    <div
+      id={TOPBAR_TICKER_TAPE_CONTAINER_ID}
+      ref={containerRef}
+      className="tradingview-widget-container h-8 w-full bg-transparent"
+    />
+  );
+};
 
 const resolveBacktestAmount = (strategy) => {
   const candidates = [
@@ -556,7 +687,6 @@ export default function Dashboard({
       return false;
     }
   });
-  const [topBarStatusTick, setTopBarStatusTick] = useState(() => Date.now());
 
   useEffect(() => {
     if (activeTab === 'builder' || activeTab === 'strategies') {
@@ -571,13 +701,6 @@ export default function Dashboard({
       // no-op
     }
   }, [isTopBarCollapsed]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTopBarStatusTick(Date.now());
-    }, 15_000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (activeTab === 'crypto') {
@@ -664,7 +787,6 @@ export default function Dashboard({
       const normalized = String(symbol || '').trim().toUpperCase();
       if (normalized) unique.add(normalized);
     });
-    TOPBAR_COMPACT_SYMBOLS.forEach((symbol) => unique.add(symbol));
     return [...unique];
   }, [watchlist]);
 
@@ -1930,22 +2052,10 @@ export default function Dashboard({
     }
   });
 
-  const compactMarketStatus = useMemo(() => {
-    const status = getMarketStatus(new Date(topBarStatusTick));
-    const isOpen = status === 'Open';
-    return {
-      isOpen,
-      label: isOpen ? 'Market Open' : 'Market Closed',
-    };
-  }, [topBarStatusTick]);
-
-  const compactTopBarQuotes = useMemo(() => (
-    TOPBAR_COMPACT_SYMBOLS.map((symbol) => {
-      const quote = watchlistQuotesBySymbol[symbol] || null;
-      const { price, changePercent } = resolveCompactQuote(quote);
-      return { symbol, price, changePercent };
-    })
-  ), [watchlistQuotesBySymbol]);
+  const topBarTickerTapeSymbols = useMemo(
+    () => buildTopBarTickerTapeSymbols(),
+    [watchlist, isTopBarCollapsed]
+  );
 
   return (
     <div className={`h-screen w-screen flex flex-col ${themeClasses.bg} ${themeClasses.text} overflow-hidden`}>
@@ -1993,32 +2103,14 @@ export default function Dashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: TOPBAR_ANIMATION.ease }}
-              className="absolute inset-x-0 top-0 h-8 border-b border-[rgba(255,255,255,0.06)] bg-[#0d1117]"
+              className="absolute inset-x-0 top-0 h-8 border-b border-[rgba(255,255,255,0.06)] bg-transparent"
             >
-              <div className="h-full pl-3 pr-10 flex items-center gap-3 text-[11px]">
-                <div className="inline-flex items-center gap-1.5 text-white/85 whitespace-nowrap">
-                  <span className={`h-1.5 w-1.5 rounded-full ${compactMarketStatus.isOpen ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                  <span className="font-medium">{compactMarketStatus.label}</span>
+              <div className="relative h-full w-full">
+                <div className="h-full pr-28">
+                  <TopBarTickerTapeWidget symbols={topBarTickerTapeSymbols} />
                 </div>
 
-                {compactTopBarQuotes.map((item) => {
-                  const isPositive = item.changePercent === null ? null : item.changePercent >= 0;
-                  const changeClass = isPositive === null
-                    ? 'text-white/55'
-                    : isPositive
-                      ? 'text-emerald-400'
-                      : 'text-red-400';
-
-                  return (
-                    <div key={item.symbol} className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                      <span className="font-semibold text-white/85">{item.symbol}</span>
-                      <span className="font-mono text-white/80">{formatCompactPrice(item.price)}</span>
-                      <span className={`font-mono ${changeClass}`}>{formatCompactPercent(item.changePercent)}</span>
-                    </div>
-                  );
-                })}
-
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#2a2a3d] bg-[#151c29] ml-auto">
+                <div className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#2a2a3d] bg-[#151c29]">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.55)]" />
                   <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-white/85">Live</span>
                 </div>
