@@ -4822,75 +4822,79 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               />
 
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
-                <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
-                  <div className="flex-1 min-h-0 overflow-y-auto px-3">
-                    <div className="max-w-3xl mx-auto w-full space-y-2">
-                      {aiSearchPending.map((pending) => (
-                        <AiSearchLoadingCard key={`ai-search-pending-${pending.key}`} query={pending.query} />
-                      ))}
+                <div className="w-[92px] flex-shrink-0" aria-hidden />
 
-                      {aiSearchResults.map((result) => (
-                        <AiSearchResultCard
-                          key={result.id}
-                          result={result}
-                          onClear={() => clearAiSearchResult(result.id)}
-                          onTickerClick={(ticker) => {
-                            void runAiSearch(`What is happening with ${ticker} today?`);
-                          }}
-                        />
-                      ))}
+                <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+                  <div className="mx-auto flex h-full w-full min-w-0 max-w-[750px] flex-col transition-all duration-200">
+                    <div className="flex-1 min-h-0 overflow-y-auto px-3">
+                      <div className="w-full space-y-2">
+                        {aiSearchPending.map((pending) => (
+                          <AiSearchLoadingCard key={`ai-search-pending-${pending.key}`} query={pending.query} />
+                        ))}
 
-                      {loading ? (
-                        <>
-                          {Array.from({ length: 6 }).map((_, index) => (
-                            <div
-                              key={`loading-${index}`}
-                              className="rounded-lg border p-3"
-                              style={{ borderColor: T.border, backgroundColor: T.card }}
-                            >
-                              <div className="flex gap-2">
-                                <ShimmerLine w={32} h={32} rounded={999} />
-                                <div className="flex-1 space-y-2">
-                                  <ShimmerLine w="35%" h={11} />
-                                  <ShimmerBlock lines={3} />
+                        {aiSearchResults.map((result) => (
+                          <AiSearchResultCard
+                            key={result.id}
+                            result={result}
+                            onClear={() => clearAiSearchResult(result.id)}
+                            onTickerClick={(ticker) => {
+                              void runAiSearch(`What is happening with ${ticker} today?`);
+                            }}
+                          />
+                        ))}
+
+                        {loading ? (
+                          <>
+                            {Array.from({ length: 6 }).map((_, index) => (
+                              <div
+                                key={`loading-${index}`}
+                                className="rounded-lg border p-3"
+                                style={{ borderColor: T.border, backgroundColor: T.card }}
+                              >
+                                <div className="flex gap-2">
+                                  <ShimmerLine w={32} h={32} rounded={999} />
+                                  <div className="flex-1 space-y-2">
+                                    <ShimmerLine w="35%" h={11} />
+                                    <ShimmerBlock lines={3} />
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </>
-                      ) : filteredPosts.length === 0 ? (
-                        <div
-                          className={hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm'}
-                          style={{ color: T.muted, borderColor: hasAiSearchCards ? T.border : 'transparent', backgroundColor: hasAiSearchCards ? T.card : 'transparent' }}
-                        >
-                          No posts match this filter.
-                        </div>
-                      ) : (
-                        <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
-                          {filteredPosts.map((post) => (
-                            <PostCard
-                              key={post.id}
-                              post={post}
-                              currentUser={currentUser}
-                              onDelete={handleDeletePost}
-                              displayName={activeDisplayName}
-                            />
-                          ))}
-                        </motion.div>
-                      )}
+                            ))}
+                          </>
+                        ) : filteredPosts.length === 0 ? (
+                          <div
+                            className={hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm'}
+                            style={{ color: T.muted, borderColor: hasAiSearchCards ? T.border : 'transparent', backgroundColor: hasAiSearchCards ? T.card : 'transparent' }}
+                          >
+                            No posts match this filter.
+                          </div>
+                        ) : (
+                          <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
+                            {filteredPosts.map((post) => (
+                              <PostCard
+                                key={post.id}
+                                post={post}
+                                currentUser={currentUser}
+                                onDelete={handleDeletePost}
+                                displayName={activeDisplayName}
+                              />
+                            ))}
+                          </motion.div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="px-3 pb-3 pt-3">
-                    <ChatInputBar
-                      currentUser={currentUser}
-                      trackedSymbols={trackedSymbols}
-                      quoteMap={quoteMap}
-                      streamStatus={streamStatus}
-                      onOpenComposer={() => openComposer('general')}
-                      onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
-                      onSearch={runAiSearch}
-                    />
+                    <div className="px-3 pb-3 pt-3">
+                      <ChatInputBar
+                        currentUser={currentUser}
+                        trackedSymbols={trackedSymbols}
+                        quoteMap={quoteMap}
+                        streamStatus={streamStatus}
+                        onOpenComposer={() => openComposer('general')}
+                        onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
+                        onSearch={runAiSearch}
+                      />
+                    </div>
                   </div>
                 </div>
 
