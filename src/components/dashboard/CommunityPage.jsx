@@ -2202,7 +2202,7 @@ const RightSidebar = ({
           type="button"
           onClick={onToggleCollapse}
           className="h-8 w-8 rounded-lg border inline-flex items-center justify-center"
-          style={{ borderColor: T.border, color: T.muted }}
+          style={{ borderColor: T.border, color: '#3fb950' }}
           title="Show sidebar"
         >
           <PanelLeftClose size={15} />
@@ -2270,7 +2270,7 @@ const RightSidebar = ({
               type="button"
               onClick={onToggleCollapse}
               className="h-7 w-7 rounded-md border inline-flex items-center justify-center"
-              style={{ borderColor: T.border, color: T.muted }}
+              style={{ borderColor: T.border, color: '#3fb950' }}
               title="Hide sidebar"
             >
               <PanelRightClose size={13} />
