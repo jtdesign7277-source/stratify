@@ -2160,6 +2160,15 @@ export default function Dashboard({
           className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-y-auto relative`}
         >
           {/* Tab-based Views */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+              className="h-full w-full"
+            >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
               <TradePage onPinToTop={pinToTop} />
@@ -2396,6 +2405,9 @@ export default function Dashboard({
               onBack={() => setActiveTab('watchlist')}
             />
           )}
+          {activeTab === 'more' && <MoreInfoPage />}
+            </motion.div>
+          </AnimatePresence>
           {hasMountedCryptoTab ? (
             <div className={activeTab === 'crypto' ? 'h-full w-full' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
               <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
@@ -2414,7 +2426,6 @@ export default function Dashboard({
               isSophiaThinking={isSophiaThinking}
             />
           </div>
-          {activeTab === 'more' && <MoreInfoPage />}
         </div>
         
         <SophiaPanel 

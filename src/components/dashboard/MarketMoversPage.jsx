@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from "framer-motion";
 import { TrendingUp, TrendingDown, RefreshCw, Volume2, BarChart3 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -7,6 +7,26 @@ const CATEGORIES = [
   { id: 'losers', label: 'Top Losers', icon: TrendingDown, color: 'red' },
   { id: 'volume', label: 'Most Active', icon: Volume2, color: 'blue' },
 ];
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 function formatPrice(price) {
   if (!price) return '$0.00';
@@ -35,9 +55,10 @@ function StockCard({ stock, rank, isLast }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: rank * 0.02 }}
+      {...listItemMotion(Math.max(0, rank - 1))}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ ...listItemMotion(Math.max(0, rank - 1)).transition, ...interactiveTransition }}
       className={`group px-3 py-2.5 hover:bg-white/[0.02] transition-all ${isLast ? '' : 'border-b border-[#1f1f1f]/40'}`}
     >
       <div className="flex items-center justify-between">
@@ -162,9 +183,9 @@ export default function MarketMoversPage() {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col bg-transparent overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="flex-1 flex flex-col bg-transparent overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
+      <motion.div {...sectionMotion(0)} className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -173,52 +194,57 @@ export default function MarketMoversPage() {
             </div>
             <p className="text-xs text-white/50 mt-1">Real-time market activity across all exchanges</p>
           </div>
-          <button
+          <motion.button
             onClick={fetchAllMovers}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs transition-all disabled:opacity-50"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            transition={interactiveTransition}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/8 bg-white/5 hover:bg-white/10 text-white text-xs shadow-lg shadow-black/30 transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
             {loading ? 'Updating...' : 'Refresh'}
-          </button>
+          </motion.button>
         </div>
 
-        {lastUpdated && !loading && (
-          <div className="mt-2 text-[10px] text-white/30">
-            Last updated: {new Date(lastUpdated).toLocaleTimeString()}
-          </div>
-        )}
-      </div>
+        <AnimatePresence initial={false}>
+          {lastUpdated && !loading && (
+            <motion.div {...sectionMotion(1)} className="mt-2 text-[10px] text-white/30">
+              Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* Three Column Layout */}
-      <div className="flex-1 overflow-hidden px-6 py-4">
+      <motion.div {...sectionMotion(1)} className="flex-1 overflow-hidden px-6 py-4">
         <div className="grid grid-cols-3 gap-4 h-full">
-          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+          <motion.div {...sectionMotion(2)} className="border border-white/8 rounded-2xl shadow-lg shadow-black/30 overflow-hidden flex flex-col">
             <CategoryColumn
               category={CATEGORIES[0]}
               data={gainers}
               loading={loading}
               error={errors.gainers}
             />
-          </div>
-          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+          </motion.div>
+          <motion.div {...sectionMotion(3)} className="border border-white/8 rounded-2xl shadow-lg shadow-black/30 overflow-hidden flex flex-col">
             <CategoryColumn
               category={CATEGORIES[1]}
               data={losers}
               loading={loading}
               error={errors.losers}
             />
-          </div>
-          <div className="border border-[#1f1f1f] rounded-lg overflow-hidden flex flex-col">
+          </motion.div>
+          <motion.div {...sectionMotion(4)} className="border border-white/8 rounded-2xl shadow-lg shadow-black/30 overflow-hidden flex flex-col">
             <CategoryColumn
               category={CATEGORIES[2]}
               data={actives}
               loading={loading}
               error={errors.volume}
             />
-          </div>
+          </motion.div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

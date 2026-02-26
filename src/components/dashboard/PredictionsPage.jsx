@@ -1,6 +1,27 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { RefreshCw, Activity } from 'lucide-react';
 import { API_URL } from '../../config';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const formatVolume = (value) => {
   const num = Number(value);
@@ -687,9 +708,9 @@ const PredictionsPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="flex-1 flex flex-col h-full bg-[#0b0b0b] text-white overflow-hidden">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 pb-2">
+      <motion.div {...sectionMotion(0)} className="flex flex-wrap items-center justify-between gap-3 p-4 pb-2">
         <div>
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-[#29e1a6]" strokeWidth={1.5} />
@@ -703,23 +724,30 @@ const PredictionsPage = () => {
                 : 'Live prediction markets'}
           </p>
         </div>
-        <button
+        <motion.button
           onClick={fetchMarkets}
           disabled={loading}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={interactiveTransition}
           className="p-2 rounded-lg border border-[#1f1f1f] text-white/60 hover:text-white hover:border-[#29e1a6]/50 hover:bg-white/5 transition-colors disabled:opacity-50"
           title="Refresh"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Category Tabs */}
       {hasMarkets && (
-        <div className="px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        <motion.div {...sectionMotion(1)} className="px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           <div className="flex gap-2">
-            {categoryOrder.map((category) => (
-              <button
+            {categoryOrder.map((category, index) => (
+              <motion.button
                 key={category}
+                {...listItemMotion(index)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                 onClick={() => scrollToCategory(category)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   activeCategory === category
@@ -728,14 +756,14 @@ const PredictionsPage = () => {
                 }`}
               >
                 {category}
-              </button>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4 pt-2">
+      <motion.div {...sectionMotion(2)} className="flex-1 overflow-auto p-4 pt-2">
         {error && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-200 text-sm px-3 py-2">
             {error}
@@ -757,18 +785,18 @@ const PredictionsPage = () => {
         ) : (
           <div className="space-y-10">
             {categoryOrder.map((category) => (
-              <div key={category} id={`category-${category.replace(/\s+/g, '-').toLowerCase()}`}>
+              <motion.div key={category} {...sectionMotion(3)} id={`category-${category.replace(/\s+/g, '-').toLowerCase()}`}>
                 {category === 'Trending' ? (
                   <TrendingSection trendingMarkets={trendingMarkets} topMovers={topMovers} />
                 ) : (
                   <CategorySection title={category} markets={groupedMarkets[category] || []} />
                 )}
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

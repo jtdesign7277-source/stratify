@@ -1,7 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, History, Sparkles, Trash2 } from 'lucide-react';
 
 const HIDDEN_TRADES_STORAGE_KEY = 'stratify-history-hidden-trades';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -363,22 +384,25 @@ const HistoryPage = ({
   const totalPnlColor = totalPnl > 0 ? 'text-emerald-400' : totalPnl < 0 ? 'text-red-400' : 'text-white/80';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent text-white p-4 gap-4 overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="flex-1 flex flex-col h-full bg-transparent text-white p-4 gap-4 overflow-hidden">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl flex flex-col min-h-0 overflow-hidden">
+        <motion.div {...sectionMotion(0)} className="bg-[#111111] border border-white/8 shadow-lg shadow-black/30 rounded-2xl flex flex-col min-h-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white">Trade Log</h2>
             <div className="flex items-center gap-3">
               <span className="text-xs text-white/45">{visibleTrades.length} trades</span>
               {visibleTrades.length > 0 && (
-                <button
+                <motion.button
                   type="button"
                   onClick={handleClearTrades}
-                  className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/15 transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
+                  className="inline-flex items-center gap-1 rounded-xl border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/15 transition-colors"
                 >
                   <Trash2 className="h-3 w-3" strokeWidth={1.6} />
                   Clear
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
@@ -409,10 +433,14 @@ const HistoryPage = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleTrades.map((trade) => {
+                  {visibleTrades.map((trade, index) => {
                     const isBuy = trade.type === 'buy';
                     return (
-                      <tr key={getTradeRowKey(trade)} className="border-b border-[#1f1f1f]/60 hover:bg-white/[0.02]">
+                      <motion.tr
+                        key={getTradeRowKey(trade)}
+                        {...listItemMotion(index)}
+                        className="border-b border-[#1f1f1f]/60 hover:bg-white/[0.02]"
+                      >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {isBuy ? (
@@ -437,17 +465,20 @@ const HistoryPage = ({
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
+                          <motion.button
                             type="button"
                             onClick={() => handleDeleteTrade(trade)}
-                            className="inline-flex items-center justify-center rounded-md border border-red-500/25 bg-red-500/10 p-1.5 text-red-300 hover:bg-red-500/20 transition-colors"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={interactiveTransition}
+                            className="inline-flex items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10 p-1.5 text-red-300 hover:bg-red-500/20 transition-colors"
                             title="Delete row"
                             aria-label={`Delete ${trade.symbol} trade row`}
                           >
                             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
-                          </button>
+                          </motion.button>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })}
                 </tbody>
@@ -461,9 +492,9 @@ const HistoryPage = ({
               {formatPnl(tradeLogPnl)}
             </span>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-[#111111] border border-[#1f1f1f] rounded-xl flex flex-col min-h-0 overflow-hidden">
+        <motion.div {...sectionMotion(1)} className="bg-[#111111] border border-white/8 shadow-lg shadow-black/30 rounded-2xl flex flex-col min-h-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
             <h2 className="text-sm font-semibold text-white">Strategy Log</h2>
             <span className="text-xs text-white/45">{strategyRuns.length} runs</span>
@@ -491,8 +522,12 @@ const HistoryPage = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {strategyRuns.map((strategy) => (
-                    <tr key={getStrategyRowKey(strategy)} className="border-b border-[#1f1f1f]/60 hover:bg-white/[0.02]">
+                  {strategyRuns.map((strategy, index) => (
+                    <motion.tr
+                      key={getStrategyRowKey(strategy)}
+                      {...listItemMotion(index)}
+                      className="border-b border-[#1f1f1f]/60 hover:bg-white/[0.02]"
+                    >
                       <td className="px-4 py-3 font-medium text-white/90">{strategy.name}</td>
                       <td className="px-4 py-3 text-white/70">{strategy.type}</td>
                       <td className="px-4 py-3 text-white/70">{formatDate(strategy.startedAt)}</td>
@@ -508,7 +543,7 @@ const HistoryPage = ({
                       <td className={`px-4 py-3 text-right font-mono font-semibold ${strategy.totalReturn > 0 ? 'text-emerald-400' : strategy.totalReturn < 0 ? 'text-red-400' : 'text-white/80'}`}>
                         {formatPnl(strategy.totalReturn)}
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>
@@ -521,10 +556,10 @@ const HistoryPage = ({
               {formatPnl(strategyPnl)}
             </span>
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      <div className="shrink-0 rounded-xl border border-[#1f1f1f] bg-[#111111] px-5 py-4">
+      <motion.div {...sectionMotion(2)} className="shrink-0 rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-[#111111] px-5 py-4">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-2">
           <div className="text-sm text-white/70">
             Trade Log P&amp;L: <span className={tradeLogPnl > 0 ? 'text-emerald-400' : tradeLogPnl < 0 ? 'text-red-400' : 'text-white/80'}>{formatPnl(tradeLogPnl)}</span>
@@ -534,8 +569,8 @@ const HistoryPage = ({
             All-Time Total P&amp;L: {formatPnl(totalPnl)}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

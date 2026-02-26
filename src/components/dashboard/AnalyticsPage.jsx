@@ -1,8 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { getExtendedHoursStatus, getMarketStatus } from '../../lib/marketHours';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import SimpleWatchlistTable from './SimpleWatchlistTable';
 import './AnalyticsWatchlistGrid.css';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const WATCHLIST_STORAGE_KEY = 'stratify-analytics-grid-watchlist';
 const MAX_SYMBOLS = 120;
@@ -833,9 +854,9 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="watchlist-grid-page">
-      <div className="watchlist-grid-shell">
-        <form className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
+    <motion.div {...PAGE_TRANSITION} className="watchlist-grid-page">
+      <motion.div {...sectionMotion(0)} className="watchlist-grid-shell">
+        <motion.form {...sectionMotion(1)} className="watchlist-grid-controls" onSubmit={handleSubmitSearch}>
           <div className="watchlist-grid-search" ref={searchWrapRef}>
             <input
               className="watchlist-grid-input watchlist-grid-single-input"
@@ -847,35 +868,47 @@ export default function AnalyticsPage() {
               onFocus={() => setSearchOpen(true)}
               placeholder="Search and add ticker (press Enter)"
             />
-            {searchOpen && (searchQuery.trim() || searchLoading) && (
-              <div className="watchlist-grid-search-results">
-                {searchLoading ? (
-                  <div className="watchlist-grid-search-empty">Searching...</div>
-                ) : searchResults.length === 0 ? (
-                  <div className="watchlist-grid-search-empty">No results</div>
-                ) : (
-                  searchResults.slice(0, 10).map((item) => (
-                    <button
-                      key={`${item.symbol}-${item.exchange}`}
-                      type="button"
-                      className="watchlist-grid-search-item"
-                      onClick={() => handlePickSearch(item.symbol)}
-                    >
-                      <span className="watchlist-grid-search-symbol">{item.symbol}</span>
-                      <span className="watchlist-grid-search-name">{item.name || item.exchange || ''}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {searchOpen && (searchQuery.trim() || searchLoading) && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="watchlist-grid-search-results"
+                >
+                  {searchLoading ? (
+                    <div className="watchlist-grid-search-empty">Searching...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="watchlist-grid-search-empty">No results</div>
+                  ) : (
+                    searchResults.slice(0, 10).map((item, index) => (
+                      <motion.button
+                        key={`${item.symbol}-${item.exchange}`}
+                        type="button"
+                        {...listItemMotion(index)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+                        className="watchlist-grid-search-item"
+                        onClick={() => handlePickSearch(item.symbol)}
+                      >
+                        <span className="watchlist-grid-search-symbol">{item.symbol}</span>
+                        <span className="watchlist-grid-search-name">{item.name || item.exchange || ''}</span>
+                      </motion.button>
+                    ))
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </form>
+        </motion.form>
 
         {fetchError && <div className="watchlist-grid-error">{fetchError}</div>}
-        <div className="px-4 pb-4">
+        <motion.div {...sectionMotion(2)} className="px-4 pb-4">
           <SimpleWatchlistTable rows={tableRows} />
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 }

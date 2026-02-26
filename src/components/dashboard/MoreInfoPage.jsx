@@ -21,6 +21,26 @@ import { supabase } from '../../lib/supabaseClient';
 import { persistPendingCheckoutSession } from '../../lib/checkoutSession';
 import { getPreferredProBillingInterval, resolveProCheckoutPriceId } from '../../lib/billing';
 
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const modalBackdropMotion = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 },
+};
+
+const modalPanelMotion = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
+  transition: { type: 'spring', stiffness: 300, damping: 25 },
+};
+
 const UPGRADE_URL = null; // Handled by click handler
 
 const AVATAR_STYLES = [
@@ -215,7 +235,7 @@ export default function MoreInfoPage() {
   };
 
   return (
-    <div className="h-full bg-transparent p-4 flex flex-col overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="h-full bg-transparent p-4 flex flex-col overflow-hidden">
       <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col gap-3 min-h-0">
         
         {/* Header Row */}
@@ -539,18 +559,13 @@ export default function MoreInfoPage() {
       <AnimatePresence>
         {isAvatarPickerOpen && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-start justify-end bg-black/50 p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            {...modalBackdropMotion}
+            className="fixed inset-0 z-50 flex items-start justify-end bg-black/60 backdrop-blur-sm p-4"
             onClick={() => setIsAvatarPickerOpen(false)}
           >
             <motion.div
-              className="w-[360px] max-w-full h-full bg-[#0b0b0b] border border-white/10 rounded-xl p-4 text-white shadow-2xl flex flex-col"
-              initial={{ x: 40, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 40, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              {...modalPanelMotion}
+              className="w-[360px] max-w-full h-full bg-[#0b0b0b] border border-white/8 rounded-2xl p-4 text-white shadow-2xl shadow-black/30 flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
@@ -617,6 +632,6 @@ export default function MoreInfoPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

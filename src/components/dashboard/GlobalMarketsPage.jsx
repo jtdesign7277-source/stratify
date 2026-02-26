@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Globe,
   Loader2,
@@ -39,6 +40,26 @@ const MARKETS = [
 ];
 
 const WATCHLIST_STORAGE_PREFIX = 'stratify-global-market-watchlist';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const normalizeSymbol = (value) =>
   String(value || '')
@@ -359,8 +380,8 @@ const GlobalMarketsPage = () => {
   );
 
   return (
-    <div className="relative flex h-full flex-1 flex-col overflow-hidden bg-transparent p-3">
-      <div className="mb-3 flex items-center justify-between">
+    <motion.div {...PAGE_TRANSITION} className="relative flex h-full flex-1 flex-col overflow-hidden bg-transparent p-3">
+      <motion.div {...sectionMotion(0)} className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-white">Global Markets</h1>
           <p className="text-xs text-gray-400">Twelve Data real-time market board</p>
@@ -377,10 +398,10 @@ const GlobalMarketsPage = () => {
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        {MARKETS.map((market) => {
+      <motion.div {...sectionMotion(1)} className="grid flex-1 min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        {MARKETS.map((market, marketIndex) => {
           const marketQuotes = quotesByMarket[market.id] || {};
           const symbols = watchlists[market.id] || market.defaultSymbols;
           const searchUi = searchUiByMarket[market.id];
@@ -389,21 +410,28 @@ const GlobalMarketsPage = () => {
           const updatedAt = updatedAtByMarket[market.id];
 
           return (
-            <div key={market.id} className="rounded-xl border border-[#1f1f1f] bg-black/45 p-3 backdrop-blur-sm min-h-0">
+            <motion.div
+              key={market.id}
+              {...sectionMotion(marketIndex + 2)}
+              className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-black/45 p-3 backdrop-blur-sm min-h-0"
+            >
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Globe className={`h-4.5 w-4.5 ${market.accent}`} strokeWidth={1.5} />
                   <h3 className="text-white font-semibold">{market.title}</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => toggleSearch(market.id)}
-                    className="inline-flex items-center gap-1 rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
+                    className="inline-flex items-center gap-1 rounded-xl border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-medium text-blue-300 hover:bg-blue-500/20"
                   >
                     <Plus className="h-3 w-3" strokeWidth={1.5} />
                     Add
-                  </button>
+                  </motion.button>
                   {loading ? (
                     <span className="inline-flex items-center gap-1 text-xs text-yellow-400">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
@@ -443,16 +471,20 @@ const GlobalMarketsPage = () => {
                         Searching symbols...
                       </div>
                     ) : searchUi.results.length > 0 ? (
-                      searchUi.results.slice(0, 30).map((item) => {
+                      searchUi.results.slice(0, 30).map((item, index) => {
                         const symbol = normalizeSymbol(item?.symbol);
                         if (!symbol) return null;
                         const alreadyAdded = symbols.includes(symbol);
                         return (
-                          <button
+                          <motion.button
                             key={`${market.id}-${symbol}-${item?.instrumentName || ''}`}
                             type="button"
                             onClick={() => addSymbol(market.id, symbol)}
                             disabled={alreadyAdded}
+                            {...listItemMotion(index)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                             className={`w-full rounded border px-2 py-1.5 text-left text-xs transition-colors ${
                               alreadyAdded
                                 ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
@@ -461,7 +493,7 @@ const GlobalMarketsPage = () => {
                           >
                             <span className="font-semibold">${symbol}</span>
                             <span className="ml-2 text-white/55">{item?.instrumentName || item?.name || symbol}</span>
-                          </button>
+                          </motion.button>
                         );
                       })
                     ) : (
@@ -480,11 +512,15 @@ const GlobalMarketsPage = () => {
               )}
 
               <div className="space-y-2">
-                {symbols.map((symbol) => {
+                {symbols.map((symbol, index) => {
                   const quote = marketQuotes[symbol] || {};
                   const positive = Number(quote?.percentChange) >= 0;
                   return (
-                    <div key={`${market.id}-${symbol}`} className="flex items-start justify-between rounded-lg border border-white/[0.04] bg-white/[0.015] px-2.5 py-2">
+                    <motion.div
+                      key={`${market.id}-${symbol}`}
+                      {...listItemMotion(index)}
+                      className="flex items-start justify-between rounded-xl border border-white/8 bg-white/[0.015] px-2.5 py-2 shadow-lg shadow-black/20"
+                    >
                       <div className="min-w-0 pr-2">
                         <div className="text-sm font-semibold text-white">${symbol}</div>
                         <div className="truncate text-[11px] text-gray-500">{quote?.name || symbol}</div>
@@ -497,16 +533,19 @@ const GlobalMarketsPage = () => {
                             {formatPercent(quote?.percentChange)}
                           </div>
                         </div>
-                        <button
+                        <motion.button
                           type="button"
                           onClick={() => removeSymbol(market.id, symbol)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={interactiveTransition}
                           className="rounded p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
                           title="Remove ticker"
                         >
                           <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        </button>
+                        </motion.button>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -516,20 +555,28 @@ const GlobalMarketsPage = () => {
                   ? `Last update ${new Date(updatedAt).toLocaleTimeString()}`
                   : 'Waiting for market data...'}
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
-      {MARKETS.some((market) => Boolean(errorByMarket[market.id])) && (
-        <div className="mt-2 rounded-lg border border-white/10 bg-[#0a1628]/70 px-3 py-2 text-xs text-gray-300">
-          <div className="flex items-center gap-2">
-            <WifiOff className="h-3.5 w-3.5 text-yellow-400" strokeWidth={1.5} />
-            <span>Some exchanges are reconnecting. Data will refresh automatically.</span>
-          </div>
-        </div>
-      )}
-    </div>
+      <AnimatePresence initial={false}>
+        {MARKETS.some((market) => Boolean(errorByMarket[market.id])) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="mt-2 rounded-xl border border-white/10 bg-[#0a1628]/70 px-3 py-2 text-xs text-gray-300 shadow-lg shadow-black/20"
+          >
+            <div className="flex items-center gap-2">
+              <WifiOff className="h-3.5 w-3.5 text-yellow-400" strokeWidth={1.5} />
+              <span>Some exchanges are reconnecting. Data will refresh automatically.</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 

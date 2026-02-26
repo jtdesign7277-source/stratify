@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import Highcharts from 'highcharts';
 import { Activity, Search } from 'lucide-react';
 import IncomeTab from './IncomeTab';
@@ -30,6 +31,26 @@ const PERIOD_OPTIONS = [
 ];
 
 const HIGHCHARTS_CDN_WAIT_MS = 8000;
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const getToneFromChange = (value) => {
   const numeric = Number(value);
@@ -377,22 +398,22 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
 
   if (!chartEngineReady && !chartEngineError) {
     return (
-      <div className="h-full min-h-0 overflow-hidden bg-transparent text-white">
+      <motion.div {...PAGE_TRANSITION} className="h-full min-h-0 overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
           <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm px-5 py-4 text-sm text-[#cbd5e1]">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300/80 border-t-transparent" />
             Loading X-Ray chart engine...
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   try {
     return (
-      <div className="h-full min-h-0 overflow-hidden bg-transparent text-white">
+      <motion.div {...PAGE_TRANSITION} className="h-full min-h-0 overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col px-3 py-2 md:px-4 md:py-3">
-          <div className={`rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm ${isCompactHeader ? 'p-2.5' : 'p-3'}`}>
+          <motion.div {...sectionMotion(0)} className={`rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm ${isCompactHeader ? 'p-2.5' : 'p-3'}`}>
             <div className={`flex flex-col ${isCompactHeader ? 'gap-2' : 'gap-3'} lg:flex-row lg:items-center lg:justify-between`}>
               <div className="flex items-center gap-3">
                 <div>
@@ -418,38 +439,49 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                       placeholder="Symbol"
                       maxLength={12}
                     />
-                    <button
+                    <motion.button
                       type="submit"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
                       className={`rounded-md bg-[#3b82f6] ${isCompactHeader ? 'px-2 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'} font-medium text-white transition hover:bg-[#2563eb]`}
                     >
                       Load
-                    </button>
+                    </motion.button>
                   </div>
 
                   {isSuggestionsOpen && isSymbolInputFocused && suggestions.length > 0 ? (
                     <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-black/40 backdrop-blur-sm p-1 shadow-2xl">
-                      {suggestions.map((item) => (
-                        <button
+                      {suggestions.map((item, index) => (
+                        <motion.button
                           key={item.symbol}
                           type="button"
+                          {...listItemMotion(index)}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => handleSelectSuggestion(item)}
                           className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/5"
                         >
                           <span className="font-mono text-[#e5e7eb]">{item.symbol}</span>
                           <span className="truncate pl-3 text-[#6b7280]">{item.name || item.exchange || ''}</span>
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                   ) : null}
                 </form>
 
                 <div className="inline-flex rounded-xl border border-white/10 bg-black/50 p-0.5">
-                  {PERIOD_OPTIONS.map((option) => (
-                    <button
+                  {PERIOD_OPTIONS.map((option, index) => (
+                    <motion.button
                       key={option.id}
                       type="button"
                       onClick={() => setPeriod(option.id)}
+                      {...listItemMotion(index)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                       className={`rounded-lg ${isCompactHeader ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'} transition ${
                         period === option.id
                           ? 'bg-[#3b82f6] text-white'
@@ -457,7 +489,7 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                       }`}
                     >
                       {option.label}
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>
@@ -516,14 +548,18 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                 compact={isCompactHeader}
               />
             </div>
-          </div>
+          </motion.div>
 
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            {TABS.map((tab) => (
-              <button
+          <motion.div {...sectionMotion(1)} className="mt-2.5 flex flex-wrap items-center gap-2">
+            {TABS.map((tab, index) => (
+              <motion.button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
+                {...listItemMotion(index)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                 className={`rounded-xl border px-3 py-1.5 text-xs transition ${
                   activeTab === tab.id
                     ? 'border-[#3b82f6] bg-[#3b82f6]/20 text-[#dbeafe]'
@@ -531,39 +567,42 @@ export default function XRayPage({ initialSymbol = 'TSLA', onSymbolChange, onBac
                 }`}
               >
                 {tab.label}
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
 
-          <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1 pb-4">
+          <motion.div {...sectionMotion(2)} className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1 pb-4">
             {activeTab === 'income' ? <IncomeTab symbol={symbol} period={period} /> : null}
             {activeTab === 'balance' ? <BalanceTab symbol={symbol} period={period} /> : null}
             {activeTab === 'cashflow' ? <CashFlowTab symbol={symbol} period={period} /> : null}
             {activeTab === 'stats' ? <KeyStatsTab symbol={symbol} /> : null}
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     );
   } catch (error) {
     console.error('[xray/page] Render error:', error);
     return (
-      <div className="h-full min-h-0 overflow-hidden bg-transparent text-white">
+      <motion.div {...PAGE_TRANSITION} className="h-full min-h-0 overflow-hidden bg-transparent text-white">
         <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] items-center justify-center px-4 py-4 md:px-6 md:py-5">
           <div className="w-full max-w-xl rounded-2xl border border-red-500/30 bg-black/40 backdrop-blur-sm p-5">
             <p className="text-[11px] uppercase tracking-[0.18em] text-red-300">X-Ray Error</p>
             <p className="mt-2 text-sm text-[#e5e7eb]">
               {getErrorMessage(error, 'Unable to render this X-Ray page right now.')}
             </p>
-            <button
+            <motion.button
               type="button"
               onClick={handleGoBack}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="mt-4 inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#e5e7eb] transition hover:border-white/25"
             >
               Go Back
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 }

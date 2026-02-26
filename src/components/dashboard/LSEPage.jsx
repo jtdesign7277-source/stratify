@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
   Loader2,
@@ -10,6 +11,26 @@ import {
   X,
 } from 'lucide-react';
 import useTwelveData from '../../hooks/useTwelveData';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const WATCHLIST_STORAGE_KEY = 'stratify-lse-watchlist';
 const LSE_LIST_LIMIT = 1000;
@@ -257,9 +278,9 @@ const LSEPage = () => {
   }, [status.connected, status.connecting]);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-transparent px-5 py-4" style={{ scrollbarWidth: 'none' }}>
+    <motion.div {...PAGE_TRANSITION} className="h-full w-full overflow-y-auto bg-transparent px-5 py-4" style={{ scrollbarWidth: 'none' }}>
       <div className="mx-auto w-full max-w-7xl space-y-4">
-        <div className="relative z-30 rounded-xl border border-blue-500/20 bg-[#060d18]/70 p-4 backdrop-blur">
+        <motion.div {...sectionMotion(0)} className="relative z-30 rounded-xl border border-blue-500/20 bg-[#060d18]/70 p-4 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-end gap-4">
               <div className="leading-none text-blue-500">
@@ -286,40 +307,56 @@ const LSEPage = () => {
                 {connectionLabel}
               </span>
 
-              <button
+              <motion.button
                 type="button"
                 onClick={refreshQuotes}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-blue-300 transition-colors hover:bg-blue-500/20"
               >
                 <RefreshCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Refresh
-              </button>
+              </motion.button>
 
               <div className="relative" ref={pickerRef}>
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setIsPickerOpen((prev) => !prev)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
                   className="inline-flex items-center gap-1 rounded-md border border-blue-500/40 bg-blue-500/15 px-3 py-1 text-blue-200 transition-colors hover:bg-blue-500/25"
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Add London Stocks
-                </button>
+                </motion.button>
 
-                {isPickerOpen && (
-                  <div className="absolute right-0 top-9 z-[100] w-[460px] rounded-xl border border-blue-500/30 bg-[#060d18]/95 p-3 shadow-2xl backdrop-blur">
+                <AnimatePresence initial={false}>
+                  {isPickerOpen && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 top-9 z-[100] w-[460px] rounded-xl border border-blue-500/30 bg-[#060d18]/95 p-3 shadow-2xl backdrop-blur"
+                  >
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <h2 className="text-sm font-semibold text-white">LSE Stock Selector</h2>
                         <p className="text-[11px] text-white/50">Select multiple tickers, add, then close.</p>
                       </div>
 
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => setIsPickerOpen(false)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className="rounded-md p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
                       >
                         <X className="h-4 w-4" strokeWidth={1.5} />
-                      </button>
+                      </motion.button>
                     </div>
 
                     <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a1628]/70 px-3 py-2">
@@ -345,7 +382,7 @@ const LSEPage = () => {
                           Loading London stock list...
                         </div>
                       ) : availableStocks.length > 0 ? (
-                        availableStocks.map((item) => {
+                        availableStocks.map((item, index) => {
                           const symbol = normalizeSymbol(item?.symbol);
                           if (!symbol) return null;
 
@@ -353,9 +390,13 @@ const LSEPage = () => {
                           const alreadyInWatchlist = watchlistSymbols.includes(symbol);
 
                           return (
-                            <button
+                            <motion.button
                               key={`${symbol}-${item?.micCode || ''}`}
                               type="button"
+                              {...listItemMotion(index)}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
+                              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                               onClick={() => toggleSymbolSelection(symbol)}
                               className={`flex w-full items-start gap-2 rounded-md border px-2.5 py-2 text-left transition-colors ${
                                 isSelected
@@ -383,7 +424,7 @@ const LSEPage = () => {
                                   In watchlist
                                 </span>
                               )}
-                            </button>
+                            </motion.button>
                           );
                         })
                       ) : (
@@ -394,24 +435,31 @@ const LSEPage = () => {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <button
+                      <motion.button
                         type="button"
                         onClick={clearSelection}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className="rounded-md border border-white/15 px-2.5 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10"
                       >
                         Clear selection
-                      </button>
+                      </motion.button>
 
-                      <button
+                      <motion.button
                         type="button"
                         onClick={addSelectedToWatchlist}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className="rounded-md border border-blue-500/40 bg-blue-500/20 px-3 py-1.5 text-xs font-semibold text-blue-200 transition-colors hover:bg-blue-500/30"
                       >
                         Add Selected ({selectedSymbols.length})
-                      </button>
+                      </motion.button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -421,9 +469,9 @@ const LSEPage = () => {
               {error}
             </div>
           )}
-        </div>
+        </motion.div>
 
-        <section className="relative z-10 rounded-xl border border-blue-500/20 bg-[#0a1628]/75 p-4 backdrop-blur">
+        <motion.section {...sectionMotion(1)} className="relative z-10 rounded-xl border border-blue-500/20 bg-[#0a1628]/75 p-4 backdrop-blur">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-white">Your London Watchlist ({watchlistSymbols.length})</h2>
             {loadingQuotes ? <Loader2 className="h-4 w-4 animate-spin text-blue-400" strokeWidth={1.5} /> : null}
@@ -435,10 +483,10 @@ const LSEPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {quoteList.map((quote) => {
+              {quoteList.map((quote, index) => {
                 const symbol = normalizeSymbol(quote?.symbol || quote?.streamSymbol);
                 return (
-                  <article key={symbol} className="rounded-lg border border-white/10 bg-[#060d18]/70 p-3">
+                  <motion.article key={symbol} {...listItemMotion(index)} className="rounded-xl border border-white/8 shadow-lg shadow-black/20 bg-[#060d18]/70 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-white">{symbol}</div>
@@ -447,14 +495,17 @@ const LSEPage = () => {
                         </div>
                       </div>
 
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => removeFromWatchlist(symbol)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className="rounded-md p-1 text-white/45 transition-colors hover:bg-white/10 hover:text-white"
                         title="Remove from watchlist"
                       >
                         <X className="h-4 w-4" strokeWidth={1.5} />
-                      </button>
+                      </motion.button>
                     </div>
 
                     <div className="mt-3 text-lg font-semibold text-white">{formatPrice(quote?.price)}</div>
@@ -462,14 +513,14 @@ const LSEPage = () => {
                       {formatPercent(quote?.percentChange)}
                     </div>
                     <div className="mt-2 text-[11px] text-white/45">Updated: {formatTime(quote?.timestamp)}</div>
-                  </article>
+                  </motion.article>
                 );
               })}
             </div>
           )}
-        </section>
+        </motion.section>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

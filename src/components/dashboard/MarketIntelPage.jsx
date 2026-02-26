@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { Archive, ChevronDown, ChevronUp, Clock3, Radio, Volume2 } from 'lucide-react';
 
 const SECTION_BADGE_STYLES = {
@@ -19,6 +20,26 @@ const SECTION_HEADER_REGEX = /^(?:#{1,3}\s*)?([🔥📈💰🔵🟠🐦🦍🚀�
 const LAST_VIEWED_KEY = 'lastViewedMarketIntel';
 const LEGACY_LAST_VIEWED_KEY = 'stratify-market-intel-last-viewed';
 const VOICE_PREF_KEY = 'stratify-market-intel-voice';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const stripMarkdown = (md = '') =>
   String(md)
@@ -400,16 +421,23 @@ export default function MarketIntelPage({ onClose, onViewed }) {
   }, []);
 
   return (
-    <div className="h-full bg-transparent overflow-y-auto">
-      <div className="sticky top-0 z-20 bg-[#0b0b0b]/90 backdrop-blur-md border-b border-[#1f1f1f]">
+    <motion.div {...PAGE_TRANSITION} className="h-full bg-transparent overflow-y-auto">
+      <motion.div {...sectionMotion(0)} className="sticky top-0 z-20 bg-[#0b0b0b]/90 backdrop-blur-md border-b border-[#1f1f1f]">
         <div className="max-w-[960px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             {onClose && (
-              <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close market intel page">
+              <motion.button
+                onClick={onClose}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
+                className="text-white/40 hover:text-white transition-colors"
+                aria-label="Close market intel page"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </motion.button>
             )}
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
@@ -423,9 +451,12 @@ export default function MarketIntelPage({ onClose, onViewed }) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
+            <motion.button
               onClick={handlePlaySophia}
               disabled={voiceLoading || (!reports[0] && !isPlaying)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide transition-colors rounded-lg border ${
                 isPlaying
                   ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
@@ -451,20 +482,23 @@ export default function MarketIntelPage({ onClose, onViewed }) {
                   <span>▶ Play Sophia</span>
                 </>
               )}
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               onClick={() => setShowArchive((previous) => !previous)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="flex items-center gap-2 px-3 py-1.5 text-xs tracking-wide uppercase text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg border border-[#1f1f1f] bg-[#121212]"
             >
               <Archive className="w-3.5 h-3.5" />
               {showArchive ? 'Hide Archive' : 'Show Archive'}
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="max-w-[960px] mx-auto px-6 py-8">
+      <motion.div {...sectionMotion(1)} className="max-w-[960px] mx-auto px-6 py-8">
         {loading && (
           <div className="rounded-2xl border border-[#1f1f1f] bg-[#090909] p-6 text-zinc-400 text-sm">
             Loading market intelligence reports...
@@ -558,14 +592,21 @@ export default function MarketIntelPage({ onClose, onViewed }) {
 
               {showArchive && archivedReports.length > 0 && (
                 <div className="space-y-3">
-                  {archivedReports.map((report) => {
+                  {archivedReports.map((report, index) => {
                     const isExpanded = expandedReportIds.includes(String(report.id));
                     const renderedArchiveHtml = renderReportMarkdown(report.report_content || '');
 
                     return (
-                      <article key={report.id} className="rounded-xl border border-[#1f1f1f] bg-[#0a0a0a] overflow-hidden">
-                        <button
+                      <motion.article
+                        key={report.id}
+                        {...listItemMotion(index)}
+                        className="rounded-xl border border-white/8 shadow-lg shadow-black/20 bg-[#0a0a0a] overflow-hidden"
+                      >
+                        <motion.button
                           onClick={() => toggleArchivedReport(report.id)}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          transition={interactiveTransition}
                           className="w-full text-left px-4 py-3 hover:bg-white/[0.02] transition-colors"
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -586,14 +627,14 @@ export default function MarketIntelPage({ onClose, onViewed }) {
                               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </div>
                           </div>
-                        </button>
+                        </motion.button>
 
                         {isExpanded && (
                           <div className="px-4 pb-4 pt-0 border-t border-[#1f1f1f] bg-[#090909]">
                             <div className="market-intel-body pt-4" dangerouslySetInnerHTML={{ __html: renderedArchiveHtml }} />
                           </div>
                         )}
-                      </article>
+                      </motion.article>
                     );
                   })}
                 </div>
@@ -601,7 +642,7 @@ export default function MarketIntelPage({ onClose, onViewed }) {
             </section>
           </>
         )}
-      </div>
+      </motion.div>
 
       <style>{`
         .market-intel-body {
@@ -697,6 +738,6 @@ export default function MarketIntelPage({ onClose, onViewed }) {
           letter-spacing: 0.02em;
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 }

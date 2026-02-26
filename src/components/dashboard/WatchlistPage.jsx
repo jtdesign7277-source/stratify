@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
   ChevronsLeft,
@@ -36,6 +37,26 @@ const ORDER_PANEL_WIDTHS = {
 };
 
 const WATCHLIST_TICKER_TEXT_CLASS = 'text-xs';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const ORDER_TYPE_OPTIONS = [
   { value: 'market', label: 'Market' },
@@ -1175,8 +1196,9 @@ const WatchlistPage = ({
   };
 
   return (
-    <div className="flex h-full flex-1 overflow-hidden bg-transparent pb-10">
-      <div
+    <motion.div {...PAGE_TRANSITION} className="flex h-full flex-1 overflow-hidden bg-transparent pb-10">
+      <motion.div
+        {...sectionMotion(0)}
         className="relative z-10 flex flex-col border-r border-[#1f1f1f] transition-all duration-300"
         style={{ width: WATCHLIST_PANEL_WIDTHS[watchlistPanelState] }}
       >
@@ -1188,15 +1210,18 @@ const WatchlistPage = ({
             </div>
           ) : <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">WL</span>}
 
-          <button
+          <motion.button
             type="button"
             onClick={cycleWatchlistPanel}
-            className="inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/5 px-2 py-1 text-[11px] font-medium text-emerald-300 transition hover:bg-emerald-500/12 hover:text-emerald-200"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            transition={interactiveTransition}
+            className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/35 bg-emerald-500/5 px-2 py-1 text-[11px] font-medium text-emerald-300 transition hover:bg-emerald-500/12 hover:text-emerald-200"
             title="Resize watchlist panel"
           >
             {isWatchlistCollapsed ? <ChevronsRight className="h-3.5 w-3.5" strokeWidth={1.5} /> : <ChevronsLeft className="h-3.5 w-3.5" strokeWidth={1.5} />}
             {!isWatchlistCollapsed && <span>{watchlistPanelState === 'open' ? 'Large' : 'Small'}</span>}
-          </button>
+          </motion.button>
         </div>
 
         {!isWatchlistCollapsed ? (
@@ -1235,32 +1260,45 @@ const WatchlistPage = ({
 
               </div>
 
-              {searchQuery.trim() ? (
-                <div className="absolute left-3 right-3 top-[100%] mt-1 max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-[#060d18]/95 p-1 shadow-2xl" style={{ scrollbarWidth: 'none' }}>
-                  {searchLoading ? (
-                    <div className="px-2 py-2 text-xs text-gray-400">Searching symbols...</div>
-                  ) : searchResults.length > 0 ? (
-                    searchResults.map((result) => (
-                      <button
-                        key={result.symbol}
-                        type="button"
-                        draggable
-                        onDragStart={(event) => handleSearchResultDragStart(event, result)}
-                        onClick={() => addSymbolToWatchlist(result.symbol, result.name, result.exchange)}
-                        className="flex w-full items-center justify-between rounded px-2 py-2 text-left hover:bg-blue-500/10"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-white">${result.symbol}</div>
-                          <div className="truncate text-[11px] text-gray-400">{result.name || result.symbol}</div>
-                        </div>
-                        <Plus className="h-3.5 w-3.5 text-blue-300" strokeWidth={1.5} />
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-2 py-2 text-xs text-gray-400">No symbols found</div>
-                  )}
-                </div>
-              ) : null}
+              <AnimatePresence initial={false}>
+                {searchQuery.trim() ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-3 right-3 top-[100%] mt-1 max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-[#060d18]/95 p-1 shadow-2xl shadow-black/30"
+                    style={{ scrollbarWidth: 'none' }}
+                  >
+                    {searchLoading ? (
+                      <div className="px-2 py-2 text-xs text-gray-400">Searching symbols...</div>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((result, index) => (
+                        <motion.button
+                          key={result.symbol}
+                          type="button"
+                          draggable
+                          {...listItemMotion(index)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+                          onDragStart={(event) => handleSearchResultDragStart(event, result)}
+                          onClick={() => addSymbolToWatchlist(result.symbol, result.name, result.exchange)}
+                          className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left hover:bg-blue-500/10"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-white">${result.symbol}</div>
+                            <div className="truncate text-[11px] text-gray-400">{result.name || result.symbol}</div>
+                          </div>
+                          <Plus className="h-3.5 w-3.5 text-blue-300" strokeWidth={1.5} />
+                        </motion.button>
+                      ))
+                    ) : (
+                      <div className="px-2 py-2 text-xs text-gray-400">No symbols found</div>
+                    )}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
 
               <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
                 <span>{activeSymbols.length}/{MAX_SYMBOLS} symbols</span>
@@ -1297,7 +1335,7 @@ const WatchlistPage = ({
                 <div className="px-3 py-5 text-sm text-gray-400">Loading watchlist...</div>
               ) : null}
 
-              {visibleWatchlist.map((item) => {
+              {visibleWatchlist.map((item, index) => {
                 const quote = quotesBySymbol[item.symbol] || {};
                 const dayChange = toNumber(quote?.change);
                 const dayChangePercent = toNumber(quote?.percentChange);
@@ -1337,10 +1375,14 @@ const WatchlistPage = ({
                 const rowDropTarget = dragOverSymbol === item.symbol && draggingSymbol && draggingSymbol !== item.symbol;
 
                 return (
-                  <button
+                  <motion.button
                     key={item.symbol}
                     type="button"
                     draggable={true}
+                    {...listItemMotion(index)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                     onDragStart={(event) => handleRowDragStart(event, item.symbol)}
                     onDragOver={(event) => handleRowDragOver(event, item.symbol)}
                     onDrop={(event) => handleRowDrop(event, item.symbol)}
@@ -1367,12 +1409,15 @@ const WatchlistPage = ({
                     <div className="flex items-center gap-1">
                       <div className="min-w-[108px] text-right">
                         <div className={`${WATCHLIST_TICKER_TEXT_CLASS} font-mono text-white`}>{formatPrice(quote?.price)}</div>
-                        <button
+                        <motion.button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
                             toggleWatchlistChangeDisplayMode(item.symbol, 'day');
                           }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={interactiveTransition}
                           title="Previous day change (% / $)"
                           className={`block w-full text-right text-[11px] font-medium transition-opacity hover:opacity-80 ${getWatchlistChangeToneClass(dayReferenceChange)}`}
                         >
@@ -1381,13 +1426,16 @@ const WatchlistPage = ({
                             percentValue: dayChangePercent,
                             dollarValue: dayChange,
                           })}`}
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
                             toggleWatchlistChangeDisplayMode(item.symbol, 'preMarket');
                           }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={interactiveTransition}
                           title="Premarket change (% / $)"
                           className={`block w-full text-right text-[11px] font-medium transition-opacity hover:opacity-80 ${getWatchlistChangeToneClass(preMarketReferenceChange)}`}
                         >
@@ -1398,22 +1446,25 @@ const WatchlistPage = ({
                               percentValue: preMarketChangePercent,
                               dollarValue: preMarketChange,
                             })}`}
-                        </button>
+                        </motion.button>
                       </div>
 
-                      <button
+                      <motion.button
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
                           onRemoveFromWatchlist?.(item.symbol);
                         }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className="rounded p-1 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
                         title="Remove"
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
+                      </motion.button>
                     </div>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -1425,9 +1476,9 @@ const WatchlistPage = ({
             symbols
           </div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="min-w-0 flex-1 bg-transparent">
+      <motion.div {...sectionMotion(1)} className="min-w-0 flex-1 bg-transparent">
         {selectedTicker ? (
           <div className="flex h-full flex-col">
             <div className="flex items-center justify-between border-b border-[#1f1f1f] px-4 py-3">
@@ -1443,24 +1494,30 @@ const WatchlistPage = ({
 
               <div className="flex items-center gap-2">
                 {isOrderPanelClosed ? (
-                  <button
+                  <motion.button
                     type="button"
                     onClick={openOrderPanel}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/70 bg-transparent px-3 py-2 text-sm font-semibold text-emerald-300 hover:border-emerald-300 hover:text-emerald-200 hover:shadow-[0_0_14px_rgba(16,185,129,0.22)]"
                   >
                     Trade
                     <ChevronsLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  </button>
+                  </motion.button>
                 ) : (
-                  <button
+                  <motion.button
                     type="button"
                     onClick={closeOrderPanel}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={interactiveTransition}
                     className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/5 px-2 py-1 text-[11px] font-medium text-emerald-300 transition hover:bg-emerald-500/12 hover:text-emerald-200"
                     title="Collapse order panel"
                   >
                     <span>Collapse</span>
                     <ChevronsRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  </button>
+                  </motion.button>
                 )}
               </div>
             </div>
@@ -1470,10 +1527,13 @@ const WatchlistPage = ({
                 {CHART_TIMEFRAME_OPTIONS.map((option) => {
                   const active = chartTimeframe === option.id;
                   return (
-                    <button
+                    <motion.button
                       key={option.id}
                       type="button"
                       onClick={() => setChartTimeframe(option.id)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
                       className={`h-7 shrink-0 rounded-md border px-2.5 text-[11px] font-semibold transition-colors ${
                         active
                           ? 'border-emerald-400 bg-emerald-500/10 text-emerald-300'
@@ -1482,7 +1542,7 @@ const WatchlistPage = ({
                       aria-pressed={active}
                     >
                       {option.label}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -1769,8 +1829,8 @@ const WatchlistPage = ({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

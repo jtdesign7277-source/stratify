@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
   Plus,
@@ -14,6 +15,40 @@ import useTradingMode from '../../hooks/useTradingMode';
 import usePortfolio from '../../hooks/usePortfolio';
 import { clearAlpacaCache } from '../../services/alpacaService';
 import './PortfolioHighchartsGrid.css';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+
+const modalBackdropMotion = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 },
+};
+
+const modalPanelMotion = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
+  transition: { type: 'spring', stiffness: 300, damping: 25 },
+};
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -590,7 +625,12 @@ const PortfolioPageRebuilt = ({
     : 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200';
 
   const renderMetricCard = (label, value, subValue = null, positive = null) => (
-    <div className="rounded-xl border border-[#1f2632] bg-[#0c111a] px-4 py-3">
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={interactiveTransition}
+      className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-[#0c111a] px-4 py-3"
+    >
       <div className="text-[10px] uppercase tracking-[0.16em] text-white/45">{label}</div>
       <div className="mt-1 text-xl font-semibold font-mono text-white">{value}</div>
       {subValue !== null && (
@@ -600,13 +640,13 @@ const PortfolioPageRebuilt = ({
           {subValue}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="flex-1 h-full overflow-auto bg-transparent text-white">
+    <motion.div {...PAGE_TRANSITION} className="flex-1 h-full overflow-auto bg-transparent text-white">
       <div className="px-6 pt-5 pb-8 space-y-5">
-        <section className="rounded-2xl border border-[#1f2632] bg-[#0e141f] p-4">
+        <motion.section {...sectionMotion(0)} className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-[#0e141f] p-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-white/45">Portfolio Control</div>
@@ -620,30 +660,39 @@ const PortfolioPageRebuilt = ({
                 <Wallet className="w-3.5 h-3.5" strokeWidth={1.8} />
                 {isLive ? 'LIVE MODE' : 'PAPER MODE'}
               </span>
-              <button
+              <motion.button
                 type="button"
                 onClick={() => refreshAll({ forceFresh: true })}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/20 px-3 py-1.5 text-xs text-white/80 hover:border-cyan-400/40 hover:text-cyan-200 transition-colors"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${portfolio.loading || switching ? 'animate-spin' : ''}`} strokeWidth={1.6} />
                 Refresh
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={() => setShowBrokerModal(true)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" strokeWidth={1.7} />
                 Connect Broker
-              </button>
+              </motion.button>
             </div>
           </div>
 
           <div className="mt-4 flex items-center gap-2 flex-wrap">
-            <button
+            <motion.button
               type="button"
               onClick={() => requestModeSwitch('paper')}
               disabled={switching || isPaper}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                 isPaper
                   ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-200'
@@ -651,11 +700,14 @@ const PortfolioPageRebuilt = ({
               } disabled:opacity-70`}
             >
               Paper
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
               onClick={() => requestModeSwitch('live')}
               disabled={switching || isLive}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                 isLive
                   ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-200'
@@ -663,7 +715,7 @@ const PortfolioPageRebuilt = ({
               } disabled:opacity-70`}
             >
               Live
-            </button>
+            </motion.button>
             <div className="text-xs text-white/50">
               {switching ? 'Switching trading mode...' : portfolio.loading ? 'Loading account...' : 'Ready'}
             </div>
@@ -674,40 +726,43 @@ const PortfolioPageRebuilt = ({
               {modeError}
             </div>
           )}
-        </section>
+        </motion.section>
 
         {brokers.length > 0 ? (
-          <section className="rounded-2xl border border-[#1f2632] bg-[#0e141f] p-4">
+          <motion.section {...sectionMotion(1)} className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-[#0e141f] p-4">
             <div className="text-[10px] uppercase tracking-[0.16em] text-white/45 mb-3">Connected Brokers</div>
             <div className="flex flex-wrap gap-2">
-              {brokers.map((broker) => {
+              {brokers.map((broker, index) => {
                 const paperConnected = broker.paperConnected ?? (broker.is_paper !== false);
                 const liveConnected = broker.liveConnected ?? (broker.is_paper === false);
                 const stateText = liveConnected && paperConnected ? 'Paper + Live' : liveConnected ? 'Live' : 'Paper';
                 const activeForMode = isLive ? liveConnected : paperConnected;
                 return (
-                  <div key={broker.id} className="inline-flex items-center gap-2 rounded-lg border border-[#263142] bg-[#0b1018] px-3 py-2">
+                  <motion.div key={broker.id} {...listItemMotion(index)} className="inline-flex items-center gap-2 rounded-xl border border-white/8 shadow-lg shadow-black/20 bg-[#0b1018] px-3 py-2">
                     <div className="w-5 h-5 overflow-hidden rounded">
                       <BrokerIcon broker={broker.id} className="w-5 h-5" />
                     </div>
                     <span className="text-xs text-white">{broker.name || broker.id}</span>
                     <span className={`h-1.5 w-1.5 rounded-full ${activeForMode ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                     <span className="text-[10px] text-white/50">{stateText}</span>
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() => handleDisconnect(broker.id)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
                       className="ml-1 text-white/35 hover:text-red-300 transition-colors"
                       title="Disconnect broker"
                     >
                       <Unlink className="w-3.5 h-3.5" strokeWidth={1.6} />
-                    </button>
-                  </div>
+                    </motion.button>
+                  </motion.div>
                 );
               })}
             </div>
-          </section>
+          </motion.section>
         ) : (
-          <section className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+          <motion.section {...sectionMotion(1)} className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" strokeWidth={1.6} />
               <div>
@@ -717,11 +772,11 @@ const PortfolioPageRebuilt = ({
                 </p>
               </div>
             </div>
-          </section>
+          </motion.section>
         )}
 
         {isLive && hasAnyConnection && !hasLiveConnection && (
-          <section className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+          <motion.section {...sectionMotion(2)} className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" strokeWidth={1.6} />
               <div>
@@ -731,10 +786,10 @@ const PortfolioPageRebuilt = ({
                 </p>
               </div>
             </div>
-          </section>
+          </motion.section>
         )}
 
-        <section className="rounded-2xl border border-[#1f2632] bg-[#0e141f] p-4">
+        <motion.section {...sectionMotion(3)} className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-[#0e141f] p-4">
           <div className="text-[10px] uppercase tracking-[0.16em] text-white/45 mb-3">Layer 1 · Portfolio Summary</div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
             {renderMetricCard('Total Portfolio Value', formatCurrency(totalPortfolioValue))}
@@ -754,9 +809,9 @@ const PortfolioPageRebuilt = ({
             )}
             {renderMetricCard('Buying Power', formatCurrency(accountBuyingPower))}
           </div>
-        </section>
+        </motion.section>
 
-        <section className="rounded-2xl border border-[#1f2632] bg-[#0e141f] p-4">
+        <motion.section {...sectionMotion(4)} className="rounded-2xl border border-white/8 shadow-lg shadow-black/30 bg-[#0e141f] p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-white/45">Layer 2 · Holdings</div>
@@ -816,10 +871,10 @@ const PortfolioPageRebuilt = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {expandedSymbolTrades.map((trade) => {
+                        {expandedSymbolTrades.map((trade, index) => {
                           const isBuy = trade.side === 'buy';
                           return (
-                            <tr key={`${trade.id}-${trade.timestamp}`} className="border-b border-[#1a2230]/70">
+                            <motion.tr key={`${trade.id}-${trade.timestamp}`} {...listItemMotion(index)} className="border-b border-[#1a2230]/70">
                               <td className="py-2 pr-3 text-white/70">{formatDate(trade.timestamp)}</td>
                               <td className="py-2 pr-3 text-white/60">{formatTime(trade.timestamp)}</td>
                               <td className="py-2 pr-3">
@@ -834,7 +889,7 @@ const PortfolioPageRebuilt = ({
                               <td className="py-2 pr-3 text-white/70">{formatLabelCase(trade.orderType, 'Market')}</td>
                               <td className="py-2 pr-3 text-white/70">{formatTif(trade.timeInForce)}</td>
                               <td className="py-2 pr-0 text-white">{trade.strategyName || 'Manual'}</td>
-                            </tr>
+                            </motion.tr>
                           );
                         })}
                       </tbody>
@@ -844,12 +899,19 @@ const PortfolioPageRebuilt = ({
               </div>
             )}
           </div>
-        </section>
+        </motion.section>
       </div>
 
-      {showLiveConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-amber-400/35 bg-[#101216] p-5 space-y-4">
+      <AnimatePresence>
+        {showLiveConfirm && (
+          <motion.div
+            {...modalBackdropMotion}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              {...modalPanelMotion}
+              className="w-full max-w-md rounded-2xl border border-white/8 shadow-2xl shadow-black/30 bg-[#101216] p-5 space-y-4"
+            >
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" strokeWidth={1.7} />
               <div>
@@ -860,24 +922,31 @@ const PortfolioPageRebuilt = ({
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setShowLiveConfirm(false)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="rounded-lg border border-white/15 px-3 py-2 text-xs text-white/75 hover:bg-white/5 transition"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={confirmLiveModeSwitch}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="rounded-lg border border-emerald-400/35 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30 transition"
               >
                 Switch to Live
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BrokerConnectModal
         isOpen={showBrokerModal}
@@ -885,7 +954,7 @@ const PortfolioPageRebuilt = ({
         onConnect={handleConnect}
         connectedBrokers={brokers}
       />
-    </div>
+    </motion.div>
   );
 };
 

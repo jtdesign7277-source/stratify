@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, RefreshCw } from 'lucide-react';
 
 const ECON_CALENDAR_URL = '/api/economic-calendar';
@@ -19,6 +20,26 @@ const REGION_TABS = [
   { key: 'LONDON', label: 'London', shortLabel: 'UK', flag: '🇬🇧', currencies: ['GBP'] },
   { key: 'AUSTRALIA', label: 'Australia', shortLabel: 'AU', flag: '🇦🇺', currencies: ['AUD'] },
 ];
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const getEventCurrency = (event) => String(event?.country || event?.currency || '')
   .trim()
@@ -120,7 +141,7 @@ const EconomicsCalendarPage = () => {
   }, [events, activeRegion, todayStr]);
 
   return (
-    <div className="h-full w-full bg-transparent text-white overflow-hidden relative flex flex-col">
+    <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-transparent text-white overflow-hidden relative flex flex-col">
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
@@ -130,7 +151,7 @@ const EconomicsCalendarPage = () => {
       />
 
       {/* Header */}
-      <div className="relative z-10 px-6 pt-5 pb-3">
+      <motion.div {...sectionMotion(0)} className="relative z-10 px-6 pt-5 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-blue-400" strokeWidth={1.5} />
@@ -142,9 +163,16 @@ const EconomicsCalendarPage = () => {
                 Updated {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
-            <button onClick={fetchData} disabled={loading} className="text-gray-400 hover:text-white transition">
+            <motion.button
+              onClick={fetchData}
+              disabled={loading}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
+              className="text-gray-400 hover:text-white transition"
+            >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-            </button>
+            </motion.button>
           </div>
         </div>
 
@@ -160,9 +188,12 @@ const EconomicsCalendarPage = () => {
         {/* Region tabs */}
         <div className="flex items-center gap-1">
           {REGION_TABS.map((tab) => (
-            <button
+            <motion.button
               key={tab.key}
               onClick={() => setActiveRegionKey(tab.key)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 activeRegionKey === tab.key
                   ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
@@ -171,13 +202,13 @@ const EconomicsCalendarPage = () => {
             >
               <span className="mr-1">{tab.flag}</span>
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Content */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-6" style={{ scrollbarWidth: 'thin' }}>
+      <motion.div {...sectionMotion(1)} className="relative z-10 flex-1 overflow-y-auto px-6 pb-6" style={{ scrollbarWidth: 'thin' }}>
         {loading && events.length === 0 && (
           <div className="space-y-4 mt-4">
             {[1, 2, 3].map((i) => (
@@ -202,16 +233,17 @@ const EconomicsCalendarPage = () => {
           <div className="mt-8 text-center text-gray-500 text-sm">No events found for {activeRegion.label}.</div>
         )}
 
-        {filteredGrouped.map(({ date, events: dayEvents }) => {
+        {filteredGrouped.map(({ date, events: dayEvents }, sectionIndex) => {
           const { label, isToday } = formatDateHeader(date, todayStr);
           return (
-            <div
+            <motion.div
               key={date}
               ref={isToday ? todayRef : undefined}
+              {...sectionMotion(sectionIndex + 2)}
               className={`mb-4 rounded-xl overflow-hidden ${
                 isToday
-                  ? 'bg-blue-500/[0.07] border border-blue-400/30 ring-1 ring-blue-500/20'
-                  : 'border border-[#1f1f1f]'
+                  ? 'bg-blue-500/[0.07] border border-blue-400/30 ring-1 ring-blue-500/20 shadow-lg shadow-black/30'
+                  : 'border border-white/8 shadow-lg shadow-black/30'
               }`}
             >
               {/* Date header */}
@@ -242,8 +274,9 @@ const EconomicsCalendarPage = () => {
                 const isPast = new Date(e.date) < new Date();
                 
                 return (
-                  <div
+                  <motion.div
                     key={`${e.title}-${i}`}
+                    {...listItemMotion(i)}
                     className={`grid grid-cols-[70px_60px_50px_1fr_90px_90px_90px] gap-2 px-4 py-2.5 border-b border-[#1f1f1f]/40 hover:bg-white/[0.02] transition ${
                       isToday && !isPast ? 'bg-blue-500/[0.03]' : ''
                     }`}
@@ -268,14 +301,14 @@ const EconomicsCalendarPage = () => {
                     }`}>
                       {hasActual ? e.actual : isPast ? '—' : 'Pending'}
                     </span>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           );
         })}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

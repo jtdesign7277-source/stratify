@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { createChart, CandlestickSeries, ColorType, HistogramSeries } from 'lightweight-charts';
 import { ChevronsLeft, ChevronsRight, GripVertical, Plus, Search, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -77,6 +78,40 @@ const TRADER_ORDER_TYPE_OPTIONS = [
   { value: 'stop_limit', label: 'Stop Limit' },
   { value: 'trailing_stop', label: 'Trailing Stop' },
 ];
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+
+const modalBackdropMotion = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 },
+};
+
+const modalPanelMotion = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
+  transition: { type: 'spring', stiffness: 300, damping: 25 },
+};
 
 const UP_COLOR = '#34d399';
 const DOWN_COLOR = '#ef4444';
@@ -971,15 +1006,16 @@ function TraderOrderEntry({
         )}
       </div>
 
-      {confirmModal && (
-        <div
-          className="absolute inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
-        >
-          <div
-            className="w-[280px] space-y-4 rounded-xl p-5"
-            style={{ background: 'rgba(10, 22, 40, 0.98)', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+      <AnimatePresence>
+        {confirmModal && (
+          <motion.div
+            {...modalBackdropMotion}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
           >
+            <motion.div
+              {...modalPanelMotion}
+              className="w-[280px] space-y-4 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 bg-[rgba(10,22,40,0.98)] p-5"
+            >
             <div className="text-center">
               <div className="mb-1 text-sm font-bold" style={{ color: '#e2e8f0' }}>
                 Confirm {isLiveMode ? 'Live' : 'Paper'} Order
@@ -1009,16 +1045,22 @@ function TraderOrderEntry({
               ${estimatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setConfirmModal(false)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="rounded-lg border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={executeOrder}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="rounded-lg py-2.5 text-xs font-bold transition-colors"
                 style={{
                   background: side === 'buy' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)',
@@ -1027,11 +1069,12 @@ function TraderOrderEntry({
                 }}
               >
                 Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -2514,8 +2557,9 @@ export default function TraderPage({
   };
 
   return (
-    <div className="h-full w-full bg-[#0b0b0b] text-[#e5e7eb]">
-      <div
+    <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-[#0b0b0b] text-[#e5e7eb]">
+      <motion.div
+        {...sectionMotion(0)}
         className={`grid h-full min-h-0 grid-cols-1 transition-[grid-template-columns] duration-200 ease-in-out ${
           isWatchlistCollapsed ? 'lg:grid-cols-[60px_1fr]' : 'lg:grid-cols-[300px_1fr]'
         }`}
@@ -2529,9 +2573,12 @@ export default function TraderPage({
                   <p className="mt-1 text-xs text-[#7c8087]">Search, add, and stream symbols in real time.</p>
                 </div>
               )}
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setIsWatchlistCollapsed((previous) => !previous)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-[#1f1f1f] bg-[#0f1012] text-[#9ca3af] transition-colors hover:border-[#374151] hover:text-white"
                 aria-label={isWatchlistCollapsed ? 'Expand watchlist' : 'Collapse watchlist'}
               >
@@ -2540,7 +2587,7 @@ export default function TraderPage({
                 ) : (
                   <ChevronsLeft className="h-4 w-4" strokeWidth={1.8} />
                 )}
-              </button>
+              </motion.button>
             </div>
           </div>
 
@@ -2550,9 +2597,12 @@ export default function TraderPage({
                 <div className="mb-3 flex items-center justify-center gap-1">
                   {MARKET_FILTERS.map((market, index) => (
                     <div key={market.id} className="flex items-center gap-1">
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => setActiveMarket(market.id)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className={`text-[11px] font-medium whitespace-nowrap transition-colors ${
                           activeMarket === market.id
                             ? 'text-emerald-300'
@@ -2560,7 +2610,7 @@ export default function TraderPage({
                         }`}
                       >
                         {market.label}
-                      </button>
+                      </motion.button>
                       {index < MARKET_FILTERS.length - 1 && (
                         <span className="text-white/50 px-2">|</span>
                       )}
@@ -2586,10 +2636,14 @@ export default function TraderPage({
                           {isSearchLoading ? 'Searching symbols...' : 'No matching symbols.'}
                         </div>
                       ) : (
-                        searchResults.map((result) => (
-                          <button
+                        searchResults.map((result, index) => (
+                          <motion.button
                             key={`${result.symbol}-${result.exchange}`}
                             type="button"
+                            {...listItemMotion(index)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                             onClick={() => addSymbolToWatchlist(result.symbol, result.name)}
                             className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
                           >
@@ -2598,7 +2652,7 @@ export default function TraderPage({
                               <span className="ml-1 text-[#7c8087]">· {result.exchange}</span>
                             </span>
                             <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
-                          </button>
+                          </motion.button>
                         ))
                       )}
                     </div>
@@ -2692,9 +2746,13 @@ export default function TraderPage({
                               return (
                                 <Draggable key={symbol} draggableId={symbol} index={index}>
                                   {(provided, snapshot) => (
-                                    <div
+                                    <motion.div
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
+                                      {...listItemMotion(index)}
+                                      whileHover={{ scale: 1.01 }}
+                                      whileTap={{ scale: 0.99 }}
+                                      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                                       draggable="true"
                                       onDragStart={(event) => {
                                         event.dataTransfer.setData('text/plain', symbol);
@@ -2744,12 +2802,15 @@ export default function TraderPage({
                                         </div>
                                         {Number.isFinite(price) && (
                                           <div className="flex flex-col items-end gap-1">
-                                            <button
+                                            <motion.button
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
                                                 toggleWatchlistChangeDisplayMode(symbol, 'day');
                                               }}
+                                              whileHover={{ scale: 1.02 }}
+                                              whileTap={{ scale: 0.98 }}
+                                              transition={interactiveTransition}
                                               title={primaryMetricTitle}
                                               className={`text-xs font-semibold transition-opacity hover:opacity-80 ${
                                                 getWatchlistChangeToneClass(secondaryReferenceChange)
@@ -2763,15 +2824,18 @@ export default function TraderPage({
                                               {isPrimaryLoading && (
                                                 <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-current animate-pulse opacity-80" title="Updating day change" />
                                               )}
-                                            </button>
+                                            </motion.button>
                                           </div>
                                         )}
                                       </div>
 
-                                      <button
+                                      <motion.button
                                         type="button"
                                         aria-label={`Remove ${symbol} from watchlist`}
                                         className="pointer-events-none ml-1 inline-flex h-8 w-8 items-center justify-center text-gray-400 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 hover:text-red-400"
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        transition={interactiveTransition}
                                         onPointerDown={(event) => {
                                           event.stopPropagation();
                                         }}
@@ -2781,8 +2845,8 @@ export default function TraderPage({
                                         }}
                                       >
                                         <X className="h-4 w-4" />
-                                      </button>
-                                    </div>
+                                      </motion.button>
+                                    </motion.div>
                                   )}
                                 </Draggable>
                               );
@@ -2799,7 +2863,7 @@ export default function TraderPage({
           )}
           {isWatchlistCollapsed && (
             <div className="flex-1 overflow-y-auto px-1 py-2 space-y-1">
-              {watchlist.map((symbol) => {
+              {watchlist.map((symbol, index) => {
                 const quote = quotesBySymbol[symbol] || {};
                 const changePercent = toNumber(quote?.changePercent) ?? 0;
                 const valueLoading = quoteValueLoadingBySymbol[symbol] || createQuoteValueLoadingState();
@@ -2808,9 +2872,13 @@ export default function TraderPage({
                 const isSelected = selectedSymbol === symbol;
 
                 return (
-                  <button
+                  <motion.button
                     key={symbol}
                     onClick={() => setSelectedSymbol(symbol)}
+                    {...listItemMotion(index)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                     className={`w-full py-2 px-1 rounded transition-colors ${
                       isSelected ? 'bg-emerald-500/10 border border-emerald-500/30' : 'hover:bg-white/5'
                     }`}
@@ -2829,7 +2897,7 @@ export default function TraderPage({
                         <span className="h-1.5 w-1.5 rounded-full bg-slate-400/80 animate-pulse" title="Updating day change" />
                       )}
                     </div>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -2874,10 +2942,13 @@ export default function TraderPage({
                 {CHART_TIMEFRAME_OPTIONS.map((timeframe) => {
                   const isActive = chartTimeframe === timeframe.id;
                   return (
-                    <button
+                    <motion.button
                       key={timeframe.id}
                       type="button"
                       onClick={() => setChartTimeframe(timeframe.id)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
                       className={`h-7 shrink-0 border px-2.5 text-[11px] font-medium transition-colors ${
                         isActive
                           ? 'border-emerald-400 bg-emerald-500/10 text-emerald-400'
@@ -2886,7 +2957,7 @@ export default function TraderPage({
                       aria-pressed={isActive}
                     >
                       {timeframe.label}
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -2915,13 +2986,16 @@ export default function TraderPage({
           >
             {isRightPanelCollapsed ? (
               <div className="flex h-full flex-col items-center gap-2 py-2">
-                <button
+                <motion.button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     console.log('Expand button clicked, current state:', isRightPanelCollapsed);
                     setIsRightPanelCollapsed(false);
                   }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
                   className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10 pointer-events-auto relative z-20"
                   style={{
                     color: 'rgba(148, 163, 184, 0.6)',
@@ -2932,7 +3006,7 @@ export default function TraderPage({
                   aria-label="Expand order entry panel"
                 >
                   <ChevronsRight className="mx-auto h-3.5 w-3.5 pointer-events-none" strokeWidth={1.7} />
-                </button>
+                </motion.button>
                 <div
                   className="text-[9px] font-bold uppercase tracking-[0.2em]"
                   style={{
@@ -2954,19 +3028,22 @@ export default function TraderPage({
                     >
                       Order Entry
                     </span>
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() => {
                         console.log('Collapse button clicked, current state:', isRightPanelCollapsed);
                         setIsRightPanelCollapsed(true);
                       }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
                       className="flex h-7 w-7 items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
                       style={{ color: 'rgba(148, 163, 184, 0.55)' }}
                       title="Collapse order entry panel"
                       aria-label="Collapse order entry panel"
                     >
                       <ChevronsLeft className="h-4 w-4" strokeWidth={1.7} />
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
 
@@ -2993,7 +3070,7 @@ export default function TraderPage({
             )}
           </div>
         </section>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

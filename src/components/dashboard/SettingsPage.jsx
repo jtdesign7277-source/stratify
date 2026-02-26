@@ -1,4 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
 
 // ============== MOCK DATA ==============
 const MOCK_USER = {
@@ -653,7 +660,7 @@ export default function SettingsPage({ themeClasses, onClose }) {
   // Sub-views
   if (activeView === 'billing') {
     return (
-      <div className="h-full overflow-y-auto bg-transparent p-8">
+      <motion.div {...PAGE_TRANSITION} className="h-full overflow-y-auto bg-transparent p-8">
         <div className="max-w-4xl mx-auto">
           <BillingView 
             onClose={() => setActiveView('main')} 
@@ -661,13 +668,13 @@ export default function SettingsPage({ themeClasses, onClose }) {
             setCurrentPlan={setCurrentPlan}
           />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (activeView === 'account') {
     return (
-      <div className="h-full overflow-y-auto bg-transparent p-8">
+      <motion.div {...PAGE_TRANSITION} className="h-full overflow-y-auto bg-transparent p-8">
         <div className="max-w-3xl mx-auto">
           <input
             ref={fileInputRef}
@@ -686,13 +693,13 @@ export default function SettingsPage({ themeClasses, onClose }) {
             avatarError={avatarError}
           />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   // Main settings view
   return (
-    <div className="h-full overflow-y-auto bg-transparent">
+    <motion.div {...PAGE_TRANSITION} className="h-full overflow-y-auto bg-transparent">
       <input
         ref={fileInputRef}
         type="file"
@@ -714,14 +721,17 @@ export default function SettingsPage({ themeClasses, onClose }) {
             <p className="text-white/50">Manage your account and preferences</p>
           </div>
           {onClose && (
-            <button 
+            <motion.button 
               onClick={onClose}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               className="p-3 bg-[#1e1e2d] hover:bg-[#2a2a3d] rounded-xl transition-colors"
             >
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </motion.button>
           )}
         </div>
 
@@ -903,6 +913,6 @@ export default function SettingsPage({ themeClasses, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

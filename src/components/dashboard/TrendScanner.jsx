@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   RefreshCw,
   ExternalLink,
@@ -37,17 +37,38 @@ function formatNumber(num) {
 
 const CARD_CLASS = 'block rounded-xl bg-white/[0.02] border border-white/[0.06] transition-all';
 const CARD_HEIGHT = 'h-[120px]';
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
 
-function TrendCard({ href, hoverBorder = 'hover:border-white/15', children }) {
-  const cls = `${CARD_CLASS} ${CARD_HEIGHT} px-4 py-3 ${hoverBorder} group`;
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+
+function TrendCard({ href, index = 0, hoverBorder = 'hover:border-white/15', children }) {
+  const cls = `${CARD_CLASS} ${CARD_HEIGHT} px-4 py-3 ${hoverBorder} group shadow-lg shadow-black/30`;
   if (href) {
     return (
       <motion.a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
+        {...listItemMotion(index)}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
         className={cls}
       >
         {children}
@@ -55,17 +76,23 @@ function TrendCard({ href, hoverBorder = 'hover:border-white/15', children }) {
     );
   }
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cls}>
+    <motion.div
+      {...listItemMotion(index)}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
+      className={cls}
+    >
       {children}
     </motion.div>
   );
 }
 
-function RedditItem({ post, color = 'orange' }) {
+function RedditItem({ post, index = 0, color = 'orange' }) {
   const accent = color === 'lime' ? 'text-lime-400' : 'text-orange-400';
   const border = color === 'lime' ? 'hover:border-lime-500/30' : 'hover:border-orange-500/30';
   return (
-    <TrendCard href={post.url} hoverBorder={border}>
+    <TrendCard href={post.url} index={index} hoverBorder={border}>
       <div className="flex items-start gap-2.5 h-full">
         <div className="flex flex-col items-center min-w-[32px]">
           <ArrowUp className={`w-3.5 h-3.5 ${accent}`} strokeWidth={2} />
@@ -85,11 +112,11 @@ function RedditItem({ post, color = 'orange' }) {
   );
 }
 
-function XItem({ topic }) {
+function XItem({ topic, index = 0 }) {
   const catColor = { stocks: 'text-emerald-400', crypto: 'text-purple-400', economy: 'text-blue-400', earnings: 'text-amber-400' };
   const engColor = { high: 'text-emerald-400 bg-emerald-500/10', medium: 'text-amber-400 bg-amber-500/10', low: 'text-white/40 bg-white/[0.04]' };
   return (
-    <TrendCard hoverBorder="hover:border-white/15">
+    <TrendCard index={index} hoverBorder="hover:border-white/15">
       <div className="flex items-start gap-2.5 h-full">
         <XLogo className="w-4 h-4 text-white/50 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
@@ -107,9 +134,9 @@ function XItem({ topic }) {
   );
 }
 
-function HNItem({ story }) {
+function HNItem({ story, index = 0 }) {
   return (
-    <TrendCard href={story.url} hoverBorder="hover:border-amber-500/30">
+    <TrendCard href={story.url} index={index} hoverBorder="hover:border-amber-500/30">
       <div className="flex items-start gap-2.5 h-full">
         <div className="flex flex-col items-center min-w-[32px]">
           <ArrowUp className="w-3.5 h-3.5 text-amber-400" strokeWidth={2} />
@@ -129,9 +156,9 @@ function HNItem({ story }) {
   );
 }
 
-function NewsItem({ article }) {
+function NewsItem({ article, index = 0 }) {
   return (
-    <TrendCard href={article.url} hoverBorder="hover:border-blue-500/30">
+    <TrendCard href={article.url} index={index} hoverBorder="hover:border-blue-500/30">
       <div className="flex items-start gap-2.5 h-full">
         <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
           <p className="text-sm text-white/90 leading-snug line-clamp-3 group-hover:text-white">{article.title}</p>
@@ -191,35 +218,38 @@ export default function TrendScanner() {
   const renderSection = (key, items) => {
     if (!items || items.length === 0) return null;
     switch (key) {
-      case 'reddit': return items.map(p => <RedditItem key={p.id} post={p} color="orange" />);
-      case 'wsb': return items.map(p => <RedditItem key={p.id} post={p} color="lime" />);
-      case 'x': return items.map(t => <XItem key={t.id} topic={t} />);
-      case 'hackerNews': return items.map(s => <HNItem key={s.id} story={s} />);
-      case 'news': return items.map(a => <NewsItem key={a.id} article={a} />);
+      case 'reddit': return items.map((p, index) => <RedditItem key={p.id} post={p} index={index} color="orange" />);
+      case 'wsb': return items.map((p, index) => <RedditItem key={p.id} post={p} index={index} color="lime" />);
+      case 'x': return items.map((t, index) => <XItem key={t.id} topic={t} index={index} />);
+      case 'hackerNews': return items.map((s, index) => <HNItem key={s.id} story={s} index={index} />);
+      case 'news': return items.map((a, index) => <NewsItem key={a.id} article={a} index={index} />);
       default: return null;
     }
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <motion.div {...PAGE_TRANSITION} className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+      <motion.div {...sectionMotion(0)} className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
           <h1 className="text-base font-bold text-white tracking-tight">Trend Scanner</h1>
           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
           {trends?.fromCache && <span className="text-[9px] text-emerald-400/50 uppercase tracking-wider">cached</span>}
         </div>
-        <button
+        <motion.button
           onClick={() => { setLoading(true); fetchTrends(); }}
           disabled={loading}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={interactiveTransition}
           className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-4" style={{ scrollbarWidth: 'none' }}>
+      <motion.div {...sectionMotion(1)} className="flex-1 overflow-y-auto px-5 py-4" style={{ scrollbarWidth: 'none' }}>
         {loading && !trends ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <RefreshCw className="w-5 h-5 text-emerald-400 animate-spin" />
@@ -228,35 +258,38 @@ export default function TrendScanner() {
         ) : error && !trends ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <p className="text-xs text-white/50">{error}</p>
-            <button
+            <motion.button
               onClick={() => { setLoading(true); fetchTrends(); }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.1] text-xs text-white/70 hover:text-white"
             >
               Try Again
-            </button>
+            </motion.button>
           </div>
         ) : (
           <div className="grid grid-cols-5 gap-5">
-            {SECTIONS.map(({ key, label, color }) => {
+            {SECTIONS.map(({ key, label, color }, index) => {
               const items = trends?.[key];
               if (!items || items.length === 0) return (
-                <div key={key} className="min-w-0">
+                <motion.div key={key} {...sectionMotion(index + 2)} className="min-w-0">
                   <h2 className={`text-sm font-bold ${color} mb-3 uppercase tracking-wider`}>{label}</h2>
                   <p className="text-xs text-white/25">No data</p>
-                </div>
+                </motion.div>
               );
               return (
-                <div key={key} className="min-w-0">
+                <motion.div key={key} {...sectionMotion(index + 2)} className="min-w-0">
                   <h2 className={`text-sm font-bold ${color} mb-3 uppercase tracking-wider`}>{label}</h2>
                   <div className="space-y-3">
                     {renderSection(key, items)}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

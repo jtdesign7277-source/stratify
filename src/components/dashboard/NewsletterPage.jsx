@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import newsletterData from '../../data/newsletters.json';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -20,6 +21,26 @@ const NEWSLETTERS = (newsletterData || []).map((n) => {
     videoPath: `/sophia-recaps/sophia-recap-${dd}-${mm}-${yyyy}.mp4`,
   };
 });
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 // ── Markdown → HTML converter ──
 function renderMarkdown(text) {
@@ -111,17 +132,23 @@ export default function NewsletterPage({ onClose }) {
   }
 
   return (
-    <div className="h-full bg-transparent overflow-y-auto">
+    <motion.div {...PAGE_TRANSITION} className="h-full bg-transparent overflow-y-auto">
       {/* ── Top Bar ── */}
-      <div className="sticky top-0 z-20 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/[0.06]">
+      <motion.div {...sectionMotion(0)} className="sticky top-0 z-20 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/[0.06]">
         <div className="max-w-[960px] mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {onClose && (
-              <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+              <motion.button
+                onClick={onClose}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
+                className="text-white/40 hover:text-white transition-colors"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </motion.button>
             )}
             <div className="flex items-center gap-2">
               <span className="text-emerald-400 text-lg font-bold tracking-tight">STRATIFY</span>
@@ -130,22 +157,25 @@ export default function NewsletterPage({ onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <motion.button
               onClick={() => setShowArchive(!showArchive)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={interactiveTransition}
               className="flex items-center gap-2 px-3 py-1.5 text-white/40 hover:text-white/70 text-xs tracking-wide uppercase transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
               </svg>
               Archive
-            </button>
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex">
         {/* ── Main Content ── */}
-        <div className="flex-1 min-w-0">
+        <motion.div {...sectionMotion(1)} className="flex-1 min-w-0">
           <div className="max-w-[960px] mx-auto px-6">
 
             {/* ── Hero / Sophia Video ── */}
@@ -213,32 +243,44 @@ export default function NewsletterPage({ onClose }) {
                       placeholder="your@email.com"
                       className="flex-1 px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-emerald-500/40 transition-colors"
                     />
-                    <button
+                    <motion.button
                       type="submit"
                       disabled={subLoading}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={interactiveTransition}
                       className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-semibold text-sm rounded-xl transition-colors whitespace-nowrap"
                     >
                       {subLoading ? '...' : subscribed ? '✓ Subscribed' : 'Subscribe'}
-                    </button>
+                    </motion.button>
                   </form>
                   {subError && <p className="text-red-400 text-xs mt-3">{subError}</p>}
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Archive Sidebar ── */}
         {showArchive && (
-          <div className="w-72 border-l border-white/[0.06] bg-[#0d0d0d] flex-shrink-0 sticky top-[49px] h-[calc(100vh-49px)] overflow-y-auto">
+          <motion.div
+            {...sectionMotion(2)}
+            className="w-72 border-l border-white/[0.06] bg-[#0d0d0d] flex-shrink-0 sticky top-[49px] h-[calc(100vh-49px)] overflow-y-auto"
+          >
             <div className="p-5">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-xs font-semibold text-white/50 tracking-widest uppercase">Archive</h3>
-                <button onClick={() => setShowArchive(false)} className="text-white/30 hover:text-white/60 transition-colors">
+                <motion.button
+                  onClick={() => setShowArchive(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
+                  className="text-white/30 hover:text-white/60 transition-colors"
+                >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
+                </motion.button>
               </div>
 
               {/* Folder: Newsletters */}
@@ -251,17 +293,21 @@ export default function NewsletterPage({ onClose }) {
                   <span className="text-[10px] text-white/20">{items.length}</span>
                 </div>
                 <div className="space-y-1 ml-1">
-                  {items.map((n) => (
-                    <div
+                  {items.map((n, index) => (
+                    <motion.div
                       key={n.id}
+                      {...listItemMotion(index)}
                       className={`group relative w-full text-left px-3 py-2.5 rounded-lg transition-all ${
                         selected.id === n.id
                           ? 'bg-emerald-500/10 border border-emerald-500/20'
                           : 'hover:bg-white/[0.03] border border-transparent'
                       }`}
                     >
-                      <button
+                      <motion.button
                         onClick={() => setSelected(n)}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        transition={interactiveTransition}
                         className="w-full text-left"
                       >
                         <div className="flex items-center gap-2 mb-1">
@@ -273,18 +319,21 @@ export default function NewsletterPage({ onClose }) {
                         <p className={`text-xs leading-snug line-clamp-2 ${selected.id === n.id ? 'text-white/80' : 'text-white/40 group-hover:text-white/60'}`}>
                           {n.title}
                         </p>
-                      </button>
+                      </motion.button>
                       {/* Delete button */}
-                      <button
+                      <motion.button
                         onClick={(e) => { e.stopPropagation(); handleDelete(n.id); }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={interactiveTransition}
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-white/20 hover:text-red-400"
                         title="Remove from archive"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      </button>
-                    </div>
+                      </motion.button>
+                    </motion.div>
                   ))}
                 </div>
               </div>
@@ -298,9 +347,13 @@ export default function NewsletterPage({ onClose }) {
                   <span className="text-[10px] font-semibold tracking-widest uppercase">Sophia Recaps</span>
                 </div>
                 <div className="space-y-1 ml-1">
-                  {items.map((n) => (
-                    <button
+                  {items.map((n, index) => (
+                    <motion.button
                       key={`vid-${n.id}`}
+                      {...listItemMotion(index)}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                       onClick={() => setSelected(n)}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/[0.03] transition-all group border border-transparent"
                     >
@@ -310,12 +363,12 @@ export default function NewsletterPage({ onClose }) {
                         </svg>
                         <span className="text-xs text-white/40 group-hover:text-white/60">Recap — {n.dateShort}</span>
                       </div>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -391,6 +444,6 @@ export default function NewsletterPage({ onClose }) {
           background: rgba(255,255,255,0.02);
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 }

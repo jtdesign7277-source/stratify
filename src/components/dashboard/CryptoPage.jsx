@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { subscribeCryptoPrices, getTwelveDataConnectionStatus } from '../../services/twelveDataStream';
 import AlpacaOrderTicket from './AlpacaOrderTicket';
@@ -74,6 +75,40 @@ const CRYPTO_ORDER_TYPE_OPTIONS = [
   { value: 'stop_limit', label: 'Stop Limit' },
   { value: 'trailing_stop', label: 'Trailing Stop' },
 ];
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
+
+const modalBackdropMotion = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.2 },
+};
+
+const modalPanelMotion = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 10 },
+  transition: { type: 'spring', stiffness: 300, damping: 25 },
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUPABASE HOOKS — User data persistence
@@ -612,13 +647,16 @@ function OrderEntry({
       </div>
 
       {/* ── Confirmation Modal ──────────────────────────────────── */}
-      {confirmModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
-        >
-          <div className="w-[280px] rounded-xl p-5 space-y-4"
-            style={{ background: 'rgba(10, 22, 40, 0.98)', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+      <AnimatePresence>
+        {confirmModal && (
+          <motion.div
+            {...modalBackdropMotion}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
           >
+            <motion.div
+              {...modalPanelMotion}
+              className="w-[280px] rounded-2xl border border-white/8 shadow-2xl shadow-black/30 bg-[rgba(10,22,40,0.98)] p-5 space-y-4"
+            >
             <div className="text-center">
               <div className="mb-2">
                 <span className={`inline-flex rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${accountBadgeToneClass}`}>
@@ -653,14 +691,20 @@ function OrderEntry({
               ${estimatedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <motion.button
                 onClick={() => setConfirmModal(false)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="py-2.5 rounded-lg text-xs font-semibold transition-colors border border-white/10 bg-white/5 text-slate-400 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={executeOrder}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="py-2.5 rounded-lg text-xs font-bold transition-colors"
                 style={{
                   background: side === 'buy' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)',
@@ -669,11 +713,12 @@ function OrderEntry({
                 }}
               >
                 Confirm {side.toUpperCase()} {isLiveMode ? '(LIVE)' : '(PAPER)'}
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -684,9 +729,13 @@ function OrderEntry({
 function CoinSelector({ coins, selected, onSelect }) {
   return (
     <div className="flex items-center gap-1 overflow-x-auto px-4 py-2.5" style={{ scrollbarWidth: 'none' }}>
-      {coins.map((coin) => (
-        <button
+      {coins.map((coin, index) => (
+        <motion.button
           key={coin.symbol}
+          {...listItemMotion(index)}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
           onClick={() => onSelect(coin)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200"
           style={{
@@ -697,7 +746,7 @@ function CoinSelector({ coins, selected, onSelect }) {
         >
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: coin.color }} />
           ${coin.symbol}
-        </button>
+        </motion.button>
       ))}
     </div>
   );
@@ -774,9 +823,9 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
   };
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
+    <motion.div {...PAGE_TRANSITION} className="h-full w-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       {/* ── Top Bar ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-white/[0.06] shrink-0"
+      <motion.div {...sectionMotion(0)} className="flex items-center justify-between border-b border-white/[0.06] shrink-0"
         style={{ background: 'rgba(6, 13, 24, 0.4)' }}
       >
         <CoinSelector coins={CRYPTO_COINS} selected={selectedCoin} onSelect={handleCoinSelect} />
@@ -799,13 +848,13 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* ── Main Content ──────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden p-3 gap-3">
+      <motion.div {...sectionMotion(1)} className="flex-1 flex overflow-hidden p-3 gap-3">
 
         {/* ── LEFT: TradingView Chart (bigger now) ────────────────── */}
-        <div className="flex-1 rounded-xl overflow-hidden min-w-0" style={glassStyle}>
+        <motion.div {...sectionMotion(2)} className="flex-1 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 overflow-hidden min-w-0" style={glassStyle}>
           <TradingViewWidget
             key={selectedCoin.tvSymbol}
             scriptSrc="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"
@@ -830,21 +879,25 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
             }}
             containerId={`crypto-chart-${selectedCoin.symbol}`}
           />
-        </div>
+        </motion.div>
 
         {/* ── RIGHT: Order Entry ───────────────────────────────────── */}
-        <div
+        <motion.div
+          {...sectionMotion(3)}
           className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200 z-10`}
           style={orderTicketStyle}
         >
           {isRightPanelCollapsed ? (
             <div className="h-full flex flex-col items-center py-2 gap-2">
-              <button
+              <motion.button
                 onClick={(e) => {
                   e.stopPropagation();
                   console.log('Crypto expand button clicked, current state:', isRightPanelCollapsed);
                   setIsRightPanelCollapsed(false);
                 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={interactiveTransition}
                 className="h-7 w-7 rounded-md text-xs font-bold transition-colors cursor-pointer hover:bg-white/10 pointer-events-auto relative z-20"
                 style={{
                   color: 'rgba(148, 163, 184, 0.6)',
@@ -855,7 +908,7 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
                 aria-label="Expand order entry panel"
               >
                 <ChevronsRight className="h-3.5 w-3.5 mx-auto pointer-events-none" strokeWidth={1.7} />
-              </button>
+              </motion.button>
               <div
                 className="text-[9px] font-bold tracking-[0.2em] uppercase"
                 style={{
@@ -876,18 +929,21 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
                 >
                   Order Entry
                 </span>
-                <button
+                <motion.button
                   onClick={() => {
                     console.log('Crypto collapse button clicked, current state:', isRightPanelCollapsed);
                     setIsRightPanelCollapsed(true);
                   }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={interactiveTransition}
                   className="h-7 w-7 flex items-center justify-center rounded transition-colors hover:bg-white/10 cursor-pointer"
                   style={{ color: 'rgba(148, 163, 184, 0.55)' }}
                   title="Collapse order entry panel"
                   aria-label="Collapse order entry panel"
                 >
                   <ChevronsLeft className="h-4 w-4" strokeWidth={1.7} />
-                </button>
+                </motion.button>
               </div>
 
               <div className="flex-1 min-h-0 overflow-hidden">
@@ -911,8 +967,8 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
               </div>
             </>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Animations */}
       <style>{`
@@ -921,6 +977,6 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
           100% { background-color: transparent; }
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 }

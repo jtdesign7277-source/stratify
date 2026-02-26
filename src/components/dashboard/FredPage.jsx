@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
   ArrowDownRight,
@@ -13,6 +14,26 @@ import {
   TrendingUp,
   Users
 } from 'lucide-react';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
+
+const listItemMotion = (index) => ({
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.03, duration: 0.25 },
+});
+
+const interactiveTransition = { type: 'spring', stiffness: 400, damping: 25 };
 
 const FRED_PROXY = '/api/fred';
 
@@ -331,10 +352,11 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
 
   return (
     <div className="grid grid-cols-6 gap-3 h-full">
-      {cards.map((card) => (
-        <div
+      {cards.map((card, index) => (
+        <motion.div
           key={card.label}
-          className="rounded-xl border border-blue-500/25 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-2.5 flex flex-col justify-between h-full min-h-0"
+          {...listItemMotion(index)}
+          className="rounded-2xl border border-blue-500/25 shadow-lg shadow-black/30 bg-[rgba(6,13,24,0.34)] backdrop-blur-md p-2.5 flex flex-col justify-between h-full min-h-0"
         >
           <div className="flex items-center justify-between text-gray-400 text-[10px] uppercase tracking-[0.18em]">
             <span>{card.label}</span>
@@ -363,7 +385,7 @@ const MacroPulse = ({ cards, loading, error, onRetry }) => {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       ))}
     </div>
   );
@@ -408,10 +430,14 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
           <span className="text-white text-sm font-semibold">{activeLabel || 'Treasury Yields'}</span>
         </div>
         <div className="flex items-center gap-2">
-          {yieldTabs.map((tab) => (
-            <button
+          {yieldTabs.map((tab, index) => (
+            <motion.button
               key={tab.symbol}
               onClick={() => onSelectSymbol(tab.symbol, tab.title)}
+              {...listItemMotion(index)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
               className={`px-2.5 py-1 rounded-full text-[10px] border ${
                 activeSymbol === tab.symbol
                   ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
@@ -419,7 +445,7 @@ const YieldCurve = ({ activeSymbol, activeLabel, onSelectSymbol }) => {
               }`}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -576,10 +602,14 @@ const MarketOverviewPanel = () => {
           <span className="text-white text-sm font-semibold">Market Overview</span>
         </div>
         <div className="flex items-center gap-2">
-          {MARKET_OVERVIEW_TABS.map((tab) => (
-            <button
+          {MARKET_OVERVIEW_TABS.map((tab, index) => (
+            <motion.button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              {...listItemMotion(index)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
               className={`px-2.5 py-1 rounded-full text-[10px] border transition ${
                 activeTab === tab.id
                   ? 'border-blue-400/70 text-blue-200 bg-blue-500/15'
@@ -587,22 +617,23 @@ const MarketOverviewPanel = () => {
               }`}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
       <div className="mt-3 flex-1 min-h-0 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm p-2.5 grid grid-cols-5 gap-2.5 overflow-hidden">
-        {activeConfig.symbols.map(([label, symbol]) => (
-          <div
+        {activeConfig.symbols.map(([label, symbol], index) => (
+          <motion.div
             key={symbol}
-            className="rounded-lg border border-blue-500/20 bg-[rgba(6,13,24,0.22)] backdrop-blur-sm p-2 flex flex-col min-h-0"
+            {...listItemMotion(index)}
+            className="rounded-xl border border-blue-500/20 shadow-lg shadow-black/20 bg-[rgba(6,13,24,0.22)] backdrop-blur-sm p-2 flex flex-col min-h-0"
           >
             <div className="text-[10px] font-semibold text-white/85 leading-tight truncate">{label}</div>
             <div className="text-[10px] text-blue-300/70 mt-0.5">{symbol.replace(/^.*:/, '')}</div>
             <div className="mt-2 flex-1 min-h-0 rounded-md border border-blue-500/15 bg-[rgba(6,13,24,0.08)] overflow-hidden">
               <MiniChart symbol={symbol} />
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>
@@ -715,9 +746,13 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
               <div className="space-y-3">
                 <div className="text-xs text-gray-500">Quick access to popular indicators:</div>
                 <div className="flex flex-wrap gap-2">
-                  {QUICK_ACCESS_SERIES.map((item) => (
-                    <button
+                  {QUICK_ACCESS_SERIES.map((item, index) => (
+                    <motion.button
                       key={item.keyword}
+                      {...listItemMotion(index)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                       onClick={() => {
                         setQuery(item.keyword);
                         if (item.symbol) {
@@ -728,15 +763,19 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                       title={item.description}
                     >
                       {item.label}
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
-                {results.map((item) => (
-                  <button
+                {results.map((item, index) => (
+                  <motion.button
                     key={item.id}
+                    {...listItemMotion(index)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ ...listItemMotion(index).transition, ...interactiveTransition }}
                     onClick={() => onSelectSymbol(`FRED:${item.id}`, item.title || item.id)}
                     className="w-full text-left px-3 py-2 rounded-xl border border-blue-500/20 bg-[rgba(8,20,38,0.18)] backdrop-blur-sm hover:bg-[rgba(18,32,58,0.7)] transition"
                   >
@@ -747,7 +786,7 @@ const FredSearch = ({ onSelectSymbol, collapsed, onToggle }) => {
                         <div className="text-[11px] text-gray-500">{item.frequency} - Updated {item.last_updated ? item.last_updated.split(' ')[0] : '--'}</div>
                       </div>
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             )}
@@ -903,7 +942,7 @@ const FredPage = () => {
   const macroCards = useMemo(() => buildMacroCards(seriesMap), [seriesMap]);
   return (
     <FredErrorBoundary>
-      <div className="h-full w-full bg-transparent text-white overflow-hidden relative">
+      <motion.div {...PAGE_TRANSITION} className="h-full w-full bg-transparent text-white overflow-hidden relative">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
@@ -912,23 +951,23 @@ const FredPage = () => {
           }}
         />
         <div className="relative z-10 h-full p-6 grid grid-rows-[minmax(86px,98px)_minmax(0,1fr)] gap-3">
-          <div className="h-full min-h-[86px]">
+          <motion.div {...sectionMotion(0)} className="h-full min-h-[86px]">
             <MacroPulse cards={macroCards} loading={loading} error={error} onRetry={reload} />
-          </div>
-          <div className="grid grid-cols-2 gap-3 min-h-0">
-            <div className="min-h-0">
+          </motion.div>
+          <motion.div {...sectionMotion(1)} className="grid grid-cols-2 gap-3 min-h-0">
+            <motion.div {...sectionMotion(2)} className="min-h-0">
               <YieldCurve
                 activeSymbol={activeSymbol}
                 activeLabel={activeLabel}
                 onSelectSymbol={handleSelectSymbol}
               />
-            </div>
-            <div className="min-h-0">
+            </motion.div>
+            <motion.div {...sectionMotion(3)} className="min-h-0">
               <HistoricalTrends />
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </FredErrorBoundary>
   );
 };

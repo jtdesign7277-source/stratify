@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, ChevronsRight } from 'lucide-react';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
@@ -11,6 +12,18 @@ import {
   subscribeTwelveDataStatus,
 } from '../../services/twelveDataWebSocket';
 import useTradingMode from '../../hooks/useTradingMode';
+
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+};
+
+const sectionMotion = (index) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
+});
 
 const TIMEFRAME_GROUPS = [
   {
@@ -1143,7 +1156,7 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
   const activeTimeframe = getTimeframe(timeframe);
 
   return (
-    <div className="flex h-full w-full bg-[#060a12] text-white">
+    <motion.div {...PAGE_TRANSITION} className="flex h-full w-full bg-[#060a12] text-white">
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 bg-[#070c15]">
           <div className="flex items-center gap-3">
@@ -1628,6 +1641,6 @@ export default function AdvancedChartsPage({ activeTicker = 'NVDA' }) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
