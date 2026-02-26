@@ -1958,27 +1958,11 @@ const FeedHeader = ({
   leftCollapsed,
   onToggleRight,
   rightCollapsed,
-  streamStatus,
-  lastQuoteAt,
 }) => {
-  const streamColor = streamStatus?.connected ? T.green : streamStatus?.connecting ? T.blue : T.red;
-
   return (
     <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: T.border }}>
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-tight">Community Flow</h2>
-            <div className="mt-0.5 text-xs flex items-center gap-2" style={{ color: T.muted }}>
-              <span className="inline-flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: streamColor }} />
-                {streamStatus?.connected ? 'Live prices connected' : streamStatus?.connecting ? 'Connecting quotes' : 'Quotes offline'}
-              </span>
-              <span>•</span>
-              <span>{lastQuoteAt ? `Last quote ${timeAgo(lastQuoteAt)}` : 'No recent quote update'}</span>
-            </div>
-          </div>
-
+        <div className="flex items-center justify-end gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -2343,7 +2327,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [composerInitialType, setComposerInitialType] = useState('post');
   const [quoteMap, setQuoteMap] = useState({});
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
-  const [lastQuoteAt, setLastQuoteAt] = useState('');
   const [showcaseTrade, setShowcaseTrade] = useState(null);
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
@@ -2555,7 +2538,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
       if (rows.length > 0) {
         setQuoteMap((prev) => mergeQuotesFromPayload(rows, prev));
-        setLastQuoteAt(new Date().toISOString());
       }
     } catch {
       // keep websocket data if REST bootstrap fails
@@ -2598,8 +2580,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           },
         };
       });
-
-      setLastQuoteAt(new Date().toISOString());
     });
 
     const unsubscribeStatus = subscribeTwelveDataStatus((status) => {
@@ -2806,8 +2786,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           leftCollapsed={leftCollapsed}
           onToggleRight={() => setRightCollapsed((prev) => !prev)}
           rightCollapsed={rightCollapsed}
-          streamStatus={streamStatus}
-          lastQuoteAt={lastQuoteAt}
         />
 
         {error ? (
