@@ -10,7 +10,7 @@ import {
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
   Plus, Wand2, Pencil,
-  Activity, EyeOff, GripVertical, CornerDownLeft,
+  EyeOff, GripVertical, CornerDownLeft,
 } from 'lucide-react';
 
 // ─── Theme Constants ─────────────────────────────────────
@@ -1399,7 +1399,6 @@ const ChatInputBar = ({
   streamStatus,
   onSend,
   onSearch,
-  onOpenComposer,
 }) => {
   const [message, setMessage] = useState('');
   const [selectedHashtags, setSelectedHashtags] = useState([]);
@@ -1669,39 +1668,38 @@ const ChatInputBar = ({
           />
 
           <div
-            className="rounded-xl border border-l-2 min-h-[98px] flex flex-col transition-colors duration-200"
+            className="rounded-xl border min-h-[98px] flex flex-col transition-colors duration-200"
             style={{
               backgroundColor: '#151b23',
               borderColor: 'rgba(255,255,255,0.06)',
-              borderLeftColor: searchMode ? '#58a6ff' : 'transparent',
             }}
           >
             <div className="flex flex-1 items-start gap-2.5 px-3.5 pt-3">
-              <button
-                type="button"
-                onClick={() => setSearchMode((prev) => !prev)}
-                className="mt-0.5 flex-shrink-0 relative inline-flex items-center justify-center p-2 rounded-full text-[#58a6ff] cursor-pointer hover:bg-[#58a6ff]/10 transition"
-                title="Click to search markets"
-              >
-                <span
-                  className="pointer-events-none absolute inset-0 rounded-full bg-[#58a6ff]/20 animate-ping"
-                  style={{ animationDuration: '2s' }}
-                />
-                <Search size={18} strokeWidth={1.5} className="relative z-[1] h-5 w-5" />
-              </button>
-              <Activity size={16} className="mt-1 h-4 w-4 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
-              <span
-                className={`mt-1 text-[10px] uppercase tracking-wider transition-opacity duration-200 ${searchMode ? 'text-[#58a6ff] opacity-100' : 'text-[#7d8590] opacity-90'}`}
-              >
-                {searchMode ? 'SEARCH' : 'POST'}
-              </span>
+              <div className="mt-0.5 flex-shrink-0 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSearchMode(false)}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'}`}
+                  title="Post mode"
+                >
+                  <XLogoIcon className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchMode(true)}
+                  className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5'}`}
+                  title="Search mode"
+                >
+                  <Globe className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+              </div>
               <textarea
                 ref={inputRef}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder={searchMode ? 'Search stocks, crypto, news...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
+                placeholder={searchMode ? 'Search stocks, crypto, news...' : 'Quick post... use $ for ticker suggestions'}
                 className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[56px] max-h-32"
                 style={{ color: T.text }}
                 disabled={!canUseInput}
@@ -1763,10 +1761,10 @@ const ChatInputBar = ({
 
                 <button
                   type="button"
-                  onClick={searchMode ? () => void send() : onOpenComposer}
-                  disabled={searchMode ? (!canUseInput || !message.trim()) : false}
+                  onClick={() => void send()}
+                  disabled={!canUseInput || !message.trim()}
                   className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
-                  title={searchMode ? 'Run AI search' : 'Open composer'}
+                  title={searchMode ? 'Run AI search' : 'Publish post'}
                 >
                   {searchMode ? (
                     <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
