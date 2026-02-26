@@ -632,13 +632,20 @@ export default function WarRoom({ onClose }) {
 
   const saveRewriteToFolder = () => {
     if (!rewriter || !rewriterResult || rewriterResult.startsWith('Error:')) return false;
-    const combined = `${rewriter.original}\n\n---\n\n✨ AI Rewrite (${rewriterStyle || 'custom'}):\n${rewriterResult}`;
+    const styleName = rewriterStyle ? rewriterStyle.charAt(0).toUpperCase() + rewriterStyle.slice(1) : 'Custom';
     const item = {
       id: `rewrite-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-      title: `AI Rewrite — ${rewriterStyle || 'custom'}`,
-      content: combined,
+      title: `✨ ${styleName} Rewrite`,
+      content: rewriterResult,
       sourceLabel: 'AI Rewrite',
     };
+    // Ensure AI Rewrites folder exists
+    const current = getSavedIntelState();
+    const hasFolder = current.folders.some((f) => f.name === 'AI Rewrites');
+    if (!hasFolder) {
+      const created = createSavedIntelFolder('AI Rewrites');
+      setSavedState(created.state);
+    }
     const result = saveWarRoomIntel(item, 'AI Rewrites');
     setSavedState(result.state);
     return true;
