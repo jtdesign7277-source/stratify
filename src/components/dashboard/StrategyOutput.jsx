@@ -1586,7 +1586,7 @@ export default function StrategyOutput({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 grid-rows-3 gap-1.5 mt-2 min-h-0">
+                <div className="grid grid-cols-1 gap-1.5 mt-2 min-h-0">
                   {fields.map((f, i) => {
                     const isAllocation = i === 5;
                     const isEditing = editing === i;
