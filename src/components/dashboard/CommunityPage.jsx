@@ -2302,9 +2302,9 @@ const PostComposerModal = ({
   const [imagePreview, setImagePreview] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAiRewritePanel, setShowAiRewritePanel] = useState(false);
-  const [selectedRewriteStyle, setSelectedRewriteStyle] = useState('');
-  const [selectedRewritePersonality, setSelectedRewritePersonality] = useState('');
-  const [selectedRewriteHashtags, setSelectedRewriteHashtags] = useState([]);
+  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedPersonality, setSelectedPersonality] = useState(null);
+  const [selectedHashtags, setSelectedHashtags] = useState([]);
   const [isAiRewriteLoading, setIsAiRewriteLoading] = useState(false);
   const [aiRewriteError, setAiRewriteError] = useState('');
   const [originalDraft, setOriginalDraft] = useState('');
@@ -2314,10 +2314,26 @@ const PostComposerModal = ({
   const fileRef = useRef(null);
   const textareaRef = useRef(null);
   const hasInitializedOnOpenRef = useRef(false);
+  const resetAiRewriteSelections = useCallback(() => {
+    setSelectedStyle(null);
+    setSelectedPersonality(null);
+    setSelectedHashtags([]);
+  }, []);
+  const closeAiRewritePanel = useCallback(() => {
+    setShowAiRewritePanel(false);
+    resetAiRewriteSelections();
+  }, [resetAiRewriteSelections]);
+  const closeComposerModal = useCallback(() => {
+    setShowAiRewritePanel(false);
+    resetAiRewriteSelections();
+    onClose?.();
+  }, [onClose, resetAiRewriteSelections]);
 
   useEffect(() => {
     if (!open) {
       hasInitializedOnOpenRef.current = false;
+      setShowAiRewritePanel(false);
+      resetAiRewriteSelections();
       return;
     }
     if (hasInitializedOnOpenRef.current) return;
@@ -2334,9 +2350,7 @@ const PostComposerModal = ({
     setImagePreview('');
     setShowEmojiPicker(false);
     setShowAiRewritePanel(hasDraftPrefill && openAiRewritePanelOnOpen);
-    setSelectedRewriteStyle('');
-    setSelectedRewritePersonality('');
-    setSelectedRewriteHashtags([]);
+    resetAiRewriteSelections();
     setIsAiRewriteLoading(false);
     setAiRewriteError('');
     setOriginalDraft(hasDraftPrefill ? draftPrefill : '');
@@ -2352,6 +2366,7 @@ const PostComposerModal = ({
     prefilledText,
     openAiRewritePanelOnOpen,
     onConsumePrefilledText,
+    resetAiRewriteSelections,
   ]);
 
   useEffect(() => {
@@ -2367,14 +2382,6 @@ const PostComposerModal = ({
     () => closedTrades.find((trade) => String(trade.id) === String(selectedTradeId)) || null,
     [closedTrades, selectedTradeId],
   );
-  const selectedRewriteStyleOption = useMemo(
-    () => AI_REWRITE_STYLE_OPTIONS.find((option) => option.id === selectedRewriteStyle) || null,
-    [selectedRewriteStyle],
-  );
-  const selectedRewritePersonalityOption = useMemo(
-    () => AI_REWRITE_PERSONALITY_OPTIONS.find((option) => option.id === selectedRewritePersonality) || null,
-    [selectedRewritePersonality],
-  );
   const composerDisplayName = String(
     displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Guest Trader'
   ).trim() || 'Guest Trader';
@@ -2386,9 +2393,9 @@ const PostComposerModal = ({
 
   const canAutofillSlip = postType === 'pnl' && selectedTrade;
   const hasComposerText = Boolean(content.trim());
-  const hasAiRewriteTone = Boolean(selectedRewriteStyleOption || selectedRewritePersonalityOption);
+  const hasAiRewriteSelection = Boolean(selectedStyle || selectedPersonality);
   const canOpenAiRewrite = !isAiRewriteLoading;
-  const canRunAiRewrite = hasComposerText && hasAiRewriteTone && !isAiRewriteLoading;
+  const canRunAiRewrite = hasComposerText && !isAiRewriteLoading;
   const canRetryAiRewrite = Boolean(
     !isAiRewriteLoading
     && (lastAiRewriteConfig.styleId || lastAiRewriteConfig.personalityId)
@@ -2428,7 +2435,7 @@ const PostComposerModal = ({
   const toggleRewriteHashtag = useCallback((hashtag) => {
     const safeHashtag = String(hashtag || '').trim();
     if (!safeHashtag) return;
-    setSelectedRewriteHashtags((prev) => {
+    setSelectedHashtags((prev) => {
       const isActive = prev.includes(safeHashtag);
       setContent((currentValue) => (
         isActive
@@ -2471,14 +2478,13 @@ const PostComposerModal = ({
 
   const runAiRewrite = async ({
     sourceText = content,
-    styleId = selectedRewriteStyle,
-    personalityId = selectedRewritePersonality,
+    styleId = selectedStyle,
+    personalityId = selectedPersonality,
+    hashtags = selectedHashtags,
     preserveOriginal = false,
   } = {}) => {
     const textValue = String(sourceText || '').trim();
-    const styleOption = AI_REWRITE_STYLE_OPTIONS.find((option) => option.id === styleId) || null;
-    const personalityOption = AI_REWRITE_PERSONALITY_OPTIONS.find((option) => option.id === personalityId) || null;
-    if (!textValue || (!styleOption && !personalityOption)) return;
+    if (!textValue) return;
 
     const baseOriginal = String(preserveOriginal ? (originalDraft || textValue) : textValue).trim();
     if (!preserveOriginal || !originalDraft) {
@@ -2495,8 +2501,9 @@ const PostComposerModal = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: textValue,
-          style: styleOption ? `${styleOption.label} - ${styleOption.prompt}` : '',
-          personality: personalityOption ? `${personalityOption.label} - ${personalityOption.prompt}` : '',
+          style: styleId || 'default',
+          personality: personalityId || 'default',
+          hashtags: Array.isArray(hashtags) ? hashtags : [],
         }),
       });
 
@@ -2509,7 +2516,10 @@ const PostComposerModal = ({
       if (!rewritten) throw new Error('AI rewrite returned empty content.');
 
       setContent(rewritten);
-      setLastAiRewriteConfig({ styleId, personalityId });
+      setLastAiRewriteConfig({
+        styleId: styleId || 'default',
+        personalityId: personalityId || 'default',
+      });
       setHasAiRewriteResult(true);
       setRewriteResultVersion((version) => version + 1);
     } catch (error) {
@@ -2549,9 +2559,7 @@ const PostComposerModal = ({
       imageFile,
     });
 
-    if (ok !== false) {
-      onClose?.();
-    }
+    if (ok !== false) closeComposerModal();
   };
 
   return (
@@ -2572,7 +2580,7 @@ const PostComposerModal = ({
                 delay: 0.15,
               },
             }}
-            onClick={onClose}
+            onClick={closeComposerModal}
             aria-hidden="true"
           />
 
@@ -2603,7 +2611,7 @@ const PostComposerModal = ({
               </div>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={closeComposerModal}
                 className="h-8 w-8 inline-flex items-center justify-center"
                 style={{ color: T.text }}
               >
@@ -2834,7 +2842,7 @@ const PostComposerModal = ({
                       <div className="relative bg-[#151b23] border border-white/6 rounded-xl p-3">
                         <button
                           type="button"
-                          onClick={() => setShowAiRewritePanel(false)}
+                          onClick={closeAiRewritePanel}
                           className="absolute top-2 right-2 inline-flex items-center justify-center text-[#e6edf3] hover:text-[#e6edf3] transition-colors"
                           aria-label="Close AI rewrite panel"
                         >
@@ -2848,7 +2856,7 @@ const PostComposerModal = ({
                             <div className="text-xs text-[#e6edf3] mb-1">Hashtags:</div>
                             <div className="flex flex-wrap gap-2">
                               {FEED_HASHTAGS.map((hashtag) => {
-                                const selected = selectedRewriteHashtags.includes(hashtag);
+                                const selected = selectedHashtags.includes(hashtag);
                                 return (
                                   <button
                                     key={`rewrite-hashtag-${hashtag}`}
@@ -2867,13 +2875,13 @@ const PostComposerModal = ({
                             <div className="text-xs text-[#e6edf3] mb-1">Style:</div>
                             <div className="flex items-center gap-2 overflow-x-auto pb-1">
                               {AI_REWRITE_STYLE_OPTIONS.map((option) => {
-                                const selected = selectedRewriteStyle === option.id;
+                                const selected = selectedStyle === option.id;
                                 return (
                                   <button
                                     key={`rewrite-style-${option.id}`}
                                     type="button"
-                                    onClick={() => setSelectedRewriteStyle(selected ? '' : option.id)}
-                                    className={`flex-shrink-0 whitespace-nowrap bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#e6edf3] cursor-pointer hover:bg-white/10 transition-all duration-150 ${selected ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                                    onClick={() => setSelectedStyle(selectedStyle === option.id ? null : option.id)}
+                                    className={`flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs cursor-pointer transition-all duration-150 ${selected ? 'bg-[#58a6ff]/15 border border-[#58a6ff]/40 text-[#58a6ff] font-medium' : 'bg-white/5 border border-white/10 text-[#e6edf3] hover:bg-white/8 hover:border-white/15 cursor-pointer'}`}
                                     title={`${option.label} - ${option.prompt}`}
                                   >
                                     {option.label}
@@ -2887,13 +2895,13 @@ const PostComposerModal = ({
                             <div className="text-xs text-[#e6edf3] mb-1">Personality:</div>
                             <div className="flex items-center gap-2 overflow-x-auto pb-1">
                               {AI_REWRITE_PERSONALITY_OPTIONS.map((option) => {
-                                const selected = selectedRewritePersonality === option.id;
+                                const selected = selectedPersonality === option.id;
                                 return (
                                   <button
                                     key={`rewrite-personality-${option.id}`}
                                     type="button"
-                                    onClick={() => setSelectedRewritePersonality(selected ? '' : option.id)}
-                                    className={`flex-shrink-0 whitespace-nowrap bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#e6edf3] cursor-pointer hover:bg-white/10 transition-all duration-150 ${selected ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                                    onClick={() => setSelectedPersonality(selectedPersonality === option.id ? null : option.id)}
+                                    className={`flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs cursor-pointer transition-all duration-150 ${selected ? 'bg-[#58a6ff]/15 border border-[#58a6ff]/40 text-[#58a6ff] font-medium' : 'bg-white/5 border border-white/10 text-[#e6edf3] hover:bg-white/8 hover:border-white/15 cursor-pointer'}`}
                                     title={`${option.label} - ${option.prompt}`}
                                   >
                                     {option.label}
@@ -2908,7 +2916,7 @@ const PostComposerModal = ({
                           type="button"
                           onClick={() => void runAiRewrite()}
                           disabled={!canRunAiRewrite}
-                          className="mt-3 inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium text-xs px-4 py-1.5 rounded-lg hover:bg-[#79b8ff] transition-all disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-[#58a6ff]"
+                          className={`mt-3 inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium text-xs px-4 py-1.5 rounded-lg hover:bg-[#79b8ff] transition-all ${hasAiRewriteSelection ? 'brightness-110 shadow-[0_0_16px_rgba(88,166,255,0.35)]' : ''} disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-[#58a6ff]`}
                         >
                           <Wand2 strokeWidth={1.5} className="h-3.5 w-3.5" />
                           Rewrite
@@ -2935,7 +2943,7 @@ const PostComposerModal = ({
                         type="button"
                         variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
                         onClick={() => {
-                          setShowAiRewritePanel(false);
+                          closeAiRewritePanel();
                           setHasAiRewriteResult(false);
                           setAiRewriteError('');
                         }}
@@ -2948,7 +2956,7 @@ const PostComposerModal = ({
                         type="button"
                         variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
                         onClick={() => {
-                          setShowAiRewritePanel(false);
+                          closeAiRewritePanel();
                           setHasAiRewriteResult(false);
                           setAiRewriteError('');
                           window.requestAnimationFrame(() => textareaRef.current?.focus());
@@ -2963,7 +2971,7 @@ const PostComposerModal = ({
                         variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
                         onClick={() => {
                           if (originalDraft) setContent(originalDraft);
-                          setShowAiRewritePanel(false);
+                          closeAiRewritePanel();
                           setHasAiRewriteResult(false);
                           setAiRewriteError('');
                         }}
@@ -2977,8 +2985,8 @@ const PostComposerModal = ({
                         variants={AI_REWRITE_ACTION_ITEM_VARIANTS}
                         onClick={() => void runAiRewrite({
                           sourceText: originalDraft || content,
-                          styleId: lastAiRewriteConfig.styleId || selectedRewriteStyle,
-                          personalityId: lastAiRewriteConfig.personalityId || selectedRewritePersonality,
+                          styleId: lastAiRewriteConfig.styleId || selectedStyle,
+                          personalityId: lastAiRewriteConfig.personalityId || selectedPersonality,
                           preserveOriginal: true,
                         })}
                         disabled={!canRetryAiRewrite}
