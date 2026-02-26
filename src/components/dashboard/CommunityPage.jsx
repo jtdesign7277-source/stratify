@@ -7,8 +7,8 @@ import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
   Heart, MessageCircle, Share2, Send, X, TrendingUp, BarChart3, Bell, Zap,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
-  Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper,
-  Compass, Users, Star, Search, ArrowUp, ArrowDown, PanelLeftClose, PanelRightClose,
+  Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
+  Compass, Users, Star, Search, ArrowUp, ArrowDown, PanelLeftClose, PanelRightClose, Sparkles,
   Hash, Activity, Trophy, Eye,
 } from 'lucide-react';
 
@@ -388,9 +388,9 @@ const POST_TYPE_ORDER = ['all', 'post', 'pnl_share', 'strategy_share', 'trade_sh
 
 const POST_TYPE_FILTERS = [
   { id: 'all', label: 'For You', icon: Home },
-  { id: 'post', label: 'General', icon: Newspaper },
-  { id: 'pnl_share', label: 'P&L', icon: Trophy },
-  { id: 'strategy_share', label: 'Strategies', icon: Zap },
+  { id: 'post', label: 'General', icon: Globe },
+  { id: 'pnl_share', label: 'P&L', icon: TrendingUp },
+  { id: 'strategy_share', label: 'Strategies', icon: Sparkles },
   { id: 'trade_share', label: 'Trades', icon: BarChart3 },
   { id: 'alert_share', label: 'Alerts', icon: Bell },
 ];
@@ -1951,137 +1951,190 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 };
 
 const FeedHeader = ({
-  filter,
-  onFilter,
   search,
   onSearch,
   onOpenComposer,
-  onToggleLeft,
-  leftCollapsed,
-  onToggleRight,
-  rightCollapsed,
 }) => {
   return (
-    <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: T.border }}>
-      <div className="max-w-3xl mx-auto w-full">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-end gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={onToggleLeft}
-                className="h-9 w-9 rounded-lg border"
-                style={{ borderColor: T.border, color: T.muted }}
-                title={leftCollapsed ? 'Show rail' : 'Hide rail'}
-              >
-                {leftCollapsed ? <PanelRightClose size={15} className="mx-auto" /> : <PanelLeftClose size={15} className="mx-auto" />}
-              </button>
+    <div className="sticky top-0 z-20 h-10 border-b px-3" style={{ borderColor: T.border, backgroundColor: T.bg }}>
+      <div className="h-full flex items-center gap-2">
+        <div className="w-[92px] flex-shrink-0 text-sm font-medium" style={{ color: 'rgba(230,237,243,0.78)' }}>
+          Stratify
+        </div>
 
-              <button
-                type="button"
-                onClick={onToggleRight}
-                className="h-9 w-9 rounded-lg border"
-                style={{ borderColor: T.border, color: T.muted }}
-                title={rightCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-              >
-                {rightCollapsed ? <PanelRightClose size={15} className="mx-auto" /> : <PanelLeftClose size={15} className="mx-auto" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenComposer}
-                className="h-9 px-3 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5"
-                style={{ backgroundColor: T.blue, color: '#08111f' }}
-              >
-                <Send size={14} />
-                New Post
-              </button>
-            </div>
+        <div className="flex-1 min-w-0 px-1">
+          <div className="relative max-w-md mx-auto">
+            <Search size={14} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: T.muted }} />
+            <input
+              value={search}
+              onChange={(event) => onSearch(event.target.value)}
+              placeholder="Search for stocks, crypto, and more..."
+              className="w-full rounded-full border py-1.5 pl-9 pr-4 text-sm outline-none"
+              style={{ borderColor: T.border, backgroundColor: T.card, color: T.text }}
+            />
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-            {POST_TYPE_FILTERS.map((item) => {
-              const active = filter === item.id;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onFilter(item.id)}
-                  className="h-8 px-2.5 rounded-full border text-xs inline-flex items-center gap-1.5 whitespace-nowrap"
-                  style={{
-                    borderColor: active ? T.blue : T.border,
-                    color: active ? T.blue : T.muted,
-                    backgroundColor: active ? 'rgba(88,166,255,0.12)' : 'rgba(13,17,23,0.55)',
-                  }}
-                >
-                  <Icon size={12} />
-                  {item.label}
-                </button>
-              );
-            })}
+        <div className="flex-shrink-0 flex items-center gap-1.5">
+          <button
+            type="button"
+            className="h-7 px-2 rounded-md text-xs inline-flex items-center gap-1"
+            style={{ color: T.muted }}
+          >
+            <Bell size={13} strokeWidth={1.5} />
+            Price Alert
+          </button>
 
-            <div className="ml-auto relative min-w-[210px]">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: T.muted }} />
-              <input
-                value={search}
-                onChange={(event) => onSearch(event.target.value)}
-                placeholder="Search posts, tickers, authors"
-                className="h-8 w-full rounded-full border pl-8 pr-3 text-xs bg-transparent outline-none"
-                style={{ borderColor: T.border, color: T.text }}
-              />
-            </div>
-          </div>
+          <button
+            type="button"
+            className="h-7 px-2 rounded-lg border text-xs inline-flex items-center gap-1"
+            style={{ borderColor: 'rgba(255,255,255,0.08)', color: T.muted }}
+          >
+            <Share2 size={13} strokeWidth={1.5} />
+            Share
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenComposer}
+            className="h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5"
+            style={{ backgroundColor: T.blue, color: '#08111f' }}
+          >
+            <Send size={13} />
+            New Post
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-const LeftRail = ({ hidden }) => {
-  if (hidden) return null;
+const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
+  const [feedsOpen, setFeedsOpen] = useState(true);
 
   return (
     <motion.aside
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className="hidden lg:flex w-[220px] flex-col gap-4 px-3 py-3 border-r border-white/5"
+      className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-3'} flex-col gap-4 py-3 border-r border-white/5`}
       style={{ backgroundColor: '#0c1016' }}
     >
-      <div>
-        <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>COMMUNITY LANES</div>
-        <div className="space-y-1.5">
-          {LEFT_RAIL_ITEMS.map((item) => {
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className={`h-8 rounded-lg border ${collapsed ? 'w-9' : 'w-full'} inline-flex items-center justify-center`}
+        style={{ borderColor: T.border, color: T.muted }}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? <PanelRightClose size={15} /> : <PanelLeftClose size={15} />}
+      </button>
+
+      {collapsed ? (
+        <div className="w-full space-y-1">
+          {POST_TYPE_FILTERS.map((item) => {
+            const active = filter === item.id;
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 type="button"
-                className="w-full h-9 px-2.5 rounded-lg border inline-flex items-center justify-between text-sm"
-                style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                onClick={() => onFilter(item.id)}
+                className="w-full h-9 rounded-lg border-l-2 inline-flex items-center justify-center transition-colors"
+                style={{
+                  borderLeftColor: active ? T.blue : 'transparent',
+                  backgroundColor: active ? 'rgba(88,166,255,0.10)' : 'transparent',
+                  color: active ? T.text : T.muted,
+                }}
+                title={item.label}
               >
-                <span className="inline-flex items-center gap-2">
-                  <Icon size={14} style={{ color: T.muted }} />
-                  {item.label}
-                </span>
-                <ChevronRight size={13} style={{ color: T.muted }} />
+                <Icon size={15} strokeWidth={1.5} />
               </button>
             );
           })}
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="w-full">
+            <button
+              type="button"
+              onClick={() => setFeedsOpen((prev) => !prev)}
+              className="w-full mb-2 inline-flex items-center justify-between"
+            >
+              <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: T.muted }}>FEEDS</span>
+              {feedsOpen ? <ChevronDown size={14} style={{ color: T.muted }} /> : <ChevronRight size={14} style={{ color: T.muted }} />}
+            </button>
 
-      <div>
-        <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>QUICK TAGS</div>
-        <div className="flex flex-wrap gap-1.5">
-          {QUICK_TAGS.map((tag) => (
-            <span key={tag} className="px-2 py-1 rounded-full text-[11px] border" style={{ borderColor: T.border, color: T.blue, backgroundColor: 'rgba(255,255,255,0.04)' }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
+            <AnimatePresence initial={false}>
+              {feedsOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-1">
+                    {POST_TYPE_FILTERS.map((item) => {
+                      const active = filter === item.id;
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => onFilter(item.id)}
+                          className="w-full h-9 px-2.5 rounded-lg border-l-2 inline-flex items-center gap-2 text-sm transition-colors"
+                          style={{
+                            borderLeftColor: active ? T.blue : 'transparent',
+                            backgroundColor: active ? 'rgba(88,166,255,0.10)' : 'rgba(255,255,255,0.02)',
+                            color: active ? T.text : T.muted,
+                          }}
+                        >
+                          <Icon size={14} strokeWidth={1.5} />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="w-full">
+            <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>COMMUNITY LANES</div>
+            <div className="space-y-1.5">
+              {LEFT_RAIL_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="w-full h-9 px-2.5 rounded-lg border inline-flex items-center justify-between text-sm"
+                    style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Icon size={14} style={{ color: T.muted }} />
+                      {item.label}
+                    </span>
+                    <ChevronRight size={13} style={{ color: T.muted }} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-full">
+            <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>QUICK TAGS</div>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_TAGS.map((tag) => (
+                <span key={tag} className="px-2 py-1 rounded-full text-[11px] border" style={{ borderColor: T.border, color: T.blue, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </motion.aside>
   );
 };
@@ -2120,6 +2173,7 @@ const SidebarSection = ({ title, icon: Icon, open, onToggle, children, subtitle 
 
 const RightSidebar = ({
   hidden,
+  onToggleCollapse,
   streamStatus,
   quoteMap,
   trackedSymbols,
@@ -2136,7 +2190,26 @@ const RightSidebar = ({
     trend: true,
   });
 
-  if (hidden) return null;
+  if (hidden) {
+    return (
+      <motion.aside
+        initial={{ opacity: 0, x: 10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.22 }}
+        className="hidden xl:flex w-[52px] flex-col items-center py-3 border-l border-white/5"
+      >
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="h-8 w-8 rounded-lg border inline-flex items-center justify-center"
+          style={{ borderColor: T.border, color: T.muted }}
+          title="Show sidebar"
+        >
+          <PanelLeftClose size={15} />
+        </button>
+      </motion.aside>
+    );
+  }
 
   const streamTone = streamStatus?.connected ? T.green : streamStatus?.connecting ? T.blue : T.red;
 
@@ -2191,7 +2264,18 @@ const RightSidebar = ({
             <div className="text-[11px] uppercase tracking-[0.16em]" style={{ color: T.muted }}>Action Panel</div>
             <div className="text-sm font-semibold">Right Sidebar</div>
           </div>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: streamTone }} />
+          <div className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: streamTone }} />
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="h-7 w-7 rounded-md border inline-flex items-center justify-center"
+              style={{ borderColor: T.border, color: T.muted }}
+              title="Hide sidebar"
+            >
+              <PanelRightClose size={13} />
+            </button>
+          </div>
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -2769,18 +2853,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       }} />
 
       <motion.div className="relative z-10 h-full flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <FeedHeader
-          filter={filter}
-          onFilter={setFilter}
-          search={search}
-          onSearch={setSearch}
-          onOpenComposer={() => openComposer('post')}
-          onToggleLeft={() => setLeftCollapsed((prev) => !prev)}
-          leftCollapsed={leftCollapsed}
-          onToggleRight={() => setRightCollapsed((prev) => !prev)}
-          rightCollapsed={rightCollapsed}
-        />
-
         {error ? (
           <div className="px-4 pt-2">
             <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'rgba(248,81,73,0.35)', color: T.red, backgroundColor: 'rgba(248,81,73,0.08)' }}>
@@ -2791,9 +2863,20 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
         <div className="flex-1 min-h-0 px-4 py-3">
           <div className="h-full flex gap-3 min-h-0">
-            <LeftRail hidden={leftCollapsed} />
+            <LeftRail
+              collapsed={leftCollapsed}
+              onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
+              filter={filter}
+              onFilter={setFilter}
+            />
 
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+              <FeedHeader
+                search={search}
+                onSearch={setSearch}
+                onOpenComposer={() => openComposer('post')}
+              />
+
               <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
                 {loading ? (
                   <div className="max-w-3xl mx-auto w-full space-y-2">
@@ -2845,6 +2928,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
             <RightSidebar
               hidden={rightCollapsed}
+              onToggleCollapse={() => setRightCollapsed((prev) => !prev)}
               streamStatus={streamStatus}
               quoteMap={quoteMap}
               trackedSymbols={trackedSymbols}
