@@ -579,8 +579,14 @@ const shareToX = (post) => {
     text = `${ticker} ${formatSignedCurrency(pnlValue)}${Number.isFinite(Number(post?.metadata?.percent)) ? ` (${formatSignedPercent(Number(post.metadata.percent))})` : ''}\n\n${post.content}`;
   }
   text += '\n\nPowered by @StratifyTrading';
-  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'width=550,height=420');
+  console.log('Share to X clicked (placeholder)', { postId: post?.id, text });
 };
+
+const XLogoIcon = ({ className = 'h-3.5 w-3.5' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 
 // ─── Shimmer Skeleton ─────────────────────────────────────
 const ShimmerLine = ({ w = '100%', h = 14, rounded = 6, className = '' }) => (
@@ -838,6 +844,8 @@ const normalizeSymbolKey = (value) => {
   if (raw.includes(':')) return raw.split(':').pop();
   return raw;
 };
+
+const isFuturesSymbol = (value) => normalizeSymbolKey(value).endsWith('=F');
 
 const normalizeWatchlistEntry = (row) => {
   const symbol = normalizeSymbolKey(row?.symbol || row?.ticker || row?.code);
@@ -2413,7 +2421,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                       className="w-full px-3 py-2 text-xs text-left inline-flex items-center gap-1.5"
                       style={{ color: T.text }}
                     >
-                      <Share2 size={13} />
+                      <XLogoIcon className="h-3.5 w-3.5" />
                       Share to X
                     </button>
                     {isOwner && (
@@ -2485,7 +2493,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
               className="inline-flex items-center gap-1 text-xs"
               style={{ color: T.muted }}
             >
-              <Share2 className="h-3.5 w-3.5" />
+              <XLogoIcon className="h-3.5 w-3.5" />
               <span>Share</span>
             </button>
 
@@ -3512,7 +3520,10 @@ const RightSidebar = ({
           onDragStateChange={setDraggingSectionId}
         >
           <div className="space-y-2 max-h-52 overflow-y-auto">
-            {trackedSymbols.slice(0, 12).map((symbol) => renderQuoteRow(symbol, symbol))}
+            {trackedSymbols
+              .filter((symbol) => !isFuturesSymbol(symbol))
+              .slice(0, 12)
+              .map((symbol) => renderQuoteRow(symbol, symbol))}
           </div>
         </DraggableSidebarSection>
       );
