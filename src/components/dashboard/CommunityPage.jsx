@@ -1956,8 +1956,8 @@ const FeedHeader = ({
   onOpenComposer,
 }) => {
   return (
-    <div className="sticky top-0 z-20 h-10 border-b px-3" style={{ borderColor: T.border, backgroundColor: T.bg }}>
-      <div className="h-full flex items-center gap-2">
+    <div className="sticky top-0 z-20 h-10 border-b bg-[#0d1117]" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+      <div className="h-full w-full px-3 flex items-center gap-2 bg-[#0d1117]">
         <div className="w-[92px] flex-shrink-0" aria-hidden />
 
         <div className="flex-1 min-w-0 px-1">
@@ -2016,7 +2016,12 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
       className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-3'} flex-col gap-4 py-3 border-r border-white/5 rounded-r-xl shadow-[2px_0_8px_rgba(0,0,0,0.3)]`}
-      style={{ backgroundColor: '#080d13' }}
+      style={{
+        backgroundColor: '#080d13',
+        borderTopLeftRadius: 0,
+        borderBottomLeftRadius: 0,
+        marginLeft: 0,
+      }}
     >
       <button
         type="button"
@@ -2813,7 +2818,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           </div>
         ) : null}
 
-        <div className="flex-1 min-h-0 px-4 py-3">
+        <div className="flex-1 min-h-0 py-3 pr-4 pl-0">
           <div className="h-full flex gap-3 min-h-0">
             <LeftRail
               collapsed={leftCollapsed}
