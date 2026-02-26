@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabaseClient';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
+import TodaysNews from 'components/dashboard/TodaysNews';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
@@ -450,9 +451,6 @@ const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
 const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
 const WATCHLIST_STORAGE_KEY = 'stratify-community-watchlist';
 const PRICE_ALERTS_STORAGE_KEY = 'stratify_price_alerts';
-const TODAYS_NEWS_REFRESH_MS = 10 * 60 * 1000;
-const TODAYS_NEWS_CLIENT_CACHE_MS = 20 * 1000;
-const TODAYS_NEWS_MAX_ROWS = 8;
 const DEFAULT_SIDEBAR_SECTION_ORDER = ['watchlist', 'todays-news'];
 const LEGACY_SIDEBAR_SECTION_ID_MAP = {
   'watch-movers': 'watchlist',
@@ -464,7 +462,6 @@ const SIDEBAR_SECTION_LABELS = {
 };
 const WATCHLIST_MAX_ROWS = 24;
 const WATCHLIST_SEARCH_LIMIT = 10;
-const TODAYS_NEWS_SOURCE_COLORS = ['#58a6ff', '#3fb950', '#f778ba', '#d29922', '#a371f7', '#f85149', '#58a6ff'];
 
 const normalizeSidebarSectionId = (value) => (
   LEGACY_SIDEBAR_SECTION_ID_MAP[String(value || '')] || String(value || '')
@@ -514,93 +511,6 @@ const normalizeSidebarSectionVisibility = (rawVisibility = {}) => (
     return acc;
   }, {})
 );
-
-const normalizeTodaysNewsCategory = (value) => {
-  const raw = String(value || '').trim().toLowerCase();
-  if (raw === 'markets' || raw === 'market') return 'Markets';
-  if (raw === 'crypto') return 'Crypto';
-  if (raw === 'politics' || raw === 'policy') return 'Politics';
-  if (raw === 'earnings') return 'Earnings';
-  return 'News';
-};
-
-const normalizeTodaysNewsPostCount = (value) => {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return `${Math.round(value).toLocaleString('en-US')} posts`;
-  }
-
-  const raw = String(value || '').trim();
-  if (!raw) return '0 posts';
-  if (/\bposts?\b/i.test(raw)) return raw;
-
-  const digits = raw.replace(/[^\d]/g, '');
-  if (!digits) return raw;
-
-  const parsed = Number(digits);
-  if (!Number.isFinite(parsed)) return raw;
-  return `${parsed.toLocaleString('en-US')} posts`;
-};
-
-const normalizeTodaysNewsSources = (rows = []) => {
-  const seen = new Set();
-  return (Array.isArray(rows) ? rows : [])
-    .map((row) => String(row?.name || row || '').trim())
-    .filter(Boolean)
-    .filter((name) => {
-      const key = name.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 4)
-    .map((name, idx) => ({
-      name,
-      initial: name.charAt(0).toUpperCase() || '?',
-      color: TODAYS_NEWS_SOURCE_COLORS[idx % TODAYS_NEWS_SOURCE_COLORS.length],
-    }));
-};
-
-const normalizeTodaysNewsRows = (payload) => {
-  const rows = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.items)
-      ? payload.items
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : [];
-
-  const deduped = new Map();
-  rows.forEach((row, idx) => {
-    if (!row || typeof row !== 'object') return;
-    const headline = String(row?.headline || row?.title || '').replace(/\s+/g, ' ').trim();
-    if (!headline) return;
-
-    const key = headline.toLowerCase();
-    if (deduped.has(key)) return;
-
-    deduped.set(key, {
-      id: String(row?.id || `todays-news-${idx}-${headline.slice(0, 24)}`).trim(),
-      headline,
-      sources: normalizeTodaysNewsSources(row?.sources || row?.sourceNames || row?.source_names || []),
-      category: normalizeTodaysNewsCategory(row?.category),
-      postCount: normalizeTodaysNewsPostCount(row?.postCount ?? row?.post_count ?? row?.posts),
-      summary: String(row?.summary || '').trim(),
-      trendingLabel: String(row?.trendingLabel || row?.trending_label || 'Trending now').trim() || 'Trending now',
-      url: /^https?:\/\//i.test(String(row?.url || row?.link || '').trim())
-        ? String(row?.url || row?.link || '').trim()
-        : '',
-    });
-  });
-
-  return [...deduped.values()].slice(0, TODAYS_NEWS_MAX_ROWS);
-};
-
-const formatUpdatedMinutesAgo = (value, now = Date.now()) => {
-  const timestamp = Number.isFinite(value) ? value : Date.parse(value);
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return 'Updated just now';
-  const minutes = Math.max(0, Math.floor((now - timestamp) / 60000));
-  return minutes <= 0 ? 'Updated just now' : `Updated ${minutes} min ago`;
-};
 
 const shareToX = (post) => {
   let text = post.content;
@@ -4037,7 +3947,6 @@ const DraggableSidebarSection = ({
 const RightSidebar = ({ quoteMap }) => {
   const [openSections, setOpenSections] = useState({
     watchlist: true,
-    'todays-news': true,
   });
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SIDEBAR_SECTION_ORDER);
   const [sectionVisibility, setSectionVisibility] = useState(
@@ -4050,18 +3959,10 @@ const RightSidebar = ({ quoteMap }) => {
   const [watchlistResults, setWatchlistResults] = useState([]);
   const [watchlistSearchLoading, setWatchlistSearchLoading] = useState(false);
   const [watchlistQuoteMap, setWatchlistQuoteMap] = useState({});
-  const [todaysNewsRows, setTodaysNewsRows] = useState([]);
-  const [todaysNewsLoading, setTodaysNewsLoading] = useState(true);
-  const [todaysNewsUpdatedAt, setTodaysNewsUpdatedAt] = useState(null);
-  const [todaysNewsClockTick, setTodaysNewsClockTick] = useState(Date.now());
   const watchlistHydratedRef = useRef(false);
   const previousWatchlistSymbolsRef = useRef([]);
   const watchlistLookupRef = useRef(null);
 
-  const todaysNewsUpdatedLabel = useMemo(
-    () => formatUpdatedMinutesAgo(todaysNewsUpdatedAt, todaysNewsClockTick),
-    [todaysNewsUpdatedAt, todaysNewsClockTick],
-  );
   const visibleSectionOrder = useMemo(
     () => sectionOrder.filter((sectionId) => sectionVisibility[sectionId]),
     [sectionOrder, sectionVisibility],
@@ -4275,66 +4176,6 @@ const RightSidebar = ({ quoteMap }) => {
     watchlistLookupRef.current?.call(trimmedQuery);
   }, [watchlistQuery]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    const fetchTodaysNews = async ({ silent = false } = {}) => {
-      if (!silent) setTodaysNewsLoading(true);
-
-      const endpoints = ['/api/community/todays-news.js', '/api/community/todays-news'];
-      for (const endpoint of endpoints) {
-        try {
-          const payload = await cachedFetch(
-            endpoint,
-            { cache: 'no-store', signal: controller.signal },
-            TODAYS_NEWS_CLIENT_CACHE_MS,
-          );
-          if (cancelled) return;
-
-          const rows = normalizeTodaysNewsRows(payload?.data || payload);
-          if (rows.length === 0) continue;
-
-          setTodaysNewsRows(rows);
-          setTodaysNewsUpdatedAt(
-            payload?.generatedAt
-              || payload?.updatedAt
-              || payload?.generated_at
-              || new Date().toISOString(),
-          );
-          setTodaysNewsClockTick(Date.now());
-          setTodaysNewsLoading(false);
-          return;
-        } catch (error) {
-          if (error?.name === 'AbortError') return;
-        }
-      }
-
-      if (!cancelled) {
-        setTodaysNewsLoading(false);
-      }
-    };
-
-    void fetchTodaysNews();
-    const refreshTimer = setInterval(() => {
-      void fetchTodaysNews({ silent: true });
-    }, TODAYS_NEWS_REFRESH_MS);
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-      clearInterval(refreshTimer);
-    };
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTodaysNewsClockTick(Date.now());
-    }, 60 * 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -4427,104 +4268,27 @@ const RightSidebar = ({ quoteMap }) => {
     );
   };
 
-  const renderTodaysNewsSourceIcons = (sources = []) => (
-    <div className="inline-flex items-center gap-1">
-      {(Array.isArray(sources) ? sources : []).slice(0, 3).map((source, idx) => {
-        const sourceName = String(source?.name || '').trim();
-        const initial = String(source?.initial || sourceName.charAt(0) || '?').toUpperCase();
-        const color = source?.color || TODAYS_NEWS_SOURCE_COLORS[idx % TODAYS_NEWS_SOURCE_COLORS.length];
-
-        return (
-          <span
-            key={`todays-news-source-${sourceName || idx}`}
-            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold text-[#0d1117]"
-            style={{ backgroundColor: color }}
-            title={sourceName}
-          >
-            {initial}
-          </span>
-        );
-      })}
-    </div>
-  );
-
-  const renderTodaysNewsSkeletonRows = () => (
-    <div className="divide-y divide-white/5">
-      {Array.from({ length: 6 }).map((_, idx) => (
-        <div key={`todays-news-skeleton-${idx}`} className="py-3 px-2 space-y-1.5">
-          <ShimmerLine w="95%" h={13} />
-          <ShimmerLine w="72%" h={11} />
-          <div className="flex items-center gap-2 pt-1">
-            <ShimmerLine w={16} h={16} rounded={999} />
-            <ShimmerLine w={16} h={16} rounded={999} />
-            <ShimmerLine w="30%" h={10} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   const renderDraggableSection = (sectionId) => {
     if (sectionId === 'todays-news') {
       return (
-        <DraggableSidebarSection
+        <Reorder.Item
+          as="div"
           key={sectionId}
-          sectionId={sectionId}
-          title="TODAY'S NEWS"
-          subtitle="Trending on X and the web"
-          icon={(iconProps) => <Newspaper {...iconProps} strokeWidth={1.5} />}
-          headerMeta={todaysNewsUpdatedLabel}
-          open={openSections['todays-news']}
-          onToggle={() => toggleSection('todays-news')}
-          onToggleVisibility={() => toggleSectionVisibility('todays-news')}
-          isDragging={draggingSectionId === sectionId}
-          onDragStateChange={setDraggingSectionId}
-          wrapperClassName="flex-shrink-0"
-          sectionClassName="flex flex-col"
+          value={sectionId}
+          layout
+          whileDrag={{
+            scale: 1.02,
+            boxShadow: '0 0 12px rgba(88,166,255,0.3)',
+            zIndex: 30,
+          }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
+          className="list-none flex-shrink-0"
+          style={{ position: 'relative' }}
+          onDragStart={() => setDraggingSectionId(sectionId)}
+          onDragEnd={() => setDraggingSectionId(null)}
         >
-          <div className="max-h-[260px] overflow-y-auto pr-1 -mr-1">
-            {todaysNewsLoading && todaysNewsRows.length === 0 ? (
-              renderTodaysNewsSkeletonRows()
-            ) : todaysNewsRows.length === 0 ? (
-              <div className="py-2 px-2 text-xs" style={{ color: T.muted }}>
-                No trending stories available right now.
-              </div>
-            ) : (
-              <div className="divide-y divide-white/5">
-                {todaysNewsRows.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      if (item.url) {
-                        window.open(item.url, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                    className="w-full py-3 px-2 text-left hover:bg-white/[0.03] transition-colors"
-                  >
-                    <div
-                      className="text-sm font-semibold text-[#e6edf3]"
-                      style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {item.headline}
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2 flex-wrap min-w-0">
-                      {renderTodaysNewsSourceIcons(item.sources)}
-                      <span className="text-xs text-[#58a6ff]">{item.trendingLabel || 'Trending now'}</span>
-                      <span className="text-xs text-[#7d8590]">{item.category}</span>
-                      <span className="text-xs text-[#7d8590]">{item.postCount}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </DraggableSidebarSection>
+          <TodaysNews onClose={() => toggleSectionVisibility('todays-news')} />
+        </Reorder.Item>
       );
     }
 
