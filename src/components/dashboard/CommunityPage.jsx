@@ -9,7 +9,7 @@ import {
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowUp, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
-  Plus, Wand2,
+  Plus, Wand2, Pencil,
   Activity, EyeOff, GripVertical,
 } from 'lucide-react';
 
@@ -1935,6 +1935,7 @@ const PostComposerModal = ({
   open,
   onClose,
   currentUser,
+  displayName,
   closedTrades = [],
   submitting = false,
   initialPostType = 'general',
@@ -2003,6 +2004,9 @@ const PostComposerModal = ({
     () => AI_REWRITE_PERSONALITY_OPTIONS.find((option) => option.id === selectedRewritePersonality) || null,
     [selectedRewritePersonality],
   );
+  const composerDisplayName = String(
+    displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Guest Trader'
+  ).trim() || 'Guest Trader';
 
   const canAutofillSlip = postType === 'pnl' && selectedTrade;
   const hasComposerText = Boolean(content.trim());
@@ -2632,7 +2636,7 @@ const PostComposerModal = ({
               style={{ borderColor: T.border }}
             >
               <div className="text-xs" style={{ color: T.text }}>
-                Posting as {currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Guest Trader'}
+                Posting as {composerDisplayName}
               </div>
 
               <button
@@ -2797,7 +2801,7 @@ const ReactionBar = ({
   );
 };
 
-const PostCard = ({ post, currentUser, onDelete }) => {
+const PostCard = ({ post, currentUser, onDelete, displayName }) => {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(toFiniteNumber(post.likes_count ?? post.likes, 0));
   const [showReplies, setShowReplies] = useState(false);
@@ -2807,6 +2811,9 @@ const PostCard = ({ post, currentUser, onDelete }) => {
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const isMock = Boolean(post?.is_mock);
+  const resolvedDisplayName = String(
+    displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Trader'
+  ).trim() || 'Trader';
 
   const initialReactions = useMemo(() => {
     if (Array.isArray(post?.reaction_summary)) return post.reaction_summary;
@@ -2904,12 +2911,12 @@ const PostCard = ({ post, currentUser, onDelete }) => {
         const syntheticReply = {
           id: `mock-reply-${post.id}-${Date.now()}`,
           user_id: currentUser.id,
-          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+          author_name: resolvedDisplayName,
           content: trimmed,
           created_at: new Date().toISOString(),
           profiles: {
             id: currentUser.id,
-            display_name: currentUser.display_name,
+            display_name: resolvedDisplayName,
             avatar_url: currentUser.avatar_url,
             avatar_color: currentUser.avatar_color || null,
             email: currentUser.email,
@@ -2928,7 +2935,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
         .from('community_posts')
         .insert({
           user_id: currentUser.id,
-          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+          author_name: resolvedDisplayName,
           content: trimmed,
           parent_id: post.id,
           parent_post_id: post.id,
@@ -2941,6 +2948,10 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 
       const mapped = {
         ...inserted,
+        author_name: resolvedDisplayName,
+        profiles: inserted?.profiles
+          ? { ...inserted.profiles, display_name: resolvedDisplayName }
+          : inserted?.profiles,
         reaction_summary: buildReactionSummary(inserted.community_reactions || [], currentUser?.id),
       };
       setReplies((prev) => sortByCreatedAtAsc([...prev, mapped]));
@@ -2969,6 +2980,8 @@ const PostCard = ({ post, currentUser, onDelete }) => {
   };
 
   const isOwner = currentUser?.id && currentUser.id === post.user_id;
+  const profileForRender = isOwner ? { ...profile, display_name: resolvedDisplayName } : profile;
+  const postAuthorLabel = profileForRender?.display_name || post.author_name || profileForRender?.email?.split('@')[0] || 'Trader';
   const repliesCount = replies.length > 0
     ? replies.length
     : toFiniteNumber(post?.replies_count ?? post?.comments_count, 0);
@@ -2985,7 +2998,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
       }}
     >
       <div className="flex gap-2">
-        <UserAvatar user={profile} size={32} initialsClassName="text-xs" />
+        <UserAvatar user={profileForRender} size={32} initialsClassName="text-xs" />
 
         <div className="flex-1 min-w-0">
           {normalizedPostType !== 'general' && (
@@ -2997,7 +3010,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold truncate">
-                {profile?.display_name || post.author_name || profile?.email?.split('@')[0] || 'Trader'}
+                {postAuthorLabel}
               </span>
               <span className="text-xs" style={{ color: T.muted }}>•</span>
               <span className="text-xs" style={{ color: T.muted }}>{timeAgo(post.created_at)}</span>
@@ -3141,13 +3154,17 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                         avatar_color: reply?.profiles?.avatar_color || reply?.avatar_color || reply?.metadata?.bot_avatar_color || reply?.metadata?.avatar_color || null,
                         email: reply?.profiles?.email || null,
                       };
+                      const isCurrentUserReply = currentUser?.id && reply?.user_id === currentUser.id;
+                      const replyProfileForRender = isCurrentUserReply
+                        ? { ...replyProfile, display_name: resolvedDisplayName }
+                        : replyProfile;
                       return (
                         <div key={reply.id} className="flex gap-2">
-                          <UserAvatar user={replyProfile} size={24} initialsClassName="text-xs" />
+                          <UserAvatar user={replyProfileForRender} size={24} initialsClassName="text-xs" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 text-xs">
                               <span className="font-medium" style={{ color: T.text }}>
-                                {replyProfile.display_name || reply.author_name || 'Trader'}
+                                {replyProfileForRender.display_name || reply.author_name || 'Trader'}
                               </span>
                               <span style={{ color: T.muted }}>{timeAgo(reply.created_at)}</span>
                             </div>
@@ -3258,16 +3275,30 @@ const FeedHeader = ({
   );
 };
 
-const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }) => {
+const LeftRail = ({
+  collapsed,
+  onToggleCollapse,
+  filter,
+  onFilter,
+  currentUser,
+  displayName,
+  isEditingName,
+  editName,
+  setEditName,
+  setIsEditingName,
+  handleSaveName,
+}) => {
   const [feedsOpen, setFeedsOpen] = useState(true);
-  const profileUser = currentUser || {
+  const profileUser = currentUser ? {
+    ...currentUser,
+    display_name: displayName || currentUser.display_name,
+  } : {
     id: 'guest-user',
-    display_name: 'Guest Trader',
+    display_name: displayName || 'Anonymous Trader',
     email: null,
     avatar_url: null,
     avatar_color: null,
   };
-  const profileName = profileUser.display_name || profileUser.email?.split('@')[0] || 'Guest Trader';
 
   return (
     <motion.aside
@@ -3306,6 +3337,33 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
         </div>
       ) : (
         <>
+          <div className="flex items-center gap-3 px-4 py-4 mb-3 border-b border-white/6">
+            <img src={'https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(displayName)} className="w-10 h-10 rounded-full bg-white/10" alt={displayName} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                {isEditingName ? (
+                  <input
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onBlur={handleSaveName}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+                    autoFocus
+                    maxLength={24}
+                    className="bg-white/5 border border-[#58a6ff]/40 rounded px-2 py-0.5 text-sm text-[#e6edf3] outline-none w-full"
+                  />
+                ) : (
+                  <>
+                    <span className="text-sm font-medium text-[#e6edf3] truncate">{displayName}</span>
+                    <button type="button" onClick={() => { setEditName(displayName); setIsEditingName(true); }} className="text-[#7d8590] hover:text-[#58a6ff] transition">
+                      <Pencil className="w-3 h-3" strokeWidth={1.5} />
+                    </button>
+                  </>
+                )}
+              </div>
+              <span className="text-xs text-[#7d8590]">Community Profile</span>
+            </div>
+          </div>
+
           <div className="w-full pt-2">
             <button
               type="button"
@@ -3368,25 +3426,13 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
         </>
       )}
 
-      <div className="mt-auto w-full border-t border-white/5 px-3 py-3">
-        {collapsed ? (
+      {collapsed ? (
+        <div className="mt-auto w-full border-t border-white/5 px-3 py-3">
           <div className="w-full inline-flex items-center justify-center">
             <UserAvatar user={profileUser} size={40} initialsClassName="text-xs" />
           </div>
-        ) : (
-          <div className="w-full rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2 inline-flex items-center gap-2">
-            <UserAvatar user={profileUser} size={40} initialsClassName="text-xs" />
-            <div className="min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: T.text }}>
-                {profileName}
-              </div>
-              <div className="text-[11px] truncate" style={{ color: T.muted }}>
-                Community Profile
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
     </motion.aside>
   );
 };
@@ -4171,6 +4217,19 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [aiSearchResults, setAiSearchResults] = useState([]);
   const [aiSearchPending, setAiSearchPending] = useState([]);
+  const [displayName, setDisplayName] = useState(() => {
+    if (typeof window === 'undefined') return 'Anonymous Trader';
+    try {
+      return window.localStorage.getItem('stratify_display_name') || 'Anonymous Trader';
+    } catch {
+      return 'Anonymous Trader';
+    }
+  });
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const activeDisplayName = String(
+    displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Anonymous Trader'
+  ).trim().slice(0, 24) || 'Anonymous Trader';
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
@@ -4191,6 +4250,16 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     let cancelled = false;
 
     const getUser = async () => {
+      let localDisplayName = '';
+      if (typeof window !== 'undefined') {
+        try {
+          localDisplayName = String(window.localStorage.getItem('stratify_display_name') || '').trim().slice(0, 24);
+          if (localDisplayName) setDisplayName(localDisplayName);
+        } catch {
+          localDisplayName = '';
+        }
+      }
+
       try {
         const {
           data: { user },
@@ -4198,23 +4267,49 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
         if (!user || cancelled) return;
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url, email')
-          .eq('id', user.id)
-          .maybeSingle();
+        let profile = null;
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, display_name, avatar_url, email')
+            .eq('id', user.id)
+            .maybeSingle();
+          profile = data;
+        } catch {
+          profile = null;
+        }
 
         if (cancelled) return;
+
+        const remoteDisplayName = String(profile?.display_name || '').trim().slice(0, 24);
+        const metadataDisplayName = String(user.user_metadata?.full_name || '').trim().slice(0, 24);
+        const emailDisplayName = String(user.email?.split('@')[0] || '').trim().slice(0, 24);
+        const resolvedDisplayName = remoteDisplayName
+          || localDisplayName
+          || metadataDisplayName
+          || emailDisplayName
+          || 'Anonymous Trader';
+
+        setDisplayName(resolvedDisplayName);
+        if (typeof window !== 'undefined') {
+          try {
+            if (remoteDisplayName) {
+              window.localStorage.setItem('stratify_display_name', resolvedDisplayName);
+            }
+          } catch {
+            // localStorage sync is best effort only
+          }
+        }
 
         setCurrentUser({
           id: user.id,
           email: user.email,
-          display_name: profile?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0],
+          display_name: resolvedDisplayName,
           avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url,
           avatar_color: user.user_metadata?.avatar_color || null,
         });
       } catch {
-        // anonymous browsing is allowed for mock feed and read-only mode
+        // fall back to local storage name and anonymous browsing
       }
     };
 
@@ -4224,6 +4319,45 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      if (String(prev.display_name || '').trim() === activeDisplayName) return prev;
+      return { ...prev, display_name: activeDisplayName };
+    });
+  }, [activeDisplayName]);
+
+  const handleSaveName = useCallback(async () => {
+    const trimmedInput = String(editName || '').trim();
+    if (!trimmedInput) {
+      setEditName(activeDisplayName);
+      setIsEditingName(false);
+      return;
+    }
+
+    const trimmedName = trimmedInput.slice(0, 24);
+    setDisplayName(trimmedName);
+    setIsEditingName(false);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('stratify_display_name', trimmedName);
+      } catch {
+        // localStorage sync is best effort only
+      }
+    }
+
+    try {
+      if (currentUser?.id) {
+        await supabase.from('profiles').upsert({
+          id: currentUser.id,
+          display_name: trimmedName,
+        });
+      }
+    } catch {
+      // best effort profile sync; UI should not block on failure
+    }
+  }, [activeDisplayName, currentUser?.id, editName]);
 
   const hydratePosts = useCallback((rows) => {
     return (Array.isArray(rows) ? rows : []).map((post) => ({
@@ -4506,7 +4640,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         .from('community_posts')
         .insert({
           user_id: currentUser.id,
-          author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+          author_name: activeDisplayName,
           content: trimmed,
           image_url: imageUrl,
           ticker_mentions: extractTickers(trimmed),
@@ -4524,7 +4658,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         reaction_summary: [],
         profiles: {
           id: currentUser.id,
-          display_name: currentUser.display_name,
+          display_name: activeDisplayName,
           avatar_url: currentUser.avatar_url,
           avatar_color: currentUser.avatar_color || null,
           email: currentUser.email,
@@ -4537,7 +4671,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       const fallbackLocal = {
         id: `local-post-${Date.now()}`,
         user_id: currentUser.id,
-        author_name: currentUser.display_name || currentUser.email?.split('@')[0] || 'Trader',
+        author_name: activeDisplayName,
         content: trimmed,
         image_url: null,
         ticker_mentions: extractTickers(trimmed),
@@ -4550,7 +4684,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         reaction_summary: [],
         profiles: {
           id: currentUser.id,
-          display_name: currentUser.display_name,
+          display_name: activeDisplayName,
           avatar_url: currentUser.avatar_url,
           avatar_color: currentUser.avatar_color || null,
           email: currentUser.email,
@@ -4563,7 +4697,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     } finally {
       setComposerSubmitting(false);
     }
-  }, [currentUser, prependPost]);
+  }, [activeDisplayName, currentUser, prependPost]);
 
   const handleDeletePost = async (postId, isMock) => {
     const confirmed = window.confirm('Delete this post?');
@@ -4707,6 +4841,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               filter={filter}
               onFilter={setFilter}
               currentUser={currentUser}
+              displayName={activeDisplayName}
+              isEditingName={isEditingName}
+              editName={editName}
+              setEditName={setEditName}
+              setIsEditingName={setIsEditingName}
+              handleSaveName={handleSaveName}
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
@@ -4768,6 +4908,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                               post={post}
                               currentUser={currentUser}
                               onDelete={handleDeletePost}
+                              displayName={activeDisplayName}
                             />
                           ))}
                         </motion.div>
@@ -4800,6 +4941,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         open={composerOpen}
         onClose={() => setComposerOpen(false)}
         currentUser={currentUser}
+        displayName={activeDisplayName}
         closedTrades={closedTrades}
         submitting={composerSubmitting}
         initialPostType={composerInitialType}
