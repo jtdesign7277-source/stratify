@@ -8,9 +8,9 @@ import {
   Heart, MessageCircle, Share2, Send, X, TrendingUp, BarChart3, Bell, Brain,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
-  Compass, Users, Star, Search, ArrowUp, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
+  Compass, Users, Star, Search, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
   Plus, Wand2, Pencil,
-  Activity, EyeOff, GripVertical,
+  Activity, EyeOff, GripVertical, CornerDownLeft,
 } from 'lucide-react';
 
 // ─── Theme Constants ─────────────────────────────────────
@@ -844,6 +844,11 @@ const COMMUNITY_PAGE_STYLES = `
     50% { opacity: 0.34; transform: scale(1.08); }
   }
 
+  @keyframes pulseGlow {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(88,166,255,0.3)); }
+    50% { filter: drop-shadow(0 0 8px rgba(88,166,255,0.6)); }
+  }
+
   .community-pulse {
     animation: communityPulse 3.6s ease-in-out infinite;
   }
@@ -1667,32 +1672,36 @@ const ChatInputBar = ({
           />
 
           <div
-            className="rounded-xl border min-h-[98px] flex flex-col"
+            className="rounded-xl border border-l-2 min-h-[98px] flex flex-col transition-colors duration-200"
             style={{
               backgroundColor: '#151b23',
               borderColor: 'rgba(255,255,255,0.06)',
+              borderLeftColor: searchMode ? '#58a6ff' : 'transparent',
             }}
           >
             <div className="flex flex-1 items-start gap-2.5 px-3.5 pt-3">
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
-                className="mt-1 flex-shrink-0 inline-flex items-center justify-center transition-colors"
-                style={{
-                  color: searchMode ? T.blue : T.muted,
-                }}
+                className="mt-1 flex-shrink-0 inline-flex items-center justify-center text-[#58a6ff] cursor-pointer hover:scale-110 transition-transform duration-200"
+                style={{ animation: 'pulseGlow 2s ease-in-out infinite' }}
                 title={searchMode ? 'Switch to post mode' : 'Switch to search mode'}
               >
                 <Search size={16} strokeWidth={1.5} className="h-4 w-4" />
               </button>
               <Activity size={16} className="mt-1 h-4 w-4 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
+              <span
+                className={`mt-1 text-[10px] uppercase tracking-wider transition-opacity duration-200 ${searchMode ? 'text-[#58a6ff] opacity-100' : 'text-[#7d8590] opacity-90'}`}
+              >
+                {searchMode ? 'SEARCH' : 'POST'}
+              </span>
               <textarea
                 ref={inputRef}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
+                placeholder={searchMode ? 'Search stocks, crypto, news...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
                 className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[56px] max-h-32"
                 style={{ color: T.text }}
                 disabled={!canUseInput}
@@ -1700,23 +1709,25 @@ const ChatInputBar = ({
             </div>
 
             <div className="flex items-center gap-1.5 px-3 py-1.5">
-              <div className="flex items-center gap-1.5">
-                {QUICK_POST_HASHTAGS.map((hashtag) => {
-                  const active = selectedHashtags.includes(hashtag);
-                  return (
-                    <button
-                      key={hashtag}
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => toggleHashtag(hashtag)}
-                      className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
-                      title={hashtag}
-                    >
-                      {hashtag}
-                    </button>
-                  );
-                })}
-              </div>
+              {!searchMode ? (
+                <div className="flex items-center gap-1.5">
+                  {QUICK_POST_HASHTAGS.map((hashtag) => {
+                    const active = selectedHashtags.includes(hashtag);
+                    return (
+                      <button
+                        key={hashtag}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => toggleHashtag(hashtag)}
+                        className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                        title={hashtag}
+                      >
+                        {hashtag}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
 
               <div className="relative ml-auto flex items-center gap-1.5">
                 <button
@@ -1763,13 +1774,15 @@ const ChatInputBar = ({
                   type="button"
                   onClick={() => void send()}
                   disabled={!canUseInput || !message.trim()}
-                  className="inline-flex items-center justify-center disabled:opacity-45 transition-colors"
-                  style={{
-                    color: canUseInput && message.trim() ? T.text : T.muted,
-                  }}
+                  className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-transform duration-200 hover:scale-[1.02]"
                   title={searchMode ? 'Run AI search' : 'Send quick post'}
                 >
-                  <ArrowUp size={16} strokeWidth={1.5} className="h-4 w-4" />
+                  {searchMode ? (
+                    <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
+                  ) : (
+                    <Send size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
+                  )}
+                  <span>{searchMode ? 'Enter' : 'New Post'}</span>
                 </button>
               </div>
             </div>
