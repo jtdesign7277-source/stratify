@@ -10,7 +10,7 @@ import {
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowUp, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
   Plus,
-  Activity, Trophy, Eye, EyeOff, GripVertical,
+  Activity, EyeOff, GripVertical,
 } from 'lucide-react';
 
 // ─── Theme Constants ─────────────────────────────────────
@@ -28,13 +28,6 @@ const T = {
 
 const MARKET_MOVER_SYMBOLS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'META', 'AMZN', 'AMD', 'GOOGL'];
 const DEFAULT_TICKERS = [...MARKET_MOVER_SYMBOLS, 'BTC/USD', 'ETH/USD', 'SPY', 'QQQ'];
-const INDEX_SYMBOLS = [
-  { symbol: 'ES=F', label: 'S&P Futures', short: 'ES' },
-  { symbol: 'NQ=F', label: 'NASDAQ', short: 'NQ' },
-  { symbol: 'YM=F', label: 'Dow', short: 'YM' },
-  { symbol: 'VIX', label: 'VIX', short: 'VIX' },
-  { symbol: 'BTC/USD', label: 'Bitcoin', short: 'BTC' },
-];
 const AI_SEARCH_CLIENT_CACHE_TTL = 15 * 60 * 1000;
 const AI_SEARCH_CLIENT_CACHE = new Map();
 const AI_SEARCH_INFLIGHT = new Map();
@@ -430,53 +423,20 @@ const createSlipCaption = ({ trade, emojis = [], note = '' }) => {
   return lines.join('\n');
 };
 
-const normalizePnlShareSnapshot = (post) => {
-  const pnl = toMaybeFiniteNumber(post?.metadata?.pnl);
-  if (pnl === null) return null;
-  const percentRaw = toMaybeFiniteNumber(post?.metadata?.percent);
-  const ticker = String(post?.metadata?.ticker || '').trim().toUpperCase();
-  const author = post?.profiles?.display_name || post?.author_name || post?.metadata?.display_name || post?.metadata?.author_name || post?.metadata?.username || 'Trader';
-  const avatarUrl = post?.profiles?.avatar_url || post?.metadata?.bot_avatar_url || post?.metadata?.avatar_url || post?.avatar_url || null;
-  const avatarColor = post?.profiles?.avatar_color || post?.avatar_color || post?.metadata?.bot_avatar_color || post?.metadata?.avatar_color || null;
-  return {
-    id: String(post?.id || '').trim() || `${ticker || 'TRADE'}-${post?.created_at || Date.now()}`,
-    ticker: ticker || 'TRADE', pnl, percent: percentRaw, author, createdAt: post?.created_at || null,
-    entryPrice: toMaybeFiniteNumber(post?.metadata?.entry_price ?? post?.metadata?.entryPrice),
-    exitPrice: toMaybeFiniteNumber(post?.metadata?.exit_price ?? post?.metadata?.exitPrice),
-    shares: toMaybeFiniteNumber(post?.metadata?.shares ?? post?.metadata?.qty ?? post?.metadata?.quantity),
-    openedAt: post?.metadata?.opened_at ?? post?.metadata?.openedAt ?? null,
-    closedAt: post?.metadata?.closed_at ?? post?.metadata?.closedAt ?? post?.created_at ?? null,
-    note: String(post?.metadata?.note || '').trim(),
-    user_id: post?.profiles?.id || post?.user_id || null,
-    avatar_url: avatarUrl,
-    avatar_color: avatarColor,
-  };
-};
-
-const TRENDING_BATCH_SIZE = 4;
-const TRENDING_ROTATE_MS = 5000;
-const TRENDING_SUMMARY_EVERY_MS = 30000;
-const TRENDING_SUMMARY_DURATION_MS = 10000;
-const TRENDING_FLASH_MS = 1200;
-const TRENDING_MAX_ROWS = 140;
 const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
 const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
 const WATCHLIST_STORAGE_KEY = 'stratify-community-watchlist';
 const TODAYS_NEWS_REFRESH_MS = 10 * 60 * 1000;
 const TODAYS_NEWS_CLIENT_CACHE_MS = 20 * 1000;
 const TODAYS_NEWS_MAX_ROWS = 8;
-const DEFAULT_SIDEBAR_SECTION_ORDER = ['market-pulse', 'market-movers', 'trending', 'todays-news', 'watchlist'];
+const DEFAULT_SIDEBAR_SECTION_ORDER = ['watchlist', 'todays-news'];
 const LEGACY_SIDEBAR_SECTION_ID_MAP = {
-  'watch-movers': 'market-movers',
-  'trending-slips': 'trending',
+  'watch-movers': 'watchlist',
 };
 const SIDEBAR_SECTION_ID_SET = new Set(DEFAULT_SIDEBAR_SECTION_ORDER);
 const SIDEBAR_SECTION_LABELS = {
-  'market-pulse': 'Market Pulse',
-  'market-movers': 'Market Movers',
-  trending: 'Trending',
-  'todays-news': 'Today\'s News',
   watchlist: 'Watchlist',
+  'todays-news': 'Today\'s News',
 };
 const WATCHLIST_MAX_ROWS = 24;
 const WATCHLIST_SEARCH_LIMIT = 10;
@@ -618,97 +578,6 @@ const formatUpdatedMinutesAgo = (value, now = Date.now()) => {
   return minutes <= 0 ? 'Updated just now' : `Updated ${minutes} min ago`;
 };
 
-const normalizeTrendingSnapshotPayload = (row) => {
-  if (!row || typeof row !== 'object') return null;
-  const pnl = toMaybeFiniteNumber(row?.pnl);
-  if (pnl === null) return null;
-
-  const ticker = String(row?.ticker || row?.symbol || '').trim().toUpperCase() || 'TRADE';
-  const author = String(
-    row?.author
-      || row?.username
-      || row?.display_name
-      || row?.author_name
-      || row?.metadata?.display_name
-      || row?.metadata?.author_name
-      || row?.metadata?.username
-      || 'Trader'
-  ).trim() || 'Trader';
-  const avatarUrl = row?.avatar_url || row?.bot_avatar_url || row?.metadata?.bot_avatar_url || row?.metadata?.avatar_url || null;
-  const avatarColor = row?.avatar_color || row?.bot_avatar_color || row?.metadata?.bot_avatar_color || row?.metadata?.avatar_color || null;
-
-  return {
-    id: String(row?.id || `${ticker}-${row?.createdAt || row?.created_at || Date.now()}`).trim(),
-    ticker,
-    pnl,
-    percent: toMaybeFiniteNumber(row?.percent),
-    author,
-    createdAt: row?.createdAt ?? row?.created_at ?? null,
-    entryPrice: toMaybeFiniteNumber(row?.entryPrice ?? row?.entry_price),
-    exitPrice: toMaybeFiniteNumber(row?.exitPrice ?? row?.exit_price),
-    shares: toMaybeFiniteNumber(row?.shares ?? row?.qty ?? row?.quantity),
-    openedAt: row?.openedAt ?? row?.opened_at ?? null,
-    closedAt: row?.closedAt ?? row?.closed_at ?? row?.createdAt ?? row?.created_at ?? null,
-    note: String(row?.note || '').trim(),
-    user_id: row?.user_id || null,
-    avatar_url: avatarUrl,
-    avatar_color: avatarColor,
-  };
-};
-
-const sanitizeTrendingSnapshots = (rows = []) => {
-  const deduped = new Map();
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const snapshot = normalizeTrendingSnapshotPayload(row);
-    if (!snapshot?.id) return;
-    deduped.set(String(snapshot.id), snapshot);
-  });
-  return [...deduped.values()];
-};
-
-const getSnapshotTimestamp = (snapshot) => {
-  const candidates = [snapshot?.closedAt, snapshot?.createdAt, snapshot?.openedAt];
-  for (const value of candidates) {
-    if (Number.isFinite(value)) return value;
-    const parsed = Date.parse(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return 0;
-};
-
-const isSameCalendarDay = (leftTimestamp, rightTimestamp) => {
-  if (!Number.isFinite(leftTimestamp) || !Number.isFinite(rightTimestamp)) return false;
-  const left = new Date(leftTimestamp);
-  const right = new Date(rightTimestamp);
-  return (
-    left.getUTCFullYear() === right.getUTCFullYear()
-    && left.getUTCMonth() === right.getUTCMonth()
-    && left.getUTCDate() === right.getUTCDate()
-  );
-};
-
-const isSnapshotFromToday = (snapshot, referenceTimestamp = Date.now()) => (
-  isSameCalendarDay(getSnapshotTimestamp(snapshot), referenceTimestamp)
-);
-
-const sortSnapshotsByNewest = (rows = []) => (
-  [...rows].sort((a, b) => getSnapshotTimestamp(b) - getSnapshotTimestamp(a))
-);
-
-const getTopWinningSnapshots = (rows = [], limit = 8) => (
-  [...rows]
-    .filter((item) => toFiniteNumber(item?.pnl) > 0)
-    .sort((a, b) => toFiniteNumber(b?.pnl) - toFiniteNumber(a?.pnl))
-    .slice(0, limit)
-);
-
-const getTopLosingSnapshots = (rows = [], limit = 8) => (
-  [...rows]
-    .filter((item) => toFiniteNumber(item?.pnl) < 0)
-    .sort((a, b) => toFiniteNumber(a?.pnl) - toFiniteNumber(b?.pnl))
-    .slice(0, limit)
-);
-
 const shareToX = (post) => {
   let text = post.content;
   const pnlValue = Number(post?.metadata?.pnl);
@@ -820,72 +689,25 @@ const PostTypeBadge = ({ type }) => {
 const PnLCard = ({ metadata }) => {
   const pnlValue = Number(metadata?.pnl);
   if (!Number.isFinite(pnlValue)) return null;
+
   const isPositive = pnlValue >= 0;
   const percentValue = Number(metadata?.percent);
   const hasPercent = Number.isFinite(percentValue);
-  const entryPrice = Number(metadata?.entry_price ?? metadata?.entryPrice);
-  const exitPrice = Number(metadata?.exit_price ?? metadata?.exitPrice);
-  const openedAt = metadata?.opened_at ?? metadata?.openedAt;
-  const closedAt = metadata?.closed_at ?? metadata?.closedAt;
-  const shares = Number(metadata?.shares ?? metadata?.qty ?? metadata?.quantity);
-  const hasShares = Number.isFinite(shares) && shares > 0;
-  const rawEmoji = metadata?.emoji;
-  const emojis = Array.isArray(rawEmoji) ? rawEmoji : (rawEmoji ? [rawEmoji] : []);
+  const ticker = String(metadata?.ticker || metadata?.symbol || '').trim().toUpperCase();
+  const moveClass = isPositive ? 'text-[#3fb950]' : 'text-[#f85149]';
 
   return (
-    <div className={`mt-3 rounded-xl border overflow-hidden ${isPositive ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'}`}>
-      <div className="p-2 border-b border-white/5 flex items-center justify-between">
-        <div className="text-xs tracking-[0.14em] uppercase text-gray-500">Stratify Bet Slip</div>
-        {emojis.length > 0 && <div className="text-lg leading-none">{emojis.join(' ')}</div>}
-      </div>
-      <div className="p-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-gray-500">
-              {metadata?.ticker ? `$${metadata.ticker}` : 'Portfolio'}
-            </div>
-            <div className={`text-lg font-semibold font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatSignedCurrency(pnlValue)}
-            </div>
-          </div>
-          {hasPercent && (
-            <div className={`text-lg font-semibold font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatSignedPercent(percentValue)}
-            </div>
-          )}
-        </div>
-        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-300">
-          {Number.isFinite(entryPrice) && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Entry</div>
-              <div className="font-mono">{formatCurrency(entryPrice)}</div>
-            </div>
-          )}
-          {Number.isFinite(exitPrice) && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Exit</div>
-              <div className="font-mono">{formatCurrency(exitPrice)}</div>
-            </div>
-          )}
-          {openedAt && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Bought</div>
-              <div>{formatDateTime(openedAt)}</div>
-            </div>
-          )}
-          {closedAt && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Sold</div>
-              <div>{formatDateTime(closedAt)}</div>
-            </div>
-          )}
-          {hasShares && (
-            <div className="rounded-lg border border-white/10 bg-black/20 p-2 sm:col-span-2">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Size</div>
-              <div className="font-mono">{shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares</div>
-            </div>
-          )}
-        </div>
+    <div className="mt-2">
+      <div className="flex items-center gap-3 py-1.5 px-2 rounded-md bg-white/3 border border-white/6">
+        <span className="text-xs font-medium text-white">
+          {ticker ? `$${ticker}` : 'P&L'}
+        </span>
+        <span className={`text-sm font-semibold ${moveClass}`}>
+          {formatSignedCurrency(pnlValue)}
+        </span>
+        <span className={`ml-auto text-xs font-medium ${moveClass}`}>
+          {hasPercent ? formatSignedPercent(percentValue) : '--'}
+        </span>
       </div>
     </div>
   );
@@ -998,8 +820,6 @@ const normalizeSymbolKey = (value) => {
   if (raw.includes(':')) return raw.split(':').pop().replace(/^\$+/, '');
   return raw;
 };
-
-const isFuturesSymbol = (value) => normalizeSymbolKey(value).endsWith('=F');
 
 const normalizeWatchlistEntry = (row) => {
   const symbol = normalizeSymbolKey(row?.symbol || row?.ticker || row?.code);
@@ -1764,7 +1584,7 @@ const ChatInputBar = ({
           />
 
           <div
-            className="rounded-xl border px-3.5 pt-3 pb-2.5 min-h-[98px]"
+            className="rounded-xl border px-3.5 pt-3 pb-3 min-h-[98px]"
             style={{
               backgroundColor: '#151b23',
               borderColor: 'rgba(255,255,255,0.06)',
@@ -2005,100 +1825,6 @@ const AiSearchResultCard = ({
         </div>
       ) : null}
     </motion.article>
-  );
-};
-
-const PnlShowcaseOverlay = ({ snapshot, onClose }) => {
-  const hideRef = useRef(null);
-
-  useEffect(() => {
-    if (!snapshot) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      if (hideRef.current) {
-        clearTimeout(hideRef.current);
-        hideRef.current = null;
-      }
-    };
-  }, [snapshot, onClose]);
-
-  return (
-    <AnimatePresence>
-      {snapshot ? (
-        <motion.div
-          initial={{ opacity: 0, y: 12, x: 12 }}
-          animate={{ opacity: 1, y: 0, x: 0 }}
-          exit={{ opacity: 0, y: 8, x: 8 }}
-          className="fixed right-3 bottom-3 sm:right-5 sm:bottom-5 z-[120]"
-        >
-          <motion.div
-            initial={{ scale: 0.98 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            onMouseEnter={() => {
-              if (hideRef.current) {
-                clearTimeout(hideRef.current);
-                hideRef.current = null;
-              }
-            }}
-            onMouseLeave={() => {
-              hideRef.current = setTimeout(() => onClose?.(), 140);
-            }}
-            className="w-[min(340px,calc(100vw-1rem))] rounded-xl border overflow-hidden"
-            style={{
-              borderColor: Number(snapshot?.pnl) >= 0 ? 'rgba(63,185,80,0.45)' : 'rgba(248,81,73,0.45)',
-              background: Number(snapshot?.pnl) >= 0
-                ? 'linear-gradient(145deg, rgba(22,36,28,0.96), rgba(13,17,23,0.97))'
-                : 'linear-gradient(145deg, rgba(41,20,23,0.96), rgba(13,17,23,0.97))',
-              boxShadow: '0 22px 52px rgba(0,0,0,0.46)',
-            }}
-          >
-            <div className="px-3 py-2.5 border-b flex items-start justify-between" style={{ borderColor: T.border }}>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.16em]" style={{ color: T.muted }}>Live Slip Spotlight</div>
-                <div className="text-lg font-semibold">${snapshot.ticker}</div>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-7 px-2 rounded-md border text-[10px]"
-                style={{ borderColor: T.border, color: T.muted }}
-              >
-                CLOSE
-              </button>
-            </div>
-
-            <div className="p-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border p-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}>
-                <div style={{ color: T.muted }} className="text-[10px] uppercase tracking-[0.13em]">P&L</div>
-                <div className="font-semibold font-mono" style={{ color: Number(snapshot?.pnl) >= 0 ? T.green : T.red }}>
-                  {formatSignedCurrency(snapshot?.pnl)}
-                </div>
-              </div>
-              <div className="rounded-lg border p-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}>
-                <div style={{ color: T.muted }} className="text-[10px] uppercase tracking-[0.13em]">Return</div>
-                <div className="font-semibold font-mono" style={{ color: Number(snapshot?.percent) >= 0 ? T.green : T.red }}>
-                  {Number.isFinite(snapshot?.percent) ? formatSignedPercent(snapshot.percent) : '--'}
-                </div>
-              </div>
-              <div className="rounded-lg border p-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}>
-                <div style={{ color: T.muted }} className="text-[10px] uppercase tracking-[0.13em]">Entry</div>
-                <div className="font-mono">{Number.isFinite(snapshot?.entryPrice) ? formatCurrency(snapshot.entryPrice) : '--'}</div>
-              </div>
-              <div className="rounded-lg border p-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}>
-                <div style={{ color: T.muted }} className="text-[10px] uppercase tracking-[0.13em]">Exit</div>
-                <div className="font-mono">{Number.isFinite(snapshot?.exitPrice) ? formatCurrency(snapshot.exitPrice) : '--'}</div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
   );
 };
 
@@ -3212,11 +2938,16 @@ const SidebarSection = ({
   headerMeta,
   onDragHandlePointerDown,
   isDragging = false,
+  className = '',
+  bodyClassName = '',
 }) => {
   const VisibilityIcon = onToggleVisibility ? X : EyeOff;
 
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
+    <div
+      className={`rounded-xl border overflow-hidden ${className}`.trim()}
+      style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}
+    >
       <div className="px-3 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: T.border }}>
         <div className="inline-flex items-center gap-2 min-w-0 flex-1">
           <button
@@ -3279,9 +3010,9 @@ const SidebarSection = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+            className="overflow-hidden flex-1 min-h-0"
           >
-            <div className="p-3">{children}</div>
+            <div className={`p-3 ${bodyClassName}`.trim()}>{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -3294,6 +3025,9 @@ const DraggableSidebarSection = ({
   isDragging,
   onDragStateChange,
   children,
+  wrapperClassName = '',
+  sectionClassName = '',
+  sectionBodyClassName = '',
   ...sectionProps
 }) => {
   const dragControls = useDragControls();
@@ -3311,7 +3045,7 @@ const DraggableSidebarSection = ({
         zIndex: 30,
       }}
       transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
-      className="list-none"
+      className={`list-none ${wrapperClassName}`.trim()}
       style={{ position: 'relative' }}
       onDragStart={() => onDragStateChange(sectionId)}
       onDragEnd={() => onDragStateChange(null)}
@@ -3320,6 +3054,8 @@ const DraggableSidebarSection = ({
         {...sectionProps}
         isDragging={isDragging}
         onDragHandlePointerDown={(event) => dragControls.start(event)}
+        className={sectionClassName}
+        bodyClassName={sectionBodyClassName}
       >
         {children}
       </SidebarSection>
@@ -3327,21 +3063,10 @@ const DraggableSidebarSection = ({
   );
 };
 
-const RightSidebar = ({
-  streamStatus,
-  quoteMap,
-  trackedSymbols,
-  trendingSlips,
-  topWins,
-  topLosses,
-  onSelectSnapshot,
-}) => {
+const RightSidebar = ({ quoteMap }) => {
   const [openSections, setOpenSections] = useState({
-    'market-pulse': true,
-    'market-movers': true,
-    trending: true,
-    'todays-news': true,
     watchlist: true,
+    'todays-news': true,
   });
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SIDEBAR_SECTION_ORDER);
   const [sectionVisibility, setSectionVisibility] = useState(
@@ -3349,9 +3074,6 @@ const RightSidebar = ({
   );
   const [layoutPrefsHydrated, setLayoutPrefsHydrated] = useState(false);
   const [draggingSectionId, setDraggingSectionId] = useState(null);
-  const [trendPageIndex, setTrendPageIndex] = useState(0);
-  const [trendMode, setTrendMode] = useState('live');
-  const [trendFlashById, setTrendFlashById] = useState({});
   const [watchlistRows, setWatchlistRows] = useState([]);
   const [watchlistQuery, setWatchlistQuery] = useState('');
   const [watchlistResults, setWatchlistResults] = useState([]);
@@ -3361,29 +3083,10 @@ const RightSidebar = ({
   const [todaysNewsLoading, setTodaysNewsLoading] = useState(true);
   const [todaysNewsUpdatedAt, setTodaysNewsUpdatedAt] = useState(null);
   const [todaysNewsClockTick, setTodaysNewsClockTick] = useState(Date.now());
-  const previousTrendingIdsRef = useRef([]);
-  const trendFlashTimersRef = useRef(new Map());
   const watchlistHydratedRef = useRef(false);
   const previousWatchlistSymbolsRef = useRef([]);
   const watchlistLookupRef = useRef(null);
 
-  const liveSlipRows = useMemo(
-    () => sortSnapshotsByNewest(sanitizeTrendingSnapshots(trendingSlips)).slice(0, TRENDING_MAX_ROWS),
-    [trendingSlips],
-  );
-
-  const pagedLiveRows = useMemo(() => {
-    if (liveSlipRows.length === 0) return [];
-    const pages = [];
-    for (let i = 0; i < liveSlipRows.length; i += TRENDING_BATCH_SIZE) {
-      pages.push(liveSlipRows.slice(i, i + TRENDING_BATCH_SIZE));
-    }
-    return pages;
-  }, [liveSlipRows]);
-
-  const activeLiveRows = pagedLiveRows[trendPageIndex] || [];
-  const summaryWins = topWins.slice(0, 3);
-  const summaryLosses = topLosses.slice(0, 3);
   const todaysNewsUpdatedLabel = useMemo(
     () => formatUpdatedMinutesAgo(todaysNewsUpdatedAt, todaysNewsClockTick),
     [todaysNewsUpdatedAt, todaysNewsClockTick],
@@ -3396,16 +3099,11 @@ const RightSidebar = ({
     () => sectionOrder.filter((sectionId) => !sectionVisibility[sectionId]),
     [sectionOrder, sectionVisibility],
   );
-  const marketMoverSymbols = useMemo(
-    () => MARKET_MOVER_SYMBOLS
-      .map(normalizeSymbolKey)
-      .filter((symbol) => trackedSymbols.includes(symbol)),
-    [trackedSymbols],
-  );
   const watchlistSymbols = useMemo(
     () => watchlistRows.map((row) => row.symbol).filter(Boolean),
     [watchlistRows],
   );
+
   const fetchWatchlistQuotes = useCallback(async (symbols) => {
     const targetSymbols = [...new Set((Array.isArray(symbols) ? symbols : [symbols]).map(normalizeSymbolKey).filter(Boolean))];
     if (targetSymbols.length === 0) return;
@@ -3519,12 +3217,10 @@ const RightSidebar = ({
         dayChangePercent: update?.dayChangePercent ?? update?.percentChange ?? null,
       });
 
-      setWatchlistQuoteMap((prev) => {
-        return {
-          ...prev,
-          [symbol]: mergeStreamQuote(prev[symbol] || {}, update, symbol),
-        };
-      });
+      setWatchlistQuoteMap((prev) => ({
+        ...prev,
+        [symbol]: mergeStreamQuote(prev[symbol] || {}, update, symbol),
+      }));
     });
 
     return () => {
@@ -3668,98 +3364,17 @@ const RightSidebar = ({
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    setTrendPageIndex((prev) => {
-      if (pagedLiveRows.length === 0) return 0;
-      return prev >= pagedLiveRows.length ? 0 : prev;
-    });
-  }, [pagedLiveRows.length]);
-
-  useEffect(() => {
-    if (!openSections.trending || trendMode !== 'live') return undefined;
-    if (pagedLiveRows.length <= 1) return undefined;
-
-    const timer = setInterval(() => {
-      setTrendPageIndex((prev) => (prev + 1) % pagedLiveRows.length);
-    }, TRENDING_ROTATE_MS);
-
-    return () => clearInterval(timer);
-  }, [openSections.trending, trendMode, pagedLiveRows.length]);
-
-  useEffect(() => {
-    if (!openSections.trending) {
-      setTrendMode('live');
-      return undefined;
-    }
-
-    let holdTimer = null;
-    const cycleTimer = setInterval(() => {
-      setTrendMode('summary');
-      holdTimer = setTimeout(() => {
-        setTrendMode('live');
-      }, TRENDING_SUMMARY_DURATION_MS);
-    }, TRENDING_SUMMARY_EVERY_MS);
-
-    return () => {
-      clearInterval(cycleTimer);
-      if (holdTimer) clearTimeout(holdTimer);
-    };
-  }, [openSections.trending]);
-
-  useEffect(() => {
-    const previousIds = previousTrendingIdsRef.current;
-    const nextIds = liveSlipRows.map((row) => String(row.id));
-    if (previousIds.length === 0) {
-      previousTrendingIdsRef.current = nextIds;
-      return;
-    }
-
-    const previousSet = new Set(previousIds);
-    const incomingRows = liveSlipRows.filter((row) => !previousSet.has(String(row.id))).slice(0, TRENDING_BATCH_SIZE);
-    if (incomingRows.length > 0) {
-      setTrendFlashById((prev) => {
-        const next = { ...prev };
-        incomingRows.forEach((row) => {
-          next[String(row.id)] = toFiniteNumber(row?.pnl) >= 0 ? 'win' : 'loss';
-        });
-        return next;
-      });
-
-      incomingRows.forEach((row) => {
-        const key = String(row.id);
-        if (trendFlashTimersRef.current.has(key)) {
-          clearTimeout(trendFlashTimersRef.current.get(key));
-        }
-        const timer = setTimeout(() => {
-          setTrendFlashById((prev) => {
-            if (!prev[key]) return prev;
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-          trendFlashTimersRef.current.delete(key);
-        }, TRENDING_FLASH_MS);
-        trendFlashTimersRef.current.set(key, timer);
-      });
-    }
-
-    previousTrendingIdsRef.current = nextIds;
-  }, [liveSlipRows]);
-
-  useEffect(() => () => {
-    trendFlashTimersRef.current.forEach((timer) => clearTimeout(timer));
-    trendFlashTimersRef.current.clear();
-  }, []);
-
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
   const toggleSectionVisibility = (sectionId) => {
     setSectionVisibility((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
   };
+
   const handleSectionReorder = (nextVisibleOrder) => {
     setSectionOrder((prevOrder) => {
       const normalizedPrevOrder = normalizeSidebarSectionOrder(prevOrder);
@@ -3788,31 +3403,6 @@ const RightSidebar = ({
         return nextSectionId || sectionId;
       });
     });
-  };
-
-  const renderQuoteRow = (symbol, label = symbol) => {
-    const quote = quoteMap?.[normalizeSymbolKey(symbol)] || null;
-    const percent = toMaybeFiniteNumber(quote?.percentChange);
-    const moveColor = percent === null ? T.muted : (percent >= 0 ? T.green : T.red);
-
-    return (
-      <div
-        key={symbol}
-        className="rounded-lg border px-2.5 py-2 flex items-center justify-between"
-        style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.65)' }}
-      >
-        <div className="min-w-0 pr-2">
-          <div className="text-xs font-semibold truncate">{label}</div>
-          <div className="text-[11px]" style={{ color: T.muted }}>{symbol}</div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <div className="text-xs font-mono">{quote?.price !== undefined && quote?.price !== null ? formatPrice(quote.price) : '--'}</div>
-          <div className="text-[11px] font-mono" style={{ color: moveColor }}>
-            {percent === null ? '--' : formatSignedPercent(percent)}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const addWatchlistSymbol = (row) => {
@@ -3904,214 +3494,6 @@ const RightSidebar = ({
   );
 
   const renderDraggableSection = (sectionId) => {
-    if (sectionId === 'market-pulse') {
-      return (
-        <DraggableSidebarSection
-          key={sectionId}
-          sectionId={sectionId}
-          title="Market Pulse"
-          subtitle={streamStatus?.connected ? 'Streaming live prices' : streamStatus?.connecting ? 'Connecting stream' : 'Fallback mode'}
-          icon={Activity}
-          open={openSections['market-pulse']}
-          onToggle={() => toggleSection('market-pulse')}
-          onToggleVisibility={() => toggleSectionVisibility('market-pulse')}
-          isDragging={draggingSectionId === sectionId}
-          onDragStateChange={setDraggingSectionId}
-        >
-          <div className="space-y-2">
-            {INDEX_SYMBOLS.map((item) => renderQuoteRow(item.symbol, item.label))}
-          </div>
-        </DraggableSidebarSection>
-      );
-    }
-
-    if (sectionId === 'market-movers') {
-      return (
-        <DraggableSidebarSection
-          key={sectionId}
-          sectionId={sectionId}
-          title="Market Movers"
-          subtitle="Top movers today"
-          icon={Eye}
-          open={openSections['market-movers']}
-          onToggle={() => toggleSection('market-movers')}
-          onToggleVisibility={() => toggleSectionVisibility('market-movers')}
-          isDragging={draggingSectionId === sectionId}
-          onDragStateChange={setDraggingSectionId}
-        >
-          <div className="space-y-2 max-h-52 overflow-y-auto">
-            {marketMoverSymbols
-              .filter((symbol) => !isFuturesSymbol(symbol))
-              .slice(0, 12)
-              .map((symbol) => renderQuoteRow(symbol, symbol))}
-          </div>
-        </DraggableSidebarSection>
-      );
-    }
-
-    if (sectionId === 'trending') {
-      return (
-        <DraggableSidebarSection
-          key={sectionId}
-          sectionId={sectionId}
-          title="Trending"
-          subtitle="What the community is watching"
-          icon={Trophy}
-          open={openSections.trending}
-          onToggle={() => toggleSection('trending')}
-          onToggleVisibility={() => toggleSectionVisibility('trending')}
-          isDragging={draggingSectionId === sectionId}
-          onDragStateChange={setDraggingSectionId}
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            {trendMode === 'summary' ? (
-              <motion.div
-                key="trend-summary"
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 18 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                className="space-y-2.5"
-              >
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.green }}>Top Wins</div>
-                  <div className="divide-y divide-white/5">
-                    {summaryWins.length === 0 ? (
-                      <div className="py-2 text-xs" style={{ color: T.muted }}>No winning slips yet.</div>
-                    ) : summaryWins.map((row) => {
-                      const snapshotUser = {
-                        id: row?.user_id || row?.id || row?.author || null,
-                        display_name: row?.author || 'Trader',
-                        avatar_url: row?.avatar_url || null,
-                        avatar_color: row?.avatar_color || null,
-                        email: null,
-                      };
-
-                      return (
-                        <button
-                          key={`summary-win-${row.id}`}
-                          type="button"
-                          onClick={() => onSelectSnapshot?.(row)}
-                          className="w-full py-2 text-left"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex items-center gap-2.5">
-                              <UserAvatar user={snapshotUser} size={24} initialsClassName="text-[10px]" />
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
-                                <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
-                              </div>
-                            </div>
-                            <span className="font-mono text-sm" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.red }}>Top Losses</div>
-                  <div className="divide-y divide-white/5">
-                    {summaryLosses.length === 0 ? (
-                      <div className="py-2 text-xs" style={{ color: T.muted }}>No losing slips yet.</div>
-                    ) : summaryLosses.map((row) => {
-                      const snapshotUser = {
-                        id: row?.user_id || row?.id || row?.author || null,
-                        display_name: row?.author || 'Trader',
-                        avatar_url: row?.avatar_url || null,
-                        avatar_color: row?.avatar_color || null,
-                        email: null,
-                      };
-
-                      return (
-                        <button
-                          key={`summary-loss-${row.id}`}
-                          type="button"
-                          onClick={() => onSelectSnapshot?.(row)}
-                          className="w-full py-2 text-left"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 flex items-center gap-2.5">
-                              <UserAvatar user={snapshotUser} size={24} initialsClassName="text-[10px]" />
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
-                                <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
-                              </div>
-                            </div>
-                            <span className="font-mono text-sm" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key={`trend-live-${trendPageIndex}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="divide-y divide-white/5"
-              >
-                {activeLiveRows.length === 0 ? (
-                  <div className="py-2 text-xs" style={{ color: T.muted }}>No live slips yet.</div>
-                ) : activeLiveRows.map((row, index) => {
-                  const flash = trendFlashById[String(row.id)] || null;
-                  const snapshotUser = {
-                    id: row?.user_id || row?.id || row?.author || null,
-                    display_name: row?.author || 'Trader',
-                    avatar_url: row?.avatar_url || null,
-                    avatar_color: row?.avatar_color || null,
-                    email: null,
-                  };
-                  return (
-                    <motion.button
-                      key={`trend-live-row-${row.id}`}
-                      type="button"
-                      onClick={() => onSelectSnapshot?.(row)}
-                      className="relative w-full py-2 text-left"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                    >
-                      {flash ? (
-                        <motion.span
-                          key={`${row.id}-flash-${flash}`}
-                          className="pointer-events-none absolute inset-0 rounded-sm border"
-                          initial={{ opacity: 0.9 }}
-                          animate={{ opacity: 0 }}
-                          transition={{ duration: TRENDING_FLASH_MS / 1000 }}
-                          style={{ borderColor: flash === 'win' ? T.green : T.red }}
-                        />
-                      ) : null}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex items-center gap-2.5">
-                          <UserAvatar user={snapshotUser} size={24} initialsClassName="text-[10px]" />
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
-                            <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
-                          </div>
-                        </div>
-                        <span
-                          className="font-mono text-sm flex-shrink-0"
-                          style={{ color: toFiniteNumber(row?.pnl) >= 0 ? T.green : T.red }}
-                        >
-                          {formatSignedCurrency(row.pnl)}
-                        </span>
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </DraggableSidebarSection>
-      );
-    }
-
     if (sectionId === 'todays-news') {
       return (
         <DraggableSidebarSection
@@ -4126,47 +3508,51 @@ const RightSidebar = ({
           onToggleVisibility={() => toggleSectionVisibility('todays-news')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
+          wrapperClassName="flex-shrink-0"
+          sectionClassName="flex flex-col"
         >
-          {todaysNewsLoading && todaysNewsRows.length === 0 ? (
-            renderTodaysNewsSkeletonRows()
-          ) : todaysNewsRows.length === 0 ? (
-            <div className="py-2 px-2 text-xs" style={{ color: T.muted }}>
-              No trending stories available right now.
-            </div>
-          ) : (
-            <div className="divide-y divide-white/5">
-              {todaysNewsRows.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    if (item.url) {
-                      window.open(item.url, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                  className="w-full py-3 px-2 text-left hover:bg-white/[0.03] transition-colors"
-                >
-                  <div
-                    className="text-sm font-semibold text-[#e6edf3]"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
+          <div className="max-h-[260px] overflow-y-auto pr-1 -mr-1">
+            {todaysNewsLoading && todaysNewsRows.length === 0 ? (
+              renderTodaysNewsSkeletonRows()
+            ) : todaysNewsRows.length === 0 ? (
+              <div className="py-2 px-2 text-xs" style={{ color: T.muted }}>
+                No trending stories available right now.
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {todaysNewsRows.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (item.url) {
+                        window.open(item.url, '_blank', 'noopener,noreferrer');
+                      }
                     }}
+                    className="w-full py-3 px-2 text-left hover:bg-white/[0.03] transition-colors"
                   >
-                    {item.headline}
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2 flex-wrap min-w-0">
-                    {renderTodaysNewsSourceIcons(item.sources)}
-                    <span className="text-xs text-[#58a6ff]">{item.trendingLabel || 'Trending now'}</span>
-                    <span className="text-xs text-[#7d8590]">{item.category}</span>
-                    <span className="text-xs text-[#7d8590]">{item.postCount}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+                    <div
+                      className="text-sm font-semibold text-[#e6edf3]"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {item.headline}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap min-w-0">
+                      {renderTodaysNewsSourceIcons(item.sources)}
+                      <span className="text-xs text-[#58a6ff]">{item.trendingLabel || 'Trending now'}</span>
+                      <span className="text-xs text-[#7d8590]">{item.category}</span>
+                      <span className="text-xs text-[#7d8590]">{item.postCount}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </DraggableSidebarSection>
       );
     }
@@ -4186,9 +3572,12 @@ const RightSidebar = ({
           onToggleVisibility={() => toggleSectionVisibility('watchlist')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
+          wrapperClassName={openSections.watchlist ? 'flex-1 min-h-0' : ''}
+          sectionClassName={openSections.watchlist ? 'h-full flex flex-col' : ''}
+          sectionBodyClassName={openSections.watchlist ? 'h-full min-h-0 flex flex-col' : ''}
         >
-          <div className="space-y-2">
-            <div className="relative">
+          <div className="h-full min-h-0 flex flex-col gap-2">
+            <div className="relative flex-shrink-0">
               <input
                 type="text"
                 value={watchlistQuery}
@@ -4232,7 +3621,7 @@ const RightSidebar = ({
               ) : null}
             </div>
 
-            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
               {watchlistRows.length === 0 ? (
                 <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
                   Search above to add symbols.
@@ -4254,7 +3643,7 @@ const RightSidebar = ({
       transition={{ duration: 0.22 }}
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
+      <div className="flex-1 min-h-0 pr-1 flex flex-col gap-3">
         {hiddenSectionOrder.length > 0 ? (
           <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
             <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: T.muted }}>
@@ -4288,7 +3677,7 @@ const RightSidebar = ({
             axis="y"
             values={visibleSectionOrder}
             onReorder={handleSectionReorder}
-            className="space-y-3"
+            className="flex-1 min-h-0 flex flex-col gap-3"
           >
             {visibleSectionOrder.map((sectionId) => renderDraggableSection(sectionId))}
           </Reorder.Group>
@@ -4312,12 +3701,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [composerInitialType, setComposerInitialType] = useState('general');
   const [quoteMap, setQuoteMap] = useState({});
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
-  const [showcaseTrade, setShowcaseTrade] = useState(null);
   const [aiSearchResults, setAiSearchResults] = useState([]);
   const [aiSearchPending, setAiSearchPending] = useState([]);
-  const [cachedTrendingSlips, setCachedTrendingSlips] = useState([]);
-  const [cachedTopWins, setCachedTopWins] = useState([]);
-  const [cachedTopLosses, setCachedTopLosses] = useState([]);
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
@@ -4369,53 +3754,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
     return () => {
       cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    const fetchTrendingCache = async () => {
-      const endpoints = ['/api/community/trending-slips.js', '/api/community/trending-slips'];
-
-      for (const endpoint of endpoints) {
-        try {
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            cache: 'no-store',
-            signal: controller.signal,
-          });
-
-          if (!response.ok) {
-            if (response.status === 404) continue;
-            return;
-          }
-
-          const payload = await response.json().catch(() => null);
-          if (!payload || cancelled) return;
-
-          const slips = sortSnapshotsByNewest(sanitizeTrendingSnapshots(payload?.slips || []));
-          const wins = getTopWinningSnapshots(sanitizeTrendingSnapshots(payload?.topWins || []), 8);
-          const losses = getTopLosingSnapshots(sanitizeTrendingSnapshots(payload?.topLosses || []), 8);
-
-          if (cancelled) return;
-          if (slips.length > 0) setCachedTrendingSlips(slips.slice(0, TRENDING_MAX_ROWS));
-          if (wins.length > 0) setCachedTopWins(wins);
-          if (losses.length > 0) setCachedTopLosses(losses);
-          return;
-        } catch (cacheError) {
-          if (cacheError?.name === 'AbortError') return;
-        }
-      }
-    };
-
-    void fetchTrendingCache();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
     };
   }, []);
 
@@ -4557,11 +3895,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, [currentUser?.id, prependPost]);
 
   const trackedSymbols = useMemo(() => {
-    const set = new Set([
-      ...DEFAULT_TICKERS,
-      ...MARKET_MOVER_SYMBOLS,
-      ...INDEX_SYMBOLS.map((item) => item.symbol),
-    ]);
+    const set = new Set(DEFAULT_TICKERS);
     mentionSymbolsFromPosts(posts).forEach((symbol) => set.add(symbol));
     return [...set].map(normalizeSymbolKey).filter(Boolean).slice(0, 48);
   }, [posts]);
@@ -4874,38 +4208,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return rows;
   }, [posts, filter, search]);
 
-  const liveTodaySnapshots = useMemo(() => (
-    sortSnapshotsByNewest(
-      posts
-        .filter((post) => !post?.is_mock)
-        .map((post) => normalizePnlShareSnapshot(post))
-        .filter(Boolean)
-        .filter((snapshot) => isSnapshotFromToday(snapshot))
-    ).slice(0, TRENDING_MAX_ROWS)
-  ), [posts]);
-
-  const trendingSlips = useMemo(() => (
-    liveTodaySnapshots.length > 0
-      ? liveTodaySnapshots
-      : sortSnapshotsByNewest(cachedTrendingSlips).slice(0, TRENDING_MAX_ROWS)
-  ), [liveTodaySnapshots, cachedTrendingSlips]);
-
-  const topWins = useMemo(() => (
-    liveTodaySnapshots.length > 0
-      ? getTopWinningSnapshots(liveTodaySnapshots, 8)
-      : (cachedTopWins.length > 0
-          ? getTopWinningSnapshots(cachedTopWins, 8)
-          : getTopWinningSnapshots(trendingSlips, 8))
-  ), [liveTodaySnapshots, cachedTopWins, trendingSlips]);
-
-  const topLosses = useMemo(() => (
-    liveTodaySnapshots.length > 0
-      ? getTopLosingSnapshots(liveTodaySnapshots, 8)
-      : (cachedTopLosses.length > 0
-          ? getTopLosingSnapshots(cachedTopLosses, 8)
-          : getTopLosingSnapshots(trendingSlips, 8))
-  ), [liveTodaySnapshots, cachedTopLosses, trendingSlips]);
-
   const openComposer = (type = 'general') => {
     setComposerInitialType(type);
     setComposerOpen(true);
@@ -5018,15 +4320,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   </div>
                 </div>
 
-                <RightSidebar
-                  streamStatus={streamStatus}
-                  quoteMap={quoteMap}
-                  trackedSymbols={trackedSymbols}
-                  trendingSlips={trendingSlips}
-                  topWins={topWins}
-                  topLosses={topLosses}
-                  onSelectSnapshot={setShowcaseTrade}
-                />
+                <RightSidebar quoteMap={quoteMap} />
               </div>
             </div>
           </div>
@@ -5043,8 +4337,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         initialPostType={composerInitialType}
         onSubmit={createPost}
       />
-
-      <PnlShowcaseOverlay snapshot={showcaseTrade} onClose={() => setShowcaseTrade(null)} />
     </div>
   );
 };

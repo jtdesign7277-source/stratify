@@ -449,7 +449,7 @@ const TopBarTickerTapeWidget = ({ symbols }) => {
     <div
       id={TOPBAR_TICKER_TAPE_CONTAINER_ID}
       ref={containerRef}
-      className="tradingview-widget-container h-9 w-full bg-transparent"
+      className="tradingview-widget-container h-full w-full bg-transparent"
     />
   );
 };
@@ -2106,7 +2106,7 @@ export default function Dashboard({
               className="absolute inset-x-0 top-0 h-9 border-b border-[rgba(255,255,255,0.06)] bg-transparent"
             >
               <div className="relative h-full w-full">
-                <div className="h-full pr-28">
+                <div className="h-full pr-28 pb-[2px]">
                   <TopBarTickerTapeWidget symbols={topBarTickerTapeSymbols} />
                 </div>
 
