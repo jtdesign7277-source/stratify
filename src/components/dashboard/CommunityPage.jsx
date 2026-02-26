@@ -254,9 +254,10 @@ const ShimmerBlock = ({ lines = 3, className = '' }) => (
 );
 
 // ─── Avatar Component ─────────────────────────────────────
-const UserAvatar = ({ user, size = 40 }) => {
+const UserAvatar = ({ user, size = 40, initialsClassName = '' }) => {
   const initials = (user?.display_name || user?.email || '?')
     .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const initialsStyle = initialsClassName ? undefined : { fontSize: size * 0.36 };
 
   if (user?.avatar_url) {
     return (
@@ -275,7 +276,7 @@ const UserAvatar = ({ user, size = 40 }) => {
   return (
     <div className={`rounded-full bg-gradient-to-br ${colors[colorIdx]} flex items-center justify-center flex-shrink-0`}
       style={{ width: size, height: size }}>
-      <span className="text-white font-bold" style={{ fontSize: size * 0.36 }}>{initials}</span>
+      <span className={`text-white font-bold ${initialsClassName}`.trim()} style={initialsStyle}>{initials}</span>
     </div>
   );
 };
@@ -316,17 +317,17 @@ const PnLCard = ({ metadata }) => {
 
   return (
     <div className={`mt-3 rounded-xl border overflow-hidden ${isPositive ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'}`}>
-      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+      <div className="p-2 border-b border-white/5 flex items-center justify-between">
         <div className="text-xs tracking-[0.14em] uppercase text-gray-500">Stratify Bet Slip</div>
         {emojis.length > 0 && <div className="text-lg leading-none">{emojis.join(' ')}</div>}
       </div>
-      <div className="p-4">
+      <div className="p-2">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[11px] uppercase tracking-[0.14em] text-gray-500">
               {metadata?.ticker ? `$${metadata.ticker}` : 'Portfolio'}
             </div>
-            <div className={`text-2xl font-semibold font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className={`text-lg font-semibold font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatSignedCurrency(pnlValue)}
             </div>
           </div>
@@ -336,33 +337,33 @@ const PnLCard = ({ metadata }) => {
             </div>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-gray-300">
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-300">
           {Number.isFinite(entryPrice) && (
-            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
               <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Entry</div>
               <div className="font-mono">{formatCurrency(entryPrice)}</div>
             </div>
           )}
           {Number.isFinite(exitPrice) && (
-            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
               <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Exit</div>
               <div className="font-mono">{formatCurrency(exitPrice)}</div>
             </div>
           )}
           {openedAt && (
-            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
               <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Bought</div>
               <div>{formatDateTime(openedAt)}</div>
             </div>
           )}
           {closedAt && (
-            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-2">
               <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Sold</div>
               <div>{formatDateTime(closedAt)}</div>
             </div>
           )}
           {hasShares && (
-            <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 sm:col-span-2">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-2 sm:col-span-2">
               <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1">Size</div>
               <div className="font-mono">{shares.toLocaleString('en-US', { maximumFractionDigits: 4 })} shares</div>
             </div>
@@ -1476,7 +1477,7 @@ const ReactionBar = ({
         className={`inline-flex items-center gap-1 ${compact ? 'text-[11px]' : 'text-xs'} transition-colors ${interactive ? '' : 'cursor-not-allowed opacity-70'}`}
         style={{ color: interactive ? T.muted : 'rgba(125,133,144,0.5)' }}
       >
-        <SmilePlus size={compact ? 13 : 15} />
+        <SmilePlus className={inActionRow ? 'h-3.5 w-3.5' : compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
         {inActionRow ? <span>React</span> : null}
       </button>
 
@@ -1498,7 +1499,7 @@ const ReactionBar = ({
       <>
         {trigger}
         {reactions.length > 0 ? (
-          <div className="w-full mt-1 flex flex-wrap gap-1.5">
+          <div className="w-full mt-1 flex flex-wrap gap-1">
             <AnimatePresence initial={false}>
               {reactions.map((reaction) => (
                 <motion.button
@@ -1511,10 +1512,10 @@ const ReactionBar = ({
                   transition={{ duration: 0.16 }}
                   onClick={() => void toggleReaction(reaction.emoji)}
                   disabled={!interactive}
-                  className="inline-flex items-center gap-1 text-[11px]"
+                  className="inline-flex items-center gap-0.5 text-xs"
                   style={{ color: reaction.reacted ? T.blue : T.muted }}
                 >
-                  <EmojiGlyph emoji={reaction.emoji} size={15} />
+                  <EmojiGlyph emoji={reaction.emoji} size={13} />
                   <span className="font-semibold">{reaction.count}</span>
                 </motion.button>
               ))}
@@ -1541,10 +1542,10 @@ const ReactionBar = ({
               transition={{ duration: 0.16 }}
               onClick={() => void toggleReaction(reaction.emoji)}
               disabled={!interactive}
-              className="inline-flex items-center gap-1 text-[11px]"
+              className="inline-flex items-center gap-0.5 text-xs"
               style={{ color: reaction.reacted ? T.blue : T.muted }}
             >
-              <EmojiGlyph emoji={reaction.emoji} size={15} />
+              <EmojiGlyph emoji={reaction.emoji} size={13} />
               <span className="font-semibold">{reaction.count}</span>
             </motion.button>
           ))}
@@ -1731,14 +1732,14 @@ const PostCard = ({ post, currentUser, onDelete }) => {
     <motion.article
       variants={CARD_VARIANTS}
       layout
-      className="rounded-xl border px-3.5 py-3"
+      className="rounded-xl border p-3"
       style={{
         borderColor: T.border,
         background: 'linear-gradient(180deg, rgba(21,27,35,0.88) 0%, rgba(13,17,23,0.96) 100%)',
       }}
     >
-      <div className="flex gap-2.5">
-        <UserAvatar user={profile} size={38} />
+      <div className="flex gap-2">
+        <UserAvatar user={profile} size={32} initialsClassName="text-xs" />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -1755,10 +1756,10 @@ const PostCard = ({ post, currentUser, onDelete }) => {
               <button
                 type="button"
                 onClick={() => setShowMenu((openState) => !openState)}
-                className="h-7 w-7 rounded-lg border"
-                style={{ borderColor: T.border, color: T.muted }}
+                className="h-6 w-6 inline-flex items-center justify-center"
+                style={{ color: T.muted }}
               >
-                <MoreHorizontal size={14} className="mx-auto" />
+                <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
 
               <AnimatePresence>
@@ -1826,36 +1827,36 @@ const PostCard = ({ post, currentUser, onDelete }) => {
             </div>
           )}
 
-          <div className="mt-3 pt-2 border-t flex flex-wrap items-center gap-4" style={{ borderColor: T.border }}>
+          <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-2" style={{ borderColor: T.border }}>
             <button
               type="button"
               onClick={() => void toggleLike()}
-              className="inline-flex items-center gap-1.5 text-xs"
+              className="inline-flex items-center gap-1 text-xs"
               style={{ color: liked ? T.red : T.muted }}
             >
-              <Heart size={14} fill={liked ? 'currentColor' : 'none'} />
+              <Heart className="h-3.5 w-3.5" fill={liked ? 'currentColor' : 'none'} />
               <span>Like</span>
-              {likesCount > 0 ? <span className="text-[11px]" style={{ color: T.muted }}>{likesCount}</span> : null}
+              {likesCount > 0 ? <span className="text-xs" style={{ color: T.muted }}>{likesCount}</span> : null}
             </button>
 
             <button
               type="button"
               onClick={toggleReplies}
-              className="inline-flex items-center gap-1.5 text-xs"
+              className="inline-flex items-center gap-1 text-xs"
               style={{ color: T.muted }}
             >
-              <MessageCircle size={14} />
+              <MessageCircle className="h-3.5 w-3.5" />
               <span>Reply</span>
-              {repliesCount > 0 ? <span className="text-[11px]" style={{ color: T.muted }}>{repliesCount}</span> : null}
+              {repliesCount > 0 ? <span className="text-xs" style={{ color: T.muted }}>{repliesCount}</span> : null}
             </button>
 
             <button
               type="button"
               onClick={() => shareToX(post)}
-              className="inline-flex items-center gap-1.5 text-xs"
+              className="inline-flex items-center gap-1 text-xs"
               style={{ color: T.muted }}
             >
-              <Share2 size={14} />
+              <Share2 className="h-3.5 w-3.5" />
               <span>Share</span>
             </button>
 
@@ -1880,7 +1881,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                 {loadingReplies ? (
                   <div className="py-3"><ShimmerBlock lines={2} /></div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {replies.map((reply) => {
                       const replyProfile = reply.profiles || {
                         display_name: reply.author_name,
@@ -1888,8 +1889,8 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                         email: null,
                       };
                       return (
-                        <div key={reply.id} className="flex gap-2.5">
-                          <UserAvatar user={replyProfile} size={26} />
+                        <div key={reply.id} className="flex gap-2">
+                          <UserAvatar user={replyProfile} size={26} initialsClassName="text-xs" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 text-xs">
                               <span className="font-medium" style={{ color: T.text }}>
@@ -1914,7 +1915,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 
                 {currentUser?.id && (
                   <div className="mt-3 flex items-center gap-2">
-                    <UserAvatar user={currentUser} size={24} />
+                    <UserAvatar user={currentUser} size={24} initialsClassName="text-xs" />
                     <input
                       value={replyContent}
                       onChange={(event) => setReplyContent(event.target.value)}
@@ -1931,10 +1932,10 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                       type="button"
                       onClick={() => void submitReply()}
                       disabled={replying || !replyContent.trim()}
-                      className="h-8 w-8 rounded-full disabled:opacity-45"
-                      style={{ backgroundColor: 'rgba(88,166,255,0.16)', color: T.blue }}
+                      className="h-7 w-7 inline-flex items-center justify-center disabled:opacity-45"
+                      style={{ color: T.blue }}
                     >
-                      {replying ? <Loader2 size={12} className="mx-auto animate-spin" /> : <Send size={12} className="mx-auto" />}
+                      {replying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 )}
@@ -2824,15 +2825,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             <div className="flex-1 min-w-0 rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.42)' }}>
               <div className="h-full overflow-y-auto px-3 py-3">
                 {loading ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {Array.from({ length: 6 }).map((_, index) => (
                       <div
                         key={`loading-${index}`}
                         className="rounded-xl border p-3"
                         style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.76)' }}
                       >
-                        <div className="flex gap-2.5">
-                          <ShimmerLine w={38} h={38} rounded={999} />
+                        <div className="flex gap-2">
+                          <ShimmerLine w={32} h={32} rounded={999} />
                           <div className="flex-1 space-y-2">
                             <ShimmerLine w="35%" h={11} />
                             <ShimmerBlock lines={3} />
@@ -2846,7 +2847,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     No posts match this filter.
                   </div>
                 ) : (
-                  <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-3">
+                  <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
                     {filteredPosts.map((post) => (
                       <PostCard
                         key={post.id}
