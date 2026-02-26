@@ -150,6 +150,24 @@ const warRoomStyles = `
   }
 `;
 
+const fmtB = (val) => {
+  const n = Number(val);
+  if (!n || Number.isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(0)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
+};
+
+const fmtPct = (val) => {
+  const n = Number(val);
+  if (!n || Number.isNaN(n)) return '—';
+  return `${(n * 100).toFixed(1)}%`;
+};
+
 const formatTimestamp = (value) => {
   const parsed = new Date(value || Date.now());
   if (Number.isNaN(parsed.getTime())) return '';
@@ -274,6 +292,8 @@ export default function WarRoom({ onClose }) {
   const [transcriptError, setTranscriptError] = useState('');
   const [secFilings, setSecFilings] = useState(null);
   const [secLoading, setSecLoading] = useState(false);
+  const [financials, setFinancials] = useState(null); // { balanceSheet, incomeStatement, cashFlow }
+  const [financialsLoading, setFinancialsLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [clipText, setClipText] = useState('');
   const [clipFolderId, setClipFolderId] = useState(null);
@@ -796,10 +816,12 @@ export default function WarRoom({ onClose }) {
     setTranscriptError('');
     setTranscriptData(null);
     setSecFilings(null);
+    setFinancials(null);
     setTranscriptLoading(true);
     setSecLoading(true);
+    setFinancialsLoading(true);
 
-    // Fetch transcript and SEC filings in parallel
+    // Fetch transcript, SEC filings, and financials in parallel
     const transcriptPromise = fetch(`/api/earnings-transcript?symbol=${encodeURIComponent(trimmed)}`)
       .then(async (res) => {
         const payload = await res.json().catch(() => ({}));
@@ -818,7 +840,19 @@ export default function WarRoom({ onClose }) {
       .catch(() => {})
       .finally(() => setSecLoading(false));
 
-    await Promise.allSettled([transcriptPromise, secPromise]);
+    const financialsPromise = Promise.allSettled([
+      fetch(`/api/xray/balance-sheet?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/xray/income-statement?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/xray/cash-flow?symbol=${encodeURIComponent(trimmed)}&period=quarterly`).then(r => r.ok ? r.json() : null),
+    ]).then(([bs, is, cf]) => {
+      setFinancials({
+        balanceSheet: bs.status === 'fulfilled' && Array.isArray(bs.value) ? bs.value : [],
+        incomeStatement: is.status === 'fulfilled' && Array.isArray(is.value) ? is.value : [],
+        cashFlow: cf.status === 'fulfilled' && Array.isArray(cf.value) ? cf.value : [],
+      });
+    }).catch(() => {}).finally(() => setFinancialsLoading(false));
+
+    await Promise.allSettled([transcriptPromise, secPromise, financialsPromise]);
   };
 
   const allSavedCount = useMemo(
@@ -1004,58 +1038,198 @@ export default function WarRoom({ onClose }) {
                     )}
                   </div>
 
-                  {/* Right: SEC Filings list */}
+                  {/* Right: SEC Filings + Financials */}
                   <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
-                      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-white">
-                            SEC Filings{secFilings?.companyName ? ` — ${secFilings.companyName}` : ''}
-                          </h3>
-                          <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
+                      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
+                        {/* SEC Filings */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-white">
+                              SEC Filings{secFilings?.companyName ? ` — ${secFilings.companyName}` : ''}
+                            </h3>
+                            <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
+                          </div>
+
+                          {secLoading && (
+                            <div className="flex items-center gap-3 py-3">
+                              <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
+                              <span className="text-blue-300 text-sm">Loading SEC filings...</span>
+                            </div>
+                          )}
+
+                          {secFilings && secFilings.filings.length > 0 && (
+                            <div className="space-y-2">
+                              {secFilings.filings.map((filing, i) => (
+                                <a
+                                  key={i}
+                                  href={filing.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-2.5 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
+                                      filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                      filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                                      'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                    }`}>
+                                      {filing.form}
+                                    </span>
+                                    <div>
+                                      <p className="text-sm text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
+                                      <p className="text-xs text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ${filing.reportDate}` : ''}</p>
+                                    </div>
+                                  </div>
+                                  <Link2 className="h-3.5 w-3.5 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+
+                          {secFilings && secFilings.filings.length === 0 && !secLoading && (
+                            <p className="text-sm text-gray-500 py-2">No recent 10-K, 10-Q, or 8-K filings found.</p>
+                          )}
                         </div>
 
-                        {secLoading && (
-                          <div className="flex items-center gap-3 py-4">
-                            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
-                            <span className="text-blue-300 text-sm">Loading SEC filings...</span>
+                        {/* Financial Statements */}
+                        {financialsLoading && (
+                          <div className="flex items-center gap-3 py-3">
+                            <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" strokeWidth={1.5} />
+                            <span className="text-emerald-300 text-sm">Loading financials...</span>
                           </div>
                         )}
 
-                        {secFilings && secFilings.filings.length > 0 && (
-                          <div className="space-y-2">
-                            {secFilings.filings.map((filing, i) => (
-                              <a
-                                key={i}
-                                href={filing.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-3 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded ${
-                                    filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-                                    filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
-                                    'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                                  }`}>
-                                    {filing.form}
-                                  </span>
-                                  <div>
-                                    <p className="text-[15px] text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
-                                    <p className="text-sm text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ending ${filing.reportDate}` : ''}</p>
-                                  </div>
+                        {financials && (
+                          <>
+                            {/* Balance Sheet */}
+                            {financials.balanceSheet.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Balance Sheet</h3>
+                                  <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
-                                <Link2 className="h-4 w-4 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
-                              </a>
-                            ))}
-                          </div>
-                        )}
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="border-b border-gray-800/50">
+                                        <th className="text-left text-gray-500 font-medium py-1.5 pr-3">Period</th>
+                                        {financials.balanceSheet.slice(0, 4).map((q, i) => (
+                                          <th key={i} className="text-right text-gray-500 font-medium py-1.5 px-2 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-gray-300">
+                                      {[
+                                        ['Total Assets', 'total_assets'],
+                                        ['Cash & Equiv', 'cash_and_equivalents'],
+                                        ['Current Assets', 'current_assets'],
+                                        ['Total Liabilities', 'total_liabilities'],
+                                        ['Long-Term Debt', 'long_term_debt'],
+                                        ['Total Equity', 'total_equity'],
+                                        ['Retained Earnings', 'retained_earnings'],
+                                      ].map(([label, key]) => (
+                                        <tr key={key} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
+                                          <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
+                                          {financials.balanceSheet.slice(0, 4).map((q, i) => (
+                                            <td key={i} className={`text-right py-1.5 px-2 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
+                                              {fmtB(q[key])}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
 
-                        {secFilings && secFilings.filings.length === 0 && !secLoading && (
-                          <p className="text-sm text-gray-500 py-4">No recent 10-K, 10-Q, or 8-K filings found.</p>
-                        )}
+                            {/* Income Statement */}
+                            {financials.incomeStatement.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Income Statement</h3>
+                                  <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="border-b border-gray-800/50">
+                                        <th className="text-left text-gray-500 font-medium py-1.5 pr-3">Period</th>
+                                        {financials.incomeStatement.slice(0, 4).map((q, i) => (
+                                          <th key={i} className="text-right text-gray-500 font-medium py-1.5 px-2 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-gray-300">
+                                      {[
+                                        ['Revenue', 'total_revenue'],
+                                        ['Gross Profit', 'gross_profit'],
+                                        ['Operating Income', 'operating_income'],
+                                        ['Net Income', 'net_income'],
+                                        ['EPS (Diluted)', 'eps_diluted'],
+                                        ['Gross Margin', 'gross_margin', true],
+                                        ['Net Margin', 'net_margin', true],
+                                      ].map(([label, key, isPct]) => (
+                                        <tr key={key} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
+                                          <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
+                                          {financials.incomeStatement.slice(0, 4).map((q, i) => (
+                                            <td key={i} className={`text-right py-1.5 px-2 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
+                                              {isPct ? fmtPct(q[key]) : key === 'eps_diluted' ? (q[key] != null ? `$${Number(q[key]).toFixed(2)}` : '—') : fmtB(q[key])}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
 
-                        {!secFilings && !secLoading && (
-                          <p className="text-sm text-gray-500 py-4">SEC filings will appear here when you search a ticker.</p>
+                            {/* Cash Flow */}
+                            {financials.cashFlow.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Cash Flow</h3>
+                                  <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="border-b border-gray-800/50">
+                                        <th className="text-left text-gray-500 font-medium py-1.5 pr-3">Period</th>
+                                        {financials.cashFlow.slice(0, 4).map((q, i) => (
+                                          <th key={i} className="text-right text-gray-500 font-medium py-1.5 px-2 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-gray-300">
+                                      {[
+                                        ['Operating CF', 'operating_cash_flow'],
+                                        ['Capital Expenditure', 'capital_expenditure'],
+                                        ['Free Cash Flow', 'free_cash_flow'],
+                                        ['Dividends Paid', 'dividends_paid'],
+                                        ['Share Repurchase', 'share_repurchase'],
+                                        ['Net Change in Cash', 'net_change_in_cash'],
+                                      ].map(([label, key]) => (
+                                        <tr key={key} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
+                                          <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
+                                          {financials.cashFlow.slice(0, 4).map((q, i) => (
+                                            <td key={i} className={`text-right py-1.5 px-2 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
+                                              {fmtB(q[key])}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {financials.balanceSheet.length === 0 && financials.incomeStatement.length === 0 && financials.cashFlow.length === 0 && (
+                              <p className="text-sm text-gray-500 py-2">No financial statements available for this ticker.</p>
+                            )}
+                          </>
                         )}
                       </div>
                   </div>
