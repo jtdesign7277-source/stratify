@@ -203,7 +203,7 @@ const tokenClassName = (token) => {
   if (/^\$[A-Z]{1,5}$/.test(token)) return 'text-emerald-400 font-semibold';
   if (/^\+[\$]?\d/.test(token)) return 'text-emerald-400 font-semibold';
   if (/^-[$]?\d/.test(token)) return 'text-red-400 font-semibold';
-  if (/\d/.test(token)) return 'text-amber-400';
+  if (/\d/.test(token)) return 'text-blue-400';
   return 'text-gray-300';
 };
 
@@ -975,7 +975,7 @@ export default function WarRoom({ onClose }) {
               type="button"
               onClick={() => runScan(scan.query, scan.label)}
               disabled={isLoading}
-              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-amber-500/50 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-amber-400 transition-all hover:shadow-[0_0_10px_rgba(245,158,11,0.15)] disabled:opacity-40"
+              className="bg-black/40 backdrop-blur border border-gray-800 hover:border-blue-500/50 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-blue-400 transition-all hover:shadow-[0_0_10px_rgba(59,130,246,0.15)] disabled:opacity-40"
             >
               {scan.label}
             </button>
@@ -985,8 +985,8 @@ export default function WarRoom({ onClose }) {
             onClick={() => setActiveView('transcripts')}
             className={`backdrop-blur rounded-lg px-3 py-1.5 text-sm transition-all ${
               activeView === 'transcripts'
-                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
-                : 'bg-black/40 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(245,158,11,0.15)]'
+                ? 'bg-blue-500/15 border border-blue-500/35 text-blue-300'
+                : 'bg-black/40 border border-gray-800 hover:border-blue-500/50 text-gray-400 hover:text-blue-400 hover:shadow-[0_0_10px_rgba(59,130,246,0.15)]'
             }`}
           >
             Transcripts
@@ -1003,7 +1003,7 @@ export default function WarRoom({ onClose }) {
                 onClick={() => setActiveView(view)}
                 className={`rounded-lg px-2.5 py-1 text-xs transition-colors flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
+                    ? 'bg-blue-500/15 border border-blue-500/35 text-blue-300'
                     : 'border border-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
@@ -1037,12 +1037,12 @@ export default function WarRoom({ onClose }) {
                     value={transcriptSymbol}
                     onChange={(e) => setTranscriptSymbol(e.target.value.toUpperCase())}
                     placeholder="Ticker..."
-                    className="w-28 rounded-lg border border-gray-700 bg-black/40 px-3 py-1.5 text-sm text-white placeholder-gray-500 outline-none focus:border-amber-500/50"
+                    className="w-28 rounded-lg border border-gray-700 bg-black/40 px-3 py-1.5 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500/50"
                   />
                   <button
                     type="submit"
                     disabled={transcriptLoading || !transcriptSymbol.trim()}
-                    className="bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-45"
+                    className="bg-blue-500/10 border border-blue-500/40 text-blue-400 hover:bg-blue-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-45"
                   >
                     {transcriptLoading ? 'Loading...' : 'Search'}
                   </button>
@@ -1054,7 +1054,7 @@ export default function WarRoom({ onClose }) {
                     type="button"
                     onClick={() => { setTranscriptSymbol(sym); fetchTranscript(sym); }}
                     disabled={transcriptLoading}
-                    className="rounded border border-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-amber-300 hover:border-amber-500/30 transition-colors disabled:opacity-45"
+                    className="rounded border border-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-blue-300 hover:border-blue-500/30 transition-colors disabled:opacity-45"
                   >
                     ${sym}
                   </button>
@@ -1066,16 +1066,16 @@ export default function WarRoom({ onClose }) {
               )}
 
               {transcriptLoading && !transcriptData && (
-                <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
-                  <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" strokeWidth={1.5} />
-                  <span className="text-amber-300 text-xs animate-pulse">Fetching earnings transcript...</span>
+                <div className="bg-black/40 backdrop-blur-sm border border-blue-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 text-blue-400 animate-spin" strokeWidth={1.5} />
+                  <span className="text-blue-300 text-xs animate-pulse">Fetching earnings transcript...</span>
                 </div>
               )}
 
               {!transcriptData && !transcriptLoading && !transcriptError && (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <Search className="h-5 w-5 text-amber-400/60 mx-auto mb-2" strokeWidth={1.5} />
+                    <Search className="h-5 w-5 text-blue-400/60 mx-auto mb-2" strokeWidth={1.5} />
                     <p className="text-xs text-gray-500">Select a ticker above to view earnings call & SEC filings</p>
                   </div>
                 </div>
@@ -1267,7 +1267,7 @@ export default function WarRoom({ onClose }) {
                                   <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
                                     filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
                                     filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
-                                    'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                    'bg-blue-500/15 text-blue-400 border border-blue-500/30'
                                   }`}>
                                     {filing.form}
                                   </span>
@@ -1302,17 +1302,17 @@ export default function WarRoom({ onClose }) {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
-                            <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
                               {transcriptData.fromCache ? 'Cached' : 'Transcript'}
                             </span>
                           </div>
                           <div className="text-[15px] text-gray-300 leading-relaxed whitespace-pre-wrap"
                             dangerouslySetInnerHTML={{ __html: transcriptData.content
-                              .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-xl font-bold mt-5 mb-2">$1</h2>')
+                              .replace(/^## (.+)$/gm, '<h2 class="text-blue-300 text-xl font-bold mt-5 mb-2">$1</h2>')
                               .replace(/^### (.+)$/gm, '<h3 class="text-white text-lg font-semibold mt-4 mb-1">$1</h3>')
                               .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                              .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-amber-500/60 mt-0.5">•</span><span>$1</span></div>')
-                              .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
+                              .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-blue-500/60 mt-0.5">•</span><span>$1</span></div>')
+                              .replace(/(\$[A-Z]{1,5})/g, '<span class="text-blue-400 font-semibold">$1</span>')
                             }}
                           />
                           {transcriptData.sources?.length > 0 && (
@@ -1325,7 +1325,7 @@ export default function WarRoom({ onClose }) {
                                     href={src.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-sm text-amber-400/80 hover:text-amber-300 transition-colors"
+                                    className="inline-flex items-center gap-1 text-sm text-blue-400/80 hover:text-blue-300 transition-colors"
                                   >
                                     <Link2 className="h-3 w-3" strokeWidth={1.5} />
                                     {(src.title || src.url).slice(0, 60)}
@@ -1337,8 +1337,8 @@ export default function WarRoom({ onClose }) {
                         </div>
                       ) : (
                         <div className="flex items-center gap-3 py-4">
-                          <Loader2 className="h-5 w-5 text-amber-400 animate-spin" strokeWidth={1.5} />
-                          <span className="text-amber-300 text-sm animate-pulse">Fetching earnings transcript...</span>
+                          <Loader2 className="h-5 w-5 text-blue-400 animate-spin" strokeWidth={1.5} />
+                          <span className="text-blue-300 text-sm animate-pulse">Fetching earnings transcript...</span>
                         </div>
                       )}
                     </div>
@@ -1352,13 +1352,13 @@ export default function WarRoom({ onClose }) {
               <button
                 type="button"
                 onClick={handleSaveSelection}
-                className="self-start rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
+                className="self-start rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-500/20 transition-colors"
               >
                 Save Selection
               </button>
 
               {showClipSave && (
-                <div className="rounded-lg border border-amber-500/30 bg-black/60 p-3 space-y-2">
+                <div className="rounded-lg border border-blue-500/30 bg-black/60 p-3 space-y-2">
                   <p className="text-[10px] uppercase tracking-wider text-gray-500">Preview (max 10 lines)</p>
                   <pre className="text-sm text-white/80 whitespace-pre-wrap max-h-40 overflow-y-auto">{clipText}</pre>
                   <div className="flex items-center gap-2">
@@ -1372,7 +1372,7 @@ export default function WarRoom({ onClose }) {
                     <button
                       type="button"
                       onClick={confirmClipSave}
-                      className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20"
+                      className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:bg-blue-500/20"
                     >
                       Save to Folder
                     </button>
@@ -1395,10 +1395,10 @@ export default function WarRoom({ onClose }) {
                     folder.items.map(card => {
                       const isEditing = editingItem?.id === card.id && editingItem?.folderId === folder.id;
                       return (
-                      <div key={card.id} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
+                      <div key={card.id} className="rounded-lg border border-gray-800/50 border-l-2 border-l-blue-500/30 bg-black/30 px-3 py-2.5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-amber-400/60 mb-1">
+                            <p className="text-xs text-blue-400/60 mb-1">
                               {folder.name} · {formatTimestamp(card.savedAt || card.createdAt)}
                               {card.editedAt && <span className="text-gray-600 ml-1">(edited)</span>}
                             </p>
@@ -1406,7 +1406,7 @@ export default function WarRoom({ onClose }) {
                               <textarea
                                 value={editingItem.content}
                                 onChange={(e) => setEditingItem(prev => ({ ...prev, content: e.target.value }))}
-                                className="w-full rounded border border-amber-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-amber-500/50 resize-y min-h-[80px]"
+                                className="w-full rounded border border-blue-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-blue-500/50 resize-y min-h-[80px]"
                                 rows={Math.min(12, (editingItem.content?.split('\n').length || 3) + 1)}
                                 autoFocus
                               />
@@ -1426,7 +1426,7 @@ export default function WarRoom({ onClose }) {
                               </>
                             ) : (
                               <>
-                                <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors" title="Edit">
+                                <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Edit">
                                   <Pencil className="h-5 w-5" strokeWidth={1.5} />
                                 </button>
                                 <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
@@ -1644,20 +1644,20 @@ export default function WarRoom({ onClose }) {
               ) : null}
 
               {(isLoading || prefetching) ? (
-                <div className="bg-black/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-5 flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 text-amber-400 animate-spin" strokeWidth={1.5} />
-                  <span className="text-amber-300 text-sm animate-pulse">{prefetching && !isLoading ? 'Loading latest intel...' : 'Scanning...'}</span>
-                  <span className="inline-flex items-center gap-1 text-amber-500/80 text-xs">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80 animate-pulse [animation-delay:180ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400/60 animate-pulse [animation-delay:360ms]" />
+                <div className="bg-black/40 backdrop-blur-sm border border-blue-500/20 rounded-xl p-5 flex items-center gap-3">
+                  <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
+                  <span className="text-blue-300 text-sm animate-pulse">{prefetching && !isLoading ? 'Loading latest intel...' : 'Scanning...'}</span>
+                  <span className="inline-flex items-center gap-1 text-blue-500/80 text-xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400/80 animate-pulse [animation-delay:180ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400/60 animate-pulse [animation-delay:360ms]" />
                   </span>
                 </div>
               ) : null}
 
               {intelFeed.length === 0 && !isLoading && !prefetching ? (
                 <div className="bg-black/40 backdrop-blur-sm border border-gray-800/50 rounded-xl p-7 text-center">
-                  <Sparkles className="h-7 w-7 text-amber-400/80 mx-auto mb-3" strokeWidth={1.5} />
+                  <Sparkles className="h-7 w-7 text-blue-400/80 mx-auto mb-3" strokeWidth={1.5} />
                   <h3 className="text-white font-semibold">No intel scans yet</h3>
                   <p className="text-sm text-gray-500 mt-1">Run a quick scan or enter a custom market query.</p>
                 </div>
@@ -1684,7 +1684,7 @@ export default function WarRoom({ onClose }) {
                         <p className="text-gray-600 text-sm mt-1">{formatTimestamp(card.createdAt)}</p>
                       </div>
 
-                      <span className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/20 rounded-full px-2.5 py-0.5">
+                      <span className="text-blue-400 text-sm bg-blue-500/10 border border-blue-500/20 rounded-full px-2.5 py-0.5">
                         {card.sourceLabel || 'Claude Intel'}
                       </span>
                     </div>
@@ -1700,12 +1700,12 @@ export default function WarRoom({ onClose }) {
                               : { cardId: card.id, showNewFolder: false, newFolderName: '' }
                           )
                         }
-                        className="text-gray-600 hover:text-amber-400 transition-colors"
+                        className="text-gray-600 hover:text-blue-400 transition-colors"
                         title="Save Intel"
                         aria-label="Save Intel"
                       >
                         <Bookmark
-                          className={`h-4 w-4 ${isSaved ? 'text-amber-400 fill-amber-400' : 'text-gray-600 hover:text-amber-400'}`}
+                          className={`h-4 w-4 ${isSaved ? 'text-blue-400 fill-blue-400' : 'text-gray-600 hover:text-blue-400'}`}
                           strokeWidth={1.5}
                         />
                       </button>
@@ -1734,7 +1734,7 @@ export default function WarRoom({ onClose }) {
                               <button
                                 type="button"
                                 onClick={() => setSaveMenu((prev) => ({ ...prev, showNewFolder: true, newFolderName: '' }))}
-                                className="w-full text-left rounded px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/10 transition-colors"
+                                className="w-full text-left rounded px-2 py-1.5 text-sm text-blue-300 hover:bg-blue-500/10 transition-colors"
                               >
                                 + New Folder
                               </button>
@@ -1756,7 +1756,7 @@ export default function WarRoom({ onClose }) {
                                       handleSaveToFolder(card, created.id);
                                     }
                                   }}
-                                  className="w-full rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-sm text-amber-300 hover:bg-amber-500/15"
+                                  className="w-full rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1.5 text-sm text-blue-300 hover:bg-blue-500/15"
                                 >
                                   Create Folder
                                 </button>
@@ -1797,11 +1797,11 @@ export default function WarRoom({ onClose }) {
                         onClick={() => handleSaveToFolder(card, quickSaveFolderId)}
                         className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
                           isSaved
-                            ? 'border-amber-500/35 bg-amber-500/15 text-amber-300'
-                            : 'border-amber-500/35 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'
+                            ? 'border-blue-500/35 bg-blue-500/15 text-blue-300'
+                            : 'border-blue-500/35 bg-blue-500/10 text-blue-300 hover:bg-blue-500/15'
                         }`}
                       >
-                        <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-amber-400' : ''}`} strokeWidth={1.5} />
+                        <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-blue-400' : ''}`} strokeWidth={1.5} />
                         {isSaved ? 'Saved Intel' : 'Save Intel'}
                       </button>
                       <button
@@ -1988,7 +1988,7 @@ export default function WarRoom({ onClose }) {
       )}
 
       <div
-        className={`pointer-events-none absolute top-4 right-6 z-40 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 transition-opacity duration-300 ${
+        className={`pointer-events-none absolute top-4 right-6 z-40 rounded-lg border border-blue-500/35 bg-blue-500/10 px-3 py-2 text-sm text-blue-300 transition-opacity duration-300 ${
           toast ? 'opacity-100' : 'opacity-0'
         }`}
       >
