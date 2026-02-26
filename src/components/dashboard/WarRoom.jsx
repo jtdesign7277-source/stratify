@@ -1464,7 +1464,7 @@ export default function WarRoom({ onClose }) {
                     }
                   }}
                   placeholder="New folder name..."
-                  className="w-56 rounded-lg border border-gray-700 bg-black/40 px-3 py-1.5 text-xs text-white placeholder:text-gray-600 outline-none focus:border-amber-500/40"
+                  className="w-56 rounded-lg border border-gray-700 bg-black/40 px-3 py-1.5 text-xs text-white placeholder:text-gray-600 outline-none focus:border-blue-500/40"
                 />
                 <button
                   type="button"
@@ -1477,7 +1477,7 @@ export default function WarRoom({ onClose }) {
                     const folder = handleCreateFolderOnly(name);
                     if (folder?.name) { showToast(`Folder: ${folder.name}`); setNewFolderInput(''); }
                   }}
-                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400 hover:bg-amber-500/15 transition-colors"
+                  className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-400 hover:bg-blue-500/15 transition-colors"
                 >
                   <Plus className="h-3.5 w-3.5 inline -mt-0.5 mr-1" strokeWidth={2} />
                   Create
