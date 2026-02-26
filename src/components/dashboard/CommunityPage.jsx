@@ -723,14 +723,23 @@ const BASE_STREAM_STATUS = {
   retryCount: 0,
 };
 
-const POST_TYPE_FILTERS = [
-  { id: 'all', label: 'For You', icon: Home },
-  { id: 'general', label: 'General', icon: Globe },
-  { id: 'pnl', label: 'P&L', icon: TrendingUp },
-  { id: 'strategy', label: 'Strategies', icon: Brain },
-  { id: 'trade', label: 'Trades', icon: ArrowLeftRight },
-  { id: 'alert', label: 'Alerts', icon: Bell },
-];
+const FEED_HASHTAGS = ['#Earnings', '#Momentum', '#Macro', '#Options', '#Sentiment'];
+
+const normalizeFeedHashtag = (value) => String(value || '').trim().toLowerCase().replace(/^#/, '');
+
+const postMatchesFeedHashtag = (post, hashtag) => {
+  const normalizedTag = normalizeFeedHashtag(hashtag);
+  if (!normalizedTag) return true;
+
+  const content = String(post?.content || '').toLowerCase();
+  if (content.includes(`#${normalizedTag}`)) return true;
+
+  const mentions = [
+    ...(Array.isArray(post?.mentioned_tickers) ? post.mentioned_tickers : []),
+    ...(Array.isArray(post?.ticker_mentions) ? post.ticker_mentions : []),
+  ];
+  return mentions.some((entry) => normalizeFeedHashtag(entry) === normalizedTag);
+};
 
 const LEFT_RAIL_ITEMS = [
   { id: 'home', label: 'Home Flow', icon: Home },
@@ -3214,24 +3223,17 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
       </button>
 
       {collapsed ? (
-        <div className="w-full space-y-1 pt-2">
-          {POST_TYPE_FILTERS.map((item) => {
-            const active = filter === item.id;
-            const Icon = item.icon;
+        <div className="w-full space-y-0.5 px-1 pt-2">
+          {FEED_HASHTAGS.map((hashtag) => {
+            const active = filter === hashtag;
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onFilter(item.id)}
-                className="w-full py-2 border-l-2 inline-flex items-center justify-center transition-colors"
-                style={{
-                  borderLeftColor: active ? '#3b82f6' : 'transparent',
-                  color: T.text,
-                }}
-                title={item.label}
+              <div
+                key={hashtag}
+                onClick={() => onFilter(active ? null : hashtag)}
+                className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-150${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
               >
-                <Icon className="h-4 w-4 text-[#7d8590]" strokeWidth={1.5} />
-              </button>
+                {hashtag}
+              </div>
             );
           })}
         </div>
@@ -3243,7 +3245,7 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
               onClick={() => setFeedsOpen((prev) => !prev)}
               className="w-full px-3 pt-4 pb-1 inline-flex items-center justify-between"
             >
-              <span className="text-xs uppercase tracking-widest" style={{ color: T.muted }}>FEEDS</span>
+              <span className="text-[11px] uppercase tracking-widest text-[#7d8590]">FEEDS</span>
               {feedsOpen ? <ChevronDown size={14} style={{ color: T.muted }} /> : <ChevronRight size={14} style={{ color: T.muted }} />}
             </button>
 
@@ -3256,24 +3258,16 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
                   className="overflow-hidden"
                 >
                   <div className="space-y-0.5">
-                    {POST_TYPE_FILTERS.map((item) => {
-                      const active = filter === item.id;
-                      const Icon = item.icon;
+                    {FEED_HASHTAGS.map((hashtag) => {
+                      const active = filter === hashtag;
                       return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onFilter(item.id)}
-                          className="w-full py-2 px-3 rounded-lg border-l-2 inline-flex items-center gap-3 text-sm font-normal transition-colors hover:bg-white/5"
-                          style={{
-                            borderLeftColor: active ? '#3b82f6' : 'transparent',
-                            backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
-                            color: T.text,
-                          }}
+                        <div
+                          key={hashtag}
+                          onClick={() => onFilter(active ? null : hashtag)}
+                          className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-150${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
                         >
-                          <Icon className="h-4 w-4 text-[#7d8590]" strokeWidth={1.5} />
-                          <span className="text-sm" style={{ color: T.text }}>{item.label}</span>
-                        </button>
+                          {hashtag}
+                        </div>
                       );
                     })}
                   </div>
@@ -4100,7 +4094,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(null);
   const [search, setSearch] = useState('');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -4550,7 +4544,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           query: trimmedQuery,
           interests: {
             trackedSymbols: trackedSymbols.slice(0, 12),
-            filter,
+            filter: filter || 'all',
             signedIn: Boolean(currentUser?.id),
           },
         }),
@@ -4598,8 +4592,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const filteredPosts = useMemo(() => {
     let rows = [...posts];
 
-    if (filter !== 'all') {
-      rows = rows.filter((post) => sanitizePostType(post.post_type) === filter);
+    if (filter) {
+      rows = rows.filter((post) => postMatchesFeedHashtag(post, filter));
     }
 
     const query = search.trim().toLowerCase();
