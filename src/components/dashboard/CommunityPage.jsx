@@ -1059,7 +1059,7 @@ const ChatInputBar = ({
   const hintText = searchMode
     ? 'Enter to search, Shift+Enter for newline'
     : 'Enter to send, Shift+Enter for newline';
-  const contextualStatus = searchMode ? 'AI web search enabled' : statusText;
+  const contextualStatus = statusText;
 
   return (
     <div className="max-w-3xl mx-auto w-full">
@@ -1067,15 +1067,8 @@ const ChatInputBar = ({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className="relative rounded-2xl border py-3 px-4"
-        style={{
-          borderColor: T.border,
-          background: 'linear-gradient(180deg, rgba(28,35,51,0.62) 0%, rgba(21,27,35,0.92) 100%)',
-          boxShadow: '0 12px 32px rgba(0,0,0,0.26)',
-        }}
+        className="relative"
       >
-        <div className="community-pulse pointer-events-none absolute -top-10 -left-8 h-24 w-24 rounded-full blur-3xl" style={{ background: 'rgba(88,166,255,0.24)' }} />
-
         <div className="relative flex items-end gap-2">
           <div className="relative flex-1">
             <SuggestionPopover
@@ -1087,12 +1080,18 @@ const ChatInputBar = ({
               onPick={applySuggestion}
             />
 
-            <div className="flex items-start gap-2 rounded-2xl border py-3 px-4" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.78)' }}>
+            <div
+              className="flex items-start gap-2 rounded-2xl border py-3 px-4"
+              style={{
+                backgroundColor: '#151b23',
+                borderColor: 'rgba(255,255,255,0.06)',
+              }}
+            >
               <button
                 type="button"
                 onClick={onOpenComposer}
-                className="h-7 w-7 rounded-lg border transition-colors"
-                style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.88)' }}
+                className="h-7 w-7 rounded-lg transition-colors hover:bg-white/5"
+                style={{ color: T.muted }}
                 title="Open composer"
               >
                 <Plus size={13} className="mx-auto" />
@@ -1100,11 +1099,10 @@ const ChatInputBar = ({
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
-                className="h-7 w-7 rounded-lg border transition-colors"
+                className="h-7 w-7 rounded-lg transition-colors"
                 style={{
-                  borderColor: searchMode ? T.blue : T.border,
                   color: searchMode ? T.blue : T.muted,
-                  backgroundColor: searchMode ? 'rgba(88,166,255,0.14)' : 'rgba(13,17,23,0.88)',
+                  backgroundColor: searchMode ? 'rgba(88,166,255,0.14)' : 'transparent',
                 }}
                 title={searchMode ? 'Switch to post mode' : 'Switch to search mode'}
               >
@@ -1123,14 +1121,18 @@ const ChatInputBar = ({
                 disabled={!canUseInput}
               />
             </div>
-
-            <div className="mt-1.5 flex items-center justify-between px-1">
-              <div className="text-xs" style={{ color: T.muted }}>{contextualStatus}</div>
-              <div className="text-[11px]" style={{ color: T.muted }}>{hintText}</div>
-            </div>
           </div>
 
-          <div className="relative flex items-center gap-1.5 pb-1">
+          <div className="relative flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onOpenComposer}
+              className="h-9 px-3 rounded-2xl border text-xs font-medium transition-colors"
+              style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
+              title="Open composer"
+            >
+              Compose
+            </button>
             <button
               type="button"
               onClick={() => setShowEmojiPicker((open) => !open)}
@@ -1164,6 +1166,11 @@ const ChatInputBar = ({
               {searchMode ? <Search size={14} strokeWidth={1.5} className="mx-auto" /> : <Send size={14} className="mx-auto" />}
             </button>
           </div>
+        </div>
+
+        <div className="mt-1.5 flex items-center justify-between">
+          <div className="text-xs" style={{ color: '#7d8590' }}>{contextualStatus}</div>
+          <div className="text-xs" style={{ color: '#7d8590' }}>{hintText}</div>
         </div>
       </motion.div>
     </div>
