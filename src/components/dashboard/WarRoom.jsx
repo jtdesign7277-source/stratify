@@ -307,6 +307,8 @@ export default function WarRoom({ onClose }) {
 
   const [sectionSaveMenu, setSectionSaveMenu] = useState(null);
   const [editingItem, setEditingItem] = useState(null); // { id, folderId, content }
+  const [composingFolderId, setComposingFolderId] = useState(null);
+  const [composeText, setComposeText] = useState('');
 
   const DEFAULT_FOLDER_NAMES = ['Market Movers', 'Earnings Intel', '$SPY Analysis', 'Fed & Macro', 'Sector Rotation', 'Crypto Pulse'];
 
@@ -525,6 +527,33 @@ export default function WarRoom({ onClose }) {
   };
 
   const cancelEdit = () => setEditingItem(null);
+
+  const startCompose = (folderId) => {
+    setComposingFolderId(folderId);
+    setComposeText('');
+  };
+
+  const saveCompose = () => {
+    if (!composeText.trim() || !composingFolderId) return;
+    const item = normalizeIntelItem({
+      id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title: composeText.trim().split('\n')[0].slice(0, 60) || 'Custom Note',
+      content: composeText.trim(),
+      sources: [],
+      sourceLabel: 'Custom Note',
+      createdAt: new Date().toISOString(),
+    });
+    const result = saveWarRoomIntel(item, composingFolderId);
+    setSavedState(result.state);
+    setComposingFolderId(null);
+    setComposeText('');
+    showToast('Note saved');
+  };
+
+  const cancelCompose = () => {
+    setComposingFolderId(null);
+    setComposeText('');
+  };
 
   const postToX = (content) => {
     const text = String(content || '').slice(0, 280);
@@ -1165,6 +1194,14 @@ export default function WarRoom({ onClose }) {
                           <span className="text-[10px] text-gray-500">{folder.items.length}</span>
                           <button
                             type="button"
+                            onClick={() => startCompose(folder.id)}
+                            className="p-0.5 text-gray-400 hover:text-amber-400 transition-colors"
+                            title="Write a new note"
+                          >
+                            <Pencil className="h-4 w-4" strokeWidth={1.5} />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDeleteFolder(folder.id)}
                             className="p-0.5 text-gray-500 hover:text-red-400 transition-colors"
                             title={`Delete ${folder.name}`}
@@ -1174,9 +1211,40 @@ export default function WarRoom({ onClose }) {
                         </div>
                       </div>
 
+                      {/* Compose new note */}
+                      {composingFolderId === folder.id && (
+                        <div className="shrink-0 mb-2 rounded-lg border border-amber-500/30 bg-black/50 p-2.5">
+                          <textarea
+                            value={composeText}
+                            onChange={(e) => setComposeText(e.target.value)}
+                            placeholder="Write your note..."
+                            className="w-full rounded border border-gray-700 bg-transparent px-2 py-1.5 text-sm text-white/90 placeholder:text-gray-600 outline-none focus:border-amber-500/40 resize-y min-h-[60px]"
+                            rows={4}
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={saveCompose}
+                              disabled={!composeText.trim()}
+                              className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-40"
+                            >
+                              Save Note
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelCompose}
+                              className="text-xs text-gray-500 hover:text-white transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Folder items */}
                       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-2">
-                        {folder.items.length === 0 ? (
+                        {folder.items.length === 0 && composingFolderId !== folder.id ? (
                           <p className="text-xs text-gray-600 py-2">Empty</p>
                         ) : (
                           folder.items.map((card) => {
