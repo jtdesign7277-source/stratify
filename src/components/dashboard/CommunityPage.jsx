@@ -5,7 +5,7 @@ import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
-  Heart, MessageCircle, Share2, Send, X, TrendingUp, BarChart3, Bell, Brain,
+  Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, Brain,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
@@ -35,13 +35,6 @@ const PROFILE_AVATAR_STYLES = ['bottts', 'avataaars', 'pixel-art', 'fun-emoji'];
 const PROFILE_AVATAR_SEEDS_PER_STYLE = 24;
 const PROFILE_AVATAR_BACKGROUND_COLORS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';
 const PROFILE_AVATAR_FALLBACK_COLOR = '#58a6ff';
-const SEARCH_MODE_SUGGESTION_TEMPLATES = [
-  'What is happening with {topic} today?',
-  'Bitcoin price analysis this week',
-  'Fed interest rate decision impact on tech stocks',
-  'Best performing ETFs February 2026',
-  '{topic} earnings expectations',
-];
 const QUICK_POST_HASHTAGS = ['#earnings', '#momentum', '#macro', '#options', '#sentiment'];
 
 const buildProfileAvatarUrl = (style, seed) => (
@@ -190,24 +183,16 @@ const sanitizeAiSearchData = (raw, query) => {
   };
 };
 
-const makeSearchSuggestionTopic = (message) => {
-  const fromTicker = String(message || '').match(/\$([A-Za-z]{1,6})/);
-  if (fromTicker?.[1]) return fromTicker[1].toUpperCase();
-
-  const trimmed = normalizeAiSearchQuery(message);
-  if (!trimmed) return 'NVDA';
-  if (trimmed.length > 18) return 'NVDA';
-
-  const fallback = trimmed.replace(/[^A-Za-z0-9./=-]/g, '').slice(0, 14);
-  return fallback || 'NVDA';
-};
-
-const buildSearchModeSuggestions = (message = '') => {
-  const topic = makeSearchSuggestionTopic(message);
-  return SEARCH_MODE_SUGGESTION_TEMPLATES.map((template, idx) => ({
-    id: `search-suggestion-${idx}`,
-    text: template.replaceAll('{topic}', topic),
-  }));
+const generateSuggestions = (query) => {
+  if (!query || query.trim().length < 2) return [];
+  const q = query.trim();
+  return [
+    q + ' stock news today',
+    q + ' price prediction',
+    q + ' earnings report',
+    q + ' market analysis',
+    'What is happening with ' + q + ' today?',
+  ];
 };
 
 const POST_TYPE_CONFIG = {
@@ -1427,15 +1412,16 @@ const ChatInputBar = ({
   }, [message]);
 
   const searchSuggestions = useMemo(() => {
-    const query = normalizeAiSearchQuery(debouncedMessage);
-    if (!query) return [];
-    return buildSearchModeSuggestions(query);
+    return generateSuggestions(debouncedMessage).map((text, idx) => ({
+      id: `search-suggestion-${idx}`,
+      text,
+    }));
   }, [debouncedMessage]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       setDebouncedMessage(message);
-    }, 500);
+    }, 200);
     return () => window.clearTimeout(timerId);
   }, [message]);
 
@@ -1528,12 +1514,17 @@ const ChatInputBar = ({
     lookupRef.current?.call(tickerQuery);
   }, [tickerQuery, searchMode]);
 
-  const applySuggestion = useCallback((item) => {
+  const applySuggestion = useCallback((item, options = {}) => {
+    const triggerSearch = Boolean(options?.triggerSearch);
     if (searchMode) {
       const text = String(item?.text || '').trim();
       if (!text) return;
       setMessage(text);
+      setDebouncedMessage(text);
       setActiveSuggestion(0);
+      if (triggerSearch) {
+        void onSearch?.(text);
+      }
       window.requestAnimationFrame(() => inputRef.current?.focus());
       return;
     }
@@ -1550,7 +1541,7 @@ const ChatInputBar = ({
     setSuggestions([]);
     setActiveSuggestion(0);
     window.requestAnimationFrame(() => inputRef.current?.focus());
-  }, [searchMode]);
+  }, [onSearch, searchMode]);
 
   const addHashtagToMessage = useCallback((value, hashtag) => {
     const input = inputRef.current;
@@ -1645,7 +1636,7 @@ const ChatInputBar = ({
       : 'Live tape offline';
   const canUseInput = searchMode || Boolean(currentUser?.id);
   const suggestionOpen = searchMode
-    ? Boolean(normalizeAiSearchQuery(debouncedMessage))
+    ? searchSuggestions.length > 0
     : Boolean(tickerQuery);
   const suggestionRows = searchMode ? searchSuggestions : suggestions;
   const hintText = searchMode
@@ -1668,7 +1659,7 @@ const ChatInputBar = ({
             loading={searchMode ? false : suggestionsLoading}
             suggestions={suggestionRows}
             activeIndex={activeSuggestion}
-            onPick={applySuggestion}
+            onPick={(item) => applySuggestion(item, { triggerSearch: true })}
           />
 
           <div
@@ -3228,7 +3219,6 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
 const FeedHeader = ({
   search,
   onSearch,
-  onOpenComposer,
 }) => {
   return (
     <div className="sticky top-0 z-20 border-b-2 border-[#58a6ff] bg-[#0d1117] py-3">
@@ -3256,25 +3246,6 @@ const FeedHeader = ({
           >
             <Bell size={13} strokeWidth={1.5} />
             Price Alert
-          </button>
-
-          <button
-            type="button"
-            className="h-7 px-2 rounded-lg border text-xs inline-flex items-center gap-1"
-            style={{ borderColor: 'rgba(255,255,255,0.08)', color: T.muted }}
-          >
-            <Share2 size={13} strokeWidth={1.5} />
-            Share
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenComposer}
-            className="h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5"
-            style={{ backgroundColor: T.blue, color: '#08111f' }}
-          >
-            <Send size={13} />
-            New Post
           </button>
         </div>
       </div>
@@ -4848,7 +4819,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               <FeedHeader
                 search={search}
                 onSearch={setSearch}
-                onOpenComposer={() => openComposer('general')}
               />
 
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
