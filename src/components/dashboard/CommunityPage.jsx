@@ -824,6 +824,12 @@ const COMMUNITY_PAGE_STYLES = `
     100% { background-position: -200% 0; }
   }
 
+  @keyframes shimmerGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
   @keyframes communityPulse {
     0%, 100% { opacity: 0.18; transform: scale(1); }
     50% { opacity: 0.34; transform: scale(1.08); }
@@ -2417,11 +2423,11 @@ const PostComposerModal = ({
                         setShowAiRewritePanel((openState) => !openState);
                       }}
                       disabled={!canOpenAiRewrite}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-white shadow-[0_0_12px_rgba(88,166,255,0.4)] transition-all duration-200 ${canOpenAiRewrite ? 'hover:brightness-110 hover:scale-105' : 'opacity-40 cursor-not-allowed'}`}
+                      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-white font-semibold text-xs shadow-[0_0_20px_rgba(88,166,255,0.3),0_0_40px_rgba(167,139,250,0.2)] transition-all duration-300 ${canOpenAiRewrite ? 'hover:shadow-[0_0_25px_rgba(88,166,255,0.5),0_0_50px_rgba(167,139,250,0.3)] hover:scale-105' : 'opacity-40 cursor-not-allowed'}`}
                       style={{
-                        background: 'linear-gradient(90deg, #58a6ff, #a78bfa, #f472b6, #58a6ff)',
-                        backgroundSize: '200% 100%',
-                        animation: 'shimmer 3s ease infinite',
+                        background: 'linear-gradient(90deg, #58a6ff, #a78bfa, #ec4899, #58a6ff)',
+                        backgroundSize: '300% 300%',
+                        animation: 'shimmerGradient 4s ease infinite',
                       }}
                     >
                       <Wand2 strokeWidth={1.5} className="w-4 h-4 text-white" />
@@ -2641,10 +2647,9 @@ const PostComposerModal = ({
                 type="button"
                 onClick={() => void submit()}
                 disabled={isAiRewriteLoading || submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
-                className="h-9 px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-45"
-                style={{ backgroundColor: T.blue, color: '#08111f' }}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#58a6ff] text-black text-sm font-semibold shadow-lg shadow-[#58a6ff]/20 transition-all duration-200 hover:bg-[#79b8ff] hover:scale-105 disabled:opacity-45 disabled:cursor-not-allowed"
               >
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {submitting ? <Loader2 className="w-4 h-4 text-black animate-spin" /> : <Send className="w-4 h-4 text-black" />}
                 Publish
               </button>
             </motion.div>
