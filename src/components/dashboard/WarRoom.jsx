@@ -1003,11 +1003,11 @@ export default function WarRoom({ onClose }) {
                   <div className="grid grid-cols-2 gap-3">
                     {/* Left: Financial Statements (loads fast) */}
                     <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
-                      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
+                      <div className="flex-1 overflow-y-auto scrollbar-hide p-5 space-y-5">
                         {financialsLoading && (
                           <div className="flex items-center gap-3 py-3">
                             <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" strokeWidth={1.5} />
-                            <span className="text-emerald-300 text-sm">Loading financials...</span>
+                            <span className="text-emerald-300 text-base">Loading financials...</span>
                           </div>
                         )}
 
@@ -1015,18 +1015,18 @@ export default function WarRoom({ onClose }) {
                           <>
                             {/* Balance Sheet */}
                             {financials.balanceSheet.length > 0 && (
-                              <div className="space-y-2">
+                              <div className="space-y-2.5">
                                 <div className="flex items-center justify-between">
-                                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Balance Sheet</h3>
-                                  <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                  <h3 className="text-base font-semibold text-white uppercase tracking-wider">Balance Sheet</h3>
+                                  <span className="text-xs text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
                                 <div className="overflow-x-auto">
-                                  <table className="w-full text-xs">
+                                  <table className="w-full text-sm">
                                     <thead>
                                       <tr className="border-b border-gray-800/50">
-                                        <th className="text-left text-gray-500 font-medium py-1.5 pr-3">Period</th>
+                                        <th className="text-left text-gray-500 font-medium py-2 pr-3">Period</th>
                                         {financials.balanceSheet.slice(0, 4).map((q, i) => (
-                                          <th key={i} className="text-right text-gray-500 font-medium py-1.5 px-2 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
+                                          <th key={i} className="text-right text-gray-500 font-medium py-2 px-2.5 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
                                         ))}
                                       </tr>
                                     </thead>
@@ -1041,9 +1041,9 @@ export default function WarRoom({ onClose }) {
                                         ['Retained Earnings', 'retained_earnings'],
                                       ].map(([label, key]) => (
                                         <tr key={key} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
-                                          <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
+                                          <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
                                           {financials.balanceSheet.slice(0, 4).map((q, i) => (
-                                            <td key={i} className={`text-right py-1.5 px-2 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
+                                            <td key={i} className={`text-right py-2 px-2.5 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
                                               {fmtB(q[key])}
                                             </td>
                                           ))}
@@ -1057,18 +1057,18 @@ export default function WarRoom({ onClose }) {
 
                             {/* Income Statement */}
                             {financials.incomeStatement.length > 0 && (
-                              <div className="space-y-2">
+                              <div className="space-y-2.5">
                                 <div className="flex items-center justify-between">
-                                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Income Statement</h3>
-                                  <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                  <h3 className="text-base font-semibold text-white uppercase tracking-wider">Income Statement</h3>
+                                  <span className="text-xs text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
                                 <div className="overflow-x-auto">
-                                  <table className="w-full text-xs">
+                                  <table className="w-full text-sm">
                                     <thead>
                                       <tr className="border-b border-gray-800/50">
-                                        <th className="text-left text-gray-500 font-medium py-1.5 pr-3">Period</th>
+                                        <th className="text-left text-gray-500 font-medium py-2 pr-3">Period</th>
                                         {financials.incomeStatement.slice(0, 4).map((q, i) => (
-                                          <th key={i} className="text-right text-gray-500 font-medium py-1.5 px-2 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
+                                          <th key={i} className="text-right text-gray-500 font-medium py-2 px-2.5 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
                                         ))}
                                       </tr>
                                     </thead>
@@ -1083,9 +1083,9 @@ export default function WarRoom({ onClose }) {
                                         ['Net Margin', 'net_margin', true],
                                       ].map(([label, key, isPct]) => (
                                         <tr key={key} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
-                                          <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
+                                          <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
                                           {financials.incomeStatement.slice(0, 4).map((q, i) => (
-                                            <td key={i} className={`text-right py-1.5 px-2 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
+                                            <td key={i} className={`text-right py-2 px-2.5 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
                                               {isPct ? fmtPct(q[key]) : key === 'eps_diluted' ? (q[key] != null ? `$${Number(q[key]).toFixed(2)}` : '—') : fmtB(q[key])}
                                             </td>
                                           ))}
@@ -1099,18 +1099,18 @@ export default function WarRoom({ onClose }) {
 
                             {/* Cash Flow */}
                             {financials.cashFlow.length > 0 && (
-                              <div className="space-y-2">
+                              <div className="space-y-2.5">
                                 <div className="flex items-center justify-between">
-                                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Cash Flow</h3>
-                                  <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
+                                  <h3 className="text-base font-semibold text-white uppercase tracking-wider">Cash Flow</h3>
+                                  <span className="text-xs text-emerald-400/60 uppercase tracking-wider">Quarterly</span>
                                 </div>
                                 <div className="overflow-x-auto">
-                                  <table className="w-full text-xs">
+                                  <table className="w-full text-sm">
                                     <thead>
                                       <tr className="border-b border-gray-800/50">
-                                        <th className="text-left text-gray-500 font-medium py-1.5 pr-3">Period</th>
+                                        <th className="text-left text-gray-500 font-medium py-2 pr-3">Period</th>
                                         {financials.cashFlow.slice(0, 4).map((q, i) => (
-                                          <th key={i} className="text-right text-gray-500 font-medium py-1.5 px-2 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
+                                          <th key={i} className="text-right text-gray-500 font-medium py-2 px-2.5 whitespace-nowrap">{q.fiscal_date?.slice(0, 7) || `Q${i + 1}`}</th>
                                         ))}
                                       </tr>
                                     </thead>
@@ -1124,9 +1124,9 @@ export default function WarRoom({ onClose }) {
                                         ['Net Change in Cash', 'net_change_in_cash'],
                                       ].map(([label, key]) => (
                                         <tr key={key} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
-                                          <td className="py-1.5 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
+                                          <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{label}</td>
                                           {financials.cashFlow.slice(0, 4).map((q, i) => (
-                                            <td key={i} className={`text-right py-1.5 px-2 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
+                                            <td key={i} className={`text-right py-2 px-2.5 font-mono whitespace-nowrap ${Number(q[key]) < 0 ? 'text-red-400' : ''}`}>
                                               {fmtB(q[key])}
                                             </td>
                                           ))}
@@ -1139,7 +1139,7 @@ export default function WarRoom({ onClose }) {
                             )}
 
                             {financials.balanceSheet.length === 0 && financials.incomeStatement.length === 0 && financials.cashFlow.length === 0 && (
-                              <p className="text-sm text-gray-500 py-2">No financial statements available for this ticker.</p>
+                              <p className="text-base text-gray-500 py-2">No financial statements available for this ticker.</p>
                             )}
                           </>
                         )}
