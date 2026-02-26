@@ -49,6 +49,7 @@ const SEARCH_MODE_SUGGESTION_TEMPLATES = [
   'Best performing ETFs February 2026',
   '{topic} earnings expectations',
 ];
+const QUICK_POST_HASHTAGS = ['#earnings', '#momentum', '#macro', '#options', '#sentiment'];
 
 const buildProfileAvatarUrl = (style, seed) => (
   `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=128&radius=50&backgroundType=gradientLinear&backgroundColor=${PROFILE_AVATAR_BACKGROUND_COLORS}`
@@ -125,6 +126,7 @@ const highlightTickers = (text) => {
 };
 
 const normalizeAiSearchQuery = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+const escapeRegExp = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const getClientAiSearchCached = (queryKey) => {
   const entry = AI_SEARCH_CLIENT_CACHE.get(queryKey);
@@ -285,7 +287,6 @@ const POST_TYPE_CONFIG = {
 };
 
 const POST_TYPE_ORDER = ['general', 'pnl', 'strategy', 'trade', 'alert', 'earnings', 'macro'];
-const POST_TYPE_PILLS = POST_TYPE_ORDER.map((id) => ({ id, ...POST_TYPE_CONFIG[id] }));
 const LEGACY_POST_TYPE_MAP = {
   post: 'general',
   pnl_share: 'pnl',
@@ -1502,7 +1503,7 @@ const ChatInputBar = ({
   onOpenComposer,
 }) => {
   const [message, setMessage] = useState('');
-  const [selectedPostType, setSelectedPostType] = useState('general');
+  const [selectedHashtags, setSelectedHashtags] = useState([]);
   const [searchMode, setSearchMode] = useState(false);
   const [debouncedMessage, setDebouncedMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -1643,24 +1644,62 @@ const ChatInputBar = ({
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, [searchMode]);
 
-  const selectPostType = useCallback((type) => {
-    const normalizedType = sanitizePostType(type);
-    setSelectedPostType((prev) => (prev === normalizedType ? 'general' : normalizedType));
-    window.requestAnimationFrame(() => inputRef.current?.focus());
+  const addHashtagToMessage = useCallback((value, hashtag) => {
+    const input = inputRef.current;
+    const safeValue = String(value || '');
+    const safeHashtag = String(hashtag || '').trim();
+    if (!safeHashtag) return safeValue;
+
+    const start = Number.isInteger(input?.selectionStart) ? input.selectionStart : safeValue.length;
+    const end = Number.isInteger(input?.selectionEnd) ? input.selectionEnd : start;
+    const before = safeValue.slice(0, start);
+    const after = safeValue.slice(end);
+    const withLeadingSpace = before && !/\s$/.test(before) ? `${before} ` : before;
+    const withTrailingSpace = after && !/^\s/.test(after) ? ` ${after}` : after;
+    return `${withLeadingSpace}${safeHashtag}${withTrailingSpace}`;
   }, []);
+
+  const removeHashtagFromMessage = useCallback((value, hashtag) => {
+    const escaped = escapeRegExp(hashtag);
+    return String(value || '')
+      .replace(new RegExp(`(^|\\s)${escaped}(?=\\s|$)`, 'g'), '$1')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/ +\n/g, '\n')
+      .replace(/\n +/g, '\n')
+      .trim();
+  }, []);
+
+  const toggleHashtag = useCallback((hashtag) => {
+    const normalized = String(hashtag || '').trim().toLowerCase();
+    if (!normalized) return;
+
+    setSelectedHashtags((prev) => {
+      const isActive = prev.includes(normalized);
+      setMessage((currentValue) => (
+        isActive
+          ? removeHashtagFromMessage(currentValue, normalized)
+          : addHashtagToMessage(currentValue, normalized)
+      ));
+      return isActive
+        ? prev.filter((tag) => tag !== normalized)
+        : [...prev, normalized];
+    });
+
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, [addHashtagToMessage, removeHashtagFromMessage]);
 
   const send = async () => {
     const trimmed = normalizeAiSearchQuery(message);
     if (!trimmed) return;
     const ok = searchMode
       ? await onSearch?.(trimmed)
-      : await onSend?.(trimmed, sanitizePostType(selectedPostType));
+      : await onSend?.(trimmed, 'general');
     if (ok !== false) {
       setMessage('');
       setSuggestions([]);
       setActiveSuggestion(0);
       setDebouncedMessage('');
-      if (!searchMode) setSelectedPostType('general');
+      if (!searchMode) setSelectedHashtags([]);
     }
   };
 
@@ -1705,8 +1744,6 @@ const ChatInputBar = ({
     ? 'Enter to search, Shift+Enter for newline'
     : 'Enter to send, Shift+Enter for newline';
   const contextualStatus = statusText;
-  const activePostType = sanitizePostType(selectedPostType);
-  const postPlaceholder = POST_TYPE_CONFIG[activePostType]?.placeholder || POST_TYPE_CONFIG.general.placeholder;
 
   return (
     <div className="max-w-3xl mx-auto w-full">
@@ -1755,28 +1792,26 @@ const ChatInputBar = ({
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? postPlaceholder : 'Sign in to post in community')}
+                placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
                 className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
                 style={{ color: T.text }}
                 disabled={!canUseInput}
               />
             </div>
 
-            <div className="flex flex-wrap gap-2 px-3 py-2">
-              {POST_TYPE_PILLS.map((pill) => {
-                const Icon = pill.icon;
-                const active = activePostType === pill.id;
+            <div className="flex flex-wrap gap-2 px-3 py-1.5">
+              {QUICK_POST_HASHTAGS.map((hashtag) => {
+                const active = selectedHashtags.includes(hashtag);
                 return (
                   <button
-                    key={pill.id}
+                    key={hashtag}
                     type="button"
-                    onClick={() => selectPostType(pill.id)}
-                    className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs cursor-pointer flex items-center gap-1.5 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : 'text-[#7d8590] hover:bg-white/8 hover:text-[#e6edf3]'}`}
-                    title={pill.label}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => toggleHashtag(hashtag)}
+                    className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs text-[#58a6ff] cursor-pointer hover:bg-white/10 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : ''}`}
+                    title={hashtag}
                   >
-                    <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    <span>{pill.label}</span>
-                    {active && <span className="h-1.5 w-1.5 rounded-full bg-[#58a6ff]/80" />}
+                    {hashtag}
                   </button>
                 );
               })}
