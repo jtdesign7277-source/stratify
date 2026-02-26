@@ -718,23 +718,119 @@ const BASE_STREAM_STATUS = {
 };
 
 const FEED_HASHTAGS = ['#Earnings', '#Momentum', '#Macro', '#Options', '#Sentiment'];
+const HASHTAG_WEB_CACHE_BUCKET_MS = 30 * 60 * 1000;
+const HASHTAG_WEB_CACHE_PREFIX = 'hashtag_web';
+const HASHTAG_WEB_MIN_VISIBLE_POSTS = 3;
+const HASHTAG_WEB_MAX_RESULTS = 5;
 
 const normalizeFeedHashtag = (value) => String(value || '').trim().toLowerCase().replace(/^#/, '');
+const sanitizeHashtagLabel = (tag) => String(tag || '').trim().replace(/^#/, '');
 
-const postMatchesFeedHashtag = (post, hashtag) => {
-  const normalizedTag = normalizeFeedHashtag(hashtag);
-  if (!normalizedTag) return true;
+const BOT_HASHTAG_CONTEXT_BY_TAG = {
+  earnings: [
+    (symbol) => `$${symbol} earnings setup looks active with traders focused on EPS beats versus guidance quality.`,
+    (symbol) => `Watching the earnings call for $${symbol}; one soft margin comment can erase a headline beat fast.`,
+    (symbol) => `Quarterly results on $${symbol} are lining up for a volatility move right after management Q&A.`,
+    (symbol) => `Positioning into $${symbol} with implied move in mind because earnings revisions keep shifting.`,
+  ],
+  momentum: [
+    (symbol) => `$${symbol} is trying to hold trend above key moving averages with momentum flow still firm.`,
+    (symbol) => `Breakout watch on $${symbol} if buyers keep pressing highs with steady relative strength.`,
+    (symbol) => `Momentum scanner flagged $${symbol} again as volume expands into a higher-high structure.`,
+    (symbol) => `Trend followers are leaning long $${symbol} while pullbacks stay shallow above support.`,
+  ],
+  macro: [
+    () => 'Fed path remains the main driver as treasury yields grind higher into the next inflation print.',
+    () => 'Macro tape is rate-sensitive right now with bond volatility spilling into broad equities.',
+    () => 'CPI and payroll expectations are moving cross-asset positioning faster than single-name headlines.',
+    () => 'Dollar strength and front-end yields are steering risk appetite across growth and cyclicals.',
+  ],
+  options: [
+    (symbol) => `Options flow in $${symbol} is tilted toward calls while IV stays elevated ahead of catalysts.`,
+    (symbol) => `Risk-defined spreads on $${symbol} look cleaner than stock here with skew still bid.`,
+    (symbol) => `Gamma positioning on $${symbol} could accelerate any break if market makers start chasing deltas.`,
+    (symbol) => `IV crush risk remains real on $${symbol} so premium buyers need the move quickly.`,
+  ],
+  sentiment: [
+    (symbol) => `Sentiment around $${symbol} is shifting as social buzz picks up with contrarian desks getting interested.`,
+    (symbol) => `Fear/greed tone is still cautious, which can fuel squeezes when sentiment flips too bearish.`,
+    (symbol) => `Crowd positioning on $${symbol} looks one-sided; contrarian setups improve when everyone agrees.`,
+    (symbol) => `Retail chatter is heating up again and sentiment momentum is turning before price confirms.`,
+  ],
+};
 
-  const hashtagNeedle = `#${normalizedTag}`;
-  const textFields = [post?.content, post?.body, post?.text]
-    .map((value) => String(value || '').toLowerCase())
-    .filter(Boolean);
-  if (textFields.some((value) => value.includes(hashtagNeedle))) return true;
+const getBotHashtagContextLine = (tag, symbol, index) => {
+  const normalizedTag = normalizeFeedHashtag(tag);
+  const options = BOT_HASHTAG_CONTEXT_BY_TAG[normalizedTag] || [];
+  if (options.length === 0) return '';
+  const template = options[index % options.length];
+  if (typeof template === 'function') return String(template(symbol) || '').trim();
+  return String(template || '').trim();
+};
 
-  const hashtags = Array.isArray(post?.hashtags) ? post.hashtags : [];
-  if (hashtags.some((entry) => normalizeFeedHashtag(entry) === normalizedTag)) return true;
+const getHashtagWebCacheKey = (tag, now = Date.now()) => {
+  const normalizedTag = normalizeFeedHashtag(tag);
+  if (!normalizedTag) return '';
+  const bucket = Math.floor(now / HASHTAG_WEB_CACHE_BUCKET_MS);
+  return `${HASHTAG_WEB_CACHE_PREFIX}_${normalizedTag}_${bucket}`;
+};
 
-  return normalizeFeedHashtag(post?.post_type) === normalizedTag;
+const readHashtagWebCache = (tag) => {
+  if (typeof window === 'undefined') return null;
+  const key = getHashtagWebCacheKey(tag);
+  if (!key) return null;
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]');
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeHashtagWebCache = (tag, rows = []) => {
+  if (typeof window === 'undefined') return;
+  const key = getHashtagWebCacheKey(tag);
+  if (!key) return;
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(Array.isArray(rows) ? rows : []));
+  } catch {
+    // best effort local cache only
+  }
+};
+
+const normalizeHashtagWebTickers = (rows = []) => {
+  const seen = new Set();
+  return (Array.isArray(rows) ? rows : [])
+    .map((value) => String(value || '').trim().replace(/^\$/, '').toUpperCase())
+    .map((value) => value.replace(/[^A-Z0-9./=-]/g, '').slice(0, 14))
+    .filter(Boolean)
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    })
+    .slice(0, 6);
+};
+
+const normalizeHashtagWebResults = (rows = []) => {
+  const deduped = new Set();
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      headline: String(row?.headline || row?.title || '').replace(/\s+/g, ' ').trim(),
+      summary: String(row?.summary || row?.description || '').replace(/\s+/g, ' ').trim(),
+      source: String(row?.source || row?.publisher || row?.outlet || 'Web').replace(/\s+/g, ' ').trim() || 'Web',
+      relatedTickers: normalizeHashtagWebTickers(row?.relatedTickers || row?.tickers || []),
+    }))
+    .filter((row) => row.headline)
+    .filter((row) => {
+      const key = row.headline.toLowerCase();
+      if (deduped.has(key)) return false;
+      deduped.add(key);
+      return true;
+    })
+    .slice(0, HASHTAG_WEB_MAX_RESULTS);
 };
 
 const LEFT_RAIL_ITEMS = [
@@ -1336,20 +1432,25 @@ const generateMockFeed = () => {
 
     const likesCount = (index % 17) + Math.floor(index / 2);
     const repliesCount = index % 6;
-    const forcedHashtag = index < FEED_HASHTAGS.length ? FEED_HASHTAGS[index] : null;
-    const shouldAppendHashtags = Boolean(forcedHashtag) || Math.random() < 0.55;
+    const primaryTag = FEED_HASHTAGS[index % FEED_HASHTAGS.length];
+    const secondaryPool = FEED_HASHTAGS.filter((tag) => tag !== primaryTag);
+    const secondaryTag = secondaryPool.length > 0 && Math.random() < 0.36
+      ? secondaryPool[(index + 1 + Math.floor(Math.random() * secondaryPool.length)) % secondaryPool.length]
+      : null;
+    const assignedFeedTags = [primaryTag, secondaryTag].filter(Boolean);
+    const hashtagContextLine = getBotHashtagContextLine(primaryTag, setup.symbol, index);
 
-    if (shouldAppendHashtags) {
-      const primaryTag = forcedHashtag || FEED_HASHTAGS[Math.floor(Math.random() * FEED_HASHTAGS.length)];
-      const secondaryPool = FEED_HASHTAGS.filter((tag) => tag !== primaryTag);
-      const secondaryTag = secondaryPool.length > 0 && Math.random() < 0.38
-        ? secondaryPool[Math.floor(Math.random() * secondaryPool.length)]
-        : null;
-      const appendedTags = [primaryTag, secondaryTag].filter(Boolean);
-      content = `${content} ${appendedTags.join(' ')}`.trim();
+    if (hashtagContextLine) {
+      content = `${content} ${hashtagContextLine}`.replace(/\s+/g, ' ').trim();
     }
 
-    const hashtags = extractHashtags(content);
+    content = `${content} ${assignedFeedTags.join(' ')}`.trim();
+
+    const hashtags = [...new Set(
+      assignedFeedTags
+        .map((tag) => sanitizeHashtagLabel(tag))
+        .filter(Boolean)
+    )];
 
     return {
       id: `mock-post-${index + 1}`,
@@ -4377,6 +4478,10 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [aiSearchResults, setAiSearchResults] = useState([]);
   const [aiSearchPending, setAiSearchPending] = useState([]);
+  const [hashtagWebResults, setHashtagWebResults] = useState([]);
+  const [hashtagWebLoading, setHashtagWebLoading] = useState(false);
+  const [hashtagWebTag, setHashtagWebTag] = useState('');
+  const [hashtagWebError, setHashtagWebError] = useState('');
   const [priceAlerts, setPriceAlerts] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -5147,15 +5252,89 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setPriceAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
   }, []);
 
-  const filteredPosts = useMemo(() => {
-    let rows = [...posts];
+  const activeFeedFilter = filter;
 
-    if (filter) {
-      rows = rows.filter((post) => postMatchesFeedHashtag(post, filter));
+  const filteredPosts = useMemo(() => (
+    activeFeedFilter
+      ? posts.filter((post) => {
+          const tag = String(activeFeedFilter || '').toLowerCase().replace('#', '');
+          const contentMatch = post?.content && String(post.content).toLowerCase().includes(`#${tag}`);
+          const hashtagsMatch = Array.isArray(post?.hashtags) && post.hashtags.some((h) => {
+            const normalized = String(h || '').toLowerCase().replace(/^#/, '');
+            return normalized === tag;
+          });
+          const typeMatch = post?.post_type && String(post.post_type).toLowerCase() === tag;
+          return contentMatch || hashtagsMatch || typeMatch;
+        })
+      : posts
+  ), [activeFeedFilter, posts]);
+
+  const shouldShowWebFallback = Boolean(activeFeedFilter) && filteredPosts.length < HASHTAG_WEB_MIN_VISIBLE_POSTS;
+
+  useEffect(() => {
+    let cancelled = false;
+    const tag = normalizeFeedHashtag(activeFeedFilter);
+
+    if (!tag || filteredPosts.length >= HASHTAG_WEB_MIN_VISIBLE_POSTS) {
+      setHashtagWebTag(tag);
+      setHashtagWebResults([]);
+      setHashtagWebLoading(false);
+      setHashtagWebError('');
+      return undefined;
     }
 
-    return rows;
-  }, [posts, filter]);
+    setHashtagWebTag(tag);
+    setHashtagWebError('');
+
+    const cached = normalizeHashtagWebResults(readHashtagWebCache(tag) || []);
+    if (cached.length > 0) {
+      setHashtagWebResults(cached);
+      setHashtagWebLoading(false);
+      return undefined;
+    }
+
+    setHashtagWebResults([]);
+    setHashtagWebLoading(true);
+
+    const runHashtagWebSearch = async () => {
+      try {
+        const requestOptions = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hashtag: `#${tag}` }),
+        };
+
+        let response = await fetch('/api/community/hashtag-search.js', requestOptions);
+        if (response.status === 404) {
+          response = await fetch('/api/community/hashtag-search', requestOptions);
+        }
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(String(payload?.error || `Hashtag search failed (${response.status})`).trim());
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        const rows = normalizeHashtagWebResults(payload?.items || payload?.data || payload);
+        if (cancelled) return;
+
+        setHashtagWebResults(rows);
+        writeHashtagWebCache(tag, rows);
+      } catch (fetchError) {
+        if (cancelled) return;
+        setHashtagWebResults([]);
+        setHashtagWebError(String(fetchError?.message || 'Unable to load web search results right now.'));
+      } finally {
+        if (!cancelled) setHashtagWebLoading(false);
+      }
+    };
+
+    void runHashtagWebSearch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFeedFilter, filteredPosts.length]);
 
   const openComposer = (type = 'general') => {
     setComposerInitialType(type);
@@ -5327,25 +5506,86 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                               </div>
                             ))}
                           </>
-                        ) : filteredPosts.length === 0 ? (
-                          <div
-                            className={filter ? 'h-full flex items-center justify-center text-sm' : (hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm')}
-                            style={{ color: T.muted, borderColor: !filter && hasAiSearchCards ? T.border : 'transparent', backgroundColor: !filter && hasAiSearchCards ? T.card : 'transparent' }}
-                          >
-                            No posts match this filter.
-                          </div>
                         ) : (
-                          <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
-                            {filteredPosts.map((post) => (
-                              <PostCard
-                                key={post.id}
-                                post={post}
-                                currentUser={currentUser}
-                                onDelete={handleDeletePost}
-                                displayName={activeDisplayName}
-                              />
-                            ))}
-                          </motion.div>
+                          <>
+                            {filteredPosts.length === 0 ? (
+                              <div
+                                className={activeFeedFilter ? 'h-full flex items-center justify-center text-sm' : (hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm')}
+                                style={{ color: T.muted, borderColor: !activeFeedFilter && hasAiSearchCards ? T.border : 'transparent', backgroundColor: !activeFeedFilter && hasAiSearchCards ? T.card : 'transparent' }}
+                              >
+                                No posts match this filter.
+                              </div>
+                            ) : (
+                              <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
+                                {filteredPosts.map((post) => (
+                                  <PostCard
+                                    key={post.id}
+                                    post={post}
+                                    currentUser={currentUser}
+                                    onDelete={handleDeletePost}
+                                    displayName={activeDisplayName}
+                                  />
+                                ))}
+                              </motion.div>
+                            )}
+
+                            {shouldShowWebFallback ? (
+                              <div className="mt-3 border-t border-white/6 pt-3 space-y-2">
+                                <div className="text-xs text-[#7d8590]">
+                                  Searching the web for more...
+                                </div>
+                                <div className="text-xs text-[#7d8590] uppercase tracking-wider">
+                                  Trending on the web
+                                </div>
+
+                                {hashtagWebLoading ? (
+                                  <div className="space-y-2">
+                                    {Array.from({ length: 3 }).map((_, idx) => (
+                                      <div
+                                        key={`hashtag-web-loading-${idx}`}
+                                        className="relative h-16 overflow-hidden rounded-lg bg-white/3"
+                                      >
+                                        <div
+                                          className="absolute inset-0"
+                                          style={{
+                                            background: 'linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.02) 100%)',
+                                            backgroundSize: '200% 100%',
+                                            animation: 'shimmer 1.2s linear infinite',
+                                          }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : hashtagWebResults.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {hashtagWebResults.map((result, idx) => (
+                                      <div
+                                        key={`hashtag-web-result-${idx}-${result.headline.slice(0, 24)}`}
+                                        className="rounded-xl border border-white/6 bg-white/3 p-3"
+                                      >
+                                        <div className="text-sm font-medium text-[#e6edf3]">
+                                          {result.headline}
+                                        </div>
+                                        <div className="mt-1 text-xs text-[#7d8590]">
+                                          {result.summary}
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#7d8590]">
+                                          <span className="uppercase tracking-wide">{result.source}</span>
+                                          {result.relatedTickers.length > 0 ? (
+                                            <span>{result.relatedTickers.map((ticker) => `$${ticker}`).join(' • ')}</span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-lg border border-white/6 bg-white/3 px-3 py-2 text-xs text-[#7d8590]">
+                                    {hashtagWebError || `No additional web discussions found for #${hashtagWebTag || normalizeFeedHashtag(activeFeedFilter)}.`}
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                          </>
                         )}
                       </div>
                     </div>
