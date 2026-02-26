@@ -997,109 +997,13 @@ export default function WarRoom({ onClose }) {
                 </div>
               )}
 
-              {/* Split screen: Transcript left, SEC filings / viewer right */}
-              {(transcriptData || secFilings) && (
-                <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
-                  {/* Left: Earnings Transcript */}
-                  <div className="min-h-0 overflow-y-auto scrollbar-hide rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm p-5">
-                    {transcriptData ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
-                          <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                            {transcriptData.fromCache ? 'Cached' : 'Transcript'}
-                          </span>
-                        </div>
-                        <div className="text-[15px] text-gray-300 leading-relaxed whitespace-pre-wrap"
-                          dangerouslySetInnerHTML={{ __html: transcriptData.content
-                            .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-xl font-bold mt-5 mb-2">$1</h2>')
-                            .replace(/^### (.+)$/gm, '<h3 class="text-white text-lg font-semibold mt-4 mb-1">$1</h3>')
-                            .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                            .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-amber-500/60 mt-0.5">•</span><span>$1</span></div>')
-                            .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
-                          }}
-                        />
-                        {transcriptData.sources?.length > 0 && (
-                          <div className="pt-3 border-t border-gray-800/50">
-                            <span className="text-[10px] uppercase tracking-wider text-gray-500 block mb-1.5">Sources</span>
-                            <div className="flex flex-wrap gap-2">
-                              {transcriptData.sources.map((src, i) => (
-                                <a
-                                  key={i}
-                                  href={src.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-sm text-amber-400/80 hover:text-amber-300 transition-colors"
-                                >
-                                  <Link2 className="h-3 w-3" strokeWidth={1.5} />
-                                  {(src.title || src.url).slice(0, 60)}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <Loader2 className="h-5 w-5 text-amber-400 animate-spin" strokeWidth={1.5} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right: SEC Filings + Financials */}
-                  <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
+              {/* Top row: Financials left, SEC filings right */}
+              {(transcriptData || secFilings || financials || financialsLoading) && (
+                <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto scrollbar-hide">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Left: Financial Statements (loads fast) */}
+                    <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
                       <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
-                        {/* SEC Filings */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-white">
-                              SEC Filings{secFilings?.companyName ? ` — ${secFilings.companyName}` : ''}
-                            </h3>
-                            <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
-                          </div>
-
-                          {secLoading && (
-                            <div className="flex items-center gap-3 py-3">
-                              <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
-                              <span className="text-blue-300 text-sm">Loading SEC filings...</span>
-                            </div>
-                          )}
-
-                          {secFilings && secFilings.filings.length > 0 && (
-                            <div className="space-y-2">
-                              {secFilings.filings.map((filing, i) => (
-                                <a
-                                  key={i}
-                                  href={filing.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-2.5 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
-                                      filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-                                      filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
-                                      'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                                    }`}>
-                                      {filing.form}
-                                    </span>
-                                    <div>
-                                      <p className="text-sm text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
-                                      <p className="text-xs text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ${filing.reportDate}` : ''}</p>
-                                    </div>
-                                  </div>
-                                  <Link2 className="h-3.5 w-3.5 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
-                                </a>
-                              ))}
-                            </div>
-                          )}
-
-                          {secFilings && secFilings.filings.length === 0 && !secLoading && (
-                            <p className="text-sm text-gray-500 py-2">No recent 10-K, 10-Q, or 8-K filings found.</p>
-                          )}
-                        </div>
-
-                        {/* Financial Statements */}
                         {financialsLoading && (
                           <div className="flex items-center gap-3 py-3">
                             <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" strokeWidth={1.5} />
@@ -1239,8 +1143,122 @@ export default function WarRoom({ onClose }) {
                             )}
                           </>
                         )}
+
+                        {!financials && !financialsLoading && (
+                          <div className="flex items-center justify-center h-full py-8">
+                            <p className="text-sm text-gray-500">Select a ticker to view financials</p>
+                          </div>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Right: SEC Filings (10-Q, 10-K, 8-K) */}
+                    <div className="min-h-0 overflow-hidden rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm flex flex-col">
+                      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold text-white">
+                            SEC Filings{secFilings?.companyName ? ` — ${secFilings.companyName}` : ''}
+                          </h3>
+                          <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">EDGAR</span>
+                        </div>
+
+                        {secLoading && (
+                          <div className="flex items-center gap-3 py-3">
+                            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" strokeWidth={1.5} />
+                            <span className="text-blue-300 text-sm">Loading SEC filings...</span>
+                          </div>
+                        )}
+
+                        {secFilings && secFilings.filings.length > 0 && (
+                          <div className="space-y-2">
+                            {secFilings.filings.map((filing, i) => (
+                              <a
+                                key={i}
+                                href={filing.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-800/60 bg-black/30 px-4 py-2.5 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
+                                    filing.form === '10-K' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                    filing.form === '10-Q' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                                    'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                  }`}>
+                                    {filing.form}
+                                  </span>
+                                  <div>
+                                    <p className="text-sm text-white group-hover:text-blue-300 transition-colors">{filing.description || filing.form}</p>
+                                    <p className="text-xs text-gray-500">Filed {filing.filingDate}{filing.reportDate ? ` · Period ${filing.reportDate}` : ''}</p>
+                                  </div>
+                                </div>
+                                <Link2 className="h-3.5 w-3.5 text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" strokeWidth={1.5} />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {secFilings && secFilings.filings.length === 0 && !secLoading && (
+                          <p className="text-sm text-gray-500 py-2">No recent 10-K, 10-Q, or 8-K filings found.</p>
+                        )}
+
+                        {!secFilings && !secLoading && (
+                          <div className="flex items-center justify-center py-8">
+                            <p className="text-sm text-gray-500">Select a ticker to view SEC filings</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Below: Earnings Transcript (full width, loads slower) */}
+                  {(transcriptData || transcriptLoading) && (
+                    <div className="rounded-xl border border-gray-800/50 bg-black/40 backdrop-blur-sm p-5">
+                      {transcriptData ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-white">${transcriptData.symbol} Earnings Call</h3>
+                            <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              {transcriptData.fromCache ? 'Cached' : 'Transcript'}
+                            </span>
+                          </div>
+                          <div className="text-[15px] text-gray-300 leading-relaxed whitespace-pre-wrap"
+                            dangerouslySetInnerHTML={{ __html: transcriptData.content
+                              .replace(/^## (.+)$/gm, '<h2 class="text-amber-300 text-xl font-bold mt-5 mb-2">$1</h2>')
+                              .replace(/^### (.+)$/gm, '<h3 class="text-white text-lg font-semibold mt-4 mb-1">$1</h3>')
+                              .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                              .replace(/^- (.+)$/gm, '<div class="flex gap-2 ml-2 my-1.5"><span class="text-amber-500/60 mt-0.5">•</span><span>$1</span></div>')
+                              .replace(/(\$[A-Z]{1,5})/g, '<span class="text-amber-400 font-semibold">$1</span>')
+                            }}
+                          />
+                          {transcriptData.sources?.length > 0 && (
+                            <div className="pt-3 border-t border-gray-800/50">
+                              <span className="text-[10px] uppercase tracking-wider text-gray-500 block mb-1.5">Sources</span>
+                              <div className="flex flex-wrap gap-2">
+                                {transcriptData.sources.map((src, i) => (
+                                  <a
+                                    key={i}
+                                    href={src.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-sm text-amber-400/80 hover:text-amber-300 transition-colors"
+                                  >
+                                    <Link2 className="h-3 w-3" strokeWidth={1.5} />
+                                    {(src.title || src.url).slice(0, 60)}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 py-4">
+                          <Loader2 className="h-5 w-5 text-amber-400 animate-spin" strokeWidth={1.5} />
+                          <span className="text-amber-300 text-sm animate-pulse">Fetching earnings transcript...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
