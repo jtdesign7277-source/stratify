@@ -38,11 +38,8 @@ function makeCacheKey({ text, style, personality }) {
   return `ai-rewrite:{${hash}}`;
 }
 
-function getTextBlocks(content = []) {
-  return (Array.isArray(content) ? content : [])
-    .filter((block) => block?.type === 'text' && typeof block?.text === 'string')
-    .map((block) => block.text.trim())
-    .filter(Boolean);
+function getAssistantMessageText(payload) {
+  return String(payload?.choices?.[0]?.message?.content || '').trim();
 }
 
 async function checkRateLimit(redis) {
@@ -57,30 +54,32 @@ async function checkRateLimit(redis) {
 
 async function callClaudeRewrite({ text, style, personality, apiKey }) {
   const userPrompt = `Original post: ${text}. Style: ${style || 'None'}. Personality: ${personality || 'None'}. Rewrite this post.`;
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'grok-3-mini-fast',
       max_tokens: 1000,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userPrompt }],
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Claude API error ${response.status}: ${errorBody.slice(0, 240)}`);
+    throw new Error(`xAI API error ${response.status}: ${errorBody.slice(0, 240)}`);
   }
 
   const payload = await response.json();
-  const rewritten = getTextBlocks(payload?.content || []).join('\n').trim();
+  const rewritten = getAssistantMessageText(payload);
   if (!rewritten) {
-    throw new Error('Claude returned empty rewrite');
+    throw new Error('xAI returned empty rewrite');
   }
   return rewritten;
 }
@@ -106,9 +105,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'style or personality is required' });
   }
 
-  const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
   if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+    return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
   }
 
   const redis = getRedisClient();
@@ -162,7 +161,7 @@ export default async function handler(req, res) {
     res.setHeader('X-Cache', 'MISS');
     return res.status(200).json({ rewritten, cached: false });
   } catch (error) {
-    console.error('[community/ai-rewrite] Claude error:', error);
+    console.error('[community/ai-rewrite] xAI error:', error);
     return res.status(502).json({ error: String(error?.message || 'AI rewrite failed') });
   }
 }

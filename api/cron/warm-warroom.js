@@ -66,7 +66,7 @@ function getTranscriptSystem() {
   ].join('\n');
 }
 
-function extractSources(contentBlocks) {
+function extractSources(contentBlocks, contentText = '') {
   const sources = [];
   const seen = new Set();
   for (const block of contentBlocks || []) {
@@ -79,35 +79,49 @@ function extractSources(contentBlocks) {
       }
     }
   }
+
+  if (sources.length === 0) {
+    const urlMatches = String(contentText || '').match(/https?:\/\/[^\s)]+/gi) || [];
+    for (const match of urlMatches) {
+      const url = match.replace(/[),.;!?]+$/g, '');
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      sources.push({ title: url, url });
+    }
+  }
+
   return sources;
 }
 
 async function callClaude(system, userMessage) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) {
+    throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
+  }
+
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'grok-3-mini-fast',
       max_tokens: 4096,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system,
-      messages: [{ role: 'user', content: userMessage }],
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage },
+      ],
     }),
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  if (!response.ok) throw new Error(`xAI API error: ${response.status}`);
 
-  const content = (data.content || [])
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n');
+  const content = String(data?.choices?.[0]?.message?.content || '').trim();
 
-  return { content, sources: extractSources(data.content) };
+  return { content, sources: extractSources(data?.content || [], content) };
 }
 
 // Run tasks in parallel batches to stay within time limits
@@ -125,6 +139,11 @@ export default async function handler(req, res) {
   const authHeader = req.headers.authorization;
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const xaiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!xaiKey) {
+    return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
   }
 
   // batch=scans | batch=transcripts | batch=transcripts2 | batch=flush-transcripts

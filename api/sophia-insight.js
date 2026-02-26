@@ -112,8 +112,8 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' });
+  const xaiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!xaiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
 
   try {
     const [snapshots, intel, recentInsights] = await Promise.all([
@@ -136,26 +136,26 @@ export default async function handler(req, res) {
       .replace('{INTEL}', intel || 'No recent intel.')
       .replace('{RECENT}', recentStr);
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const aiRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${xaiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'grok-3-mini-fast',
         max_tokens: 256,
+        temperature: 0.8,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
-    if (!anthropicRes.ok) {
-      return res.status(502).json({ error: `Anthropic error: ${anthropicRes.status}` });
+    if (!aiRes.ok) {
+      return res.status(502).json({ error: `xAI error: ${aiRes.status}` });
     }
 
-    const data = await anthropicRes.json();
-    const responseText = (data.content?.[0]?.text || '').trim();
+    const data = await aiRes.json();
+    const responseText = String(data?.choices?.[0]?.message?.content || '').trim();
 
     // Check if Sophia decided to pass
     if (responseText === 'PASS' || responseText.startsWith('PASS')) {

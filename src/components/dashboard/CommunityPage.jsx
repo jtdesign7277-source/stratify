@@ -605,6 +605,7 @@ const ShimmerLine = ({ w = '100%', h = 14, rounded = 6, className = '' }) => (
       className="absolute inset-0"
       style={{
         background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)',
+        backgroundSize: '200% 100%',
         animation: 'shimmer 1.6s ease-in-out infinite',
       }}
     />
@@ -834,8 +835,8 @@ const modalSectionMotion = (index = 0) => ({
 
 const COMMUNITY_PAGE_STYLES = `
   @keyframes shimmer {
-    0% { transform: translateX(-120%); }
-    100% { transform: translateX(120%); }
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 
   @keyframes communityPulse {
@@ -2302,6 +2303,7 @@ const PostComposerModal = ({
                                 className="absolute inset-0"
                                 style={{
                                   background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)',
+                                  backgroundSize: '200% 100%',
                                   animation: 'shimmer 1.2s linear infinite',
                                   animationDelay: `${index * 0.12}s`,
                                 }}
@@ -2372,9 +2374,14 @@ const PostComposerModal = ({
                         setShowAiRewritePanel((openState) => !openState);
                       }}
                       disabled={!canOpenAiRewrite}
-                      className={`flex items-center gap-1.5 text-xs text-[#7d8590] hover:text-[#58a6ff] cursor-pointer transition-all duration-150 ${!canOpenAiRewrite ? 'opacity-40 cursor-not-allowed hover:text-[#7d8590]' : ''}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-white shadow-[0_0_12px_rgba(88,166,255,0.4)] transition-all duration-200 ${canOpenAiRewrite ? 'hover:brightness-110 hover:scale-105' : 'opacity-40 cursor-not-allowed'}`}
+                      style={{
+                        background: 'linear-gradient(90deg, #58a6ff, #a78bfa, #f472b6, #58a6ff)',
+                        backgroundSize: '200% 100%',
+                        animation: 'shimmer 3s ease infinite',
+                      }}
                     >
-                      <Wand2 strokeWidth={1.5} className="w-4 h-4" />
+                      <Wand2 strokeWidth={1.5} className="w-4 h-4 text-white" />
                       <span>AI Rewrite</span>
                     </button>
                   </div>

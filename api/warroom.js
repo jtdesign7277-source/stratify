@@ -2,7 +2,7 @@ import { getCachedScan, setCachedScan } from './lib/warroom-cache.js';
 
 export const config = { maxDuration: 60 };
 
-function extractSources(contentBlocks) {
+function extractSources(contentBlocks, contentText = '') {
   const sources = [];
   const seen = new Set();
   for (const block of contentBlocks || []) {
@@ -15,38 +15,52 @@ function extractSources(contentBlocks) {
       }
     }
   }
+
+  if (sources.length === 0) {
+    const urlMatches = String(contentText || '').match(/https?:\/\/[^\s)]+/gi) || [];
+    for (const match of urlMatches) {
+      const url = match.replace(/[),.;!?]+$/g, '');
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      sources.push({ title: url, url });
+    }
+  }
+
   return sources;
 }
 
 async function fetchFromClaude(query) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) {
+    throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
+  }
+
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'grok-3-mini-fast',
       max_tokens: 4096,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.',
-      messages: [{ role: 'user', content: query }],
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.' },
+        { role: 'user', content: query },
+      ],
     }),
   });
 
   const data = await response.json();
   if (!response.ok) {
-    console.error('Anthropic API error:', data);
+    console.error('xAI API error:', data);
     throw new Error('API request failed');
   }
 
-  const content = (data.content || [])
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n');
+  const content = String(data?.choices?.[0]?.message?.content || '').trim();
 
-  const sources = extractSources(data.content);
+  const sources = extractSources(data?.content || [], content);
   return { content, sources };
 }
 
@@ -71,6 +85,11 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const xaiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!xaiKey) {
+    return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
   }
 
   const { query, cacheLabel } = req.body || {};

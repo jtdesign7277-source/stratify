@@ -56,16 +56,6 @@ LENGTH RULES:
 - USE THE REAL BACKTEST DATA PROVIDED. Do NOT make up trades or numbers.
 `.trim();
 
-const SOPHIA_CACHED_SYSTEM_MESSAGE = [
-  {
-    type: 'text',
-    text: SOPHIA_MEGA_SYSTEM_PROMPT,
-    cache_control: { type: 'ephemeral' },
-  },
-];
-
-let zeroCacheReadStreak = 0;
-
 function extractTickers(text) {
   const tickers = new Set();
   for (const m of text.matchAll(/\$([A-Z]{1,5})\b/g)) tickers.add(m[1]);
@@ -341,8 +331,8 @@ async function fetchQuote(symbol) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' });
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
 
   const { messages: incomingMessages, userId } = req.body;
   if (!Array.isArray(incomingMessages)) return res.status(400).json({ error: 'messages must be an array' });
@@ -441,94 +431,35 @@ export default async function handler(req, res) {
   res.setHeader('Transfer-Encoding', 'chunked');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'prompt-caching-2024-07-31',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'grok-3-mini-fast',
         max_tokens: 1800,
-        system: SOPHIA_CACHED_SYSTEM_MESSAGE,
-        messages: requestMessages,
-        stream: true,
+        temperature: 0.8,
+        messages: [
+          { role: 'system', content: SOPHIA_MEGA_SYSTEM_PROMPT },
+          ...requestMessages,
+        ],
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      return res.status(502).end(`Anthropic error: ${response.status} ${errText}`);
+      return res.status(502).end(`xAI error: ${response.status} ${errText}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullResponse = '';
-    const cacheMetrics = {
-      cache_write: 0,
-      cache_read: 0,
-      input: 0,
-      output: 0,
-    };
-
-    const mergeUsage = (usage) => {
-      if (!usage || typeof usage !== 'object') return;
-      if (Number.isFinite(usage.cache_creation_input_tokens)) {
-        cacheMetrics.cache_write = usage.cache_creation_input_tokens;
-      }
-      if (Number.isFinite(usage.cache_read_input_tokens)) {
-        cacheMetrics.cache_read = usage.cache_read_input_tokens;
-      }
-      if (Number.isFinite(usage.input_tokens)) {
-        cacheMetrics.input = usage.input_tokens;
-      }
-      if (Number.isFinite(usage.output_tokens)) {
-        cacheMetrics.output = usage.output_tokens;
-      }
-    };
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data: ')) continue;
-        const data = trimmed.slice(6);
-        if (data === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === 'message_start') {
-            mergeUsage(parsed.message?.usage);
-          }
-          if (parsed.type === 'message_delta' || parsed.type === 'message_stop') {
-            mergeUsage(parsed.usage);
-          }
-          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-            fullResponse += parsed.delta.text;
-            res.write(parsed.delta.text);
-          }
-        } catch {}
-      }
+    const payload = await response.json();
+    const fullResponse = String(payload?.choices?.[0]?.message?.content || '').trim();
+    if (fullResponse) {
+      res.write(fullResponse);
     }
 
     res.end();
-
-    if (cacheMetrics.cache_read > 0) {
-      zeroCacheReadStreak = 0;
-    } else {
-      zeroCacheReadStreak += 1;
-      if (zeroCacheReadStreak >= 2) {
-        console.error('[Sophia Cache] cache_read_input_tokens is 0 on consecutive requests — caching likely broken.');
-      }
-    }
-
-    console.log('[Sophia Cache]', cacheMetrics);
 
     // Save messages to Supabase (fire and forget)
     if (supabase && userId) {

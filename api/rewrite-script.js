@@ -20,32 +20,35 @@ export default async function handler(req, res) {
   const { script, style } = req.body || {};
   if (!script?.trim()) return res.status(400).json({ error: 'Missing script content' });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
 
   const styleKey = (style || 'professional').toLowerCase();
   const styleInstruction = STYLE_PROMPTS[styleKey] || STYLE_PROMPTS.professional;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'grok-3-mini-fast',
         max_tokens: 1024,
-        system: [
-          'You are a creative writing assistant for Stratify, an AI trading platform.',
-          'Your job is to rewrite user scripts/notes into polished, shareable content.',
-          'Keep the rewrite concise — ideal for a tweet or short social post (under 280 characters when possible, but can go longer if needed).',
-          'Always preserve the core message and any ticker symbols ($AAPL, $SPY, etc.).',
-          'Do NOT add hashtags unless the user\'s original had them.',
-          'Return ONLY the rewritten text — no preamble, no quotes, no explanation.',
-        ].join(' '),
+        temperature: 0.8,
         messages: [
+          {
+            role: 'system',
+            content: [
+              'You are a creative writing assistant for Stratify, an AI trading platform.',
+              'Your job is to rewrite user scripts/notes into polished, shareable content.',
+              'Keep the rewrite concise — ideal for a tweet or short social post (under 280 characters when possible, but can go longer if needed).',
+              'Always preserve the core message and any ticker symbols ($AAPL, $SPY, etc.).',
+              'Do NOT add hashtags unless the user\'s original had them.',
+              'Return ONLY the rewritten text — no preamble, no quotes, no explanation.',
+            ].join(' '),
+          },
           {
             role: 'user',
             content: `${styleInstruction}\n\nOriginal script:\n${script.trim()}`,
@@ -60,11 +63,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'API request failed' });
     }
 
-    const rewritten = (data.content || [])
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('\n')
-      .trim();
+    const rewritten = String(data?.choices?.[0]?.message?.content || '').trim();
 
     return res.status(200).json({ rewritten, style: styleKey });
   } catch (error) {

@@ -99,33 +99,35 @@ async function checkRateLimit(redis) {
 }
 
 async function callClaude(action, query, interests) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
 
   const userPrompt = buildUserPrompt(action, query, interests);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'grok-3-mini-fast',
       max_tokens: 2000,
-      system: 'You are a financial news analyst for Stratify, a trading platform. Return valid JSON only, no markdown wrapping, no code blocks.',
-      messages: [{ role: 'user', content: userPrompt }],
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: 'You are a financial news analyst for Stratify, a trading platform. Return valid JSON only, no markdown wrapping, no code blocks.' },
+        { role: 'user', content: userPrompt },
+      ],
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Claude API error ${response.status}: ${errorBody.slice(0, 200)}`);
+    throw new Error(`xAI API error ${response.status}: ${errorBody.slice(0, 200)}`);
   }
 
   const result = await response.json();
-  const text = result?.content?.[0]?.text || '';
+  const text = String(result?.choices?.[0]?.message?.content || '');
 
   // Parse JSON from response, stripping any accidental markdown wrapping
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -206,7 +208,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Rate limit exceeded. Please try again shortly.' });
   }
 
-  // Cache miss: call Claude
+  // Cache miss: call AI
   try {
     const data = await callClaude(action, query, interests);
 
@@ -224,7 +226,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('[community/news-feed] Claude API error:', error);
 
-    // If Claude fails, try to return any stale cached data
+    // If AI fails, try to return any stale cached data
     if (redis) {
       try {
         const stale = await redis.get(cacheKey);

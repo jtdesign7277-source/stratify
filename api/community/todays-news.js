@@ -128,10 +128,12 @@ function toNewsArray(parsed) {
 }
 
 function parseClaudeNewsItems(claudePayload) {
-  const textBlocks = (Array.isArray(claudePayload?.content) ? claudePayload.content : [])
+  const assistantText = String(claudePayload?.choices?.[0]?.message?.content || '').trim();
+  const anthropicBlocks = (Array.isArray(claudePayload?.content) ? claudePayload.content : [])
     .filter((block) => block?.type === 'text' && typeof block?.text === 'string')
     .map((block) => stripMarkdownFences(block.text))
     .filter(Boolean);
+  const textBlocks = assistantText ? [stripMarkdownFences(assistantText)] : anthropicBlocks;
 
   for (const text of textBlocks) {
     try {
@@ -150,30 +152,25 @@ function parseClaudeNewsItems(claudePayload) {
 }
 
 async function callClaudeForTodaysNews() {
-  const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const userPrompt = 'Search the web for the top 8 trending financial news stories right now. Return ONLY valid JSON array with exactly 8 items and this schema: [{"headline":"string","sources":["string"],"category":"News|Markets|Crypto|Politics|Earnings","postCount":"string","summary":"string","url":"https://...","trendingLabel":"string"}]. No markdown fences and no extra text.';
+
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'web-search-2025-03-05',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'grok-3-mini-fast',
       max_tokens: 2600,
-      tools: [{ type: 'web_search_20250305' }],
+      temperature: 0.8,
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Search the web for the top 8 trending financial news stories right now. Return ONLY valid JSON array with exactly 8 items and this schema: [{"headline":"string","sources":["string"],"category":"News|Markets|Crypto|Politics|Earnings","postCount":"string","summary":"string","url":"https://...","trendingLabel":"string"}]. No markdown fences and no extra text.',
-            },
-          ],
+          content: userPrompt,
         },
       ],
     }),
@@ -181,7 +178,7 @@ async function callClaudeForTodaysNews() {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Claude API error ${response.status}: ${errorBody.slice(0, 240)}`);
+    throw new Error(`xAI API error ${response.status}: ${errorBody.slice(0, 240)}`);
   }
 
   return response.json();
@@ -241,7 +238,7 @@ export default async function handler(req, res) {
 
     if (items.length === 0) {
       return res.status(502).json({
-        error: 'Claude response parsing failed',
+        error: 'AI response parsing failed',
         items: [],
         cached: false,
       });

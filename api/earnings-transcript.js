@@ -55,6 +55,21 @@ function buildSystem(today) {
   ].join('\n');
 }
 
+function extractSourcesFromText(content = '') {
+  const seen = new Set();
+  const sources = [];
+  const urlMatches = String(content || '').match(/https?:\/\/[^\s)]+/gi) || [];
+
+  for (const match of urlMatches) {
+    const url = match.replace(/[),.;!?]+$/g, '');
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    sources.push({ title: url, url });
+  }
+
+  return sources;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -83,25 +98,26 @@ export default async function handler(req, res) {
     }
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
 
   const today = new Date().toISOString().split('T')[0];
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'grok-3-mini-fast',
         max_tokens: 4096,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: buildSystem(today),
-        messages: [{ role: 'user', content: `Today is exactly ${today}. Search the web and find the most recent earnings call transcript for $${symbol} that has ALREADY happened (call date must be on or before ${today}). If the next call hasn't happened yet, use the previous quarter's call. Provide a detailed summary.` }],
+        temperature: 0.8,
+        messages: [
+          { role: 'system', content: buildSystem(today) },
+          { role: 'user', content: `Today is exactly ${today}. Search the web and find the most recent earnings call transcript for $${symbol} that has ALREADY happened (call date must be on or before ${today}). If the next call hasn't happened yet, use the previous quarter's call. Provide a detailed summary.` },
+        ],
       }),
     });
 
@@ -111,23 +127,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'API request failed' });
     }
 
-    const content = (data.content || [])
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('\n');
+    const content = String(data?.choices?.[0]?.message?.content || '').trim();
 
-    const sources = [];
-    const seen = new Set();
-    for (const block of data.content || []) {
-      if (block.type === 'web_search_tool_result') {
-        for (const result of block.content || []) {
-          if (result.type === 'web_search_result' && result.url && !seen.has(result.url)) {
-            seen.add(result.url);
-            sources.push({ title: result.title || result.url, url: result.url });
-          }
-        }
-      }
-    }
+    const sources = extractSourcesFromText(content);
 
     // Final safety check — reject if content mentions a future date
     const futureDate = hasFutureDate(content, today);

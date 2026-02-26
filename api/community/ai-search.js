@@ -57,6 +57,11 @@ async function checkRateLimit(redis) {
 }
 
 function getTextBlocks(content = []) {
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
   return (Array.isArray(content) ? content : [])
     .filter((block) => block?.type === 'text' && typeof block?.text === 'string')
     .map((block) => block.text.trim())
@@ -191,34 +196,35 @@ function normalizeAiResult({ query, parsedJson, textBlocks, webSearchResults }) 
 }
 
 async function callClaudeWithWebSearch(query, interests) {
-  const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
   if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
+    throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
   }
 
   const interestsContext = interests && typeof interests === 'object' && Object.keys(interests).length > 0
     ? `\n\nUser interests context: ${JSON.stringify(interests)}`
     : '';
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'grok-3-mini-fast',
       max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages: [{ role: 'user', content: `${query}${interestsContext}` }],
-      system: SYSTEM_PROMPT,
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: `${query}${interestsContext}` },
+      ],
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Claude API error ${response.status}: ${errorBody.slice(0, 240)}`);
+    throw new Error(`xAI API error ${response.status}: ${errorBody.slice(0, 240)}`);
   }
 
   return response.json();
@@ -269,9 +275,10 @@ export default async function handler(req, res) {
 
   try {
     const claudeResponse = await callClaudeWithWebSearch(query, interests);
-    const textBlocks = getTextBlocks(claudeResponse?.content || []);
+    const responseContent = claudeResponse?.choices?.[0]?.message?.content || '';
+    const textBlocks = getTextBlocks(responseContent);
     const parsedJson = extractJsonFromTextBlocks(textBlocks) || {};
-    const webSearchResults = sanitizeSources(collectWebSourceCandidates(claudeResponse?.content || []));
+    const webSearchResults = sanitizeSources(collectWebSourceCandidates(responseContent));
 
     const data = normalizeAiResult({
       query,

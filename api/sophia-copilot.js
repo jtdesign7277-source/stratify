@@ -119,8 +119,8 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' });
+  const xaiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!xaiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
   if (!ALPACA_KEY) return res.status(500).json({ error: 'Missing ALPACA_API_KEY for market data' });
 
   try {
@@ -134,27 +134,27 @@ export default async function handler(req, res) {
 
     const prompt = buildCopilotPrompt(tickers, snapshots, intelHeadline);
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const aiRes = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${xaiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'grok-3-mini-fast',
         max_tokens: 1024,
+        temperature: 0.8,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      return res.status(502).json({ error: `Anthropic error: ${anthropicRes.status}` });
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      return res.status(502).json({ error: `xAI error: ${aiRes.status} ${errText}` });
     }
 
-    const anthropicData = await anthropicRes.json();
-    const responseText = anthropicData.content?.[0]?.text || '';
+    const aiData = await aiRes.json();
+    const responseText = String(aiData?.choices?.[0]?.message?.content || '');
 
     // Parse alerts
     const alerts = [];

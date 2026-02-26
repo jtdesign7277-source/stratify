@@ -5,7 +5,7 @@ import { BOT_PERSONAS, buildAvatarUrl } from '../lib/botPersonas.js';
 
 export const config = { maxDuration: 60 };
 
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL = 'grok-3-mini-fast';
 const CLAUDE_MAX_CALLS_PER_EXECUTION = 10;
 
 const MARKET_CONTEXT_TTL_SECONDS = 600;
@@ -373,8 +373,8 @@ async function enforceClaudeCallBudget({ redis, executionId, state }) {
 }
 
 async function callClaudeJson({ redis, executionId, state, system, userPrompt, useWebSearch = false, maxTokens = 1400 }) {
-  const apiKey = String(process.env.ANTHROPIC_API_KEY || '').trim();
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
 
   await enforceClaudeCallBudget({ redis, executionId, state });
 
@@ -386,26 +386,34 @@ async function callClaudeJson({ redis, executionId, state, system, userPrompt, u
   };
 
   if (useWebSearch) {
-    payload.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
+    // Keep prompt unchanged; xAI chat-completions does not accept Anthropic tool definitions.
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      model: payload.model,
+      max_tokens: payload.max_tokens,
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: payload.system },
+        { role: 'user', content: userPrompt },
+      ],
+    }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Claude API error ${response.status}: ${errorBody.slice(0, 240)}`);
+    throw new Error(`xAI API error ${response.status}: ${errorBody.slice(0, 240)}`);
   }
 
   const result = await response.json();
-  const textBlocks = getTextBlocks(result?.content || []);
+  const assistantText = String(result?.choices?.[0]?.message?.content || '').trim();
+  const textBlocks = getTextBlocks(assistantText ? [{ type: 'text', text: assistantText }] : []);
   const parsed = extractJsonFromTextBlocks(textBlocks);
 
   if (!parsed) {

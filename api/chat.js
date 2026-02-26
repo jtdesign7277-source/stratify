@@ -7,6 +7,8 @@ export default async function handler(req, res) {
 
   const { messages } = req.body;
   if (!messages) return res.status(400).json({ error: 'messages required' });
+  const apiKey = String(process.env.XAI_API_KEY || '').trim();
+  if (!apiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -71,19 +73,20 @@ When users ask about strategies, suggest specific entry/exit conditions, positio
 When giving price levels for support/resistance, use round numbers near the actual price. When suggesting stop losses, calculate them as specific dollar amounts based on the real price.${priceContext}`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'grok-3-mini-fast',
         max_tokens: 2048,
-        stream: true,
-        system: systemPrompt,
-        messages: messages,
+        temperature: 0.8,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages,
+        ],
       }),
     });
 
@@ -94,28 +97,10 @@ When giving price levels for support/resistance, use round numbers near the actu
       return;
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              res.write(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`);
-            }
-          } catch (e) {}
-        }
-      }
+    const data = await response.json();
+    const text = String(data?.choices?.[0]?.message?.content || '').trim();
+    if (text) {
+      res.write(`data: ${JSON.stringify({ text })}\n\n`);
     }
     res.write('data: [DONE]\n\n');
     res.end();
