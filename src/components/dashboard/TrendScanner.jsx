@@ -35,35 +35,53 @@ function formatNumber(num) {
   return num.toString();
 }
 
+const CARD_CLASS = 'block rounded-xl bg-white/[0.02] border border-white/[0.06] transition-all';
+const CARD_HEIGHT = 'h-[120px]';
+
+function TrendCard({ href, hoverBorder = 'hover:border-white/15', children }) {
+  const cls = `${CARD_CLASS} ${CARD_HEIGHT} px-4 py-3 ${hoverBorder} group`;
+  if (href) {
+    return (
+      <motion.a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cls}
+      >
+        {children}
+      </motion.a>
+    );
+  }
+  return (
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cls}>
+      {children}
+    </motion.div>
+  );
+}
+
 function RedditItem({ post, color = 'orange' }) {
   const accent = color === 'lime' ? 'text-lime-400' : 'text-orange-400';
   const border = color === 'lime' ? 'hover:border-lime-500/30' : 'hover:border-orange-500/30';
   return (
-    <motion.a
-      href={post.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`block px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] ${border} transition-all group`}
-    >
-      <div className="flex items-start gap-2.5">
+    <TrendCard href={post.url} hoverBorder={border}>
+      <div className="flex items-start gap-2.5 h-full">
         <div className="flex flex-col items-center min-w-[32px]">
-          <ArrowUp className={`w-3 h-3 ${accent}`} strokeWidth={2} />
+          <ArrowUp className={`w-3.5 h-3.5 ${accent}`} strokeWidth={2} />
           <span className={`text-xs font-bold ${accent}`}>{formatNumber(post.score)}</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-white/90 leading-snug line-clamp-2 group-hover:text-white">{post.title}</p>
-          <div className="flex items-center gap-2 mt-1 text-[10px] text-white/35">
+        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+          <p className="text-sm text-white/90 leading-snug line-clamp-3 group-hover:text-white">{post.title}</p>
+          <div className="flex items-center gap-2 text-[10px] text-white/35">
             <span className={`font-medium ${accent} opacity-70`}>{post.subreddit}</span>
-            {post.flair && <span className="px-1 py-0.5 rounded bg-white/[0.04]">{post.flair}</span>}
             <span className="flex items-center gap-0.5"><MessageSquare className="w-2.5 h-2.5" />{formatNumber(post.comments)}</span>
             <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{timeAgo(post.created)}</span>
           </div>
         </div>
         <ExternalLink className="w-3 h-3 text-white/15 group-hover:text-white/40 shrink-0 mt-0.5" />
       </div>
-    </motion.a>
+    </TrendCard>
   );
 }
 
@@ -71,44 +89,35 @@ function XItem({ topic }) {
   const catColor = { stocks: 'text-emerald-400', crypto: 'text-purple-400', economy: 'text-blue-400', earnings: 'text-amber-400' };
   const engColor = { high: 'text-emerald-400 bg-emerald-500/10', medium: 'text-amber-400 bg-amber-500/10', low: 'text-white/40 bg-white/[0.04]' };
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/15 transition-all"
-    >
-      <div className="flex items-start gap-2.5">
-        <XLogo className="w-3.5 h-3.5 text-white/50 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white leading-snug">{topic.topic}</p>
-          <p className="text-[11px] text-white/45 mt-0.5 line-clamp-1">{topic.description}</p>
-          <div className="flex items-center gap-2 mt-1">
+    <TrendCard hoverBorder="hover:border-white/15">
+      <div className="flex items-start gap-2.5 h-full">
+        <XLogo className="w-4 h-4 text-white/50 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+          <div>
+            <p className="text-sm font-semibold text-white leading-snug line-clamp-2">{topic.topic}</p>
+            <p className="text-[11px] text-white/45 mt-0.5 line-clamp-1">{topic.description}</p>
+          </div>
+          <div className="flex items-center gap-2">
             <span className={`text-[10px] font-medium ${catColor[topic.category] || 'text-white/40'}`}>{topic.category}</span>
-            <span className={`text-[10px] px-1 py-0.5 rounded ${engColor[topic.engagement] || engColor.medium}`}>{topic.engagement}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${engColor[topic.engagement] || engColor.medium}`}>{topic.engagement}</span>
           </div>
         </div>
       </div>
-    </motion.div>
+    </TrendCard>
   );
 }
 
 function HNItem({ story }) {
   return (
-    <motion.a
-      href={story.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="block px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-amber-500/30 transition-all group"
-    >
-      <div className="flex items-start gap-2.5">
+    <TrendCard href={story.url} hoverBorder="hover:border-amber-500/30">
+      <div className="flex items-start gap-2.5 h-full">
         <div className="flex flex-col items-center min-w-[32px]">
-          <ArrowUp className="w-3 h-3 text-amber-400" strokeWidth={2} />
+          <ArrowUp className="w-3.5 h-3.5 text-amber-400" strokeWidth={2} />
           <span className="text-xs font-bold text-amber-400">{formatNumber(story.score)}</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-white/90 leading-snug line-clamp-2 group-hover:text-white">{story.title}</p>
-          <div className="flex items-center gap-2 mt-1 text-[10px] text-white/35">
+        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+          <p className="text-sm text-white/90 leading-snug line-clamp-3 group-hover:text-white">{story.title}</p>
+          <div className="flex items-center gap-2 text-[10px] text-white/35">
             <span className="text-amber-400/70 font-medium">@{story.author}</span>
             <span className="flex items-center gap-0.5"><MessageSquare className="w-2.5 h-2.5" />{formatNumber(story.comments)}</span>
             <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{timeAgo(story.created)}</span>
@@ -116,24 +125,17 @@ function HNItem({ story }) {
         </div>
         <ExternalLink className="w-3 h-3 text-white/15 group-hover:text-white/40 shrink-0 mt-0.5" />
       </div>
-    </motion.a>
+    </TrendCard>
   );
 }
 
 function NewsItem({ article }) {
   return (
-    <motion.a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="block px-4 py-3.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-blue-500/30 transition-all group"
-    >
-      <div className="flex items-start gap-2.5">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-white/90 leading-snug line-clamp-2 group-hover:text-white">{article.title}</p>
-          <div className="flex items-center gap-2 mt-1 text-[10px] text-white/35">
+    <TrendCard href={article.url} hoverBorder="hover:border-blue-500/30">
+      <div className="flex items-start gap-2.5 h-full">
+        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+          <p className="text-sm text-white/90 leading-snug line-clamp-3 group-hover:text-white">{article.title}</p>
+          <div className="flex items-center gap-2 text-[10px] text-white/35">
             <span className="text-blue-400/70 font-medium">{article.source}</span>
             {article.symbols?.length > 0 && (
               <span className="text-emerald-400/70">{article.symbols.map(s => `$${s}`).join(' ')}</span>
@@ -143,7 +145,7 @@ function NewsItem({ article }) {
         </div>
         <ExternalLink className="w-3 h-3 text-white/15 group-hover:text-white/40 shrink-0 mt-0.5" />
       </div>
-    </motion.a>
+    </TrendCard>
   );
 }
 
@@ -217,7 +219,7 @@ export default function TrendScanner() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-3" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex-1 overflow-y-auto px-5 py-4" style={{ scrollbarWidth: 'none' }}>
         {loading && !trends ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <RefreshCw className="w-5 h-5 text-emerald-400 animate-spin" />
@@ -234,7 +236,7 @@ export default function TrendScanner() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-5 gap-5 h-full">
+          <div className="grid grid-cols-5 gap-5">
             {SECTIONS.map(({ key, label, color }) => {
               const items = trends?.[key];
               if (!items || items.length === 0) return (
@@ -244,9 +246,9 @@ export default function TrendScanner() {
                 </div>
               );
               return (
-                <div key={key} className="min-w-0 flex flex-col">
+                <div key={key} className="min-w-0">
                   <h2 className={`text-sm font-bold ${color} mb-3 uppercase tracking-wider`}>{label}</h2>
-                  <div className="space-y-3 flex-1">
+                  <div className="space-y-3">
                     {renderSection(key, items)}
                   </div>
                 </div>
