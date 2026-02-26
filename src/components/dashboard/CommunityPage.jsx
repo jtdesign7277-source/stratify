@@ -1595,17 +1595,15 @@ const ChatInputBar = ({
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
-                className="h-7 w-7 flex-shrink-0 rounded-full border transition-colors"
+                className="mt-1 flex-shrink-0 inline-flex items-center justify-center transition-colors"
                 style={{
-                  borderColor: T.border,
                   color: searchMode ? T.blue : T.muted,
-                  backgroundColor: searchMode ? 'rgba(88,166,255,0.14)' : 'transparent',
                 }}
                 title={searchMode ? 'Switch to post mode' : 'Switch to search mode'}
               >
-                <Search size={13} strokeWidth={1.5} className="mx-auto" />
+                <Search size={16} strokeWidth={1.5} className="h-4 w-4" />
               </button>
-              <Activity size={16} className="mt-1 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
+              <Activity size={16} className="mt-1 h-4 w-4 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
               <textarea
                 ref={inputRef}
                 value={message}
@@ -1651,11 +1649,11 @@ const ChatInputBar = ({
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker((open) => !open)}
-                  className="h-8 w-8 rounded-full border transition-colors"
-                  style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.8)' }}
+                  className="inline-flex items-center justify-center transition-colors"
+                  style={{ color: T.muted }}
                   title="Insert emoji"
                 >
-                  <SmilePlus size={13} className="mx-auto" />
+                  <SmilePlus size={16} strokeWidth={1.5} className="h-4 w-4" />
                 </button>
 
                 {showEmojiPicker && (
@@ -1674,15 +1672,13 @@ const ChatInputBar = ({
                   type="button"
                   onClick={() => void send()}
                   disabled={!canUseInput || !message.trim()}
-                  className="h-8 w-8 rounded-full border disabled:opacity-45 transition-all"
+                  className="inline-flex items-center justify-center disabled:opacity-45 transition-colors"
                   style={{
-                    borderColor: T.border,
                     color: canUseInput && message.trim() ? T.text : T.muted,
-                    backgroundColor: canUseInput && message.trim() ? 'rgba(88,166,255,0.14)' : 'transparent',
                   }}
                   title={searchMode ? 'Run AI search' : 'Send quick post'}
                 >
-                  <ArrowUp size={13} className="mx-auto" />
+                  <ArrowUp size={16} strokeWidth={1.5} className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -1999,10 +1995,10 @@ const PostComposerModal = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="h-8 w-8 rounded-lg border"
-                style={{ borderColor: T.border, color: T.muted }}
+                className="h-8 w-8 inline-flex items-center justify-center"
+                style={{ color: T.muted }}
               >
-                <X size={14} className="mx-auto" />
+                <X size={14} strokeWidth={1.5} className="h-4 w-4" />
               </button>
             </div>
 
@@ -2149,10 +2145,10 @@ const PostComposerModal = ({
                     <button
                       type="button"
                       onClick={removeImage}
-                      className="absolute top-2 right-2 h-7 w-7 rounded-full border"
-                      style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.9)' }}
+                      className="absolute top-2 right-2 h-7 w-7 inline-flex items-center justify-center"
+                      style={{ color: T.muted }}
                     >
-                      <X size={13} className="mx-auto" />
+                      <X size={13} strokeWidth={1.5} className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 )}
@@ -2802,7 +2798,7 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
       <button
         type="button"
         onClick={onToggleCollapse}
-        className={`h-8 w-8 rounded-md inline-flex items-center justify-center transition-colors hover:bg-white/5 ${collapsed ? '' : 'self-end'}`}
+        className={`h-8 w-8 inline-flex items-center justify-center transition-colors ${collapsed ? '' : 'self-end'}`}
         style={{ color: T.muted }}
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
@@ -2819,15 +2815,14 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
                 key={item.id}
                 type="button"
                 onClick={() => onFilter(item.id)}
-                className="w-full py-2 rounded-lg border-l-2 inline-flex items-center justify-center transition-colors hover:bg-white/5"
+                className="w-full py-2 border-l-2 inline-flex items-center justify-center transition-colors"
                 style={{
                   borderLeftColor: active ? '#3b82f6' : 'transparent',
-                  backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
                   color: T.text,
                 }}
                 title={item.label}
               >
-                <Icon size={16} strokeWidth={1.5} style={{ color: T.muted }} />
+                <Icon className="h-4 w-4 text-[#7d8590]" strokeWidth={1.5} />
               </button>
             );
           })}
@@ -2868,8 +2863,8 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
                             color: T.text,
                           }}
                         >
-                          <Icon size={16} strokeWidth={1.5} style={{ color: T.muted }} />
-                          <span style={{ color: T.text }}>{item.label}</span>
+                          <Icon className="h-4 w-4 text-[#7d8590]" strokeWidth={1.5} />
+                          <span className="text-sm" style={{ color: T.text }}>{item.label}</span>
                         </button>
                       );
                     })}
@@ -2892,8 +2887,8 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }
                     style={{ color: T.text }}
                   >
                     <span className="inline-flex items-center gap-3">
-                      <Icon size={16} strokeWidth={1.5} style={{ color: T.muted }} />
-                      {item.label}
+                      <Icon className="h-4 w-4 text-[#7d8590]" strokeWidth={1.5} />
+                      <span className="text-sm">{item.label}</span>
                     </span>
                   </button>
                 );
@@ -2957,7 +2952,7 @@ const SidebarSection = ({
               event.preventDefault();
               onDragHandlePointerDown(event);
             }}
-            className={`h-6 w-6 rounded-md inline-flex items-center justify-center transition-colors hover:bg-white/5 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`h-6 w-6 inline-flex items-center justify-center transition-colors ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             style={{ color: '#7d8590' }}
             title="Drag to reorder"
             aria-label={`Drag ${title}`}
@@ -2984,7 +2979,7 @@ const SidebarSection = ({
             <button
               type="button"
               onClick={onToggleVisibility}
-              className="h-6 w-6 rounded-md inline-flex items-center justify-center hover:bg-white/5"
+              className="h-6 w-6 inline-flex items-center justify-center"
               style={{ color: T.muted }}
               title="Hide section"
               aria-label={`Hide ${title}`}
@@ -2995,7 +2990,7 @@ const SidebarSection = ({
           <button
             type="button"
             onClick={onToggle}
-            className="h-6 w-6 rounded-md inline-flex items-center justify-center"
+            className="h-6 w-6 inline-flex items-center justify-center"
             style={{ color: T.muted }}
             title={open ? 'Collapse section' : 'Expand section'}
             aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
@@ -3559,6 +3554,7 @@ const RightSidebar = ({ quoteMap }) => {
 
     if (sectionId === 'watchlist') {
       const hasWatchlistQuery = String(watchlistQuery || '').trim().length > 0;
+      const shouldConstrainWatchlistHeight = watchlistRows.length > 15;
 
       return (
         <DraggableSidebarSection
@@ -3572,11 +3568,8 @@ const RightSidebar = ({ quoteMap }) => {
           onToggleVisibility={() => toggleSectionVisibility('watchlist')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
-          wrapperClassName={openSections.watchlist ? 'flex-1 min-h-0' : ''}
-          sectionClassName={openSections.watchlist ? 'h-full flex flex-col' : ''}
-          sectionBodyClassName={openSections.watchlist ? 'h-full min-h-0 flex flex-col' : ''}
         >
-          <div className="h-full min-h-0 flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             <div className="relative flex-shrink-0">
               <input
                 type="text"
@@ -3621,7 +3614,7 @@ const RightSidebar = ({ quoteMap }) => {
               ) : null}
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
+            <div className={`space-y-1.5 pr-0.5 ${shouldConstrainWatchlistHeight ? 'max-h-[600px] overflow-y-auto' : ''}`.trim()}>
               {watchlistRows.length === 0 ? (
                 <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
                   Search above to add symbols.
