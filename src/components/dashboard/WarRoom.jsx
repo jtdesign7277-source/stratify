@@ -631,16 +631,22 @@ export default function WarRoom({ onClose }) {
   };
 
   const saveRewriteToFolder = () => {
-    if (!rewriter || !rewriterResult || rewriterResult.startsWith('Error:')) return;
+    if (!rewriter || !rewriterResult || rewriterResult.startsWith('Error:')) return false;
     const combined = `${rewriter.original}\n\n---\n\n✨ AI Rewrite (${rewriterStyle || 'custom'}):\n${rewriterResult}`;
-    const result = updateSavedWarRoomIntel(rewriter.itemId, rewriter.folderId, { content: combined });
+    const item = {
+      id: `rewrite-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      title: `AI Rewrite — ${rewriterStyle || 'custom'}`,
+      content: combined,
+      sourceLabel: 'AI Rewrite',
+    };
+    const result = saveWarRoomIntel(item, 'AI Rewrites');
     setSavedState(result.state);
     return true;
   };
 
   const confirmRewrite = () => {
     if (saveRewriteToFolder()) {
-      showToast('Script saved with rewrite');
+      showToast('Saved to AI Rewrites folder');
       closeRewriter();
     }
   };
@@ -648,7 +654,7 @@ export default function WarRoom({ onClose }) {
   const postRewriteToX = () => {
     if (!rewriterResult || rewriterResult.startsWith('Error:')) return;
     saveRewriteToFolder();
-    showToast('Saved to folder');
+    showToast('Saved to AI Rewrites folder');
     postToX(rewriterResult);
   };
 
