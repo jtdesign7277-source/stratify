@@ -5,6 +5,7 @@ import {
   FolderInput,
   Link2,
   Loader2,
+  MessageCircle,
   Pencil,
   Plus,
   Search,
@@ -337,6 +338,12 @@ export default function WarRoom({ onClose }) {
   const [composingFolderId, setComposingFolderId] = useState(null);
   const [composeText, setComposeText] = useState('');
 
+  // Script rewriter (Claude chat)
+  const [rewriter, setRewriter] = useState(null); // { folderId, itemId, original }
+  const [rewriterStyle, setRewriterStyle] = useState(null);
+  const [rewriterResult, setRewriterResult] = useState('');
+  const [rewriterLoading, setRewriterLoading] = useState(false);
+
   const DEFAULT_FOLDER_NAMES = ['Market Movers', 'Earnings Intel', '$SPY Analysis', 'Fed & Macro', 'Sector Rotation', 'Crypto Pulse'];
 
   // Ensure the 6 default folders exist on mount
@@ -586,6 +593,50 @@ export default function WarRoom({ onClose }) {
     const text = String(content || '').slice(0, 280);
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank', 'noopener,noreferrer,width=550,height=420');
+  };
+
+  const openRewriter = (card, folderId) => {
+    setRewriter({ folderId, itemId: card.id, original: card.content || card.title || '' });
+    setRewriterStyle(null);
+    setRewriterResult('');
+    setRewriterLoading(false);
+  };
+
+  const closeRewriter = () => {
+    setRewriter(null);
+    setRewriterStyle(null);
+    setRewriterResult('');
+    setRewriterLoading(false);
+  };
+
+  const generateRewrite = async () => {
+    if (!rewriter?.original || !rewriterStyle) return;
+    setRewriterLoading(true);
+    setRewriterResult('');
+    try {
+      const res = await fetch('/api/rewrite-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: rewriter.original, style: rewriterStyle }),
+        signal: AbortSignal.timeout(25000),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed');
+      setRewriterResult(data.rewritten || '');
+    } catch (err) {
+      setRewriterResult(`Error: ${err?.message || 'Failed to generate rewrite'}`);
+    } finally {
+      setRewriterLoading(false);
+    }
+  };
+
+  const confirmRewrite = () => {
+    if (!rewriter || !rewriterResult || rewriterResult.startsWith('Error:')) return;
+    const combined = `${rewriter.original}\n\n---\n\n${rewriterResult}`;
+    const result = updateSavedWarRoomIntel(rewriter.itemId, rewriter.folderId, { content: combined });
+    setSavedState(result.state);
+    showToast('Script saved with rewrite');
+    closeRewriter();
   };
 
   const handleRenameFolder = (folderId) => {
@@ -1524,6 +1575,9 @@ export default function WarRoom({ onClose }) {
                                         <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors" title="Edit">
                                           <Pencil className="h-5 w-5" strokeWidth={1.5} />
                                         </button>
+                                        <button type="button" onClick={() => openRewriter(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Rewrite with AI">
+                                          <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
+                                        </button>
                                         <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
                                           <XLogo className="h-5 w-5" />
                                         </button>
@@ -1756,6 +1810,138 @@ export default function WarRoom({ onClose }) {
           </button>
         </div>
       ) : null}
+
+      {/* Script Rewriter Modal */}
+      {rewriter && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-[90%] max-w-5xl h-[80%] rounded-2xl border border-gray-700/60 bg-[#0a1020] shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-gray-800/60">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-blue-400" strokeWidth={1.5} />
+                <h2 className="text-white font-semibold text-base">AI Script Rewriter</h2>
+              </div>
+              <button type="button" onClick={closeRewriter} className="p-1 text-gray-400 hover:text-white transition-colors">
+                <X className="h-5 w-5" strokeWidth={1.5} />
+              </button>
+            </div>
+
+            {/* Split content */}
+            <div className="flex-1 min-h-0 grid grid-cols-2 divide-x divide-gray-800/60">
+              {/* Left: Original script */}
+              <div className="flex flex-col overflow-hidden">
+                <div className="shrink-0 px-4 py-2 border-b border-gray-800/40">
+                  <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">Your Script</span>
+                </div>
+                <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                  <p className="text-sm text-white/85 whitespace-pre-wrap leading-relaxed">{rewriter.original}</p>
+                </div>
+              </div>
+
+              {/* Right: Claude rewriter */}
+              <div className="flex flex-col overflow-hidden">
+                <div className="shrink-0 px-4 py-2 border-b border-gray-800/40">
+                  <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">AI Rewrite</span>
+                </div>
+
+                {/* Style quick-links */}
+                <div className="shrink-0 px-4 py-3 border-b border-gray-800/30">
+                  <p className="text-xs text-gray-500 mb-2">Choose a style:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      ['funny', 'Funny'],
+                      ['professional', 'Professional'],
+                      ['financial', 'Financial'],
+                      ['boss', 'My Boss'],
+                      ['gen_z', 'Gen Z'],
+                      ['motivational', 'Motivational'],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setRewriterStyle(key)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                          rewriterStyle === key
+                            ? 'bg-blue-500/20 border border-blue-500/50 text-blue-300'
+                            : 'border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Generate button */}
+                <div className="shrink-0 px-4 py-2.5 border-b border-gray-800/30">
+                  <button
+                    type="button"
+                    onClick={generateRewrite}
+                    disabled={!rewriterStyle || rewriterLoading}
+                    className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-2 text-sm transition-colors flex items-center justify-center gap-2"
+                  >
+                    {rewriterLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+                        Generate
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Result area */}
+                <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                  {rewriterResult ? (
+                    <div className="space-y-4">
+                      <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
+                        <p className="text-sm text-white/90 whitespace-pre-wrap leading-relaxed">{rewriterResult}</p>
+                      </div>
+                      {!rewriterResult.startsWith('Error:') && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={confirmRewrite}
+                            className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 text-sm transition-colors flex items-center gap-1.5"
+                          >
+                            <Check className="h-4 w-4" strokeWidth={2} />
+                            Confirm & Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => postToX(rewriterResult)}
+                            className="rounded-lg border border-gray-700 bg-white/[0.03] text-gray-300 hover:text-white hover:border-gray-500 font-medium px-4 py-2 text-sm transition-colors flex items-center gap-1.5"
+                          >
+                            <XLogo className="h-4 w-4" />
+                            Post to X
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setRewriterResult(''); setRewriterStyle(null); }}
+                            className="text-xs text-gray-500 hover:text-white transition-colors ml-auto"
+                          >
+                            Try another style
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-sm text-gray-600">
+                        {rewriterStyle ? 'Click Generate to rewrite your script' : 'Select a style above to get started'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={`pointer-events-none absolute top-4 right-6 z-40 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-sm text-amber-300 transition-opacity duration-300 ${
