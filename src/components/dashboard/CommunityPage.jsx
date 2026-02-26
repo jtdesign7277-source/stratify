@@ -2655,7 +2655,6 @@ const SidebarSection = ({
   onToggleVisibility,
   children,
   subtitle,
-  headerAction = null,
   onDragHandlePointerDown,
   isDragging = false,
 }) => {
@@ -2690,7 +2689,6 @@ const SidebarSection = ({
         </div>
 
         <div className="inline-flex items-center gap-1.5">
-          {headerAction}
           {onToggleVisibility ? (
             <button
               type="button"
@@ -2770,8 +2768,6 @@ const DraggableSidebarSection = ({
 };
 
 const RightSidebar = ({
-  hidden,
-  onToggleCollapse,
   streamStatus,
   quoteMap,
   trackedSymbols,
@@ -3127,27 +3123,6 @@ const RightSidebar = ({
     trendFlashTimersRef.current.clear();
   }, []);
 
-  if (hidden) {
-    return (
-      <motion.aside
-        initial={{ opacity: 0, x: 10 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.22 }}
-        className="hidden xl:flex w-[52px] h-full flex-col items-center py-3 border-l border-white/5"
-      >
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="h-8 w-8 rounded-lg border inline-flex items-center justify-center"
-          style={{ borderColor: T.border, color: '#3fb950' }}
-          title="Show sidebar"
-        >
-          <PanelLeftClose size={15} />
-        </button>
-      </motion.aside>
-    );
-  }
-
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -3264,18 +3239,6 @@ const RightSidebar = ({
           onToggleVisibility={() => toggleSectionVisibility('market-pulse')}
           isDragging={draggingSectionId === sectionId}
           onDragStateChange={setDraggingSectionId}
-          headerAction={(
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="h-6 w-6 rounded-md border inline-flex items-center justify-center"
-              style={{ borderColor: T.border, color: '#3fb950' }}
-              title="Hide sidebar"
-              aria-label="Hide sidebar"
-            >
-              <PanelRightClose size={12} />
-            </button>
-          )}
         >
           <div className="space-y-2">
             {INDEX_SYMBOLS.map((item) => renderQuoteRow(item.symbol, item.label))}
@@ -3516,21 +3479,6 @@ const RightSidebar = ({
       className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
       <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
-        {!sectionVisibility['market-pulse'] ? (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="h-6 w-6 rounded-md border inline-flex items-center justify-center"
-              style={{ borderColor: T.border, color: '#3fb950' }}
-              title="Hide sidebar"
-              aria-label="Hide sidebar"
-            >
-              <PanelRightClose size={12} />
-            </button>
-          </div>
-        ) : null}
-
         {hiddenSectionOrder.length > 0 ? (
           <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
             <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: T.muted }}>
@@ -3583,7 +3531,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSubmitting, setComposerSubmitting] = useState(false);
   const [composerInitialType, setComposerInitialType] = useState('post');
@@ -4293,8 +4240,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                 </div>
 
                 <RightSidebar
-                  hidden={rightCollapsed}
-                  onToggleCollapse={() => setRightCollapsed((prev) => !prev)}
                   streamStatus={streamStatus}
                   quoteMap={quoteMap}
                   trackedSymbols={trackedSymbols}
