@@ -34,7 +34,7 @@ const AI_SEARCH_INFLIGHT = new Map();
 const PROFILE_AVATAR_STYLES = ['bottts', 'avataaars', 'pixel-art', 'fun-emoji'];
 const PROFILE_AVATAR_SEEDS_PER_STYLE = 24;
 const PROFILE_AVATAR_BACKGROUND_COLORS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';
-const PROFILE_AVATAR_FALLBACK_COLOR = '#3b82f6';
+const PROFILE_AVATAR_FALLBACK_COLOR = '#58a6ff';
 const SEARCH_MODE_SUGGESTION_TEMPLATES = [
   'What is happening with {topic} today?',
   'Bitcoin price analysis this week',
@@ -272,9 +272,9 @@ const POST_TYPE_CONFIG = {
     icon: Globe,
     placeholder: 'Macro take or market outlook...',
     badge: {
-      backgroundColor: 'rgba(121,192,255,0.16)',
-      borderColor: 'rgba(121,192,255,0.4)',
-      color: '#79c0ff',
+      backgroundColor: 'rgba(88,166,255,0.16)',
+      borderColor: 'rgba(88,166,255,0.4)',
+      color: '#58a6ff',
     },
   },
 };
@@ -440,7 +440,7 @@ const SIDEBAR_SECTION_LABELS = {
 };
 const WATCHLIST_MAX_ROWS = 24;
 const WATCHLIST_SEARCH_LIMIT = 10;
-const TODAYS_NEWS_SOURCE_COLORS = ['#58a6ff', '#3fb950', '#f778ba', '#d29922', '#a371f7', '#f85149', '#79c0ff'];
+const TODAYS_NEWS_SOURCE_COLORS = ['#58a6ff', '#3fb950', '#f778ba', '#d29922', '#a371f7', '#f85149', '#58a6ff'];
 
 const normalizeSidebarSectionId = (value) => (
   LEGACY_SIDEBAR_SECTION_ID_MAP[String(value || '')] || String(value || '')
@@ -1683,11 +1683,14 @@ const ChatInputBar = ({
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
-                className="mt-1 flex-shrink-0 inline-flex items-center justify-center text-[#58a6ff] cursor-pointer hover:scale-110 transition-transform duration-200"
-                style={{ animation: 'pulseGlow 2s ease-in-out infinite' }}
-                title={searchMode ? 'Switch to post mode' : 'Switch to search mode'}
+                className="mt-0.5 flex-shrink-0 relative inline-flex items-center justify-center p-2 rounded-full text-[#58a6ff] cursor-pointer hover:bg-[#58a6ff]/10 transition"
+                title="Click to search markets"
               >
-                <Search size={16} strokeWidth={1.5} className="h-4 w-4" />
+                <span
+                  className="pointer-events-none absolute inset-0 rounded-full bg-[#58a6ff]/20 animate-ping"
+                  style={{ animationDuration: '2s' }}
+                />
+                <Search size={18} strokeWidth={1.5} className="relative z-[1] h-5 w-5" />
               </button>
               <Activity size={16} className="mt-1 h-4 w-4 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
               <span
@@ -1732,15 +1735,6 @@ const ChatInputBar = ({
               <div className="relative ml-auto flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={onOpenComposer}
-                  className="h-8 px-3 rounded-full border text-xs font-medium transition-colors"
-                  style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
-                  title="Open composer"
-                >
-                  New Post
-                </button>
-                <button
-                  type="button"
                   onClick={() => setShowEmojiPicker((open) => !open)}
                   className="inline-flex items-center justify-center transition-colors"
                   style={{ color: T.muted }}
@@ -1772,10 +1766,10 @@ const ChatInputBar = ({
 
                 <button
                   type="button"
-                  onClick={() => void send()}
-                  disabled={!canUseInput || !message.trim()}
-                  className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-transform duration-200 hover:scale-[1.02]"
-                  title={searchMode ? 'Run AI search' : 'Send quick post'}
+                  onClick={searchMode ? () => void send() : onOpenComposer}
+                  disabled={searchMode ? (!canUseInput || !message.trim()) : false}
+                  className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
+                  title={searchMode ? 'Run AI search' : 'Open composer'}
                 >
                   {searchMode ? (
                     <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
@@ -1837,7 +1831,7 @@ const AiSearchResultCard = ({
       className="rounded-lg border border-l-2 p-3"
       style={{
         borderColor: T.border,
-        borderLeftColor: '#3b82f6',
+        borderLeftColor: '#58a6ff',
         backgroundColor: '#151b23',
       }}
     >
@@ -2256,7 +2250,7 @@ const PostComposerModal = ({
                 <ComposerTypePill active={postType === 'alert'} icon={Bell} label="Alert" onClick={() => setPostType('alert')} accent="#f0883e" />
                 <ComposerTypePill active={postType === 'pnl'} icon={TrendingUp} label="P&L" onClick={() => setPostType('pnl')} accent={T.green} />
                 <ComposerTypePill active={postType === 'earnings'} icon={BarChart3} label="Earnings" onClick={() => setPostType('earnings')} accent="#d29922" />
-                <ComposerTypePill active={postType === 'macro'} icon={Globe} label="Macro" onClick={() => setPostType('macro')} accent="#79c0ff" />
+                <ComposerTypePill active={postType === 'macro'} icon={Globe} label="Macro" onClick={() => setPostType('macro')} accent="#58a6ff" />
               </motion.div>
 
               {postType === 'pnl' && (
@@ -2590,7 +2584,7 @@ const PostComposerModal = ({
                           setAiRewriteError('');
                           window.requestAnimationFrame(() => textareaRef.current?.focus());
                         }}
-                        className="text-xs font-medium text-[#58a6ff] hover:text-[#79b8ff] cursor-pointer transition-colors"
+                        className="text-xs font-medium text-[#58a6ff] hover:brightness-110 cursor-pointer transition"
                       >
                         Edit
                       </motion.button>
@@ -3237,7 +3231,7 @@ const FeedHeader = ({
   onOpenComposer,
 }) => {
   return (
-    <div className="sticky top-0 z-20 border-b-2 border-blue-500 bg-[#0d1117] py-3">
+    <div className="sticky top-0 z-20 border-b-2 border-[#58a6ff] bg-[#0d1117] py-3">
       <div className="w-full px-3 flex items-center gap-2 bg-[#0d1117]">
         <div className="w-[92px] flex-shrink-0" aria-hidden />
 
@@ -3318,7 +3312,7 @@ const LeftRail = ({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className={`hidden lg:flex lg:flex-shrink-0 ${collapsed ? 'w-[68px] items-center' : 'w-[220px]'} h-full flex-col py-0 pb-10 overflow-y-auto border-r-2 border-blue-500 rounded-none`}
+      className={`hidden lg:flex lg:flex-shrink-0 ${collapsed ? 'w-[68px] items-center' : 'w-[220px]'} h-full flex-col py-0 pb-10 overflow-y-auto border-r-2 border-[#58a6ff] rounded-none`}
       style={{
         backgroundColor: '#080d13',
       }}
@@ -3564,7 +3558,7 @@ const DraggableSidebarSection = ({
       layout
       whileDrag={{
         scale: 1.02,
-        boxShadow: '0 0 12px rgba(59,130,246,0.3)',
+        boxShadow: '0 0 12px rgba(88,166,255,0.3)',
         zIndex: 30,
       }}
       transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.7 }}
