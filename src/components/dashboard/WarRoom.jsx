@@ -345,7 +345,7 @@ export default function WarRoom({ onClose }) {
   const [rewriterResult, setRewriterResult] = useState('');
   const [rewriterLoading, setRewriterLoading] = useState(false);
 
-  const DEFAULT_FOLDER_NAMES = ['Market Movers', 'Earnings Intel', '$SPY Analysis', 'Fed & Macro', 'Sector Rotation', 'Crypto Pulse'];
+  const DEFAULT_FOLDER_NAMES = ['AI Rewrites', 'Market Movers', 'Earnings Intel', '$SPY Analysis', 'Fed & Macro', 'Sector Rotation', 'Crypto Pulse'];
 
   // Ensure the 6 default folders exist on mount
   useEffect(() => {
@@ -706,6 +706,7 @@ export default function WarRoom({ onClose }) {
   const handleDeleteFolder = (folderId) => {
     const folder = folders.find((entry) => entry.id === folderId);
     if (!folder) return;
+    if (folder.name === 'AI Rewrites') return; // Protected folder
 
     const confirmed = window.confirm(`Delete folder "${folder.name}"?`);
     if (!confirmed) {
@@ -1543,14 +1544,16 @@ export default function WarRoom({ onClose }) {
                           >
                             <Pencil className="h-4 w-4" strokeWidth={1.5} />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteFolder(folder.id)}
-                            className="p-0.5 text-blue-400/70 hover:text-red-400 transition-colors"
-                            title={`Delete ${folder.name}`}
-                          >
-                            <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-                          </button>
+                          {!isAIFolder && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFolder(folder.id)}
+                              className="p-0.5 text-blue-400/70 hover:text-red-400 transition-colors"
+                              title={`Delete ${folder.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                            </button>
+                          )}
                         </div>
                       </div>
 
