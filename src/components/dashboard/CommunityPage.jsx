@@ -754,6 +754,18 @@ const HASHTAG_WEB_MAX_RESULTS = 5;
 
 const normalizeFeedHashtag = (value) => String(value || '').trim().toLowerCase().replace(/^#/, '');
 const sanitizeHashtagLabel = (tag) => String(tag || '').trim().replace(/^#/, '');
+const postMatchesFeedFilter = (post, activeFeedFilter) => {
+  const tag = String(activeFeedFilter || '').toLowerCase().replace('#', '');
+  if (!tag) return true;
+
+  const contentMatch = post?.content && String(post.content).toLowerCase().includes(`#${tag}`);
+  const hashtagsMatch = Array.isArray(post?.hashtags) && post.hashtags.some((h) => {
+    const normalized = String(h || '').toLowerCase().replace(/^#/, '');
+    return normalized === tag;
+  });
+  const typeMatch = post?.post_type && String(post.post_type).toLowerCase() === tag;
+  return contentMatch || hashtagsMatch || typeMatch;
+};
 
 const BOT_HASHTAG_CONTEXT_BY_TAG = {
   earnings: [
@@ -1639,12 +1651,14 @@ const ChatInputBar = ({
   trackedSymbols,
   quoteMap,
   streamStatus,
+  searchMode,
+  onModeChange,
+  onOpenComposer,
   onSend,
   onSearch,
 }) => {
   const [message, setMessage] = useState('');
   const [selectedHashtags, setSelectedHashtags] = useState([]);
-  const [searchMode, setSearchMode] = useState(false);
   const [debouncedMessage, setDebouncedMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -1652,6 +1666,7 @@ const ChatInputBar = ({
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const inputRef = useRef(null);
   const lookupRef = useRef(null);
+  const prevSearchModeRef = useRef(searchMode);
 
   const tickerQuery = useMemo(() => {
     const match = message.match(/(?:^|\s)\$([A-Za-z0-9./=-]{1,14})$/);
@@ -1671,6 +1686,19 @@ const ChatInputBar = ({
     }, 200);
     return () => window.clearTimeout(timerId);
   }, [message]);
+
+  useEffect(() => {
+    const wasSearchMode = Boolean(prevSearchModeRef.current);
+    if (wasSearchMode && !searchMode) {
+      setMessage('');
+      setDebouncedMessage('');
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      setActiveSuggestion(0);
+      setSelectedHashtags([]);
+    }
+    prevSearchModeRef.current = searchMode;
+  }, [searchMode]);
 
   useEffect(() => {
     if (searchMode) {
@@ -1849,6 +1877,30 @@ const ChatInputBar = ({
     }
   };
 
+  const switchToPostMode = useCallback(() => {
+    setMessage('');
+    setDebouncedMessage('');
+    setSuggestions([]);
+    setSuggestionsLoading(false);
+    setActiveSuggestion(0);
+    setSelectedHashtags([]);
+    onModeChange?.(false, { source: 'post-toggle' });
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, [onModeChange]);
+
+  const switchToSearchMode = useCallback(() => {
+    onModeChange?.(true, { source: 'search-toggle' });
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, [onModeChange]);
+
+  const handlePrimaryAction = () => {
+    if (searchMode) {
+      void send();
+      return;
+    }
+    onOpenComposer?.();
+  };
+
   const handleKeyDown = (event) => {
     const currentSuggestions = suggestionOpen ? suggestionRows : [];
     if (currentSuggestions.length > 0) {
@@ -1882,6 +1934,7 @@ const ChatInputBar = ({
       ? 'Connecting live tape...'
       : 'Live tape offline';
   const canUseInput = searchMode || Boolean(currentUser?.id);
+  const canOpenComposer = Boolean(currentUser?.id);
   const suggestionOpen = searchMode
     ? searchSuggestions.length > 0
     : Boolean(tickerQuery);
@@ -1937,7 +1990,7 @@ const ChatInputBar = ({
               <div className="mt-0.5 flex-shrink-0 flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setSearchMode(false)}
+                  onClick={switchToPostMode}
                   className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5' : 'text-[#58a6ff] bg-[#58a6ff]/10'}`}
                   title="Post mode"
                 >
@@ -1945,7 +1998,7 @@ const ChatInputBar = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSearchMode(true)}
+                  onClick={switchToSearchMode}
                   className={`p-1.5 rounded-lg cursor-pointer transition-all duration-200 ${searchMode ? 'text-[#58a6ff] bg-[#58a6ff]/10' : 'text-[#7d8590] hover:text-[#e6edf3] hover:bg-white/5'}`}
                   title="Search mode"
                 >
@@ -2020,10 +2073,10 @@ const ChatInputBar = ({
 
                 <button
                   type="button"
-                  onClick={() => void send()}
-                  disabled={!canUseInput || !message.trim()}
+                  onClick={handlePrimaryAction}
+                  disabled={searchMode ? (!canUseInput || !message.trim()) : !canOpenComposer}
                   className="inline-flex items-center gap-1.5 bg-[#58a6ff] text-black font-medium rounded-lg px-3 py-1.5 text-xs disabled:opacity-45 disabled:cursor-not-allowed transition-all duration-200 hover:bg-[#79b8ff] hover:scale-[1.02]"
-                  title={searchMode ? 'Run AI search' : 'Publish post'}
+                  title={searchMode ? 'Run AI search' : 'Open community composer'}
                 >
                   {searchMode ? (
                     <CornerDownLeft size={14} strokeWidth={1.9} className="h-3.5 w-3.5" />
@@ -3658,7 +3711,7 @@ const LeftRail = ({
                       return (
                         <div
                           key={hashtag}
-                          onClick={() => onFilter(active ? null : hashtag)}
+                          onClick={() => onFilter?.(active ? null : hashtag)}
                           className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-200${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
                         >
                           {hashtag}
@@ -3749,6 +3802,11 @@ const LeftRail = ({
                   <button
                     key={item.id}
                     type="button"
+                    onClick={() => {
+                      if (item.id === 'home') {
+                        onFilter?.(null);
+                      }
+                    }}
                     className="w-full py-2 px-3 rounded-lg inline-flex items-center gap-3 text-sm font-normal transition-colors hover:bg-white/5"
                     style={{ color: T.text }}
                   >
@@ -4546,6 +4604,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(null);
+  const [searchMode, setSearchMode] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSubmitting, setComposerSubmitting] = useState(false);
@@ -5373,21 +5432,59 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setPriceAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
   }, []);
 
+  const clearCenterFeedSearchResults = useCallback(() => {
+    setAiSearchPending([]);
+    setAiSearchResults([]);
+    setHashtagWebTag('');
+    setHashtagWebResults([]);
+    setHashtagWebLoading(false);
+    setHashtagWebError('');
+  }, []);
+
+  const shouldUseWebFallbackForFilter = useCallback((nextFilter) => {
+    if (!nextFilter) return false;
+    const matchedCount = posts.reduce(
+      (count, post) => (postMatchesFeedFilter(post, nextFilter) ? count + 1 : count),
+      0,
+    );
+    return matchedCount < HASHTAG_WEB_MIN_VISIBLE_POSTS;
+  }, [posts]);
+
+  const handleSearchModeChange = useCallback((nextMode) => {
+    if (nextMode) {
+      setSearchMode(true);
+      return;
+    }
+
+    setSearchMode(false);
+    setFilter(null);
+    clearCenterFeedSearchResults();
+  }, [clearCenterFeedSearchResults]);
+
+  const handleFeedFilterChange = useCallback((nextFilter) => {
+    const normalizedFilter = typeof nextFilter === 'string' && String(nextFilter).trim()
+      ? String(nextFilter).trim()
+      : null;
+
+    setFilter(normalizedFilter);
+
+    if (!normalizedFilter) {
+      setSearchMode(false);
+      clearCenterFeedSearchResults();
+      return;
+    }
+
+    if (shouldUseWebFallbackForFilter(normalizedFilter)) {
+      setSearchMode(true);
+    }
+  }, [clearCenterFeedSearchResults, shouldUseWebFallbackForFilter]);
+
   const activeFeedFilter = filter;
   const activeFeedTag = normalizeFeedHashtag(activeFeedFilter);
 
   const filteredPosts = useMemo(() => (
     activeFeedFilter
-      ? posts.filter((post) => {
-          const tag = String(activeFeedFilter || '').toLowerCase().replace('#', '');
-          const contentMatch = post?.content && String(post.content).toLowerCase().includes(`#${tag}`);
-          const hashtagsMatch = Array.isArray(post?.hashtags) && post.hashtags.some((h) => {
-            const normalized = String(h || '').toLowerCase().replace(/^#/, '');
-            return normalized === tag;
-          });
-          const typeMatch = post?.post_type && String(post.post_type).toLowerCase() === tag;
-          return contentMatch || hashtagsMatch || typeMatch;
-        })
+      ? posts.filter((post) => postMatchesFeedFilter(post, activeFeedFilter))
       : posts
   ), [activeFeedFilter, posts]);
 
@@ -5521,7 +5618,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               collapsed={leftCollapsed}
               onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
               filter={filter}
-              onFilter={setFilter}
+              onFilter={handleFeedFilterChange}
               priceAlerts={priceAlerts}
               onTogglePriceAlert={togglePriceAlert}
               onDeletePriceAlert={deletePriceAlert}
@@ -5757,6 +5854,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                         trackedSymbols={trackedSymbols}
                         quoteMap={quoteMap}
                         streamStatus={streamStatus}
+                        searchMode={searchMode}
+                        onModeChange={handleSearchModeChange}
                         onOpenComposer={() => openComposer('general')}
                         onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
                         onSearch={runAiSearch}
