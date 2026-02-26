@@ -8,7 +8,7 @@ import {
   Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, Brain,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
-  Compass, Users, Star, Search, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
+  Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
   Plus, Wand2, Pencil,
   EyeOff, GripVertical, CornerDownLeft,
 } from 'lucide-react';
@@ -736,20 +736,49 @@ const LEFT_RAIL_ITEMS = [
   { id: 'saved', label: 'Saved', icon: Star },
 ];
 
-const MOCK_AUTHORS = [
-  { id: 'u-1', name: 'Maya Chen', email: 'maya@stratify.community' },
-  { id: 'u-2', name: 'Arjun Patel', email: 'arjun@stratify.community' },
-  { id: 'u-3', name: 'Elena Rossi', email: 'elena@stratify.community' },
-  { id: 'u-4', name: 'Noah Brooks', email: 'noah@stratify.community' },
-  { id: 'u-5', name: 'Sofia Kim', email: 'sofia@stratify.community' },
-  { id: 'u-6', name: 'Liam Park', email: 'liam@stratify.community' },
-  { id: 'u-7', name: 'Jordan Lee', email: 'jordan@stratify.community' },
-  { id: 'u-8', name: 'Priya Nair', email: 'priya@stratify.community' },
-  { id: 'u-9', name: 'Diego Alvarez', email: 'diego@stratify.community' },
-  { id: 'u-10', name: 'Omar Khan', email: 'omar@stratify.community' },
-  { id: 'u-11', name: 'Ivy Bennett', email: 'ivy@stratify.community' },
-  { id: 'u-12', name: 'Rina Sato', email: 'rina@stratify.community' },
+const CREATIVE_MOCK_AUTHOR_NAMES = [
+  'FiboFalcon',
+  'DayTradeKing',
+  'MacroMaven',
+  'VWAPViking',
+  'VolatilityVera',
+  'PremarketPulse',
+  'EarningsEdge',
+  'SectorSurfer',
+  'MomentumMara',
+  'OptionsSage',
+  'DeltaDuke',
+  'CatalystCobra',
 ];
+
+const HUMAN_MOCK_AUTHOR_NAMES = [
+  'Amy_4322',
+  'Richard_55',
+  'SammySosa88',
+  'Lamar14',
+  'Jeff_51',
+  'Sarah.trades',
+  'Mike_NYC',
+  'ChrisB_2024',
+  'DanielleK',
+  'Marcus.J',
+  'TraderTom99',
+  'NikkiWolf',
+];
+
+const buildMockAuthorAvatarUrl = (name) => (
+  buildProfileAvatarUrl('bottts', name)
+);
+
+const MOCK_AUTHORS = CREATIVE_MOCK_AUTHOR_NAMES
+  .flatMap((name, index) => [name, HUMAN_MOCK_AUTHOR_NAMES[index]])
+  .filter(Boolean)
+  .map((name, index) => ({
+    id: `u-${index + 1}`,
+    name,
+    email: `mock-user-${index + 1}@stratify.community`,
+    avatar_url: buildMockAuthorAvatarUrl(name),
+  }));
 
 const MOCK_BASE_SETUPS = [
   { symbol: 'NVDA', post_type: 'trade', note: 'Took the opening range reclaim and scaled into strength above prior day high.' },
@@ -827,6 +856,14 @@ const COMMUNITY_PAGE_STYLES = `
   @keyframes shimmerGradient {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes premiumShimmer {
+    0% { background-position: 0% 50%; }
+    25% { background-position: 50% 100%; }
+    50% { background-position: 100% 50%; }
+    75% { background-position: 50% 0%; }
     100% { background-position: 0% 50%; }
   }
 
@@ -1164,7 +1201,7 @@ const generateMockFeed = () => {
   const now = Date.now();
   const rows = Array.from({ length: 36 }).map((_, index) => {
     const setup = MOCK_BASE_SETUPS[index % MOCK_BASE_SETUPS.length];
-    const author = MOCK_AUTHORS[(index * 3) % MOCK_AUTHORS.length];
+    const author = MOCK_AUTHORS[index % MOCK_AUTHORS.length];
     const createdAt = new Date(now - ((index * 19) + 4) * 60 * 1000).toISOString();
     const reactionRows = makeMockReactionRows(index);
     const shouldBePnl = index % 5 === 0 || index % 11 === 0;
@@ -1269,27 +1306,30 @@ const generateMockFeed = () => {
       profiles: {
         id: `mock-user-${author.id}`,
         display_name: author.name,
-        avatar_url: null,
+        avatar_url: author.avatar_url,
         email: author.email,
       },
       is_mock: true,
       mock_replies: repliesCount > 0
-        ? Array.from({ length: Math.min(3, repliesCount) }).map((__, replyIdx) => ({
-            id: `mock-reply-${index + 1}-${replyIdx + 1}`,
-            user_id: `mock-user-${MOCK_AUTHORS[(index + replyIdx + 1) % MOCK_AUTHORS.length].id}`,
-            author_name: MOCK_AUTHORS[(index + replyIdx + 1) % MOCK_AUTHORS.length].name,
-            content: replyIdx % 2 === 0
-              ? `Nice execution on $${setup.symbol}. Risk was clearly defined.`
-              : `I had a similar read on $${setup.symbol}, appreciate the level callouts.`,
-            created_at: new Date(new Date(createdAt).getTime() + (replyIdx + 1) * 8 * 60 * 1000).toISOString(),
-            profiles: {
-              id: `mock-user-${MOCK_AUTHORS[(index + replyIdx + 1) % MOCK_AUTHORS.length].id}`,
-              display_name: MOCK_AUTHORS[(index + replyIdx + 1) % MOCK_AUTHORS.length].name,
-              avatar_url: null,
-              email: MOCK_AUTHORS[(index + replyIdx + 1) % MOCK_AUTHORS.length].email,
-            },
-            community_reactions: makeMockReactionRows(index + replyIdx + 2),
-          }))
+        ? Array.from({ length: Math.min(3, repliesCount) }).map((__, replyIdx) => {
+            const replyAuthor = MOCK_AUTHORS[(index + replyIdx + 1) % MOCK_AUTHORS.length];
+            return {
+              id: `mock-reply-${index + 1}-${replyIdx + 1}`,
+              user_id: `mock-user-${replyAuthor.id}`,
+              author_name: replyAuthor.name,
+              content: replyIdx % 2 === 0
+                ? `Nice execution on $${setup.symbol}. Risk was clearly defined.`
+                : `I had a similar read on $${setup.symbol}, appreciate the level callouts.`,
+              created_at: new Date(new Date(createdAt).getTime() + (replyIdx + 1) * 8 * 60 * 1000).toISOString(),
+              profiles: {
+                id: `mock-user-${replyAuthor.id}`,
+                display_name: replyAuthor.name,
+                avatar_url: replyAuthor.avatar_url,
+                email: replyAuthor.email,
+              },
+              community_reactions: makeMockReactionRows(index + replyIdx + 2),
+            };
+          })
         : [],
     };
   });
@@ -2421,15 +2461,15 @@ const PostComposerModal = ({
                         setShowAiRewritePanel((openState) => !openState);
                       }}
                       disabled={!canOpenAiRewrite}
-                      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-white font-semibold text-xs shadow-[0_0_20px_rgba(88,166,255,0.3),0_0_40px_rgba(167,139,250,0.2)] transition-all duration-300 ${canOpenAiRewrite ? 'hover:shadow-[0_0_25px_rgba(88,166,255,0.5),0_0_50px_rgba(167,139,250,0.3)] hover:scale-105' : 'opacity-40 cursor-not-allowed'}`}
+                      className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full border border-white/20 text-white font-bold text-xs tracking-wide shadow-[0_0_20px_rgba(102,126,234,0.5),0_0_40px_rgba(245,87,108,0.3),0_0_60px_rgba(79,172,254,0.2)] transition-all duration-300 ${canOpenAiRewrite ? 'hover:shadow-[0_0_30px_rgba(102,126,234,0.7),0_0_50px_rgba(245,87,108,0.4)] hover:scale-110 hover:brightness-110' : 'opacity-45 cursor-not-allowed'}`}
                       style={{
-                        background: 'linear-gradient(90deg, #58a6ff, #a78bfa, #ec4899, #58a6ff)',
-                        backgroundSize: '300% 300%',
-                        animation: 'shimmerGradient 4s ease infinite',
+                        background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #667eea)',
+                        backgroundSize: '400% 400%',
+                        animation: 'premiumShimmer 6s ease infinite',
                       }}
                     >
-                      <Wand2 strokeWidth={1.5} className="w-4 h-4 text-white" />
-                      <span>AI Rewrite</span>
+                      <Wand2 strokeWidth={2} className="w-4 h-4 text-white" />
+                      <span className="text-white">AI Rewrite</span>
                     </button>
                   </div>
 
@@ -3216,43 +3256,6 @@ const PostCard = ({ post, currentUser, onDelete, displayName }) => {
         </div>
       </div>
     </motion.article>
-  );
-};
-
-const FeedHeader = ({
-  search,
-  onSearch,
-}) => {
-  return (
-    <div className="sticky top-0 z-20 border-b-2 border-[#58a6ff] bg-[#0d1117] py-3">
-      <div className="w-full px-3 flex items-center gap-2 bg-[#0d1117]">
-        <div className="w-[92px] flex-shrink-0" aria-hidden />
-
-        <div className="flex-1 min-w-0 px-1">
-          <div className="relative max-w-md mx-auto">
-            <Search size={14} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: T.muted }} />
-            <input
-              value={search}
-              onChange={(event) => onSearch(event.target.value)}
-              placeholder="Search for stocks, crypto, and more..."
-              className="w-full rounded-full border py-1.5 pl-9 pr-4 text-sm outline-none"
-              style={{ borderColor: T.border, backgroundColor: T.card, color: T.text }}
-            />
-          </div>
-        </div>
-
-        <div className="flex-shrink-0 flex items-center gap-1.5">
-          <button
-            type="button"
-            className="h-7 px-2 rounded-md text-xs inline-flex items-center gap-1"
-            style={{ color: T.muted }}
-          >
-            <Bell size={13} strokeWidth={1.5} />
-            Price Alert
-          </button>
-        </div>
-      </div>
-    </div>
   );
 };
 
@@ -4177,7 +4180,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(null);
-  const [search, setSearch] = useState('');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSubmitting, setComposerSubmitting] = useState(false);
@@ -4766,18 +4768,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       rows = rows.filter((post) => postMatchesFeedHashtag(post, filter));
     }
 
-    const query = search.trim().toLowerCase();
-    if (query) {
-      rows = rows.filter((post) => {
-        const author = String(post?.profiles?.display_name || post?.author_name || '').toLowerCase();
-        const content = String(post?.content || '').toLowerCase();
-        const ticker = String(post?.metadata?.ticker || '').toLowerCase();
-        return author.includes(query) || content.includes(query) || ticker.includes(query);
-      });
-    }
-
     return rows;
-  }, [posts, filter, search]);
+  }, [posts, filter]);
 
   const openComposer = (type = 'general') => {
     setComposerInitialType(type);
@@ -4819,11 +4811,6 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
-              <FeedHeader
-                search={search}
-                onSearch={setSearch}
-              />
-
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
                 <div className="w-[92px] flex-shrink-0" aria-hidden />
 
