@@ -2306,7 +2306,7 @@ const RightSidebar = ({
 };
 
 // ─── Main Community Page ──────────────────────────────────
-const CommunityPage = ({ tradeHistory = [], topBarCollapsed = false }) => {
+const CommunityPage = ({ tradeHistory = [] }) => {
   const [posts, setPosts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2769,24 +2769,17 @@ const CommunityPage = ({ tradeHistory = [], topBarCollapsed = false }) => {
       }} />
 
       <motion.div className="relative z-10 h-full flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <motion.div
-          initial={false}
-          animate={{ height: topBarCollapsed ? 0 : 'auto', opacity: topBarCollapsed ? 0 : 1 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className={`overflow-hidden ${topBarCollapsed ? 'pointer-events-none' : ''}`}
-        >
-          <FeedHeader
-            filter={filter}
-            onFilter={setFilter}
-            search={search}
-            onSearch={setSearch}
-            onOpenComposer={() => openComposer('post')}
-            onToggleLeft={() => setLeftCollapsed((prev) => !prev)}
-            leftCollapsed={leftCollapsed}
-            onToggleRight={() => setRightCollapsed((prev) => !prev)}
-            rightCollapsed={rightCollapsed}
-          />
-        </motion.div>
+        <FeedHeader
+          filter={filter}
+          onFilter={setFilter}
+          search={search}
+          onSearch={setSearch}
+          onOpenComposer={() => openComposer('post')}
+          onToggleLeft={() => setLeftCollapsed((prev) => !prev)}
+          leftCollapsed={leftCollapsed}
+          onToggleRight={() => setRightCollapsed((prev) => !prev)}
+          rightCollapsed={rightCollapsed}
+        />
 
         {error ? (
           <div className="px-4 pt-2">
@@ -2800,8 +2793,8 @@ const CommunityPage = ({ tradeHistory = [], topBarCollapsed = false }) => {
           <div className="h-full flex gap-3 min-h-0">
             <LeftRail hidden={leftCollapsed} />
 
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <div className="h-full overflow-y-auto px-3 py-3">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+              <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
                 {loading ? (
                   <div className="max-w-3xl mx-auto w-full space-y-2">
                     {Array.from({ length: 6 }).map((_, index) => (
@@ -2837,6 +2830,17 @@ const CommunityPage = ({ tradeHistory = [], topBarCollapsed = false }) => {
                   </motion.div>
                 )}
               </div>
+
+              <div className="px-3 pb-3">
+                <ChatInputBar
+                  currentUser={currentUser}
+                  trackedSymbols={trackedSymbols}
+                  quoteMap={quoteMap}
+                  streamStatus={streamStatus}
+                  onOpenComposer={() => openComposer('post')}
+                  onSend={(content) => createPost({ content, postType: 'post', metadata: {} })}
+                />
+              </div>
             </div>
 
             <RightSidebar
@@ -2854,16 +2858,6 @@ const CommunityPage = ({ tradeHistory = [], topBarCollapsed = false }) => {
           </div>
         </div>
 
-        <div className="px-4 pb-4">
-          <ChatInputBar
-            currentUser={currentUser}
-            trackedSymbols={trackedSymbols}
-            quoteMap={quoteMap}
-            streamStatus={streamStatus}
-            onOpenComposer={() => openComposer('post')}
-            onSend={(content) => createPost({ content, postType: 'post', metadata: {} })}
-          />
-        </div>
       </motion.div>
 
       <PostComposerModal
