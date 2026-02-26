@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   Check,
+  Folder,
   FolderInput,
   Link2,
   Loader2,
@@ -1028,8 +1029,9 @@ export default function WarRoom({ onClose }) {
                 {view === 'saved' && 'Saved Intel'}
                 {view === 'folders' && (
                   <>
-                    <XLogo className="h-3.5 w-3.5" />
+                    <Folder className="h-3.5 w-3.5" strokeWidth={1.5} />
                     Share & Connect
+                    <XLogo className="h-3.5 w-3.5" />
                   </>
                 )}
               </button>
