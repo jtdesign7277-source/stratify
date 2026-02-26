@@ -854,11 +854,22 @@ export default function WarRoom({ onClose }) {
               {scan.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setActiveView('transcripts')}
+            className={`backdrop-blur rounded-lg px-3 py-1.5 text-sm transition-all ${
+              activeView === 'transcripts'
+                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
+                : 'bg-black/40 border border-gray-800 hover:border-amber-500/50 text-gray-400 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(245,158,11,0.15)]'
+            }`}
+          >
+            Transcripts
+          </button>
         </div>
 
         <div className="flex items-center gap-1.5">
-          {['live', 'saved', 'folders', 'transcripts'].map((view) => {
-            const labels = { live: 'Live Feed', saved: 'Saved Intel', folders: `Folders (${folders.length})`, transcripts: 'Transcripts' };
+          {['live', 'saved', 'folders'].map((view) => {
+            const labels = { live: 'Live Feed', saved: 'Saved Intel', folders: `Folders (${folders.length})` };
             return (
               <button
                 key={view}
