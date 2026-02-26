@@ -630,13 +630,26 @@ export default function WarRoom({ onClose }) {
     }
   };
 
-  const confirmRewrite = () => {
+  const saveRewriteToFolder = () => {
     if (!rewriter || !rewriterResult || rewriterResult.startsWith('Error:')) return;
-    const combined = `${rewriter.original}\n\n---\n\n${rewriterResult}`;
+    const combined = `${rewriter.original}\n\n---\n\n✨ AI Rewrite (${rewriterStyle || 'custom'}):\n${rewriterResult}`;
     const result = updateSavedWarRoomIntel(rewriter.itemId, rewriter.folderId, { content: combined });
     setSavedState(result.state);
-    showToast('Script saved with rewrite');
-    closeRewriter();
+    return true;
+  };
+
+  const confirmRewrite = () => {
+    if (saveRewriteToFolder()) {
+      showToast('Script saved with rewrite');
+      closeRewriter();
+    }
+  };
+
+  const postRewriteToX = () => {
+    if (!rewriterResult || rewriterResult.startsWith('Error:')) return;
+    saveRewriteToFolder();
+    showToast('Saved to folder');
+    postToX(rewriterResult);
   };
 
   const handleRenameFolder = (folderId) => {
@@ -1898,8 +1911,13 @@ export default function WarRoom({ onClose }) {
                 <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
                   {rewriterResult ? (
                     <div className="space-y-4">
-                      <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
-                        <p className="text-sm text-white/90 whitespace-pre-wrap leading-relaxed">{rewriterResult}</p>
+                      <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-1">
+                        <textarea
+                          value={rewriterResult}
+                          onChange={(e) => setRewriterResult(e.target.value)}
+                          className="w-full bg-transparent text-sm text-white/90 leading-relaxed p-3 outline-none resize-y min-h-[100px]"
+                          rows={Math.min(12, (rewriterResult.split('\n').length || 3) + 2)}
+                        />
                       </div>
                       {!rewriterResult.startsWith('Error:') && (
                         <div className="flex items-center gap-2">
@@ -1913,7 +1931,7 @@ export default function WarRoom({ onClose }) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => postToX(rewriterResult)}
+                            onClick={postRewriteToX}
                             className="rounded-lg border border-gray-700 bg-white/[0.03] text-gray-300 hover:text-white hover:border-gray-500 font-medium px-4 py-2 text-sm transition-colors flex items-center gap-1.5"
                           >
                             <XLogo className="h-4 w-4" />
