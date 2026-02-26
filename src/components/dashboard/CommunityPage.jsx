@@ -320,6 +320,99 @@ const normalizePnlShareSnapshot = (post) => {
   };
 };
 
+const TRENDING_BATCH_SIZE = 4;
+const TRENDING_ROTATE_MS = 5000;
+const TRENDING_SUMMARY_EVERY_MS = 30000;
+const TRENDING_SUMMARY_DURATION_MS = 10000;
+const TRENDING_FLASH_MS = 1200;
+const TRENDING_MAX_ROWS = 140;
+
+const normalizeTrendingSnapshotPayload = (row) => {
+  if (!row || typeof row !== 'object') return null;
+  const pnl = toMaybeFiniteNumber(row?.pnl);
+  if (pnl === null) return null;
+
+  const ticker = String(row?.ticker || row?.symbol || '').trim().toUpperCase() || 'TRADE';
+  const author = String(
+    row?.author
+      || row?.username
+      || row?.display_name
+      || row?.author_name
+      || row?.metadata?.display_name
+      || row?.metadata?.author_name
+      || row?.metadata?.username
+      || 'Trader'
+  ).trim() || 'Trader';
+
+  return {
+    id: String(row?.id || `${ticker}-${row?.createdAt || row?.created_at || Date.now()}`).trim(),
+    ticker,
+    pnl,
+    percent: toMaybeFiniteNumber(row?.percent),
+    author,
+    createdAt: row?.createdAt ?? row?.created_at ?? null,
+    entryPrice: toMaybeFiniteNumber(row?.entryPrice ?? row?.entry_price),
+    exitPrice: toMaybeFiniteNumber(row?.exitPrice ?? row?.exit_price),
+    shares: toMaybeFiniteNumber(row?.shares ?? row?.qty ?? row?.quantity),
+    openedAt: row?.openedAt ?? row?.opened_at ?? null,
+    closedAt: row?.closedAt ?? row?.closed_at ?? row?.createdAt ?? row?.created_at ?? null,
+    note: String(row?.note || '').trim(),
+  };
+};
+
+const sanitizeTrendingSnapshots = (rows = []) => {
+  const deduped = new Map();
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const snapshot = normalizeTrendingSnapshotPayload(row);
+    if (!snapshot?.id) return;
+    deduped.set(String(snapshot.id), snapshot);
+  });
+  return [...deduped.values()];
+};
+
+const getSnapshotTimestamp = (snapshot) => {
+  const candidates = [snapshot?.closedAt, snapshot?.createdAt, snapshot?.openedAt];
+  for (const value of candidates) {
+    if (Number.isFinite(value)) return value;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+};
+
+const isSameCalendarDay = (leftTimestamp, rightTimestamp) => {
+  if (!Number.isFinite(leftTimestamp) || !Number.isFinite(rightTimestamp)) return false;
+  const left = new Date(leftTimestamp);
+  const right = new Date(rightTimestamp);
+  return (
+    left.getUTCFullYear() === right.getUTCFullYear()
+    && left.getUTCMonth() === right.getUTCMonth()
+    && left.getUTCDate() === right.getUTCDate()
+  );
+};
+
+const isSnapshotFromToday = (snapshot, referenceTimestamp = Date.now()) => (
+  isSameCalendarDay(getSnapshotTimestamp(snapshot), referenceTimestamp)
+);
+
+const sortSnapshotsByNewest = (rows = []) => (
+  [...rows].sort((a, b) => getSnapshotTimestamp(b) - getSnapshotTimestamp(a))
+);
+
+const getTopWinningSnapshots = (rows = [], limit = 8) => (
+  [...rows]
+    .filter((item) => toFiniteNumber(item?.pnl) > 0)
+    .sort((a, b) => toFiniteNumber(b?.pnl) - toFiniteNumber(a?.pnl))
+    .slice(0, limit)
+);
+
+const getTopLosingSnapshots = (rows = [], limit = 8) => (
+  [...rows]
+    .filter((item) => toFiniteNumber(item?.pnl) < 0)
+    .sort((a, b) => toFiniteNumber(a?.pnl) - toFiniteNumber(b?.pnl))
+    .slice(0, limit)
+);
+
 const shareToX = (post) => {
   let text = post.content;
   const pnlValue = Number(post?.metadata?.pnl);
@@ -2515,6 +2608,7 @@ const RightSidebar = ({
   streamStatus,
   quoteMap,
   trackedSymbols,
+  trendingSlips,
   topWins,
   topLosses,
   onSelectSnapshot,
@@ -2524,6 +2618,112 @@ const RightSidebar = ({
     movers: true,
     trend: true,
   });
+  const [trendPageIndex, setTrendPageIndex] = useState(0);
+  const [trendMode, setTrendMode] = useState('live');
+  const [trendFlashById, setTrendFlashById] = useState({});
+  const previousTrendingIdsRef = useRef([]);
+  const trendFlashTimersRef = useRef(new Map());
+
+  const liveSlipRows = useMemo(
+    () => sortSnapshotsByNewest(sanitizeTrendingSnapshots(trendingSlips)).slice(0, TRENDING_MAX_ROWS),
+    [trendingSlips],
+  );
+
+  const pagedLiveRows = useMemo(() => {
+    if (liveSlipRows.length === 0) return [];
+    const pages = [];
+    for (let i = 0; i < liveSlipRows.length; i += TRENDING_BATCH_SIZE) {
+      pages.push(liveSlipRows.slice(i, i + TRENDING_BATCH_SIZE));
+    }
+    return pages;
+  }, [liveSlipRows]);
+
+  const activeLiveRows = pagedLiveRows[trendPageIndex] || [];
+  const summaryWins = topWins.slice(0, 3);
+  const summaryLosses = topLosses.slice(0, 3);
+
+  useEffect(() => {
+    setTrendPageIndex((prev) => {
+      if (pagedLiveRows.length === 0) return 0;
+      return prev >= pagedLiveRows.length ? 0 : prev;
+    });
+  }, [pagedLiveRows.length]);
+
+  useEffect(() => {
+    if (!openSections.trend || trendMode !== 'live') return undefined;
+    if (pagedLiveRows.length <= 1) return undefined;
+
+    const timer = setInterval(() => {
+      setTrendPageIndex((prev) => (prev + 1) % pagedLiveRows.length);
+    }, TRENDING_ROTATE_MS);
+
+    return () => clearInterval(timer);
+  }, [openSections.trend, trendMode, pagedLiveRows.length]);
+
+  useEffect(() => {
+    if (!openSections.trend) {
+      setTrendMode('live');
+      return undefined;
+    }
+
+    let holdTimer = null;
+    const cycleTimer = setInterval(() => {
+      setTrendMode('summary');
+      holdTimer = setTimeout(() => {
+        setTrendMode('live');
+      }, TRENDING_SUMMARY_DURATION_MS);
+    }, TRENDING_SUMMARY_EVERY_MS);
+
+    return () => {
+      clearInterval(cycleTimer);
+      if (holdTimer) clearTimeout(holdTimer);
+    };
+  }, [openSections.trend]);
+
+  useEffect(() => {
+    const previousIds = previousTrendingIdsRef.current;
+    const nextIds = liveSlipRows.map((row) => String(row.id));
+    if (previousIds.length === 0) {
+      previousTrendingIdsRef.current = nextIds;
+      return;
+    }
+
+    const previousSet = new Set(previousIds);
+    const incomingRows = liveSlipRows.filter((row) => !previousSet.has(String(row.id))).slice(0, TRENDING_BATCH_SIZE);
+    if (incomingRows.length > 0) {
+      setTrendFlashById((prev) => {
+        const next = { ...prev };
+        incomingRows.forEach((row) => {
+          next[String(row.id)] = toFiniteNumber(row?.pnl) >= 0 ? 'win' : 'loss';
+        });
+        return next;
+      });
+
+      incomingRows.forEach((row) => {
+        const key = String(row.id);
+        if (trendFlashTimersRef.current.has(key)) {
+          clearTimeout(trendFlashTimersRef.current.get(key));
+        }
+        const timer = setTimeout(() => {
+          setTrendFlashById((prev) => {
+            if (!prev[key]) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+          trendFlashTimersRef.current.delete(key);
+        }, TRENDING_FLASH_MS);
+        trendFlashTimersRef.current.set(key, timer);
+      });
+    }
+
+    previousTrendingIdsRef.current = nextIds;
+  }, [liveSlipRows]);
+
+  useEffect(() => () => {
+    trendFlashTimersRef.current.forEach((timer) => clearTimeout(timer));
+    trendFlashTimersRef.current.clear();
+  }, []);
 
   if (hidden) {
     return (
@@ -2575,9 +2775,6 @@ const RightSidebar = ({
     );
   };
 
-  const winRows = topWins.slice(0, 4);
-  const lossRows = topLosses.slice(0, 4);
-
   return (
     <motion.aside
       initial={{ opacity: 0, x: 10 }}
@@ -2623,58 +2820,120 @@ const RightSidebar = ({
 
         <SidebarSection
           title="Trending Slips"
-          subtitle="Top wins and losses"
+          subtitle={trendMode === 'summary' ? 'Top wins and losses (today)' : 'Live slip board · rotates every 5s'}
           icon={Trophy}
           open={openSections.trend}
           onToggle={() => toggleSection('trend')}
         >
-          <div className="space-y-2.5">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.green }}>Top Wins</div>
-              <div className="space-y-1.5">
-                {winRows.length === 0 ? (
-                  <div className="text-xs" style={{ color: T.muted }}>No winning slips yet.</div>
-                ) : winRows.map((row) => (
-                  <button
-                    key={`win-${row.id}`}
-                    type="button"
-                    onClick={() => onSelectSnapshot?.(row)}
-                    className="w-full rounded-lg border px-2.5 py-2 text-left"
-                    style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.64)' }}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold">${row.ticker}</span>
-                      <span className="font-mono" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
-                    </div>
-                    <div className="mt-0.5 text-[11px]" style={{ color: T.muted }}>{row.author}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <AnimatePresence mode="wait" initial={false}>
+            {trendMode === 'summary' ? (
+              <motion.div
+                key="trend-summary"
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 18 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-2.5"
+              >
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.green }}>Top Wins</div>
+                  <div className="divide-y divide-white/5">
+                    {summaryWins.length === 0 ? (
+                      <div className="py-2 text-xs" style={{ color: T.muted }}>No winning slips yet.</div>
+                    ) : summaryWins.map((row) => (
+                      <button
+                        key={`summary-win-${row.id}`}
+                        type="button"
+                        onClick={() => onSelectSnapshot?.(row)}
+                        className="w-full py-2 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
+                            <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                          </div>
+                          <span className="font-mono text-sm" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.red }}>Top Losses</div>
-              <div className="space-y-1.5">
-                {lossRows.length === 0 ? (
-                  <div className="text-xs" style={{ color: T.muted }}>No losing slips yet.</div>
-                ) : lossRows.map((row) => (
-                  <button
-                    key={`loss-${row.id}`}
-                    type="button"
-                    onClick={() => onSelectSnapshot?.(row)}
-                    className="w-full rounded-lg border px-2.5 py-2 text-left"
-                    style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.64)' }}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold">${row.ticker}</span>
-                      <span className="font-mono" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
-                    </div>
-                    <div className="mt-0.5 text-[11px]" style={{ color: T.muted }}>{row.author}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.red }}>Top Losses</div>
+                  <div className="divide-y divide-white/5">
+                    {summaryLosses.length === 0 ? (
+                      <div className="py-2 text-xs" style={{ color: T.muted }}>No losing slips yet.</div>
+                    ) : summaryLosses.map((row) => (
+                      <button
+                        key={`summary-loss-${row.id}`}
+                        type="button"
+                        onClick={() => onSelectSnapshot?.(row)}
+                        className="w-full py-2 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
+                            <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                          </div>
+                          <span className="font-mono text-sm" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`trend-live-${trendPageIndex}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                className="divide-y divide-white/5"
+              >
+                {activeLiveRows.length === 0 ? (
+                  <div className="py-2 text-xs" style={{ color: T.muted }}>No live slips yet.</div>
+                ) : activeLiveRows.map((row, index) => {
+                  const flash = trendFlashById[String(row.id)] || null;
+                  return (
+                    <motion.button
+                      key={`trend-live-row-${row.id}`}
+                      type="button"
+                      onClick={() => onSelectSnapshot?.(row)}
+                      className="relative w-full py-2 text-left"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                    >
+                      {flash ? (
+                        <motion.span
+                          key={`${row.id}-flash-${flash}`}
+                          className="pointer-events-none absolute inset-0 rounded-sm border"
+                          initial={{ opacity: 0.9 }}
+                          animate={{ opacity: 0 }}
+                          transition={{ duration: TRENDING_FLASH_MS / 1000 }}
+                          style={{ borderColor: flash === 'win' ? T.green : T.red }}
+                        />
+                      ) : null}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
+                          <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                        </div>
+                        <span
+                          className="font-mono text-sm flex-shrink-0"
+                          style={{ color: toFiniteNumber(row?.pnl) >= 0 ? T.green : T.red }}
+                        >
+                          {formatSignedCurrency(row.pnl)}
+                        </span>
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </SidebarSection>
       </div>
     </motion.aside>
@@ -2699,6 +2958,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [showcaseTrade, setShowcaseTrade] = useState(null);
   const [aiSearchResults, setAiSearchResults] = useState([]);
   const [aiSearchPending, setAiSearchPending] = useState([]);
+  const [cachedTrendingSlips, setCachedTrendingSlips] = useState([]);
+  const [cachedTopWins, setCachedTopWins] = useState([]);
+  const [cachedTopLosses, setCachedTopLosses] = useState([]);
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
@@ -2749,6 +3011,53 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchTrendingCache = async () => {
+      const endpoints = ['/api/community/trending-slips.js', '/api/community/trending-slips'];
+
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            if (response.status === 404) continue;
+            return;
+          }
+
+          const payload = await response.json().catch(() => null);
+          if (!payload || cancelled) return;
+
+          const slips = sortSnapshotsByNewest(sanitizeTrendingSnapshots(payload?.slips || []));
+          const wins = getTopWinningSnapshots(sanitizeTrendingSnapshots(payload?.topWins || []), 8);
+          const losses = getTopLosingSnapshots(sanitizeTrendingSnapshots(payload?.topLosses || []), 8);
+
+          if (cancelled) return;
+          if (slips.length > 0) setCachedTrendingSlips(slips.slice(0, TRENDING_MAX_ROWS));
+          if (wins.length > 0) setCachedTopWins(wins);
+          if (losses.length > 0) setCachedTopLosses(losses);
+          return;
+        } catch (cacheError) {
+          if (cacheError?.name === 'AbortError') return;
+        }
+      }
+    };
+
+    void fetchTrendingCache();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
     };
   }, []);
 
@@ -3206,25 +3515,37 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     return rows;
   }, [posts, filter, search]);
 
-  const pnlSnapshots = useMemo(() => (
-    posts
-      .map((post) => normalizePnlShareSnapshot(post))
-      .filter(Boolean)
+  const liveTodaySnapshots = useMemo(() => (
+    sortSnapshotsByNewest(
+      posts
+        .filter((post) => !post?.is_mock)
+        .map((post) => normalizePnlShareSnapshot(post))
+        .filter(Boolean)
+        .filter((snapshot) => isSnapshotFromToday(snapshot))
+    ).slice(0, TRENDING_MAX_ROWS)
   ), [posts]);
 
+  const trendingSlips = useMemo(() => (
+    liveTodaySnapshots.length > 0
+      ? liveTodaySnapshots
+      : sortSnapshotsByNewest(cachedTrendingSlips).slice(0, TRENDING_MAX_ROWS)
+  ), [liveTodaySnapshots, cachedTrendingSlips]);
+
   const topWins = useMemo(() => (
-    [...pnlSnapshots]
-      .filter((item) => item.pnl > 0)
-      .sort((a, b) => b.pnl - a.pnl)
-      .slice(0, 8)
-  ), [pnlSnapshots]);
+    liveTodaySnapshots.length > 0
+      ? getTopWinningSnapshots(liveTodaySnapshots, 8)
+      : (cachedTopWins.length > 0
+          ? getTopWinningSnapshots(cachedTopWins, 8)
+          : getTopWinningSnapshots(trendingSlips, 8))
+  ), [liveTodaySnapshots, cachedTopWins, trendingSlips]);
 
   const topLosses = useMemo(() => (
-    [...pnlSnapshots]
-      .filter((item) => item.pnl < 0)
-      .sort((a, b) => a.pnl - b.pnl)
-      .slice(0, 8)
-  ), [pnlSnapshots]);
+    liveTodaySnapshots.length > 0
+      ? getTopLosingSnapshots(liveTodaySnapshots, 8)
+      : (cachedTopLosses.length > 0
+          ? getTopLosingSnapshots(cachedTopLosses, 8)
+          : getTopLosingSnapshots(trendingSlips, 8))
+  ), [liveTodaySnapshots, cachedTopLosses, trendingSlips]);
 
   const openComposer = (type = 'post') => {
     setComposerInitialType(type);
@@ -3343,6 +3664,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                   streamStatus={streamStatus}
                   quoteMap={quoteMap}
                   trackedSymbols={trackedSymbols}
+                  trendingSlips={trendingSlips}
                   topWins={topWins}
                   topLosses={topLosses}
                   onSelectSnapshot={setShowcaseTrade}
