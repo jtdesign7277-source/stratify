@@ -881,8 +881,15 @@ const mergeQuotesFromPayload = (rows = [], previous = {}) => {
     const symbol = normalizeSymbolKey(row?.symbol);
     if (!symbol) return;
     const price = toMaybeFiniteNumber(row?.price ?? row?.last ?? row?.close);
-    const percentChange = toMaybeFiniteNumber(row?.percentChange ?? row?.changePercent ?? row?.percent_change);
+    const percentChange = toMaybeFiniteNumber(
+      row?.dayChangePercent
+      ?? row?.day_change_percent
+      ?? row?.percentChange
+      ?? row?.changePercent
+      ?? row?.percent_change
+    );
     const change = toMaybeFiniteNumber(row?.change);
+    const previousClose = toMaybeFiniteNumber(row?.previousClose ?? row?.previous_close);
     next[symbol] = {
       ...next[symbol],
       symbol,
@@ -890,7 +897,11 @@ const mergeQuotesFromPayload = (rows = [], previous = {}) => {
       exchange: row?.exchange || next[symbol]?.exchange || null,
       price: price ?? next[symbol]?.price ?? null,
       percentChange: percentChange ?? next[symbol]?.percentChange ?? null,
+      percent_change: percentChange ?? next[symbol]?.percent_change ?? null,
+      dayChangePercent: percentChange ?? next[symbol]?.dayChangePercent ?? null,
       change: change ?? next[symbol]?.change ?? null,
+      previousClose: previousClose ?? next[symbol]?.previousClose ?? null,
+      previous_close: previousClose ?? next[symbol]?.previous_close ?? null,
       timestamp: row?.timestamp || row?.datetime || new Date().toISOString(),
       source: 'rest',
     };
@@ -3063,7 +3074,12 @@ const RightSidebar = ({
       setWatchlistQuoteMap((prev) => {
         const existing = prev[symbol] || {};
         const nextPrice = toMaybeFiniteNumber(update?.price);
-        const nextPercent = toMaybeFiniteNumber(update?.percentChange);
+        const nextPercent = toMaybeFiniteNumber(
+          update?.dayChangePercent
+          ?? update?.day_change_percent
+          ?? update?.percentChange
+          ?? update?.percent_change
+        );
         const nextChange = toMaybeFiniteNumber(update?.change);
 
         return {
@@ -3074,6 +3090,8 @@ const RightSidebar = ({
             name: existing?.name || symbol,
             price: nextPrice ?? existing?.price ?? null,
             percentChange: nextPercent ?? existing?.percentChange ?? null,
+            percent_change: nextPercent ?? existing?.percent_change ?? null,
+            dayChangePercent: nextPercent ?? existing?.dayChangePercent ?? null,
             change: nextChange ?? existing?.change ?? null,
             timestamp: update?.timestamp || new Date().toISOString(),
             source: 'ws',
@@ -3169,7 +3187,7 @@ const RightSidebar = ({
     const fetchTodaysNews = async ({ silent = false } = {}) => {
       if (!silent) setTodaysNewsLoading(true);
 
-      const endpoints = ['/api/community/todays-news', '/api/community/todays-news.js'];
+      const endpoints = ['/api/community/todays-news.js', '/api/community/todays-news'];
       for (const endpoint of endpoints) {
         try {
           const payload = await cachedFetch(
@@ -3389,6 +3407,14 @@ const RightSidebar = ({
 
     const quote = watchlistQuoteMap?.[symbol] || quoteMap?.[symbol] || null;
     const price = toMaybeFiniteNumber(quote?.price);
+    const percent = toMaybeFiniteNumber(
+      quote?.dayChangePercent
+      ?? quote?.day_change_percent
+      ?? quote?.percentChange
+      ?? quote?.percent_change
+      ?? quote?.changePercent
+    );
+    const percentColor = percent === null ? T.muted : (percent >= 0 ? '#3fb950' : '#f85149');
 
     return (
       <div
@@ -3400,8 +3426,13 @@ const RightSidebar = ({
           <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{symbol}</div>
           <div className="text-xs truncate" style={{ color: T.muted }}>{entry?.name || symbol}</div>
         </div>
-        <div className="text-xs font-mono flex-shrink-0" style={{ color: T.text }}>
-          {price === null ? '--' : formatPrice(price)}
+        <div className="text-right flex-shrink-0 leading-tight">
+          <div className="text-xs font-mono" style={{ color: T.text }}>
+            {price === null ? '--' : formatPrice(price)}
+          </div>
+          <div className="text-xs font-mono" style={{ color: percentColor }}>
+            {percent === null ? '--' : formatSignedPercent(percent)}
+          </div>
         </div>
       </div>
     );
@@ -4119,7 +4150,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       setQuoteMap((prev) => {
         const existing = prev[symbol] || {};
         const nextPrice = toMaybeFiniteNumber(update?.price);
-        const nextPercent = toMaybeFiniteNumber(update?.percentChange);
+        const nextPercent = toMaybeFiniteNumber(
+          update?.dayChangePercent
+          ?? update?.day_change_percent
+          ?? update?.percentChange
+          ?? update?.percent_change
+        );
         const nextChange = toMaybeFiniteNumber(update?.change);
 
         return {
@@ -4130,6 +4166,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
             name: existing?.name || symbol,
             price: nextPrice ?? existing?.price ?? null,
             percentChange: nextPercent ?? existing?.percentChange ?? null,
+            percent_change: nextPercent ?? existing?.percent_change ?? null,
+            dayChangePercent: nextPercent ?? existing?.dayChangePercent ?? null,
             change: nextChange ?? existing?.change ?? null,
             timestamp: update?.timestamp || new Date().toISOString(),
             source: 'ws',

@@ -157,11 +157,19 @@ class TwelveDataStream {
     const symbol = normalizeSymbol(payload?.symbol || payload?.meta?.symbol);
     if (!symbol) return;
     const base = baseSymbol(symbol);
+    const dayChangePercent = toNumber(
+      payload?.dayChangePercent
+      ?? payload?.day_change_percent
+      ?? payload?.percent_change
+      ?? payload?.percentChange
+    );
 
     const update = {
       symbol,
       price: toNumber(payload?.price),
-      percentChange: toNumber(payload?.percent_change ?? payload?.percentChange),
+      dayChangePercent,
+      percentChange: dayChangePercent,
+      percent_change: dayChangePercent,
       change: toNumber(payload?.change),
       timestamp: payload?.timestamp || payload?.datetime || new Date().toISOString(),
       raw: payload,
