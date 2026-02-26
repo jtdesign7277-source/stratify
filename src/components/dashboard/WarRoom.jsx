@@ -1487,17 +1487,23 @@ export default function WarRoom({ onClose }) {
               {/* Multi-column folder grid */}
               <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
                 <div className="grid grid-cols-3 gap-3">
-                  {folders.map((folder) => (
-                    <div key={folder.id} className="rounded-xl border border-gray-800/60 bg-black/30 p-3 flex flex-col min-h-0">
+                  {[...folders].sort((a, b) => {
+                    if (a.name === 'AI Rewrites') return -1;
+                    if (b.name === 'AI Rewrites') return 1;
+                    return 0;
+                  }).map((folder) => {
+                    const isAIFolder = folder.name === 'AI Rewrites';
+                    return (
+                    <div key={folder.id} className={`rounded-xl border p-3 flex flex-col min-h-0 ${isAIFolder ? 'border-blue-500/50 bg-blue-500/[0.06]' : 'border-gray-800/60 bg-black/30'}`}>
                       {/* Folder header */}
                       <div className="flex items-center justify-between mb-2 shrink-0">
-                        <h3 className="text-sm font-semibold text-white truncate">{folder.name}</h3>
+                        <h3 className={`text-sm font-semibold truncate ${isAIFolder ? 'text-blue-300' : 'text-white'}`}>{folder.name}</h3>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-gray-500">{folder.items.length}</span>
+                          <span className={`text-[10px] ${isAIFolder ? 'text-blue-400/60' : 'text-gray-500'}`}>{folder.items.length}</span>
                           <button
                             type="button"
                             onClick={() => startCompose(folder.id)}
-                            className="p-0.5 text-gray-400 hover:text-amber-400 transition-colors"
+                            className="p-0.5 text-blue-400/70 hover:text-blue-300 transition-colors"
                             title="Write a new note"
                           >
                             <Pencil className="h-4 w-4" strokeWidth={1.5} />
@@ -1505,7 +1511,7 @@ export default function WarRoom({ onClose }) {
                           <button
                             type="button"
                             onClick={() => handleDeleteFolder(folder.id)}
-                            className="p-0.5 text-gray-500 hover:text-red-400 transition-colors"
+                            className="p-0.5 text-blue-400/70 hover:text-red-400 transition-colors"
                             title={`Delete ${folder.name}`}
                           >
                             <Trash2 className="h-4 w-4" strokeWidth={1.5} />
@@ -1515,12 +1521,12 @@ export default function WarRoom({ onClose }) {
 
                       {/* Compose new note */}
                       {composingFolderId === folder.id && (
-                        <div className="shrink-0 mb-2 rounded-lg border border-amber-500/30 bg-black/50 p-2.5">
+                        <div className="shrink-0 mb-2 rounded-lg border border-blue-500/30 bg-black/50 p-2.5">
                           <textarea
                             value={composeText}
                             onChange={(e) => setComposeText(e.target.value)}
                             placeholder="Write your note..."
-                            className="w-full rounded border border-gray-700 bg-transparent px-2 py-1.5 text-sm text-white/90 placeholder:text-gray-600 outline-none focus:border-amber-500/40 resize-y min-h-[60px]"
+                            className="w-full rounded border border-gray-700 bg-transparent px-2 py-1.5 text-sm text-white/90 placeholder:text-gray-600 outline-none focus:border-blue-500/40 resize-y min-h-[60px]"
                             rows={4}
                             autoFocus
                           />
@@ -1529,7 +1535,7 @@ export default function WarRoom({ onClose }) {
                               type="button"
                               onClick={saveCompose}
                               disabled={!composeText.trim()}
-                              className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-40"
+                              className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-40"
                             >
                               Save Note
                             </button>
@@ -1551,7 +1557,7 @@ export default function WarRoom({ onClose }) {
                             <button
                               type="button"
                               onClick={() => startCompose(folder.id)}
-                              className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400 hover:bg-amber-500/20 transition-colors"
+                              className="flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-400 hover:bg-blue-500/20 transition-colors"
                               title="Write a note"
                             >
                               <Pencil className="h-4.5 w-4.5" strokeWidth={1.5} />
@@ -1561,9 +1567,8 @@ export default function WarRoom({ onClose }) {
                               type="button"
                               onClick={() => {
                                 startCompose(folder.id);
-                                // Pre-fill with hint for sharing
                               }}
-                              className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-white/[0.03] px-3 py-2 text-sm text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+                              className="flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/[0.05] px-3 py-2 text-sm text-blue-400 hover:text-blue-300 hover:border-blue-400/50 transition-colors"
                               title="Write and share to X"
                             >
                               <XLogo className="h-4 w-4" />
@@ -1574,7 +1579,7 @@ export default function WarRoom({ onClose }) {
                           folder.items.map((card) => {
                             const isEditing = editingItem?.id === card.id && editingItem?.folderId === folder.id;
                             return (
-                              <div key={`folder-${card.id}`} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
+                              <div key={`folder-${card.id}`} className={`rounded-lg border border-l-2 bg-black/30 px-3 py-2.5 ${isAIFolder ? 'border-blue-500/30 border-l-blue-500/50' : 'border-gray-800/50 border-l-blue-500/30'}`}>
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
                                     <p className="text-[11px] text-gray-500 mb-1">
@@ -1585,7 +1590,7 @@ export default function WarRoom({ onClose }) {
                                       <textarea
                                         value={editingItem.content}
                                         onChange={(e) => setEditingItem(prev => ({ ...prev, content: e.target.value }))}
-                                        className="w-full rounded border border-amber-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-amber-500/50 resize-y min-h-[80px]"
+                                        className="w-full rounded border border-blue-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-blue-500/50 resize-y min-h-[80px]"
                                         rows={Math.min(8, (editingItem.content?.split('\n').length || 3) + 1)}
                                         autoFocus
                                       />
@@ -1605,16 +1610,16 @@ export default function WarRoom({ onClose }) {
                                       </>
                                     ) : (
                                       <>
-                                        <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors" title="Edit">
+                                        <button type="button" onClick={() => startEditing(card, folder.id)} className="p-1 rounded text-blue-400/70 hover:text-blue-300 hover:bg-blue-500/10 transition-colors" title="Edit">
                                           <Pencil className="h-5 w-5" strokeWidth={1.5} />
                                         </button>
-                                        <button type="button" onClick={() => openRewriter(card, folder.id)} className="p-1 rounded text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Rewrite with AI">
+                                        <button type="button" onClick={() => openRewriter(card, folder.id)} className="p-1 rounded text-blue-400/70 hover:text-blue-300 hover:bg-blue-500/10 transition-colors" title="Rewrite with AI">
                                           <MessageCircle className="h-5 w-5" strokeWidth={1.5} />
                                         </button>
-                                        <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
+                                        <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-blue-400/70 hover:text-blue-300 hover:bg-blue-500/10 transition-colors" title="Post to X">
                                           <XLogo className="h-5 w-5" />
                                         </button>
-                                        <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                                        <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="p-1 rounded text-blue-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
                                           <Trash2 className="h-5 w-5" strokeWidth={1.5} />
                                         </button>
                                       </>
@@ -1627,7 +1632,8 @@ export default function WarRoom({ onClose }) {
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
