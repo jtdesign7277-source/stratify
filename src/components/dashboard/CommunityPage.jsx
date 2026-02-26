@@ -328,13 +328,17 @@ const TRENDING_FLASH_MS = 1200;
 const TRENDING_MAX_ROWS = 140;
 const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
 const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
-const DEFAULT_SIDEBAR_SECTION_ORDER = ['market-pulse', 'watch-movers', 'trending-slips'];
+const WATCHLIST_STORAGE_KEY = 'stratify-community-watchlist';
+const DEFAULT_SIDEBAR_SECTION_ORDER = ['market-pulse', 'watch-movers', 'trending-slips', 'watchlist'];
 const SIDEBAR_SECTION_ID_SET = new Set(DEFAULT_SIDEBAR_SECTION_ORDER);
 const SIDEBAR_SECTION_LABELS = {
   'market-pulse': 'Market Pulse',
-  'watch-movers': 'Watch Movers',
-  'trending-slips': 'Trending Slips',
+  'watch-movers': 'Market Movers',
+  'trending-slips': 'Trending',
+  watchlist: 'Watchlist',
 };
+const WATCHLIST_MAX_ROWS = 24;
+const WATCHLIST_SEARCH_LIMIT = 10;
 
 const normalizeSidebarSectionOrder = (rawOrder = []) => {
   const seen = new Set();
@@ -716,6 +720,42 @@ const normalizeSymbolKey = (value) => {
   if (!raw) return '';
   if (raw.includes(':')) return raw.split(':').pop();
   return raw;
+};
+
+const normalizeWatchlistEntry = (row) => {
+  const symbol = normalizeSymbolKey(row?.symbol || row?.ticker || row?.code);
+  if (!symbol) return null;
+  const name = String(
+    row?.name || row?.instrumentName || row?.instrument_name || row?.company_name || row?.description || symbol
+  ).trim() || symbol;
+  return { symbol, name };
+};
+
+const normalizeWatchlistEntries = (rows = []) => {
+  const deduped = [];
+  const seen = new Set();
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const entry = normalizeWatchlistEntry(row);
+    if (!entry || seen.has(entry.symbol)) return;
+    seen.add(entry.symbol);
+    deduped.push(entry);
+  });
+
+  return deduped.slice(0, WATCHLIST_MAX_ROWS);
+};
+
+const normalizeWatchlistSearchResults = (payload) => {
+  const rows = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.results)
+      ? payload.results
+      : Array.isArray(payload?.symbols)
+        ? payload.symbols
+        : Array.isArray(payload)
+          ? payload
+          : [];
+  return normalizeWatchlistEntries(rows).slice(0, WATCHLIST_SEARCH_LIMIT);
 };
 
 const mergeQuotesFromPayload = (rows = [], previous = {}) => {
@@ -2744,6 +2784,7 @@ const RightSidebar = ({
     'market-pulse': true,
     'watch-movers': true,
     'trending-slips': true,
+    watchlist: true,
   });
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SIDEBAR_SECTION_ORDER);
   const [sectionVisibility, setSectionVisibility] = useState(
@@ -2754,8 +2795,16 @@ const RightSidebar = ({
   const [trendPageIndex, setTrendPageIndex] = useState(0);
   const [trendMode, setTrendMode] = useState('live');
   const [trendFlashById, setTrendFlashById] = useState({});
+  const [watchlistRows, setWatchlistRows] = useState([]);
+  const [watchlistQuery, setWatchlistQuery] = useState('');
+  const [watchlistResults, setWatchlistResults] = useState([]);
+  const [watchlistSearchLoading, setWatchlistSearchLoading] = useState(false);
+  const [watchlistQuoteMap, setWatchlistQuoteMap] = useState({});
   const previousTrendingIdsRef = useRef([]);
   const trendFlashTimersRef = useRef(new Map());
+  const watchlistHydratedRef = useRef(false);
+  const previousWatchlistSymbolsRef = useRef([]);
+  const watchlistLookupRef = useRef(null);
 
   const liveSlipRows = useMemo(
     () => sortSnapshotsByNewest(sanitizeTrendingSnapshots(trendingSlips)).slice(0, TRENDING_MAX_ROWS),
@@ -2782,6 +2831,36 @@ const RightSidebar = ({
     () => sectionOrder.filter((sectionId) => !sectionVisibility[sectionId]),
     [sectionOrder, sectionVisibility],
   );
+  const watchlistSymbols = useMemo(
+    () => watchlistRows.map((row) => row.symbol).filter(Boolean),
+    [watchlistRows],
+  );
+  const fetchWatchlistQuotes = useCallback(async (symbols) => {
+    const targetSymbols = [...new Set((Array.isArray(symbols) ? symbols : [symbols]).map(normalizeSymbolKey).filter(Boolean))];
+    if (targetSymbols.length === 0) return;
+
+    try {
+      const params = new URLSearchParams({ symbols: targetSymbols.join(',') });
+      const response = await fetch(`/api/community/market-data?${params.toString()}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+
+      const payload = await response.json().catch(() => ({}));
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+      if (rows.length === 0) return;
+
+      setWatchlistQuoteMap((prev) => mergeQuotesFromPayload(rows, prev));
+    } catch {
+      // keep existing quote cache if bootstrap fetch fails
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -2816,6 +2895,154 @@ const RightSidebar = ({
     if (!layoutPrefsHydrated || typeof window === 'undefined') return;
     window.localStorage.setItem(SIDEBAR_VISIBILITY_STORAGE_KEY, JSON.stringify(sectionVisibility));
   }, [layoutPrefsHydrated, sectionVisibility]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedWatchlistRaw = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
+      if (!savedWatchlistRaw) {
+        watchlistHydratedRef.current = true;
+        return;
+      }
+      const parsed = JSON.parse(savedWatchlistRaw);
+      setWatchlistRows(normalizeWatchlistEntries(parsed));
+    } catch {
+      setWatchlistRows([]);
+    } finally {
+      watchlistHydratedRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!watchlistHydratedRef.current || typeof window === 'undefined') return;
+    window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlistRows));
+  }, [watchlistRows]);
+
+  useEffect(() => {
+    if (watchlistSymbols.length === 0) {
+      previousWatchlistSymbolsRef.current = [];
+      return;
+    }
+
+    const previousSymbols = previousWatchlistSymbolsRef.current;
+    const previousSet = new Set(previousSymbols);
+    const addedSymbols = watchlistSymbols.filter((symbol) => !previousSet.has(symbol));
+    const symbolsToBootstrap = previousSymbols.length === 0
+      ? watchlistSymbols
+      : (addedSymbols.length > 0 ? addedSymbols : watchlistSymbols);
+
+    previousWatchlistSymbolsRef.current = watchlistSymbols;
+    void fetchWatchlistQuotes(symbolsToBootstrap);
+  }, [watchlistSymbols, fetchWatchlistQuotes]);
+
+  useEffect(() => {
+    if (watchlistSymbols.length === 0) return undefined;
+
+    const unsubscribeQuotes = subscribeTwelveDataQuotes(watchlistSymbols, (update) => {
+      const symbol = normalizeSymbolKey(update?.symbol);
+      if (!symbol) return;
+
+      setWatchlistQuoteMap((prev) => {
+        const existing = prev[symbol] || {};
+        const nextPrice = toMaybeFiniteNumber(update?.price);
+        const nextPercent = toMaybeFiniteNumber(update?.percentChange);
+        const nextChange = toMaybeFiniteNumber(update?.change);
+
+        return {
+          ...prev,
+          [symbol]: {
+            ...existing,
+            symbol,
+            name: existing?.name || symbol,
+            price: nextPrice ?? existing?.price ?? null,
+            percentChange: nextPercent ?? existing?.percentChange ?? null,
+            change: nextChange ?? existing?.change ?? null,
+            timestamp: update?.timestamp || new Date().toISOString(),
+            source: 'ws',
+          },
+        };
+      });
+    });
+
+    return () => {
+      unsubscribeQuotes?.();
+    };
+  }, [watchlistSymbols]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const lookup = async (query) => {
+      const trimmedQuery = String(query || '').trim();
+      if (!trimmedQuery) {
+        setWatchlistResults([]);
+        setWatchlistSearchLoading(false);
+        return;
+      }
+
+      let remoteRows = [];
+      try {
+        const params = new URLSearchParams({
+          q: trimmedQuery,
+          limit: String(WATCHLIST_SEARCH_LIMIT),
+        });
+        const payload = await cachedFetch(
+          `/api/community/symbol-search?${params.toString()}`,
+          { cache: 'no-store' },
+          45_000,
+        );
+        remoteRows = normalizeWatchlistSearchResults(payload);
+      } catch {
+        try {
+          const payload = await cachedFetch(
+            `/api/global-markets/list?market=nyse&q=${encodeURIComponent(trimmedQuery)}&limit=${WATCHLIST_SEARCH_LIMIT}`,
+            { cache: 'no-store' },
+            45_000,
+          );
+          remoteRows = normalizeWatchlistSearchResults(payload);
+        } catch {
+          remoteRows = [];
+        }
+      }
+
+      if (cancelled) return;
+
+      const existingSymbols = new Set(watchlistRows.map((row) => row.symbol));
+      const merged = remoteRows
+        .reduce((acc, row) => {
+          const entry = normalizeWatchlistEntry(row);
+          if (!entry || acc.some((item) => item.symbol === entry.symbol)) return acc;
+          acc.push(entry);
+          return acc;
+        }, [])
+        .filter((row) => !existingSymbols.has(row.symbol))
+        .slice(0, WATCHLIST_SEARCH_LIMIT);
+
+      setWatchlistResults(merged);
+      setWatchlistSearchLoading(false);
+    };
+
+    watchlistLookupRef.current = createDebouncedFn((query) => {
+      void lookup(query);
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      watchlistLookupRef.current?.cancel?.();
+    };
+  }, [watchlistRows]);
+
+  useEffect(() => {
+    const trimmedQuery = String(watchlistQuery || '').trim();
+    if (!trimmedQuery) {
+      setWatchlistResults([]);
+      setWatchlistSearchLoading(false);
+      return;
+    }
+
+    setWatchlistSearchLoading(true);
+    watchlistLookupRef.current?.call(trimmedQuery);
+  }, [watchlistQuery]);
 
   useEffect(() => {
     setTrendPageIndex((prev) => {
@@ -2985,6 +3212,44 @@ const RightSidebar = ({
     );
   };
 
+  const addWatchlistSymbol = (row) => {
+    const nextEntry = normalizeWatchlistEntry(row);
+    if (!nextEntry) return;
+
+    setWatchlistRows((prev) => {
+      if (prev.some((item) => item.symbol === nextEntry.symbol)) return prev;
+      return [...prev, nextEntry].slice(0, WATCHLIST_MAX_ROWS);
+    });
+    void fetchWatchlistQuotes([nextEntry.symbol]);
+    setWatchlistQuery('');
+    setWatchlistResults([]);
+    setWatchlistSearchLoading(false);
+  };
+
+  const renderWatchlistRow = (entry) => {
+    const symbol = normalizeSymbolKey(entry?.symbol);
+    if (!symbol) return null;
+
+    const quote = watchlistQuoteMap?.[symbol] || quoteMap?.[symbol] || null;
+    const price = toMaybeFiniteNumber(quote?.price);
+
+    return (
+      <div
+        key={`watchlist-row-${symbol}`}
+        className="rounded-lg border px-2.5 py-1.5 flex items-center justify-between gap-2"
+        style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.65)' }}
+      >
+        <div className="min-w-0">
+          <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{symbol}</div>
+          <div className="text-xs truncate" style={{ color: T.muted }}>{entry?.name || symbol}</div>
+        </div>
+        <div className="text-xs font-mono flex-shrink-0" style={{ color: T.text }}>
+          {price === null ? '--' : formatPrice(price)}
+        </div>
+      </div>
+    );
+  };
+
   const renderDraggableSection = (sectionId) => {
     if (sectionId === 'market-pulse') {
       return (
@@ -3024,8 +3289,8 @@ const RightSidebar = ({
         <DraggableSidebarSection
           key={sectionId}
           sectionId={sectionId}
-          title="Watch Movers"
-          subtitle="Symbols active in current feed"
+          title="Market Movers"
+          subtitle="Top movers today"
           icon={Eye}
           open={openSections['watch-movers']}
           onToggle={() => toggleSection('watch-movers')}
@@ -3045,8 +3310,8 @@ const RightSidebar = ({
         <DraggableSidebarSection
           key={sectionId}
           sectionId={sectionId}
-          title="Trending Slips"
-          subtitle={trendMode === 'summary' ? 'Top wins and losses (today)' : 'Live slip board · rotates every 5s'}
+          title="Trending"
+          subtitle="What the community is watching"
           icon={Trophy}
           open={openSections['trending-slips']}
           onToggle={() => toggleSection('trending-slips')}
@@ -3163,6 +3428,79 @@ const RightSidebar = ({
               </motion.div>
             )}
           </AnimatePresence>
+        </DraggableSidebarSection>
+      );
+    }
+
+    if (sectionId === 'watchlist') {
+      const hasWatchlistQuery = String(watchlistQuery || '').trim().length > 0;
+
+      return (
+        <DraggableSidebarSection
+          key={sectionId}
+          sectionId={sectionId}
+          title="Watchlist"
+          subtitle="Your saved tickers"
+          icon={(iconProps) => <Star {...iconProps} strokeWidth={1.5} />}
+          open={openSections.watchlist}
+          onToggle={() => toggleSection('watchlist')}
+          onToggleVisibility={() => toggleSectionVisibility('watchlist')}
+          isDragging={draggingSectionId === sectionId}
+          onDragStateChange={setDraggingSectionId}
+        >
+          <div className="space-y-2">
+            <div className="relative">
+              <input
+                type="text"
+                value={watchlistQuery}
+                onChange={(event) => setWatchlistQuery(event.target.value)}
+                placeholder="Add ticker..."
+                className="w-full bg-white/5 border border-white/6 rounded-lg text-xs py-1.5 px-3 outline-none focus:ring-1 focus:ring-white/20"
+                style={{ color: T.text }}
+                aria-label="Add watchlist ticker"
+              />
+              {hasWatchlistQuery ? (
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 rounded-lg border overflow-hidden z-20"
+                  style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.98)' }}
+                >
+                  {watchlistSearchLoading ? (
+                    <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
+                  ) : watchlistResults.length === 0 ? (
+                    <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>No symbols found.</div>
+                  ) : (
+                    <div className="max-h-44 overflow-y-auto divide-y divide-white/5">
+                      {watchlistResults.map((row) => (
+                        <button
+                          key={`watchlist-search-${row.symbol}`}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => addWatchlistSymbol(row)}
+                          className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{row.symbol}</div>
+                              <div className="text-xs truncate" style={{ color: T.muted }}>{row.name || row.symbol}</div>
+                            </div>
+                            <Plus size={12} strokeWidth={1.5} style={{ color: T.muted }} />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+              {watchlistRows.length === 0 ? (
+                <div className="rounded-lg border px-2.5 py-2 text-xs" style={{ borderColor: T.border, color: T.muted }}>
+                  Search above to add symbols.
+                </div>
+              ) : watchlistRows.map((row) => renderWatchlistRow(row))}
+            </div>
+          </div>
         </DraggableSidebarSection>
       );
     }
