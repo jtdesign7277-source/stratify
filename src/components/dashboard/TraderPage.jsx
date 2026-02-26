@@ -20,7 +20,7 @@ const CHART_VIEWPORT_STORAGE_KEY = 'stratify-trader-chart-viewport';
 const PREVIOUS_CLOSE_CACHE_STORAGE_KEY = 'stratify-trader-prev-close-cache-v1';
 const PREVIOUS_CLOSE_CACHE_TTL_MS = 1000 * 60 * 60 * 48;
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY'];
-const MAX_SYMBOL_SEARCH_RESULTS = 8;
+const MAX_SYMBOL_SEARCH_RESULTS = 15;
 const MARKET_PRIORITY = ['NASDAQ', 'NYSE', 'LSE', 'TSE', 'ASX'];
 const DEFAULT_ACTIVE_MARKET = 'us';
 const DEFAULT_CHART_TIMEFRAME = '5M';
@@ -1412,8 +1412,9 @@ export default function TraderPage({
 
     const watchlistSet = new Set(watchlist.map(normalizeSymbol).filter(Boolean));
     const fallbackMatches = buildSearchResults(MARKET_SYMBOLS, query, watchlistSet, activeMarketExchanges);
-    setSearchResults(fallbackMatches);
+    setSearchResults([]);
     setIsSearchDropdownOpen(true);
+    setIsSearchLoading(true);
 
     const requestId = searchRequestRef.current + 1;
     searchRequestRef.current = requestId;
@@ -1421,39 +1422,32 @@ export default function TraderPage({
 
     const timer = setTimeout(async () => {
       try {
-        setIsSearchLoading(true);
-
-        const response = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`/api/symbol-search?query=${encodeURIComponent(query)}`, {
           cache: 'no-store',
           signal: controller.signal,
         });
-        const payload = await response.json().catch(() => []);
+        const payload = await response.json().catch(() => ({ data: [] }));
 
         if (controller.signal.aborted || searchRequestRef.current !== requestId) return;
 
         if (!response.ok) {
-          setSearchResults(fallbackMatches);
-          return;
+          throw new Error(payload?.error || 'Symbol search failed');
         }
 
-        const rows = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.data)
-            ? payload.data
-            : [];
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
         const apiMatches = rows.map((item) => ({
           symbol: item?.symbol,
-          exchange: item?.exchange || item?.mic_code || item?.exchange_timezone,
-          name: item?.instrument_name || item?.name || item?.description,
+          exchange: item?.exchange,
+          name: item?.name || item?.instrument_name || item?.description,
         }));
 
-        const mergedResults = buildSearchResults(
-          [...apiMatches, ...MARKET_SYMBOLS],
+        const apiResults = buildSearchResults(
+          apiMatches,
           query,
           watchlistSet,
           activeMarketExchanges
         );
-        setSearchResults(mergedResults);
+        setSearchResults(apiResults);
       } catch (error) {
         if (error?.name !== 'AbortError') {
           setSearchResults(fallbackMatches);
@@ -1463,7 +1457,7 @@ export default function TraderPage({
           setIsSearchLoading(false);
         }
       }
-    }, 180);
+    }, 300);
 
     return () => {
       clearTimeout(timer);
@@ -2631,10 +2625,10 @@ export default function TraderPage({
                   />
                   {isSearchDropdownOpen && symbolInput.trim() && (
                     <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden border border-[#1f1f1f] bg-[#0f1012] shadow-[0_14px_30px_rgba(0,0,0,0.4)]">
-                      {searchResults.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-[#7c8087]">
-                          {isSearchLoading ? 'Searching symbols...' : 'No matching symbols.'}
-                        </div>
+                      {isSearchLoading ? (
+                        <div className="px-3 py-2 text-xs text-[#7c8087]">Searching...</div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-[#7c8087]">No matching symbols.</div>
                       ) : (
                         searchResults.map((result, index) => (
                           <motion.button
@@ -2648,8 +2642,10 @@ export default function TraderPage({
                             className="flex h-10 w-full items-center justify-between border-b border-[#1f1f1f] px-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.03]"
                           >
                             <span className="truncate text-sm text-white">
-                              <span className="font-medium">{result.symbol}</span>
-                              <span className="ml-1 text-[#7c8087]">· {result.exchange}</span>
+                              <span className="font-medium">${result.symbol}</span>
+                              <span className="ml-1 text-[#7c8087]">
+                                {'\u2014'} {result.name || result.symbol} ({result.exchange || 'Market'})
+                              </span>
                             </span>
                             <Plus className="h-4 w-4 text-emerald-400" strokeWidth={1.8} />
                           </motion.button>
