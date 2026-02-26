@@ -8,7 +8,6 @@ import {
   Pencil,
   Plus,
   Search,
-  Share,
   Sparkles,
   Trash2,
   X,
@@ -113,6 +112,14 @@ const fetchSingleScan = async (query, title) => {
     createdAt: new Date().toISOString(),
   });
 };
+
+function XLogo({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
 const INLINE_TOKEN_REGEX = /(\$[A-Z]{1,5}\b|[+-]\$?\d[\d,]*(?:\.\d+)?%?|\$?\d[\d,]*(?:\.\d+)?%?)/g;
 
@@ -1139,7 +1146,7 @@ export default function WarRoom({ onClose }) {
                                   <Pencil className="h-5 w-5" strokeWidth={1.5} />
                                 </button>
                                 <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
-                                  <Share className="h-5 w-5" strokeWidth={1.5} />
+                                  <XLogo className="h-5 w-5" />
                                 </button>
                                 <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
                                   <Trash2 className="h-5 w-5" strokeWidth={1.5} />
@@ -1275,7 +1282,7 @@ export default function WarRoom({ onClose }) {
                               className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-white/[0.03] px-3 py-2 text-sm text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
                               title="Write and share to X"
                             >
-                              <Share className="h-4.5 w-4.5" strokeWidth={1.5} />
+                              <XLogo className="h-4 w-4" />
                               Share
                             </button>
                           </div>
@@ -1318,7 +1325,7 @@ export default function WarRoom({ onClose }) {
                                           <Pencil className="h-5 w-5" strokeWidth={1.5} />
                                         </button>
                                         <button type="button" onClick={() => postToX(card.content || card.title)} className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/5 transition-colors" title="Post to X">
-                                          <Share className="h-5 w-5" strokeWidth={1.5} />
+                                          <XLogo className="h-5 w-5" />
                                         </button>
                                         <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
                                           <Trash2 className="h-5 w-5" strokeWidth={1.5} />
