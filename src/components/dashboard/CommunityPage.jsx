@@ -5,12 +5,12 @@ import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
-  Heart, MessageCircle, Share2, Send, X, TrendingUp, BarChart3, Bell, Zap,
+  Heart, MessageCircle, Share2, Send, X, TrendingUp, BarChart3, Bell, Brain,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
-  Compass, Users, Star, Search, ArrowUp, ArrowDown, PanelLeftClose, PanelRightClose, Sparkles,
+  Compass, Users, Star, Search, ArrowUp, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
   Plus,
-  Hash, Activity, Trophy, Eye, EyeOff, GripVertical,
+  Activity, Trophy, Eye, EyeOff, GripVertical,
 } from 'lucide-react';
 
 // ─── Theme Constants ─────────────────────────────────────
@@ -163,11 +163,82 @@ const buildSearchModeSuggestions = (message = '') => {
 };
 
 const POST_TYPE_CONFIG = {
-  post: { label: null, icon: null, color: null },
-  pnl_share: { label: 'P&L', icon: TrendingUp, color: 'emerald' },
-  strategy_share: { label: 'Strategy', icon: Zap, color: 'cyan' },
-  alert_share: { label: 'Alert', icon: Bell, color: 'amber' },
-  trade_share: { label: 'Trade', icon: BarChart3, color: 'blue' },
+  general: {
+    label: 'General',
+    icon: MessageCircle,
+    placeholder: 'Quick post... use $ for ticker suggestions',
+    badge: null,
+  },
+  pnl: {
+    label: 'P&L',
+    icon: TrendingUp,
+    placeholder: 'Share your gains or losses...',
+    badge: {
+      backgroundColor: 'rgba(63,185,80,0.14)',
+      borderColor: 'rgba(63,185,80,0.38)',
+      color: '#3fb950',
+    },
+  },
+  strategy: {
+    label: 'Strategy',
+    icon: Brain,
+    placeholder: 'Drop a strategy or setup...',
+    badge: {
+      backgroundColor: 'rgba(163,113,247,0.16)',
+      borderColor: 'rgba(163,113,247,0.38)',
+      color: '#c297ff',
+    },
+  },
+  trade: {
+    label: 'Trade',
+    icon: ArrowLeftRight,
+    placeholder: 'Log a trade entry or exit...',
+    badge: {
+      backgroundColor: 'rgba(88,166,255,0.14)',
+      borderColor: 'rgba(88,166,255,0.38)',
+      color: '#58a6ff',
+    },
+  },
+  alert: {
+    label: 'Alert',
+    icon: Bell,
+    placeholder: 'Share a price alert or signal...',
+    badge: {
+      backgroundColor: 'rgba(240,136,62,0.16)',
+      borderColor: 'rgba(240,136,62,0.4)',
+      color: '#f0883e',
+    },
+  },
+  earnings: {
+    label: 'Earnings',
+    icon: BarChart3,
+    placeholder: 'Earnings play or reaction...',
+    badge: {
+      backgroundColor: 'rgba(210,153,34,0.16)',
+      borderColor: 'rgba(210,153,34,0.42)',
+      color: '#d29922',
+    },
+  },
+  macro: {
+    label: 'Macro',
+    icon: Globe,
+    placeholder: 'Macro take or market outlook...',
+    badge: {
+      backgroundColor: 'rgba(121,192,255,0.16)',
+      borderColor: 'rgba(121,192,255,0.4)',
+      color: '#79c0ff',
+    },
+  },
+};
+
+const POST_TYPE_ORDER = ['general', 'pnl', 'strategy', 'trade', 'alert', 'earnings', 'macro'];
+const POST_TYPE_PILLS = POST_TYPE_ORDER.map((id) => ({ id, ...POST_TYPE_CONFIG[id] }));
+const LEGACY_POST_TYPE_MAP = {
+  post: 'general',
+  pnl_share: 'pnl',
+  strategy_share: 'strategy',
+  trade_share: 'trade',
+  alert_share: 'alert',
 };
 
 const buildReactionSummary = (rows = [], currentUserId = null) => {
@@ -577,7 +648,7 @@ const getTopLosingSnapshots = (rows = [], limit = 8) => (
 const shareToX = (post) => {
   let text = post.content;
   const pnlValue = Number(post?.metadata?.pnl);
-  if (post.post_type === 'pnl_share' && Number.isFinite(pnlValue)) {
+  if (sanitizePostType(post?.post_type) === 'pnl' && Number.isFinite(pnlValue)) {
     const ticker = post?.metadata?.ticker ? `$${post.metadata.ticker}` : 'my trade';
     text = `${ticker} ${formatSignedCurrency(pnlValue)}${Number.isFinite(Number(post?.metadata?.percent)) ? ` (${formatSignedPercent(Number(post.metadata.percent))})` : ''}\n\n${post.content}`;
   }
@@ -644,19 +715,18 @@ const UserAvatar = ({ user, size = 40, initialsClassName = '' }) => {
 };
 
 // ─── Post Type Badge ──────────────────────────────────────
-const PostTypeBadge = ({ type, metadata }) => {
-  const config = POST_TYPE_CONFIG[type];
-  if (!config?.label) return null;
+const PostTypeBadge = ({ type }) => {
+  const normalizedType = sanitizePostType(type);
+  const config = POST_TYPE_CONFIG[normalizedType];
+  if (!config?.badge) return null;
   const Icon = config.icon;
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-${config.color}-500/10 text-${config.color}-400 border border-${config.color}-500/20`}>
+    <div
+      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-[0.08em] border"
+      style={config.badge}
+    >
       <Icon size={12} strokeWidth={1.5} />
       <span>{config.label}</span>
-      {metadata?.pnl !== undefined && (
-        <span className={metadata.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-          {metadata.pnl >= 0 ? '+' : ''}${Math.abs(metadata.pnl).toLocaleString()}
-        </span>
-      )}
     </div>
   );
 };
@@ -746,15 +816,13 @@ const BASE_STREAM_STATUS = {
   retryCount: 0,
 };
 
-const POST_TYPE_ORDER = ['all', 'post', 'pnl_share', 'strategy_share', 'trade_share', 'alert_share'];
-
 const POST_TYPE_FILTERS = [
   { id: 'all', label: 'For You', icon: Home },
-  { id: 'post', label: 'General', icon: Globe },
-  { id: 'pnl_share', label: 'P&L', icon: TrendingUp },
-  { id: 'strategy_share', label: 'Strategies', icon: Sparkles },
-  { id: 'trade_share', label: 'Trades', icon: BarChart3 },
-  { id: 'alert_share', label: 'Alerts', icon: Bell },
+  { id: 'general', label: 'General', icon: Globe },
+  { id: 'pnl', label: 'P&L', icon: TrendingUp },
+  { id: 'strategy', label: 'Strategies', icon: Brain },
+  { id: 'trade', label: 'Trades', icon: ArrowLeftRight },
+  { id: 'alert', label: 'Alerts', icon: Bell },
 ];
 
 const LEFT_RAIL_ITEMS = [
@@ -765,8 +833,6 @@ const LEFT_RAIL_ITEMS = [
   { id: 'squads', label: 'Rooms', icon: Users },
   { id: 'saved', label: 'Saved', icon: Star },
 ];
-
-const QUICK_TAGS = ['#open', '#swing', '#scalp', '#earnings', '#risk', '#macro'];
 
 const MOCK_AUTHORS = [
   { id: 'u-1', name: 'Maya Chen', email: 'maya@stratify.community' },
@@ -784,24 +850,24 @@ const MOCK_AUTHORS = [
 ];
 
 const MOCK_BASE_SETUPS = [
-  { symbol: 'NVDA', post_type: 'trade_share', note: 'Took the opening range reclaim and scaled into strength above prior day high.' },
-  { symbol: 'AAPL', post_type: 'strategy_share', note: 'Running a simple pullback play: first touch of VWAP after extension.' },
-  { symbol: 'TSLA', post_type: 'alert_share', note: 'Put alert at 5-minute trendline break. Watching for failed bounce into resistance.' },
-  { symbol: 'MSFT', post_type: 'post', note: 'Institutional bid looked sticky all session. Not forcing entries into chop.' },
-  { symbol: 'AMD', post_type: 'trade_share', note: 'Broke premarket high with volume expansion. Tight stop under trigger candle.' },
-  { symbol: 'SPY', post_type: 'post', note: 'Breadth divergence while index prints highs. Staying selective on longs.' },
-  { symbol: 'QQQ', post_type: 'strategy_share', note: 'Opening drive setup only if first pullback holds above opening print.' },
-  { symbol: 'META', post_type: 'alert_share', note: 'Potential squeeze setup if call flow keeps hitting offer near highs.' },
-  { symbol: 'AMZN', post_type: 'trade_share', note: 'Executed a continuation entry on one-minute consolidation breakout.' },
-  { symbol: 'PLTR', post_type: 'post', note: 'Name is noisy but trend intact on higher timeframe. Waiting for cleaner R/R.' },
-  { symbol: 'SMCI', post_type: 'alert_share', note: 'Halting risk elevated. Size down and respect volatility expansion.' },
-  { symbol: 'GOOGL', post_type: 'strategy_share', note: 'Multi-day flag break candidate with clear invalidation below yesterday low.' },
-  { symbol: 'NFLX', post_type: 'trade_share', note: 'Fade attempt failed. Reversed long once sellers could not push lower.' },
-  { symbol: 'COIN', post_type: 'post', note: 'Crypto beta still leading growth. Correlation with BTC remains tight.' },
-  { symbol: 'AVGO', post_type: 'trade_share', note: 'Impulse up leg followed by orderly base. Entered on expansion candle close.' },
-  { symbol: 'INTC', post_type: 'strategy_share', note: 'Mean-reversion only if weak open flushes into major daily support.' },
-  { symbol: 'SNOW', post_type: 'alert_share', note: 'Watching for relative strength flip against software basket.' },
-  { symbol: 'CRM', post_type: 'post', note: 'Slow grind trend day. Let winners work and avoid over-trading midday.' },
+  { symbol: 'NVDA', post_type: 'trade', note: 'Took the opening range reclaim and scaled into strength above prior day high.' },
+  { symbol: 'AAPL', post_type: 'strategy', note: 'Running a simple pullback play: first touch of VWAP after extension.' },
+  { symbol: 'TSLA', post_type: 'alert', note: 'Put alert at 5-minute trendline break. Watching for failed bounce into resistance.' },
+  { symbol: 'MSFT', post_type: 'general', note: 'Institutional bid looked sticky all session. Not forcing entries into chop.' },
+  { symbol: 'AMD', post_type: 'trade', note: 'Broke premarket high with volume expansion. Tight stop under trigger candle.' },
+  { symbol: 'SPY', post_type: 'macro', note: 'Breadth divergence while index prints highs. Staying selective on longs.' },
+  { symbol: 'QQQ', post_type: 'strategy', note: 'Opening drive setup only if first pullback holds above opening print.' },
+  { symbol: 'META', post_type: 'alert', note: 'Potential squeeze setup if call flow keeps hitting offer near highs.' },
+  { symbol: 'AMZN', post_type: 'trade', note: 'Executed a continuation entry on one-minute consolidation breakout.' },
+  { symbol: 'PLTR', post_type: 'general', note: 'Name is noisy but trend intact on higher timeframe. Waiting for cleaner R/R.' },
+  { symbol: 'SMCI', post_type: 'alert', note: 'Halting risk elevated. Size down and respect volatility expansion.' },
+  { symbol: 'GOOGL', post_type: 'strategy', note: 'Multi-day flag break candidate with clear invalidation below yesterday low.' },
+  { symbol: 'NFLX', post_type: 'trade', note: 'Fade attempt failed. Reversed long once sellers could not push lower.' },
+  { symbol: 'COIN', post_type: 'macro', note: 'Crypto beta still leading growth. Correlation with BTC remains tight.' },
+  { symbol: 'AVGO', post_type: 'trade', note: 'Impulse up leg followed by orderly base. Entered on expansion candle close.' },
+  { symbol: 'INTC', post_type: 'strategy', note: 'Mean-reversion only if weak open flushes into major daily support.' },
+  { symbol: 'SNOW', post_type: 'earnings', note: 'Watching for relative strength flip against software basket.' },
+  { symbol: 'CRM', post_type: 'earnings', note: 'Slow grind trend day. Let winners work and avoid over-trading midday.' },
 ];
 
 const MOCK_REACTION_POOL = ['🔥', '🚀', '💯', '📈', '💰', '👀', '🐂', '🐻', '✅', '⚡'];
@@ -1095,8 +1161,10 @@ const mentionSymbolsFromPosts = (rows = []) => {
 };
 
 const sanitizePostType = (type) => {
-  if (POST_TYPE_ORDER.includes(type)) return type;
-  return 'post';
+  const normalized = String(type || '').trim().toLowerCase();
+  const mapped = LEGACY_POST_TYPE_MAP[normalized] || normalized;
+  if (POST_TYPE_ORDER.includes(mapped)) return mapped;
+  return 'general';
 };
 
 const makeMockReactionRows = (index) => {
@@ -1122,7 +1190,7 @@ const generateMockFeed = () => {
     let metadata = {};
 
     if (shouldBePnl) {
-      postType = 'pnl_share';
+      postType = 'pnl';
       const sign = index % 3 === 0 ? -1 : 1;
       const entryPrice = Number((40 + ((index * 7.25) % 420)).toFixed(2));
       const percent = Number((sign * (1.2 + ((index * 1.37) % 6.8))).toFixed(2));
@@ -1160,7 +1228,7 @@ const generateMockFeed = () => {
           ? 'Executed per plan with strict risk management.'
           : 'Stayed disciplined and took what the tape gave.',
       });
-    } else if (postType === 'alert_share') {
+    } else if (postType === 'alert') {
       const trigger = Number((70 + ((index * 9.4) % 360)).toFixed(2));
       metadata = {
         ticker: setup.symbol,
@@ -1168,20 +1236,32 @@ const generateMockFeed = () => {
         reason: index % 2 === 0 ? 'Breakout trigger' : 'Breakdown trigger',
       };
       content = `${setup.note} Alert set for $${setup.symbol} at ${formatCurrency(trigger)} with confirmation on volume.`;
-    } else if (postType === 'strategy_share') {
+    } else if (postType === 'strategy') {
       metadata = {
         ticker: setup.symbol,
         timeframe: index % 2 === 0 ? '5m' : '15m',
         risk_model: index % 3 === 0 ? '0.5R scout' : '1R standard',
       };
       content = `${setup.note} Strategy conditions: liquidity above average and trend alignment in $${setup.symbol}.`;
-    } else if (postType === 'trade_share') {
+    } else if (postType === 'trade') {
       metadata = {
         ticker: setup.symbol,
         side: index % 4 === 0 ? 'sell' : 'buy',
         setup: index % 2 === 0 ? 'Opening range break' : 'VWAP reclaim',
       };
       content = `${setup.note} Shared execution details on $${setup.symbol} so the room can compare entries.`;
+    } else if (postType === 'earnings') {
+      metadata = {
+        ticker: setup.symbol,
+        timing: index % 2 === 0 ? 'after_close' : 'before_open',
+      };
+      content = `${setup.note} Earnings focus on $${setup.symbol}: mapping implied move versus expected reaction.`;
+    } else if (postType === 'macro') {
+      metadata = {
+        ticker: setup.symbol,
+        theme: index % 2 === 0 ? 'rates' : 'risk-on',
+      };
+      content = `${setup.note} Macro context is driving $${setup.symbol}; watching rates, breadth, and cross-asset flows.`;
     }
 
     const likesCount = (index % 17) + Math.floor(index / 2);
@@ -1338,6 +1418,7 @@ const ChatInputBar = ({
   onOpenComposer,
 }) => {
   const [message, setMessage] = useState('');
+  const [selectedPostType, setSelectedPostType] = useState('general');
   const [searchMode, setSearchMode] = useState(false);
   const [debouncedMessage, setDebouncedMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -1478,17 +1559,24 @@ const ChatInputBar = ({
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, [searchMode]);
 
+  const selectPostType = useCallback((type) => {
+    const normalizedType = sanitizePostType(type);
+    setSelectedPostType((prev) => (prev === normalizedType ? 'general' : normalizedType));
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
   const send = async () => {
     const trimmed = normalizeAiSearchQuery(message);
     if (!trimmed) return;
     const ok = searchMode
       ? await onSearch?.(trimmed)
-      : await onSend?.(trimmed);
+      : await onSend?.(trimmed, sanitizePostType(selectedPostType));
     if (ok !== false) {
       setMessage('');
       setSuggestions([]);
       setActiveSuggestion(0);
       setDebouncedMessage('');
+      if (!searchMode) setSelectedPostType('general');
     }
   };
 
@@ -1533,6 +1621,8 @@ const ChatInputBar = ({
     ? 'Enter to search, Shift+Enter for newline'
     : 'Enter to send, Shift+Enter for newline';
   const contextualStatus = statusText;
+  const activePostType = sanitizePostType(selectedPostType);
+  const postPlaceholder = POST_TYPE_CONFIG[activePostType]?.placeholder || POST_TYPE_CONFIG.general.placeholder;
 
   return (
     <div className="max-w-3xl mx-auto w-full">
@@ -1580,11 +1670,31 @@ const ChatInputBar = ({
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
+                placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? postPlaceholder : 'Sign in to post in community')}
                 className="flex-1 w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
                 style={{ color: T.text }}
                 disabled={!canUseInput}
               />
+            </div>
+
+            <div className="flex flex-wrap gap-2 px-3 py-2">
+              {POST_TYPE_PILLS.map((pill) => {
+                const Icon = pill.icon;
+                const active = activePostType === pill.id;
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => selectPostType(pill.id)}
+                    className={`bg-white/5 border border-white/8 rounded-full px-3 py-1 text-xs cursor-pointer flex items-center gap-1.5 transition-all duration-150 ${active ? 'bg-[#58a6ff]/15 border-[#58a6ff]/40 text-[#58a6ff]' : 'text-[#7d8590] hover:bg-white/8 hover:text-[#e6edf3]'}`}
+                    title={pill.label}
+                  >
+                    <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    <span>{pill.label}</span>
+                    {active && <span className="h-1.5 w-1.5 rounded-full bg-[#58a6ff]/80" />}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="mt-2.5 flex items-center justify-end">
@@ -1894,11 +2004,11 @@ const PostComposerModal = ({
   currentUser,
   closedTrades = [],
   submitting = false,
-  initialPostType = 'post',
+  initialPostType = 'general',
   onSubmit,
 }) => {
   const [content, setContent] = useState('');
-  const [postType, setPostType] = useState('post');
+  const [postType, setPostType] = useState('general');
   const [selectedTradeId, setSelectedTradeId] = useState('');
   const [selectedSlipEmojis, setSelectedSlipEmojis] = useState([]);
   const [imageFile, setImageFile] = useState(null);
@@ -1932,7 +2042,7 @@ const PostComposerModal = ({
     [closedTrades, selectedTradeId],
   );
 
-  const canAutofillSlip = postType === 'pnl_share' && selectedTrade;
+  const canAutofillSlip = postType === 'pnl' && selectedTrade;
 
   const toggleSlipEmoji = (emoji) => {
     setSelectedSlipEmojis((prev) => (
@@ -1971,12 +2081,12 @@ const PostComposerModal = ({
 
   const submit = async () => {
     const trimmed = content.trim();
-    if (!trimmed && !imageFile && !(postType === 'pnl_share' && selectedTrade)) return;
+    if (!trimmed && !imageFile && !(postType === 'pnl' && selectedTrade)) return;
 
     const metadata = {};
     let finalContent = trimmed;
 
-    if (postType === 'pnl_share' && selectedTrade) {
+    if (postType === 'pnl' && selectedTrade) {
       metadata.ticker = selectedTrade.symbol;
       metadata.pnl = Number(selectedTrade.pnl.toFixed(2));
       metadata.percent = Number(selectedTrade.percent.toFixed(2));
@@ -2052,14 +2162,16 @@ const PostComposerModal = ({
 
             <div className="p-4 space-y-3">
               <div className="flex flex-wrap gap-2">
-                <ComposerTypePill active={postType === 'post'} icon={MessageCircle} label="Post" onClick={() => setPostType('post')} accent={T.blue} />
-                <ComposerTypePill active={postType === 'trade_share'} icon={BarChart3} label="Trade" onClick={() => setPostType('trade_share')} accent={T.blue} />
-                <ComposerTypePill active={postType === 'strategy_share'} icon={Zap} label="Strategy" onClick={() => setPostType('strategy_share')} accent={T.blue} />
-                <ComposerTypePill active={postType === 'alert_share'} icon={Bell} label="Alert" onClick={() => setPostType('alert_share')} accent={T.blue} />
-                <ComposerTypePill active={postType === 'pnl_share'} icon={TrendingUp} label="P&L" onClick={() => setPostType('pnl_share')} accent={T.green} />
+                <ComposerTypePill active={postType === 'general'} icon={MessageCircle} label="General" onClick={() => setPostType('general')} accent={T.blue} />
+                <ComposerTypePill active={postType === 'trade'} icon={ArrowLeftRight} label="Trade" onClick={() => setPostType('trade')} accent={T.blue} />
+                <ComposerTypePill active={postType === 'strategy'} icon={Brain} label="Strategy" onClick={() => setPostType('strategy')} accent="#c297ff" />
+                <ComposerTypePill active={postType === 'alert'} icon={Bell} label="Alert" onClick={() => setPostType('alert')} accent="#f0883e" />
+                <ComposerTypePill active={postType === 'pnl'} icon={TrendingUp} label="P&L" onClick={() => setPostType('pnl')} accent={T.green} />
+                <ComposerTypePill active={postType === 'earnings'} icon={BarChart3} label="Earnings" onClick={() => setPostType('earnings')} accent="#d29922" />
+                <ComposerTypePill active={postType === 'macro'} icon={Globe} label="Macro" onClick={() => setPostType('macro')} accent="#79c0ff" />
               </div>
 
-              {postType === 'pnl_share' && (
+              {postType === 'pnl' && (
                 <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div className="flex-1 min-w-0">
@@ -2209,7 +2321,7 @@ const PostComposerModal = ({
               <button
                 type="button"
                 onClick={() => void submit()}
-                disabled={submitting || (!content.trim() && !imageFile && !(postType === 'pnl_share' && selectedTrade))}
+                disabled={submitting || (!content.trim() && !imageFile && !(postType === 'pnl' && selectedTrade))}
                 className="h-9 px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 disabled:opacity-45"
                 style={{ backgroundColor: T.blue, color: '#08111f' }}
               >
@@ -2531,6 +2643,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
   const repliesCount = replies.length > 0
     ? replies.length
     : toFiniteNumber(post?.replies_count ?? post?.comments_count, 0);
+  const normalizedPostType = sanitizePostType(post?.post_type);
 
   return (
     <motion.article
@@ -2546,6 +2659,12 @@ const PostCard = ({ post, currentUser, onDelete }) => {
         <UserAvatar user={profile} size={32} initialsClassName="text-xs" />
 
         <div className="flex-1 min-w-0">
+          {normalizedPostType !== 'general' && (
+            <div className="mb-1">
+              <PostTypeBadge type={normalizedPostType} />
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold truncate">
@@ -2553,7 +2672,6 @@ const PostCard = ({ post, currentUser, onDelete }) => {
               </span>
               <span className="text-xs" style={{ color: T.muted }}>•</span>
               <span className="text-xs" style={{ color: T.muted }}>{timeAgo(post.created_at)}</span>
-              <PostTypeBadge type={post.post_type} metadata={post.metadata} />
             </div>
 
             <div className="relative flex-shrink-0">
@@ -2617,7 +2735,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
             dangerouslySetInnerHTML={{ __html: highlightTickers(post.content || '') }}
           />
 
-          {post.post_type === 'pnl_share' && <PnLCard metadata={post.metadata} />}
+          {normalizedPostType === 'pnl' && <PnLCard metadata={post.metadata} />}
 
           {post.image_url && (
             <div className="mt-3">
@@ -2924,16 +3042,6 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
             </div>
           </div>
 
-          <div className="w-full border-t border-white/5 py-3">
-            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-widest" style={{ color: T.muted }}>QUICK TAGS</div>
-            <div className="px-3 pt-1 flex flex-wrap gap-1.5">
-              {QUICK_TAGS.map((tag) => (
-                <span key={tag} className="rounded-full px-2.5 py-0.5 text-xs" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.05)' }}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
         </>
       )}
     </motion.aside>
@@ -4012,7 +4120,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSubmitting, setComposerSubmitting] = useState(false);
-  const [composerInitialType, setComposerInitialType] = useState('post');
+  const [composerInitialType, setComposerInitialType] = useState('general');
   const [quoteMap, setQuoteMap] = useState({});
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [showcaseTrade, setShowcaseTrade] = useState(null);
@@ -4605,7 +4713,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           : getTopLosingSnapshots(trendingSlips, 8))
   ), [liveTodaySnapshots, cachedTopLosses, trendingSlips]);
 
-  const openComposer = (type = 'post') => {
+  const openComposer = (type = 'general') => {
     setComposerInitialType(type);
     setComposerOpen(true);
   };
@@ -4641,7 +4749,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               <FeedHeader
                 search={search}
                 onSearch={setSearch}
-                onOpenComposer={() => openComposer('post')}
+                onOpenComposer={() => openComposer('general')}
               />
 
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
@@ -4709,8 +4817,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                       trackedSymbols={trackedSymbols}
                       quoteMap={quoteMap}
                       streamStatus={streamStatus}
-                      onOpenComposer={() => openComposer('post')}
-                      onSend={(content) => createPost({ content, postType: 'post', metadata: {} })}
+                      onOpenComposer={() => openComposer('general')}
+                      onSend={(content, postType) => createPost({ content, postType, metadata: {} })}
                       onSearch={runAiSearch}
                     />
                   </div>
