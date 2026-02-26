@@ -5,7 +5,7 @@ import EmojiPicker, { EmojiGlyph } from './EmojiPicker';
 import { subscribeTwelveDataQuotes, subscribeTwelveDataStatus } from '../../services/twelveDataWebSocket';
 import { cachedFetch, createDebouncedFn } from '../../utils/apiCache';
 import {
-  Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, Brain,
+  Heart, MessageCircle, Send, X, TrendingUp, BarChart3, Bell, BellOff, Brain,
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, ArrowDown, ArrowLeftRight, PanelLeftClose, PanelRightClose, Sparkles,
@@ -411,6 +411,7 @@ const createSlipCaption = ({ trade, emojis = [], note = '' }) => {
 const SIDEBAR_ORDER_STORAGE_KEY = 'stratify-community-sidebar-order';
 const SIDEBAR_VISIBILITY_STORAGE_KEY = 'stratify-community-sidebar-visibility';
 const WATCHLIST_STORAGE_KEY = 'stratify-community-watchlist';
+const PRICE_ALERTS_STORAGE_KEY = 'stratify_price_alerts';
 const TODAYS_NEWS_REFRESH_MS = 10 * 60 * 1000;
 const TODAYS_NEWS_CLIENT_CACHE_MS = 20 * 1000;
 const TODAYS_NEWS_MAX_ROWS = 8;
@@ -877,8 +878,22 @@ const COMMUNITY_PAGE_STYLES = `
     50% { filter: drop-shadow(0 0 8px rgba(88,166,255,0.6)); }
   }
 
+  @keyframes alertBellRing {
+    0% { transform: rotate(0deg); }
+    20% { transform: rotate(16deg); }
+    40% { transform: rotate(-12deg); }
+    60% { transform: rotate(8deg); }
+    80% { transform: rotate(-4deg); }
+    100% { transform: rotate(0deg); }
+  }
+
   .community-pulse {
     animation: communityPulse 3.6s ease-in-out infinite;
+  }
+
+  .alert-toast-bell {
+    transform-origin: top center;
+    animation: alertBellRing 0.8s ease-in-out 1;
   }
 
   #dashboard-topbar-ticker-tape-widget {
@@ -935,6 +950,12 @@ const normalizeSymbolKey = (value) => {
   if (!raw) return '';
   if (raw.includes(':')) return raw.split(':').pop().replace(/^\$+/, '');
   return raw;
+};
+
+const normalizePriceAlertTicker = (value) => {
+  const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '').replace(/^\$+/, '');
+  const sanitized = raw.replace(/[^A-Z0-9./=-]/g, '').slice(0, 14);
+  return sanitized ? `$${sanitized}` : '';
 };
 
 const normalizeWatchlistEntry = (row) => {
@@ -3264,6 +3285,9 @@ const LeftRail = ({
   onToggleCollapse,
   filter,
   onFilter,
+  priceAlerts,
+  onTogglePriceAlert,
+  onDeletePriceAlert,
   currentUser,
   displayName,
   isEditingName,
@@ -3273,6 +3297,7 @@ const LeftRail = ({
   handleSaveName,
 }) => {
   const [feedsOpen, setFeedsOpen] = useState(true);
+  const [priceAlertsOpen, setPriceAlertsOpen] = useState(true);
   const profileAvatarSeed = displayName || '';
   const profileAvatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profileAvatarSeed)}`;
   const profileUser = currentUser ? {
@@ -3364,6 +3389,75 @@ const LeftRail = ({
                           className={`px-3 py-1.5 text-sm text-[#7d8590] cursor-pointer hover:text-[#e6edf3] hover:bg-white/5 rounded-md transition-all duration-200${active ? ' text-[#58a6ff] bg-[#58a6ff]/10' : ''}`}
                         >
                           {hashtag}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="w-full pt-1">
+            <button
+              type="button"
+              onClick={() => setPriceAlertsOpen((prev) => !prev)}
+              className="w-full px-3 pt-4 pb-1 inline-flex items-center justify-between"
+            >
+              <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-[#7d8590] transition-all duration-200">
+                <Bell className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <span>PRICE ALERTS</span>
+              </span>
+              {priceAlertsOpen ? <ChevronDown size={14} style={{ color: T.muted }} /> : <ChevronRight size={14} style={{ color: T.muted }} />}
+            </button>
+
+            <AnimatePresence initial={false}>
+              {priceAlertsOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-1">
+                    {(Array.isArray(priceAlerts) ? priceAlerts : []).length === 0 ? (
+                      <div className="px-3 py-1.5 text-xs text-[#7d8590] italic">No alerts set</div>
+                    ) : (Array.isArray(priceAlerts) ? priceAlerts : []).map((alert) => {
+                      const alertTargetPrice = toMaybeFiniteNumber(alert?.targetPrice);
+                      const isTriggered = Boolean(alert?.triggered);
+                      const rowTextColor = isTriggered ? 'text-[#7d8590]' : 'text-[#e6edf3]';
+                      return (
+                        <div
+                          key={alert.id}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-white/5 transition group ${isTriggered ? 'text-[#7d8590]' : ''}`.trim()}
+                        >
+                          <span className={`text-xs font-medium ${rowTextColor}`}>{alert.ticker}</span>
+                          <span className="text-xs text-[#7d8590]">{alert.direction === 'above' ? '↑' : '↓'}</span>
+                          <span
+                            className={`text-xs ${isTriggered ? 'line-through text-[#7d8590]' : 'text-[#7d8590]'}`.trim()}
+                          >
+                            ${Number.isFinite(alertTargetPrice) ? alertTargetPrice.toFixed(2) : '--'}
+                          </span>
+                          <div className="ml-auto flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => onTogglePriceAlert?.(alert.id)}
+                              title="Toggle alert"
+                            >
+                              {alert.active ? (
+                                <Bell className="w-3 h-3 text-[#58a6ff]" fill="#58a6ff" strokeWidth={1.5} />
+                              ) : (
+                                <BellOff className="w-3 h-3 text-[#7d8590]" strokeWidth={1.5} />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeletePriceAlert?.(alert.id)}
+                              className="opacity-0 group-hover:opacity-100 transition"
+                            >
+                              <X className="w-3 h-3 text-[#f85149]" strokeWidth={1.5} />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -4188,6 +4282,20 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [aiSearchResults, setAiSearchResults] = useState([]);
   const [aiSearchPending, setAiSearchPending] = useState([]);
+  const [priceAlerts, setPriceAlerts] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(PRICE_ALERTS_STORAGE_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [priceAlertPopoverOpen, setPriceAlertPopoverOpen] = useState(false);
+  const [priceAlertTickerInput, setPriceAlertTickerInput] = useState('');
+  const [priceAlertTargetInput, setPriceAlertTargetInput] = useState('');
+  const [priceAlertDirection, setPriceAlertDirection] = useState('above');
+  const [alertToasts, setAlertToasts] = useState([]);
   const [displayName, setDisplayName] = useState(() => {
     if (typeof window === 'undefined') return 'Anonymous Trader';
     try {
@@ -4201,6 +4309,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const activeDisplayName = String(
     displayName || currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Anonymous Trader'
   ).trim().slice(0, 24) || 'Anonymous Trader';
+  const priceAlertPopoverRef = useRef(null);
+  const alertToastTimersRef = useRef(new Map());
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
@@ -4215,6 +4325,95 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       if (prev.some((row) => row.id === post.id)) return prev;
       return [post, ...prev];
     });
+  }, []);
+
+  const dismissAlertToast = useCallback((toastId) => {
+    setAlertToasts((prev) => prev.filter((toast) => toast.id !== toastId));
+    const timeoutId = alertToastTimersRef.current.get(toastId);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      alertToastTimersRef.current.delete(toastId);
+    }
+  }, []);
+
+  const pushAlertToast = useCallback((alert, currentPrice) => {
+    const toastId = `price-alert-toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const normalizedPrice = toMaybeFiniteNumber(currentPrice);
+    setAlertToasts((prev) => ([
+      ...prev,
+      {
+        id: toastId,
+        ticker: alert.ticker,
+        targetPrice: alert.targetPrice,
+        direction: alert.direction,
+        price: Number.isFinite(normalizedPrice) ? normalizedPrice : toMaybeFiniteNumber(alert.targetPrice),
+      },
+    ]));
+
+    const timeoutId = window.setTimeout(() => {
+      dismissAlertToast(toastId);
+    }, 8000);
+    alertToastTimersRef.current.set(toastId, timeoutId);
+  }, [dismissAlertToast]);
+
+  const playAlertSound = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.8);
+      setTimeout(() => {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 1320;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc2.start(ctx.currentTime);
+        osc2.stop(ctx.currentTime + 0.6);
+      }, 200);
+    } catch (e) {
+      console.log('Audio not available');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(PRICE_ALERTS_STORAGE_KEY, JSON.stringify(priceAlerts));
+    } catch {
+      // localStorage sync is best effort only
+    }
+  }, [priceAlerts]);
+
+  useEffect(() => {
+    if (!priceAlertPopoverOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (priceAlertPopoverRef.current?.contains(event.target)) return;
+      setPriceAlertPopoverOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [priceAlertPopoverOpen]);
+
+  useEffect(() => {
+    return () => {
+      alertToastTimersRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      alertToastTimersRef.current.clear();
+    };
   }, []);
 
   useEffect(() => {
@@ -4468,10 +4667,12 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   }, [currentUser?.id, prependPost]);
 
   const trackedSymbols = useMemo(() => {
-    const set = new Set(DEFAULT_TICKERS);
-    mentionSymbolsFromPosts(posts).forEach((symbol) => set.add(symbol));
-    return [...set].map(normalizeSymbolKey).filter(Boolean).slice(0, 48);
-  }, [posts]);
+    const alertSymbols = (Array.isArray(priceAlerts) ? priceAlerts : [])
+      .map((alert) => normalizeSymbolKey(String(alert?.ticker || '').replace(/^\$+/, '')))
+      .filter(Boolean);
+    const symbols = [...new Set([...alertSymbols, ...DEFAULT_TICKERS, ...mentionSymbolsFromPosts(posts)].map(normalizeSymbolKey).filter(Boolean))];
+    return symbols.slice(0, 48);
+  }, [posts, priceAlerts]);
 
   const previousTrackedSymbolsRef = useRef([]);
 
@@ -4551,6 +4752,52 @@ const CommunityPage = ({ tradeHistory = [] }) => {
       unsubscribeStatus?.();
     };
   }, [trackedSymbols]);
+
+  useEffect(() => {
+    if (!quoteMap || Object.keys(quoteMap).length === 0) return;
+
+    const triggeredAlerts = [];
+    setPriceAlerts((prev) => {
+      let changed = false;
+      const next = prev.map((alert) => {
+        if (!alert?.active || alert?.triggered) return alert;
+
+        const symbol = normalizeSymbolKey(String(alert?.ticker || '').replace(/^\$+/, ''));
+        const targetPrice = toMaybeFiniteNumber(alert?.targetPrice);
+        if (!symbol || !Number.isFinite(targetPrice)) return alert;
+
+        const quote = quoteMap?.[symbol];
+        const currentPrice = toMaybeFiniteNumber(quote?.price ?? quote?.last ?? quote?.close);
+        if (!Number.isFinite(currentPrice)) return alert;
+
+        const direction = alert.direction === 'below' ? 'below' : 'above';
+        const isTriggered = direction === 'above'
+          ? currentPrice >= targetPrice
+          : currentPrice <= targetPrice;
+
+        if (!isTriggered) return alert;
+
+        changed = true;
+        const triggeredAlert = {
+          ...alert,
+          active: false,
+          triggered: true,
+          triggeredAt: new Date().toISOString(),
+        };
+        triggeredAlerts.push({ alert: triggeredAlert, currentPrice });
+        return triggeredAlert;
+      });
+
+      return changed ? next : prev;
+    });
+
+    if (triggeredAlerts.length > 0) {
+      playAlertSound();
+      triggeredAlerts.forEach(({ alert, currentPrice }) => {
+        pushAlertToast(alert, currentPrice);
+      });
+    }
+  }, [quoteMap, playAlertSound, pushAlertToast]);
 
   const createPost = useCallback(async ({ content, postType, metadata = {}, imageFile = null }) => {
     const trimmed = String(content || '').trim();
@@ -4761,6 +5008,50 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setAiSearchResults((prev) => prev.filter((row) => row.id !== id));
   }, []);
 
+  const handleSetPriceAlert = useCallback(async () => {
+    const ticker = normalizePriceAlertTicker(priceAlertTickerInput);
+    const targetPrice = toMaybeFiniteNumber(priceAlertTargetInput);
+    const direction = priceAlertDirection === 'below' ? 'below' : 'above';
+
+    if (!ticker || !Number.isFinite(targetPrice) || targetPrice <= 0) return;
+
+    const alert = {
+      id: Date.now(),
+      ticker,
+      targetPrice: Number(targetPrice.toFixed(2)),
+      direction,
+      active: true,
+      triggered: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    setPriceAlerts((prev) => [alert, ...prev]);
+    setPriceAlertPopoverOpen(false);
+    setPriceAlertTickerInput('');
+    setPriceAlertTargetInput('');
+    setPriceAlertDirection('above');
+
+    try {
+      await supabase.from('price_alerts').insert(alert);
+    } catch {
+      // fall back to local state + localStorage only
+    }
+  }, [priceAlertDirection, priceAlertTargetInput, priceAlertTickerInput]);
+
+  const togglePriceAlert = useCallback((alertId) => {
+    setPriceAlerts((prev) => prev.map((alert) => {
+      if (alert.id !== alertId) return alert;
+      if (alert.triggered || !alert.active) {
+        return { ...alert, active: true, triggered: false };
+      }
+      return { ...alert, active: false };
+    }));
+  }, []);
+
+  const deletePriceAlert = useCallback((alertId) => {
+    setPriceAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+  }, []);
+
   const filteredPosts = useMemo(() => {
     let rows = [...posts];
 
@@ -4801,6 +5092,9 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
               filter={filter}
               onFilter={setFilter}
+              priceAlerts={priceAlerts}
+              onTogglePriceAlert={togglePriceAlert}
+              onDeletePriceAlert={deletePriceAlert}
               currentUser={currentUser}
               displayName={activeDisplayName}
               isEditingName={isEditingName}
@@ -4816,6 +5110,93 @@ const CommunityPage = ({ tradeHistory = [] }) => {
 
                 <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
                   <div className="mx-auto flex h-full w-full min-w-0 max-w-[750px] flex-col transition-all duration-200">
+                    <div className="px-3 pb-2">
+                      <div className="flex items-center justify-end">
+                        <div className="relative" ref={priceAlertPopoverRef}>
+                          <button
+                            type="button"
+                            onClick={() => setPriceAlertPopoverOpen((prev) => !prev)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-[#e6edf3] hover:bg-white/10 transition"
+                          >
+                            <Bell className="h-3.5 w-3.5 text-[#58a6ff]" strokeWidth={1.5} />
+                            <span>Price Alert</span>
+                          </button>
+
+                          <AnimatePresence initial={false}>
+                            {priceAlertPopoverOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                transition={{ duration: 0.16, ease: 'easeOut' }}
+                                className="absolute top-full right-0 mt-2 z-50 bg-[#0d1117] border border-white/10 rounded-xl p-4 shadow-2xl shadow-black/50 w-[300px]"
+                              >
+                                <div className="relative">
+                                  <div className="text-sm font-semibold text-[#e6edf3]">Set Price Alert</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPriceAlertPopoverOpen(false)}
+                                    className="absolute -top-1 -right-1 inline-flex items-center justify-center text-[#7d8590] hover:text-[#e6edf3] transition-colors"
+                                    aria-label="Close price alert"
+                                  >
+                                    <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                  </button>
+                                </div>
+
+                                <div className="mt-3 space-y-2.5">
+                                  <input
+                                    type="text"
+                                    value={priceAlertTickerInput}
+                                    onChange={(event) => setPriceAlertTickerInput(normalizePriceAlertTicker(event.target.value))}
+                                    placeholder="$AAPL"
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-[#e6edf3] outline-none"
+                                  />
+
+                                  <input
+                                    type="number"
+                                    value={priceAlertTargetInput}
+                                    onChange={(event) => setPriceAlertTargetInput(event.target.value)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        void handleSetPriceAlert();
+                                      }
+                                    }}
+                                    placeholder="250.00"
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-[#e6edf3] outline-none"
+                                  />
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {['above', 'below'].map((direction) => {
+                                      const active = priceAlertDirection === direction;
+                                      return (
+                                        <button
+                                          key={direction}
+                                          type="button"
+                                          onClick={() => setPriceAlertDirection(direction)}
+                                          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'bg-[#58a6ff] text-black' : 'bg-white/5 text-[#7d8590]'}`.trim()}
+                                        >
+                                          {direction === 'above' ? 'Above' : 'Below'}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleSetPriceAlert()}
+                                    className="bg-[#58a6ff] text-black font-semibold rounded-lg px-4 py-2 text-sm w-full mt-3 hover:bg-[#79b8ff] transition"
+                                  >
+                                    Set Alert
+                                  </button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex-1 min-h-0 overflow-y-auto px-3">
                       <div className="w-full space-y-2">
                         {aiSearchPending.map((pending) => (
@@ -4906,6 +5287,41 @@ const CommunityPage = ({ tradeHistory = [] }) => {
         initialPostType={composerInitialType}
         onSubmit={createPost}
       />
+
+      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence initial={false}>
+          {alertToasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              layout
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 280, damping: 24 } }}
+              exit={{ opacity: 0, x: 50, transition: { duration: 0.3 } }}
+              className="bg-[#0d1117] border border-[#58a6ff]/30 rounded-xl px-4 py-3 shadow-2xl shadow-[#58a6ff]/10 flex items-center gap-3 min-w-[280px] pointer-events-auto"
+            >
+              <Bell className="w-5 h-5 text-[#58a6ff] alert-toast-bell" strokeWidth={1.5} />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-[#e6edf3] truncate">
+                  {toast.ticker} hit ${Number.isFinite(toMaybeFiniteNumber(toast.price)) ? Number(toMaybeFiniteNumber(toast.price)).toFixed(2) : '--'}!
+                </div>
+                <div className="text-xs">
+                  <span className={toast.direction === 'above' ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+                    {toast.direction === 'above' ? '↑ Above' : '↓ Below'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => dismissAlertToast(toast.id)}
+                className="ml-auto text-[#7d8590] hover:text-[#e6edf3] transition"
+                aria-label="Close alert notification"
+              >
+                <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
