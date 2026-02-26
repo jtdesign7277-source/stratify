@@ -76,18 +76,6 @@ const CRYPTO_ORDER_TYPE_OPTIONS = [
   { value: 'trailing_stop', label: 'Trailing Stop' },
 ];
 
-const PAGE_TRANSITION = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
-};
-
-const sectionMotion = (index) => ({
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { delay: 0.1 + (index * 0.05), duration: 0.3 },
-});
-
 const listItemMotion = (index) => ({
   initial: { opacity: 0, x: -8 },
   animate: { opacity: 1, x: 0 },
@@ -823,9 +811,9 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
   };
 
   return (
-    <motion.div {...PAGE_TRANSITION} className="h-full w-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
+    <div className="h-full w-full flex flex-col overflow-hidden" style={{ background: 'transparent' }}>
       {/* ── Top Bar ──────────────────────────────────────────────── */}
-      <motion.div {...sectionMotion(0)} className="flex items-center justify-between border-b border-white/[0.06] shrink-0"
+      <div className="flex items-center justify-between border-b border-white/[0.06] shrink-0"
         style={{ background: 'rgba(6, 13, 24, 0.4)' }}
       >
         <CoinSelector coins={CRYPTO_COINS} selected={selectedCoin} onSelect={handleCoinSelect} />
@@ -848,13 +836,13 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
             </span>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── Main Content ──────────────────────────────────────────── */}
-      <motion.div {...sectionMotion(1)} className="flex-1 flex overflow-hidden p-3 gap-3">
+      <div className="flex-1 min-h-0 flex overflow-hidden p-3 gap-3">
 
         {/* ── LEFT: TradingView Chart (bigger now) ────────────────── */}
-        <motion.div {...sectionMotion(2)} className="flex-1 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 overflow-hidden min-w-0" style={glassStyle}>
+        <div className="flex-1 w-full min-h-0 min-w-0 rounded-2xl border border-white/8 shadow-2xl shadow-black/30 overflow-hidden" style={glassStyle}>
           <TradingViewWidget
             key={selectedCoin.tvSymbol}
             scriptSrc="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"
@@ -878,12 +866,12 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
               hotlist: true,
             }}
             containerId={`crypto-chart-${selectedCoin.symbol}`}
+            className="h-full w-full"
           />
-        </motion.div>
+        </div>
 
         {/* ── RIGHT: Order Entry ───────────────────────────────────── */}
-        <motion.div
-          {...sectionMotion(3)}
+        <div
           className={`${isRightPanelCollapsed ? 'w-[42px]' : 'w-[296px]'} shrink-0 flex h-full max-h-[calc(100vh-200px)] min-h-0 flex-col rounded-xl overflow-hidden relative transition-all duration-200 z-10`}
           style={orderTicketStyle}
         >
@@ -967,8 +955,8 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
               </div>
             </>
           )}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Animations */}
       <style>{`
@@ -977,6 +965,6 @@ export default function CryptoPage({ alpacaData: brokerData, onOrderPlaced }) {
           100% { background-color: transparent; }
         }
       `}</style>
-    </motion.div>
+    </div>
   );
 }

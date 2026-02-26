@@ -2157,18 +2157,19 @@ export default function Dashboard({
         {/* Main Content Area - Three Collapsible Panels */}
         <div 
           id="main-content-area" 
-          className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} overflow-y-auto relative`}
+          className={`flex-1 flex flex-col ${themeClasses.surface} border-x ${themeClasses.border} ${activeTab === 'crypto' || activeTab === 'terminal' ? 'overflow-hidden' : 'overflow-y-auto'} relative`}
         >
           {/* Tab-based Views */}
           <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25 }}
-              className="h-full w-full"
-            >
+            {activeTab !== 'crypto' && activeTab !== 'terminal' && (
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="h-full w-full"
+              >
           {activeTab === 'trader' && (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading trader page...</div>}>
               <TradePage onPinToTop={pinToTop} />
@@ -2406,14 +2407,15 @@ export default function Dashboard({
             />
           )}
           {activeTab === 'more' && <MoreInfoPage />}
-            </motion.div>
+              </motion.div>
+            )}
           </AnimatePresence>
           {hasMountedCryptoTab ? (
-            <div className={activeTab === 'crypto' ? 'h-full w-full' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
+            <div className={activeTab === 'crypto' ? 'h-full w-full min-h-0' : 'hidden'} aria-hidden={activeTab !== 'crypto'}>
               <CryptoPage alpacaData={alpacaData} onOrderPlaced={refreshAlpacaData} />
             </div>
           ) : null}
-          <div className={activeTab === 'terminal' ? 'h-full w-full' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>
+          <div className={activeTab === 'terminal' ? 'h-full w-full min-h-0' : 'hidden'} aria-hidden={activeTab !== 'terminal'}>
             <TerminalStrategyWorkspace
               savedStrategies={savedStrategies}
               deployedStrategies={deployedStrategies}

@@ -1587,14 +1587,20 @@ const TerminalStrategyWorkspace = ({
             <SophiaThinkingState onOpenBuilder={onOpenBuilder} />
           </div>
         ) : (
-          <div className="flex-1 min-h-0 bg-transparent flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => onOpenBuilder?.()}
-              className="text-sm text-white/40 hover:text-white/70 transition-colors"
-            >
-              Click to build a strategy
-            </button>
+          <div className="flex-1 min-h-0 bg-[#0b0b0b] flex items-center justify-center px-8">
+            <div className="text-center max-w-lg">
+              <h2 className="text-2xl font-semibold text-white">Select a strategy or ask Sophia to build one</h2>
+              <p className="mt-2 text-sm text-white/55">
+                Choose a strategy from the folder list to review analysis, key trade setups, and activation details.
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpenBuilder?.()}
+                className="mt-5 rounded-xl border border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+              >
+                Build Strategy
+              </button>
+            </div>
           </div>
         )}
       </div>
