@@ -736,43 +736,60 @@ export default function WarRoom({ onClose }) {
     setError('');
     setIsLoading(true);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 65000); // 65s timeout
-
     try {
-      const response = await fetch('/api/warroom', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: trimmedQuery, cacheLabel: titleOverride || '' }),
-        signal: controller.signal,
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || `Request failed (${response.status})`);
+      // 1. Try Redis cache first (instant) — only for known quick scans
+      if (titleOverride) {
+        const cached = await fetchCachedScan(titleOverride);
+        if (cached) {
+          setIntelFeed((prev) => [cached, ...prev].slice(0, 50));
+          setFeedTimestamp();
+          setQuery('');
+          setActiveView('live');
+          setIsLoading(false);
+          return;
+        }
       }
 
-      const intelCard = normalizeIntelItem({
-        id: `warroom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        title: titleOverride || trimmedQuery,
-        query: trimmedQuery,
-        content: String(payload?.content || 'No market intel returned.'),
-        sources: toSourceLinks(payload?.sources || []),
-        sourceLabel: payload?.fromCache ? 'Cached Intel' : 'Claude Intel',
-        createdAt: new Date().toISOString(),
-      });
+      // 2. Cache miss — fall back to live Claude API call
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 65000);
 
-      setIntelFeed((prev) => [intelCard, ...prev].slice(0, 50));
-      setFeedTimestamp();
-      setQuery('');
-      setActiveView('live');
+      try {
+        const response = await fetch('/api/warroom', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: trimmedQuery, cacheLabel: titleOverride || '' }),
+          signal: controller.signal,
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || `Request failed (${response.status})`);
+        }
+
+        const intelCard = normalizeIntelItem({
+          id: `warroom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: titleOverride || trimmedQuery,
+          query: trimmedQuery,
+          content: String(payload?.content || 'No market intel returned.'),
+          sources: toSourceLinks(payload?.sources || []),
+          sourceLabel: payload?.fromCache ? 'Cached Intel' : 'Claude Intel',
+          createdAt: new Date().toISOString(),
+        });
+
+        setIntelFeed((prev) => [intelCard, ...prev].slice(0, 50));
+        setFeedTimestamp();
+        setQuery('');
+        setActiveView('live');
+      } finally {
+        clearTimeout(timeout);
+      }
     } catch (scanError) {
       const msg = scanError?.name === 'AbortError'
         ? 'Scan timed out. Try again — cached results load faster.'
         : (scanError?.message || 'Scan failed. Try again.');
       setError(msg);
     } finally {
-      clearTimeout(timeout);
       setIsLoading(false);
     }
   };

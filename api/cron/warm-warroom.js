@@ -138,9 +138,8 @@ export default async function handler(req, res) {
 
   if (batch === 'scans') {
     // Warm quick scans — 6 items, run 3 at a time (~2 batches, ~100s total)
+    // Always refresh so users get instant results when they click
     const tasks = QUICK_SCANS.map((scan) => async () => {
-      const existing = await getCachedScan(scan.label);
-      if (existing) return { type: 'scan', label: scan.label, status: 'cached' };
       const data = await callClaude(SCAN_SYSTEM, scan.query);
       await setCachedScan(scan.label, data);
       return { type: 'scan', label: scan.label, status: 'warmed' };
