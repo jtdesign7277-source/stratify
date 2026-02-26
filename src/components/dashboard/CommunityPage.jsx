@@ -1958,9 +1958,7 @@ const FeedHeader = ({
   return (
     <div className="sticky top-0 z-20 h-10 border-b px-3" style={{ borderColor: T.border, backgroundColor: T.bg }}>
       <div className="h-full flex items-center gap-2">
-        <div className="w-[92px] flex-shrink-0 text-sm font-medium" style={{ color: 'rgba(230,237,243,0.78)' }}>
-          Stratify
-        </div>
+        <div className="w-[92px] flex-shrink-0" aria-hidden />
 
         <div className="flex-1 min-w-0 px-1">
           <div className="relative max-w-md mx-auto">
@@ -2017,8 +2015,8 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-3'} flex-col gap-4 py-3 border-r border-white/5`}
-      style={{ backgroundColor: '#0c1016' }}
+      className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-3'} flex-col gap-4 py-3 border-r border-white/5 rounded-r-xl shadow-[2px_0_8px_rgba(0,0,0,0.3)]`}
+      style={{ backgroundColor: '#080d13' }}
     >
       <button
         type="button"
@@ -2139,23 +2137,23 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
   );
 };
 
-const SidebarSection = ({ title, icon: Icon, open, onToggle, children, subtitle }) => (
+const SidebarSection = ({ title, icon: Icon, open, onToggle, children, subtitle, headerAction = null }) => (
   <div className="rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.68)' }}>
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full px-3 py-2.5 border-b flex items-center justify-between"
-      style={{ borderColor: T.border }}
-    >
-      <div className="text-left">
+    <div className="px-3 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: T.border }}>
+      <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
         <div className="text-xs uppercase tracking-[0.14em] inline-flex items-center gap-1.5" style={{ color: T.muted }}>
           <Icon size={12} />
           {title}
         </div>
         {subtitle ? <div className="text-[11px]" style={{ color: T.muted }}>{subtitle}</div> : null}
+      </button>
+      <div className="inline-flex items-center gap-1.5">
+        {headerAction}
+        <button type="button" onClick={onToggle} className="h-6 w-6 rounded-md inline-flex items-center justify-center" style={{ color: T.muted }}>
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+        </button>
       </div>
-      {open ? <ChevronDown size={15} style={{ color: T.muted }} /> : <ChevronRight size={15} style={{ color: T.muted }} />}
-    </button>
+    </div>
     <AnimatePresence initial={false}>
       {open && (
         <motion.div
@@ -2179,10 +2177,7 @@ const RightSidebar = ({
   trackedSymbols,
   topWins,
   topLosses,
-  closedTradesCount,
   onSelectSnapshot,
-  onOpenComposer,
-  onOpenShareSlip,
 }) => {
   const [openSections, setOpenSections] = useState({
     pulse: true,
@@ -2196,7 +2191,7 @@ const RightSidebar = ({
         initial={{ opacity: 0, x: 10 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.22 }}
-        className="hidden xl:flex w-[52px] flex-col items-center py-3 border-l border-white/5"
+        className="hidden xl:flex w-[52px] h-full flex-col items-center py-3 border-l border-white/5"
       >
         <button
           type="button"
@@ -2210,8 +2205,6 @@ const RightSidebar = ({
       </motion.aside>
     );
   }
-
-  const streamTone = streamStatus?.connected ? T.green : streamStatus?.connecting ? T.blue : T.red;
 
   const toggleSection = (key) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -2250,141 +2243,100 @@ const RightSidebar = ({
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className="hidden xl:flex w-[340px] flex-col gap-3"
+      className="hidden xl:flex w-[340px] h-full min-h-0 flex-col"
     >
-      <div
-        className="rounded-xl border p-3"
-        style={{
-          borderColor: T.border,
-          background: 'linear-gradient(180deg, rgba(21,27,35,0.88) 0%, rgba(13,17,23,0.96) 100%)',
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.16em]" style={{ color: T.muted }}>Action Panel</div>
-            <div className="text-sm font-semibold">Right Sidebar</div>
-          </div>
-          <div className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: streamTone }} />
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
+        <SidebarSection
+          title="Market Pulse"
+          subtitle={streamStatus?.connected ? 'Streaming live prices' : streamStatus?.connecting ? 'Connecting stream' : 'Fallback mode'}
+          icon={Activity}
+          open={openSections.pulse}
+          onToggle={() => toggleSection('pulse')}
+          headerAction={(
             <button
               type="button"
               onClick={onToggleCollapse}
-              className="h-7 w-7 rounded-md border inline-flex items-center justify-center"
+              className="h-6 w-6 rounded-md border inline-flex items-center justify-center"
               style={{ borderColor: T.border, color: '#3fb950' }}
               title="Hide sidebar"
             >
-              <PanelRightClose size={13} />
+              <PanelRightClose size={12} />
             </button>
+          )}
+        >
+          <div className="space-y-2">
+            {INDEX_SYMBOLS.map((item) => renderQuoteRow(item.symbol, item.label))}
           </div>
-        </div>
+        </SidebarSection>
 
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={onOpenComposer}
-            className="h-9 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-            style={{ backgroundColor: T.blue, color: '#08111f' }}
-          >
-            <Send size={13} />
-            Compose
-          </button>
-          <button
-            type="button"
-            onClick={onOpenShareSlip}
-            className="h-9 rounded-lg border text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-            style={{ borderColor: 'rgba(63,185,80,0.38)', color: T.green, backgroundColor: 'rgba(63,185,80,0.1)' }}
-          >
-            <TrendingUp size={13} />
-            Share P&L
-          </button>
-        </div>
+        <SidebarSection
+          title="Watch Movers"
+          subtitle="Symbols active in current feed"
+          icon={Eye}
+          open={openSections.movers}
+          onToggle={() => toggleSection('movers')}
+        >
+          <div className="space-y-2 max-h-52 overflow-y-auto">
+            {trackedSymbols.slice(0, 12).map((symbol) => renderQuoteRow(symbol, symbol))}
+          </div>
+        </SidebarSection>
 
-        <div className="mt-2 text-xs" style={{ color: T.muted }}>
-          {closedTradesCount > 0
-            ? `${closedTradesCount} closed trades available for bet-slip sharing.`
-            : 'No closed trades detected yet.'}
-        </div>
+        <SidebarSection
+          title="Trending Slips"
+          subtitle="Top wins and losses"
+          icon={Trophy}
+          open={openSections.trend}
+          onToggle={() => toggleSection('trend')}
+        >
+          <div className="space-y-2.5">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.green }}>Top Wins</div>
+              <div className="space-y-1.5">
+                {winRows.length === 0 ? (
+                  <div className="text-xs" style={{ color: T.muted }}>No winning slips yet.</div>
+                ) : winRows.map((row) => (
+                  <button
+                    key={`win-${row.id}`}
+                    type="button"
+                    onClick={() => onSelectSnapshot?.(row)}
+                    className="w-full rounded-lg border px-2.5 py-2 text-left"
+                    style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.64)' }}
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold">${row.ticker}</span>
+                      <span className="font-mono" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
+                    </div>
+                    <div className="mt-0.5 text-[11px]" style={{ color: T.muted }}>{row.author}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.red }}>Top Losses</div>
+              <div className="space-y-1.5">
+                {lossRows.length === 0 ? (
+                  <div className="text-xs" style={{ color: T.muted }}>No losing slips yet.</div>
+                ) : lossRows.map((row) => (
+                  <button
+                    key={`loss-${row.id}`}
+                    type="button"
+                    onClick={() => onSelectSnapshot?.(row)}
+                    className="w-full rounded-lg border px-2.5 py-2 text-left"
+                    style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.64)' }}
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold">${row.ticker}</span>
+                      <span className="font-mono" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
+                    </div>
+                    <div className="mt-0.5 text-[11px]" style={{ color: T.muted }}>{row.author}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </SidebarSection>
       </div>
-
-      <SidebarSection
-        title="Market Pulse"
-        subtitle={streamStatus?.connected ? 'Streaming live prices' : streamStatus?.connecting ? 'Connecting stream' : 'Fallback mode'}
-        icon={Activity}
-        open={openSections.pulse}
-        onToggle={() => toggleSection('pulse')}
-      >
-        <div className="space-y-2">
-          {INDEX_SYMBOLS.map((item) => renderQuoteRow(item.symbol, item.label))}
-        </div>
-      </SidebarSection>
-
-      <SidebarSection
-        title="Watch Movers"
-        subtitle="Symbols active in current feed"
-        icon={Eye}
-        open={openSections.movers}
-        onToggle={() => toggleSection('movers')}
-      >
-        <div className="space-y-2 max-h-52 overflow-y-auto">
-          {trackedSymbols.slice(0, 12).map((symbol) => renderQuoteRow(symbol, symbol))}
-        </div>
-      </SidebarSection>
-
-      <SidebarSection
-        title="Trending Slips"
-        subtitle="Top wins and losses"
-        icon={Trophy}
-        open={openSections.trend}
-        onToggle={() => toggleSection('trend')}
-      >
-        <div className="space-y-2.5">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.green }}>Top Wins</div>
-            <div className="space-y-1.5">
-              {winRows.length === 0 ? (
-                <div className="text-xs" style={{ color: T.muted }}>No winning slips yet.</div>
-              ) : winRows.map((row) => (
-                <button
-                  key={`win-${row.id}`}
-                  type="button"
-                  onClick={() => onSelectSnapshot?.(row)}
-                  className="w-full rounded-lg border px-2.5 py-2 text-left"
-                  style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.64)' }}
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold">${row.ticker}</span>
-                    <span className="font-mono" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
-                  </div>
-                  <div className="mt-0.5 text-[11px]" style={{ color: T.muted }}>{row.author}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.14em] mb-1" style={{ color: T.red }}>Top Losses</div>
-            <div className="space-y-1.5">
-              {lossRows.length === 0 ? (
-                <div className="text-xs" style={{ color: T.muted }}>No losing slips yet.</div>
-              ) : lossRows.map((row) => (
-                <button
-                  key={`loss-${row.id}`}
-                  type="button"
-                  onClick={() => onSelectSnapshot?.(row)}
-                  className="w-full rounded-lg border px-2.5 py-2 text-left"
-                  style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.64)' }}
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold">${row.ticker}</span>
-                    <span className="font-mono" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
-                  </div>
-                  <div className="mt-0.5 text-[11px]" style={{ color: T.muted }}>{row.author}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </SidebarSection>
     </motion.aside>
   );
 };
@@ -2870,75 +2822,76 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               onFilter={setFilter}
             />
 
-            <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
               <FeedHeader
                 search={search}
                 onSearch={setSearch}
                 onOpenComposer={() => openComposer('post')}
               />
 
-              <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
-                {loading ? (
-                  <div className="max-w-3xl mx-auto w-full space-y-2">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                      <div
-                        key={`loading-${index}`}
-                        className="rounded-lg border p-3"
-                        style={{ borderColor: T.border, backgroundColor: T.card }}
-                      >
-                        <div className="flex gap-2">
-                          <ShimmerLine w={32} h={32} rounded={999} />
-                          <div className="flex-1 space-y-2">
-                            <ShimmerLine w="35%" h={11} />
-                            <ShimmerBlock lines={3} />
+              <div className="flex-1 min-h-0 flex gap-3 pt-3">
+                <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+                  <div className="flex-1 min-h-0 overflow-y-auto px-3">
+                    {loading ? (
+                      <div className="max-w-3xl mx-auto w-full space-y-2">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                          <div
+                            key={`loading-${index}`}
+                            className="rounded-lg border p-3"
+                            style={{ borderColor: T.border, backgroundColor: T.card }}
+                          >
+                            <div className="flex gap-2">
+                              <ShimmerLine w={32} h={32} rounded={999} />
+                              <div className="flex-1 space-y-2">
+                                <ShimmerLine w="35%" h={11} />
+                                <ShimmerBlock lines={3} />
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : filteredPosts.length === 0 ? (
+                      <div className="max-w-3xl mx-auto w-full h-full flex items-center justify-center text-sm" style={{ color: T.muted }}>
+                        No posts match this filter.
+                      </div>
+                    ) : (
+                      <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="max-w-3xl mx-auto w-full space-y-2">
+                        {filteredPosts.map((post) => (
+                          <PostCard
+                            key={post.id}
+                            post={post}
+                            currentUser={currentUser}
+                            onDelete={handleDeletePost}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
                   </div>
-                ) : filteredPosts.length === 0 ? (
-                  <div className="max-w-3xl mx-auto w-full h-full flex items-center justify-center text-sm" style={{ color: T.muted }}>
-                    No posts match this filter.
-                  </div>
-                ) : (
-                  <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="max-w-3xl mx-auto w-full space-y-2">
-                    {filteredPosts.map((post) => (
-                      <PostCard
-                        key={post.id}
-                        post={post}
-                        currentUser={currentUser}
-                        onDelete={handleDeletePost}
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </div>
 
-              <div className="px-3 pb-3">
-                <ChatInputBar
-                  currentUser={currentUser}
-                  trackedSymbols={trackedSymbols}
-                  quoteMap={quoteMap}
+                  <div className="px-3 pb-3 pt-3">
+                    <ChatInputBar
+                      currentUser={currentUser}
+                      trackedSymbols={trackedSymbols}
+                      quoteMap={quoteMap}
+                      streamStatus={streamStatus}
+                      onOpenComposer={() => openComposer('post')}
+                      onSend={(content) => createPost({ content, postType: 'post', metadata: {} })}
+                    />
+                  </div>
+                </div>
+
+                <RightSidebar
+                  hidden={rightCollapsed}
+                  onToggleCollapse={() => setRightCollapsed((prev) => !prev)}
                   streamStatus={streamStatus}
-                  onOpenComposer={() => openComposer('post')}
-                  onSend={(content) => createPost({ content, postType: 'post', metadata: {} })}
+                  quoteMap={quoteMap}
+                  trackedSymbols={trackedSymbols}
+                  topWins={topWins}
+                  topLosses={topLosses}
+                  onSelectSnapshot={setShowcaseTrade}
                 />
               </div>
             </div>
-
-            <RightSidebar
-              hidden={rightCollapsed}
-              onToggleCollapse={() => setRightCollapsed((prev) => !prev)}
-              streamStatus={streamStatus}
-              quoteMap={quoteMap}
-              trackedSymbols={trackedSymbols}
-              topWins={topWins}
-              topLosses={topLosses}
-              closedTradesCount={closedTrades.length}
-              onSelectSnapshot={setShowcaseTrade}
-              onOpenComposer={() => openComposer('post')}
-              onOpenShareSlip={() => openComposer('pnl_share')}
-            />
           </div>
         </div>
 
