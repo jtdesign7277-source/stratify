@@ -1245,7 +1245,29 @@ export default function WarRoom({ onClose }) {
                       {/* Folder items */}
                       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide space-y-2">
                         {folder.items.length === 0 && composingFolderId !== folder.id ? (
-                          <p className="text-xs text-gray-600 py-2">Empty</p>
+                          <div className="flex items-center justify-center gap-3 py-4">
+                            <button
+                              type="button"
+                              onClick={() => startCompose(folder.id)}
+                              className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400 hover:bg-amber-500/20 transition-colors"
+                              title="Write a note"
+                            >
+                              <Pencil className="h-4.5 w-4.5" strokeWidth={1.5} />
+                              Write
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                startCompose(folder.id);
+                                // Pre-fill with hint for sharing
+                              }}
+                              className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-white/[0.03] px-3 py-2 text-sm text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+                              title="Write and share to X"
+                            >
+                              <Share className="h-4.5 w-4.5" strokeWidth={1.5} />
+                              Share
+                            </button>
+                          </div>
                         ) : (
                           folder.items.map((card) => {
                             const isEditing = editingItem?.id === card.id && editingItem?.folderId === folder.id;
