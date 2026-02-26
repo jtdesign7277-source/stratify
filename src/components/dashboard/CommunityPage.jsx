@@ -38,6 +38,10 @@ const INDEX_SYMBOLS = [
 const AI_SEARCH_CLIENT_CACHE_TTL = 15 * 60 * 1000;
 const AI_SEARCH_CLIENT_CACHE = new Map();
 const AI_SEARCH_INFLIGHT = new Map();
+const PROFILE_AVATAR_STYLES = ['bottts', 'avataaars', 'pixel-art', 'fun-emoji'];
+const PROFILE_AVATAR_SEEDS_PER_STYLE = 24;
+const PROFILE_AVATAR_BACKGROUND_COLORS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';
+const PROFILE_AVATAR_FALLBACK_COLOR = '#3b82f6';
 const SEARCH_MODE_SUGGESTION_TEMPLATES = [
   'What is happening with {topic} today?',
   'Bitcoin price analysis this week',
@@ -45,6 +49,55 @@ const SEARCH_MODE_SUGGESTION_TEMPLATES = [
   'Best performing ETFs February 2026',
   '{topic} earnings expectations',
 ];
+
+const buildProfileAvatarUrl = (style, seed) => (
+  `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=128&radius=50&backgroundType=gradientLinear&backgroundColor=${PROFILE_AVATAR_BACKGROUND_COLORS}`
+);
+
+const PROFILE_PICKER_AVATAR_OPTIONS = PROFILE_AVATAR_STYLES.flatMap((style) => (
+  Array.from(
+    { length: PROFILE_AVATAR_SEEDS_PER_STYLE },
+    (_, i) => buildProfileAvatarUrl(style, `stratify-${style}-${i + 1}`),
+  )
+));
+
+const hashString = (value) => (
+  String(value || '')
+    .split('')
+    .reduce((acc, char) => ((acc * 31) + char.charCodeAt(0)) >>> 0, 7)
+);
+
+const normalizeAvatarColor = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw;
+  if (/^[0-9a-f]{6}$/i.test(raw)) return `#${raw}`;
+  return null;
+};
+
+const getAvatarSeed = (user) => (
+  String(
+    user?.display_name
+    || user?.author_name
+    || user?.username
+    || user?.handle
+    || user?.email
+    || user?.id
+    || 'stratify-user'
+  ).trim()
+);
+
+const getResolvedAvatarUrl = (user) => {
+  const rawAvatarUrl = String(user?.avatar_url || '').trim();
+  if (rawAvatarUrl && !/ui-avatars\.com/i.test(rawAvatarUrl)) {
+    return rawAvatarUrl;
+  }
+
+  if (PROFILE_PICKER_AVATAR_OPTIONS.length === 0) return '';
+  const seed = getAvatarSeed(user).toLowerCase();
+  const index = hashString(seed) % PROFILE_PICKER_AVATAR_OPTIONS.length;
+  return PROFILE_PICKER_AVATAR_OPTIONS[index];
+};
 
 // ─── Helpers ──────────────────────────────────────────────
 const timeAgo = (date) => {
@@ -382,6 +435,8 @@ const normalizePnlShareSnapshot = (post) => {
   const percentRaw = toMaybeFiniteNumber(post?.metadata?.percent);
   const ticker = String(post?.metadata?.ticker || '').trim().toUpperCase();
   const author = post?.profiles?.display_name || post?.author_name || post?.metadata?.display_name || post?.metadata?.author_name || post?.metadata?.username || 'Trader';
+  const avatarUrl = post?.profiles?.avatar_url || post?.metadata?.bot_avatar_url || post?.metadata?.avatar_url || post?.avatar_url || null;
+  const avatarColor = post?.profiles?.avatar_color || post?.avatar_color || post?.metadata?.bot_avatar_color || post?.metadata?.avatar_color || null;
   return {
     id: String(post?.id || '').trim() || `${ticker || 'TRADE'}-${post?.created_at || Date.now()}`,
     ticker: ticker || 'TRADE', pnl, percent: percentRaw, author, createdAt: post?.created_at || null,
@@ -391,6 +446,9 @@ const normalizePnlShareSnapshot = (post) => {
     openedAt: post?.metadata?.opened_at ?? post?.metadata?.openedAt ?? null,
     closedAt: post?.metadata?.closed_at ?? post?.metadata?.closedAt ?? post?.created_at ?? null,
     note: String(post?.metadata?.note || '').trim(),
+    user_id: post?.profiles?.id || post?.user_id || null,
+    avatar_url: avatarUrl,
+    avatar_color: avatarColor,
   };
 };
 
@@ -575,6 +633,8 @@ const normalizeTrendingSnapshotPayload = (row) => {
       || row?.metadata?.username
       || 'Trader'
   ).trim() || 'Trader';
+  const avatarUrl = row?.avatar_url || row?.bot_avatar_url || row?.metadata?.bot_avatar_url || row?.metadata?.avatar_url || null;
+  const avatarColor = row?.avatar_color || row?.bot_avatar_color || row?.metadata?.bot_avatar_color || row?.metadata?.avatar_color || null;
 
   return {
     id: String(row?.id || `${ticker}-${row?.createdAt || row?.created_at || Date.now()}`).trim(),
@@ -589,6 +649,9 @@ const normalizeTrendingSnapshotPayload = (row) => {
     openedAt: row?.openedAt ?? row?.opened_at ?? null,
     closedAt: row?.closedAt ?? row?.closed_at ?? row?.createdAt ?? row?.created_at ?? null,
     note: String(row?.note || '').trim(),
+    user_id: row?.user_id || null,
+    avatar_url: avatarUrl,
+    avatar_color: avatarColor,
   };
 };
 
@@ -688,27 +751,48 @@ const ShimmerBlock = ({ lines = 3, className = '' }) => (
 
 // ─── Avatar Component ─────────────────────────────────────
 const UserAvatar = ({ user, size = 40, initialsClassName = '' }) => {
-  const initials = (user?.display_name || user?.email || '?')
-    .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const initials = String(user?.display_name || user?.email || user?.author_name || '?')
+    .split(/\s+/)
+    .map((part) => part?.[0] || '')
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?';
   const initialsStyle = initialsClassName ? undefined : { fontSize: size * 0.36 };
+  const [imageFailed, setImageFailed] = useState(false);
+  const resolvedAvatarUrl = getResolvedAvatarUrl(user);
+  const hasImage = Boolean(resolvedAvatarUrl) && !imageFailed;
+  const fallbackColor = normalizeAvatarColor(user?.avatar_color) || PROFILE_AVATAR_FALLBACK_COLOR;
+  const sizeClass = size === 40
+    ? 'w-10 h-10'
+    : size === 32
+      ? 'w-8 h-8'
+      : size === 24
+        ? 'w-6 h-6'
+        : '';
 
-  if (user?.avatar_url) {
+  useEffect(() => {
+    setImageFailed(false);
+  }, [resolvedAvatarUrl]);
+
+  if (hasImage) {
     return (
-      <img src={user.avatar_url} alt={user.display_name || 'User'}
-        className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />
+      <img
+        src={resolvedAvatarUrl}
+        alt={user?.display_name || user?.author_name || 'User'}
+        onError={() => setImageFailed(true)}
+        className={`rounded-full object-cover flex-shrink-0 border border-white/8 ${sizeClass}`.trim()}
+        style={sizeClass ? undefined : { width: size, height: size }}
+        loading="lazy"
+        decoding="async"
+      />
     );
   }
 
-  const colors = [
-    'from-cyan-500 to-blue-600', 'from-emerald-500 to-teal-600',
-    'from-amber-500 to-orange-600', 'from-purple-500 to-pink-600',
-    'from-red-500 to-rose-600', 'from-indigo-500 to-violet-600',
-  ];
-  const colorIdx = (user?.id || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
-
   return (
-    <div className={`rounded-full bg-gradient-to-br ${colors[colorIdx]} flex items-center justify-center flex-shrink-0`}
-      style={{ width: size, height: size }}>
+    <div
+      className={`rounded-full flex items-center justify-center flex-shrink-0 border border-white/8 ${sizeClass}`.trim()}
+      style={sizeClass ? { backgroundColor: fallbackColor } : { width: size, height: size, backgroundColor: fallbackColor }}
+    >
       <span className={`text-white font-bold ${initialsClassName}`.trim()} style={initialsStyle}>{initials}</span>
     </div>
   );
@@ -1650,6 +1734,7 @@ const ChatInputBar = ({
             }}
           >
             <div className="flex items-start gap-2.5">
+              <UserAvatar user={currentUser || { display_name: 'Guest Trader' }} size={32} initialsClassName="text-xs" />
               <button
                 type="button"
                 onClick={() => setSearchMode((prev) => !prev)}
@@ -2585,6 +2670,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
             id: currentUser.id,
             display_name: currentUser.display_name,
             avatar_url: currentUser.avatar_url,
+            avatar_color: currentUser.avatar_color || null,
             email: currentUser.email,
           },
           community_reactions: [],
@@ -2633,10 +2719,12 @@ const PostCard = ({ post, currentUser, onDelete }) => {
     setShowReplies((open) => !open);
   };
 
-  const profile = post?.profiles || {
-    display_name: post.author_name,
-    avatar_url: post?.metadata?.bot_avatar_url,
-    email: null,
+  const profile = {
+    id: post?.profiles?.id || post?.user_id || post?.id || post?.author_name || null,
+    display_name: post?.profiles?.display_name || post?.author_name,
+    avatar_url: post?.profiles?.avatar_url || post?.metadata?.bot_avatar_url || post?.metadata?.avatar_url || post?.avatar_url || null,
+    avatar_color: post?.profiles?.avatar_color || post?.avatar_color || post?.metadata?.bot_avatar_color || post?.metadata?.avatar_color || null,
+    email: post?.profiles?.email || null,
   };
 
   const isOwner = currentUser?.id && currentUser.id === post.user_id;
@@ -2805,14 +2893,16 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                 ) : (
                   <div className="space-y-2">
                     {replies.map((reply) => {
-                      const replyProfile = reply.profiles || {
-                        display_name: reply.author_name,
-                        avatar_url: null,
-                        email: null,
+                      const replyProfile = {
+                        id: reply?.profiles?.id || reply?.user_id || reply?.id || reply?.author_name || null,
+                        display_name: reply?.profiles?.display_name || reply.author_name,
+                        avatar_url: reply?.profiles?.avatar_url || reply?.metadata?.bot_avatar_url || reply?.metadata?.avatar_url || reply?.avatar_url || null,
+                        avatar_color: reply?.profiles?.avatar_color || reply?.avatar_color || reply?.metadata?.bot_avatar_color || reply?.metadata?.avatar_color || null,
+                        email: reply?.profiles?.email || null,
                       };
                       return (
                         <div key={reply.id} className="flex gap-2">
-                          <UserAvatar user={replyProfile} size={26} initialsClassName="text-xs" />
+                          <UserAvatar user={replyProfile} size={24} initialsClassName="text-xs" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 text-xs">
                               <span className="font-medium" style={{ color: T.text }}>
@@ -2927,8 +3017,16 @@ const FeedHeader = ({
   );
 };
 
-const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
+const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter, currentUser }) => {
   const [feedsOpen, setFeedsOpen] = useState(true);
+  const profileUser = currentUser || {
+    id: 'guest-user',
+    display_name: 'Guest Trader',
+    email: null,
+    avatar_url: null,
+    avatar_color: null,
+  };
+  const profileName = profileUser.display_name || profileUser.email?.split('@')[0] || 'Guest Trader';
 
   return (
     <motion.aside
@@ -3044,6 +3142,26 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
 
         </>
       )}
+
+      <div className="mt-auto w-full border-t border-white/5 px-3 py-3">
+        {collapsed ? (
+          <div className="w-full inline-flex items-center justify-center">
+            <UserAvatar user={profileUser} size={40} initialsClassName="text-xs" />
+          </div>
+        ) : (
+          <div className="w-full rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2 inline-flex items-center gap-2">
+            <UserAvatar user={profileUser} size={40} initialsClassName="text-xs" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate" style={{ color: T.text }}>
+                {profileName}
+              </div>
+              <div className="text-[11px] truncate" style={{ color: T.muted }}>
+                Community Profile
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </motion.aside>
   );
 };
@@ -3825,22 +3943,35 @@ const RightSidebar = ({
                   <div className="divide-y divide-white/5">
                     {summaryWins.length === 0 ? (
                       <div className="py-2 text-xs" style={{ color: T.muted }}>No winning slips yet.</div>
-                    ) : summaryWins.map((row) => (
-                      <button
-                        key={`summary-win-${row.id}`}
-                        type="button"
-                        onClick={() => onSelectSnapshot?.(row)}
-                        className="w-full py-2 text-left"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
-                            <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                    ) : summaryWins.map((row) => {
+                      const snapshotUser = {
+                        id: row?.user_id || row?.id || row?.author || null,
+                        display_name: row?.author || 'Trader',
+                        avatar_url: row?.avatar_url || null,
+                        avatar_color: row?.avatar_color || null,
+                        email: null,
+                      };
+
+                      return (
+                        <button
+                          key={`summary-win-${row.id}`}
+                          type="button"
+                          onClick={() => onSelectSnapshot?.(row)}
+                          className="w-full py-2 text-left"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex items-center gap-2.5">
+                              <UserAvatar user={snapshotUser} size={24} initialsClassName="text-[10px]" />
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
+                                <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                              </div>
+                            </div>
+                            <span className="font-mono text-sm" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
                           </div>
-                          <span className="font-mono text-sm" style={{ color: T.green }}>{formatSignedCurrency(row.pnl)}</span>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -3849,22 +3980,35 @@ const RightSidebar = ({
                   <div className="divide-y divide-white/5">
                     {summaryLosses.length === 0 ? (
                       <div className="py-2 text-xs" style={{ color: T.muted }}>No losing slips yet.</div>
-                    ) : summaryLosses.map((row) => (
-                      <button
-                        key={`summary-loss-${row.id}`}
-                        type="button"
-                        onClick={() => onSelectSnapshot?.(row)}
-                        className="w-full py-2 text-left"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
-                            <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                    ) : summaryLosses.map((row) => {
+                      const snapshotUser = {
+                        id: row?.user_id || row?.id || row?.author || null,
+                        display_name: row?.author || 'Trader',
+                        avatar_url: row?.avatar_url || null,
+                        avatar_color: row?.avatar_color || null,
+                        email: null,
+                      };
+
+                      return (
+                        <button
+                          key={`summary-loss-${row.id}`}
+                          type="button"
+                          onClick={() => onSelectSnapshot?.(row)}
+                          className="w-full py-2 text-left"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex items-center gap-2.5">
+                              <UserAvatar user={snapshotUser} size={24} initialsClassName="text-[10px]" />
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
+                                <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                              </div>
+                            </div>
+                            <span className="font-mono text-sm" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
                           </div>
-                          <span className="font-mono text-sm" style={{ color: T.red }}>{formatSignedCurrency(row.pnl)}</span>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
@@ -3881,6 +4025,13 @@ const RightSidebar = ({
                   <div className="py-2 text-xs" style={{ color: T.muted }}>No live slips yet.</div>
                 ) : activeLiveRows.map((row, index) => {
                   const flash = trendFlashById[String(row.id)] || null;
+                  const snapshotUser = {
+                    id: row?.user_id || row?.id || row?.author || null,
+                    display_name: row?.author || 'Trader',
+                    avatar_url: row?.avatar_url || null,
+                    avatar_color: row?.avatar_color || null,
+                    email: null,
+                  };
                   return (
                     <motion.button
                       key={`trend-live-row-${row.id}`}
@@ -3902,9 +4053,12 @@ const RightSidebar = ({
                         />
                       ) : null}
                       <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
-                          <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                        <div className="min-w-0 flex items-center gap-2.5">
+                          <UserAvatar user={snapshotUser} size={24} initialsClassName="text-[10px]" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-white truncate">${row.ticker}</div>
+                            <div className="text-xs truncate" style={{ color: T.muted }}>{row.author}</div>
+                          </div>
                         </div>
                         <span
                           className="font-mono text-sm flex-shrink-0"
@@ -4169,6 +4323,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           email: user.email,
           display_name: profile?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0],
           avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url,
+          avatar_color: user.user_metadata?.avatar_color || null,
         });
       } catch {
         // anonymous browsing is allowed for mock feed and read-only mode
@@ -4481,6 +4636,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           id: 'local-user',
           display_name: 'Guest Trader',
           avatar_url: null,
+          avatar_color: null,
           email: null,
         },
         is_mock: true,
@@ -4533,6 +4689,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           id: currentUser.id,
           display_name: currentUser.display_name,
           avatar_url: currentUser.avatar_url,
+          avatar_color: currentUser.avatar_color || null,
           email: currentUser.email,
         },
         is_mock: false,
@@ -4558,6 +4715,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           id: currentUser.id,
           display_name: currentUser.display_name,
           avatar_url: currentUser.avatar_url,
+          avatar_color: currentUser.avatar_color || null,
           email: currentUser.email,
         },
         is_mock: true,
@@ -4743,6 +4901,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
               filter={filter}
               onFilter={setFilter}
+              currentUser={currentUser}
             />
 
             <div className="flex-1 min-w-0 min-h-0 overflow-y-hidden overflow-x-visible flex flex-col">
