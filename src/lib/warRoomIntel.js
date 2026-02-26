@@ -322,6 +322,32 @@ export const moveSavedWarRoomIntel = (item, fromFolderId, toFolderRef) => {
   return saveWarRoomIntel(sourceItem, targetRef);
 };
 
+export const updateSavedWarRoomIntel = (itemId, folderId, updates = {}) => {
+  const current = getSavedIntelState();
+  const targetItemId = toSafeString(itemId);
+  const targetFolderId = toSafeString(folderId);
+  if (!targetItemId || !targetFolderId) return { state: current };
+
+  const nextFolders = current.folders.map((folder) => {
+    if (folder.id !== targetFolderId) return folder;
+    return {
+      ...folder,
+      items: folder.items.map((item) => {
+        if (item.id !== targetItemId) return item;
+        return {
+          ...item,
+          ...(updates.content != null ? { content: String(updates.content) } : {}),
+          ...(updates.title != null ? { title: String(updates.title) } : {}),
+          editedAt: new Date().toISOString(),
+        };
+      }),
+    };
+  });
+
+  const nextState = writeSavedPayload({ folders: nextFolders });
+  return { state: nextState };
+};
+
 export const removeSavedWarRoomIntel = (itemId, folderId = null) => {
   const current = getSavedIntelState();
   const targetItemId = toSafeString(itemId);

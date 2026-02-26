@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
+  Check,
   FolderInput,
   Link2,
   Loader2,
+  Pencil,
   Plus,
   Search,
+  Share,
   Sparkles,
   Trash2,
   X,
@@ -22,6 +25,7 @@ import {
   renameSavedIntelFolder,
   saveWarRoomIntel,
   setWarRoomFeed,
+  updateSavedWarRoomIntel,
   WAR_ROOM_SAVED_EVENT,
   WAR_ROOM_STORAGE_KEYS,
 } from '../../lib/warRoomIntel';
@@ -301,7 +305,8 @@ export default function WarRoom({ onClose }) {
 
   const [prefetching, setPrefetching] = useState(false);
 
-  const [sectionSaveMenu, setSectionSaveMenu] = useState(null); // { sectionKey, text }
+  const [sectionSaveMenu, setSectionSaveMenu] = useState(null);
+  const [editingItem, setEditingItem] = useState(null); // { id, folderId, content }
 
   const DEFAULT_FOLDER_NAMES = ['Market Movers', 'Earnings Intel', '$SPY Analysis', 'Fed & Macro', 'Sector Rotation', 'Crypto Pulse'];
 
@@ -503,7 +508,28 @@ export default function WarRoom({ onClose }) {
     const result = removeSavedWarRoomIntel(itemId, folderId);
     setSavedState(result.state);
     setMoveMenu({ cardId: null, folderId: null, showNewFolder: false, newFolderName: '' });
+    if (editingItem?.id === itemId) setEditingItem(null);
     showToast('Intel removed');
+  };
+
+  const startEditing = (card, folderId) => {
+    setEditingItem({ id: card.id, folderId, content: card.content || '' });
+  };
+
+  const saveEdit = () => {
+    if (!editingItem) return;
+    const result = updateSavedWarRoomIntel(editingItem.id, editingItem.folderId, { content: editingItem.content });
+    setSavedState(result.state);
+    setEditingItem(null);
+    showToast('Intel updated');
+  };
+
+  const cancelEdit = () => setEditingItem(null);
+
+  const postToX = (content) => {
+    const text = String(content || '').slice(0, 280);
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank', 'noopener,noreferrer,width=550,height=420');
   };
 
   const handleRenameFolder = (folderId) => {
@@ -1035,23 +1061,56 @@ export default function WarRoom({ onClose }) {
                   <p className="text-sm text-gray-600 py-4">No saved intel yet. Highlight text on any card and click Save Selection.</p>
                 ) : (
                   folders.flatMap(folder =>
-                    folder.items.map(card => (
+                    folder.items.map(card => {
+                      const isEditing = editingItem?.id === card.id && editingItem?.folderId === folder.id;
+                      return (
                       <div key={card.id} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-amber-400/60 mb-1">{folder.name} · {formatTimestamp(card.savedAt || card.createdAt)}</p>
-                            <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-6">{card.content || card.title}</p>
+                            <p className="text-xs text-amber-400/60 mb-1">
+                              {folder.name} · {formatTimestamp(card.savedAt || card.createdAt)}
+                              {card.editedAt && <span className="text-gray-600 ml-1">(edited)</span>}
+                            </p>
+                            {isEditing ? (
+                              <textarea
+                                value={editingItem.content}
+                                onChange={(e) => setEditingItem(prev => ({ ...prev, content: e.target.value }))}
+                                className="w-full rounded border border-amber-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 outline-none focus:border-amber-500/50 resize-y min-h-[80px]"
+                                rows={Math.min(12, (editingItem.content?.split('\n').length || 3) + 1)}
+                                autoFocus
+                              />
+                            ) : (
+                              <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-6">{card.content || card.title}</p>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => { handleRemoveSavedIntel(folder.id, card.id); }}
-                            className="text-gray-600 hover:text-red-400 transition-colors shrink-0"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                          </button>
+                          <div className="flex flex-col gap-1.5 shrink-0">
+                            {isEditing ? (
+                              <>
+                                <button type="button" onClick={saveEdit} className="text-emerald-500 hover:text-emerald-400 transition-colors" title="Save">
+                                  <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                                </button>
+                                <button type="button" onClick={cancelEdit} className="text-gray-600 hover:text-white transition-colors" title="Cancel">
+                                  <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button type="button" onClick={() => startEditing(card, folder.id)} className="text-gray-600 hover:text-amber-400 transition-colors" title="Edit">
+                                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                </button>
+                                <button type="button" onClick={() => postToX(card.content || card.title)} className="text-gray-600 hover:text-white transition-colors" title="Post to X">
+                                  <Share className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                </button>
+                                <button type="button" onClick={() => handleRemoveSavedIntel(folder.id, card.id)} className="text-gray-600 hover:text-red-400 transition-colors" title="Delete">
+                                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   )
                 )}
               </div>
@@ -1145,23 +1204,56 @@ export default function WarRoom({ onClose }) {
                 {savedItems.length === 0 ? (
                   <p className="text-sm text-gray-600 py-3">No saved intel in this folder.</p>
                 ) : (
-                  savedItems.map((card) => (
+                  savedItems.map((card) => {
+                    const isEditing = editingItem?.id === card.id && editingItem?.folderId === selectedFolder?.id;
+                    return (
                     <div key={`folder-${card.id}`} className="rounded-lg border border-gray-800/50 border-l-2 border-l-amber-500/30 bg-black/30 px-3 py-2.5">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-gray-500 mb-1">{formatTimestamp(card.savedAt || card.createdAt)}</p>
-                          <p className="text-sm text-white/80 whitespace-pre-wrap line-clamp-6">{card.content || card.title}</p>
+                          <p className="text-xs text-gray-500 mb-1">
+                            {formatTimestamp(card.savedAt || card.createdAt)}
+                            {card.editedAt && <span className="text-gray-600 ml-1">(edited)</span>}
+                          </p>
+                          {isEditing ? (
+                            <textarea
+                              value={editingItem.content}
+                              onChange={(e) => setEditingItem(prev => ({ ...prev, content: e.target.value }))}
+                              className="w-full rounded border border-amber-500/30 bg-black/50 px-2 py-1.5 text-sm text-white/90 placeholder:text-gray-600 outline-none focus:border-amber-500/50 resize-y min-h-[80px]"
+                              rows={Math.min(12, (editingItem.content?.split('\n').length || 3) + 1)}
+                              autoFocus
+                            />
+                          ) : (
+                            <p className="text-sm text-white/80 whitespace-pre-wrap">{card.content || card.title}</p>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSavedIntel(selectedFolder?.id, card.id)}
-                          className="text-gray-600 hover:text-red-400 transition-colors shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        </button>
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          {isEditing ? (
+                            <>
+                              <button type="button" onClick={saveEdit} className="text-emerald-500 hover:text-emerald-400 transition-colors" title="Save changes">
+                                <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                              </button>
+                              <button type="button" onClick={cancelEdit} className="text-gray-600 hover:text-white transition-colors" title="Cancel">
+                                <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" onClick={() => startEditing(card, selectedFolder?.id)} className="text-gray-600 hover:text-amber-400 transition-colors" title="Edit">
+                                <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                              </button>
+                              <button type="button" onClick={() => postToX(card.content || card.title)} className="text-gray-600 hover:text-white transition-colors" title="Post to X">
+                                <Share className="h-3.5 w-3.5" strokeWidth={1.5} />
+                              </button>
+                              <button type="button" onClick={() => handleRemoveSavedIntel(selectedFolder?.id, card.id)} className="text-gray-600 hover:text-red-400 transition-colors" title="Delete">
+                                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
