@@ -882,95 +882,97 @@ const ChatInputBar = ({
       : 'Live tape offline';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-      className="relative rounded-2xl border px-3 py-2"
-      style={{
-        borderColor: T.border,
-        background: 'linear-gradient(180deg, rgba(28,35,51,0.62) 0%, rgba(21,27,35,0.92) 100%)',
-        boxShadow: '0 12px 32px rgba(0,0,0,0.26)',
-      }}
-    >
-      <div className="community-pulse pointer-events-none absolute -top-10 -left-8 h-24 w-24 rounded-full blur-3xl" style={{ background: 'rgba(88,166,255,0.24)' }} />
+    <div className="max-w-xl mx-auto w-full">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        className="relative rounded-2xl border py-2 px-3"
+        style={{
+          borderColor: T.border,
+          background: 'linear-gradient(180deg, rgba(28,35,51,0.62) 0%, rgba(21,27,35,0.92) 100%)',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.26)',
+        }}
+      >
+        <div className="community-pulse pointer-events-none absolute -top-10 -left-8 h-24 w-24 rounded-full blur-3xl" style={{ background: 'rgba(88,166,255,0.24)' }} />
 
-      <div className="relative flex items-end gap-2">
-        <div className="relative flex-1">
-          <SuggestionPopover
-            open={Boolean(tickerQuery)}
-            loading={suggestionsLoading}
-            suggestions={suggestions}
-            activeIndex={activeSuggestion}
-            onPick={applySuggestion}
-          />
-
-          <div className="flex items-start gap-2 rounded-xl border px-3 py-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.78)' }}>
-            <Activity size={16} className="mt-1 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
-            <textarea
-              ref={inputRef}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              placeholder={currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community'}
-              className="w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
-              style={{ color: T.text }}
-              disabled={!currentUser?.id}
+        <div className="relative flex items-end gap-2">
+          <div className="relative flex-1">
+            <SuggestionPopover
+              open={Boolean(tickerQuery)}
+              loading={suggestionsLoading}
+              suggestions={suggestions}
+              activeIndex={activeSuggestion}
+              onPick={applySuggestion}
             />
+
+            <div className="flex items-start gap-2 rounded-2xl border py-2 px-3" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.78)' }}>
+              <Activity size={16} className="mt-1 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
+              <textarea
+                ref={inputRef}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                placeholder={currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community'}
+                className="w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
+                style={{ color: T.text }}
+                disabled={!currentUser?.id}
+              />
+            </div>
+
+            <div className="mt-1.5 flex items-center justify-between px-1">
+              <div className="text-xs" style={{ color: T.muted }}>{statusText}</div>
+              <div className="text-[11px]" style={{ color: T.muted }}>Enter to send, Shift+Enter for newline</div>
+            </div>
           </div>
 
-          <div className="mt-1.5 flex items-center justify-between px-1">
-            <div className="text-[11px]" style={{ color: T.muted }}>{statusText}</div>
-            <div className="text-[11px]" style={{ color: T.muted }}>Enter to send, Shift+Enter for newline</div>
+          <div className="relative flex items-center gap-1 pb-1">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((open) => !open)}
+              className="h-7 w-7 rounded-2xl border transition-colors"
+              style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.8)' }}
+              title="Insert emoji"
+            >
+              <SmilePlus size={13} className="mx-auto" />
+            </button>
+
+            {showEmojiPicker && (
+              <EmojiPicker
+                align="right"
+                onClose={() => setShowEmojiPicker(false)}
+                onSelect={(emoji) => {
+                  setMessage((prev) => `${prev}${emoji}`);
+                  setShowEmojiPicker(false);
+                  window.requestAnimationFrame(() => inputRef.current?.focus());
+                }}
+              />
+            )}
+
+            <button
+              type="button"
+              onClick={onOpenComposer}
+              className="h-7 px-3 py-1.5 rounded-2xl border text-xs font-medium inline-flex items-center justify-center transition-colors"
+              style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
+            >
+              Compose
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={!currentUser?.id || !message.trim()}
+              className="h-7 w-7 rounded-2xl text-black disabled:opacity-45 transition-all"
+              style={{ backgroundColor: T.blue }}
+              title="Send quick post"
+            >
+              <Send size={13} className="mx-auto" />
+            </button>
           </div>
         </div>
-
-        <div className="relative flex items-center gap-1 pb-1">
-          <button
-            type="button"
-            onClick={() => setShowEmojiPicker((open) => !open)}
-            className="h-9 w-9 rounded-lg border transition-colors"
-            style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.8)' }}
-            title="Insert emoji"
-          >
-            <SmilePlus size={16} className="mx-auto" />
-          </button>
-
-          {showEmojiPicker && (
-            <EmojiPicker
-              align="right"
-              onClose={() => setShowEmojiPicker(false)}
-              onSelect={(emoji) => {
-                setMessage((prev) => `${prev}${emoji}`);
-                setShowEmojiPicker(false);
-                window.requestAnimationFrame(() => inputRef.current?.focus());
-              }}
-            />
-          )}
-
-          <button
-            type="button"
-            onClick={onOpenComposer}
-            className="h-9 px-3 rounded-lg border text-xs font-medium transition-colors"
-            style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
-          >
-            Compose
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={!currentUser?.id || !message.trim()}
-            className="h-9 w-9 rounded-lg text-black disabled:opacity-45 transition-all"
-            style={{ backgroundColor: T.blue }}
-            title="Send quick post"
-          >
-            <Send size={15} className="mx-auto" />
-          </button>
-        </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 };
 
