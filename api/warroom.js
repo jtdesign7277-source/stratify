@@ -2,6 +2,33 @@ import { getCachedScan, setCachedScan } from './lib/warroom-cache.js';
 
 export const config = { maxDuration: 60 };
 
+function getTodayContext() {
+  const now = new Date();
+  return {
+    localeDate: now.toLocaleDateString(),
+    isoDate: now.toISOString().split('T')[0],
+  };
+}
+
+function buildScanSystemPrompt(localeDate) {
+  return [
+    'You are a classified market intelligence analyst.',
+    'Provide institutional-grade research for active traders.',
+    `Today is ${localeDate}. Only provide current information. Never reference data from 2023 or 2024.`,
+    'Search the web for real-time data.',
+    'Include specific price levels, key dates, catalyst events, and risk factors.',
+    'Format with markdown.',
+    'Always use $ prefix for tickers.',
+    'Include bull and bear cases.',
+    'Be direct and data-driven.',
+    'Cite your sources with URLs.',
+  ].join(' ');
+}
+
+function buildScanUserPrompt(query, localeDate, isoDate) {
+  return `Today is ${localeDate} (${isoDate}). ${String(query || '').trim()}`;
+}
+
 function extractSources(contentBlocks, contentText = '') {
   const sources = [];
   const seen = new Set();
@@ -34,6 +61,7 @@ async function fetchFromClaude(query) {
   if (!apiKey) {
     throw new Error('XAI_API_KEY is missing. Please add it in environment variables.');
   }
+  const { localeDate, isoDate } = getTodayContext();
 
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -46,8 +74,8 @@ async function fetchFromClaude(query) {
       max_tokens: 4096,
       temperature: 0.8,
       messages: [
-        { role: 'system', content: 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.' },
-        { role: 'user', content: query },
+        { role: 'system', content: buildScanSystemPrompt(localeDate) },
+        { role: 'user', content: buildScanUserPrompt(query, localeDate, isoDate) },
       ],
     }),
   });
@@ -92,13 +120,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
   }
 
-  const { query, cacheLabel } = req.body || {};
+  const { query, cacheLabel, forceRefresh } = req.body || {};
   if (!query) {
     return res.status(400).json({ error: 'Missing query' });
   }
+  const refreshRequested = forceRefresh === true || String(forceRefresh || '').toLowerCase() === 'true' || String(forceRefresh || '') === '1';
 
   // If a cache label is provided, check cache first — return instantly
-  if (cacheLabel) {
+  if (cacheLabel && !refreshRequested) {
     const cached = await getCachedScan(cacheLabel);
     if (cached) {
       return res.status(200).json({ ...cached, fromCache: true });

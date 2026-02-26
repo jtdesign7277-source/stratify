@@ -1,10 +1,10 @@
 import { Redis } from '@upstash/redis';
 
-const WARROOM_CACHE_PREFIX = 'warroom:scan';
-const TRANSCRIPT_CACHE_PREFIX = 'warroom:transcript';
+const WEEK_BUCKET_MS = 7 * 24 * 60 * 60 * 1000;
+const WEEKLY_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-export const SCAN_TTL_SECONDS = 2 * 60 * 60; // 2 hours (matches cron interval)
-export const TRANSCRIPT_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+export const SCAN_TTL_SECONDS = WEEKLY_TTL_SECONDS;
+export const TRANSCRIPT_TTL_SECONDS = WEEKLY_TTL_SECONDS;
 
 let redisClient = null;
 let redisDisabled = false;
@@ -30,12 +30,25 @@ export function getRedisClient() {
   return redisClient;
 }
 
+const toTabKey = (value = '') =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'unknown';
+
+const getCurrentWeekNumber = () => Math.floor(Date.now() / WEEK_BUCKET_MS);
+
+function weeklyWarRoomKey(tab) {
+  return `warroom:${toTabKey(tab)}:week-${getCurrentWeekNumber()}`;
+}
+
 function scanCacheKey(label) {
-  return `${WARROOM_CACHE_PREFIX}:${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  return weeklyWarRoomKey(label);
 }
 
 function transcriptCacheKey(symbol) {
-  return `${TRANSCRIPT_CACHE_PREFIX}:${symbol.toUpperCase()}`;
+  return weeklyWarRoomKey(`transcripts-${String(symbol || '').toUpperCase()}`);
 }
 
 export async function getCachedScan(label) {

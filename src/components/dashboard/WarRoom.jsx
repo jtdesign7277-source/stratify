@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bookmark,
   Check,
@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -66,8 +67,9 @@ const QUICK_SCANS = [
 ];
 
 const PREFETCH_SCANS = QUICK_SCANS; // Prefetch all 6 scans from Redis on mount
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL_MS = 604800000; // 7 days
 const FEED_TIMESTAMP_KEY = 'stratify-war-room-feed-ts';
+const WARROOM_TAB_CACHE_PREFIX = 'warroom_cache_';
 
 const getFeedTimestamp = () => {
   try { return Number(localStorage.getItem(FEED_TIMESTAMP_KEY)) || 0; } catch { return 0; }
@@ -77,7 +79,73 @@ const setFeedTimestamp = () => {
 };
 const isFeedFresh = () => Date.now() - getFeedTimestamp() < CACHE_TTL_MS;
 
+const toCacheTabName = (tabName = '') =>
+  String(tabName || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/(^_+|_+$)/g, '') || 'unknown';
+
+const getWarRoomCacheKey = (tabName) => `${WARROOM_TAB_CACHE_PREFIX}${toCacheTabName(tabName)}`;
+
+const readWarRoomCache = (tabName) => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(getWarRoomCacheKey(tabName));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const generatedAt = Number(parsed?.generatedAt || 0);
+    if (!generatedAt || Date.now() - generatedAt > CACHE_TTL_MS) {
+      localStorage.removeItem(getWarRoomCacheKey(tabName));
+      return null;
+    }
+    return parsed?.data || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeWarRoomCache = (tabName, data) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      getWarRoomCacheKey(tabName),
+      JSON.stringify({ data, generatedAt: Date.now() })
+    );
+  } catch {}
+};
+
+const clearWarRoomCaches = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(WARROOM_TAB_CACHE_PREFIX)) {
+        keys.push(key);
+      }
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch {}
+};
+
+const makeScanCard = (label, payload, query = '') =>
+  normalizeIntelItem({
+    id: `warroom-cached-${label.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+    title: label,
+    query,
+    content: String(payload?.content || ''),
+    sources: payload?.sources || [],
+    sourceLabel: 'Claude Intel',
+    createdAt: new Date().toISOString(),
+  });
+
 const fetchCachedScan = async (label) => {
+  const localCached = readWarRoomCache(label);
+  if (localCached?.content) {
+    return makeScanCard(label, localCached, localCached.query || '');
+  }
+
   try {
     const res = await fetch(`/api/warroom?label=${encodeURIComponent(label)}`, {
       signal: AbortSignal.timeout(15000),
@@ -85,15 +153,13 @@ const fetchCachedScan = async (label) => {
     if (!res.ok) return null;
     const payload = await res.json().catch(() => null);
     if (!payload?.content) return null;
-    return normalizeIntelItem({
-      id: `warroom-cached-${label.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+    writeWarRoomCache(label, {
       title: label,
       query: '',
       content: String(payload.content || ''),
       sources: payload.sources || [],
-      sourceLabel: 'Claude Intel',
-      createdAt: new Date().toISOString(),
     });
+    return makeScanCard(label, payload, '');
   } catch { return null; }
 };
 
@@ -285,8 +351,10 @@ export default function WarRoom({ onClose }) {
   const [intelFeed, setIntelFeed] = useState(() => getWarRoomFeed());
   const [savedState, setSavedState] = useState(() => getSavedIntelState());
   const [activeView, setActiveView] = useState('live');
+  const [activeScanLabel, setActiveScanLabel] = useState(QUICK_SCANS[0]?.label || 'Market Movers');
   const [selectedFolderId, setSelectedFolderId] = useState(() => getSavedIntelState().folders?.[0]?.id || null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [isGlitching, setIsGlitching] = useState(true);
   const [transcriptSymbol, setTranscriptSymbol] = useState('');
@@ -748,16 +816,18 @@ export default function WarRoom({ onClose }) {
     }
   };
 
-  const runScan = async (inputQuery, titleOverride = '') => {
+  const runScan = async (inputQuery, titleOverride = '', options = {}) => {
     const trimmedQuery = String(inputQuery || '').trim();
+    const forceRefresh = options?.forceRefresh === true;
     if (!trimmedQuery || isLoading) return;
+    if (titleOverride) setActiveScanLabel(titleOverride);
 
     setError('');
     setIsLoading(true);
 
     try {
       // 1. Try Redis cache first (instant) — only for known quick scans
-      if (titleOverride) {
+      if (titleOverride && !forceRefresh) {
         const cached = await fetchCachedScan(titleOverride);
         if (cached) {
           setIntelFeed((prev) => [cached, ...prev].slice(0, 50));
@@ -777,7 +847,7 @@ export default function WarRoom({ onClose }) {
         const response = await fetch('/api/warroom', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: trimmedQuery, cacheLabel: titleOverride || '' }),
+          body: JSON.stringify({ query: trimmedQuery, cacheLabel: titleOverride || '', forceRefresh }),
           signal: controller.signal,
         });
 
@@ -797,6 +867,14 @@ export default function WarRoom({ onClose }) {
         });
 
         setIntelFeed((prev) => [intelCard, ...prev].slice(0, 50));
+        if (titleOverride) {
+          writeWarRoomCache(titleOverride, {
+            title: titleOverride,
+            query: trimmedQuery,
+            content: String(payload?.content || 'No market intel returned.'),
+            sources: payload?.sources || [],
+          });
+        }
         setFeedTimestamp();
         setQuery('');
         setActiveView('live');
@@ -923,8 +1001,9 @@ export default function WarRoom({ onClose }) {
     });
   };
 
-  const fetchTranscript = async (symbol) => {
+  const fetchTranscript = async (symbol, options = {}) => {
     const trimmed = String(symbol || '').trim().toUpperCase().replace(/^\$/, '');
+    const forceRefresh = options?.forceRefresh === true;
     if (!trimmed || transcriptLoading) return;
     setTranscriptError('');
     setTranscriptData(null);
@@ -933,14 +1012,36 @@ export default function WarRoom({ onClose }) {
     setTranscriptLoading(true);
     setSecLoading(true);
     setFinancialsLoading(true);
+    const transcriptTabName = `transcripts_${trimmed}`;
+    const localTranscript = forceRefresh ? null : readWarRoomCache(transcriptTabName);
 
     // Fetch transcript, SEC filings, and financials in parallel
-    const transcriptPromise = fetch(`/api/earnings-transcript?symbol=${encodeURIComponent(trimmed)}`)
-      .then(async (res) => {
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(payload?.error || `Request failed (${res.status})`);
-        setTranscriptData({ symbol: trimmed, content: payload.content, sources: payload.sources || [], fromCache: payload.fromCache });
-      })
+    const transcriptPromise = (localTranscript?.content
+      ? Promise.resolve().then(() => {
+          setTranscriptData({
+            symbol: trimmed,
+            content: localTranscript.content,
+            sources: localTranscript.sources || [],
+            fromCache: true,
+          });
+        })
+      : fetch(`/api/earnings-transcript?symbol=${encodeURIComponent(trimmed)}${forceRefresh ? '&flush=1' : ''}`)
+          .then(async (res) => {
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(payload?.error || `Request failed (${res.status})`);
+            const nextData = {
+              symbol: trimmed,
+              content: payload.content,
+              sources: payload.sources || [],
+              fromCache: payload.fromCache,
+            };
+            setTranscriptData(nextData);
+            writeWarRoomCache(transcriptTabName, {
+              symbol: trimmed,
+              content: payload.content,
+              sources: payload.sources || [],
+            });
+          }))
       .catch((err) => setTranscriptError(err?.message || 'Failed to fetch transcript'))
       .finally(() => setTranscriptLoading(false));
 
@@ -976,6 +1077,34 @@ export default function WarRoom({ onClose }) {
     await Promise.allSettled([transcriptPromise, secPromise, financialsPromise]);
   };
 
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setError('');
+
+    try {
+      clearWarRoomCaches();
+      try { localStorage.removeItem(FEED_TIMESTAMP_KEY); } catch {}
+
+      if (activeView === 'transcripts') {
+        const symbolToRefresh = String(transcriptSymbol || transcriptData?.symbol || '').trim();
+        if (!symbolToRefresh) {
+          setTranscriptError('Enter a ticker to refresh transcript intel.');
+          return;
+        }
+        await fetchTranscript(symbolToRefresh, { forceRefresh: true });
+        return;
+      }
+
+      const targetScan = QUICK_SCANS.find((scan) => scan.label === activeScanLabel) || QUICK_SCANS[0];
+      if (!targetScan) return;
+      setActiveScanLabel(targetScan.label);
+      await runScan(targetScan.query, targetScan.label, { forceRefresh: true });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const allSavedCount = useMemo(
     () => folders.reduce((count, folder) => count + folder.items.length, 0),
     [folders]
@@ -1009,8 +1138,12 @@ export default function WarRoom({ onClose }) {
             <button
               key={scan.label}
               type="button"
-              onClick={() => runScan(scan.query, scan.label)}
-              disabled={isLoading}
+              onClick={() => {
+                setActiveView('live');
+                setActiveScanLabel(scan.label);
+                runScan(scan.query, scan.label);
+              }}
+              disabled={isLoading || isRefreshing}
               className="bg-black/40 backdrop-blur border border-gray-800 hover:border-blue-500/50 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-blue-400 transition-all hover:shadow-[0_0_10px_rgba(59,130,246,0.15)] disabled:opacity-40"
             >
               {scan.label}
@@ -1026,6 +1159,15 @@ export default function WarRoom({ onClose }) {
             }`}
           >
             Transcripts
+          </button>
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing || isLoading || transcriptLoading}
+            className="text-xs text-[#7d8590] hover:text-[#58a6ff] flex items-center gap-1 transition-colors disabled:opacity-45"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 

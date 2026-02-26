@@ -2,6 +2,14 @@ import { getCachedTranscript, setCachedTranscript } from './lib/warroom-cache.js
 
 export const config = { maxDuration: 60 };
 
+function getTodayContext() {
+  const now = new Date();
+  return {
+    isoDate: now.toISOString().split('T')[0],
+    localeDate: now.toLocaleDateString(),
+  };
+}
+
 // Reject transcripts that reference a date in the future
 function hasFutureDate(content, today) {
   const todayDate = new Date(today + 'T23:59:59Z');
@@ -17,12 +25,13 @@ function hasFutureDate(content, today) {
   return null;
 }
 
-function buildSystem(today) {
+function buildSystem(todayIso, todayLocale) {
   return [
-    `You are a financial transcript analyst. TODAY IS ${today}. This is an absolute fact — do not ignore it.`,
+    `You are a financial transcript analyst. TODAY IS ${todayIso}. This is an absolute fact — do not ignore it.`,
+    `Today is ${todayLocale}. Only provide current information. Never reference data from 2023 or 2024.`,
     '',
     '=== MANDATORY DATE RULES (VIOLATION = FAILURE) ===',
-    `1. The current date is ${today}. Any earnings call dated AFTER ${today} has NOT happened yet.`,
+    `1. The current date is ${todayIso}. Any earnings call dated AFTER ${todayIso} has NOT happened yet.`,
     '2. You MUST search the web to find the ACTUAL most recent earnings call date.',
     '3. You MUST verify the call date is ON or BEFORE today before reporting it.',
     '4. If a company\'s next earnings call is in the future, report the PREVIOUS quarter\'s call instead.',
@@ -30,8 +39,8 @@ function buildSystem(today) {
     '6. If you cannot find a verified past earnings call, say "No verified recent earnings call found" — do NOT guess.',
     '',
     'EXAMPLES OF WHAT NOT TO DO:',
-    `- If today is ${today} and the next AAPL call is April 2026, do NOT report it. Report the January 2026 call instead.`,
-    `- If today is ${today} and NVDA\'s call was February 26, 2026, but today is February 25, that call is IN THE FUTURE — report the previous quarter.`,
+    `- If today is ${todayIso} and the next AAPL call is April 2026, do NOT report it. Report the January 2026 call instead.`,
+    `- If today is ${todayIso} and NVDA\'s call was February 26, 2026, but today is February 25, that call is IN THE FUTURE — report the previous quarter.`,
     '',
     'Return the transcript content in this exact format:',
     '',
@@ -88,8 +97,8 @@ export default async function handler(req, res) {
     const cached = await getCachedTranscript(symbol);
     if (cached) {
       // Validate cached content doesn't have future dates
-      const today = new Date().toISOString().split('T')[0];
-      const futureDate = hasFutureDate(cached.content || '', today);
+      const { isoDate } = getTodayContext();
+      const futureDate = hasFutureDate(cached.content || '', isoDate);
       if (!futureDate) {
         return res.status(200).json({ ...cached, fromCache: true });
       }
@@ -101,7 +110,7 @@ export default async function handler(req, res) {
   const apiKey = String(process.env.XAI_API_KEY || '').trim();
   if (!apiKey) return res.status(500).json({ error: 'XAI_API_KEY is missing. Please add it in environment variables.' });
 
-  const today = new Date().toISOString().split('T')[0];
+  const { isoDate: todayIso, localeDate: todayLocale } = getTodayContext();
 
   try {
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -115,8 +124,8 @@ export default async function handler(req, res) {
         max_tokens: 4096,
         temperature: 0.8,
         messages: [
-          { role: 'system', content: buildSystem(today) },
-          { role: 'user', content: `Today is exactly ${today}. Search the web and find the most recent earnings call transcript for $${symbol} that has ALREADY happened (call date must be on or before ${today}). If the next call hasn't happened yet, use the previous quarter's call. Provide a detailed summary.` },
+          { role: 'system', content: buildSystem(todayIso, todayLocale) },
+          { role: 'user', content: `Today is ${todayLocale} (${todayIso}). Search the web and find the most recent earnings call transcript for $${symbol} that has ALREADY happened (call date must be on or before ${todayIso}). If the next call hasn't happened yet, use the previous quarter's call. Provide a detailed summary.` },
         ],
       }),
     });
@@ -132,7 +141,7 @@ export default async function handler(req, res) {
     const sources = extractSourcesFromText(content);
 
     // Final safety check — reject if content mentions a future date
-    const futureDate = hasFutureDate(content, today);
+    const futureDate = hasFutureDate(content, todayIso);
     if (futureDate) {
       console.warn(`[transcript] Model returned future date for ${symbol}: ${futureDate} — not caching`);
       return res.status(200).json({

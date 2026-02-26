@@ -29,15 +29,40 @@ const QUICK_SCANS = [
 
 const TRANSCRIPT_TICKERS = ['AAPL', 'NVDA', 'TSLA', 'AMZN', 'GOOGL', 'META', 'MSFT', 'JPM', 'NFLX'];
 
-const SCAN_SYSTEM = 'You are a classified market intelligence analyst. Provide institutional-grade research for active traders. Search the web for real-time data. Include specific price levels, key dates, catalyst events, and risk factors. Format with markdown. Always use $ prefix for tickers. Include bull and bear cases. Be direct and data-driven. Cite your sources with URLs.';
+function getTodayContext() {
+  const now = new Date();
+  return {
+    isoDate: now.toISOString().split('T')[0],
+    localeDate: now.toLocaleDateString(),
+  };
+}
 
-function getTranscriptSystem() {
-  const today = new Date().toISOString().split('T')[0];
+function getScanSystem(todayLocale) {
   return [
-    `You are a financial transcript analyst. TODAY IS ${today}. This is an absolute fact — do not ignore it.`,
+    'You are a classified market intelligence analyst.',
+    'Provide institutional-grade research for active traders.',
+    `Today is ${todayLocale}. Only provide current information. Never reference data from 2023 or 2024.`,
+    'Search the web for real-time data.',
+    'Include specific price levels, key dates, catalyst events, and risk factors.',
+    'Format with markdown.',
+    'Always use $ prefix for tickers.',
+    'Include bull and bear cases.',
+    'Be direct and data-driven.',
+    'Cite your sources with URLs.',
+  ].join(' ');
+}
+
+function getScanUserPrompt(query, todayLocale, todayIso) {
+  return `Today is ${todayLocale} (${todayIso}). ${query}`;
+}
+
+function getTranscriptSystem(todayIso, todayLocale) {
+  return [
+    `You are a financial transcript analyst. TODAY IS ${todayIso}. This is an absolute fact — do not ignore it.`,
+    `Today is ${todayLocale}. Only provide current information. Never reference data from 2023 or 2024.`,
     '',
     '=== MANDATORY DATE RULES (VIOLATION = FAILURE) ===',
-    `1. The current date is ${today}. Any earnings call dated AFTER ${today} has NOT happened yet.`,
+    `1. The current date is ${todayIso}. Any earnings call dated AFTER ${todayIso} has NOT happened yet.`,
     '2. You MUST search the web to find the ACTUAL most recent earnings call date.',
     '3. You MUST verify the call date is ON or BEFORE today before reporting it.',
     '4. If a company\'s next earnings call is in the future, report the PREVIOUS quarter\'s call instead.',
@@ -64,6 +89,10 @@ function getTranscriptSystem() {
     '',
     'Be thorough and data-driven. Include specific numbers, percentages, and dollar amounts.',
   ].join('\n');
+}
+
+function getTranscriptUserPrompt(symbol, todayLocale, todayIso) {
+  return `Today is ${todayLocale} (${todayIso}). Search the web and find the most recent earnings call transcript for ${symbol} that has ALREADY taken place. The call date must be on or before ${todayIso}. Provide a detailed summary.`;
 }
 
 function extractSources(contentBlocks, contentText = '') {
@@ -149,6 +178,7 @@ export default async function handler(req, res) {
   // batch=scans | batch=transcripts | batch=transcripts2 | batch=flush-transcripts
   const batch = String(req.query.batch || 'scans').toLowerCase();
   const results = [];
+  const { isoDate: todayIso, localeDate: todayLocale } = getTodayContext();
 
   if (batch === 'flush-transcripts') {
     const flushed = await flushTranscriptCache(TRANSCRIPT_TICKERS);
@@ -159,7 +189,7 @@ export default async function handler(req, res) {
     // Warm quick scans — 6 items, run 3 at a time (~2 batches, ~100s total)
     // Always refresh so users get instant results when they click
     const tasks = QUICK_SCANS.map((scan) => async () => {
-      const data = await callClaude(SCAN_SYSTEM, scan.query);
+      const data = await callClaude(getScanSystem(todayLocale), getScanUserPrompt(scan.query, todayLocale, todayIso));
       await setCachedScan(scan.label, data);
       return { type: 'scan', label: scan.label, status: 'warmed' };
     });
@@ -176,8 +206,7 @@ export default async function handler(req, res) {
     const tasks = tickers.map((symbol) => async () => {
       const existing = await getCachedTranscript(symbol);
       if (existing) return { type: 'transcript', symbol, status: 'cached' };
-      const today = new Date().toISOString().split('T')[0];
-      const data = await callClaude(getTranscriptSystem(), `Today is ${today}. Search the web and find the most recent earnings call transcript for ${symbol} that has ALREADY taken place. Provide a detailed summary.`);
+      const data = await callClaude(getTranscriptSystem(todayIso, todayLocale), getTranscriptUserPrompt(symbol, todayLocale, todayIso));
       await setCachedTranscript(symbol, { symbol, ...data });
       return { type: 'transcript', symbol, status: 'warmed' };
     });
@@ -194,8 +223,7 @@ export default async function handler(req, res) {
     const tasks = tickers.map((symbol) => async () => {
       const existing = await getCachedTranscript(symbol);
       if (existing) return { type: 'transcript', symbol, status: 'cached' };
-      const today = new Date().toISOString().split('T')[0];
-      const data = await callClaude(getTranscriptSystem(), `Today is ${today}. Search the web and find the most recent earnings call transcript for ${symbol} that has ALREADY taken place. Provide a detailed summary.`);
+      const data = await callClaude(getTranscriptSystem(todayIso, todayLocale), getTranscriptUserPrompt(symbol, todayLocale, todayIso));
       await setCachedTranscript(symbol, { symbol, ...data });
       return { type: 'transcript', symbol, status: 'warmed' };
     });
