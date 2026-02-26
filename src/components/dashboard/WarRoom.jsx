@@ -630,10 +630,11 @@ export default function WarRoom({ onClose }) {
       sourceLabel: 'Saved Clip',
       createdAt: new Date().toISOString(),
     });
-    const next = saveWarRoomIntel(item, folderId);
-    setSavedState(next);
+    const result = saveWarRoomIntel(item, folderId);
+    setSavedState(result.state);
+    if (result.folder?.id) setSelectedFolderId(result.folder.id);
     setSectionSaveMenu(null);
-    showToast('Saved to folder');
+    showToast(`Saved to ${result.folder?.name || 'folder'}`);
   };
 
   const handleSaveSelection = () => {
@@ -662,11 +663,12 @@ export default function WarRoom({ onClose }) {
       sourceLabel: 'Saved Clip',
       createdAt: new Date().toISOString(),
     });
-    const next = saveWarRoomIntel(item, targetFolderId);
-    setSavedState(next);
+    const result = saveWarRoomIntel(item, targetFolderId);
+    setSavedState(result.state);
+    if (result.folder?.id) setSelectedFolderId(result.folder.id);
     setShowClipSave(false);
     setClipText('');
-    showToast('Intel saved');
+    showToast(`Saved to ${result.folder?.name || 'folder'}`);
   };
 
   // Split intel content at headings, render save buttons between sections
@@ -1066,31 +1068,34 @@ export default function WarRoom({ onClose }) {
                   {folders.map((folder) => {
                     const isSelected = folder.id === selectedFolder?.id;
                     return (
-                      <button
+                      <div
                         key={folder.id}
-                        type="button"
-                        data-folder-context-trigger
-                        onClick={() => {
-                          if (longPressRef.current.opened) {
-                            longPressRef.current.opened = false;
-                            return;
-                          }
-                          setSelectedFolderId(folder.id);
-                        }}
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          openFolderContextMenu(folder.id, event.clientX, event.clientY);
-                        }}
-                        onTouchStart={(event) => handleFolderTouchStart(event, folder.id)}
-                        onTouchEnd={clearFolderLongPress}
-                        onTouchCancel={clearFolderLongPress}
-                        className={`w-full text-sm py-1.5 px-2 cursor-pointer hover:text-white transition-colors text-left flex items-center justify-between rounded ${
-                          isSelected ? 'text-white bg-white/[0.04]' : 'text-gray-400'
+                        className={`group flex items-center gap-1 rounded ${
+                          isSelected ? 'bg-white/[0.04]' : ''
                         }`}
                       >
-                        <span className="truncate">{folder.name}</span>
-                        <span className="text-[10px] text-gray-600">{folder.items.length}</span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFolderId(folder.id)}
+                          className={`flex-1 min-w-0 text-sm py-1.5 px-2 cursor-pointer hover:text-white transition-colors text-left flex items-center justify-between ${
+                            isSelected ? 'text-white' : 'text-gray-400'
+                          }`}
+                        >
+                          <span className="truncate">{folder.name}</span>
+                          <span className="text-[10px] text-gray-600">{folder.items.length}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteFolder(folder.id);
+                          }}
+                          className="shrink-0 p-1 text-gray-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                          title={`Delete ${folder.name}`}
+                        >
+                          <Trash2 className="h-3 w-3" strokeWidth={1.5} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
