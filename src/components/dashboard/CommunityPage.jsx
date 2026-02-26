@@ -789,12 +789,39 @@ const CARD_VARIANTS = {
   show: { opacity: 1, y: 0, transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } },
 };
 
-const MODAL_SPRING = {
-  type: 'spring',
-  stiffness: 280,
-  damping: 24,
-  mass: 0.9,
+const MODAL_BACKDROP_TRANSITION = {
+  duration: 0.2,
+  ease: 'easeOut',
 };
+
+const MODAL_PANEL_ENTER_TRANSITION = {
+  type: 'spring',
+  stiffness: 300,
+  damping: 25,
+  delay: 0.05,
+};
+
+const MODAL_PANEL_EXIT_TRANSITION = {
+  duration: 0.15,
+  ease: 'easeInOut',
+};
+
+const OVERLAY_PANEL_TRANSITION = {
+  type: 'spring',
+  stiffness: 320,
+  damping: 26,
+  mass: 0.75,
+};
+
+const modalSectionMotion = (index = 0) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: {
+    delay: 0.1 + (index * 0.03),
+    duration: 0.2,
+    ease: 'easeOut',
+  },
+});
 
 const COMMUNITY_PAGE_STYLES = `
   @keyframes shimmer {
@@ -1226,17 +1253,17 @@ const SuggestionPopover = ({
   activeIndex,
   onPick,
 }) => (
-  <AnimatePresence>
+  <AnimatePresence initial={false}>
     {open && (
       <motion.div
-        initial={{ opacity: 0, y: 8, scale: 0.98 }}
+        initial={{ opacity: 0, y: 8, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 6, scale: 0.98 }}
-        transition={{ duration: 0.16 }}
+        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+        transition={OVERLAY_PANEL_TRANSITION}
         className="absolute left-0 right-0 bottom-full mb-2 z-50"
       >
         <div
-          className="rounded-xl border shadow-2xl overflow-hidden"
+          className="rounded-2xl border shadow-2xl shadow-black/40 overflow-hidden"
           style={{
             borderColor: T.border,
             background: 'linear-gradient(180deg, rgba(28,35,51,0.98) 0%, rgba(13,17,23,0.98) 100%)',
@@ -1656,17 +1683,26 @@ const ChatInputBar = ({
                   <SmilePlus size={16} strokeWidth={1.5} className="h-4 w-4" />
                 </button>
 
-                {showEmojiPicker && (
-                  <EmojiPicker
-                    align="right"
-                    onClose={() => setShowEmojiPicker(false)}
-                    onSelect={(emoji) => {
-                      setMessage((prev) => `${prev}${emoji}`);
-                      setShowEmojiPicker(false);
-                      window.requestAnimationFrame(() => inputRef.current?.focus());
-                    }}
-                  />
-                )}
+                <AnimatePresence initial={false}>
+                  {showEmojiPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={OVERLAY_PANEL_TRANSITION}
+                    >
+                      <EmojiPicker
+                        align="right"
+                        onClose={() => setShowEmojiPicker(false)}
+                        onSelect={(emoji) => {
+                          setMessage((prev) => `${prev}${emoji}`);
+                          setShowEmojiPicker(false);
+                          window.requestAnimationFrame(() => inputRef.current?.focus());
+                        }}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <button
                   type="button"
@@ -1956,38 +1992,48 @@ const PostComposerModal = ({
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait" initial={false}>
       {open && (
-        <motion.div
-          className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-2 sm:p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.button
-            type="button"
-            onClick={onClose}
-            className="absolute inset-0"
-            style={{ backgroundColor: 'rgba(0,0,0,0.62)' }}
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-2 sm:p-4">
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            aria-label="Close composer"
+            animate={{
+              opacity: 1,
+              transition: MODAL_BACKDROP_TRANSITION,
+            }}
+            exit={{
+              opacity: 0,
+              transition: {
+                ...MODAL_BACKDROP_TRANSITION,
+                delay: 0.15,
+              },
+            }}
+            onClick={onClose}
+            aria-hidden="true"
           />
 
           <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={MODAL_SPRING}
-            className="relative z-10 w-full max-w-2xl rounded-2xl border overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              y: 10,
+              transition: MODAL_PANEL_EXIT_TRANSITION,
+            }}
+            transition={MODAL_PANEL_ENTER_TRANSITION}
+            className="relative z-[60] w-full max-w-2xl rounded-2xl border shadow-2xl shadow-black/40 overflow-hidden"
             style={{
               borderColor: T.border,
               background: 'linear-gradient(180deg, rgba(28,35,51,0.98) 0%, rgba(13,17,23,0.98) 100%)',
-              boxShadow: '0 26px 58px rgba(0,0,0,0.48)',
             }}
           >
-            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: T.border }}>
+            <motion.div
+              {...modalSectionMotion(0)}
+              className="px-4 py-3 border-b flex items-center justify-between"
+              style={{ borderColor: T.border }}
+            >
               <div>
                 <div className="text-xs uppercase tracking-[0.14em]" style={{ color: T.muted }}>Community Composer</div>
                 <h3 className="text-base font-semibold">Create Post</h3>
@@ -2000,10 +2046,10 @@ const PostComposerModal = ({
               >
                 <X size={14} strokeWidth={1.5} className="h-4 w-4" />
               </button>
-            </div>
+            </motion.div>
 
             <div className="p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
+              <motion.div {...modalSectionMotion(1)} className="flex flex-wrap gap-2">
                 <ComposerTypePill active={postType === 'general'} icon={MessageCircle} label="General" onClick={() => setPostType('general')} accent={T.blue} />
                 <ComposerTypePill active={postType === 'trade'} icon={ArrowLeftRight} label="Trade" onClick={() => setPostType('trade')} accent={T.blue} />
                 <ComposerTypePill active={postType === 'strategy'} icon={Brain} label="Strategy" onClick={() => setPostType('strategy')} accent="#c297ff" />
@@ -2011,10 +2057,14 @@ const PostComposerModal = ({
                 <ComposerTypePill active={postType === 'pnl'} icon={TrendingUp} label="P&L" onClick={() => setPostType('pnl')} accent={T.green} />
                 <ComposerTypePill active={postType === 'earnings'} icon={BarChart3} label="Earnings" onClick={() => setPostType('earnings')} accent="#d29922" />
                 <ComposerTypePill active={postType === 'macro'} icon={Globe} label="Macro" onClick={() => setPostType('macro')} accent="#79c0ff" />
-              </div>
+              </motion.div>
 
               {postType === 'pnl' && (
-                <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}>
+                <motion.div
+                  {...modalSectionMotion(2)}
+                  className="rounded-xl border p-3 space-y-2"
+                  style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.55)' }}
+                >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div className="flex-1 min-w-0">
                       <label className="text-[11px] uppercase tracking-[0.14em]" style={{ color: T.muted }}>Closed Trade</label>
@@ -2065,10 +2115,10 @@ const PostComposerModal = ({
                       ))}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
-              <div className="relative">
+              <motion.div {...modalSectionMotion(3)} className="relative">
                 <textarea
                   value={content}
                   onChange={(event) => setContent(event.target.value)}
@@ -2111,16 +2161,25 @@ const PostComposerModal = ({
                         <SmilePlus size={13} />
                         Emoji
                       </button>
-                      {showEmojiPicker && (
-                        <EmojiPicker
-                          align="left"
-                          onClose={() => setShowEmojiPicker(false)}
-                          onSelect={(emoji) => {
-                            setContent((prev) => `${prev}${emoji}`);
-                            setShowEmojiPicker(false);
-                          }}
-                        />
-                      )}
+                      <AnimatePresence initial={false}>
+                        {showEmojiPicker && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                            transition={OVERLAY_PANEL_TRANSITION}
+                          >
+                            <EmojiPicker
+                              align="left"
+                              onClose={() => setShowEmojiPicker(false)}
+                              onSelect={(emoji) => {
+                                setContent((prev) => `${prev}${emoji}`);
+                                setShowEmojiPicker(false);
+                              }}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
 
@@ -2152,10 +2211,14 @@ const PostComposerModal = ({
                     </button>
                   </div>
                 )}
-              </div>
+              </motion.div>
             </div>
 
-            <div className="px-4 py-3 border-t flex items-center justify-between" style={{ borderColor: T.border }}>
+            <motion.div
+              {...modalSectionMotion(4)}
+              className="px-4 py-3 border-t flex items-center justify-between"
+              style={{ borderColor: T.border }}
+            >
               <div className="text-xs" style={{ color: T.muted }}>
                 Posting as {currentUser?.display_name || currentUser?.email?.split('@')[0] || 'Guest Trader'}
               </div>
@@ -2170,9 +2233,9 @@ const PostComposerModal = ({
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 Publish
               </button>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );
@@ -2239,16 +2302,25 @@ const ReactionBar = ({
         {inActionRow ? <span>React</span> : null}
       </button>
 
-      {showPicker && interactive && (
-        <EmojiPicker
-          align={compact ? 'right' : 'left'}
-          onClose={() => setShowPicker(false)}
-          onSelect={(emoji) => {
-            setShowPicker(false);
-            void toggleReaction(emoji);
-          }}
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {showPicker && interactive && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={OVERLAY_PANEL_TRANSITION}
+          >
+            <EmojiPicker
+              align={compact ? 'right' : 'left'}
+              onClose={() => setShowPicker(false)}
+              onSelect={(emoji) => {
+                setShowPicker(false);
+                void toggleReaction(emoji);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </span>
   );
 
@@ -2529,17 +2601,17 @@ const PostCard = ({ post, currentUser, onDelete }) => {
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
 
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {showMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="absolute right-0 top-8 z-20 w-36 rounded-lg border py-1"
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={OVERLAY_PANEL_TRANSITION}
+                    className="absolute right-0 top-8 z-20 w-36 rounded-2xl border py-1 shadow-2xl shadow-black/40"
                     style={{
                       borderColor: T.border,
                       backgroundColor: 'rgba(13,17,23,0.96)',
-                      boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
                     }}
                   >
                     <button
@@ -3580,38 +3652,44 @@ const RightSidebar = ({ quoteMap }) => {
                 style={{ color: T.text }}
                 aria-label="Add watchlist ticker"
               />
-              {hasWatchlistQuery ? (
-                <div
-                  className="absolute left-0 right-0 top-full mt-1 rounded-lg border overflow-hidden z-20"
-                  style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.98)' }}
-                >
-                  {watchlistSearchLoading ? (
-                    <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
-                  ) : watchlistResults.length === 0 ? (
-                    <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>No symbols found.</div>
-                  ) : (
-                    <div className="max-h-44 overflow-y-auto divide-y divide-white/5">
-                      {watchlistResults.map((row) => (
-                        <button
-                          key={`watchlist-search-${row.symbol}`}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => addWatchlistSymbol(row)}
-                          className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{row.symbol}</div>
-                              <div className="text-xs truncate" style={{ color: T.muted }}>{row.name || row.symbol}</div>
+              <AnimatePresence initial={false}>
+                {hasWatchlistQuery && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={OVERLAY_PANEL_TRANSITION}
+                    className="absolute left-0 right-0 top-full mt-1 rounded-2xl border overflow-hidden z-20 shadow-2xl shadow-black/40"
+                    style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.98)' }}
+                  >
+                    {watchlistSearchLoading ? (
+                      <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
+                    ) : watchlistResults.length === 0 ? (
+                      <div className="px-3 py-2 text-xs" style={{ color: T.muted }}>No symbols found.</div>
+                    ) : (
+                      <div className="max-h-44 overflow-y-auto divide-y divide-white/5">
+                        {watchlistResults.map((row) => (
+                          <button
+                            key={`watchlist-search-${row.symbol}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => addWatchlistSymbol(row)}
+                            className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold truncate" style={{ color: T.text }}>{row.symbol}</div>
+                                <div className="text-xs truncate" style={{ color: T.muted }}>{row.name || row.symbol}</div>
+                              </div>
+                              <Plus size={12} strokeWidth={1.5} style={{ color: T.muted }} />
                             </div>
-                            <Plus size={12} strokeWidth={1.5} style={{ color: T.muted }} />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className={`space-y-1.5 pr-0.5 ${shouldConstrainWatchlistHeight ? 'max-h-[600px] overflow-y-auto' : ''}`.trim()}>
