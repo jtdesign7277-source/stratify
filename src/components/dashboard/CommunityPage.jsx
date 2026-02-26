@@ -882,12 +882,12 @@ const ChatInputBar = ({
       : 'Live tape offline';
 
   return (
-    <div className="max-w-xl mx-auto w-full">
+    <div className="max-w-3xl mx-auto w-full">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className="relative rounded-2xl border py-2 px-3"
+        className="relative rounded-2xl border py-3 px-4"
         style={{
           borderColor: T.border,
           background: 'linear-gradient(180deg, rgba(28,35,51,0.62) 0%, rgba(21,27,35,0.92) 100%)',
@@ -906,7 +906,7 @@ const ChatInputBar = ({
               onPick={applySuggestion}
             />
 
-            <div className="flex items-start gap-2 rounded-2xl border py-2 px-3" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.78)' }}>
+            <div className="flex items-start gap-2 rounded-2xl border py-3 px-4" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.78)' }}>
               <Activity size={16} className="mt-1 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
               <textarea
                 ref={inputRef}
@@ -927,15 +927,15 @@ const ChatInputBar = ({
             </div>
           </div>
 
-          <div className="relative flex items-center gap-1 pb-1">
+          <div className="relative flex items-center gap-1.5 pb-1">
             <button
               type="button"
               onClick={() => setShowEmojiPicker((open) => !open)}
-              className="h-7 w-7 rounded-2xl border transition-colors"
+              className="h-9 w-9 rounded-2xl border transition-colors"
               style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.8)' }}
               title="Insert emoji"
             >
-              <SmilePlus size={13} className="mx-auto" />
+              <SmilePlus size={14} className="mx-auto" />
             </button>
 
             {showEmojiPicker && (
@@ -953,7 +953,7 @@ const ChatInputBar = ({
             <button
               type="button"
               onClick={onOpenComposer}
-              className="h-7 px-3 py-1.5 rounded-2xl border text-xs font-medium inline-flex items-center justify-center transition-colors"
+              className="px-4 py-2 rounded-2xl border text-sm font-medium inline-flex items-center justify-center transition-colors"
               style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
             >
               Compose
@@ -963,11 +963,11 @@ const ChatInputBar = ({
               type="button"
               onClick={() => void send()}
               disabled={!currentUser?.id || !message.trim()}
-              className="h-7 w-7 rounded-2xl text-black disabled:opacity-45 transition-all"
+              className="h-9 w-9 rounded-2xl text-black disabled:opacity-45 transition-all"
               style={{ backgroundColor: T.blue }}
               title="Send quick post"
             >
-              <Send size={13} className="mx-auto" />
+              <Send size={14} className="mx-auto" />
             </button>
           </div>
         </div>
@@ -1734,10 +1734,10 @@ const PostCard = ({ post, currentUser, onDelete }) => {
     <motion.article
       variants={CARD_VARIANTS}
       layout
-      className="rounded-xl border p-3"
+      className="rounded-lg border p-3"
       style={{
         borderColor: T.border,
-        background: 'linear-gradient(180deg, rgba(21,27,35,0.88) 0%, rgba(13,17,23,0.96) 100%)',
+        backgroundColor: T.card,
       }}
     >
       <div className="flex gap-2">
@@ -1963,72 +1963,74 @@ const FeedHeader = ({
 }) => {
   return (
     <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: T.border }}>
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-end gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onToggleLeft}
-              className="h-9 w-9 rounded-lg border"
-              style={{ borderColor: T.border, color: T.muted }}
-              title={leftCollapsed ? 'Show rail' : 'Hide rail'}
-            >
-              {leftCollapsed ? <PanelRightClose size={15} className="mx-auto" /> : <PanelLeftClose size={15} className="mx-auto" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={onToggleRight}
-              className="h-9 w-9 rounded-lg border"
-              style={{ borderColor: T.border, color: T.muted }}
-              title={rightCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-            >
-              {rightCollapsed ? <PanelRightClose size={15} className="mx-auto" /> : <PanelLeftClose size={15} className="mx-auto" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenComposer}
-              className="h-9 px-3 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5"
-              style={{ backgroundColor: T.blue, color: '#08111f' }}
-            >
-              <Send size={14} />
-              New Post
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-          {POST_TYPE_FILTERS.map((item) => {
-            const active = filter === item.id;
-            const Icon = item.icon;
-            return (
+      <div className="max-w-3xl mx-auto w-full">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
               <button
-                key={item.id}
                 type="button"
-                onClick={() => onFilter(item.id)}
-                className="h-8 px-2.5 rounded-full border text-xs inline-flex items-center gap-1.5 whitespace-nowrap"
-                style={{
-                  borderColor: active ? T.blue : T.border,
-                  color: active ? T.blue : T.muted,
-                  backgroundColor: active ? 'rgba(88,166,255,0.12)' : 'rgba(13,17,23,0.55)',
-                }}
+                onClick={onToggleLeft}
+                className="h-9 w-9 rounded-lg border"
+                style={{ borderColor: T.border, color: T.muted }}
+                title={leftCollapsed ? 'Show rail' : 'Hide rail'}
               >
-                <Icon size={12} />
-                {item.label}
+                {leftCollapsed ? <PanelRightClose size={15} className="mx-auto" /> : <PanelLeftClose size={15} className="mx-auto" />}
               </button>
-            );
-          })}
 
-          <div className="ml-auto relative min-w-[210px]">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: T.muted }} />
-            <input
-              value={search}
-              onChange={(event) => onSearch(event.target.value)}
-              placeholder="Search posts, tickers, authors"
-              className="h-8 w-full rounded-full border pl-8 pr-3 text-xs bg-transparent outline-none"
-              style={{ borderColor: T.border, color: T.text }}
-            />
+              <button
+                type="button"
+                onClick={onToggleRight}
+                className="h-9 w-9 rounded-lg border"
+                style={{ borderColor: T.border, color: T.muted }}
+                title={rightCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+              >
+                {rightCollapsed ? <PanelRightClose size={15} className="mx-auto" /> : <PanelLeftClose size={15} className="mx-auto" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenComposer}
+                className="h-9 px-3 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5"
+                style={{ backgroundColor: T.blue, color: '#08111f' }}
+              >
+                <Send size={14} />
+                New Post
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+            {POST_TYPE_FILTERS.map((item) => {
+              const active = filter === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onFilter(item.id)}
+                  className="h-8 px-2.5 rounded-full border text-xs inline-flex items-center gap-1.5 whitespace-nowrap"
+                  style={{
+                    borderColor: active ? T.blue : T.border,
+                    color: active ? T.blue : T.muted,
+                    backgroundColor: active ? 'rgba(88,166,255,0.12)' : 'rgba(13,17,23,0.55)',
+                  }}
+                >
+                  <Icon size={12} />
+                  {item.label}
+                </button>
+              );
+            })}
+
+            <div className="ml-auto relative min-w-[210px]">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: T.muted }} />
+              <input
+                value={search}
+                onChange={(event) => onSearch(event.target.value)}
+                placeholder="Search posts, tickers, authors"
+                className="h-8 w-full rounded-full border pl-8 pr-3 text-xs bg-transparent outline-none"
+                style={{ borderColor: T.border, color: T.text }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -2044,17 +2046,12 @@ const LeftRail = ({ hidden }) => {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className="hidden lg:flex w-[220px] flex-col gap-3"
+      className="hidden lg:flex w-[220px] flex-col gap-4 px-3 py-3 border-r border-white/5"
+      style={{ backgroundColor: '#0c1016' }}
     >
-      <div
-        className="rounded-xl border p-3"
-        style={{
-          borderColor: T.border,
-          background: 'linear-gradient(180deg, rgba(21,27,35,0.86) 0%, rgba(13,17,23,0.95) 100%)',
-        }}
-      >
-        <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>Community Lanes</div>
-        <div className="space-y-1">
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>COMMUNITY LANES</div>
+        <div className="space-y-1.5">
           {LEFT_RAIL_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
@@ -2062,7 +2059,7 @@ const LeftRail = ({ hidden }) => {
                 key={item.id}
                 type="button"
                 className="w-full h-9 px-2.5 rounded-lg border inline-flex items-center justify-between text-sm"
-                style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.62)' }}
+                style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(255,255,255,0.04)' }}
               >
                 <span className="inline-flex items-center gap-2">
                   <Icon size={14} style={{ color: T.muted }} />
@@ -2075,17 +2072,11 @@ const LeftRail = ({ hidden }) => {
         </div>
       </div>
 
-      <div
-        className="rounded-xl border p-3"
-        style={{
-          borderColor: T.border,
-          background: 'linear-gradient(180deg, rgba(21,27,35,0.86) 0%, rgba(13,17,23,0.95) 100%)',
-        }}
-      >
-        <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>Quick Tags</div>
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>QUICK TAGS</div>
         <div className="flex flex-wrap gap-1.5">
           {QUICK_TAGS.map((tag) => (
-            <span key={tag} className="px-2 py-1 rounded-full text-[11px] border" style={{ borderColor: T.border, color: T.blue, backgroundColor: 'rgba(88,166,255,0.08)' }}>
+            <span key={tag} className="px-2 py-1 rounded-full text-[11px] border" style={{ borderColor: T.border, color: T.blue, backgroundColor: 'rgba(255,255,255,0.04)' }}>
               {tag}
             </span>
           ))}
@@ -2802,15 +2793,15 @@ const CommunityPage = ({ tradeHistory = [] }) => {
           <div className="h-full flex gap-3 min-h-0">
             <LeftRail hidden={leftCollapsed} />
 
-            <div className="flex-1 min-w-0 rounded-xl border overflow-hidden" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.42)' }}>
+            <div className="flex-1 min-w-0 overflow-hidden">
               <div className="h-full overflow-y-auto px-3 py-3">
                 {loading ? (
-                  <div className="space-y-2">
+                  <div className="max-w-3xl mx-auto w-full space-y-2">
                     {Array.from({ length: 6 }).map((_, index) => (
                       <div
                         key={`loading-${index}`}
-                        className="rounded-xl border p-3"
-                        style={{ borderColor: T.border, backgroundColor: 'rgba(21,27,35,0.76)' }}
+                        className="rounded-lg border p-3"
+                        style={{ borderColor: T.border, backgroundColor: T.card }}
                       >
                         <div className="flex gap-2">
                           <ShimmerLine w={32} h={32} rounded={999} />
@@ -2823,11 +2814,11 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                     ))}
                   </div>
                 ) : filteredPosts.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-sm" style={{ color: T.muted }}>
+                  <div className="max-w-3xl mx-auto w-full h-full flex items-center justify-center text-sm" style={{ color: T.muted }}>
                     No posts match this filter.
                   </div>
                 ) : (
-                  <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
+                  <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="max-w-3xl mx-auto w-full space-y-2">
                     {filteredPosts.map((post) => (
                       <PostCard
                         key={post.id}
