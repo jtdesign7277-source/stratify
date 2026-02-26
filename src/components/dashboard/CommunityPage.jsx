@@ -2015,26 +2015,24 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22 }}
-      className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-3'} flex-col gap-4 py-3 border-r border-white/5 rounded-r-xl shadow-[2px_0_8px_rgba(0,0,0,0.3)]`}
+      className={`hidden lg:flex ${collapsed ? 'w-[68px] px-2 items-center' : 'w-[220px] px-2'} flex-col py-3 border-r border-white/5`}
       style={{
         backgroundColor: '#080d13',
-        borderTopLeftRadius: 0,
-        borderBottomLeftRadius: 0,
         marginLeft: 0,
       }}
     >
       <button
         type="button"
         onClick={onToggleCollapse}
-        className={`h-8 rounded-lg border ${collapsed ? 'w-9' : 'w-full'} inline-flex items-center justify-center`}
-        style={{ borderColor: T.border, color: T.muted }}
+        className={`h-8 w-8 rounded-md inline-flex items-center justify-center transition-colors hover:bg-white/5 ${collapsed ? '' : 'self-end'}`}
+        style={{ color: T.muted }}
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {collapsed ? <PanelRightClose size={15} /> : <PanelLeftClose size={15} />}
       </button>
 
       {collapsed ? (
-        <div className="w-full space-y-1">
+        <div className="w-full space-y-1 pt-2">
           {POST_TYPE_FILTERS.map((item) => {
             const active = filter === item.id;
             const Icon = item.icon;
@@ -2043,28 +2041,28 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
                 key={item.id}
                 type="button"
                 onClick={() => onFilter(item.id)}
-                className="w-full h-9 rounded-lg border-l-2 inline-flex items-center justify-center transition-colors"
+                className="w-full py-2 rounded-lg border-l-2 inline-flex items-center justify-center transition-colors hover:bg-white/5"
                 style={{
-                  borderLeftColor: active ? T.blue : 'transparent',
-                  backgroundColor: active ? 'rgba(88,166,255,0.10)' : 'transparent',
-                  color: active ? T.text : T.muted,
+                  borderLeftColor: active ? '#3b82f6' : 'transparent',
+                  backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  color: T.text,
                 }}
                 title={item.label}
               >
-                <Icon size={15} strokeWidth={1.5} />
+                <Icon size={16} strokeWidth={1.5} style={{ color: T.muted }} />
               </button>
             );
           })}
         </div>
       ) : (
         <>
-          <div className="w-full">
+          <div className="w-full pt-2">
             <button
               type="button"
               onClick={() => setFeedsOpen((prev) => !prev)}
-              className="w-full mb-2 inline-flex items-center justify-between"
+              className="w-full px-3 pt-4 pb-1 inline-flex items-center justify-between"
             >
-              <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: T.muted }}>FEEDS</span>
+              <span className="text-xs uppercase tracking-widest" style={{ color: T.muted }}>FEEDS</span>
               {feedsOpen ? <ChevronDown size={14} style={{ color: T.muted }} /> : <ChevronRight size={14} style={{ color: T.muted }} />}
             </button>
 
@@ -2076,7 +2074,7 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {POST_TYPE_FILTERS.map((item) => {
                       const active = filter === item.id;
                       const Icon = item.icon;
@@ -2085,15 +2083,15 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
                           key={item.id}
                           type="button"
                           onClick={() => onFilter(item.id)}
-                          className="w-full h-9 px-2.5 rounded-lg border-l-2 inline-flex items-center gap-2 text-sm transition-colors"
+                          className="w-full py-2 px-3 rounded-lg border-l-2 inline-flex items-center gap-3 text-sm font-normal transition-colors hover:bg-white/5"
                           style={{
-                            borderLeftColor: active ? T.blue : 'transparent',
-                            backgroundColor: active ? 'rgba(88,166,255,0.10)' : 'rgba(255,255,255,0.02)',
-                            color: active ? T.text : T.muted,
+                            borderLeftColor: active ? '#3b82f6' : 'transparent',
+                            backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                            color: T.text,
                           }}
                         >
-                          <Icon size={14} strokeWidth={1.5} />
-                          {item.label}
+                          <Icon size={16} strokeWidth={1.5} style={{ color: T.muted }} />
+                          <span style={{ color: T.text }}>{item.label}</span>
                         </button>
                       );
                     })}
@@ -2103,34 +2101,33 @@ const LeftRail = ({ collapsed, onToggleCollapse, filter, onFilter }) => {
             </AnimatePresence>
           </div>
 
-          <div className="w-full">
-            <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>COMMUNITY LANES</div>
-            <div className="space-y-1.5">
+          <div className="w-full border-t border-white/5 py-3">
+            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-widest" style={{ color: T.muted }}>COMMUNITY LANES</div>
+            <div className="space-y-0.5">
               {LEFT_RAIL_ITEMS.map((item) => {
                 const Icon = item.icon;
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className="w-full h-9 px-2.5 rounded-lg border inline-flex items-center justify-between text-sm"
-                    style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(255,255,255,0.04)' }}
+                    className="w-full py-2 px-3 rounded-lg inline-flex items-center gap-3 text-sm font-normal transition-colors hover:bg-white/5"
+                    style={{ color: T.text }}
                   >
-                    <span className="inline-flex items-center gap-2">
-                      <Icon size={14} style={{ color: T.muted }} />
+                    <span className="inline-flex items-center gap-3">
+                      <Icon size={16} strokeWidth={1.5} style={{ color: T.muted }} />
                       {item.label}
                     </span>
-                    <ChevronRight size={13} style={{ color: T.muted }} />
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="w-full">
-            <div className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: T.muted }}>QUICK TAGS</div>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="w-full border-t border-white/5 py-3">
+            <div className="px-3 pt-4 pb-1 text-xs uppercase tracking-widest" style={{ color: T.muted }}>QUICK TAGS</div>
+            <div className="px-3 pt-1 flex flex-wrap gap-1.5">
               {QUICK_TAGS.map((tag) => (
-                <span key={tag} className="px-2 py-1 rounded-full text-[11px] border" style={{ borderColor: T.border, color: T.blue, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                <span key={tag} className="rounded-full px-2.5 py-0.5 text-xs" style={{ color: T.muted, backgroundColor: 'rgba(255,255,255,0.05)' }}>
                   {tag}
                 </span>
               ))}
