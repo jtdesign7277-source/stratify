@@ -9,6 +9,7 @@ import {
   MoreHorizontal, Trash2, Loader2, Camera, SmilePlus, CalendarDays, Clock3,
   Copy, ExternalLink, ChevronDown, ChevronRight, Home, Flame, Newspaper, Globe,
   Compass, Users, Star, Search, ArrowUp, ArrowDown, PanelLeftClose, PanelRightClose, Sparkles,
+  Plus,
   Hash, Activity, Trophy, Eye,
 } from 'lucide-react';
 
@@ -32,6 +33,16 @@ const INDEX_SYMBOLS = [
   { symbol: 'YM=F', label: 'Dow', short: 'YM' },
   { symbol: 'VIX', label: 'VIX', short: 'VIX' },
   { symbol: 'BTC/USD', label: 'Bitcoin', short: 'BTC' },
+];
+const AI_SEARCH_CLIENT_CACHE_TTL = 15 * 60 * 1000;
+const AI_SEARCH_CLIENT_CACHE = new Map();
+const AI_SEARCH_INFLIGHT = new Map();
+const SEARCH_MODE_SUGGESTION_TEMPLATES = [
+  'What is happening with {topic} today?',
+  'Bitcoin price analysis this week',
+  'Fed interest rate decision impact on tech stocks',
+  'Best performing ETFs February 2026',
+  '{topic} earnings expectations',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -57,6 +68,97 @@ const highlightTickers = (text) => {
     /\$([A-Z]{1,6})/g,
     '<span class="text-[#58a6ff] font-semibold cursor-pointer hover:underline">$$$1</span>'
   );
+};
+
+const normalizeAiSearchQuery = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+
+const getClientAiSearchCached = (queryKey) => {
+  const entry = AI_SEARCH_CLIENT_CACHE.get(queryKey);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    AI_SEARCH_CLIENT_CACHE.delete(queryKey);
+    return null;
+  }
+  return entry.data;
+};
+
+const setClientAiSearchCached = (queryKey, data) => {
+  AI_SEARCH_CLIENT_CACHE.set(queryKey, {
+    data,
+    expiresAt: Date.now() + AI_SEARCH_CLIENT_CACHE_TTL,
+  });
+};
+
+const sanitizeAiSentiment = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'bullish' || normalized === 'bearish' || normalized === 'neutral') return normalized;
+  return 'neutral';
+};
+
+const sanitizeAiSources = (rows = []) => {
+  const seen = new Set();
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      title: String(row?.title || row?.name || row?.url || '').trim(),
+      url: String(row?.url || '').trim(),
+    }))
+    .filter((row) => /^https?:\/\//i.test(row.url))
+    .filter((row) => {
+      if (seen.has(row.url)) return false;
+      seen.add(row.url);
+      return true;
+    })
+    .slice(0, 8);
+};
+
+const sanitizeAiTickers = (rows = []) => {
+  const seen = new Set();
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => String(row || '').trim().replace(/^\$/, '').toUpperCase())
+    .map((row) => row.replace(/[^A-Z0-9./=-]/g, '').slice(0, 14))
+    .filter(Boolean)
+    .filter((row) => {
+      if (seen.has(row)) return false;
+      seen.add(row);
+      return true;
+    })
+    .slice(0, 8);
+};
+
+const sanitizeAiSearchData = (raw, query) => {
+  const summary = String(raw?.summary || '').trim();
+  const keyPoints = (Array.isArray(raw?.keyPoints) ? raw.keyPoints : [])
+    .map((point) => String(point || '').trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  return {
+    summary: summary || `No summary available for "${query}".`,
+    keyPoints,
+    sources: sanitizeAiSources(raw?.sources || []),
+    relatedTickers: sanitizeAiTickers(raw?.relatedTickers || []),
+    sentiment: sanitizeAiSentiment(raw?.sentiment),
+  };
+};
+
+const makeSearchSuggestionTopic = (message) => {
+  const fromTicker = String(message || '').match(/\$([A-Za-z]{1,6})/);
+  if (fromTicker?.[1]) return fromTicker[1].toUpperCase();
+
+  const trimmed = normalizeAiSearchQuery(message);
+  if (!trimmed) return 'NVDA';
+  if (trimmed.length > 18) return 'NVDA';
+
+  const fallback = trimmed.replace(/[^A-Za-z0-9./=-]/g, '').slice(0, 14);
+  return fallback || 'NVDA';
+};
+
+const buildSearchModeSuggestions = (message = '') => {
+  const topic = makeSearchSuggestionTopic(message);
+  return SEARCH_MODE_SUGGESTION_TEMPLATES.map((template, idx) => ({
+    id: `search-suggestion-${idx}`,
+    text: template.replaceAll('{topic}', topic),
+  }));
 };
 
 const POST_TYPE_CONFIG = {
@@ -658,7 +760,14 @@ const generateMockFeed = () => {
   return rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
-const SuggestionPopover = ({ open, loading, suggestions, activeIndex, onPick }) => (
+const SuggestionPopover = ({
+  open,
+  mode = 'post',
+  loading,
+  suggestions,
+  activeIndex,
+  onPick,
+}) => (
   <AnimatePresence>
     {open && (
       <motion.div
@@ -676,9 +785,35 @@ const SuggestionPopover = ({ open, loading, suggestions, activeIndex, onPick }) 
           }}
         >
           {loading ? (
-            <div className="px-3 py-2.5 text-xs" style={{ color: T.muted }}>Searching symbols...</div>
+            <div className="px-3 py-2.5 text-xs" style={{ color: T.muted }}>
+              {mode === 'search' ? 'Preparing suggestions...' : 'Searching symbols...'}
+            </div>
           ) : suggestions.length === 0 ? (
-            <div className="px-3 py-2.5 text-xs" style={{ color: T.muted }}>No symbols found.</div>
+            <div className="px-3 py-2.5 text-xs" style={{ color: T.muted }}>
+              {mode === 'search' ? 'No suggestions yet.' : 'No symbols found.'}
+            </div>
+          ) : mode === 'search' ? (
+            <div className="max-h-64 overflow-y-auto">
+              {suggestions.map((item, idx) => {
+                const isActive = idx === activeIndex;
+                return (
+                  <button
+                    key={item.id || `${item.text}-${idx}`}
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onPick?.(item)}
+                    className="w-full px-3 py-2.5 text-left transition-colors text-sm"
+                    style={{
+                      backgroundColor: isActive ? 'rgba(88,166,255,0.12)' : 'transparent',
+                      borderBottom: idx === suggestions.length - 1 ? 'none' : `1px solid ${T.border}`,
+                      color: T.text,
+                    }}
+                  >
+                    {item.text}
+                  </button>
+                );
+              })}
+            </div>
           ) : (
             <div className="max-h-64 overflow-y-auto">
               {suggestions.map((item, idx) => {
@@ -726,9 +861,12 @@ const ChatInputBar = ({
   quoteMap,
   streamStatus,
   onSend,
+  onSearch,
   onOpenComposer,
 }) => {
   const [message, setMessage] = useState('');
+  const [searchMode, setSearchMode] = useState(false);
+  const [debouncedMessage, setDebouncedMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -741,7 +879,26 @@ const ChatInputBar = ({
     return match ? match[1].toUpperCase() : '';
   }, [message]);
 
+  const searchSuggestions = useMemo(() => {
+    const query = normalizeAiSearchQuery(debouncedMessage);
+    if (!query) return [];
+    return buildSearchModeSuggestions(query);
+  }, [debouncedMessage]);
+
   useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedMessage(message);
+    }, 500);
+    return () => window.clearTimeout(timerId);
+  }, [message]);
+
+  useEffect(() => {
+    if (searchMode) {
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      return undefined;
+    }
+
     let cancelled = false;
 
     const lookup = async (query) => {
@@ -805,15 +962,16 @@ const ChatInputBar = ({
 
     lookupRef.current = createDebouncedFn((query) => {
       void lookup(query);
-    }, 170);
+    }, 500);
 
     return () => {
       cancelled = true;
       lookupRef.current?.cancel?.();
     };
-  }, [trackedSymbols, quoteMap]);
+  }, [trackedSymbols, quoteMap, searchMode]);
 
   useEffect(() => {
+    if (searchMode) return;
     if (!tickerQuery) {
       setSuggestions([]);
       setSuggestionsLoading(false);
@@ -821,9 +979,18 @@ const ChatInputBar = ({
     }
     setSuggestionsLoading(true);
     lookupRef.current?.call(tickerQuery);
-  }, [tickerQuery]);
+  }, [tickerQuery, searchMode]);
 
   const applySuggestion = useCallback((item) => {
+    if (searchMode) {
+      const text = String(item?.text || '').trim();
+      if (!text) return;
+      setMessage(text);
+      setActiveSuggestion(0);
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
+
     if (!item?.symbol) return;
     setMessage((prev) => {
       const replaced = prev.replace(/(?:^|\s)\$[A-Za-z0-9./=-]{0,14}$/, (match) => {
@@ -836,34 +1003,38 @@ const ChatInputBar = ({
     setSuggestions([]);
     setActiveSuggestion(0);
     window.requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
+  }, [searchMode]);
 
   const send = async () => {
-    const trimmed = message.trim();
+    const trimmed = normalizeAiSearchQuery(message);
     if (!trimmed) return;
-    const ok = await onSend?.(trimmed);
+    const ok = searchMode
+      ? await onSearch?.(trimmed)
+      : await onSend?.(trimmed);
     if (ok !== false) {
       setMessage('');
       setSuggestions([]);
       setActiveSuggestion(0);
+      setDebouncedMessage('');
     }
   };
 
   const handleKeyDown = (event) => {
-    if (suggestions.length > 0) {
+    const currentSuggestions = suggestionOpen ? suggestionRows : [];
+    if (currentSuggestions.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        setActiveSuggestion((prev) => (prev + 1) % suggestions.length);
+        setActiveSuggestion((prev) => (prev + 1) % currentSuggestions.length);
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        setActiveSuggestion((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+        setActiveSuggestion((prev) => (prev - 1 + currentSuggestions.length) % currentSuggestions.length);
         return;
       }
       if (event.key === 'Tab') {
         event.preventDefault();
-        applySuggestion(suggestions[activeSuggestion] || suggestions[0]);
+        applySuggestion(currentSuggestions[activeSuggestion] || currentSuggestions[0]);
         return;
       }
     }
@@ -880,6 +1051,15 @@ const ChatInputBar = ({
     : streamStatus?.connecting
       ? 'Connecting live tape...'
       : 'Live tape offline';
+  const canUseInput = searchMode || Boolean(currentUser?.id);
+  const suggestionOpen = searchMode
+    ? Boolean(normalizeAiSearchQuery(debouncedMessage))
+    : Boolean(tickerQuery);
+  const suggestionRows = searchMode ? searchSuggestions : suggestions;
+  const hintText = searchMode
+    ? 'Enter to search, Shift+Enter for newline'
+    : 'Enter to send, Shift+Enter for newline';
+  const contextualStatus = searchMode ? 'AI web search enabled' : statusText;
 
   return (
     <div className="max-w-3xl mx-auto w-full">
@@ -899,14 +1079,37 @@ const ChatInputBar = ({
         <div className="relative flex items-end gap-2">
           <div className="relative flex-1">
             <SuggestionPopover
-              open={Boolean(tickerQuery)}
-              loading={suggestionsLoading}
-              suggestions={suggestions}
+              open={suggestionOpen}
+              mode={searchMode ? 'search' : 'post'}
+              loading={searchMode ? false : suggestionsLoading}
+              suggestions={suggestionRows}
               activeIndex={activeSuggestion}
               onPick={applySuggestion}
             />
 
             <div className="flex items-start gap-2 rounded-2xl border py-3 px-4" style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.78)' }}>
+              <button
+                type="button"
+                onClick={onOpenComposer}
+                className="h-7 w-7 rounded-lg border transition-colors"
+                style={{ borderColor: T.border, color: T.muted, backgroundColor: 'rgba(13,17,23,0.88)' }}
+                title="Open composer"
+              >
+                <Plus size={13} className="mx-auto" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchMode((prev) => !prev)}
+                className="h-7 w-7 rounded-lg border transition-colors"
+                style={{
+                  borderColor: searchMode ? T.blue : T.border,
+                  color: searchMode ? T.blue : T.muted,
+                  backgroundColor: searchMode ? 'rgba(88,166,255,0.14)' : 'rgba(13,17,23,0.88)',
+                }}
+                title={searchMode ? 'Switch to post mode' : 'Switch to search mode'}
+              >
+                <Search size={13} strokeWidth={1.5} className="mx-auto" />
+              </button>
               <Activity size={16} className="mt-1 flex-shrink-0" style={{ color: isOnline ? T.green : T.muted }} />
               <textarea
                 ref={inputRef}
@@ -914,16 +1117,16 @@ const ChatInputBar = ({
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
-                placeholder={currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community'}
+                placeholder={searchMode ? 'Search markets, news, stocks...' : (currentUser?.id ? 'Quick post... use $ for ticker suggestions' : 'Sign in to post in community')}
                 className="w-full bg-transparent text-sm resize-none outline-none leading-6 min-h-[24px] max-h-32"
                 style={{ color: T.text }}
-                disabled={!currentUser?.id}
+                disabled={!canUseInput}
               />
             </div>
 
             <div className="mt-1.5 flex items-center justify-between px-1">
-              <div className="text-xs" style={{ color: T.muted }}>{statusText}</div>
-              <div className="text-[11px]" style={{ color: T.muted }}>Enter to send, Shift+Enter for newline</div>
+              <div className="text-xs" style={{ color: T.muted }}>{contextualStatus}</div>
+              <div className="text-[11px]" style={{ color: T.muted }}>{hintText}</div>
             </div>
           </div>
 
@@ -952,27 +1155,148 @@ const ChatInputBar = ({
 
             <button
               type="button"
-              onClick={onOpenComposer}
-              className="px-4 py-2 rounded-2xl border text-sm font-medium inline-flex items-center justify-center transition-colors"
-              style={{ borderColor: T.border, color: T.text, backgroundColor: 'rgba(13,17,23,0.8)' }}
-            >
-              Compose
-            </button>
-
-            <button
-              type="button"
               onClick={() => void send()}
-              disabled={!currentUser?.id || !message.trim()}
+              disabled={!canUseInput || !message.trim()}
               className="h-9 w-9 rounded-2xl text-black disabled:opacity-45 transition-all"
               style={{ backgroundColor: T.blue }}
-              title="Send quick post"
+              title={searchMode ? 'Run AI search' : 'Send quick post'}
             >
-              <Send size={14} className="mx-auto" />
+              {searchMode ? <Search size={14} strokeWidth={1.5} className="mx-auto" /> : <Send size={14} className="mx-auto" />}
             </button>
           </div>
         </div>
       </motion.div>
     </div>
+  );
+};
+
+const AiSearchLoadingCard = ({ query }) => (
+  <motion.article
+    layout
+    className="rounded-lg border border-l-2 p-3 animate-pulse"
+    style={{
+      borderColor: T.border,
+      borderLeftColor: T.blue,
+      backgroundColor: T.card,
+    }}
+  >
+    <div className="flex items-center gap-2 text-xs mb-2" style={{ color: T.blue }}>
+      <Sparkles size={13} strokeWidth={1.5} />
+      <span>Searching...</span>
+      {query ? <span style={{ color: T.muted }}>"{query}"</span> : null}
+    </div>
+    <ShimmerBlock lines={3} />
+  </motion.article>
+);
+
+const sentimentStyle = (sentiment) => {
+  if (sentiment === 'bullish') return { label: 'Bullish', color: T.green, bg: 'rgba(63,185,80,0.12)' };
+  if (sentiment === 'bearish') return { label: 'Bearish', color: T.red, bg: 'rgba(248,81,73,0.12)' };
+  return { label: 'Neutral', color: T.muted, bg: 'rgba(125,133,144,0.16)' };
+};
+
+const AiSearchResultCard = ({
+  result,
+  onClear,
+  onTickerClick,
+}) => {
+  const sentiment = sentimentStyle(result?.sentiment);
+
+  return (
+    <motion.article
+      layout
+      variants={CARD_VARIANTS}
+      className="rounded-lg border border-l-2 p-3"
+      style={{
+        borderColor: T.border,
+        borderLeftColor: '#3b82f6',
+        backgroundColor: '#151b23',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs inline-flex items-center gap-1.5" style={{ color: T.blue }}>
+            <Sparkles size={13} strokeWidth={1.5} />
+            <span>AI Search Result</span>
+          </div>
+          <div className="text-xs mt-1 truncate" style={{ color: T.muted }}>
+            "{result?.query || ''}"
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-xs transition-colors"
+          style={{ color: T.muted }}
+          onMouseEnter={(event) => { event.currentTarget.style.color = T.text; }}
+          onMouseLeave={(event) => { event.currentTarget.style.color = T.muted; }}
+        >
+          Clear search
+        </button>
+      </div>
+
+      <p className="mt-2 text-sm leading-relaxed" style={{ color: '#e6edf3' }}>
+        {result?.summary}
+      </p>
+
+      {Array.isArray(result?.keyPoints) && result.keyPoints.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          {result.keyPoints.map((point, index) => (
+            <div key={`${result.id}-kp-${index}`} className="text-xs" style={{ color: '#c9d1d9' }}>
+              - {point}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span
+          className="text-[11px] px-2 py-0.5 rounded-full border"
+          style={{
+            color: sentiment.color,
+            borderColor: sentiment.color,
+            backgroundColor: sentiment.bg,
+          }}
+        >
+          {sentiment.label}
+        </span>
+
+        {(result.relatedTickers || []).map((ticker) => (
+          <button
+            key={`${result.id}-ticker-${ticker}`}
+            type="button"
+            onClick={() => onTickerClick?.(ticker)}
+            className="text-xs px-2 py-0.5 rounded-full border transition-colors"
+            style={{
+              color: T.blue,
+              borderColor: 'rgba(88,166,255,0.35)',
+              backgroundColor: 'rgba(88,166,255,0.12)',
+            }}
+          >
+            ${ticker}
+          </button>
+        ))}
+      </div>
+
+      {Array.isArray(result?.sources) && result.sources.length > 0 ? (
+        <div className="mt-3 pt-2 border-t space-y-2" style={{ borderColor: T.border }}>
+          <div className="text-[11px] uppercase tracking-[0.13em]" style={{ color: T.muted }}>Sources</div>
+          {result.sources.map((source, index) => (
+            <a
+              key={`${result.id}-source-${index}`}
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg border px-2.5 py-2 transition-colors"
+              style={{ borderColor: T.border, backgroundColor: 'rgba(13,17,23,0.5)' }}
+            >
+              <div className="text-xs truncate" style={{ color: T.blue }}>{source.title || source.url}</div>
+              <div className="text-[11px] truncate" style={{ color: T.muted }}>{source.url}</div>
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </motion.article>
   );
 };
 
@@ -2358,6 +2682,8 @@ const CommunityPage = ({ tradeHistory = [] }) => {
   const [quoteMap, setQuoteMap] = useState({});
   const [streamStatus, setStreamStatus] = useState(BASE_STREAM_STATUS);
   const [showcaseTrade, setShowcaseTrade] = useState(null);
+  const [aiSearchResults, setAiSearchResults] = useState([]);
+  const [aiSearchPending, setAiSearchPending] = useState([]);
 
   const mockFeed = useMemo(() => generateMockFeed(), []);
 
@@ -2752,6 +3078,82 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     }
   };
 
+  const runAiSearch = useCallback(async (queryText) => {
+    const trimmedQuery = normalizeAiSearchQuery(queryText);
+    if (!trimmedQuery) return false;
+
+    const queryKey = trimmedQuery.toLowerCase();
+    const cached = getClientAiSearchCached(queryKey);
+    if (cached) {
+      setAiSearchResults((prev) => [{
+        ...cached,
+        id: `ai-search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        query: trimmedQuery,
+        createdAt: new Date().toISOString(),
+      }, ...prev]);
+      return true;
+    }
+
+    setAiSearchPending((prev) => (
+      prev.some((row) => row.key === queryKey)
+        ? prev
+        : [{ key: queryKey, query: trimmedQuery }, ...prev]
+    ));
+
+    let request = AI_SEARCH_INFLIGHT.get(queryKey);
+    if (!request) {
+      request = fetch('/api/community/ai-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: trimmedQuery,
+          interests: {
+            trackedSymbols: trackedSymbols.slice(0, 12),
+            filter,
+            signedIn: Boolean(currentUser?.id),
+          },
+        }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            const errorText = String(payload?.error || `AI search failed (${response.status})`).trim();
+            throw new Error(errorText);
+          }
+          return response.json();
+        })
+        .finally(() => {
+          AI_SEARCH_INFLIGHT.delete(queryKey);
+        });
+
+      AI_SEARCH_INFLIGHT.set(queryKey, request);
+    }
+
+    try {
+      const payload = await request;
+      const cleaned = sanitizeAiSearchData(payload?.data || payload, trimmedQuery);
+      setClientAiSearchCached(queryKey, cleaned);
+
+      setAiSearchResults((prev) => [{
+        ...cleaned,
+        id: `ai-search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        query: trimmedQuery,
+        createdAt: new Date().toISOString(),
+      }, ...prev]);
+
+      return true;
+    } catch (searchError) {
+      setError(String(searchError?.message || 'AI search is temporarily unavailable.'));
+      return false;
+    } finally {
+      setAiSearchPending((prev) => prev.filter((row) => row.key !== queryKey));
+    }
+  }, [currentUser?.id, filter, trackedSymbols]);
+
+  const clearAiSearchResult = useCallback((id) => {
+    setAiSearchResults((prev) => prev.filter((row) => row.id !== id));
+  }, []);
+
   const filteredPosts = useMemo(() => {
     let rows = [...posts];
 
@@ -2796,6 +3198,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
     setComposerInitialType(type);
     setComposerOpen(true);
   };
+  const hasAiSearchCards = aiSearchPending.length > 0 || aiSearchResults.length > 0;
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: T.bg, color: T.text }}>
@@ -2833,40 +3236,60 @@ const CommunityPage = ({ tradeHistory = [] }) => {
               <div className="flex-1 min-h-0 flex gap-3 pt-3 pr-4">
                 <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
                   <div className="flex-1 min-h-0 overflow-y-auto px-3">
-                    {loading ? (
-                      <div className="max-w-3xl mx-auto w-full space-y-2">
-                        {Array.from({ length: 6 }).map((_, index) => (
-                          <div
-                            key={`loading-${index}`}
-                            className="rounded-lg border p-3"
-                            style={{ borderColor: T.border, backgroundColor: T.card }}
-                          >
-                            <div className="flex gap-2">
-                              <ShimmerLine w={32} h={32} rounded={999} />
-                              <div className="flex-1 space-y-2">
-                                <ShimmerLine w="35%" h={11} />
-                                <ShimmerBlock lines={3} />
+                    <div className="max-w-3xl mx-auto w-full space-y-2">
+                      {aiSearchPending.map((pending) => (
+                        <AiSearchLoadingCard key={`ai-search-pending-${pending.key}`} query={pending.query} />
+                      ))}
+
+                      {aiSearchResults.map((result) => (
+                        <AiSearchResultCard
+                          key={result.id}
+                          result={result}
+                          onClear={() => clearAiSearchResult(result.id)}
+                          onTickerClick={(ticker) => {
+                            void runAiSearch(`What is happening with ${ticker} today?`);
+                          }}
+                        />
+                      ))}
+
+                      {loading ? (
+                        <>
+                          {Array.from({ length: 6 }).map((_, index) => (
+                            <div
+                              key={`loading-${index}`}
+                              className="rounded-lg border p-3"
+                              style={{ borderColor: T.border, backgroundColor: T.card }}
+                            >
+                              <div className="flex gap-2">
+                                <ShimmerLine w={32} h={32} rounded={999} />
+                                <div className="flex-1 space-y-2">
+                                  <ShimmerLine w="35%" h={11} />
+                                  <ShimmerBlock lines={3} />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : filteredPosts.length === 0 ? (
-                      <div className="max-w-3xl mx-auto w-full h-full flex items-center justify-center text-sm" style={{ color: T.muted }}>
-                        No posts match this filter.
-                      </div>
-                    ) : (
-                      <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="max-w-3xl mx-auto w-full space-y-2">
-                        {filteredPosts.map((post) => (
-                          <PostCard
-                            key={post.id}
-                            post={post}
-                            currentUser={currentUser}
-                            onDelete={handleDeletePost}
-                          />
-                        ))}
-                      </motion.div>
-                    )}
+                          ))}
+                        </>
+                      ) : filteredPosts.length === 0 ? (
+                        <div
+                          className={hasAiSearchCards ? 'rounded-lg border p-3 text-sm' : 'h-full flex items-center justify-center text-sm'}
+                          style={{ color: T.muted, borderColor: hasAiSearchCards ? T.border : 'transparent', backgroundColor: hasAiSearchCards ? T.card : 'transparent' }}
+                        >
+                          No posts match this filter.
+                        </div>
+                      ) : (
+                        <motion.div variants={FEED_VARIANTS} initial="hidden" animate="show" className="space-y-2">
+                          {filteredPosts.map((post) => (
+                            <PostCard
+                              key={post.id}
+                              post={post}
+                              currentUser={currentUser}
+                              onDelete={handleDeletePost}
+                            />
+                          ))}
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="px-3 pb-3 pt-3">
@@ -2877,6 +3300,7 @@ const CommunityPage = ({ tradeHistory = [] }) => {
                       streamStatus={streamStatus}
                       onOpenComposer={() => openComposer('post')}
                       onSend={(content) => createPost({ content, postType: 'post', metadata: {} })}
+                      onSearch={runAiSearch}
                     />
                   </div>
                 </div>
